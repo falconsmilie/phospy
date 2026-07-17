@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
@@ -134,7 +135,7 @@ def test_reference_bundle_builder_provenance_records_source_and_redistribution_m
     assert bundle.provenance.manifest["redistribution_status"] == "unresolved"
     assert bundle.provenance.manifest["redistribution_notes"] == "redistributable"
     source_files = bundle.provenance.manifest["source_files"]
-    assert isinstance(source_files, dict)
+    assert isinstance(source_files, Mapping)
     assert source_files["kinase_substrate"]["sha256"]
     assert source_files["site_sequences"]["sha256"]
     assert {item.name for item in bundle.provenance.table_fingerprints} == {

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -554,8 +556,8 @@ def test_total_correction_provenance_records_identity_policy() -> None:
     assert stage.diagnostics["phosphosite_key"] == "protein_accession"
     assert stage.diagnostics["total_protein_key"] == "__index__"
     preprocessing_plan = built.provenance.workflow_parameters["preprocessing_plan"]
-    assert isinstance(preprocessing_plan, dict)
+    assert isinstance(preprocessing_plan, Mapping)
     identity_payload = preprocessing_plan["total_protein_correction_identity_policy"]
-    assert isinstance(identity_payload, dict)
+    assert isinstance(identity_payload, Mapping)
     assert identity_payload["mode"] == "direct"
     assert identity_payload["matching_policy"] == "strict"

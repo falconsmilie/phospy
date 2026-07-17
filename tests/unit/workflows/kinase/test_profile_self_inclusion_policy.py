@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 import pandas.testing as pdt
 
@@ -165,7 +167,7 @@ def test_kinase_result_records_default_profile_self_inclusion_policy() -> None:
     )
     assert result.provenance is not None
     scoring_config = result.provenance.workflow_parameters["scoring_config"]
-    assert isinstance(scoring_config, dict)
+    assert isinstance(scoring_config, Mapping)
     assert scoring_config["profile_self_inclusion_policy"] == "allow"
     policy_record = next(
         policy
@@ -314,12 +316,12 @@ def test_leave_one_out_result_records_caveat_and_provenance() -> None:
 
     assert result.provenance is not None
     scoring_config = result.provenance.workflow_parameters["scoring_config"]
-    assert isinstance(scoring_config, dict)
+    assert isinstance(scoring_config, Mapping)
     assert scoring_config["profile_self_inclusion_policy"] == "leave_one_out"
     scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
-    assert isinstance(scoring_diagnostics, dict)
+    assert isinstance(scoring_diagnostics, Mapping)
     profile_diagnostics = scoring_diagnostics["profile_score_diagnostics"]
-    assert isinstance(profile_diagnostics, dict)
+    assert isinstance(profile_diagnostics, Mapping)
     assert profile_diagnostics["unscored_reason_counts"] == {
         KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT: 2
     }

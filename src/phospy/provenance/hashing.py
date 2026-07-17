@@ -254,10 +254,16 @@ def _normalize_value(value: object, *, round_floats: bool) -> JsonValue:
     if isinstance(value, np.timedelta64):
         return {"kind": "timedelta64", "value": str(pd.Timedelta(value))}
     if isinstance(value, Mapping):
-        normalized_pairs: list[list[JsonValue]] = [
-            [str(key), _normalize_value(item, round_floats=round_floats)]
-            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-        ]
+        normalized_pairs = sorted(
+            [
+                [
+                    _normalize_value(key, round_floats=round_floats),
+                    _normalize_value(item, round_floats=round_floats),
+                ]
+                for key, item in value.items()
+            ],
+            key=lambda pair: _canonical_json_sort_key(pair[0]),
+        )
         return cast(
             JsonValue,
             {"kind": "mapping", "value": normalized_pairs},
@@ -276,6 +282,16 @@ def _normalize_axis_name(value: object, *, round_floats: bool) -> JsonValue:
     if value is None:
         return {"kind": "none", "value": None}
     return _normalize_value(value, round_floats=round_floats)
+
+
+def _canonical_json_sort_key(payload: JsonValue) -> str:
+    return json.dumps(
+        thaw_json_value(payload, field_name="provenance_hash_sort_key"),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    )
 
 
 def _index_structure(index: pd.Index, *, round_floats: bool) -> dict[str, JsonValue]:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -365,7 +366,7 @@ def test_batch_correction_provenance_recorder_marks_replicates_provenance_only()
     )
     assert provenance.replicate_metadata["ruv_iii_semantics_enabled"] is False
     config_payload = provenance.resolved_parameters["config"]
-    assert isinstance(config_payload, dict)
+    assert isinstance(config_payload, Mapping)
     assert config_payload["replicate_metadata_role"] == REPLICATE_METADATA_ROLE
     assert (
         config_payload["replicate_metadata_used_for_numerical_factor_estimation"]

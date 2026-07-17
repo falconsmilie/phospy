@@ -106,6 +106,7 @@ class DerivedSampleMapping:
     def from_payload(cls, payload: Mapping[str, object]) -> DerivedSampleMapping:
         """Deserialize one sample mapping from a decoded payload."""
 
+        payload = _require_mapping(payload, field_name="derived_sample_mapping")
         return cls(
             output_sample_id=_require_payload_str(
                 payload.get("output_sample_id"),
@@ -335,6 +336,7 @@ class DerivedQuantitativeDataProvenance:
     ) -> DerivedQuantitativeDataProvenance:
         """Deserialize derived-lineage provenance from a decoded payload."""
 
+        payload = _require_mapping(payload, field_name="derived_quantitative_data")
         schema_version = _require_int(
             payload.get("schema_version"),
             field_name="derived_quantitative_data.schema_version",
@@ -651,9 +653,18 @@ def _bool_mapping(values: object, *, field_name: str) -> Mapping[str, bool]:
         raise PhosPyInputError(f"{field_name} must be a mapping")
     result: dict[str, bool] = {}
     for key, value in values.items():
+        if not isinstance(key, str):
+            raise PhosPyInputError(
+                f"{field_name} JSON object keys must be strings; "
+                f"got {type(key).__name__}"
+            )
+        if key in result:
+            raise PhosPyInputError(
+                f"{field_name} contains duplicate JSON object key {key!r}"
+            )
         if not isinstance(value, bool):
-            raise PhosPyInputError(f"{field_name}.{str(key)} must be a bool")
-        result[str(key)] = bool(value)
+            raise PhosPyInputError(f"{field_name}.{key!r} must be a bool")
+        result[key] = bool(value)
     return cast(
         Mapping[str, bool],
         freeze_json_mapping(result, field_name=field_name),
@@ -699,7 +710,19 @@ def _required_text_tuple(values: object, *, field_name: str) -> tuple[str, ...]:
 
 def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
     if isinstance(value, Mapping):
-        return {str(key): item for key, item in value.items()}
+        result: dict[str, object] = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise PhosPyInputError(
+                    f"{field_name} JSON object keys must be strings; "
+                    f"got {type(key).__name__}"
+                )
+            if key in result:
+                raise PhosPyInputError(
+                    f"{field_name} contains duplicate JSON object key {key!r}"
+                )
+            result[key] = item
+        return result
     raise PhosPyInputError(f"{field_name} must be an object")
 
 

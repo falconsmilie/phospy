@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Mapping
 
 import pandas as pd
 import pandas.testing as pdt
@@ -790,7 +791,7 @@ def test_builder_observed_typed_event_establishes_log2_before_declaration() -> N
     workflow_payload = built.provenance.workflow_parameters[
         "intensity_scale_establishment"
     ]
-    assert isinstance(workflow_payload, dict)
+    assert isinstance(workflow_payload, Mapping)
     assert workflow_payload["evidence_level"] == "observed_transformation"
     assert workflow_payload["transformer_name"] == event.transformer_name
 
@@ -1082,7 +1083,7 @@ def test_builder_declared_only_scale_records_declared_evidence() -> None:
     workflow_payload = built.provenance.workflow_parameters[
         "intensity_scale_establishment"
     ]
-    assert isinstance(workflow_payload, dict)
+    assert isinstance(workflow_payload, Mapping)
     assert workflow_payload["evidence_level"] == "declared_by_user"
     assert workflow_payload["establishment_mode"] == "declared"
 

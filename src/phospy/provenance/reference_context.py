@@ -132,6 +132,7 @@ class ReferenceContext:
     def from_payload(cls, payload: Mapping[str, object]) -> ReferenceContext:
         """Deserialize a reference context payload."""
 
+        payload = _require_payload_mapping(payload, field_name="reference_context")
         return cls(
             organism=_payload_required_text(
                 payload,
@@ -212,6 +213,26 @@ def _payload_optional_text(value: object) -> str | None:
         return None
     text = value.strip()
     return text or None
+
+
+def _require_payload_mapping(
+    value: Mapping[str, object],
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            raise ReferenceValidationError(
+                f"{field_name} JSON object keys must be strings; "
+                f"got {type(key).__name__}"
+            )
+        if key in result:
+            raise ReferenceValidationError(
+                f"{field_name} contains duplicate JSON object key {key!r}"
+            )
+        result[key] = item
+    return result
 
 
 __all__ = ["ReferenceContext"]

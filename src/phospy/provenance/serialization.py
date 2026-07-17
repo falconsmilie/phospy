@@ -81,6 +81,7 @@ def to_payload(provenance: RunProvenance) -> dict[str, object]:
 def from_payload(payload: Mapping[str, object]) -> RunProvenance:
     """Deserialize run provenance from a decoded payload."""
 
+    payload = _require_mapping(payload, field_name="provenance")
     environment_payload = _require_mapping(
         payload.get("environment"),
         field_name="provenance.environment",
@@ -142,8 +143,7 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
             field_name="provenance.workflow_name",
         ),
         workflow_parameters={
-            str(key): _to_json_value(value)
-            for key, value in workflow_parameters.items()
+            key: _to_json_value(value) for key, value in workflow_parameters.items()
         },
         random_state=_optional_int(
             payload.get("random_state"),
@@ -164,13 +164,10 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
         ),
         scientific_policies=tuple(
             ScientificPolicyRecord.from_payload(
-                {
-                    str(key): value
-                    for key, value in _require_mapping(
-                        item,
-                        field_name=f"provenance.scientific_policies[{position}]",
-                    ).items()
-                }
+                _require_mapping(
+                    item,
+                    field_name=f"provenance.scientific_policies[{position}]",
+                )
             )
             for position, item in enumerate(scientific_policies_payload)
         ),
@@ -231,6 +228,10 @@ def batch_correction_provenance_from_payload(
 ) -> BatchCorrectionProvenance:
     """Deserialize batch-correction provenance from a decoded payload."""
 
+    payload = _require_mapping(
+        payload,
+        field_name="batch_correction_provenance",
+    )
     schema_version = _require_int(
         payload.get("schema_version"),
         field_name="batch_correction_provenance.schema_version",
@@ -283,8 +284,7 @@ def batch_correction_provenance_from_payload(
             field_name="batch_correction_provenance.requested_method",
         ),
         resolved_parameters={
-            str(key): _to_json_value(value)
-            for key, value in resolved_parameters.items()
+            key: _to_json_value(value) for key, value in resolved_parameters.items()
         },
         preprocessing_stage_order=tuple(
             _require_str(
@@ -297,8 +297,7 @@ def batch_correction_provenance_from_payload(
             )
         ),
         control_site_source={
-            str(key): _to_json_value(value)
-            for key, value in control_site_source.items()
+            key: _to_json_value(value) for key, value in control_site_source.items()
         },
         selected_site_key_rows=tuple(
             _require_str(
@@ -311,19 +310,16 @@ def batch_correction_provenance_from_payload(
             )
         ),
         batch_metadata={
-            str(key): _to_json_value(value) for key, value in batch_metadata.items()
+            key: _to_json_value(value) for key, value in batch_metadata.items()
         },
         replicate_metadata=None
         if replicate_metadata is None
-        else {
-            str(key): _to_json_value(value) for key, value in replicate_metadata.items()
-        },
+        else {key: _to_json_value(value) for key, value in replicate_metadata.items()},
         design_metadata={
-            str(key): _to_json_value(value) for key, value in design_metadata.items()
+            key: _to_json_value(value) for key, value in design_metadata.items()
         },
         missing_value_policy={
-            str(key): _to_json_value(value)
-            for key, value in missing_value_policy.items()
+            key: _to_json_value(value) for key, value in missing_value_policy.items()
         },
         observation_masks=_table_fingerprints_from_payload(
             payload.get("observation_masks"),
@@ -343,9 +339,7 @@ def batch_correction_provenance_from_payload(
                 field_name="batch_correction_provenance.output_matrix_fingerprint",
             )
         ),
-        diagnostics={
-            str(key): _to_json_value(value) for key, value in diagnostics.items()
-        },
+        diagnostics={key: _to_json_value(value) for key, value in diagnostics.items()},
         warnings=tuple(
             _require_str(
                 item,
@@ -382,13 +376,13 @@ def batch_correction_provenance_from_payload(
         )
         or "unknown",
         dependency_versions={
-            str(key): (
+            key: (
                 None
                 if value is None
                 else _require_str(
                     value,
                     field_name=(
-                        f"batch_correction_provenance.dependency_versions['{str(key)}']"
+                        f"batch_correction_provenance.dependency_versions['{key}']"
                     ),
                 )
             )
@@ -396,9 +390,7 @@ def batch_correction_provenance_from_payload(
         },
         imputation_policy={}
         if imputation_policy is None
-        else {
-            str(key): _to_json_value(value) for key, value in imputation_policy.items()
-        },
+        else {key: _to_json_value(value) for key, value in imputation_policy.items()},
     )
 
 
@@ -435,7 +427,7 @@ def _batch_correction_rejected_entity_from_payload(
         ),
         details=None
         if details is None
-        else {str(key): _to_json_value(value) for key, value in details.items()},
+        else {key: _to_json_value(value) for key, value in details.items()},
     )
 
 
@@ -473,6 +465,7 @@ def table_fingerprint_to_payload(
 
 
 def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFingerprint:
+    payload = _require_mapping(payload, field_name="table_fingerprint")
     _reject_legacy_provenance_fields(
         payload,
         field_name="table_fingerprint",
@@ -533,14 +526,11 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
         tolerance_hash_value=tolerance_hash_value,
         index_structure=None
         if index_structure is None
-        else {
-            str(key): _to_json_value(value) for key, value in index_structure.items()
-        },
+        else {key: _to_json_value(value) for key, value in index_structure.items()},
         column_index_structure=None
         if column_index_structure is None
         else {
-            str(key): _to_json_value(value)
-            for key, value in column_index_structure.items()
+            key: _to_json_value(value) for key, value in column_index_structure.items()
         },
     )
 
@@ -609,36 +599,33 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
             field_name="provenance.environment.python_version",
         ),
         dependency_versions={
-            str(key): (
+            key: (
                 None
                 if value is None
                 else _require_str(
                     value,
-                    field_name=(
-                        f"provenance.environment.dependency_versions['{str(key)}']"
-                    ),
+                    field_name=(f"provenance.environment.dependency_versions['{key}']"),
                 )
             )
             for key, value in dependency_versions.items()
         },
         platform={
-            str(key): _require_str(
+            key: _require_str(
                 value,
-                field_name=f"provenance.environment.platform['{str(key)}']",
+                field_name=f"provenance.environment.platform['{key}']",
             )
             for key, value in platform_payload.items()
         },
         blas_lapack={
-            str(key): _to_json_value(value)
-            for key, value in blas_lapack_payload.items()
+            key: _to_json_value(value) for key, value in blas_lapack_payload.items()
         },
         thread_environment={
-            str(key): (
+            key: (
                 None
                 if value is None
                 else _require_str(
                     value,
-                    field_name=f"provenance.environment.thread_environment['{str(key)}']",
+                    field_name=f"provenance.environment.thread_environment['{key}']",
                 )
             )
             for key, value in thread_environment_payload.items()
@@ -648,24 +635,24 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
             field_name="provenance.environment.timezone",
         ),
         locale={
-            str(key): (
+            key: (
                 None
                 if value is None
                 else _require_str(
                     value,
-                    field_name=f"provenance.environment.locale['{str(key)}']",
+                    field_name=f"provenance.environment.locale['{key}']",
                 )
             )
             for key, value in locale_payload.items()
         },
         constraints_fingerprint={
-            str(key): (
+            key: (
                 None
                 if value is None
                 else _require_str(
                     value,
                     field_name=(
-                        f"provenance.environment.constraints_fingerprint['{str(key)}']"
+                        f"provenance.environment.constraints_fingerprint['{key}']"
                     ),
                 )
             )
@@ -765,7 +752,7 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         None
         if diagnostics_raw is None
         else {
-            str(key): _to_json_value(value)
+            key: _to_json_value(value)
             for key, value in _require_mapping(
                 diagnostics_raw,
                 field_name="preprocessing_stage.diagnostics",
@@ -837,9 +824,7 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
             payload.get("operation"),
             field_name="preprocessing_stage.operation",
         ),
-        parameters={
-            str(key): _to_json_value(value) for key, value in parameters.items()
-        },
+        parameters={key: _to_json_value(value) for key, value in parameters.items()},
         input_shape=input_shape,
         output_shape=output_shape,
         input_hash=input_hash,
@@ -959,14 +944,11 @@ def _reference_from_payload(payload: Mapping[str, object]) -> ReferenceProvenanc
         sequence_window=None
         if sequence_window_payload is None
         else {
-            str(key): _to_json_value(value)
-            for key, value in sequence_window_payload.items()
+            key: _to_json_value(value) for key, value in sequence_window_payload.items()
         },
         manifest=None
         if manifest_payload is None
-        else {
-            str(key): _to_json_value(value) for key, value in manifest_payload.items()
-        },
+        else {key: _to_json_value(value) for key, value in manifest_payload.items()},
         reference_context=None
         if reference_context_payload is None
         else ReferenceContext.from_payload(reference_context_payload),
@@ -1133,7 +1115,19 @@ def _to_json_value(value: object) -> JsonValue:
 def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
     if isinstance(value, Mapping):
         mapping = cast(Mapping[object, object], value)
-        return {str(key): item for key, item in mapping.items()}
+        result: dict[str, object] = {}
+        for key, item in mapping.items():
+            if not isinstance(key, str):
+                raise PhosPyInputError(
+                    f"{field_name} JSON object keys must be strings; "
+                    f"got {type(key).__name__}"
+                )
+            if key in result:
+                raise PhosPyInputError(
+                    f"{field_name} contains duplicate JSON object key {key!r}"
+                )
+            result[key] = item
+        return result
     raise PhosPyInputError(f"{field_name} must be an object")
 
 
@@ -1256,7 +1250,7 @@ def _reproducibility_caveat_from_payload(
             payload.get("message"),
             field_name="reproducibility_caveat.message",
         ),
-        details={str(key): _to_json_value(value) for key, value in details.items()},
+        details={key: _to_json_value(value) for key, value in details.items()},
     )
 
 
@@ -1284,7 +1278,7 @@ def _reject_legacy_provenance_fields(
     field_name: str,
     legacy_fields: frozenset[str],
 ) -> None:
-    present = sorted(str(key) for key in legacy_fields if str(key) in payload)
+    present = sorted(key for key in legacy_fields if key in payload)
     if present:
         _raise_legacy_provenance_schema()
 

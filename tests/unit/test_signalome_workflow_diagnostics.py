@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -1957,7 +1959,7 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
     )
     assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
     sampled = scale_guard["candidate_scoring_sampling"]
-    assert isinstance(sampled, dict)
+    assert isinstance(sampled, Mapping)
     assert int(scale_guard["candidate_scoring_sampled_site_total"]) >= 0
     assert int(scale_guard["candidate_scoring_sampled_pair_count"]) >= 0
     assert sampled["sampling_cap"] == MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER
@@ -1968,7 +1970,7 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
     )
     assert int(sampled["actual_sampled_pair_count"]) >= 0
     per_cluster_summary = sampled["per_cluster_sample_count_summary"]
-    assert isinstance(per_cluster_summary, dict)
+    assert isinstance(per_cluster_summary, Mapping)
     assert {"min", "max", "mean", "total"} <= set(per_cluster_summary)
     assert int(per_cluster_summary["min"]) >= 0
     assert int(per_cluster_summary["max"]) >= int(per_cluster_summary["min"])

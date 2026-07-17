@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 import pytest
 
@@ -112,9 +114,9 @@ def test_from_trusted_tables_records_typed_construction_assertions() -> None:
     assert dataset.trusted_construction_assertions == assertions
     assert dataset.provenance is not None
     construction = dataset.provenance.workflow_parameters["construction"]
-    assert isinstance(construction, dict)
+    assert isinstance(construction, Mapping)
     payload = construction["trusted_construction_assertions"]
-    assert isinstance(payload, dict)
+    assert isinstance(payload, Mapping)
     assert payload["assertion_metadata_provided"] is True
     assert payload["identity"]["source"] == "protein-scoped site_key export"
     assert payload["quantitative_meaning"]["policy"] == (
@@ -134,9 +136,9 @@ def test_from_trusted_tables_records_typed_construction_assertions() -> None:
     assert payload["reference_context_user_asserted"] is True
     assert payload["asserted_by"] == "unit-test"
     assert payload["assertion_source"] == "curated analysis-ready export"
-    assert payload["waived_assertions"] == ["reference_context"]
-    assert payload["missing_assertions"] == []
-    assert construction["missing_trusted_assertions"] == []
+    assert payload["waived_assertions"] == ("reference_context",)
+    assert payload["missing_assertions"] == ()
+    assert construction["missing_trusted_assertions"] == ()
     assert construction["trusted_construction_assertion_fingerprint"] == (
         assertions.assertion_fingerprint
     )
@@ -173,13 +175,13 @@ def test_from_trusted_tables_accepts_and_serializes_localisation_waiver() -> Non
     assert dataset.provenance is not None
     construction = dataset.provenance.workflow_parameters["construction"]
     payload = construction["trusted_construction_assertions"]
-    assert isinstance(payload, dict)
+    assert isinstance(payload, Mapping)
     assert payload["localisation"]["kind"] == "waiver"
     assert payload["localisation"]["waiver_reason"] == (
         "historical source lacks localisation confidence export"
     )
     assert "localisation" in payload["waived_assertions"]
-    assert payload["missing_assertions"] == []
+    assert payload["missing_assertions"] == ()
 
 
 def test_caller_mutable_assertion_details_cannot_alter_provenance() -> None:

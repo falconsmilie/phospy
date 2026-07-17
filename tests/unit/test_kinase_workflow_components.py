@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 import pytest
 
@@ -1398,7 +1400,7 @@ def test_provenance_builder_includes_ssgsea_policy_when_selected() -> None:
     policy_ids = {policy.id.value for policy in provenance.scientific_policies}
     assert "ssgsea_substrate_enrichment_activity_v1" in policy_ids
     activity_payload = provenance.workflow_parameters["activity_config"]
-    assert isinstance(activity_payload, dict)
+    assert isinstance(activity_payload, Mapping)
     assert activity_payload["ssgsea_random_seed"] == 13
     assert activity_payload["ssgsea_permutation_rng_seed_policy"] == (
         SSGSEA_PERMUTATION_RNG_SEED_POLICY

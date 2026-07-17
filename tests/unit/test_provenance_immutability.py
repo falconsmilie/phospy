@@ -1,21 +1,45 @@
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
 from typing import cast
 
 import pytest
 
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.derived_quantitative import (
+    DerivedQuantitativeDataProvenance,
+    DerivedSampleMapping,
+)
 from phospy.provenance.hashing import hash_json_payload
+from phospy.provenance.immutability import FrozenJsonMapping
 from phospy.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     EnvironmentProvenance,
     JsonValue,
     PreprocessingStageProvenance,
+    ReproducibilityCaveat,
     RunProvenance,
     TableFingerprint,
 )
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.provenance.serialization import from_payload, to_payload
+
+
+class _DuplicateKeyMapping(Mapping[str, object]):
+    def __iter__(self) -> Iterator[str]:
+        return iter(("duplicate", "duplicate"))
+
+    def __len__(self) -> int:
+        return 2
+
+    def __getitem__(self, key: str) -> object:
+        if key == "duplicate":
+            return "value"
+        raise KeyError(key)
 
 
 def _fingerprint() -> TableFingerprint:
@@ -35,7 +59,7 @@ def _fingerprint() -> TableFingerprint:
     )
 
 
-def _run_with_parameters(parameters: dict[str, object]) -> RunProvenance:
+def _run_with_parameters(parameters: Mapping[object, object]) -> RunProvenance:
     fingerprint = _fingerprint()
     stage = PreprocessingStageProvenance(
         stage="missing_data",
@@ -82,6 +106,8 @@ def test_provenance_constructor_recursively_freezes_source_input() -> None:
 
     provenance = _run_with_parameters(source)
     parameters = provenance.workflow_parameters["parameters"]
+    assert isinstance(parameters, FrozenJsonMapping)
+    assert not isinstance(parameters, dict)
     assert parameters["nested"]["items"] == ("a", {"score": 1.0})
 
     with pytest.raises(TypeError):
@@ -97,6 +123,27 @@ def test_provenance_constructor_recursively_freezes_source_input() -> None:
     source["nested"]["items"][1]["score"] = 9.0
 
     assert parameters["nested"]["items"] == ("a", {"score": 1.0})
+
+
+def test_base_class_mutation_bypass_is_unavailable() -> None:
+    provenance = _run_with_parameters({"nested": {"items": ["a"]}})
+    parameters = provenance.workflow_parameters["parameters"]
+    nested = parameters["nested"]
+    items = nested["items"]
+
+    assert not isinstance(parameters, dict)
+    assert isinstance(items, tuple)
+
+    before_hash = hash_json_payload(cast(JsonValue, to_payload(provenance)))
+
+    with pytest.raises(TypeError):
+        dict.__setitem__(parameters, "new", "value")  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        list.append(items, "b")  # type: ignore[arg-type]
+
+    after_hash = hash_json_payload(cast(JsonValue, to_payload(provenance)))
+    assert after_hash == before_hash
+    assert provenance.workflow_parameters["parameters"]["nested"]["items"] == ("a",)
 
 
 def test_provenance_serialization_returns_fresh_mutable_payloads() -> None:
@@ -126,6 +173,91 @@ def test_provenance_rejects_unsupported_and_non_finite_json_values() -> None:
 
     with pytest.raises(PhosPyInputError, match="finite JSON number"):
         _run_with_parameters({"bad": float("inf")})
+
+
+def test_provenance_rejects_non_string_and_colliding_json_object_keys() -> None:
+    with pytest.raises(PhosPyInputError, match="keys must be strings"):
+        _run_with_parameters({1: "numeric-key"})
+
+    with pytest.raises(PhosPyInputError, match="duplicate JSON object key"):
+        _run_with_parameters(_DuplicateKeyMapping())
+
+
+def test_provenance_deserialization_rejects_non_string_root_keys() -> None:
+    payload = to_payload(_run_with_parameters({"policy": "test"}))
+    payload[1] = "numeric-key"
+
+    with pytest.raises(PhosPyInputError, match="keys must be strings"):
+        from_payload(cast(Mapping[str, object], payload))
+
+
+def test_hashing_rejects_non_string_json_object_keys() -> None:
+    with pytest.raises(PhosPyInputError, match="keys must be strings"):
+        hash_json_payload(cast(JsonValue, {1: "numeric-key"}))
+
+    with pytest.raises(PhosPyInputError, match="JSON-compatible"):
+        hash_json_payload(cast(JsonValue, {"bad": object()}))
+
+    with pytest.raises(PhosPyInputError, match="finite JSON number"):
+        hash_json_payload(cast(JsonValue, {"bad": float("nan")}))
+
+
+def test_provenance_model_families_use_same_immutable_json_container() -> None:
+    nested_source = {"nested": {"items": ["a", {"score": 1.0}]}}
+    fingerprint = _fingerprint()
+    caveat = ReproducibilityCaveat(
+        code="test_caveat",
+        severity="warning",
+        message="Test caveat.",
+        details=nested_source,
+    )
+    policy = ScientificPolicyRecord(
+        id=ScientificPolicyId.KINASE_PROFILE_SCORING,
+        name="Test policy",
+        version="1",
+        description="Test policy.",
+        parameters=nested_source,
+        assumptions=("test",),
+    )
+    lineage = DerivedQuantitativeDataProvenance(
+        derivation_type="technical_replicate_aggregation",
+        parent_dataset_type="analysis_ready",
+        derived_dataset_type="analysis_ready",
+        parent_dataset_fingerprints=(fingerprint,),
+        derived_dataset_fingerprints=(fingerprint,),
+        sample_mapping=(
+            DerivedSampleMapping(
+                output_sample_id="sample_a",
+                input_sample_ids=("sample_a",),
+                condition="treated",
+                biological_replicate_id="bio_1",
+            ),
+        ),
+        aggregation_method="mean",
+        input_intensity_scale="log2",
+        output_intensity_scale="log2",
+        quantitative_meaning="phosphosite_abundance",
+        missingness_policy=nested_source,
+        matrices_transformed={"phospho": True},
+        implementation="test",
+        implementation_version="1",
+        parameters=nested_source,
+    )
+
+    for mapping in (
+        caveat.details,
+        policy.parameters,
+        lineage.missingness_policy,
+        lineage.matrices_transformed,
+        lineage.parameters,
+    ):
+        assert isinstance(mapping, FrozenJsonMapping)
+        assert not isinstance(mapping, dict)
+
+    nested_source["nested"]["items"].append("source-only")
+    assert caveat.details["nested"]["items"] == ("a", {"score": 1.0})
+    assert policy.parameters["nested"]["items"] == ("a", {"score": 1.0})
+    assert lineage.parameters["nested"]["items"] == ("a", {"score": 1.0})
 
 
 def test_table_fingerprint_rejects_invalid_shape_and_hash_state() -> None:

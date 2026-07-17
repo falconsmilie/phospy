@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 
+from phospy.errors.input import PhosPyInputError
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 
 ScientificPolicyParameter = str | int | float | bool | None
@@ -80,17 +81,21 @@ class ScientificPolicyRecord:
         }
 
     @classmethod
-    def from_payload(cls, payload: dict[str, object]) -> ScientificPolicyRecord:
+    def from_payload(cls, payload: Mapping[str, object]) -> ScientificPolicyRecord:
+        payload = _require_payload_mapping(
+            payload,
+            field_name="scientific_policy_record",
+        )
         assumptions = payload.get("assumptions", ())
         if isinstance(assumptions, (list, tuple)):
             resolved_assumptions = tuple(str(value) for value in assumptions)
         else:
             resolved_assumptions = ()
         parameters_raw = payload.get("parameters", {})
-        if isinstance(parameters_raw, dict):
-            parameters = {str(key): value for key, value in parameters_raw.items()}
-        else:
-            parameters = {}
+        if not isinstance(parameters_raw, Mapping):
+            raise PhosPyInputError(
+                "scientific_policy_record.parameters must be an object"
+            )
         output_scale = payload.get("output_scale")
         resolved_output_scale = None if output_scale is None else str(output_scale)
         quantitative_meaning = payload.get("quantitative_meaning")
@@ -102,11 +107,31 @@ class ScientificPolicyRecord:
             name=str(payload.get("name")),
             version=str(payload.get("version")),
             description=str(payload.get("description")),
-            parameters=parameters,
+            parameters=parameters_raw,
             assumptions=resolved_assumptions,
             output_scale=resolved_output_scale,
             quantitative_meaning=resolved_quantitative_meaning,
         )
+
+
+def _require_payload_mapping(
+    value: Mapping[str, object],
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            raise PhosPyInputError(
+                f"{field_name} JSON object keys must be strings; "
+                f"got {type(key).__name__}"
+            )
+        if key in result:
+            raise PhosPyInputError(
+                f"{field_name} contains duplicate JSON object key {key!r}"
+            )
+        result[key] = item
+    return result
 
 
 __all__ = [

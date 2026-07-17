@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 import pytest
 
@@ -337,7 +339,7 @@ def test_split_policy_derives_site_specific_context_when_shared_window_mismatche
     assert built.site_metadata.loc[mapk1_t12, "site_sequence"] == "AASTTAAAA"
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
-    assert isinstance(payload, dict)
+    assert isinstance(payload, Mapping)
     assert int(payload["provided_site_sequence_count"]) == 1
     assert int(payload["accepted_site_sequence_count"]) == 2
     assert int(payload["rejected_site_sequence_count"]) == 1
@@ -444,7 +446,7 @@ def test_exclude_policy_records_exclusions_in_report_and_provenance() -> None:
     assert int(parameters["split_observations"]) == 0
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
-    assert isinstance(payload, dict)
+    assert isinstance(payload, Mapping)
     assert (
         payload["multi_site_policy"]
         == DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
@@ -501,7 +503,7 @@ def test_split_policy_applies_deterministic_equal_split() -> None:
     assert float(built.phospho.loc[mapk1_t12, "sample_a"]) == pytest.approx(5.0)
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
-    assert isinstance(payload, dict)
+    assert isinstance(payload, Mapping)
     assert int(payload["split_observations"]) == 1
 
 
@@ -611,7 +613,7 @@ def test_duplicate_peptide_rows_are_retained_as_independent_observations() -> No
     assert float(built.phospho.loc[mapk1_t12, "sample_b"]) == pytest.approx(10.0)
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
-    assert isinstance(payload, dict)
+    assert isinstance(payload, Mapping)
     assert (
         payload["duplicate_peptide_policy"]
         == DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS
@@ -679,7 +681,7 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
     )
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
-    assert isinstance(payload, dict)
+    assert isinstance(payload, Mapping)
     assert (
         payload["aggregation_policy"]
         == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN

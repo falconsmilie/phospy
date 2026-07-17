@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
@@ -107,7 +108,7 @@ def test_kinase_library_loader_preserves_provenance(tmp_path: Path) -> None:
         "central_residue_required": True,
     }
     source_file = provenance.source_files["kinase_library"]
-    assert isinstance(source_file, dict)
+    assert isinstance(source_file, Mapping)
     assert source_file["role"] == "kinase_library"
     assert source_file["sha256"]
     assert provenance.manifest is not None

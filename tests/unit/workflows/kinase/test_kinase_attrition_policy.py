@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 import pytest
 
@@ -288,12 +290,12 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
     )
     assert workflow_parameters["input_intensity_scale_source"] == "declared_by_user"
     attrition_provenance = workflow_parameters["attrition_provenance"]
-    assert isinstance(attrition_provenance, dict)
+    assert isinstance(attrition_provenance, Mapping)
     assert attrition_provenance["policy_outcome"] == "warned"
     assert attrition_provenance["metrics"] == result.attrition_provenance.metrics
     assert attrition_provenance["policy"] == result.attrition_provenance.policy
     row_attrition_metrics = workflow_parameters["row_attrition_metrics"]
-    assert isinstance(row_attrition_metrics, dict)
+    assert isinstance(row_attrition_metrics, Mapping)
     assert row_attrition_metrics["input_sites"] == 4
     assert row_attrition_metrics["sites_missing_valid_centered_sequence"] == 0
     assert row_attrition_metrics["sites_not_present_in_reference_resource"] == 2
@@ -308,15 +310,15 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
         == (row_attrition_metrics["input_sites"])
     )
     scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
-    assert isinstance(scoring_diagnostics, dict)
+    assert isinstance(scoring_diagnostics, Mapping)
     attrition_metrics = scoring_diagnostics["attrition_metrics"]
-    assert isinstance(attrition_metrics, dict)
+    assert isinstance(attrition_metrics, Mapping)
     assert attrition_metrics["scored_fraction"] == pytest.approx(
         caveat.details["observed_value"]
     )
     policy_violations = scoring_diagnostics["attrition_policy_violations"]
-    assert isinstance(policy_violations, list)
+    assert isinstance(policy_violations, tuple)
     assert policy_violations[0]["scored_sites"] == caveat.details["scored_sites"]
     scoring_config = result.provenance.workflow_parameters["scoring_config"]
-    assert isinstance(scoring_config, dict)
+    assert isinstance(scoring_config, Mapping)
     assert scoring_config["attrition_policy"] == result.attrition_provenance.policy

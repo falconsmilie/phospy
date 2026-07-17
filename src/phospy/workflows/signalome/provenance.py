@@ -39,7 +39,10 @@ from phospy.science.signalomes.clustering.tree_building import (
     SignalomeClusteringMissingValueDiagnostics,
     summarize_clustering_missing_value_diagnostics,
 )
-from phospy.science.signalomes.models import SignalomeNetworkCorrelationDiagnostics
+from phospy.science.signalomes.models import (
+    SignalomeModuleSelectionDiagnostics,
+    SignalomeNetworkCorrelationDiagnostics,
+)
 from phospy.workflows.intensity_scale_evidence import (
     input_intensity_scale_evidence_payload,
 )
@@ -226,7 +229,7 @@ def _build_workflow_parameters(
                 ),
             ),
             "scale_guard": _build_scale_guard_payload(scale_guard_decision),
-            "module_selection_diagnostics": asdict(
+            "module_selection_diagnostics": _module_selection_diagnostics_payload(
                 clustering_result.module_selection_diagnostics
             ),
             "score_preconditioning_diagnostics": asdict(
@@ -265,6 +268,17 @@ def _build_site_token_validation_payload(
             else "strict_sty_residue_position"
         )
     }
+
+
+def _module_selection_diagnostics_payload(
+    diagnostics: SignalomeModuleSelectionDiagnostics,
+) -> dict[str, object]:
+    payload = asdict(diagnostics)
+    payload["candidate_scores"] = {
+        str(cluster_count): asdict(score)
+        for cluster_count, score in diagnostics.candidate_scores.items()
+    }
+    return payload
 
 
 def _build_signalome_config_payload(
