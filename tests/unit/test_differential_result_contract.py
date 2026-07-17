@@ -24,6 +24,7 @@ from phospy.science.differential.executor import (
 from phospy.science.differential.internal_view import (
     DifferentialComputationResultInternalView,
 )
+from phospy.science.differential.linear_model import decompose_differential_design
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
@@ -316,7 +317,21 @@ def _manual_computation_result_with_table(
     table: pd.DataFrame,
 ) -> DifferentialComputationResult:
     index = table.index.copy()
+    design_decomposition = decompose_differential_design(
+        np.array(
+            [
+                [1.0, 0.0],
+                [1.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [0.0, 1.0],
+                [0.0, 1.0],
+            ],
+            dtype=float,
+        )
+    )
     return DifferentialComputationResult(
+        design_decomposition=design_decomposition,
         residual_variance=pd.Series(
             np.full(index.size, 1.0),
             index=index.copy(),

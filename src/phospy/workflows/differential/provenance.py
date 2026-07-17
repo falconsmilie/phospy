@@ -8,6 +8,7 @@ from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
 )
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance import RowAttritionRecord, RowAttritionReport
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuildResult,
@@ -122,6 +123,16 @@ def build_differential_policy_provenance(
     design_decomposition: DifferentialDesignDecomposition,
 ) -> DifferentialPolicyProvenance:
     """Build deterministic structured differential-policy provenance records."""
+
+    if design_decomposition is not request.design_decomposition:
+        raise WorkflowBoundaryError(
+            seam="differential.provenance.design_decomposition_identity",
+            next_action=(
+                "assemble differential policy provenance from the same design "
+                "decomposition object produced by validation"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
 
     design_frame = request.design_matrix.frame
     contrast_frame = request.contrast_matrix.frame

@@ -20,7 +20,6 @@ from phospy.errors import (
     PhosPyInputError,
     WorkflowValidationError,
 )
-from phospy.science.differential.executor import DifferentialAnalysisExecutor
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as CoreDiffRequest,
 )
@@ -234,7 +233,7 @@ def test_workflow_rejects_non_positive_residual_dof_for_small_n_design() -> None
         )
 
 
-def test_core_executor_rejects_rank_deficient_design_matrix() -> None:
+def test_core_request_rejects_rank_deficient_design_matrix() -> None:
     matrix = pd.read_csv(NEGATIVE_FIXTURE_DIR / "rank_deficient_matrix.csv").set_index(
         "site_id"
     )
@@ -244,7 +243,6 @@ def test_core_executor_rejects_rank_deficient_design_matrix() -> None:
     contrasts = pd.read_csv(
         NEGATIVE_FIXTURE_DIR / "rank_deficient_contrasts.csv"
     ).set_index("coefficient")
-    request = CoreDiffRequest(matrix=matrix, design=design, contrasts=contrasts)
 
     with pytest.raises(PhosPyInputError, match="rank deficient"):
-        DifferentialAnalysisExecutor().run(request)
+        CoreDiffRequest(matrix=matrix, design=design, contrasts=contrasts)

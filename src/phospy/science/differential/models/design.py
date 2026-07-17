@@ -12,6 +12,11 @@ import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.science.differential.linear_model import (
+    DifferentialDesignDecomposition,
+    DifferentialDesignDecompositionError,
+    decompose_differential_design,
+)
 from phospy.science.differential.models.empirical_bayes_config import (
     EmpiricalBayesConfig,
 )
@@ -80,6 +85,7 @@ class DifferentialAnalysisRequest:
     matrix: pd.DataFrame
     design: DesignMatrix | pd.DataFrame
     contrasts: ContrastMatrix | pd.DataFrame
+    design_decomposition: DifferentialDesignDecomposition | None = None
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
     multiple_testing_method: MultipleTestingCorrection = (
         MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
@@ -113,6 +119,34 @@ class DifferentialAnalysisRequest:
             raise PhosPyInputError(
                 "differential.contrasts must be a ContrastMatrix or pandas DataFrame"
             )
+        design_decomposition = self.design_decomposition
+        if design_decomposition is None:
+            try:
+                design_decomposition = decompose_differential_design(
+                    design.frame.to_numpy(dtype=float)
+                )
+            except DifferentialDesignDecompositionError as error:
+                raise PhosPyInputError(
+                    "differential.design is not admissible for stable "
+                    f"moderated-contrast analysis: {error}"
+                ) from error
+        if not isinstance(
+            cast(object, design_decomposition), DifferentialDesignDecomposition
+        ):
+            raise PhosPyInputError(
+                "differential.design_decomposition must be a "
+                "DifferentialDesignDecomposition"
+            )
+        try:
+            design_decomposition.assert_matches_design(
+                design.frame.to_numpy(dtype=float),
+                field_name="differential.design",
+            )
+        except DifferentialDesignDecompositionError as error:
+            raise PhosPyInputError(
+                "differential.design_decomposition must describe "
+                f"differential.design exactly: {error}"
+            ) from error
         if not isinstance(cast(object, self.empirical_bayes), EmpiricalBayesConfig):
             raise PhosPyInputError(
                 "differential.empirical_bayes must be an EmpiricalBayesConfig"
@@ -120,6 +154,11 @@ class DifferentialAnalysisRequest:
         object.__setattr__(self, "matrix", matrix)
         object.__setattr__(self, "design", design)
         object.__setattr__(self, "contrasts", contrasts)
+        object.__setattr__(
+            self,
+            "design_decomposition",
+            design_decomposition,
+        )
 
 
 def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:

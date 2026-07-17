@@ -40,6 +40,7 @@ from phospy.science.differential.executor import (
 from phospy.science.differential.internal_view import (
     DifferentialComputationResultInternalView,
 )
+from phospy.science.differential.linear_model import decompose_differential_design
 from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.science.transformations.models import (
     IntensityScaleState,
@@ -51,6 +52,9 @@ from phospy.workflows.differential.interpreter import DifferentialAnalysisInterp
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,
+)
+from phospy.workflows.differential.provenance import (
+    build_differential_policy_provenance,
 )
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (
@@ -540,6 +544,25 @@ def test_differential_executor_consumes_interpreter_resolved_design_inputs() -> 
         interpreted.execution_design.contrast_matrix.to_dataframe(),
     )
     assert "B_vs_A" in result.contrast_tables
+
+
+def test_differential_policy_provenance_rejects_different_decomposition_object() -> (
+    None
+):
+    validated = DifferentialAnalysisValidator().run(_request())
+    rebuilt_decomposition = decompose_differential_design(
+        validated.design_matrix.frame.to_numpy(dtype=float)
+    )
+
+    assert rebuilt_decomposition is not validated.design_decomposition
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.provenance.design_decomposition_identity",
+    ):
+        build_differential_policy_provenance(
+            request=validated,
+            design_decomposition=rebuilt_decomposition,
+        )
 
 
 def test_differential_workflow_executor_does_not_mutate_computation_result_tables() -> (

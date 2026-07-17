@@ -127,9 +127,7 @@ def _interpreted_differential_request(
     request = (
         _computation_request() if computation_request is None else computation_request
     )
-    decomposition = decompose_differential_design(
-        request.design.frame.to_numpy(dtype=float)
-    )
+    decomposition = request.design_decomposition
     return InterpretedDifferentialAnalysisRequest(
         computation_request=request,
         result_identity_metadata=_identity_metadata(request.matrix.index),
@@ -270,6 +268,7 @@ def test_differential_design_assembler_owns_execution_design_metadata() -> None:
 
 def test_differential_eligibility_resolver_filters_execution_matrix() -> None:
     request = _computation_request()
+    decomposition = request.design_decomposition
     first_feature = str(request.matrix.index[0])
     eligibility = _feature_eligibility(
         index=request.matrix.index,
@@ -284,6 +283,7 @@ def test_differential_eligibility_resolver_filters_execution_matrix() -> None:
     )
 
     assert result.computation_request.matrix.index.tolist() == [first_feature]
+    assert result.computation_request.design_decomposition is decomposition
     assert result.input_feature_ids == tuple(request.matrix.index.astype(str))
     assert result.multiple_testing_feature_ids == (first_feature,)
 
@@ -323,6 +323,39 @@ def test_differential_model_fitter_delegates_to_science_executor() -> None:
 
     assert result is expected
     assert calls == [request]
+
+
+def test_differential_decomposition_identity_is_preserved_across_fit_and_diagnostics() -> (
+    None
+):
+    interpreted = _interpreted_differential_request()
+    eligibility = DifferentialComputationEligibilityResolver().run(interpreted)
+    computation_result = DifferentialComputationExecutor().run(
+        eligibility.computation_request
+    )
+
+    assert interpreted.computation_request.design_decomposition is (
+        interpreted.design_decomposition
+    )
+    assert eligibility.computation_request.design_decomposition is (
+        interpreted.design_decomposition
+    )
+    assert computation_result.design_decomposition is interpreted.design_decomposition
+
+    public_result = DifferentialResultAssembler().run(
+        request=interpreted,
+        computation_result=computation_result,
+        eligibility=eligibility,
+        workflow_provenance={"row_attrition_metrics": {}},
+    )
+
+    assert public_result.diagnostics.rank == interpreted.design_decomposition.rank
+    assert public_result.diagnostics.singular_values == (
+        interpreted.design_decomposition.singular_values
+    )
+    assert public_result.diagnostics.condition_number == pytest.approx(
+        interpreted.design_decomposition.condition_number
+    )
 
 
 def test_differential_provenance_assembler_records_row_attrition() -> None:
@@ -481,6 +514,22 @@ def test_workflow_executors_no_longer_build_public_structures_directly() -> None
     assert "EnrichmentResultRecord(" not in enrichment_source
     assert "RunProvenance(" not in enrichment_source
     assert "fingerprint_table(" not in enrichment_source
+
+
+def test_differential_execution_stages_do_not_rebuild_design_decomposition() -> None:
+    from phospy.workflows.differential import eligibility, fitting, result_assembly
+    from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
+
+    sources = (
+        inspect.getsource(DifferentialComputationExecutor),
+        inspect.getsource(DifferentialAnalysisExecutor),
+        inspect.getsource(eligibility),
+        inspect.getsource(fitting),
+        inspect.getsource(result_assembly),
+    )
+
+    for source in sources:
+        assert "decompose_differential_design" not in source
 
 
 def test_decomposed_workflow_modules_do_not_create_import_cycles() -> None:

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
@@ -16,6 +17,7 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_series,
 )
+from phospy.science.differential.linear_model import DifferentialDesignDecomposition
 from phospy.science.differential.models.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -34,6 +36,7 @@ class DifferentialComputationResult:
     metadata before constructing the public ``DifferentialAnalysisResult``.
     """
 
+    design_decomposition: DifferentialDesignDecomposition
     residual_variance: pd.Series
     posterior_residual_variance: pd.Series
     prior_residual_variance: pd.Series
@@ -51,6 +54,7 @@ class DifferentialComputationResult:
     def __init__(
         self,
         *,
+        design_decomposition: DifferentialDesignDecomposition,
         residual_variance: pd.Series,
         posterior_residual_variance: pd.Series,
         prior_residual_variance: pd.Series,
@@ -66,6 +70,13 @@ class DifferentialComputationResult:
         contrast_tables: Mapping[str, pd.DataFrame],
         _assume_owned: bool = False,
     ) -> None:
+        if not isinstance(
+            cast(object, design_decomposition), DifferentialDesignDecomposition
+        ):
+            raise PhosPyInputError(
+                "differential_computation_result.design_decomposition must be a "
+                "DifferentialDesignDecomposition"
+            )
         residual_variance = own_series(
             residual_variance,
             field_name="differential_computation_result.residual_variance",
@@ -137,6 +148,17 @@ class DifferentialComputationResult:
                 "differential_computation_result.contrast_tables must include at "
                 "least one contrast"
             )
+        residual_dof = float(residual_degrees_of_freedom)
+        if not math.isclose(
+            residual_dof,
+            float(design_decomposition.residual_degrees_of_freedom),
+            rel_tol=0.0,
+            abs_tol=1.0e-12,
+        ):
+            raise PhosPyInputError(
+                "differential_computation_result.residual_degrees_of_freedom must "
+                "match differential_computation_result.design_decomposition"
+            )
 
         owned_tables: dict[str, pd.DataFrame] = {}
         for contrast_name, table in contrast_tables.items():
@@ -168,6 +190,7 @@ class DifferentialComputationResult:
                 )
             owned_tables[contrast_name] = owned_table
 
+        object.__setattr__(self, "design_decomposition", design_decomposition)
         object.__setattr__(self, "residual_variance", residual_variance)
         object.__setattr__(
             self,
@@ -193,7 +216,7 @@ class DifferentialComputationResult:
         object.__setattr__(
             self,
             "residual_degrees_of_freedom",
-            float(residual_degrees_of_freedom),
+            residual_dof,
         )
         object.__setattr__(self, "empirical_bayes_method", str(empirical_bayes_method))
         object.__setattr__(self, "empirical_bayes_robust", bool(empirical_bayes_robust))
@@ -243,6 +266,7 @@ class DifferentialComputationResult:
     def _from_owned(
         cls,
         *,
+        design_decomposition: DifferentialDesignDecomposition,
         residual_variance: pd.Series,
         posterior_residual_variance: pd.Series,
         prior_residual_variance: pd.Series,
@@ -258,6 +282,7 @@ class DifferentialComputationResult:
         contrast_tables: Mapping[str, pd.DataFrame],
     ) -> DifferentialComputationResult:
         return cls(
+            design_decomposition=design_decomposition,
             residual_variance=residual_variance,
             posterior_residual_variance=posterior_residual_variance,
             prior_residual_variance=prior_residual_variance,

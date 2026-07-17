@@ -11,8 +11,8 @@ from scipy import stats
 from phospy.errors.input import PhosPyInputError
 from phospy.science.differential.empirical_bayes import fit_empirical_bayes
 from phospy.science.differential.linear_model import (
+    DifferentialDesignDecomposition,
     DifferentialDesignDecompositionError,
-    decompose_differential_design,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest,
@@ -33,15 +33,19 @@ class DifferentialAnalysisExecutor:
             request
         )
 
-        design_values = design_aligned.to_numpy(dtype=float)
-        if design_values.ndim != 2:
-            raise PhosPyInputError("differential.design must be two-dimensional")
+        design_decomposition = cast(
+            DifferentialDesignDecomposition,
+            request.design_decomposition,
+        )
         try:
-            design_decomposition = decompose_differential_design(design_values)
+            design_decomposition.assert_matches_design(
+                design_aligned.to_numpy(dtype=float),
+                field_name="differential.design",
+            )
         except DifferentialDesignDecompositionError as error:
             raise PhosPyInputError(
-                "differential.design is not admissible for stable moderated-contrast "
-                f"analysis: {error}"
+                "differential.design_decomposition does not match the aligned "
+                f"differential design: {error}"
             ) from error
         residual_dof = design_decomposition.residual_degrees_of_freedom
 
@@ -210,6 +214,7 @@ class DifferentialAnalysisExecutor:
             )
 
         return DifferentialComputationResult._from_owned(
+            design_decomposition=design_decomposition,
             residual_variance=residual_variance_series,
             posterior_residual_variance=posterior_variance_series,
             prior_residual_variance=prior_variance_series,

@@ -299,6 +299,33 @@ def test_condition_only_executor_preserves_group_mean_contrast() -> None:
         atol=1e-12,
     )
     assert result.residual_degrees_of_freedom == pytest.approx(2.0)
+    assert result.design_decomposition is request.design_decomposition
+
+
+def test_design_decomposition_internal_arrays_are_read_only() -> None:
+    decomposition = decompose_differential_design(
+        np.array(
+            [
+                [1.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [0.0, 1.0],
+            ],
+            dtype=float,
+        )
+    )
+
+    for attribute_name in (
+        "_design_values",
+        "_column_scales",
+        "_u",
+        "_vt",
+        "_coefficient_covariance",
+    ):
+        values = getattr(decomposition, attribute_name)
+        assert values.flags.writeable is False
+        with pytest.raises(ValueError):
+            values.flat[0] = 99.0
 
 
 def test_adjusted_contrast_differs_when_covariate_explains_signal() -> None:
@@ -440,6 +467,72 @@ def test_full_rank_near_confounded_covariate_fit_is_stable() -> None:
         atol=1e-8,
     )
     assert np.isfinite(table.loc[:, "t"]).all()
+
+
+def test_scaled_svd_old_normal_equation_failure_fixture_succeeds() -> None:
+    samples = pd.Index(
+        ["A_1", "A_2", "A_3", "B_1", "B_2", "B_3"],
+        name="sample",
+    )
+    condition_b = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=float)
+    epsilon = 1.0e-8
+    almost_condition_b = condition_b + np.array(
+        [-epsilon, 0.0, epsilon, -epsilon, 0.0, epsilon],
+        dtype=float,
+    )
+    design = pd.DataFrame(
+        {
+            "A": 1.0 - condition_b,
+            "B": condition_b,
+            "almost_B": almost_condition_b,
+        },
+        index=samples,
+        dtype=float,
+    )
+    contrasts = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0, 0.0]},
+        index=pd.Index(["A", "B", "almost_B"], name="coefficient"),
+    )
+    feature_values = {
+        "site1": 2.0
+        + 0.4 * condition_b
+        + 0.7 * almost_condition_b
+        + 0.01 * np.arange(condition_b.size, dtype=float),
+        "site2": -1.0
+        + 0.2 * condition_b
+        - 0.3 * almost_condition_b
+        + 0.02 * np.arange(condition_b.size, dtype=float),
+        "site3": 3.0
+        + 0.1 * condition_b
+        + 0.2 * almost_condition_b
+        + np.array([0.05, -0.01, 0.04, 0.02, -0.03, 0.01], dtype=float),
+    }
+    matrix = pd.DataFrame(
+        {
+            sample: [values[position] for values in feature_values.values()]
+            for position, sample in enumerate(samples)
+        },
+        index=pd.Index(tuple(feature_values), name="site_id"),
+    )
+    design_values = design.to_numpy(dtype=float)
+    response = matrix.loc[:, samples].to_numpy(dtype=float).T
+
+    with pytest.raises(np.linalg.LinAlgError):
+        np.linalg.solve(design_values.T @ design_values, design_values.T @ response)
+
+    request = DifferentialAnalysisRequest(
+        matrix=matrix,
+        design=design,
+        contrasts=contrasts,
+    )
+    assert request.design_decomposition.condition_number < (
+        DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER
+    )
+    result = DifferentialAnalysisExecutor().run(request)
+    table = result.table_for("B_vs_A")
+
+    assert result.design_decomposition is request.design_decomposition
+    assert np.isfinite(table.loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]).all().all()
 
 
 def test_executor_rejects_exactly_rank_deficient_design() -> None:

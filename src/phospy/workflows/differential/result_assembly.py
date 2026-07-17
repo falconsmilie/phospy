@@ -45,6 +45,10 @@ class DifferentialResultAssembler:
         eligibility: DifferentialExecutionEligibilityResolution,
         workflow_provenance: Mapping[str, object],
     ) -> DifferentialAnalysisResult:
+        _require_fitted_decomposition_identity(
+            request=request,
+            computation_result=computation_result,
+        )
         residual_variance = computation_result.residual_variance
         posterior_residual_variance = computation_result.posterior_residual_variance
         prior_residual_variance = computation_result.prior_residual_variance
@@ -203,18 +207,20 @@ def _build_model_diagnostics(
         model_type="moderated_ols_fixed_effect",
         design_columns=design_columns,
         contrast_definitions=contrast_definitions,
-        rank=int(request.design_rank),
+        rank=int(result.design_decomposition.rank),
         n_samples=int(design_frame.shape[0]),
         n_sites=int(request.result_identity_metadata.shape[0]),
-        residual_degrees_of_freedom=float(result.residual_degrees_of_freedom),
-        decomposition_method=request.design_decomposition.decomposition_method,
-        solver=request.design_decomposition.solver,
-        column_scale_method=request.design_decomposition.column_scale_method,
-        rank_tolerance_policy=request.design_decomposition.rank_tolerance_policy,
-        rank_tolerance=request.design_decomposition.rank_tolerance,
-        condition_number=request.design_decomposition.condition_number,
-        max_condition_number=request.design_decomposition.max_condition_number,
-        singular_values=request.design_decomposition.singular_values,
+        residual_degrees_of_freedom=float(
+            result.design_decomposition.residual_degrees_of_freedom
+        ),
+        decomposition_method=result.design_decomposition.decomposition_method,
+        solver=result.design_decomposition.solver,
+        column_scale_method=result.design_decomposition.column_scale_method,
+        rank_tolerance_policy=result.design_decomposition.rank_tolerance_policy,
+        rank_tolerance=result.design_decomposition.rank_tolerance,
+        condition_number=result.design_decomposition.condition_number,
+        max_condition_number=result.design_decomposition.max_condition_number,
+        singular_values=result.design_decomposition.singular_values,
         variance_method="ordinary_least_squares_residual_variance",
         moderation_method=_moderation_method(
             result.empirical_bayes_method,
@@ -238,6 +244,34 @@ def _build_model_diagnostics(
         unsupported_assumptions=unsupported_assumptions,
         warnings=warnings,
     )
+
+
+def _require_fitted_decomposition_identity(
+    *,
+    request: InterpretedDifferentialAnalysisRequest,
+    computation_result: DifferentialComputationResult,
+) -> None:
+    if computation_result.design_decomposition is not request.design_decomposition:
+        raise WorkflowBoundaryError(
+            seam="differential.executor.fitted_decomposition_identity",
+            next_action=(
+                "fit differential statistics with the same design decomposition "
+                "that was validated and interpreted"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    if (
+        request.computation_request.design_decomposition
+        is not request.design_decomposition
+    ):
+        raise WorkflowBoundaryError(
+            seam="differential.executor.computation_decomposition_identity",
+            next_action=(
+                "pass the interpreted design decomposition into the computation "
+                "request without rebuilding it"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
 
 
 def _contrast_definitions_from_matrix(

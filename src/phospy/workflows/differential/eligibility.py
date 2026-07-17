@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pandas as pd
@@ -18,8 +18,8 @@ from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.design.models import Contrast, ExperimentalDesign
 from phospy.science.differential.linear_model import (
+    DifferentialDesignDecomposition,
     DifferentialDesignDecompositionError,
-    decompose_differential_design,
 )
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
@@ -336,6 +336,7 @@ def _filter_computation_request_for_feature_ids(
         matrix=filtered_matrix,
         design=computation_request.design,
         contrasts=computation_request.contrasts,
+        design_decomposition=computation_request.design_decomposition,
         empirical_bayes=computation_request.empirical_bayes,
         multiple_testing_method=computation_request.multiple_testing_method,
     )
@@ -700,12 +701,15 @@ def _failed_model_fit_feature_ids(
     matrix = computation_request.matrix
     design_frame = computation_request.design.frame
     matrix_aligned = dataframe_loc(matrix, columns=list(design_frame.index))
-    design_values: NDArray[np.float64] = np.asarray(
-        design_frame.to_numpy(dtype=float),
-        dtype=np.float64,
+    design_decomposition = cast(
+        DifferentialDesignDecomposition,
+        computation_request.design_decomposition,
     )
     try:
-        design_decomposition = decompose_differential_design(design_values)
+        design_decomposition.assert_matches_design(
+            design_frame.to_numpy(dtype=float),
+            field_name="differential.design",
+        )
     except DifferentialDesignDecompositionError:
         return ()
 

@@ -106,6 +106,14 @@ decomposition contract in `phospy.science.differential.linear_model`.
 Validation, interpretation, feature-eligibility screening, provenance, and
 execution consume that contract rather than independently computing rank,
 conditioning, coefficients, covariance, or residual degrees of freedom.
+Each interpreted design has one immutable
+`DifferentialDesignDecomposition` instance. Workflow orchestration passes that
+object by identity into computation requests, post-fit eligibility, fitting,
+policy provenance, and result diagnostics. Executors and eligibility resolvers
+must not rebuild the decomposition or assemble provenance from another design
+object. Internal numerical arrays owned by the decomposition are read-only;
+fit outputs, contrast covariance, and diagnostics are derived from that same
+object.
 
 The admissibility policy is:
 

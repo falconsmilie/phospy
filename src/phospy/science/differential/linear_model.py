@@ -65,6 +65,36 @@ class DifferentialDesignDecomposition:
 
         return np.array(self._coefficient_covariance, dtype=np.float64, copy=True)
 
+    def assert_matches_design(
+        self,
+        design: npt.ArrayLike,
+        *,
+        field_name: str = "differential.design",
+    ) -> None:
+        """Raise if this decomposition was not built from the supplied design."""
+
+        design_values = np.asarray(design, dtype=np.float64)
+        if design_values.ndim != 2:
+            raise DifferentialDesignDecompositionError(
+                f"{field_name} must be two-dimensional"
+            )
+        expected_shape = (self.sample_count, self.coefficient_count)
+        actual_shape = (int(design_values.shape[0]), int(design_values.shape[1]))
+        if actual_shape != expected_shape:
+            raise DifferentialDesignDecompositionError(
+                f"{field_name} shape does not match differential design "
+                "decomposition; "
+                f"design_shape={actual_shape}, decomposition_shape={expected_shape}"
+            )
+        if not np.isfinite(design_values).all():
+            raise DifferentialDesignDecompositionError(
+                f"{field_name} must contain only finite numeric values"
+            )
+        if not np.array_equal(design_values, self._design_values):
+            raise DifferentialDesignDecompositionError(
+                f"{field_name} values do not match differential design decomposition"
+            )
+
     def fit(self, response: npt.ArrayLike) -> DifferentialLinearFit:
         """Fit responses with samples on rows using the stored scaled SVD."""
 
@@ -303,14 +333,11 @@ def decompose_differential_design(
         solver=DIFFERENTIAL_LINEAR_MODEL_SOLVER,
         column_scale_method=DIFFERENTIAL_LINEAR_MODEL_COLUMN_SCALE_METHOD,
         rank_tolerance_policy=DIFFERENTIAL_LINEAR_MODEL_RANK_TOLERANCE_POLICY,
-        _design_values=np.array(design_values, dtype=np.float64, copy=True),
-        _column_scales=np.array(column_scales, dtype=np.float64, copy=True),
-        _u=np.asarray(u, dtype=np.float64),
-        _vt=np.asarray(vt, dtype=np.float64),
-        _coefficient_covariance=np.asarray(
-            coefficient_covariance,
-            dtype=np.float64,
-        ),
+        _design_values=_readonly_float_array(design_values),
+        _column_scales=_readonly_float_array(column_scales),
+        _u=_readonly_float_array(u),
+        _vt=_readonly_float_array(vt),
+        _coefficient_covariance=_readonly_float_array(coefficient_covariance),
     )
 
 
@@ -366,6 +393,12 @@ def _format_singular_values(values: npt.NDArray[np.float64]) -> str:
     preview_values = [f"{float(value):.6g}" for value in values[:5]]
     suffix = "" if int(values.size) <= 5 else ", ..."
     return "[" + ", ".join(preview_values) + suffix + "]"
+
+
+def _readonly_float_array(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    array = np.array(values, dtype=np.float64, copy=True)
+    array.setflags(write=False)
+    return cast(npt.NDArray[np.float64], array)
 
 
 __all__ = [

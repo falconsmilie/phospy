@@ -222,6 +222,7 @@ class DifferentialAnalysisInterpreter:
             matrix=matrix_for_computation,
             design=execution_design.design_matrix,
             contrasts=execution_design.contrast_matrix,
+            design_decomposition=resolved_design_decomposition,
             empirical_bayes=request.config.empirical_bayes,
             multiple_testing_method=request.config.multiple_testing.method,
         )

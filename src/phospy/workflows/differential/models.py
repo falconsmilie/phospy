@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
@@ -10,6 +11,7 @@ import pandas as pd
 
 from phospy.contracts.configs import DifferentialAnalysisConfig, PairedDesignPolicy
 from phospy.contracts.result_caveats import ResultCaveat
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -18,6 +20,7 @@ from phospy.science.design.matrix_builder import DesignMatrixBuildResult
 from phospy.science.design.models import Contrast, ExperimentalDesign
 from phospy.science.differential.linear_model import (
     DifferentialDesignDecomposition,
+    DifferentialDesignDecompositionError,
 )
 from phospy.science.differential.models import (
     ContrastMatrix,
@@ -52,6 +55,13 @@ class ValidatedDifferentialAnalysisRequest:
     workflow_provenance: Mapping[str, object] | None = None
     dataset_preprocessing_report: DatasetPreprocessingReport | None = None
     design_build_result: DesignMatrixBuildResult | None = None
+
+    def __post_init__(self) -> None:
+        _require_decomposition_matches_design_matrix(
+            design_decomposition=self.design_decomposition,
+            design_matrix=self.design_matrix,
+            seam="differential.validator.design_decomposition_identity",
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +235,11 @@ class DifferentialExecutionDesignInputs:
             "coefficient_labels",
             tuple(str(value) for value in self.coefficient_labels),
         )
+        _require_decomposition_matches_design_matrix(
+            design_decomposition=self.design_decomposition,
+            design_matrix=self.design_matrix,
+            seam="differential.interpreter.execution_design_decomposition",
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,6 +262,79 @@ class InterpretedDifferentialAnalysisRequest:
     normalisation_state: str = "not_recorded"
     ruv_readiness_enabled: bool = False
     ruv_readiness_ready: bool = False
+
+    def __post_init__(self) -> None:
+        if (
+            self.computation_request.design_decomposition
+            is not self.design_decomposition
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.computation_decomposition_identity",
+                next_action=(
+                    "pass the interpreted design decomposition into the "
+                    "differential computation request without rebuilding it"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if (
+            self.execution_design is not None
+            and self.execution_design.design_decomposition
+            is not self.design_decomposition
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.execution_design_decomposition_identity",
+                next_action=(
+                    "assemble execution design metadata from the same interpreted "
+                    "design decomposition object"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if int(self.design_rank) != int(self.design_decomposition.rank):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.design_rank_consistency",
+                next_action=(
+                    "derive interpreted design rank from the shared design "
+                    "decomposition"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if not math.isclose(
+            float(self.residual_degrees_of_freedom),
+            float(self.design_decomposition.residual_degrees_of_freedom),
+            rel_tol=0.0,
+            abs_tol=1.0e-12,
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.residual_dof_consistency",
+                next_action=(
+                    "derive interpreted residual degrees of freedom from the "
+                    "shared design decomposition"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+
+
+def _require_decomposition_matches_design_matrix(
+    *,
+    design_decomposition: DifferentialDesignDecomposition,
+    design_matrix: DesignMatrix,
+    seam: str,
+) -> None:
+    try:
+        design_decomposition.assert_matches_design(
+            design_matrix.frame.to_numpy(dtype=float),
+            field_name="differential.design",
+        )
+    except DifferentialDesignDecompositionError as error:
+        raise WorkflowBoundaryError(
+            seam=seam,
+            next_action=(
+                "reuse the design decomposition built for the validated "
+                "differential design matrix"
+            ),
+            details={"error": str(error)},
+            message_prefix="differential workflow boundary validation failed",
+        ) from error
 
 
 class DifferentialAnalysisValidatorContract(Protocol):
