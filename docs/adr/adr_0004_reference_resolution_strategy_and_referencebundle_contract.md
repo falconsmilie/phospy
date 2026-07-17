@@ -195,6 +195,14 @@ for `ReferencePreset.AUTO`, explicit organism presets, and explicit
 
 A mismatch must fail clearly.
 
+Update note (2026-07-17, construction-boundary sealing): reference organism
+compatibility is not only a workflow-resolution rule. `ReferenceBundle`
+construction must reject contradictions among `ReferenceBundle.organism`,
+reference provenance organism, reference provenance `ReferenceContext.organism`,
+and manifest organism fields. Dataset construction must reject supplied run
+provenance whose reference context or selected reference provenance organism
+conflicts with the dataset organism. Resolver checks remain defense in depth.
+
 This is a scientific safety rule, not just a software preference. A dataset-organism and reference-organism mismatch can imply wrong sequence context, wrong substrate mappings, fragile gene-symbol assumptions, or unspoken cross-species translation assumptions. PhosPy should not silently proceed in those cases.
 
 If cross-species support is needed in the future, it should be handled through an explicit adaptation or reference-building step rather than a permissive mismatch override inside the workflow.
@@ -216,7 +224,9 @@ single-organism row/site-key state or failed construction.
 
 ### Dataset Responsibility
 
-The dataset may declare `organism`, but it does not resolve references.
+The dataset may declare `organism`, but it does not resolve references. It must
+own the single-organism invariant at construction, including coherence with any
+supplied run-provenance reference context.
 
 ### Workflow Request Responsibility
 

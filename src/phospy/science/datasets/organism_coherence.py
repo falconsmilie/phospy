@@ -7,6 +7,7 @@ from typing import TypeVar
 
 import pandas as pd
 
+from phospy.provenance.models import RunProvenance
 from phospy.science.references.models import Organism
 from phospy.science.sites.organisms import normalize_organism
 from phospy.science.sites.site_keys import decode_site_key, encode_site_key
@@ -109,6 +110,44 @@ def resolve_single_dataset_organism(
     )
 
 
+def require_dataset_provenance_organism_coherence(
+    *,
+    organism: Organism,
+    provenance: RunProvenance | None,
+    error_type: type[ErrorType],
+) -> None:
+    """Require supplied run/reference provenance to agree with dataset organism."""
+
+    if provenance is None:
+        return
+    values: list[tuple[str, object]] = [("dataset.organism", organism)]
+    if provenance.reference_context is not None:
+        values.append(
+            (
+                "dataset.provenance.reference_context.organism",
+                provenance.reference_context.organism,
+            )
+        )
+    if provenance.reference is not None:
+        values.append(
+            (
+                "dataset.provenance.reference.organism",
+                provenance.reference.organism,
+            )
+        )
+        if provenance.reference.reference_context is not None:
+            values.append(
+                (
+                    "dataset.provenance.reference.reference_context.organism",
+                    provenance.reference.reference_context.organism,
+                )
+            )
+    _require_same_dataset_organism(
+        values=values,
+        error_type=error_type,
+    )
+
+
 def _normalize_site_key_indexed_frame(
     frame: pd.DataFrame,
     *,
@@ -187,6 +226,48 @@ def _all_values_are_strict_encoded_site_keys(values: list[object]) -> bool:
     return True
 
 
+def _require_same_dataset_organism(
+    *,
+    values: list[tuple[str, object]],
+    error_type: type[ErrorType],
+) -> None:
+    normalized = [
+        (
+            field_name,
+            normalize_organism(
+                value,
+                field_name=field_name,
+                error_type=error_type,
+            ),
+            value,
+        )
+        for field_name, value in values
+    ]
+    expected_field, expected_organism, _ = normalized[0]
+    conflicts = [
+        (field_name, organism, raw_value)
+        for field_name, organism, raw_value in normalized[1:]
+        if organism is not expected_organism
+    ]
+    if not conflicts:
+        return
+    conflict_text = "; ".join(
+        f"{field_name}={_format_organism_value(raw_value)!r}"
+        f" resolved_to={organism.value!r}"
+        for field_name, organism, raw_value in conflicts
+    )
+    raise error_type(
+        "dataset organism identity conflict; "
+        f"{expected_field}={expected_organism.value!r}; {conflict_text}"
+    )
+
+
+def _format_organism_value(value: object) -> str:
+    if isinstance(value, Organism):
+        return value.value
+    return str(value)
+
+
 def _normalize_row_organism_column(
     site_metadata: pd.DataFrame,
     *,
@@ -228,5 +309,6 @@ def _format_row_organism_examples(
 __all__ = [
     "NormalizedDatasetOrganismState",
     "normalize_dataset_organism_state",
+    "require_dataset_provenance_organism_coherence",
     "resolve_single_dataset_organism",
 ]

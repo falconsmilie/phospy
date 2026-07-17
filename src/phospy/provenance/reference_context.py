@@ -8,15 +8,16 @@ from dataclasses import dataclass, field
 from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.models import JsonValue
+from phospy.provenance.organisms import Organism, normalize_organism
 
 _REFERENCE_CONTEXT_ID_PREFIX = "reference-context-v1:"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ReferenceContext:
     """Comparable biological reference identity context."""
 
-    organism: str
+    organism: Organism
     protein_namespace: str
     source_name: str
     source_version: str
@@ -24,26 +25,43 @@ class ReferenceContext:
     reference_table_sha256: str | None
     reference_context_id: str = field(init=False, compare=False)
 
-    def __post_init__(self) -> None:
-        organism = _required_reference_context_text(
-            self.organism,
+    def __init__(
+        self,
+        organism: object,
+        protein_namespace: object,
+        source_name: object,
+        source_version: object,
+        proteome_version: object | None,
+        reference_table_sha256: object | None,
+    ) -> None:
+        organism_input = (
+            organism
+            if isinstance(organism, Organism)
+            else _required_reference_context_text(
+                organism,
+                field_name="reference_context.organism",
+            )
+        )
+        organism = normalize_organism(
+            organism_input,
             field_name="reference_context.organism",
-        ).lower()
+            error_type=ReferenceValidationError,
+        )
         protein_namespace = _required_reference_context_text(
-            self.protein_namespace,
+            protein_namespace,
             field_name="reference_context.protein_namespace",
         )
         source_name = _required_reference_context_text(
-            self.source_name,
+            source_name,
             field_name="reference_context.source_name",
         )
         source_version = _required_reference_context_text(
-            self.source_version,
+            source_version,
             field_name="reference_context.source_version",
         )
-        proteome_version = _optional_reference_context_text(self.proteome_version)
+        proteome_version = _optional_reference_context_text(proteome_version)
         reference_table_sha256 = _optional_reference_context_text(
-            self.reference_table_sha256
+            reference_table_sha256
         )
         if reference_table_sha256 is not None:
             reference_table_sha256 = reference_table_sha256.lower()
@@ -169,7 +187,7 @@ class ReferenceContext:
 
     def _identity_payload(self) -> dict[str, JsonValue]:
         return {
-            "organism": self.organism,
+            "organism": self.organism.value,
             "protein_namespace": self.protein_namespace,
             "source_name": self.source_name,
             "source_version": self.source_version,

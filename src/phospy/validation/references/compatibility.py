@@ -48,7 +48,10 @@ class ReferenceCompatibilityValidator:
             and resolved_dataset_organism is not target_organism
         ):
             raise ReferenceCompatibilityError(
-                "dataset.organism and requested reference preset must match"
+                "dataset.organism and requested reference preset must match; "
+                f"dataset.organism={resolved_dataset_organism.value!r}; "
+                f"references={reference_input.value!r} "
+                f"resolved_to={target_organism.value!r}"
             )
 
     def resolve_preset_organism(
@@ -86,7 +89,10 @@ class ReferenceCompatibilityValidator:
             and resolved_dataset_organism is not reference_organism
         ):
             raise error_type(
-                "references.organism must match dataset.organism when both are present"
+                "references.organism must match dataset.organism when both are "
+                "present; "
+                f"dataset.organism={resolved_dataset_organism.value!r}; "
+                f"references.organism={reference_organism.value!r}"
             )
 
 

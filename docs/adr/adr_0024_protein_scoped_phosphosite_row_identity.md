@@ -74,6 +74,12 @@ organism aliases and case variants to the shared `Organism` enum before storing
 analysis-ready state; arbitrary organism strings are not valid internal
 organism state.
 
+Update note (2026-07-17, provenance coherence): the same construction-boundary
+organism rule applies to run provenance. If a direct, trusted, derived, builder,
+or restored dataset path supplies `RunProvenance.reference_context` or selected
+reference provenance, those organism values must resolve to the dataset
+`Organism`. Workflows consume this sealed state and must not repair mismatches.
+
 Peptide-evidence protein_accession is row-identity metadata. It must be
 preserved as protein_accession or explicit protein_namespace/protein_identifier
 metadata. It must not be rewritten into protein_id, which remains available for
@@ -98,8 +104,9 @@ unique encoded `site_key` values.
 
 Dataset construction owns organism coherence. Workflows must not repair,
 reinterpret, or independently normalize `dataset.organism`,
-`site_metadata["organism"]`, or decoded `site_key.organism`; they consume the
-resolved single-organism dataset or fail earlier at the dataset boundary.
+`site_metadata["organism"]`, decoded `site_key.organism`, or provenance
+reference-context organism; they consume the resolved single-organism dataset
+or fail earlier at the dataset boundary.
 
 Kinase reference resources may continue to use display IDs at the reference
 boundary. The kinase workflow must match those display IDs through an explicit

@@ -175,6 +175,13 @@ and compatibility context, not row-key fields. That is why `ReferenceContext`
 exists. It records comparable reference identity fields and derives a
 `reference_context_id` from the identity payload.
 
+Update note (2026-07-17, resolved organism identity): `ReferenceContext`
+stores organism as the shared resolved `Organism` value, not as a free string.
+Serialized payloads continue to emit the standard string value. Construction
+and deserialization must reject unsupported organisms and contradictions among
+dataset organism, row/site-key organism, run-provenance reference context, and
+selected reference bundle provenance.
+
 Compatibility checks are required whenever a workflow combines artifacts whose
 site identity or reference-derived semantics may come from different reference
 contexts, including:
@@ -203,7 +210,9 @@ verified evidence for the exact packaged files.
 Reference organism compatibility remains separate from reference-context
 version compatibility, but it follows the same single-organism policy:
 `ReferencePreset.AUTO`, explicit presets, and explicit bundles compare against
-the same resolved dataset `Organism`.
+the same resolved dataset `Organism`. Resolver-time checks are defense in depth;
+dataset, provenance, and bundle construction boundaries must already prevent
+internally contradictory organism/reference identity.
 
 ## Row-Attrition Provenance
 

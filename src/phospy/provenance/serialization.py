@@ -863,7 +863,7 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
 def _reference_to_payload(reference: ReferenceProvenance) -> dict[str, object]:
     return {
         "source_type": reference.source_type,
-        "organism": reference.organism,
+        "organism": reference.organism.value,
         "bundle_id": reference.bundle_id,
         "source_name": reference.source_name,
         "source_version": reference.source_version,

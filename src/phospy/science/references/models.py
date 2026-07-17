@@ -21,6 +21,7 @@ from phospy.provenance.models import (
     ReferenceProvenance,
     validate_reference_source_version_agreement,
 )
+from phospy.provenance.organisms import Organism, normalize_organism, organism_value
 from phospy.provenance.reference_context import ReferenceContext
 from phospy.science.references.identifiers import (
     ReferenceIdentifierNormalisationReport,
@@ -37,18 +38,6 @@ from phospy.science.references.manifest import (
     SequenceWindowDefinition,
 )
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
-
-
-class Organism(str, Enum):
-    """Public organism identifiers used in dataset/reference contracts.
-
-    Enum membership defines contract syntax. Bundled runtime scientific support
-    may be narrower in a given release.
-    """
-
-    HUMAN = "human"
-    MOUSE = "mouse"
-    RAT = "rat"
 
 
 class ReferencePreset(str, Enum):
@@ -154,6 +143,81 @@ def _reference_context_source_version(
     if reference_context is None:
         return None
     return reference_context.source_version
+
+
+def _require_reference_bundle_organism_coherence(
+    *,
+    organism: Organism,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> None:
+    values: list[tuple[str, object]] = [("references.organism", organism)]
+    if provenance is not None:
+        values.append(("references.provenance.organism", provenance.organism))
+        if provenance.reference_context is not None:
+            values.append(
+                (
+                    "references.provenance.reference_context.organism",
+                    provenance.reference_context.organism,
+                )
+            )
+    if manifest is not None:
+        values.append(("references.manifest.organism", manifest.organism))
+        if manifest.organism_common_name is not None:
+            values.append(
+                (
+                    "references.manifest.organism_common_name",
+                    manifest.organism_common_name,
+                )
+            )
+    _require_same_organism_identity(
+        values=values,
+        conflict_prefix="reference bundle organism identity conflict",
+    )
+
+
+def _require_same_organism_identity(
+    *,
+    values: list[tuple[str, object]],
+    conflict_prefix: str,
+) -> None:
+    if not values:
+        return
+    normalized = [
+        (
+            field_name,
+            normalize_organism(
+                value,
+                field_name=field_name,
+                error_type=ReferenceValidationError,
+            ),
+            value,
+        )
+        for field_name, value in values
+    ]
+    expected_field, expected_organism, _ = normalized[0]
+    conflicts = [
+        (field_name, organism, raw_value)
+        for field_name, organism, raw_value in normalized[1:]
+        if organism is not expected_organism
+    ]
+    if not conflicts:
+        return
+    conflict_text = "; ".join(
+        f"{field_name}={_format_organism_value(raw_value)!r}"
+        f" resolved_to={organism.value!r}"
+        for field_name, organism, raw_value in conflicts
+    )
+    raise ReferenceValidationError(
+        f"{conflict_prefix}; "
+        f"{expected_field}={expected_organism.value!r}; {conflict_text}"
+    )
+
+
+def _format_organism_value(value: object) -> str:
+    if isinstance(value, Organism):
+        return value.value
+    return str(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -356,6 +420,11 @@ class ReferenceBundleValidator:
             raise ReferenceValidationError(
                 "references.manifest must be ReferenceManifest or None"
             )
+        _require_reference_bundle_organism_coherence(
+            organism=organism,
+            provenance=provenance,
+            manifest=manifest,
+        )
         kinase_substrate_reference = KinaseSubstrateReference(
             frame=kinase_substrate_map,
             _assume_owned=True,
@@ -750,8 +819,8 @@ def _resolve_organism(
     if manifest is not None:
         return manifest.organism
     if provenance is not None:
-        return provenance.organism
-    return organism.value
+        return organism_value(provenance.organism)
+    return organism_value(organism)
 
 
 def _resolve_organism_common_name(
@@ -896,7 +965,7 @@ class ReferenceBundle:
         if provenance is None:
             provenance = ReferenceProvenance(
                 source_type="explicit",
-                organism=self.organism.value,
+                organism=self.organism,
                 bundle_id=None,
                 table_fingerprints=(
                     fingerprint_table(

@@ -219,6 +219,7 @@ tests/unit/test_reference_bundle_builder.py,unit,334,9,false,false,,,,,,
 tests/unit/test_reference_bundle_manifests.py,unit,422,17,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_reference_bundle_validation_report.py,unit,260,8,false,false,,,,,,
 tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference identifier normalisation and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_reference_organism_identity_boundaries.py,unit,393,11,false,false,,,,,,
 tests/unit/test_reference_provenance.py,unit,246,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_request_validation_boundaries.py,unit,299,6,true,true,,,,,,

@@ -43,6 +43,7 @@ from phospy.science.datasets.imputation_metadata import (
 )
 from phospy.science.datasets.organism_coherence import (
     normalize_dataset_organism_state,
+    require_dataset_provenance_organism_coherence,
     resolve_single_dataset_organism,
 )
 from phospy.science.datasets.preprocessing.protein_aware_preparation import (
@@ -561,6 +562,11 @@ class AnalysisReadyPhosphoDataset:
                     resolved_trusted_construction_assertions
                 ),
             )
+        require_dataset_provenance_organism_coherence(
+            organism=resolved_dataset_organism,
+            provenance=provenance,
+            error_type=DatasetValidationError,
+        )
         object.__setattr__(
             self, "intensity_scale_state", validated_intensity_scale_state
         )
