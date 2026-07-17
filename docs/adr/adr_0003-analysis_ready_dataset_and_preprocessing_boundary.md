@@ -82,9 +82,10 @@ an internal derived subtype of `AnalysisReadyPhosphoDataset` when it transforms
 an already analysis-ready quantitative matrix, such as technical-replicate
 aggregation. This does not introduce a second public dataset input model.
 Derived datasets must validate through the same analysis-ready invariants, own
-their derived tables, carry fresh derived-data provenance, retain explicit
-parent lineage, and avoid reusing source dataset provenance or preprocessing
-reports as if the derived matrix were untouched source data.
+their derived tables, recompute fingerprints for the actual represented tables
+at construction, carry fresh derived-data provenance, retain explicit parent
+lineage, and avoid reusing source dataset provenance or preprocessing reports
+as if the derived matrix were untouched source data.
 
 Update note (2026-07-16, trusted construction assertions): The primary
 advanced path for caller-owned analysis-ready tables is
@@ -432,14 +433,15 @@ ordinary builder is explicitly scoped:
   those callers have assembled typed provenance and already-owned tables. It
   does not relax organism, table, sequence, processing-state, or fingerprint
   validity.
-- `DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables(...)`: internal
+- `DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables(...)`: private
   workflow-derived quantitative lane, currently for technical-replicate
   aggregation. It validates through the same analysis-ready boundary, carries
-  typed parent lineage, and must not masquerade as a fresh source dataset.
+  typed parent lineage, recomputes derived fingerprints from actual owned
+  tables, and must not masquerade as a fresh source dataset.
 
 Reviewers should treat any new call to `AnalysisReadyPhosphoDataset(...)`,
 `from_trusted_tables(...)`, `_from_owned(...)`, or
-`DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables(...)` as a
+`DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables(...)` as a
 construction-boundary decision and require one of the scoped rationales above.
 
 ## Implementation Guidance

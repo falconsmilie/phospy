@@ -512,7 +512,7 @@ def build_derived_quantitative_run_provenance(
                 "dataset_type": lineage.derived_dataset_type,
                 "parent_dataset_type": lineage.parent_dataset_type,
                 "model_constructor": (
-                    "DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables"
+                    "DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables"
                 ),
                 "source_dataset_provenance_reused": False,
                 "source_dataset_preprocessing_report_reused": False,

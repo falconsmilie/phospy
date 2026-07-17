@@ -73,6 +73,9 @@ scale, missingness policy, matrices transformed, and implementation version.
 The derived dataset receives fresh `RunProvenance`; it must not reuse the
 source dataset provenance or preprocessing report. Differential interpretation
 and design revalidation consume this derived object directly before execution.
+At the dataset boundary, the derived object recomputes fingerprints from the
+actual represented phospho matrix, sample mapping, optional mask, total matrix,
+and comparisons, and rejects stale lineage or run-provenance output hashes.
 
 `phospy.workflows.differential.replicates.TechnicalReplicateResolver` remains a
 backward-compatible wrapper around the planner and aggregator. It is not the

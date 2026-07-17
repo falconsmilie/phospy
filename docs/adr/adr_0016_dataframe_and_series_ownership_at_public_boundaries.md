@@ -104,9 +104,12 @@ exported snapshots must not alter those recorded fingerprints.
 
 Derived quantitative datasets created inside workflows follow the same rule.
 Their fingerprints describe the owned derived tables at derived-object creation
-time, not the parent dataset's tables. Parent dataset fingerprints may appear
-only as explicit lineage inputs. Source run provenance and preprocessing reports
-must not be reused as the derived object's own provenance.
+time, not the parent dataset's tables. The dataset domain recomputes those
+fingerprints from the actual derived phospho matrix, site metadata, optional
+sample metadata, total matrix, comparisons, and imputation observation mask
+before accepting lineage. Parent dataset fingerprints may appear only as
+explicit lineage inputs. Source run provenance and preprocessing reports must
+not be reused as the derived object's own provenance.
 
 ## Consequences
 

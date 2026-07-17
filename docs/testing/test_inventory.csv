@@ -73,7 +73,7 @@ tests/unit/science/datasets/test_processing_state.py,datasets,395,20,false,false
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,1410,39,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
-tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,804,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,59,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1136,14,false,false,,,,,,
@@ -110,6 +110,7 @@ tests/unit/test_dataset_site_sequence_deriver.py,unit,96,4,false,false,,,,,,
 tests/unit/test_dataset_site_sequence_resolution.py,unit,508,13,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset site sequence resolution, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_dataset_site_sequence_resolution_collaborators.py,unit,86,3,true,true,,,,,,
 tests/unit/test_dataset_transformation_state_establishment.py,unit,1324,38,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/test_derived_quantitative_state_certification.py,unit,442,9,true,true,,,,,,
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
 tests/unit/test_differential_analysis.py,unit,1131,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
@@ -219,7 +220,7 @@ tests/unit/test_reference_bundle_builder.py,unit,334,9,false,false,,,,,,
 tests/unit/test_reference_bundle_manifests.py,unit,422,17,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_reference_bundle_validation_report.py,unit,260,8,false,false,,,,,,
 tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference identifier normalisation and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_reference_organism_identity_boundaries.py,unit,393,11,false,false,,,,,,
+tests/unit/test_reference_organism_identity_boundaries.py,unit,409,11,false,false,,,,,,
 tests/unit/test_reference_provenance.py,unit,246,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_request_validation_boundaries.py,unit,299,6,true,true,,,,,,

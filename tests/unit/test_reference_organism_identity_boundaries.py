@@ -13,6 +13,7 @@ from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
     DerivedSampleMapping,
+    build_derived_quantitative_run_provenance,
 )
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_table
@@ -117,16 +118,24 @@ def test_derived_dataset_constructor_rejects_provenance_reference_context_mismat
     payload = _analysis_ready_payload(organism=Organism.RAT)
     phospho = payload["phospho"]
     assert isinstance(phospho, pd.DataFrame)
+    lineage = _derived_lineage(
+        phospho=phospho,
+        site_metadata=_payload_site_metadata(payload),
+    )
 
     with pytest.raises(DatasetValidationError, match="dataset organism identity"):
-        DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables(
+        DerivedAnalysisReadyPhosphoDataset(
             phospho=phospho,
             site_metadata=_payload_site_metadata(payload),
             organism=_payload_organism(payload),
             intensity_scale_state=_payload_intensity_scale_state(payload),
             processing_state=_payload_processing_state(payload),
-            derived_lineage=_derived_lineage(phospho),
-            provenance=_run_provenance(reference_context=_context("human")),
+            derived_lineage=lineage,
+            provenance=build_derived_quantitative_run_provenance(
+                lineage=lineage,
+                environment=collect_environment_provenance(),
+                reference_context=_context("human"),
+            ),
         )
 
 
@@ -344,8 +353,15 @@ def _payload_processing_state(payload: dict[str, object]) -> DatasetProcessingSt
     return cast(DatasetProcessingState, payload["processing_state"])
 
 
-def _derived_lineage(phospho: pd.DataFrame) -> DerivedQuantitativeDataProvenance:
-    fingerprints = (fingerprint_table(phospho, name="dataset.phospho"),)
+def _derived_lineage(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+) -> DerivedQuantitativeDataProvenance:
+    fingerprints = (
+        fingerprint_table(phospho, name="dataset.phospho"),
+        fingerprint_table(site_metadata, name="dataset.site_metadata"),
+    )
     return DerivedQuantitativeDataProvenance(
         derivation_type="unit-derived",
         parent_dataset_type="AnalysisReadyPhosphoDataset",

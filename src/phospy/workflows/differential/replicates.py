@@ -472,7 +472,7 @@ class TechnicalReplicateAggregator:
             environment=environment,
             reference_context=dataset.reference_context,
         )
-        return DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables(
+        return DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables(  # pyright: ignore[reportPrivateUsage] - workflow owns freshly derived tables and lineage before domain certification
             phospho=aggregated_phospho,
             site_metadata=dataset_view.site_metadata.copy(deep=True),
             intensity_scale_state=dataset.intensity_scale_state,
