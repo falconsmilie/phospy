@@ -433,6 +433,31 @@ def test_knn_imputation_tie_fixture_is_deterministic() -> None:
     )
 
 
+def test_knn_imputation_output_is_stable_across_distance_chunk_sizes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [0.0, 0.0, 2.0, 2.0, 4.0, 5.0],
+            "sample_b": [float("nan"), 10.0, 10.0, 12.0, 14.0, 16.0],
+            "sample_c": [1.0, 1.0, float("nan"), 3.0, 5.0, 7.0],
+            "sample_d": [2.0, 2.0, 4.0, 4.0, float("nan"), 8.0],
+            "sample_e": [3.0, 3.0, 5.0, 5.0, 7.0, 9.0],
+        },
+        index=pd.Index(
+            ["target_a", "donor_a", "target_b", "donor_b", "target_c", "donor_c"]
+        ),
+    )
+
+    unchunked = run_knn_policy(_knn_state(phospho.copy(deep=True)))
+    monkeypatch.setattr(knn_module, "KNN_DISTANCE_CHUNK_MATRIX_MIB", 0.000001)
+    chunked = run_knn_policy(_knn_state(phospho.copy(deep=True)))
+
+    pdt.assert_frame_equal(chunked.phospho, unchunked.phospho)
+    pdt.assert_frame_equal(chunked.imputed_mask, unchunked.imputed_mask)
+    assert chunked.imputed_rows == unchunked.imputed_rows
+
+
 @pytest.mark.reproducibility
 def test_knn_imputation_diagnostics_are_reproducible() -> None:
     first = MissingDataStage().run(_knn_state(_knn_tie_phospho().copy(deep=True)))

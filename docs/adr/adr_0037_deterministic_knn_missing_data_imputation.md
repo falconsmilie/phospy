@@ -40,15 +40,16 @@ guardrails are:
 - retained site rows `<= 50,000`
 - sample columns `<= 64`
 - estimated distance-feature operations `<= 2,000,000,000`
-- target-by-donor distance chunks sized to about `96 MiB`
+- target-by-donor distance chunks sized to about `48 MiB`
 - release-gate KNN peak-memory budget `< 384 MiB`
 
 ## Consequences
 
 KNN imputation is suitable for sparse retained missingness at large site counts
-and fails fast for broad missingness that would require impractical all-pairs
-distance work. The error must report retained rows, rows with missing values,
-sample columns, estimated work, and the configured budget.
+and for moderate retained missing-target workloads that remain within the
+distance-work guardrail. It fails fast for broad missingness that would require
+impractical all-pairs distance work. The error must report retained rows, rows
+with missing values, sample columns, estimated work, and the configured budget.
 
 The policy does not silently fall back to row-median, MinProb, or scikit-learn
 behavior. Users must choose a different missing-data policy explicitly when KNN
@@ -68,6 +69,8 @@ Required coverage:
 - all-missing retained rows
 - sparse-overlap and no-overlap fallback cases
 - guardrail rejection for impractical requests
-- 10k, 25k, and 50k-site release-gate benchmarks
+- 10k, 25k, and 50k-site release-gate benchmarks for sparse 12-sample and
+  moderate 24-sample retained missing-target tiers
+- output equivalence across distance chunk sizes
 - peak-memory regression coverage
 - workflow-orchestration ownership checks

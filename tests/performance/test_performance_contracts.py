@@ -66,11 +66,8 @@ from tests.support.performance_contracts import (
     DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER,
     KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX,
     KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX,
-    KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS,
-    KNN_IMPUTATION_BENCHMARK_N_SAMPLES,
-    KNN_IMPUTATION_BENCHMARK_SITE_COUNTS,
+    KNN_IMPUTATION_BENCHMARK_TIERS,
     KNN_IMPUTATION_PEAK_MIB_MAX,
-    KNN_IMPUTATION_RUNTIME_SECONDS_MAX_BY_SITE_COUNT,
     MOTIF_PEAK_MIB_MAX,
     MOTIF_RUNTIME_SECONDS_MAX,
     PREPROCESSING_CONTRACT_N_SAMPLES,
@@ -93,6 +90,7 @@ from tests.support.performance_contracts import (
     SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX,
     SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX,
     SIGNALOME_WORKFLOW_RUNTIME_SECONDS_MAX,
+    KnnImputationBenchmarkTier,
     deterministic_kinase_substrate_map,
     deterministic_matrix,
     deterministic_site_ids,
@@ -235,6 +233,35 @@ def _build_adaptive_prediction_hot_path_inputs(
             for offset in range(sites_per_kinase)
         ]
     return prediction_score_matrix, candidate_substrates
+
+
+def _with_knn_target_missingness(
+    phospho: pd.DataFrame,
+    *,
+    missing_target_rows: int,
+    missing_cells_per_target_row: int,
+) -> tuple[pd.DataFrame, int]:
+    with_missing = phospho.copy(deep=True)
+    target_count = min(int(missing_target_rows), int(with_missing.shape[0]))
+    if target_count <= 0:
+        return with_missing, 0
+
+    row_positions = np.floor(
+        np.linspace(
+            0,
+            int(with_missing.shape[0]),
+            num=target_count,
+            endpoint=False,
+        )
+    ).astype(int, copy=False)
+    row_positions = np.unique(row_positions)
+    sample_count = int(with_missing.shape[1])
+    cells_per_row = min(int(missing_cells_per_target_row), sample_count)
+    for offset, row_position in enumerate(row_positions):
+        for missing_offset in range(cells_per_row):
+            column_position = (offset + (missing_offset * 7)) % sample_count
+            with_missing.iat[int(row_position), int(column_position)] = np.nan
+    return with_missing, int(row_positions.size) * cells_per_row
 
 
 def _collect_backend_contract_snapshot(
@@ -988,28 +1015,24 @@ def test_quantile_normalisation_performance_contract() -> None:
     assert peak_mib < QUANTILE_PEAK_MIB_MAX
 
 
-@pytest.mark.parametrize("n_sites", KNN_IMPUTATION_BENCHMARK_SITE_COUNTS)
-def test_knn_imputation_10k_25k_50k_benchmark_and_peak_memory_regression(
-    n_sites: int,
+@pytest.mark.parametrize(
+    "tier",
+    KNN_IMPUTATION_BENCHMARK_TIERS,
+    ids=lambda tier: tier.case_id,
+)
+def test_knn_imputation_sparse_and_moderate_benchmarks_and_peak_memory_regression(
+    tier: KnnImputationBenchmarkTier,
 ) -> None:
     phospho = deterministic_matrix(
-        n_sites=int(n_sites),
-        n_samples=KNN_IMPUTATION_BENCHMARK_N_SAMPLES,
-        seed=4441 + int(n_sites),
+        n_sites=int(tier.site_count),
+        n_samples=int(tier.sample_count),
+        seed=4441 + int(tier.site_count) + int(tier.sample_count),
     )
-    missing_target_count = min(
-        KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS,
-        int(phospho.shape[0]),
+    phospho, expected_imputed_cells = _with_knn_target_missingness(
+        phospho,
+        missing_target_rows=int(tier.missing_target_rows),
+        missing_cells_per_target_row=int(tier.missing_cells_per_target_row),
     )
-    missing_positions = np.linspace(
-        0,
-        int(phospho.shape[0]) - 1,
-        num=missing_target_count,
-        dtype=int,
-    )
-    for offset, row_position in enumerate(np.unique(missing_positions)):
-        column_position = offset % int(phospho.shape[1])
-        phospho.iat[int(row_position), int(column_position)] = np.nan
     state = PreprocessingState(
         phospho=phospho,
         site_metadata=deterministic_site_metadata(
@@ -1033,8 +1056,8 @@ def test_knn_imputation_10k_25k_50k_benchmark_and_peak_memory_regression(
 
     assert outcome.phospho.shape == phospho.shape
     assert int(outcome.phospho.isna().to_numpy().sum()) == 0
-    assert outcome.imputed_cell_count == missing_target_count
-    assert runtime_seconds < KNN_IMPUTATION_RUNTIME_SECONDS_MAX_BY_SITE_COUNT[n_sites]
+    assert outcome.imputed_cell_count == expected_imputed_cells
+    assert runtime_seconds < float(tier.runtime_seconds_max)
     assert peak_mib < KNN_IMPUTATION_PEAK_MIB_MAX
 
 

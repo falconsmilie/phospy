@@ -25,7 +25,7 @@ requirements, or provenance capture.
 | Dataset preprocessing (pipeline orchestration) | sites x samples; optional metadata/total rows | Sum of stage costs | 2,000 x 8 to 5,000 x 12 | None (pipeline-level) | Stage-dependent; quantile and correction dominate | No hidden fallback; runs configured stages only | Stage-specific validation or scale errors propagate |
 | Site matrix building | input rows; duplicate-site groups; samples | O(rows x samples) plus grouping | <= 5,000 rows, <= 12 samples | None | Duplicate resolution and grouping materialize intermediate tables | Policy-driven duplicate handling only after explicit non-error `duplicate_site_policy` selection | Raises `PhosPyInputError` for unsupported policy, missing required metadata, or zero retained rows |
 | Duplicate-site resolution | duplicate groups, rows per group, samples | Groupby/sort path: roughly O(rows log rows) | Moderate duplicate groups; keep group size small | None | Aggregate policies allocate grouped matrices | `aggregate_mean` / `aggregate_median` deliberately collapse duplicate `site_key` evidence; `first` and `max_mean_signal` deliberately select one source row | Default `duplicate_site_policy='error'` fails fast on duplicate `site_key` rows |
-| Missing data handling | sites x samples; missing fraction | Row-median/MinProb: O(rows x columns). KNN: O(rows_with_missing x retained_rows x columns) distance work | Row-median/MinProb: 2,000 x 8 to 5,000 x 12. KNN: sparse retained missingness up to 50,000 x 12 under the KNN guardrails | KNN retained rows <= 50,000, samples <= 64, distance-feature operations <= 2,000,000,000 | Imputation copies matrix and row-audit state. KNN additionally chunks pairwise target-row distance matrices | Policy-driven (`forbid`, `impute_row_median`, `impute_minprob`, `impute_knn`); no hidden fallback between policies | Validation errors for policy/parameter mismatches; strict policies reject missing values; KNN rejects impractical retained shapes with actionable `PhosPyInputError` |
+| Missing data handling | sites x samples; missing fraction | Row-median/MinProb: O(rows x columns). KNN: O(rows_with_missing x retained_rows x columns) distance work | Row-median/MinProb: 2,000 x 8 to 5,000 x 12. KNN: sparse 12-sample and moderate 24-sample retained missing-target workloads up to 50,000 retained sites under the KNN guardrails | KNN retained rows <= 50,000, samples <= 64, distance-feature operations <= 2,000,000,000 | Imputation copies matrix and row-audit state. KNN additionally chunks pairwise target-row distance matrices | Policy-driven (`forbid`, `impute_row_median`, `impute_minprob`, `impute_knn`); no hidden fallback between policies | Validation errors for policy/parameter mismatches; strict policies reject missing values; KNN rejects impractical retained shapes with actionable `PhosPyInputError` |
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
@@ -60,24 +60,29 @@ Current KNN execution budgets:
 - sample columns: `<= 64`
 - estimated distance-feature operations:
   `rows_with_missing_values x retained_rows x sample_columns <= 2,000,000,000`
-- pairwise distance chunk target: `96 MiB` per target-by-donor matrix
+- pairwise distance chunk target: `48 MiB` per target-by-donor matrix
 - release-gate peak memory budget: `< 384 MiB`
 
-Release-gate KNN benchmark fixtures use 12 samples and 96 retained rows with
-one missing cell each:
+Release-gate KNN benchmark fixtures measure both sparse and moderate retained
+missing-target workloads. They intentionally do not claim broad random
+missingness across all retained rows.
 
-| Sites | Runtime Budget | Peak-Memory Budget |
-| --- | --- | --- |
-| 10,000 | < 12 seconds | < 384 MiB |
-| 25,000 | < 24 seconds | < 384 MiB |
-| 50,000 | < 45 seconds | < 384 MiB |
+| Tier | Sites | Samples | Rows With Missing Values | Missing Cells Per Target Row | Runtime Budget | Peak-Memory Budget |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sparse | 10,000 | 12 | 96 | 1 | < 5 seconds | < 384 MiB |
+| Sparse | 25,000 | 12 | 96 | 1 | < 8 seconds | < 384 MiB |
+| Sparse | 50,000 | 12 | 96 | 1 | < 12 seconds | < 384 MiB |
+| Moderate | 10,000 | 24 | 256 | 2 | < 8 seconds | < 384 MiB |
+| Moderate | 25,000 | 24 | 512 | 2 | < 15 seconds | < 384 MiB |
+| Moderate | 50,000 | 24 | 768 | 2 | < 30 seconds | < 384 MiB |
 
-These benchmarks validate chunking and peak-memory behavior. Broader random
-missingness at 25,000-50,000 retained sites can exceed the distance-work budget
-and is intentionally rejected. In that case, reduce retained missing rows,
-lower `missing_data.max_missing_fraction_per_row`, pre-filter low-value
-features, or use `missing_data.policy="impute_row_median"` when its scientific
-semantics are acceptable.
+These benchmarks validate deterministic donor semantics, chunk-equivalent
+output, and peak-memory behavior for supported retained target densities.
+Broader random missingness at 25,000-50,000 retained sites can exceed the
+distance-work budget and is intentionally rejected. In that case, reduce
+retained missing rows, lower `missing_data.max_missing_fraction_per_row`,
+pre-filter low-value features, or use `missing_data.policy="impute_row_median"`
+when its scientific semantics are acceptable.
 
 ## CI Benchmark Ownership
 

@@ -48,7 +48,7 @@ tests/parity/test_signalome_workflow_parity.py,parity,375,7,true,false,parity,ke
 tests/performance/test_dataset_validation_performance.py,performance,361,8,true,false,,,,,,
 tests/performance/test_empirical_bayes_trend_performance.py,performance,132,2,true,true,,,,,,
 tests/performance/test_importer_performance.py,performance,106,2,true,false,,,,,,
-tests/performance/test_performance_contracts.py,performance,1336,17,true,true,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for performance contracts, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/performance/test_performance_contracts.py,performance,1359,17,true,true,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for performance contracts, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
@@ -147,7 +147,7 @@ tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific 
 tests/unit/test_experimental_design_contract.py,unit,983,34,false,false,,,,,,
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,379,14,false,false,,,,,,
-tests/unit/test_frame_ownership_policy.py,unit,1684,35,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 64 hit(s); indicators: private_member_access
+tests/unit/test_frame_ownership_policy.py,unit,1737,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 64 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
 tests/unit/test_group_coverage_filter_preprocessing.py,unit,258,7,false,false,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing_config.py,unit,195,10,true,true,,,,,,
@@ -173,7 +173,7 @@ tests/unit/test_localisation_policy_preprocessing.py,unit,185,6,true,true,,,,,,
 tests/unit/test_log2_transformer.py,unit,185,6,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_maintainer_scripts_smoke.py,unit,283,8,true,true,provenance/golden contract,keep,"Active maintainer scripts for parity fixtures, provenance goldens, and public workflow references must remain import-safe and path-stable without generation side effects on import.",codex-audit,TST-SCRIPTS-001,"Smoke coverage for protected release-maintainer scripts under scripts/active, scripts/support, and scripts/run_pyright.py."
 tests/unit/test_maxquant_phosphosite_importer.py,unit,315,10,false,false,,,,,,
-tests/unit/test_missing_data_split_modules.py,unit,797,25,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_missing_data_split_modules.py,unit,822,26,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_multiple_testing_correction.py,unit,159,7,true,true,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,162,6,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_peptide_to_site_aggregation.py,unit,215,8,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for peptide-to-site aggregation, increasing risk of incorrect site-level evidence summarisation.",codex-audit,,New test file classified after audit-doc regeneration.

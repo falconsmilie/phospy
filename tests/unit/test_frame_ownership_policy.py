@@ -314,7 +314,7 @@ def _mutate_existing_borrowed_frame_cell(
     before_columns = tuple(owner.columns)
     try:
         borrowed.iloc[0, 0] = value
-    except ValueError:
+    except (TypeError, ValueError):
         pass
     assert owner.iloc[0, 0] == before_value
     assert owner.shape == before_shape
@@ -331,10 +331,17 @@ def _mutate_existing_borrowed_series_value(
     before_shape = owner.shape
     try:
         borrowed.iloc[0] = value
-    except ValueError:
+    except (TypeError, ValueError):
         pass
     assert owner.iloc[0] == before_value
     assert owner.shape == before_shape
+
+
+def _try_borrowed_column_write(frame: pd.DataFrame) -> None:
+    try:
+        frame.loc[:, "borrowed_only"] = [1.0, 2.0]
+    except (TypeError, ValueError):
+        pass
 
 
 def _attribute_path(node: ast.AST) -> str | None:
@@ -780,7 +787,7 @@ def test_concurrent_borrowed_access_preserves_pandas_copy_on_write_option() -> N
             assert pd.get_option("mode.copy_on_write") is False
 
 
-def test_internal_borrowed_dataset_access_is_mutation_isolated_without_deep_copy() -> (
+def test_internal_borrowed_dataset_access_is_read_only_contract_without_deep_copy() -> (
     None
 ):
     dataset = AnalysisReadyPhosphoDataset(
@@ -800,7 +807,7 @@ def test_internal_borrowed_dataset_access_is_mutation_isolated_without_deep_copy
             borrowed=borrowed,
             value=999.0,
         )
-        borrowed.loc[:, "borrowed_only"] = [1.0, 2.0]
+        _try_borrowed_column_write(borrowed)
 
     assert borrowed is not dataset._phospho
     assert counts.dataframe_deep == 0
@@ -1062,6 +1069,52 @@ def test_frame_ownership_helper_constructor_and_export_behaviour_is_preserved() 
     exported = export_dataframe(owned)
     exported.iloc[0, 0] = 111.0
     assert float(owned.iloc[0, 0]) == 1.0
+
+
+def test_frame_ownership_helper_policy_matrix_documents_export_and_borrow_modes() -> (
+    None
+):
+    frame_owner = _phospho()
+    frame_cases: tuple[
+        tuple[str, Callable[[pd.DataFrame], pd.DataFrame], bool],
+        ...,
+    ] = (
+        ("safe_public_copy", export_dataframe, True),
+        ("borrowed_internal_view", _borrow_dataframe, False),
+    )
+
+    for category, accessor, writable_export in frame_cases:
+        snapshot = accessor(frame_owner)
+        assert snapshot is not frame_owner
+        try:
+            snapshot.iloc[0, 0] = 222.0
+        except (TypeError, ValueError):
+            assert not writable_export, category
+        else:
+            if writable_export:
+                assert float(snapshot.iloc[0, 0]) == 222.0
+        assert float(frame_owner.iloc[0, 0]) == 1.0
+
+    series_owner = pd.Series([1.0, 2.0], index=["a", "b"], name="values")
+    series_cases: tuple[
+        tuple[str, Callable[[pd.Series], pd.Series], bool],
+        ...,
+    ] = (
+        ("safe_public_copy", export_series, True),
+        ("borrowed_internal_view", _borrow_series, False),
+    )
+
+    for category, accessor, writable_export in series_cases:
+        snapshot = accessor(series_owner)
+        assert snapshot is not series_owner
+        try:
+            snapshot.iloc[0] = 222.0
+        except (TypeError, ValueError):
+            assert not writable_export, category
+        else:
+            if writable_export:
+                assert float(snapshot.iloc[0]) == 222.0
+        assert float(series_owner.iloc[0]) == 1.0
 
 
 def test_frame_ownership_optional_helpers_return_none_for_none() -> None:

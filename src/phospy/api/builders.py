@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from phospy.contracts.dataset_build import DatasetBuildRequest
 from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
 from phospy.io.readers.dataset_inputs import DatasetPathTableReader
 from phospy.science.datasets.builders.contracts import (
     DatasetBuildExecutorContract,
     DatasetBuildInterpreterContract,
-    DatasetBuildRequestProtocol,
     DatasetBuildValidatorContract,
 )
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
@@ -86,9 +86,10 @@ class AnalysisReadyDatasetBuilder(_AnalysisReadyDatasetBuilder):
             executor=executor,
         )
 
-    def run(
+    # Public API exposes the concrete request type; the science base stays protocol-typed.
+    def run(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
-        request: DatasetBuildRequestProtocol,
+        request: DatasetBuildRequest,
     ) -> AnalysisReadyPhosphoDataset:
         """Validate, interpret, execute, and provenance-stamp a build request."""
 

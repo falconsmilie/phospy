@@ -3,12 +3,23 @@ from __future__ import annotations
 import time
 import tracemalloc
 from collections.abc import Callable
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
 
 DEFAULT_PERFORMANCE_SEED = 20260426
 _AMINO_ACIDS = tuple("ARNDCEQGHILKMFPSTWYV")
+
+
+class KnnImputationBenchmarkTier(NamedTuple):
+    case_id: str
+    site_count: int
+    sample_count: int
+    missing_target_rows: int
+    missing_cells_per_target_row: int
+    runtime_seconds_max: float
+
 
 # Representative performance fixture dimensions (CI-safe, scientifically realistic).
 PREPROCESSING_CONTRACT_N_SITES = 5_000
@@ -46,11 +57,61 @@ KNN_IMPUTATION_BENCHMARK_SITE_COUNTS = (10_000, 25_000, 50_000)
 KNN_IMPUTATION_BENCHMARK_N_SAMPLES = 12
 KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS = 96
 KNN_IMPUTATION_RUNTIME_SECONDS_MAX_BY_SITE_COUNT = {
-    10_000: 12.0,
-    25_000: 24.0,
-    50_000: 45.0,
+    10_000: 5.0,
+    25_000: 8.0,
+    50_000: 12.0,
 }
 KNN_IMPUTATION_PEAK_MIB_MAX = 384.0
+KNN_IMPUTATION_BENCHMARK_TIERS = (
+    KnnImputationBenchmarkTier(
+        case_id="sparse_10k_12samples_96targets",
+        site_count=10_000,
+        sample_count=12,
+        missing_target_rows=96,
+        missing_cells_per_target_row=1,
+        runtime_seconds_max=5.0,
+    ),
+    KnnImputationBenchmarkTier(
+        case_id="sparse_25k_12samples_96targets",
+        site_count=25_000,
+        sample_count=12,
+        missing_target_rows=96,
+        missing_cells_per_target_row=1,
+        runtime_seconds_max=8.0,
+    ),
+    KnnImputationBenchmarkTier(
+        case_id="sparse_50k_12samples_96targets",
+        site_count=50_000,
+        sample_count=12,
+        missing_target_rows=96,
+        missing_cells_per_target_row=1,
+        runtime_seconds_max=12.0,
+    ),
+    KnnImputationBenchmarkTier(
+        case_id="moderate_10k_24samples_256targets",
+        site_count=10_000,
+        sample_count=24,
+        missing_target_rows=256,
+        missing_cells_per_target_row=2,
+        runtime_seconds_max=8.0,
+    ),
+    KnnImputationBenchmarkTier(
+        case_id="moderate_25k_24samples_512targets",
+        site_count=25_000,
+        sample_count=24,
+        missing_target_rows=512,
+        missing_cells_per_target_row=2,
+        runtime_seconds_max=15.0,
+    ),
+    KnnImputationBenchmarkTier(
+        case_id="moderate_50k_24samples_768targets",
+        site_count=50_000,
+        sample_count=24,
+        missing_target_rows=768,
+        missing_cells_per_target_row=2,
+        runtime_seconds_max=30.0,
+    ),
+)
 
 DATASET_BUILD_SMOKE_RUNTIME_SECONDS_MAX = 40.0
 DATASET_BUILD_SMOKE_PEAK_MIB_MAX = 320.0
@@ -616,11 +677,13 @@ __all__ = [
     "IMPORTER_MEDIUM_NORMALISATION_RUNTIME_SECONDS_MAX",
     "KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX",
     "KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX",
+    "KNN_IMPUTATION_BENCHMARK_TIERS",
     "KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS",
     "KNN_IMPUTATION_BENCHMARK_N_SAMPLES",
     "KNN_IMPUTATION_BENCHMARK_SITE_COUNTS",
     "KNN_IMPUTATION_PEAK_MIB_MAX",
     "KNN_IMPUTATION_RUNTIME_SECONDS_MAX_BY_SITE_COUNT",
+    "KnnImputationBenchmarkTier",
     "MOTIF_PEAK_MIB_MAX",
     "MOTIF_RUNTIME_SECONDS_MAX",
     "PREPROCESSING_CONTRACT_MISSING_FRACTION",

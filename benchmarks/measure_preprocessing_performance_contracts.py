@@ -129,30 +129,36 @@ def _run_knn_imputation(phospho: pd.DataFrame) -> object:
     return run_knn_policy(state)
 
 
-def _with_sparse_knn_missingness(
+def _with_knn_target_missingness(
     phospho: pd.DataFrame,
     *,
     missing_target_rows: int,
+    missing_cells_per_target_row: int = 1,
 ) -> pd.DataFrame:
     with_missing = phospho.copy(deep=True)
     target_count = min(int(missing_target_rows), int(with_missing.shape[0]))
-    row_positions = np.linspace(
-        0,
-        int(with_missing.shape[0]) - 1,
-        num=target_count,
-        dtype=int,
-    )
+    if target_count <= 0:
+        return with_missing
+    row_positions = np.floor(
+        np.linspace(
+            0,
+            int(with_missing.shape[0]),
+            num=target_count,
+            endpoint=False,
+        )
+    ).astype(int, copy=False)
+    sample_count = int(with_missing.shape[1])
+    cells_per_row = min(int(missing_cells_per_target_row), sample_count)
     for offset, row_position in enumerate(np.unique(row_positions)):
-        column_position = offset % int(with_missing.shape[1])
-        with_missing.iat[int(row_position), int(column_position)] = float("nan")
+        for missing_offset in range(cells_per_row):
+            column_position = (offset + (missing_offset * 7)) % sample_count
+            with_missing.iat[int(row_position), int(column_position)] = float("nan")
     return with_missing
 
 
 def main() -> None:
     from tests.support.performance_contracts import (
-        KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS,
-        KNN_IMPUTATION_BENCHMARK_N_SAMPLES,
-        KNN_IMPUTATION_BENCHMARK_SITE_COUNTS,
+        KNN_IMPUTATION_BENCHMARK_TIERS,
         PREPROCESSING_CONTRACT_MISSING_FRACTION,
         PREPROCESSING_CONTRACT_N_SAMPLES,
         PREPROCESSING_CONTRACT_N_SITES,
@@ -223,23 +229,29 @@ def main() -> None:
     print(f"quantile_peak_mib={quantile_peak_mib:.3f}")
     print(f"quantile_output_rows={quantile_state.phospho.shape[0]}")
 
-    for knn_n_sites in KNN_IMPUTATION_BENCHMARK_SITE_COUNTS:
+    for knn_tier in KNN_IMPUTATION_BENCHMARK_TIERS:
         knn_baseline = _build_base_matrix(
-            n_sites=int(knn_n_sites),
-            n_samples=KNN_IMPUTATION_BENCHMARK_N_SAMPLES,
+            n_sites=int(knn_tier.site_count),
+            n_samples=int(knn_tier.sample_count),
         )
-        knn_input = _with_sparse_knn_missingness(
+        knn_input = _with_knn_target_missingness(
             knn_baseline,
-            missing_target_rows=KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS,
+            missing_target_rows=int(knn_tier.missing_target_rows),
+            missing_cells_per_target_row=int(knn_tier.missing_cells_per_target_row),
         )
         knn_outcome, knn_runtime_seconds, knn_peak_mib = median_runtime_and_peak_mib(
             lambda knn_frame=knn_input: _run_knn_imputation(knn_frame),
             repeats=1,
             warmup=False,
         )
-        print(f"knn_{knn_n_sites}_runtime_seconds={knn_runtime_seconds:.6f}")
-        print(f"knn_{knn_n_sites}_peak_mib={knn_peak_mib:.3f}")
-        print(f"knn_{knn_n_sites}_imputed_cells={knn_outcome.imputed_cell_count}")
+        print(f"knn_{knn_tier.case_id}_n_sites={knn_tier.site_count}")
+        print(f"knn_{knn_tier.case_id}_n_samples={knn_tier.sample_count}")
+        print(
+            f"knn_{knn_tier.case_id}_missing_target_rows={knn_tier.missing_target_rows}"
+        )
+        print(f"knn_{knn_tier.case_id}_runtime_seconds={knn_runtime_seconds:.6f}")
+        print(f"knn_{knn_tier.case_id}_peak_mib={knn_peak_mib:.3f}")
+        print(f"knn_{knn_tier.case_id}_imputed_cells={knn_outcome.imputed_cell_count}")
 
 
 if __name__ == "__main__":

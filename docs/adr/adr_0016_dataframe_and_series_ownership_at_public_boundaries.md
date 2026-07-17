@@ -54,10 +54,10 @@ ownership and export semantics at package boundaries.
 PhosPy adopts and enforces the following ownership rules:
 
 1. Internal models and workflow objects own mutable pandas state.
-2. Public pandas accessors return defensive snapshots for both DataFrames and
-   Series.
-3. Mutation-isolated internal frame access is package-private and limited to
-   controlled internal boundaries.
+2. Public pandas accessors return defensive, caller-writable snapshots for both
+   DataFrames and Series.
+3. Mutation-isolated internal frame access is package-private, read-only by
+   contract, and limited to controlled internal boundaries.
 4. Provenance fingerprints describe owned internal state at result creation
    time.
 5. Mutating pandas objects returned by public accessors must not mutate internal
@@ -72,22 +72,25 @@ PhosPy adopts and enforces the following ownership rules:
 
 ### Public Accessors
 
-Public accessors must expose mutation-isolated snapshots. Public APIs must not
-offer user-facing `copy=False` toggles for owned boundary data.
+Public accessors must expose mutation-isolated snapshots that callers may mutate
+locally without changing owned dataset/result state. Public APIs must not offer
+user-facing `copy=False` toggles for owned boundary data.
 
 ### Internal Frame Snapshot Paths
 
 Package-private `_borrow_*` helpers are allowed for trusted internal
-collaboration only. They return mutation-isolated internal snapshots, are not
-part of the public contract, and must stay out of public API routes.
+collaboration only. They return mutation-isolated internal snapshots, are
+read-only by contract, are not part of the public contract, and must stay out of
+public API routes. Callers must not rely on successful mutation of a borrowed
+object; writes may raise or detach locally depending on the pandas runtime, but
+must not mutate the owner.
 
 Borrowed snapshots are implemented without process-global pandas mutation:
 
 - pandas runtimes with native copy-on-write isolation may use shallow pandas
   copies.
 - NumPy-backed pandas 2.x frames use shallow pandas copies whose borrowed blocks
-  are local read-only views. Writes to those borrowed objects may raise or
-  detach locally, but must not mutate the owner.
+  are local read-only views.
 - Unsupported pandas internals, including extension arrays that cannot be made
   read-only through the local helper, fall back to deep copies.
 

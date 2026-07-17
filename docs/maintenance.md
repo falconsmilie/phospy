@@ -257,13 +257,15 @@ PhosPy treats DataFrames as owned mutable state internally.
 
 Input DataFrames are copied when accepted into validated dataset/table objects.
 Workflow internals may pass owned DataFrames without repeated defensive copies.
-Public result/table access should either return a safe copy or clearly mark the
-returned object as an internal-only borrowed reference.
+Public result/table access returns caller-writable defensive snapshots; internal
+borrow helpers are read-only by contract and must not be exposed as public API.
 
 Frame ownership helpers must not set or restore pandas process-global options.
 Internal borrowed views are mutation-isolated locally: NumPy-backed pandas
-frames use shallow read-only borrowed blocks where possible, and unsupported
-pandas internals fall back to deep copies.
+frames use shallow read-only borrowed blocks where possible, pandas runtimes
+with native copy-on-write may detach locally, and unsupported pandas internals
+fall back to deep copies. Code that needs to mutate scientific state must use an
+owned frame, not a borrowed frame.
 
 Provenance fingerprints describe the owned internal state at creation time.
 
@@ -271,10 +273,10 @@ Exposure categories:
 
 - `owned_internal`: DataFrames stored in dataset/result/table dataclass fields.
 - `safe_public_copy`: `to_dataframe(...)`, `to_pandas(...)`, and
-  `*_dataframe(...)` helpers (always defensive snapshots).
+  `*_dataframe(...)` helpers (always caller-writable defensive snapshots).
 - `borrowed_internal_view`: private/internal helpers only (`_borrow_dataframe`,
-  `_borrow_optional_dataframe`); writes may raise or detach locally, but must
-  not mutate the owner.
+  `_borrow_optional_dataframe`); read-only by contract, and writes may raise or
+  detach locally depending on pandas, but must not mutate the owner.
 - `export_snapshot`: persisted outputs and provenance fingerprints.
 
 ## Release Notes
