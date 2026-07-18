@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from numbers import Integral
-from typing import Protocol, TypeAlias
+from typing import Protocol, TypeAlias, cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ReferenceValidationError
@@ -53,6 +53,42 @@ _TRUSTED_DATASET_CONSTRUCTION_MISSING_ASSERTION_NAMES = {
     "reference_context": "reference_context_user_asserted",
 }
 _TRUSTED_DATASET_CONSTRUCTION_EVIDENCE_KINDS = frozenset({"evidence", "waiver"})
+_TRUSTED_DATASET_CONSTRUCTION_EVIDENCE_PAYLOAD_KEYS = frozenset(
+    {
+        "kind",
+        "source",
+        "policy",
+        "threshold",
+        "waiver_reason",
+        "details",
+    }
+)
+_TRUSTED_DATASET_CONSTRUCTION_ASSERTION_PAYLOAD_KEYS = frozenset(
+    {
+        "schema_version",
+        "assertion_metadata_provided",
+        "identity",
+        "intensity_scale",
+        "quantitative_meaning",
+        "aligned_structure",
+        "localisation",
+        "sequence",
+        "reference_context",
+        "identity_user_asserted",
+        "intensity_scale_user_asserted",
+        "quantitative_meaning_user_asserted",
+        "aligned_structure_user_asserted",
+        "localisation_user_asserted",
+        "sequence_user_asserted",
+        "reference_context_user_asserted",
+        "waived_assertions",
+        "missing_assertions",
+        "asserted_by",
+        "assertion_source",
+        "notes",
+        "assertion_fingerprint",
+    }
+)
 _BATCH_CORRECTION_PROVENANCE_JSON_MAPPING_FIELDS = frozenset(
     {
         "resolved_parameters",
@@ -379,6 +415,49 @@ class TrustedDatasetConstructionEvidence:
 
         return self.kind == "waiver"
 
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        field_name: str = "trusted_dataset_construction_evidence",
+    ) -> TrustedDatasetConstructionEvidence:
+        """Deserialize a canonical trusted construction evidence payload."""
+
+        payload = _required_trusted_payload_mapping(payload, field_name=field_name)
+        _require_exact_payload_keys(
+            payload,
+            expected_keys=_TRUSTED_DATASET_CONSTRUCTION_EVIDENCE_PAYLOAD_KEYS,
+            field_name=field_name,
+        )
+        details = cast(
+            Mapping[str, JsonValue],
+            _required_trusted_payload_mapping(
+                payload.get("details"),
+                field_name=f"{field_name}.details",
+            ),
+        )
+        evidence = cls(
+            kind=_required_trusted_payload_text(
+                payload.get("kind"),
+                field_name=f"{field_name}.kind",
+            ),
+            source=_optional_provenance_text(payload.get("source")),
+            policy=_optional_provenance_text(payload.get("policy")),
+            threshold=_optional_provenance_float(
+                payload.get("threshold"),
+                field_name=f"{field_name}.threshold",
+            ),
+            waiver_reason=_optional_provenance_text(payload.get("waiver_reason")),
+            details=details,
+        )
+        _require_canonical_payload(
+            observed=payload,
+            expected=evidence.to_payload(),
+            field_name=field_name,
+        )
+        return evidence
+
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible evidence payload."""
 
@@ -606,6 +685,69 @@ class TrustedDatasetConstructionAssertions:
             notes="No typed trusted construction assertion metadata was supplied.",
         )
 
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        field_name: str = "trusted_dataset_construction_assertions",
+    ) -> TrustedDatasetConstructionAssertions:
+        """Deserialize a canonical trusted construction assertion payload."""
+
+        payload = _required_trusted_payload_mapping(payload, field_name=field_name)
+        _require_exact_payload_keys(
+            payload,
+            expected_keys=_TRUSTED_DATASET_CONSTRUCTION_ASSERTION_PAYLOAD_KEYS,
+            field_name=field_name,
+        )
+        assertions = cls(
+            identity=_trusted_evidence_from_payload(
+                payload.get("identity"),
+                field_name=f"{field_name}.identity",
+            ),
+            intensity_scale=_trusted_evidence_from_payload(
+                payload.get("intensity_scale"),
+                field_name=f"{field_name}.intensity_scale",
+            ),
+            quantitative_meaning=_trusted_evidence_from_payload(
+                payload.get("quantitative_meaning"),
+                field_name=f"{field_name}.quantitative_meaning",
+            ),
+            aligned_structure=_trusted_evidence_from_payload(
+                payload.get("aligned_structure"),
+                field_name=f"{field_name}.aligned_structure",
+            ),
+            localisation=_trusted_evidence_from_payload(
+                payload.get("localisation"),
+                field_name=f"{field_name}.localisation",
+            ),
+            sequence=_trusted_evidence_from_payload(
+                payload.get("sequence"),
+                field_name=f"{field_name}.sequence",
+            ),
+            reference_context=_trusted_evidence_from_payload(
+                payload.get("reference_context"),
+                field_name=f"{field_name}.reference_context",
+            ),
+            assertion_metadata_provided=_required_provenance_bool(
+                payload.get("assertion_metadata_provided"),
+                field_name=f"{field_name}.assertion_metadata_provided",
+            ),
+            asserted_by=_optional_provenance_text(payload.get("asserted_by")),
+            assertion_source=_optional_provenance_text(payload.get("assertion_source")),
+            notes=_optional_provenance_text(payload.get("notes")),
+            schema_version=_required_non_negative_row_count(
+                payload.get("schema_version"),
+                field_name=f"{field_name}.schema_version",
+            ),
+        )
+        _require_canonical_payload(
+            observed=payload,
+            expected=assertions.to_payload(),
+            field_name=field_name,
+        )
+        return assertions
+
     @property
     def missing_assertions(self) -> tuple[str, ...]:
         """Return required assertion fields not recorded or waived."""
@@ -677,6 +819,79 @@ def _trusted_evidence_payload(
     if value is None:
         return None
     return value.to_payload()
+
+
+def _trusted_evidence_from_payload(
+    value: object | None,
+    *,
+    field_name: str,
+) -> TrustedDatasetConstructionEvidence | None:
+    if value is None:
+        return None
+    payload = _required_trusted_payload_mapping(value, field_name=field_name)
+    return TrustedDatasetConstructionEvidence.from_payload(
+        payload,
+        field_name=field_name,
+    )
+
+
+def _required_trusted_payload_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    if not isinstance(value, Mapping):
+        raise PhosPyInputError(f"{field_name} must be a mapping")
+    return thaw_json_mapping(value, field_name=field_name)
+
+
+def _required_trusted_payload_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise PhosPyInputError(f"{field_name} must be a string")
+    return _required_provenance_text(value, field_name=field_name)
+
+
+def _require_exact_payload_keys(
+    payload: Mapping[str, object],
+    *,
+    expected_keys: frozenset[str],
+    field_name: str,
+) -> None:
+    actual_keys = set(payload)
+    missing = sorted(expected_keys - actual_keys)
+    unexpected = sorted(actual_keys - expected_keys)
+    if not missing and not unexpected:
+        return
+    details: list[str] = []
+    if missing:
+        details.append("missing keys: " + ", ".join(missing))
+    if unexpected:
+        details.append("unexpected keys: " + ", ".join(unexpected))
+    raise PhosPyInputError(f"{field_name} is not canonical; " + "; ".join(details))
+
+
+def _require_canonical_payload(
+    *,
+    observed: Mapping[str, object],
+    expected: Mapping[str, object],
+    field_name: str,
+) -> None:
+    if _canonical_json_payload(observed) == _canonical_json_payload(expected):
+        return
+    raise PhosPyInputError(
+        f"{field_name} is not canonical; assertion_fingerprint or derived "
+        "assertion fields do not match the recomputed canonical payload"
+    )
+
+
+def _canonical_json_payload(payload: Mapping[str, object]) -> str:
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    )
 
 
 def _require_localisation_evidence_or_waiver(

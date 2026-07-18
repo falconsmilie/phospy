@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import cast
 
 import pandas as pd
 import pytest
@@ -10,12 +11,14 @@ import pytest
 from phospy.api import Organism
 from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.provenance import (
+    ReferenceProvenance,
     RunProvenance,
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
     from_payload,
     to_payload,
 )
+from phospy.provenance.reference_context import ReferenceContext
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -129,6 +132,42 @@ def _trusted_dataset(
     )
 
 
+def _provenance_with_construction_payload(
+    assertions: TrustedDatasetConstructionAssertions,
+    construction_update: Mapping[str, object],
+) -> RunProvenance:
+    trusted = _trusted_dataset(assertions)
+    assert trusted.provenance is not None
+    construction = _construction_payload(trusted.provenance)
+    construction.update(construction_update)
+    return replace(
+        trusted.provenance,
+        workflow_parameters={"construction": construction},
+    )
+
+
+def _construction_payload(provenance: RunProvenance) -> dict[str, object]:
+    construction = provenance.workflow_parameters["construction"]
+    assert isinstance(construction, Mapping)
+    return dict(cast(Mapping[str, object], construction))
+
+
+def _assertion_payload(value: object) -> Mapping[str, object]:
+    assert isinstance(value, Mapping)
+    return cast(Mapping[str, object], value)
+
+
+def _reference_context(organism: object) -> ReferenceContext:
+    return ReferenceContext(
+        organism=organism,
+        protein_namespace="gene_symbol",
+        source_name="unit-reference",
+        source_version="v1",
+        proteome_version=None,
+        reference_table_sha256="a" * 64,
+    )
+
+
 def test_from_trusted_tables_records_typed_construction_assertions() -> None:
     assertions = _complete_assertions()
 
@@ -176,6 +215,99 @@ def test_from_trusted_tables_records_typed_construction_assertions() -> None:
     )
 
 
+def test_from_trusted_tables_rejects_digest_only_supplied_assertion_provenance() -> (
+    None
+):
+    assertions = _complete_assertions()
+    provenance = _provenance_with_construction_payload(
+        assertions,
+        {
+            "trusted_construction_assertions": None,
+            "trusted_construction_assertion_fingerprint": (
+                assertions.assertion_fingerprint
+            ),
+        },
+    )
+    construction = _construction_payload(provenance)
+    digest_only_provenance = replace(
+        provenance,
+        workflow_parameters={
+            "construction": {
+                "trusted_construction_assertion_fingerprint": (
+                    construction["trusted_construction_assertion_fingerprint"]
+                )
+            }
+        },
+    )
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="trusted_construction_assertions",
+    ):
+        _trusted_dataset(assertions=assertions, provenance=digest_only_provenance)
+
+
+def test_from_trusted_tables_rejects_missing_serialized_assertion_dimension() -> None:
+    assertions = _complete_assertions()
+    payload = assertions.to_payload()
+    payload.pop("sequence")
+    payload["sequence_user_asserted"] = False
+    provenance = _provenance_with_construction_payload(
+        assertions,
+        {
+            "trusted_construction_assertions": payload,
+            "trusted_construction_assertion_fingerprint": (
+                assertions.assertion_fingerprint
+            ),
+        },
+    )
+
+    with pytest.raises(DatasetValidationError, match="sequence"):
+        _trusted_dataset(assertions=assertions, provenance=provenance)
+
+
+def test_from_trusted_tables_rejects_altered_evidence_with_stale_fingerprint() -> None:
+    assertions = _complete_assertions()
+    payload = assertions.to_payload()
+    identity = dict(_assertion_payload(payload["identity"]))
+    identity["source"] = "tampered identity evidence"
+    payload["identity"] = identity
+    provenance = _provenance_with_construction_payload(
+        assertions,
+        {
+            "trusted_construction_assertions": payload,
+            "trusted_construction_assertion_fingerprint": (
+                assertions.assertion_fingerprint
+            ),
+        },
+    )
+
+    with pytest.raises(DatasetValidationError, match="assertion_fingerprint"):
+        _trusted_dataset(assertions=assertions, provenance=provenance)
+
+
+def test_from_trusted_tables_rejects_altered_evidence_with_forged_fingerprint() -> None:
+    assertions = _complete_assertions()
+    altered_assertions = _complete_assertions(
+        identity=TrustedDatasetConstructionEvidence.evidence(
+            source="forged identity evidence",
+            details={"site_key_schema": "forged"},
+        )
+    )
+    provenance = _provenance_with_construction_payload(
+        assertions,
+        {
+            "trusted_construction_assertions": altered_assertions.to_payload(),
+            "trusted_construction_assertion_fingerprint": (
+                altered_assertions.assertion_fingerprint
+            ),
+        },
+    )
+
+    with pytest.raises(DatasetValidationError, match="does not match"):
+        _trusted_dataset(assertions=assertions, provenance=provenance)
+
+
 def test_from_trusted_tables_rejects_aligned_structure_waiver() -> None:
     with pytest.raises(
         PhosPyInputError,
@@ -217,11 +349,12 @@ def test_from_trusted_tables_accepts_and_serializes_localisation_waiver() -> Non
     dataset = _trusted_dataset(assertions)
 
     assert dataset.provenance is not None
-    construction = dataset.provenance.workflow_parameters["construction"]
+    construction = _construction_payload(dataset.provenance)
     payload = construction["trusted_construction_assertions"]
     assert isinstance(payload, Mapping)
-    assert payload["localisation"]["kind"] == "waiver"
-    assert payload["localisation"]["waiver_reason"] == (
+    localisation = _assertion_payload(payload["localisation"])
+    assert localisation["kind"] == "waiver"
+    assert localisation["waiver_reason"] == (
         "historical source lacks localisation confidence export"
     )
     assert "localisation" in payload["waived_assertions"]
@@ -256,8 +389,11 @@ def test_from_trusted_tables_serializes_seven_assertion_dimensions() -> None:
     restored = from_payload(payload)
 
     assert to_payload(restored) == payload
-    construction = payload["workflow_parameters"]["construction"]
-    trusted_assertions = construction["trusted_construction_assertions"]
+    workflow_parameters = _assertion_payload(payload["workflow_parameters"])
+    construction = _assertion_payload(workflow_parameters["construction"])
+    trusted_assertions = _assertion_payload(
+        construction["trusted_construction_assertions"]
+    )
     assert trusted_assertions["schema_version"] == 3
     assert trusted_assertions["missing_assertions"] == []
     for dimension in (
@@ -271,6 +407,66 @@ def test_from_trusted_tables_serializes_seven_assertion_dimensions() -> None:
     ):
         assert trusted_assertions[dimension] is not None
         assert trusted_assertions[f"{dimension}_user_asserted"] is True
+
+
+def test_trusted_construction_assertions_deserialize_canonical_round_trip() -> None:
+    assertions = _complete_assertions(
+        localisation=TrustedDatasetConstructionEvidence.waiver(
+            reason="historical source lacks localisation confidence export",
+            policy="trusted_curation_waiver",
+            details={"approved_by": "unit-test"},
+        )
+    )
+
+    restored = TrustedDatasetConstructionAssertions.from_payload(
+        assertions.to_payload()
+    )
+
+    assert restored == assertions
+    assert restored.to_payload() == assertions.to_payload()
+    assert restored.assertion_fingerprint == assertions.assertion_fingerprint
+
+
+def test_replayed_trusted_construction_rejects_table_fingerprint_mismatch() -> None:
+    assertions = _complete_assertions()
+    trusted = _trusted_dataset(assertions)
+    assert trusted.provenance is not None
+    payload = to_payload(trusted.provenance)
+    output_tables = payload["output_tables"]
+    assert isinstance(output_tables, list)
+    phospho_fingerprint = dict(_assertion_payload(output_tables[0]))
+    phospho_fingerprint["exact_hash_value"] = "0" * 64
+    output_tables[0] = phospho_fingerprint
+    replayed_provenance = from_payload(payload)
+
+    with pytest.raises(
+        DatasetValidationError,
+        match=r"run_provenance\.output_tables\.dataset\.phospho.*exact_hash_value",
+    ):
+        _trusted_dataset(assertions=assertions, provenance=replayed_provenance)
+
+
+def test_replayed_trusted_construction_rejects_reference_organism_contradiction() -> (
+    None
+):
+    assertions = _complete_assertions()
+    trusted = _trusted_dataset(assertions)
+    assert trusted.provenance is not None
+    contradictory_provenance = replace(
+        trusted.provenance,
+        reference_context=_reference_context("human"),
+        reference=ReferenceProvenance(
+            source_type="explicit",
+            organism=Organism.HUMAN,
+            bundle_id=None,
+            table_fingerprints=(),
+            reference_context=_reference_context("human"),
+        ),
+    )
+    replayed_provenance = from_payload(to_payload(contradictory_provenance))
+
+    with pytest.raises(DatasetValidationError, match="dataset organism identity"):
+        _trusted_dataset(assertions=assertions, provenance=replayed_provenance)
 
 
 def test_direct_constructor_emits_deprecation_warning() -> None:
@@ -306,15 +502,23 @@ def test_caller_mutable_assertion_details_cannot_alter_provenance() -> None:
     details["schema"]["version"] = 99
 
     assert dataset.provenance is not None
-    construction = dataset.provenance.workflow_parameters["construction"]
-    payload = construction["trusted_construction_assertions"]
-    identity_payload = payload["identity"]
+    construction = _construction_payload(dataset.provenance)
+    payload = _assertion_payload(construction["trusted_construction_assertions"])
+    identity_payload = _assertion_payload(payload["identity"])
     assert identity_payload["details"] == {
         "columns": ["site_key"],
         "schema": {"version": 1},
     }
+    assert assertions.identity is not None
     with pytest.raises(TypeError):
-        assertions.identity.details["schema"] = {"version": 2}  # type: ignore[index]
+        cast(dict[str, object], assertions.identity.details)["schema"] = {"version": 2}
+    assert dataset.trusted_construction_assertions is not None
+    assert dataset.trusted_construction_assertions.identity is not None
+    with pytest.raises(TypeError):
+        cast(
+            dict[str, object],
+            dataset.trusted_construction_assertions.identity.details,
+        )["schema"] = {"version": 3}
 
 
 def test_from_trusted_tables_rejects_untyped_assertion_mapping() -> None:
@@ -332,10 +536,13 @@ def test_from_trusted_tables_rejects_untyped_assertion_mapping() -> None:
                 has_total_matrix=False
             ),
             processing_state=supported_linear_processing_state(has_total_matrix=False),
-            trusted_construction_assertions={
-                "sequence_user_asserted": True,
-                "identity_user_asserted": True,
-                "quantitative_meaning_user_asserted": True,
-                "reference_context_user_asserted": True,
-            },
+            trusted_construction_assertions=cast(
+                TrustedDatasetConstructionAssertions,
+                {
+                    "sequence_user_asserted": True,
+                    "identity_user_asserted": True,
+                    "quantitative_meaning_user_asserted": True,
+                    "reference_context_user_asserted": True,
+                },
+            ),
         )

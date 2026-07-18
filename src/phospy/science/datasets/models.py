@@ -10,6 +10,7 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
 from phospy.frames.ownership import (
     borrow_dataframe,
@@ -278,11 +279,43 @@ def _require_assertions_linked_to_provenance(
             "trusted construction assertion provenance"
         )
     construction_payload = cast(Mapping[str, object], construction)
+    raw_assertion_payload = construction_payload.get("trusted_construction_assertions")
+    if not isinstance(raw_assertion_payload, Mapping):
+        raise DatasetValidationError(
+            "dataset.provenance.workflow_parameters['construction'] must record "
+            "trusted_construction_assertions as a self-contained assertion payload"
+        )
+    try:
+        provenance_assertions = TrustedDatasetConstructionAssertions.from_payload(
+            cast(Mapping[str, object], raw_assertion_payload),
+            field_name=(
+                "dataset.provenance.workflow_parameters['construction']"
+                "['trusted_construction_assertions']"
+            ),
+        )
+    except PhosPyInputError as exc:
+        raise DatasetValidationError(
+            "dataset.provenance.workflow_parameters['construction']"
+            "['trusted_construction_assertions'] must be a current-schema trusted "
+            f"construction assertion payload; {exc}"
+        ) from exc
+    if provenance_assertions.to_payload() != assertions.to_payload():
+        raise DatasetValidationError(
+            "dataset.trusted_construction_assertions must be provenance-linked; "
+            "trusted_construction_assertions payload does not match"
+        )
     observed = construction_payload.get("trusted_construction_assertion_fingerprint")
+    if observed != provenance_assertions.assertion_fingerprint:
+        raise DatasetValidationError(
+            "dataset.trusted_construction_assertions must be provenance-linked; "
+            "trusted_construction_assertion_fingerprint does not match "
+            "trusted_construction_assertions payload"
+        )
     if observed != assertions.assertion_fingerprint:
         raise DatasetValidationError(
             "dataset.trusted_construction_assertions must be provenance-linked; "
-            "trusted_construction_assertion_fingerprint does not match"
+            "trusted_construction_assertion_fingerprint does not match supplied "
+            "trusted_construction_assertions"
         )
 
 
