@@ -532,6 +532,44 @@ def test_aggregation_returns_derived_dataset_with_fresh_provenance() -> None:
     assert lineage.sample_groups()[0] == ("A1", ("A1_T1", "A1_T2"))
 
 
+def test_honest_technical_replicate_aggregation_preserves_verified_source_lineage() -> (
+    None
+):
+    base_dataset = _dataset_with_technical_replicates()
+
+    resolved = _aggregate(
+        dataset=base_dataset,
+        design=_repeated_design(),
+        policy=TechnicalReplicatePolicy.MEAN,
+    )
+
+    assert isinstance(resolved.dataset, DerivedAnalysisReadyPhosphoDataset)
+    lineage = resolved.dataset.derived_lineage
+    assert resolved.dataset.derived_parent_state.phospho_sample_ids == tuple(
+        base_dataset.phospho.columns.astype(str).tolist()
+    )
+    assert lineage.derivation_type == "technical_replicate_aggregation"
+    assert lineage.aggregation_method == "mean"
+    assert lineage.sample_groups() == (
+        ("A1", ("A1_T1", "A1_T2")),
+        ("A2", ("A2_T1", "A2_T2")),
+        ("B1", ("B1_T1", "B1_T2")),
+        ("B2", ("B2_T1", "B2_T2")),
+    )
+    provenance = resolved.dataset.provenance
+    assert provenance is not None
+    embedded = provenance.workflow_parameters["derived_quantitative_data"]
+    assert isinstance(embedded, dict)
+    embedded["sample_mapping"] = []
+    fresh_embedded = provenance.workflow_parameters["derived_quantitative_data"]
+    assert isinstance(fresh_embedded, dict)
+    sample_mapping = fresh_embedded["sample_mapping"]
+    assert isinstance(sample_mapping, list)
+    first_mapping = sample_mapping[0]
+    assert isinstance(first_mapping, dict)
+    assert first_mapping["input_sample_ids"] == ["A1_T1", "A1_T2"]
+
+
 def test_mean_and_median_derived_provenance_differ() -> None:
     site_index = _site_index()
     phospho = pd.DataFrame(

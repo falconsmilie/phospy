@@ -21,6 +21,7 @@ from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import JsonValue, TableFingerprint
 from phospy.science.datasets.derived_quantitative import (
+    CertifiedDerivedQuantitativeParentState,
     DerivedAnalysisReadyPhosphoDataset,
 )
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -369,6 +370,7 @@ class TechnicalReplicateAggregator:
     ) -> AnalysisReadyPhosphoDataset:
         dataset_view = DatasetInternalView(dataset)
         phospho = dataset_view.phospho
+        parent_state = CertifiedDerivedQuantitativeParentState.from_dataset(dataset)
         aggregated_phospho = TechnicalReplicateAggregator._aggregate_numeric_matrix(
             matrix=phospho,
             groups=groups,
@@ -459,6 +461,7 @@ class TechnicalReplicateAggregator:
                 "imputation_observation_mask": (
                     aggregated_imputation_observation_mask is not None
                 ),
+                "comparisons": False,
             },
             implementation=TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION,
             implementation_version=environment.package_version,
@@ -482,6 +485,7 @@ class TechnicalReplicateAggregator:
             comparisons=None if comparisons is None else comparisons.copy(deep=True),
             imputation_observation_mask=aggregated_imputation_observation_mask,
             organism=dataset.organism,
+            parent_state=parent_state,
             provenance=provenance,
             derived_lineage=lineage,
             allow_opaque_site_values=dataset.opaque_site_values_allowed,

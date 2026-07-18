@@ -24,6 +24,7 @@ from phospy.science.datasets.builders.provenance_assembler import (
     DatasetRunProvenanceAssembler,
 )
 from phospy.science.datasets.derived_quantitative import (
+    CertifiedDerivedQuantitativeParentState,
     DerivedAnalysisReadyPhosphoDataset,
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -118,6 +119,7 @@ def test_derived_dataset_constructor_rejects_provenance_reference_context_mismat
     payload = _analysis_ready_payload(organism=Organism.RAT)
     phospho = payload["phospho"]
     assert isinstance(phospho, pd.DataFrame)
+    parent_dataset = _dataset_from_payload(payload)
     lineage = _derived_lineage(
         phospho=phospho,
         site_metadata=_payload_site_metadata(payload),
@@ -130,6 +132,9 @@ def test_derived_dataset_constructor_rejects_provenance_reference_context_mismat
             organism=_payload_organism(payload),
             intensity_scale_state=_payload_intensity_scale_state(payload),
             processing_state=_payload_processing_state(payload),
+            parent_state=CertifiedDerivedQuantitativeParentState.from_dataset(
+                parent_dataset
+            ),
             derived_lineage=lineage,
             provenance=build_derived_quantitative_run_provenance(
                 lineage=lineage,
@@ -385,9 +390,15 @@ def _derived_lineage(
         aggregation_method="identity",
         input_intensity_scale="linear",
         output_intensity_scale="linear",
-        quantitative_meaning="phosphosite intensity",
+        quantitative_meaning="phosphosite_abundance",
         missingness_policy={},
-        matrices_transformed={"phospho": False},
+        matrices_transformed={
+            "phospho": False,
+            "sample_metadata": False,
+            "total_protein": False,
+            "imputation_observation_mask": False,
+            "comparisons": False,
+        },
         implementation="unit-test",
         implementation_version="test",
     )
