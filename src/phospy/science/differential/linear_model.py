@@ -333,11 +333,11 @@ def decompose_differential_design(
         solver=DIFFERENTIAL_LINEAR_MODEL_SOLVER,
         column_scale_method=DIFFERENTIAL_LINEAR_MODEL_COLUMN_SCALE_METHOD,
         rank_tolerance_policy=DIFFERENTIAL_LINEAR_MODEL_RANK_TOLERANCE_POLICY,
-        _design_values=_readonly_float_array(design_values),
-        _column_scales=_readonly_float_array(column_scales),
-        _u=_readonly_float_array(u),
-        _vt=_readonly_float_array(vt),
-        _coefficient_covariance=_readonly_float_array(coefficient_covariance),
+        _design_values=_immutable_float_array(design_values),
+        _column_scales=_immutable_float_array(column_scales),
+        _u=_immutable_float_array(u),
+        _vt=_immutable_float_array(vt),
+        _coefficient_covariance=_immutable_float_array(coefficient_covariance),
     )
 
 
@@ -395,10 +395,16 @@ def _format_singular_values(values: npt.NDArray[np.float64]) -> str:
     return "[" + ", ".join(preview_values) + suffix + "]"
 
 
-def _readonly_float_array(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
-    array = np.array(values, dtype=np.float64, copy=True)
-    array.setflags(write=False)
-    return cast(npt.NDArray[np.float64], array)
+def _immutable_float_array(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    array = np.array(values, dtype=np.float64, copy=True, order="C")
+    # A bytes-backed view cannot have writeability restored with setflags(True).
+    immutable_buffer = array.tobytes(order="C")
+    immutable_view = np.frombuffer(
+        immutable_buffer,
+        dtype=np.float64,
+        count=int(array.size),
+    ).reshape(array.shape, order="C")
+    return cast(npt.NDArray[np.float64], immutable_view)
 
 
 __all__ = [

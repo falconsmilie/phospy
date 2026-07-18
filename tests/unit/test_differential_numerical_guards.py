@@ -14,6 +14,7 @@ from phospy.science.differential.linear_model import (
     DIFFERENTIAL_LINEAR_MODEL_DECOMPOSITION_METHOD,
     DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
     DIFFERENTIAL_LINEAR_MODEL_SOLVER,
+    DifferentialDesignDecomposition,
     DifferentialDesignDecompositionError,
     decompose_differential_design,
 )
@@ -326,6 +327,144 @@ def test_design_decomposition_internal_arrays_are_read_only() -> None:
         assert values.flags.writeable is False
         with pytest.raises(ValueError):
             values.flat[0] = 99.0
+
+
+def test_design_decomposition_arrays_resist_write_flag_restoration() -> None:
+    original_design = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 1.0],
+        ],
+        dtype=float,
+    )
+    response = np.array(
+        [
+            [1.0, 2.0],
+            [1.3, 2.1],
+            [2.2, 1.7],
+            [2.6, 1.9],
+        ],
+        dtype=float,
+    )
+    contrasts = np.array(
+        [
+            [-1.0],
+            [1.0],
+            [0.0],
+        ],
+        dtype=float,
+    )
+    decomposition = decompose_differential_design(original_design)
+    baseline = _decomposition_integrity_snapshot(
+        decomposition=decomposition,
+        response=response,
+        contrasts=contrasts,
+    )
+
+    original_design[:, :] = 99.0
+
+    for attribute_name in (
+        "_design_values",
+        "_column_scales",
+        "_u",
+        "_vt",
+        "_coefficient_covariance",
+    ):
+        values = getattr(decomposition, attribute_name)
+        with pytest.raises(ValueError):
+            values.flat[0] = 99.0
+
+        with pytest.raises(ValueError):
+            values.setflags(write=True)
+        with pytest.raises(ValueError):
+            values.flat[0] = 99.0
+
+        view = values.reshape(-1)[::2]
+        with pytest.raises(ValueError):
+            view.flat[0] = 99.0
+        with pytest.raises(ValueError):
+            view.setflags(write=True)
+        with pytest.raises(ValueError):
+            view.flat[0] = 99.0
+
+        base = values.base
+        while isinstance(base, np.ndarray):
+            with pytest.raises(ValueError):
+                base.setflags(write=True)
+            if base.size:
+                with pytest.raises(ValueError):
+                    base.flat[0] = 99.0
+            base = base.base
+        assert isinstance(base, bytes)
+
+    detached_covariance = decomposition.coefficient_covariance
+    detached_covariance.setflags(write=True)
+    detached_covariance[:, :] = 99.0
+
+    after_attacks = _decomposition_integrity_snapshot(
+        decomposition=decomposition,
+        response=response,
+        contrasts=contrasts,
+    )
+    _assert_decomposition_integrity_snapshot_equal(
+        observed=after_attacks,
+        expected=baseline,
+    )
+
+
+def _decomposition_integrity_snapshot(
+    *,
+    decomposition: DifferentialDesignDecomposition,
+    response: np.ndarray,
+    contrasts: np.ndarray,
+) -> dict[str, object]:
+    fit = decomposition.fit(response)
+    return {
+        "fit_coefficients": fit.coefficients.copy(),
+        "fit_fitted_values": fit.fitted_values.copy(),
+        "fit_residuals": fit.residuals.copy(),
+        "fit_residual_sum_of_squares": fit.residual_sum_of_squares.copy(),
+        "fit_residual_variance": fit.residual_variance.copy(),
+        "coefficient_covariance": decomposition.coefficient_covariance.copy(),
+        "contrast_covariance": decomposition.contrast_covariance(contrasts),
+        "contrast_scales": decomposition.contrast_scales(contrasts),
+        "rank": decomposition.rank,
+        "singular_values": tuple(decomposition.singular_values),
+        "rank_tolerance": decomposition.rank_tolerance,
+        "condition_number": decomposition.condition_number,
+        "residual_degrees_of_freedom": decomposition.residual_degrees_of_freedom,
+        "diagnostics_payload": decomposition.diagnostics_payload(),
+    }
+
+
+def _assert_decomposition_integrity_snapshot_equal(
+    *,
+    observed: dict[str, object],
+    expected: dict[str, object],
+) -> None:
+    array_keys = (
+        "fit_coefficients",
+        "fit_fitted_values",
+        "fit_residuals",
+        "fit_residual_sum_of_squares",
+        "fit_residual_variance",
+        "coefficient_covariance",
+        "contrast_covariance",
+        "contrast_scales",
+    )
+    for key in array_keys:
+        np.testing.assert_array_equal(observed[key], expected[key])
+    for key in (
+        "rank",
+        "singular_values",
+        "rank_tolerance",
+        "condition_number",
+        "residual_degrees_of_freedom",
+        "diagnostics_payload",
+    ):
+        assert observed[key] == expected[key]
 
 
 def test_adjusted_contrast_differs_when_covariate_explains_signal() -> None:
