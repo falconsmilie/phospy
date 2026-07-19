@@ -65,7 +65,7 @@ jobs:
       - name: Build and validate distributions
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
+          python -m pip install -c constraints/ci.txt build twine setuptools wheel
           make build
           twine check dist/*
       - name: Store distribution artifacts
@@ -73,6 +73,11 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+      - name: Store build manifest
+        uses: actions/upload-artifact@v5
+        with:
+          name: python-package-build-manifest
+          path: build/reports/build-manifest.json
 
   distribution-install-tests:
     needs:
@@ -98,6 +103,11 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+      - name: Download build manifest
+        uses: actions/download-artifact@v6
+        with:
+          name: python-package-build-manifest
+          path: build/reports/
       - name: Install wheel artifact
         shell: bash
         run: |
@@ -106,11 +116,18 @@ jobs:
           python -m venv .venv-wheel
           source .venv-wheel/bin/activate
           python -m pip install --upgrade pip
-          wheel=(dist/*.whl)
-          python -m pip install -c constraints/ci.txt "${wheel[0]}[test]"
+          wheel=("$GITHUB_WORKSPACE"/dist/*.whl)
+          python -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${wheel[0]}"
           python -m pip check
-          python -c "import importlib.metadata as md; import phospy; print(md.version('phospy'))"
-          python -m pip freeze > "build/reports/wheel-install-py${{ matrix.python-version }}.txt"
+          verify_dir="$(mktemp -d)"
+          cd "$verify_dir"
+          python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py" \
+            --artifact-kind wheel \
+            --artifact-path "${wheel[0]}" \
+            --build-manifest "$GITHUB_WORKSPACE/build/reports/build-manifest.json" \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --report-json "$GITHUB_WORKSPACE/build/reports/wheel-artifact-py${{ matrix.python-version }}.json"
+          python -m pip freeze > "$GITHUB_WORKSPACE/build/reports/wheel-install-py${{ matrix.python-version }}.txt"
       - name: Install sdist artifact
         shell: bash
         run: |
@@ -119,11 +136,19 @@ jobs:
           python -m venv .venv-sdist
           source .venv-sdist/bin/activate
           python -m pip install --upgrade pip
-          sdist=(dist/*.tar.gz)
-          python -m pip install -c constraints/ci.txt "${sdist[0]}[test]"
+          python -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" setuptools wheel
+          sdist=("$GITHUB_WORKSPACE"/dist/*.tar.gz)
+          python -m pip install --no-build-isolation -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${sdist[0]}"
           python -m pip check
-          python -c "import importlib.metadata as md; import phospy; print(md.version('phospy'))"
-          python -m pip freeze > "build/reports/sdist-install-py${{ matrix.python-version }}.txt"
+          verify_dir="$(mktemp -d)"
+          cd "$verify_dir"
+          python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py" \
+            --artifact-kind sdist \
+            --artifact-path "${sdist[0]}" \
+            --build-manifest "$GITHUB_WORKSPACE/build/reports/build-manifest.json" \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --report-json "$GITHUB_WORKSPACE/build/reports/sdist-artifact-py${{ matrix.python-version }}.json"
+          python -m pip freeze > "$GITHUB_WORKSPACE/build/reports/sdist-install-py${{ matrix.python-version }}.txt"
       - name: Store distribution install reports
         if: always()
         uses: actions/upload-artifact@v5

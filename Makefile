@@ -6,7 +6,7 @@ PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
 PYTEST ?= $(PYTHON) -m pytest
 RUFF ?= $(PYTHON) -m ruff
-BUILD ?= $(PYTHON) -m build
+BUILD ?= $(PYTHON) -m build --no-isolation
 PRE_COMMIT ?= $(PYTHON) -m pre_commit
 RSCRIPT ?= Rscript
 MKDIR_P ?= mkdir -p
@@ -162,6 +162,7 @@ fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference
 
 build: check-tools validate-reference-bundles
 	$(BUILD)
+	$(PYTHON) scripts/write_build_manifest.py --dist-dir dist --output build/reports/build-manifest.json --repository-root .
 	$(PYTHON) scripts/validate_reference_bundle_distribution.py dist/*
 
 clean:

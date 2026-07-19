@@ -191,10 +191,23 @@ def test_publish_workflow_cannot_publish_without_scientific_release_gate() -> No
     )
     assert _has_needs(distribution_install, "build")
     _assert_supported_python_matrix(distribution_install)
-    assert '"${wheel[0]}[test]"' in distribution_install
-    assert '"${sdist[0]}[test]"' in distribution_install
-    assert "importlib.metadata" in distribution_install
-    assert "phospy.__version__" not in distribution_install
+    assert '"${wheel[0]}"' in distribution_install
+    assert '"${wheel[0]}[test]"' not in distribution_install
+    assert '"${sdist[0]}"' in distribution_install
+    assert '"${sdist[0]}[test]"' not in distribution_install
+    assert 'python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py"' in (
+        distribution_install
+    )
+    assert "--artifact-kind wheel" in distribution_install
+    assert "--artifact-kind sdist" in distribution_install
+    assert "--artifact-path" in distribution_install
+    assert "--build-manifest" in distribution_install
+    assert "python-package-build-manifest" in distribution_install
+    assert "$GITHUB_WORKSPACE/build/reports/build-manifest.json" in (
+        distribution_install
+    )
+    assert "tests/distribution" not in distribution_install
+    assert "python -m pytest" not in distribution_install
     assert _has_needs(testpypi, "distribution-install-tests")
     assert _has_needs(pypi, "distribution-install-tests")
 
@@ -410,10 +423,21 @@ def test_ci_release_verdict_requires_supported_version_verification() -> None:
     )
     assert "run: make test-release-gate" in release_gate
     assert "release-gate-py${{ matrix.python-version }}" in release_gate
-    assert '"${wheel[0]}[test]"' in distribution_install
-    assert '"${sdist[0]}[test]"' in distribution_install
-    assert "importlib.metadata" in distribution_install
-    assert "phospy.__version__" not in distribution_install
+    assert '"${wheel[0]}"' in distribution_install
+    assert '"${wheel[0]}[test]"' not in distribution_install
+    assert '"${sdist[0]}"' in distribution_install
+    assert '"${sdist[0]}[test]"' not in distribution_install
+    assert 'python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py"' in (
+        distribution_install
+    )
+    assert "--artifact-path" in distribution_install
+    assert "--build-manifest" in distribution_install
+    assert "python-package-build-manifest" in distribution_install
+    assert "$GITHUB_WORKSPACE/build/reports/build-manifest.json" in (
+        distribution_install
+    )
+    assert "tests/distribution" not in distribution_install
+    assert "python -m pytest" not in distribution_install
     for dependency in (
         "clean-constrained-install",
         "default-suite",
@@ -436,8 +460,10 @@ def test_ci_distribution_build_validates_reference_bundle_archives() -> None:
 
     assert "make build" in build
     assert build.index("make build") < build.index("twine check dist/*")
+    assert "build/reports/build-manifest.json" in build
     assert "build: check-tools validate-reference-bundles" in makefile
     assert "$(BUILD)" in make_build
+    assert "$(PYTHON) scripts/write_build_manifest.py" in make_build
     assert "$(PYTHON) scripts/validate_reference_bundle_distribution.py dist/*" in (
         make_build
     )

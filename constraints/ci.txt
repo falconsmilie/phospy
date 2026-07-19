@@ -4,6 +4,7 @@
 # Use with:
 #   python -m pip install -c constraints/ci.txt -e ".[test]"
 #   python -m pip install -c constraints/ci.txt -e ".[dev,test]"
+#   python -m pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 #
 # Policy:
 # - pyproject.toml keeps minimum supported versions for install flexibility.
@@ -13,8 +14,10 @@ numpy==2.2.6
 pandas==2.2.3
 scipy==1.15.2
 scikit-learn==1.6.1
+pyarrow==24.0.0
 tomli==2.2.1 ; python_version < "3.11"
 
+hypothesis==6.152.9
 pytest==8.3.5
 pre-commit==4.1.0
 pyright==1.1.410
