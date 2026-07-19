@@ -647,23 +647,45 @@ def test_signalome_result_validates_expanded_signalome_field_type() -> None:
         )
 
 
-def test_signalome_result_rejects_invalid_encoded_site_key_in_expanded_output() -> None:
+def test_signalome_result_accepts_context_free_expanded_site_key_values() -> None:
     expanded_signalome = _valid_expanded_signalome_table()
     expanded_signalome.loc[0, SITE_KEY_COLUMN] = "not-a-site-key"
 
-    with pytest.raises(ContractValidationError, match="site_key"):
-        _signalome_result(expanded_signalome=expanded_signalome)
+    result = _signalome_result(expanded_signalome=expanded_signalome)
+
+    assert result.expanded_signalome is not None
+    assert result.expanded_signalome.loc[0, SITE_KEY_COLUMN] == "not-a-site-key"
+
+
+def test_signalome_result_constructor_does_not_read_dataset_internals() -> None:
+    opaque_dataset = object()
+    kinase_result = _kinase_result()
+
+    result = SignalomeWorkflowResult(
+        dataset=opaque_dataset,  # type: ignore[arg-type]
+        kinase_result=kinase_result,
+        module_assignments=SignalomeAssignments(
+            table=_valid_signalome_assignments_table()
+        ),
+        signalome_modules=SignalomeModules(table=_valid_signalome_modules_table()),
+        kinase_network=KinaseNetwork(edges=_valid_kinase_network_edges_table()),
+        expanded_signalome=_valid_expanded_signalome_table(),
+    )
+
+    assert result.dataset is opaque_dataset
 
 
 def test_signalome_result_rejects_missing_display_id_in_site_membership() -> None:
     site_membership = _valid_site_membership_table()
     site_membership.loc[0, DISPLAY_ID_COLUMN] = ""
 
-    with pytest.raises(ContractValidationError, match="non-empty display_id"):
+    with pytest.raises(ContractValidationError, match="non-empty site identifiers"):
         _signalome_result(site_membership=site_membership)
 
 
-def test_signalome_result_rejects_site_rows_not_aligned_to_source_dataset() -> None:
+def test_signalome_result_constructor_does_not_own_dataset_site_membership_alignment() -> (
+    None
+):
     site_membership = _valid_site_membership_table()
     unrelated_display_id = "AKT1;T308;"
     site_membership.loc[0, SITE_KEY_COLUMN] = site_key_from_display_id(
@@ -672,14 +694,17 @@ def test_signalome_result_rejects_site_rows_not_aligned_to_source_dataset() -> N
     site_membership.loc[0, DISPLAY_ID_COLUMN] = unrelated_display_id
     site_membership.loc[0, SITE_ID_COLUMN] = unrelated_display_id
 
-    with pytest.raises(
-        ContractValidationError,
-        match="align to signalome_result.dataset",
-    ):
-        _signalome_result(site_membership=site_membership)
+    result = _signalome_result(site_membership=site_membership)
+
+    assert result.site_membership is not None
+    assert result.site_membership.loc[0, SITE_KEY_COLUMN] == site_key_from_display_id(
+        unrelated_display_id
+    )
 
 
-def test_signalome_result_rejects_module_assignments_not_aligned_to_dataset() -> None:
+def test_signalome_result_constructor_does_not_own_dataset_assignment_alignment() -> (
+    None
+):
     module_assignments = _valid_signalome_assignments_table()
     unrelated_display_id = "AKT1;T308;"
     unrelated_site_key = site_key_from_display_id(unrelated_display_id)
@@ -689,11 +714,11 @@ def test_signalome_result_rejects_module_assignments_not_aligned_to_dataset() ->
     module_assignments.loc[:, "gene_symbol"] = ["AKT1"]
     module_assignments.loc[:, "site"] = ["T308"]
 
-    with pytest.raises(
-        ContractValidationError,
-        match="align to signalome_result.dataset",
-    ):
-        _signalome_result(module_assignments_table=module_assignments)
+    result = _signalome_result(module_assignments_table=module_assignments)
+
+    assert result.module_assignments.table.index.astype(str).tolist() == [
+        unrelated_site_key
+    ]
 
 
 def test_signalome_result_validates_site_membership_field_type() -> None:

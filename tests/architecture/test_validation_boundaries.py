@@ -465,6 +465,25 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
     assert "enforce_required_non_empty_string_column(" in signalome_grouping_source
 
 
+def test_signalome_result_identity_validation_is_science_owned_and_workflow_composed() -> (
+    None
+):
+    from phospy.science.signalomes import _result_validation
+    from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
+
+    assembler_source = inspect.getsource(SignalomeResultAssembler.run)
+    validation_source = inspect.getsource(
+        _result_validation.validate_signalome_result_site_level_identity
+    )
+
+    assert (
+        _result_validation.validate_signalome_result_site_level_identity.__module__
+        == "phospy.science.signalomes._result_validation"
+    )
+    assert "validate_signalome_result_site_level_identity(" in assembler_source
+    assert "phospy.workflows" not in validation_source
+
+
 def test_reference_context_and_quantitative_validators_are_validation_owned() -> None:
     validation_owned_symbols = (
         validate_reference_context_compatibility,

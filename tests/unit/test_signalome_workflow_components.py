@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pandas.testing as pdt
+import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
@@ -15,12 +16,13 @@ from phospy.api.results import (
     KinaseScoringResult,
     SignalomeWorkflowResult,
 )
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.science.signalomes.clustering import (
     ClusterSitesResult,
 )
 from phospy.science.signalomes.clustering.models import SignalomeClusteringEngineResult
-from phospy.science.signalomes.constants import SITE_CLUSTER_COLUMN
+from phospy.science.signalomes.constants import DISPLAY_ID_COLUMN, SITE_CLUSTER_COLUMN
 from phospy.science.signalomes.context import (
     build_protein_site_context_table,
     build_site_membership_table,
@@ -43,6 +45,8 @@ from phospy.workflows.signalome.caveats import (
     SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE,
 )
 from phospy.workflows.signalome.clustering_runner import SignalomeClusteringRunner
+from phospy.workflows.signalome.component_models import SignalomeContextTableBuildResult
+from phospy.workflows.signalome.constants import SIGNALOME_EXECUTOR_RESULT_ASSEMBLY_SEAM
 from phospy.workflows.signalome.context_tables import SignalomeContextTableBuilder
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
@@ -660,6 +664,29 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
     assert result.site_membership is not None
     assert result.protein_site_context is not None
     assert result.provenance.workflow_name == "signalome_workflow"
+
+
+def test_signalome_executor_rejects_contextual_site_identity_mismatch_before_return() -> (
+    None
+):
+    class TamperedContextTableBuilder(SignalomeContextTableBuilder):
+        def run(self, **kwargs: object) -> SignalomeContextTableBuildResult:
+            result = super().run(**kwargs)
+            site_membership = result.site_membership.copy(deep=True)
+            site_membership.loc[site_membership.index[0], DISPLAY_ID_COLUMN] = "P2;S3;"
+            return SignalomeContextTableBuildResult(
+                site_membership=site_membership,
+                protein_site_context=result.protein_site_context,
+            )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowExecutor(
+            context_table_builder=TamperedContextTableBuilder()
+        ).run(_resolved_request())
+
+    error = exc_info.value
+    assert error.seam == SIGNALOME_EXECUTOR_RESULT_ASSEMBLY_SEAM
+    assert "signalome_result.site_membership.display_id values must match" in str(error)
 
 
 def test_signalome_result_caveats_include_grouping_assumption() -> None:

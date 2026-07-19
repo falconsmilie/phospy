@@ -9,6 +9,9 @@ import pandas as pd
 from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowStageError
 from phospy.provenance.models import RunProvenance
+from phospy.science.signalomes._result_validation import (
+    validate_signalome_result_site_level_identity,
+)
 from phospy.science.signalomes.clustering import ClusterSitesResult
 from phospy.science.signalomes.models import (
     KinaseNetwork,
@@ -29,6 +32,7 @@ from phospy.workflows.signalome.component_models import (
 )
 from phospy.workflows.signalome.constants import (
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
+    SIGNALOME_EXECUTOR_RESULT_ASSEMBLY_SEAM,
 )
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
@@ -103,6 +107,25 @@ class SignalomeResultAssembler:
         protein_site_context: pd.DataFrame,
         provenance: RunProvenance | None,
     ) -> SignalomeWorkflowResult:
+        try:
+            validate_signalome_result_site_level_identity(
+                dataset=request.dataset,
+                module_assignments=module_assignments,
+                expanded_signalome=expanded_signalome,
+                site_membership=site_membership,
+            )
+        except WorkflowStageError as exc:
+            raise_boundary_error(
+                seam=SIGNALOME_EXECUTOR_RESULT_ASSEMBLY_SEAM,
+                next_action=(
+                    "ensure module assignments, expanded signalome rows, and "
+                    "site-membership rows preserve dataset site_key/display_id identity"
+                ),
+                module_assignment_rows=int(module_assignments.shape[0]),
+                expanded_signalome_rows=int(expanded_signalome.shape[0]),
+                site_membership_rows=int(site_membership.shape[0]),
+                stage_error=str(exc),
+            )
         return SignalomeWorkflowResult._from_owned(
             dataset=request.dataset,
             kinase_result=request.kinase_result,

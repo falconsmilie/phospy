@@ -76,6 +76,86 @@ FORBIDDEN_PACKAGE_EDGES = frozenset(
     }
 )
 
+ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES = frozenset(
+    {
+        ("phospy.contracts.configs.dataset", "phospy.science.configs.dataset"),
+        (
+            "phospy.contracts.configs.differential",
+            "phospy.science.differential.models.empirical_bayes_config",
+        ),
+        (
+            "phospy.contracts.configs.differential",
+            "phospy.science.differential.policy_models",
+        ),
+        (
+            "phospy.contracts.configs.differential",
+            "phospy.science.statistics.multiple_testing",
+        ),
+        ("phospy.contracts.configs.enrichment", "phospy.science.enrichment.models"),
+        ("phospy.contracts.configs.kinase", "phospy.science.scoring.policy_models"),
+        (
+            "phospy.contracts.configs.preprocessing",
+            "phospy.science.configs.preprocessing",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.batch_correction",
+            "phospy.science.configs.preprocessing.batch_correction",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.correction_missingness",
+            "phospy.science.configs.preprocessing.correction_missingness",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.total_protein",
+            "phospy.science.configs.preprocessing.total_protein",
+        ),
+        ("phospy.contracts.dataset_build", "phospy.science.evidence"),
+        (
+            "phospy.contracts.dataset_build",
+            "phospy.science.evidence.dataset_resolution",
+        ),
+        ("phospy.contracts.dataset_build", "phospy.science.references.models"),
+        ("phospy.contracts.dataset_build", "phospy.science.transformations.models"),
+        ("phospy.contracts.requests", "phospy.science.datasets.models"),
+        ("phospy.contracts.requests", "phospy.science.design.contrast_helpers"),
+        ("phospy.contracts.requests", "phospy.science.design.models"),
+        ("phospy.contracts.requests", "phospy.science.differential.models"),
+        ("phospy.contracts.requests", "phospy.science.enrichment.models"),
+        ("phospy.contracts.requests", "phospy.science.references.kinase_library"),
+        ("phospy.contracts.requests", "phospy.science.references.models"),
+        ("phospy.contracts.result_caveats", "phospy.science.result_caveats"),
+        (
+            "phospy.contracts.results.differential",
+            "phospy.science.differential.models",
+        ),
+        (
+            "phospy.contracts.results.enrichment",
+            "phospy.science.enrichment.models",
+        ),
+        ("phospy.contracts.results.kinase", "phospy.science.activities.models"),
+        ("phospy.contracts.results.kinase", "phospy.science.datasets.models"),
+        ("phospy.contracts.results.kinase", "phospy.science.prediction.models"),
+        ("phospy.contracts.results.kinase", "phospy.science.references.models"),
+        (
+            "phospy.contracts.results.preprocessing",
+            "phospy.science.datasets.preprocessing.batch_correction",
+        ),
+        (
+            "phospy.contracts.results.preprocessing",
+            "phospy.science.datasets.preprocessing.protein_aware_preparation",
+        ),
+        ("phospy.contracts.results.signalome", "phospy.science.datasets.models"),
+        ("phospy.contracts.results.signalome", "phospy.science.signalomes.constants"),
+        ("phospy.contracts.results.signalome", "phospy.science.signalomes.models"),
+    }
+)
+
+PRIVATE_SCIENCE_MODULES = frozenset(
+    {
+        "phospy.science.datasets.internal_view",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ImportRecord:
@@ -123,14 +203,49 @@ def test_forbidden_package_edges_are_absent() -> None:
     assert offenders == [], _format_package_edges(offenders, graph.records)
 
 
+def test_contracts_do_not_import_private_science_modules() -> None:
+    graph = _build_import_graph()
+    offenders = sorted(
+        f"{record.source_module} -> {record.target}"
+        for record in graph.records
+        if record.source_module.startswith("phospy.contracts")
+        if _is_private_science_module(record.target)
+    )
+
+    assert offenders == []
+
+
+def test_contracts_to_science_imports_match_module_allowlist() -> None:
+    graph = _build_import_graph()
+    observed = frozenset(
+        (record.source_module, record.target)
+        for record in graph.records
+        if record.source_module.startswith("phospy.contracts")
+        and record.target.startswith("phospy.science")
+    )
+
+    unexpected = sorted(observed - ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES)
+    stale_allowed = sorted(ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES - observed)
+
+    assert unexpected == []
+    assert stale_allowed == []
+
+
 def test_import_extractor_includes_all_static_import_forms() -> None:
     source = """
+from typing import TYPE_CHECKING
 import phospy.science.datasets.models
 from phospy.validation.datasets import preprocessing
 from .science import datasets
 import importlib
 importlib.import_module("phospy.io.bundles")
 __import__("phospy.workflows.kinase")
+if TYPE_CHECKING:
+    from phospy.science.references.models import ReferenceBundle
+def _local_imports():
+    import phospy.science.configs.dataset
+    from .science.signalomes import models
+    importlib.import_module("phospy.io.bundles.signalome")
 """
     path = PACKAGE_ROOT / "__init__.py"
     imports = tuple(_imported_modules("phospy", path, ast.parse(source)))
@@ -140,7 +255,13 @@ __import__("phospy.workflows.kinase")
     assert "phospy.validation.datasets.preprocessing" in imports
     assert "phospy.science" in imports
     assert "phospy.science.datasets" in imports
+    assert "phospy.science.references.models" in imports
+    assert "phospy.science.references.models.ReferenceBundle" in imports
+    assert "phospy.science.configs.dataset" in imports
+    assert "phospy.science.signalomes" in imports
+    assert "phospy.science.signalomes.models" in imports
     assert "phospy.io.bundles" in imports
+    assert "phospy.io.bundles.signalome" in imports
     assert "phospy.workflows.kinase" in imports
 
 
@@ -285,6 +406,19 @@ def _resolve_module(imported: str, modules: frozenset[str]) -> str | None:
         if candidate in modules:
             return candidate
     return None
+
+
+def _is_private_science_module(module_name: str) -> bool:
+    if module_name in PRIVATE_SCIENCE_MODULES:
+        return True
+    if any(
+        module_name.startswith(f"{private_module}.")
+        for private_module in PRIVATE_SCIENCE_MODULES
+    ):
+        return True
+    if not module_name.startswith("phospy.science."):
+        return False
+    return any(part.startswith("_") for part in module_name.split(".")[2:])
 
 
 def _package_edges(
