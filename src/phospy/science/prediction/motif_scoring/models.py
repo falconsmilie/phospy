@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal
 
 import numpy as np
 import pandas as pd
 
+from phospy.frames.ownership import (
+    export_dataframe,
+    export_optional_dataframe,
+    export_series,
+    own_dataframe,
+    own_optional_dataframe,
+    own_series,
+)
 from phospy.science.prediction.sequence_validation import (
     SUPPORTED_AMINO_ACIDS,
     SequenceValidationResult,
@@ -66,15 +74,62 @@ for _row_index, _amino_acid in enumerate(AMINO_ACIDS):
     _AMINO_ACID_INDEX_LOOKUP[ord(_amino_acid)] = _row_index
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class MotifScoringResult:
     """Motif score matrices and window metadata for one scoring run."""
 
-    motif_scores: pd.DataFrame
-    motif_sizes: pd.Series
-    sequence_windows: pd.Series
     sequence_validation: SequenceValidationResult
     library_validation: MotifLibraryValidationResult | None = None
+    _motif_scores: pd.DataFrame = field(init=False, repr=False)
+    _motif_sizes: pd.Series = field(init=False, repr=False)
+    _sequence_windows: pd.Series = field(init=False, repr=False)
+
+    def __init__(
+        self,
+        motif_scores: pd.DataFrame,
+        motif_sizes: pd.Series,
+        sequence_windows: pd.Series,
+        sequence_validation: SequenceValidationResult,
+        library_validation: MotifLibraryValidationResult | None = None,
+    ) -> None:
+        object.__setattr__(
+            self,
+            "_motif_scores",
+            own_dataframe(
+                motif_scores,
+                field_name="motif_scoring_result.motif_scores",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_motif_sizes",
+            own_series(
+                motif_sizes,
+                field_name="motif_scoring_result.motif_sizes",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_sequence_windows",
+            own_series(
+                sequence_windows,
+                field_name="motif_scoring_result.sequence_windows",
+            ),
+        )
+        object.__setattr__(self, "sequence_validation", sequence_validation)
+        object.__setattr__(self, "library_validation", library_validation)
+
+    @property
+    def motif_scores(self) -> pd.DataFrame:
+        return export_dataframe(self._motif_scores)
+
+    @property
+    def motif_sizes(self) -> pd.Series:
+        return export_series(self._motif_sizes)
+
+    @property
+    def sequence_windows(self) -> pd.Series:
+        return export_series(self._sequence_windows)
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,43 +267,131 @@ class KinaseLibraryScoreScaleMetadata:
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class KinaseLibraryMotifScoringResult:
     """Outputs from the pure Kinase Library-style motif scoring engine."""
 
-    raw_scores: pd.DataFrame
-    percentile_ranks: pd.DataFrame | None
-    reference_ranks: pd.DataFrame | None
-    site_diagnostics: pd.DataFrame
-    kinase_diagnostics: pd.DataFrame
-    sequence_windows: pd.Series
     score_scale_metadata: KinaseLibraryScoreScaleMetadata
+    _raw_scores: pd.DataFrame = field(init=False, repr=False)
+    _percentile_ranks: pd.DataFrame | None = field(init=False, repr=False)
+    _reference_ranks: pd.DataFrame | None = field(init=False, repr=False)
+    _site_diagnostics: pd.DataFrame = field(init=False, repr=False)
+    _kinase_diagnostics: pd.DataFrame = field(init=False, repr=False)
+    _sequence_windows: pd.Series = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "raw_scores", self.raw_scores.copy(deep=True))
+    def __init__(
+        self,
+        raw_scores: pd.DataFrame,
+        percentile_ranks: pd.DataFrame | None,
+        reference_ranks: pd.DataFrame | None,
+        site_diagnostics: pd.DataFrame,
+        kinase_diagnostics: pd.DataFrame,
+        sequence_windows: pd.Series,
+        score_scale_metadata: KinaseLibraryScoreScaleMetadata,
+    ) -> None:
         object.__setattr__(
             self,
-            "percentile_ranks",
-            None
-            if self.percentile_ranks is None
-            else self.percentile_ranks.copy(deep=True),
+            "_raw_scores",
+            own_dataframe(
+                raw_scores,
+                field_name="kinase_library_motif_scoring_result.raw_scores",
+            ),
         )
         object.__setattr__(
             self,
-            "reference_ranks",
-            None
-            if self.reference_ranks is None
-            else self.reference_ranks.copy(deep=True),
+            "_percentile_ranks",
+            own_optional_dataframe(
+                percentile_ranks,
+                field_name=("kinase_library_motif_scoring_result.percentile_ranks"),
+            ),
         )
         object.__setattr__(
-            self, "site_diagnostics", self.site_diagnostics.copy(deep=True)
+            self,
+            "_reference_ranks",
+            own_optional_dataframe(
+                reference_ranks,
+                field_name="kinase_library_motif_scoring_result.reference_ranks",
+            ),
         )
         object.__setattr__(
-            self, "kinase_diagnostics", self.kinase_diagnostics.copy(deep=True)
+            self,
+            "_site_diagnostics",
+            own_dataframe(
+                site_diagnostics,
+                field_name="kinase_library_motif_scoring_result.site_diagnostics",
+            ),
         )
         object.__setattr__(
-            self, "sequence_windows", self.sequence_windows.copy(deep=True)
+            self,
+            "_kinase_diagnostics",
+            own_dataframe(
+                kinase_diagnostics,
+                field_name="kinase_library_motif_scoring_result.kinase_diagnostics",
+            ),
         )
+        object.__setattr__(
+            self,
+            "_sequence_windows",
+            own_series(
+                sequence_windows,
+                field_name="kinase_library_motif_scoring_result.sequence_windows",
+            ),
+        )
+        object.__setattr__(self, "score_scale_metadata", score_scale_metadata)
+
+    @property
+    def raw_scores(self) -> pd.DataFrame:
+        return export_dataframe(self._raw_scores)
+
+    @property
+    def percentile_ranks(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._percentile_ranks)
+
+    @property
+    def reference_ranks(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._reference_ranks)
+
+    @property
+    def site_diagnostics(self) -> pd.DataFrame:
+        return export_dataframe(self._site_diagnostics)
+
+    @property
+    def kinase_diagnostics(self) -> pd.DataFrame:
+        return export_dataframe(self._kinase_diagnostics)
+
+    @property
+    def sequence_windows(self) -> pd.Series:
+        return export_series(self._sequence_windows)
+
+    def raw_scores_dataframe(self) -> pd.DataFrame:
+        """Return raw motif scores isolated from this result."""
+
+        return export_dataframe(self._raw_scores)
+
+    def percentile_ranks_dataframe(self) -> pd.DataFrame | None:
+        """Return optional percentile ranks isolated from this result."""
+
+        return export_optional_dataframe(self._percentile_ranks)
+
+    def reference_ranks_dataframe(self) -> pd.DataFrame | None:
+        """Return optional reference ranks isolated from this result."""
+
+        return export_optional_dataframe(self._reference_ranks)
+
+    def site_diagnostics_dataframe(self) -> pd.DataFrame:
+        """Return site diagnostics isolated from this result."""
+
+        return export_dataframe(self._site_diagnostics)
+
+    def kinase_diagnostics_dataframe(self) -> pd.DataFrame:
+        """Return kinase diagnostics isolated from this result."""
+
+        return export_dataframe(self._kinase_diagnostics)
+
+    def sequence_windows_series(self) -> pd.Series:
+        """Return sequence windows isolated from this result."""
+
+        return export_series(self._sequence_windows)
 
     def score_scale_payload(self) -> dict[str, object]:
         return self.score_scale_metadata.to_payload()

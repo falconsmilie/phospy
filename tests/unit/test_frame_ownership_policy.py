@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -37,6 +38,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
+from phospy.errors.validation import DatasetValidationError, PhosPyValidationError
 from phospy.frames.ownership import (
     _borrow_dataframe,
     _borrow_series,
@@ -107,6 +109,16 @@ _ALLOW_UNKNOWN_REFERENCE_CONTEXT = (
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _NATIVE_PANDAS_COPY_ON_WRITE = int(str(pd.__version__).split(".", maxsplit=1)[0]) >= 3
 _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE = not _NATIVE_PANDAS_COPY_ON_WRITE
+_OBJECT_PAYLOAD_COLUMN = "ownership_payload"
+_OBJECT_PAYLOAD_STATE = {
+    "list": ("list-start",),
+    "dict": ("dict-start",),
+    "array": (1.0, 2.0),
+    "set": ("set-start",),
+    "nested_array": (3.0, 4.0),
+    "nested_set": ("nested-set-start",),
+    "nested_list": ("nested-list-start",),
+}
 
 
 def _phospho() -> pd.DataFrame:
@@ -136,6 +148,105 @@ def _site_metadata() -> pd.DataFrame:
         },
         index=_SITE_INDEX.copy(),
     )
+
+
+def _mixed_numeric_phospho() -> pd.DataFrame:
+    frame = _phospho()
+    frame.loc[:, "sample_c"] = np.asarray([3, 4], dtype=np.int64)
+    return frame
+
+
+def _mutable_object_payload() -> dict[str, object]:
+    return {
+        "list": ["list-start"],
+        "dict": {"inner": ["dict-start"]},
+        "array": np.asarray([1.0, 2.0]),
+        "set": {"set-start"},
+        "nested": [
+            {"array": np.asarray([3.0, 4.0])},
+            {"set": {"nested-set-start"}},
+            ["nested-list-start"],
+        ],
+    }
+
+
+def _mutate_object_payload(payload: object, marker: str) -> None:
+    assert isinstance(payload, dict)
+    list_value = payload["list"]
+    dict_value = payload["dict"]
+    array_value = payload["array"]
+    set_value = payload["set"]
+    nested_value = payload["nested"]
+    assert isinstance(list_value, list)
+    assert isinstance(dict_value, dict)
+    assert isinstance(array_value, np.ndarray)
+    assert isinstance(set_value, set)
+    assert isinstance(nested_value, list)
+    nested_array_mapping = nested_value[0]
+    nested_set_mapping = nested_value[1]
+    nested_list = nested_value[2]
+    assert isinstance(nested_array_mapping, dict)
+    assert isinstance(nested_set_mapping, dict)
+    assert isinstance(nested_list, list)
+    nested_array = nested_array_mapping["array"]
+    nested_set = nested_set_mapping["set"]
+    assert isinstance(nested_array, np.ndarray)
+    assert isinstance(nested_set, set)
+
+    list_value.append(f"{marker}-list")
+    dict_inner = dict_value["inner"]
+    assert isinstance(dict_inner, list)
+    dict_inner.append(f"{marker}-dict")
+    array_value[0] = 99.0
+    set_value.add(f"{marker}-set")
+    nested_array[0] = 88.0
+    nested_set.add(f"{marker}-nested-set")
+    nested_list.append(f"{marker}-nested-list")
+
+
+def _object_payload_state(payload: object) -> dict[str, tuple[object, ...]]:
+    assert isinstance(payload, dict)
+    nested_value = payload["nested"]
+    assert isinstance(nested_value, list)
+    nested_array_mapping = nested_value[0]
+    nested_set_mapping = nested_value[1]
+    nested_list = nested_value[2]
+    assert isinstance(nested_array_mapping, dict)
+    assert isinstance(nested_set_mapping, dict)
+    assert isinstance(nested_list, list)
+    array_value = payload["array"]
+    nested_array = nested_array_mapping["array"]
+    set_value = payload["set"]
+    nested_set = nested_set_mapping["set"]
+    dict_value = payload["dict"]
+    assert isinstance(array_value, np.ndarray)
+    assert isinstance(nested_array, np.ndarray)
+    assert isinstance(set_value, set)
+    assert isinstance(nested_set, set)
+    assert isinstance(dict_value, dict)
+    dict_inner = dict_value["inner"]
+    assert isinstance(dict_inner, list)
+    list_value = payload["list"]
+    assert isinstance(list_value, list)
+    return {
+        "list": tuple(list_value),
+        "dict": tuple(dict_inner),
+        "array": tuple(float(value) for value in array_value.tolist()),
+        "set": tuple(sorted(str(value) for value in set_value)),
+        "nested_array": tuple(float(value) for value in nested_array.tolist()),
+        "nested_set": tuple(sorted(str(value) for value in nested_set)),
+        "nested_list": tuple(nested_list),
+    }
+
+
+def _object_payload_frame_from_site_metadata(payload: object) -> pd.DataFrame:
+    site_metadata = _site_metadata()
+    site_metadata.loc[:, _OBJECT_PAYLOAD_COLUMN] = pd.Series(
+        [payload, _mutable_object_payload()],
+        index=site_metadata.index,
+        dtype=object,
+    )
+    return site_metadata
 
 
 def _references() -> ReferenceBundle:
@@ -337,6 +448,99 @@ def _mutate_existing_borrowed_series_value(
     assert owner.shape == before_shape
 
 
+def _numeric_block_count(frame: pd.DataFrame) -> int:
+    manager = getattr(frame, "_mgr", None)
+    blocks = getattr(manager, "blocks", ())
+    count = 0
+    for block in blocks:
+        values = getattr(block, "values", None)
+        if isinstance(values, np.ndarray) and np.issubdtype(values.dtype, np.number):
+            count += 1
+    return count
+
+
+def _force_numeric_array_writeable_and_mutate(
+    array: object,
+    *,
+    value: float,
+) -> bool:
+    if not isinstance(array, np.ndarray):
+        return False
+    if not np.issubdtype(array.dtype, np.number):
+        return False
+    try:
+        array.setflags(write=True)
+    except ValueError:
+        pass
+    try:
+        array[...] = value
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return True
+
+
+def _force_numeric_array_and_bases_writeable_and_mutate(
+    array: object,
+    *,
+    value: float,
+) -> bool:
+    mutated = _force_numeric_array_writeable_and_mutate(array, value=value)
+    seen: set[int] = set()
+    base = getattr(array, "base", None)
+    while isinstance(base, np.ndarray) and id(base) not in seen:
+        seen.add(id(base))
+        mutated = (
+            _force_numeric_array_writeable_and_mutate(base, value=value) or mutated
+        )
+        base = getattr(base, "base", None)
+    return mutated
+
+
+def _mutate_numeric_slice_values(frame: pd.DataFrame) -> bool:
+    numeric_columns = [
+        column
+        for column in frame.columns
+        if pd.api.types.is_numeric_dtype(frame.loc[:, column])
+    ]
+    assert numeric_columns
+    slice_frame = frame.loc[:, numeric_columns[:1]]
+    return _force_numeric_array_and_bases_writeable_and_mutate(
+        slice_frame.values,
+        value=444.0,
+    )
+
+
+def _mutate_numeric_values(frame: pd.DataFrame) -> bool:
+    return _force_numeric_array_and_bases_writeable_and_mutate(
+        frame.values,
+        value=555.0,
+    )
+
+
+def _mutate_numeric_to_numpy_copy_false(frame: pd.DataFrame) -> bool:
+    return _force_numeric_array_and_bases_writeable_and_mutate(
+        frame.to_numpy(copy=False),
+        value=666.0,
+    )
+
+
+def _mutate_numeric_blocks_and_bases(frame: pd.DataFrame) -> bool:
+    expected_count = _numeric_block_count(frame)
+    assert expected_count >= 1
+    manager = getattr(frame, "_mgr", None)
+    blocks = getattr(manager, "blocks", ())
+    mutated_count = 0
+    for block in blocks:
+        values = getattr(block, "values", None)
+        if _force_numeric_array_and_bases_writeable_and_mutate(
+            values,
+            value=777.0,
+        ):
+            mutated_count += 1
+    assert mutated_count == expected_count
+    return True
+
+
 def _try_borrowed_column_write(frame: pd.DataFrame) -> None:
     try:
         frame.loc[:, "borrowed_only"] = [1.0, 2.0]
@@ -365,6 +569,13 @@ def _assignment_targets(node: ast.AST) -> tuple[ast.AST, ...]:
 
 def _pandas4_warning_type() -> type[Warning]:
     return getattr(pd.errors, "Pandas4Warning", Warning)
+
+
+def _pandas_global_option_snapshot() -> dict[str, object]:
+    option_names = ["mode.chained_assignment"]
+    if _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE:
+        option_names.append("mode.copy_on_write")
+    return {name: pd.get_option(name) for name in option_names}
 
 
 def _assert_dataframe_getter_defensive_snapshot(
@@ -479,6 +690,148 @@ def test_public_constructor_copy_contract_matrix(
         )
         == expected_gene
     )
+
+
+@pytest.mark.parametrize(
+    ("case_name", "owner_factory"),
+    [
+        pytest.param(
+            "dataset-site-metadata",
+            lambda payload: (
+                lambda dataset: dataset.site_metadata,
+                AnalysisReadyPhosphoDataset(
+                    phospho=_phospho(),
+                    site_metadata=_object_payload_frame_from_site_metadata(payload),
+                    organism=Organism.RAT,
+                    intensity_scale_state=supported_linear_intensity_scale_state(
+                        has_total_matrix=False
+                    ),
+                    processing_state=supported_linear_processing_state(
+                        has_total_matrix=False
+                    ),
+                ),
+                _SITE_INDEX[0],
+            ),
+            id="dataset-site-metadata",
+        ),
+        pytest.param(
+            "prediction-result-substrate-list",
+            lambda payload: (
+                lambda result: result.substrate_list,
+                KinasePredictionResult(
+                    pred_mat=pd.DataFrame(
+                        {"MAP2K6": [0.9, 0.8]},
+                        index=_SITE_INDEX.copy(),
+                    ),
+                    substrate_list=pd.DataFrame(
+                        {
+                            _OBJECT_PAYLOAD_COLUMN: pd.Series(
+                                [payload],
+                                dtype=object,
+                            )
+                        }
+                    ),
+                ),
+                0,
+            ),
+            id="prediction-result-substrate-list",
+        ),
+    ],
+)
+def test_public_construction_and_exports_recursively_isolate_mutable_object_cells(
+    case_name: str,
+    owner_factory: Callable[
+        [dict[str, object]],
+        tuple[Callable[[object], pd.DataFrame | None], object, object],
+    ],
+) -> None:
+    payload = _mutable_object_payload()
+    frame_getter, owner, row_label = owner_factory(payload)
+
+    _mutate_object_payload(payload, "caller")
+    exported_after_caller_mutation = frame_getter(owner)
+    assert exported_after_caller_mutation is not None
+    owner_payload = exported_after_caller_mutation.loc[
+        row_label,
+        _OBJECT_PAYLOAD_COLUMN,
+    ]
+    assert _object_payload_state(owner_payload) == _OBJECT_PAYLOAD_STATE, case_name
+
+    export_one = frame_getter(owner)
+    export_two = frame_getter(owner)
+    assert export_one is not None
+    assert export_two is not None
+    export_one_payload = export_one.loc[row_label, _OBJECT_PAYLOAD_COLUMN]
+    export_two_payload = export_two.loc[row_label, _OBJECT_PAYLOAD_COLUMN]
+
+    _mutate_object_payload(export_one_payload, "export-one")
+    assert _object_payload_state(export_two_payload) == _OBJECT_PAYLOAD_STATE
+    owner_reread = frame_getter(owner)
+    assert owner_reread is not None
+    assert (
+        _object_payload_state(owner_reread.loc[row_label, _OBJECT_PAYLOAD_COLUMN])
+        == _OBJECT_PAYLOAD_STATE
+    )
+
+    _mutate_object_payload(export_two_payload, "export-two")
+    assert "export-two-list" not in _object_payload_state(export_one_payload)["list"]
+
+
+class _UnsupportedMutableObject:
+    def __init__(self) -> None:
+        self.values: list[str] = []
+
+    def mutate(self) -> None:
+        self.values.append("changed")
+
+
+@pytest.mark.parametrize(
+    ("factory", "error_type"),
+    [
+        pytest.param(
+            lambda payload: AnalysisReadyPhosphoDataset(
+                phospho=_phospho(),
+                site_metadata=_object_payload_frame_from_site_metadata(payload),
+                organism=Organism.RAT,
+                intensity_scale_state=supported_linear_intensity_scale_state(
+                    has_total_matrix=False
+                ),
+                processing_state=supported_linear_processing_state(
+                    has_total_matrix=False
+                ),
+            ),
+            DatasetValidationError,
+            id="dataset",
+        ),
+        pytest.param(
+            lambda payload: KinasePredictionResult(
+                pred_mat=pd.DataFrame(
+                    {"MAP2K6": [0.9, 0.8]},
+                    index=_SITE_INDEX.copy(),
+                ),
+                substrate_list=pd.DataFrame(
+                    {
+                        _OBJECT_PAYLOAD_COLUMN: pd.Series(
+                            [payload],
+                            dtype=object,
+                        )
+                    }
+                ),
+            ),
+            PhosPyValidationError,
+            id="prediction-result",
+        ),
+    ],
+)
+def test_public_construction_rejects_unsupported_mutable_object_cells(
+    factory: Callable[[object], object],
+    error_type: type[Exception],
+) -> None:
+    with pytest.raises(
+        error_type,
+        match="unsupported mutable object.*ownership_payload",
+    ):
+        factory(_UnsupportedMutableObject())
 
 
 def test_builder_stage_handoff_transfers_owned_frames_without_recopies() -> None:
@@ -752,6 +1105,14 @@ def test_phospy_frame_borrowing_does_not_touch_deprecated_copy_on_write_option()
         )
 
 
+def test_representative_kinase_workflow_preserves_pandas_global_options() -> None:
+    before = _pandas_global_option_snapshot()
+
+    _kinase_result()
+
+    assert _pandas_global_option_snapshot() == before
+
+
 def test_concurrent_borrowed_access_preserves_pandas_copy_on_write_option() -> None:
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
@@ -787,11 +1148,9 @@ def test_concurrent_borrowed_access_preserves_pandas_copy_on_write_option() -> N
             assert pd.get_option("mode.copy_on_write") is False
 
 
-def test_internal_borrowed_dataset_access_is_read_only_contract_without_deep_copy() -> (
-    None
-):
+def test_internal_borrowed_dataset_access_is_detached_snapshot_contract() -> None:
     dataset = AnalysisReadyPhosphoDataset(
-        phospho=_phospho(),
+        phospho=_mixed_numeric_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
         intensity_scale_state=supported_linear_intensity_scale_state(
@@ -810,10 +1169,65 @@ def test_internal_borrowed_dataset_access_is_read_only_contract_without_deep_cop
         _try_borrowed_column_write(borrowed)
 
     assert borrowed is not dataset._phospho
-    assert counts.dataframe_deep == 0
+    assert counts.dataframe_deep == 1
     assert not hasattr(dataset, "borrow_phospho_frame")
     assert float(dataset._phospho.iloc[0, 0]) == 1.0
     assert "borrowed_only" not in dataset._phospho.columns
+
+
+@pytest.mark.parametrize(
+    ("surface_name", "mutator"),
+    [
+        pytest.param("slice-values", _mutate_numeric_slice_values, id="slice-values"),
+        pytest.param("values", _mutate_numeric_values, id="values"),
+        pytest.param(
+            "to-numpy-copy-false",
+            _mutate_numeric_to_numpy_copy_false,
+            id="to-numpy-copy-false",
+        ),
+        pytest.param(
+            "blocks-and-bases",
+            _mutate_numeric_blocks_and_bases,
+            id="blocks-and-bases",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("access_name", "accessor"),
+    [
+        pytest.param(
+            "internal-borrow",
+            lambda dataset: dataset._borrow_phospho_frame(),
+            id="internal-borrow",
+        ),
+        pytest.param(
+            "public-export",
+            lambda dataset: dataset.to_dataframe(),
+            id="public-export",
+        ),
+    ],
+)
+def test_restoring_writeability_on_dataset_numeric_surfaces_cannot_mutate_owner(
+    access_name: str,
+    accessor: Callable[[AnalysisReadyPhosphoDataset], pd.DataFrame],
+    surface_name: str,
+    mutator: Callable[[pd.DataFrame], bool],
+) -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_mixed_numeric_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    before = dataset._phospho.copy(deep=True)
+    exposed = accessor(dataset)
+
+    assert mutator(exposed), f"{access_name}:{surface_name}"
+    pd.testing.assert_frame_equal(dataset._phospho, before)
 
 
 def test_internal_borrowed_prediction_and_scoring_access_is_mutation_isolated() -> None:
@@ -862,7 +1276,7 @@ def test_internal_borrowed_prediction_and_scoring_access_is_mutation_isolated() 
             value=77.0,
         )
 
-    assert counts.dataframe_deep == 0
+    assert counts.dataframe_deep == 3
     assert borrowed_pred is not prediction_result._pred_mat
     assert borrowed_profile is not scoring_result._profile_scores
     assert borrowed_rank_weighted is not scoring_result._rank_weighted_fusion_scores
@@ -883,10 +1297,10 @@ def test_borrowed_extension_array_frame_falls_back_to_deep_copy_for_isolation() 
 
     assert str(frame.iloc[0, 0]) == "a"
     assert str(borrowed.iloc[0, 0]) == "changed"
-    assert counts.dataframe_deep == (0 if _NATIVE_PANDAS_COPY_ON_WRITE else 1)
+    assert counts.dataframe_deep == 1
 
 
-def test_borrowed_series_access_is_mutation_isolated_without_dataframe_copy() -> None:
+def test_borrowed_series_access_is_detached_and_mutation_isolated() -> None:
     series = pd.Series([1.0, 2.0], index=["a", "b"], name="values")
 
     with _count_dataframe_deep_copies() as counts:
@@ -1080,7 +1494,7 @@ def test_frame_ownership_helper_policy_matrix_documents_export_and_borrow_modes(
         ...,
     ] = (
         ("safe_public_copy", export_dataframe, True),
-        ("borrowed_internal_view", _borrow_dataframe, False),
+        ("borrowed_internal_snapshot", _borrow_dataframe, True),
     )
 
     for category, accessor, writable_export in frame_cases:
@@ -1101,7 +1515,7 @@ def test_frame_ownership_helper_policy_matrix_documents_export_and_borrow_modes(
         ...,
     ] = (
         ("safe_public_copy", export_series, True),
-        ("borrowed_internal_view", _borrow_series, False),
+        ("borrowed_internal_snapshot", _borrow_series, True),
     )
 
     for category, accessor, writable_export in series_cases:

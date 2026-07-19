@@ -1,59 +1,316 @@
-"""Shared pandas DataFrame and Series ownership helpers."""
+"""Shared pandas DataFrame and Series ownership helpers.
+
+Ownership policy:
+
+- public constructors copy caller-provided DataFrames and Series before storing
+  them, unless an internal caller explicitly passes an already-owned object;
+- public exports always return detached snapshots;
+- internal borrow helpers also return detached snapshots, not owner-backed
+  read-only aliases.
+
+Pandas ``deep=True`` does not recursively copy mutable Python objects held in
+object-dtype cells. These helpers therefore isolate supported mutable object
+cells explicitly: ``list``, ``dict``, ``set``, ``tuple``/``frozenset``
+containers, and ``numpy.ndarray`` values. Unsupported mutable object cells are
+rejected with a clear error instead of being stored or exported as aliases.
+"""
 
 from __future__ import annotations
 
-from typing import TypeVar, cast
+from collections.abc import MutableMapping, MutableSequence, MutableSet
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from enum import Enum
+from fractions import Fraction
+from pathlib import PurePath
+from typing import Any, TypeVar, cast
+from uuid import UUID
 
 import numpy as np
 import pandas as pd
 
 ExceptionType = type[Exception]
 _PandasObject = TypeVar("_PandasObject", pd.DataFrame, pd.Series)
-_PANDAS_MAJOR_VERSION = int(str(pd.__version__).split(".", maxsplit=1)[0])
+_IMMUTABLE_OBJECT_TYPES = (
+    bool,
+    int,
+    float,
+    complex,
+    str,
+    bytes,
+    type(None),
+    range,
+    slice,
+    Decimal,
+    Fraction,
+    date,
+    datetime,
+    time,
+    timedelta,
+    PurePath,
+    UUID,
+    Enum,
+    np.generic,
+    pd.Timestamp,
+    pd.Timedelta,
+    pd.Interval,
+    pd.Period,
+)
 
 
-def _pandas_has_native_copy_on_write() -> bool:
-    """Return whether shallow copies are locally mutation-isolated by pandas."""
+def _copy_pandas_object(
+    value: _PandasObject,
+    *,
+    field_name: str,
+    error_type: ExceptionType,
+) -> _PandasObject:
+    copied = cast(_PandasObject, value.copy(deep=True))
+    _isolate_object_cells(copied, field_name=field_name, error_type=error_type)
+    return copied
 
-    return _PANDAS_MAJOR_VERSION >= 3
+
+def _isolate_object_cells(
+    value: pd.DataFrame | pd.Series,
+    *,
+    field_name: str,
+    error_type: ExceptionType,
+) -> None:
+    memo: dict[int, object] = {}
+    active: set[int] = set()
+    if isinstance(value, pd.Series):
+        if not pd.api.types.is_object_dtype(value.dtype):
+            return
+        for position in range(len(value.index)):
+            location = f"position {position}, index {value.index[position]!r}"
+            isolated = _isolate_object_cell_value(
+                value.iat[position],
+                field_name=field_name,
+                location=location,
+                error_type=error_type,
+                memo=memo,
+                active=active,
+            )
+            cast(Any, value.iat)[position] = isolated
+        return
+
+    for column_position, dtype in enumerate(value.dtypes):
+        if not pd.api.types.is_object_dtype(dtype):
+            continue
+        column_label = value.columns[column_position]
+        for row_position in range(len(value.index)):
+            location = f"row {value.index[row_position]!r}, column {column_label!r}"
+            isolated = _isolate_object_cell_value(
+                value.iat[row_position, column_position],
+                field_name=field_name,
+                location=location,
+                error_type=error_type,
+                memo=memo,
+                active=active,
+            )
+            cast(Any, value.iat)[row_position, column_position] = isolated
 
 
-def _mark_numpy_blocks_read_only(value: pd.DataFrame | pd.Series) -> bool:
-    """Mark a shallow pandas copy's NumPy blocks read-only.
-
-    This intentionally uses pandas' private BlockManager surface in one
-    contained helper. If that surface is unavailable, or if a block is backed by
-    an extension array that cannot be made read-only this way, callers fall back
-    to a deep copy.
-    """
-
-    manager = getattr(value, "_mgr", None)
-    blocks = getattr(manager, "blocks", None)
-    if blocks is None:
-        return False
-
-    for block in blocks:
-        values = getattr(block, "values", None)
-        if not isinstance(values, np.ndarray):
-            return False
-        read_only_values = values.view()
-        read_only_values.flags.writeable = False
+def _isolate_object_cell_value(
+    value: object,
+    *,
+    field_name: str,
+    location: str,
+    error_type: ExceptionType,
+    memo: dict[int, object],
+    active: set[int],
+) -> object:
+    value_id = id(value)
+    if value_id in memo:
+        return memo[value_id]
+    if value_id in active:
+        raise error_type(
+            f"{field_name} contains circular mutable object data at {location}; "
+            "object cells must be acyclic to be safely isolated"
+        )
+    if _is_known_immutable_object(value):
+        return value
+    if isinstance(value, np.ndarray):
+        return _copy_numpy_object_cell(
+            value,
+            field_name=field_name,
+            location=location,
+            error_type=error_type,
+            memo=memo,
+            active=active,
+        )
+    if isinstance(value, list):
+        copied_list: list[object] = []
+        memo[value_id] = copied_list
+        active.add(value_id)
         try:
-            block.values = read_only_values
-        except (AttributeError, TypeError, ValueError):
-            return False
-    return True
+            copied_list.extend(
+                _isolate_object_cell_value(
+                    item,
+                    field_name=field_name,
+                    location=f"{location}[]",
+                    error_type=error_type,
+                    memo=memo,
+                    active=active,
+                )
+                for item in value
+            )
+        finally:
+            active.discard(value_id)
+        return copied_list
+    if isinstance(value, dict):
+        copied_dict: dict[object, object] = {}
+        memo[value_id] = copied_dict
+        active.add(value_id)
+        try:
+            for key, item in value.items():
+                copied_key = _isolate_object_cell_value(
+                    key,
+                    field_name=field_name,
+                    location=f"{location}.<key>",
+                    error_type=error_type,
+                    memo=memo,
+                    active=active,
+                )
+                copied_item = _isolate_object_cell_value(
+                    item,
+                    field_name=field_name,
+                    location=f"{location}[{key!r}]",
+                    error_type=error_type,
+                    memo=memo,
+                    active=active,
+                )
+                try:
+                    copied_dict[copied_key] = copied_item
+                except TypeError as exc:
+                    raise error_type(
+                        f"{field_name} contains uncopyable dict key at {location}: "
+                        f"{type(key).__module__}.{type(key).__qualname__}"
+                    ) from exc
+        finally:
+            active.discard(value_id)
+        return copied_dict
+    if isinstance(value, set):
+        copied_set: set[object] = set()
+        memo[value_id] = copied_set
+        active.add(value_id)
+        try:
+            for item in value:
+                copied_item = _isolate_object_cell_value(
+                    item,
+                    field_name=field_name,
+                    location=f"{location}.<set-item>",
+                    error_type=error_type,
+                    memo=memo,
+                    active=active,
+                )
+                try:
+                    copied_set.add(copied_item)
+                except TypeError as exc:
+                    raise error_type(
+                        f"{field_name} contains uncopyable set item at {location}: "
+                        f"{type(item).__module__}.{type(item).__qualname__}"
+                    ) from exc
+        finally:
+            active.discard(value_id)
+        return copied_set
+    if isinstance(value, tuple):
+        active.add(value_id)
+        try:
+            copied_tuple = tuple(
+                _isolate_object_cell_value(
+                    item,
+                    field_name=field_name,
+                    location=f"{location}[]",
+                    error_type=error_type,
+                    memo=memo,
+                    active=active,
+                )
+                for item in value
+            )
+        finally:
+            active.discard(value_id)
+        memo[value_id] = copied_tuple
+        return copied_tuple
+    if isinstance(value, frozenset):
+        active.add(value_id)
+        try:
+            copied_items = [
+                _isolate_object_cell_value(
+                    item,
+                    field_name=field_name,
+                    location=f"{location}.<frozenset-item>",
+                    error_type=error_type,
+                    memo=memo,
+                    active=active,
+                )
+                for item in value
+            ]
+            copied_frozenset = frozenset(copied_items)
+        except TypeError as exc:
+            raise error_type(
+                f"{field_name} contains uncopyable frozenset item at {location}"
+            ) from exc
+        finally:
+            active.discard(value_id)
+        memo[value_id] = copied_frozenset
+        return copied_frozenset
+    if _looks_like_unsupported_mutable_object(value):
+        raise error_type(
+            f"{field_name} contains unsupported mutable object at {location}: "
+            f"{type(value).__module__}.{type(value).__qualname__}; supported "
+            "mutable object cells are list, dict, set, tuple/frozenset "
+            "containers, and numpy.ndarray"
+        )
+    return value
 
 
-def _borrow_pandas_object(value: _PandasObject) -> _PandasObject:
-    """Return a mutation-isolated internal snapshot without global mutation."""
+def _copy_numpy_object_cell(
+    value: np.ndarray,
+    *,
+    field_name: str,
+    location: str,
+    error_type: ExceptionType,
+    memo: dict[int, object],
+    active: set[int],
+) -> np.ndarray:
+    copied = value.copy()
+    memo[id(value)] = copied
+    if value.dtype != object:
+        return copied
 
-    borrowed = cast(_PandasObject, value.copy(deep=False))
-    if _pandas_has_native_copy_on_write():
-        return borrowed
-    if _mark_numpy_blocks_read_only(borrowed):
-        return borrowed
-    return cast(_PandasObject, value.copy(deep=True))
+    active.add(id(value))
+    try:
+        source_flat = value.reshape(-1)
+        copied_flat = copied.reshape(-1)
+        for position, item in enumerate(source_flat):
+            copied_flat[position] = _isolate_object_cell_value(
+                item,
+                field_name=field_name,
+                location=f"{location}.ndarray[{position}]",
+                error_type=error_type,
+                memo=memo,
+                active=active,
+            )
+    finally:
+        active.discard(id(value))
+    return copied
+
+
+def _is_known_immutable_object(value: object) -> bool:
+    if value is pd.NA or value is pd.NaT:
+        return True
+    return isinstance(value, _IMMUTABLE_OBJECT_TYPES)
+
+
+def _looks_like_unsupported_mutable_object(value: object) -> bool:
+    if isinstance(value, MutableMapping | MutableSequence | MutableSet):
+        return True
+    if isinstance(value, bytearray | memoryview):
+        return True
+    if hasattr(value, "__dict__"):
+        return True
+    slots = getattr(type(value), "__slots__", ())
+    return bool(slots)
 
 
 def own_dataframe(
@@ -69,13 +326,21 @@ def own_dataframe(
         raise error_type(f"{field_name} must be a pandas DataFrame")
     if assume_owned:
         return value
-    return value.copy(deep=True)
+    return _copy_pandas_object(
+        value,
+        field_name=field_name,
+        error_type=error_type,
+    )
 
 
 def export_dataframe(value: pd.DataFrame) -> pd.DataFrame:
     """Return a defensive public snapshot of an owned DataFrame."""
 
-    return value.copy(deep=True)
+    return _copy_pandas_object(
+        value,
+        field_name="public DataFrame export",
+        error_type=TypeError,
+    )
 
 
 def borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
@@ -85,22 +350,22 @@ def borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
 
 
 def _borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
-    """Return internal borrowed DataFrame access without deep-copy churn.
+    """Return detached internal DataFrame snapshot access.
 
-    Borrowed access is mutation-isolated from the owning frame:
-    - pandas>=3: shallow copy uses native copy-on-write semantics.
-    - NumPy-backed pandas<3 frames: shallow copy with read-only borrowed blocks.
-    - unsupported pandas internals: deep-copy fallback.
-
-    Internal mutation that should affect owned scientific state must happen on
-    explicitly owned frames, never through `_borrow_*` accessors. Writes to a
-    borrowed object may raise or detach locally; they must not mutate the owner.
+    Internal mutation that should affect owned scientific state must happen on an
+    explicitly owned frame, never through `_borrow_*` accessors. Restoring
+    writeability on arrays exposed by the returned snapshot must not mutate the
+    owner.
     """
 
     if not isinstance(value, pd.DataFrame):
         raise TypeError("borrowed frame access requires a pandas DataFrame")
 
-    return _borrow_pandas_object(value)
+    return _copy_pandas_object(
+        value,
+        field_name="borrowed DataFrame snapshot",
+        error_type=TypeError,
+    )
 
 
 def own_optional_dataframe(
@@ -158,22 +423,34 @@ def own_series(
         raise error_type(f"{field_name} must be a pandas Series")
     if assume_owned:
         return value
-    return value.copy(deep=True)
+    return _copy_pandas_object(
+        value,
+        field_name=field_name,
+        error_type=error_type,
+    )
 
 
 def export_series(value: pd.Series) -> pd.Series:
     """Return a defensive public snapshot of an owned Series."""
 
-    return value.copy(deep=True)
+    return _copy_pandas_object(
+        value,
+        field_name="public Series export",
+        error_type=TypeError,
+    )
 
 
 def _borrow_series(value: pd.Series) -> pd.Series:
-    """Return internal borrowed Series access."""
+    """Return detached internal Series snapshot access."""
 
     if not isinstance(value, pd.Series):
         raise TypeError("borrowed series access requires a pandas Series")
 
-    return _borrow_pandas_object(value)
+    return _copy_pandas_object(
+        value,
+        field_name="borrowed Series snapshot",
+        error_type=TypeError,
+    )
 
 
 def own_optional_series(
