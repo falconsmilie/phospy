@@ -69,11 +69,12 @@ source archive, wheel, or other release artifact that passed the full release
 gate. Partial local passes, such as default tests, parity-only tests, or
 performance-only tests, are useful development checks but are insufficient for a
 public scientific release; default `pytest` is not sufficient for release and is
-not release verification. The release gate writes its audit record to
-`build/release-gate/release_gate_metadata.json`; that JSON records the package
-version, runtime, dependency snapshot, test command, marker selectors, and
-fixture/reference fingerprints for the gate run. Duration and JUnit reports are
-written under `build/reports/`.
+not release verification. The release gate writes a source identity record and
+post-check source-suite JSON reports under `build/reports/`; those records bind
+the JUnit reports to the source identity used for release. The final public
+release audit record is `release-attestation.json`, produced only after the
+source reports, build manifest, wheel, sdist, and installed-artifact verification
+matrix validate against `release/attestation-policy.json`.
 
 Release builds must use `make build`, which validates reference-bundle manifests
 from the actual Git index before building and validates both wheel and sdist

@@ -10,7 +10,6 @@ from typing import Any
 import pytest
 
 from phospy.release.metadata import (
-    DEFAULT_RELEASE_GATE_METADATA_PATH,
     DEFAULT_TEST_COMMAND,
     DEFAULT_TEST_MARKERS,
     DEFAULT_TEST_STEPS,
@@ -122,12 +121,10 @@ def test_default_pytest_keeps_parity_out_of_fast_local_loop() -> None:
 
 
 def test_release_gate_command_is_maintained_project_authority() -> None:
-    makefile = _read("Makefile")
     body = _make_target_body("test-release-gate")
 
     assert DEFAULT_TEST_COMMAND == AUTHORITATIVE_RELEASE_GATE_COMMAND
-    assert f"RELEASE_GATE_COMMAND ?= {AUTHORITATIVE_RELEASE_GATE_COMMAND}" in makefile
-    assert '--test-command "$(RELEASE_GATE_COMMAND)"' in body
+    assert body
 
 
 def test_pyright_requirement_matches_ci_constraint() -> None:
@@ -177,6 +174,7 @@ def test_publish_workflow_cannot_publish_without_scientific_release_gate() -> No
     release_gate = _workflow_job_block(workflow, "release-gate")
     build = _workflow_job_block(workflow, "build")
     distribution_install = _workflow_job_block(workflow, "distribution-install-tests")
+    release_attestation = _workflow_job_block(workflow, "release-attestation")
     testpypi = _workflow_job_block(workflow, "publish-to-testpypi")
     pypi = _workflow_job_block(workflow, "publish-to-pypi")
 
@@ -208,8 +206,16 @@ def test_publish_workflow_cannot_publish_without_scientific_release_gate() -> No
     )
     assert "tests/distribution" not in distribution_install
     assert "python -m pytest" not in distribution_install
-    assert _has_needs(testpypi, "distribution-install-tests")
-    assert _has_needs(pypi, "distribution-install-tests")
+    assert _has_needs(release_attestation, "distribution-install-tests")
+    assert "scripts/release/build_release_attestation.py" in release_attestation
+    assert "scripts/release/verify_release_attestation.py" in release_attestation
+    assert "release-attestation.json" in release_attestation
+    assert _has_needs(testpypi, "release-attestation")
+    assert _has_needs(pypi, "release-attestation")
+    assert "scripts/release/prepare_publish_directory.py" in testpypi
+    assert "packages-dir: build/publish/" in testpypi
+    assert "scripts/release/prepare_publish_directory.py" in pypi
+    assert "packages-dir: build/publish/" in pypi
 
 
 def test_make_release_gate_covers_declared_blocking_marker_policy() -> None:
@@ -261,19 +267,21 @@ def test_make_release_gate_covers_declared_blocking_marker_policy() -> None:
         assert fragment in body
 
 
-def test_make_release_gate_writes_metadata_before_pytest_commands() -> None:
+def test_make_release_gate_writes_source_identity_before_source_checks() -> None:
+    makefile = _read("Makefile")
     body = _make_target_body("test-release-gate")
     body_lines = body.splitlines()
 
-    metadata_fragment = "$(PYTHON) -m phospy.release.metadata"
+    source_identity_fragment = "$(PYTHON) scripts/release/create_source_identity.py"
 
-    assert (
-        f"RELEASE_GATE_METADATA_PATH ?= {DEFAULT_RELEASE_GATE_METADATA_PATH.as_posix()}"
-    ) in _read("Makefile")
-    assert metadata_fragment in body
-    assert '--output "$(RELEASE_GATE_METADATA_PATH)"' in body
-    metadata_index = next(
-        index for index, line in enumerate(body_lines) if metadata_fragment in line
+    assert "SOURCE_IDENTITY_PATH ?= build/reports/source-identity.json" in makefile
+    assert source_identity_fragment in body
+    assert '--output "$(SOURCE_IDENTITY_PATH)"' in body
+    assert "scripts/release/write_source_check_report.py" in body
+    source_identity_index = next(
+        index
+        for index, line in enumerate(body_lines)
+        if source_identity_fragment in line
     )
     first_pytest_index = next(
         index
@@ -283,7 +291,13 @@ def test_make_release_gate_writes_metadata_before_pytest_commands() -> None:
             'performance and not release_gate"'
         )
     )
-    assert metadata_index < first_pytest_index
+    first_source_report_index = next(
+        index
+        for index, line in enumerate(body_lines)
+        if "scripts/release/write_source_check_report.py" in line
+    )
+    assert source_identity_index < first_pytest_index
+    assert first_pytest_index < first_source_report_index
 
 
 def test_release_gate_writes_metadata_artifact(tmp_path: Path) -> None:
@@ -461,7 +475,9 @@ def test_ci_distribution_build_validates_reference_bundle_archives() -> None:
     assert "make build" in build
     assert build.index("make build") < build.index("twine check dist/*")
     assert "build/reports/build-manifest.json" in build
-    assert "build: check-tools validate-reference-bundles" in makefile
+    assert "build: check-tools" in makefile
+    assert "$(PYTHON) scripts/release/create_source_identity.py" in make_build
+    assert "$(PYTHON) scripts/validate_reference_bundle_index.py" in make_build
     assert "$(BUILD)" in make_build
     assert "$(PYTHON) scripts/write_build_manifest.py" in make_build
     assert "$(PYTHON) scripts/validate_reference_bundle_distribution.py dist/*" in (

@@ -24,8 +24,10 @@ against the actual Git index before release manifest tests, and CI runs the
 target on Python 3.10, 3.11, and 3.12.
 
 Release-gate pytest steps emit duration summaries and JUnit XML under
-`build/reports/`. CI retains those reports together with
-`build/release-gate/release_gate_metadata.json`.
+`build/reports/`. CI also retains source identity and source-suite JSON reports
+from that directory. Public publication is authorized only by the final
+`release-attestation.json`, after the retained evidence validates against
+`release/attestation-policy.json`.
 
 `parity_diagnostic` tests are informational unless they are intentionally
 promoted into the release selector.

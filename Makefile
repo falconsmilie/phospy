@@ -19,8 +19,8 @@ REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 ACTIVE_SCRIPTS_DIR ?= scripts/active
-RELEASE_GATE_METADATA_PATH ?= build/release-gate/release_gate_metadata.json
-RELEASE_GATE_COMMAND ?= make test-release-gate
+SOURCE_IDENTITY_PATH ?= build/reports/source-identity.json
+PYTHON_MINOR ?= $(shell $(PYTHON) -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 PYTEST_DURATION_ARGS ?= --durations=25 --durations-min=0.01
 PYTEST_REPORT_DIR ?= build/reports
 
@@ -106,26 +106,18 @@ validate-reference-bundles: check-tools
 
 test-release-gate: check-tools
 	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
-	PYTHONPATH=src $(PYTHON) -m phospy.release.metadata \
-		--output "$(RELEASE_GATE_METADATA_PATH)" \
-		--test-command "$(RELEASE_GATE_COMMAND)" \
-		--test-marker "not parity and not performance and not release_gate" \
-		--test-marker "release_gate and (reproducibility or golden)" \
-		--test-marker "release_gate" \
-		--test-marker "parity and not parity_diagnostic" \
-		--test-marker "performance or release_gate" \
-		--test-step '$(PYTHON) scripts/validate_reference_bundle_index.py' \
-		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not performance and not release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"' \
-		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)" --junitxml "$(PYTEST_REPORT_DIR)/release-golden.xml"' \
-		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml"' \
-		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and not parity_diagnostic" -s --junitxml "$(PYTEST_REPORT_DIR)/release-parity.xml"' \
-		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" -q --junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"'
+	$(PYTHON) scripts/release/create_source_identity.py --repository-root . --output "$(SOURCE_IDENTITY_PATH)"
 	$(PYTHON) scripts/validate_reference_bundle_index.py
 	$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not performance and not release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"
+	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-default-py$(PYTHON_MINOR)" --report-class test --report-class architecture --junit-xml "$(PYTEST_REPORT_DIR)/release-default.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-default-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not performance and not release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"'
 	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)" --junitxml "$(PYTEST_REPORT_DIR)/release-golden.xml"
+	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-golden-py$(PYTHON_MINOR)" --report-class reproducibility --junit-xml "$(PYTEST_REPORT_DIR)/release-golden.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-golden-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)" --junitxml "$(PYTEST_REPORT_DIR)/release-golden.xml"'
 	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml"
+	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-reference-manifest-py$(PYTHON_MINOR)" --report-class scientific --junit-xml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-reference-manifest-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml"'
 	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and not parity_diagnostic" -s --junitxml "$(PYTEST_REPORT_DIR)/release-parity.xml"
+	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-parity-py$(PYTHON_MINOR)" --report-class parity --junit-xml "$(PYTEST_REPORT_DIR)/release-parity.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-parity-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and not parity_diagnostic" -s --junitxml "$(PYTEST_REPORT_DIR)/release-parity.xml"'
 	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" -q --junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"
+	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-performance-py$(PYTHON_MINOR)" --report-class performance --junit-xml "$(PYTEST_REPORT_DIR)/release-performance.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-performance-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" -q --junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"'
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"
@@ -160,9 +152,11 @@ test-seams: check-tools
 
 fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference
 
-build: check-tools validate-reference-bundles
+build: check-tools
+	$(PYTHON) scripts/release/create_source_identity.py --repository-root . --output "$(SOURCE_IDENTITY_PATH)"
+	$(PYTHON) scripts/validate_reference_bundle_index.py
 	$(BUILD)
-	$(PYTHON) scripts/write_build_manifest.py --dist-dir dist --output build/reports/build-manifest.json --repository-root .
+	$(PYTHON) scripts/write_build_manifest.py --dist-dir dist --output build/reports/build-manifest.json --repository-root . --source-identity "$(SOURCE_IDENTITY_PATH)"
 	$(PYTHON) scripts/validate_reference_bundle_distribution.py dist/*
 
 clean:

@@ -107,16 +107,16 @@ the manifest for the exact packaged files; developers and Codex agents must not
 use optimistic wording or source-lineage notes as a substitute for that
 evidence.
 
-The release-gate metadata JSON is the audit record for a gate run. By default it
-is written to:
+Release-gate source reports are written under:
 
 ```text
-build/release-gate/release_gate_metadata.json
+build/reports/
 ```
 
-Treat that file as the machine-readable record of what artifact/version,
-runtime, dependency snapshot, marker selectors, and fixture/reference versions
-were tested.
+Treat those files as source-suite evidence, not as publication authorization.
+The publication audit record is `release-attestation.json`; it is written only
+after the policy-required source reports, build manifest, wheel, sdist, and
+installed-artifact verification reports agree.
 
 Some diagnostic parity tests are informational. Release decisions should use the
 threshold-bearing gates and the documented fixture expectations, not visual

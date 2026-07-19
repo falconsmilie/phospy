@@ -20,15 +20,22 @@ def write_build_manifest(
     dist_dir: Path,
     output_path: Path,
     repository_root: Path,
+    source_identity_path: Path | None = None,
+    package_name: str | None = None,
     package_version: str | None = None,
 ) -> Path:
     root = repository_root.resolve()
-    version = package_version or _package_version(root)
+    package = _package_metadata(
+        root,
+        package_name=package_name,
+        package_version=package_version,
+    )
     artifacts = _distribution_artifacts(dist_dir.resolve())
     payload = {
         "schema": BUILD_MANIFEST_SCHEMA,
-        "source_identity_digest": _source_identity_digest(root),
-        "package_version": version,
+        "source_identity_digest": _source_identity_digest(root, source_identity_path),
+        "package_name": package["name"],
+        "package_version": package["version"],
         "artifacts": artifacts,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -58,7 +65,17 @@ def _artifact_payload(kind: str, path: Path) -> dict[str, str]:
     }
 
 
-def _source_identity_digest(repository_root: Path) -> str:
+def _source_identity_digest(
+    repository_root: Path,
+    source_identity_path: Path | None = None,
+) -> str:
+    if source_identity_path is not None:
+        path = source_identity_path.resolve()
+        _require(
+            path.is_file(), f"source identity record is missing: {path.as_posix()}"
+        )
+        return "sha256:" + _file_sha256(path)
+
     digest = hashlib.sha256()
     for relative_path in _git_tracked_files(repository_root):
         path = repository_root / relative_path
@@ -88,14 +105,24 @@ def _git_tracked_files(repository_root: Path) -> list[Path]:
     return sorted(paths, key=lambda path: path.as_posix())
 
 
-def _package_version(repository_root: Path) -> str:
-    with (repository_root / "pyproject.toml").open("rb") as handle:
-        payload = tomllib.load(handle)
-    version = payload["project"]["version"]
+def _package_metadata(
+    repository_root: Path,
+    *,
+    package_name: str | None = None,
+    package_version: str | None = None,
+) -> dict[str, str]:
+    project: dict[str, object] = {}
+    if package_name is None or package_version is None:
+        with (repository_root / "pyproject.toml").open("rb") as handle:
+            payload = tomllib.load(handle)
+        project = payload["project"]
+    name = package_name or project["name"]
+    version = package_version or project["version"]
+    _require(isinstance(name, str) and bool(name.strip()), "package name missing")
     _require(
         isinstance(version, str) and bool(version.strip()), "package version missing"
     )
-    return version.strip()
+    return {"name": name.strip(), "version": version.strip()}
 
 
 def _file_sha256(path: Path) -> str:
@@ -117,6 +144,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         dist_dir=Path(args.dist_dir),
         output_path=Path(args.output),
         repository_root=Path(args.repository_root),
+        source_identity_path=(
+            None if args.source_identity is None else Path(args.source_identity)
+        ),
+        package_name=args.package_name,
         package_version=args.package_version,
     )
     print(path.as_posix())
@@ -146,6 +177,19 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--package-version",
         default=None,
         help="Package version override; defaults to project.version from pyproject.toml.",
+    )
+    parser.add_argument(
+        "--package-name",
+        default=None,
+        help="Package name override; defaults to project.name from pyproject.toml.",
+    )
+    parser.add_argument(
+        "--source-identity",
+        default=None,
+        help=(
+            "Source identity record to bind into the build manifest. When omitted, "
+            "the legacy Git-tracked tree digest is used."
+        ),
     )
     return parser.parse_args(argv)
 

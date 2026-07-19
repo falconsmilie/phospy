@@ -269,12 +269,19 @@ def test_artifact_install_jobs_run_standalone_verifier_for_wheel_and_sdist() -> 
 def test_distribution_artifact_failures_block_publish_jobs() -> None:
     workflow = _read(".github/workflows/publish.yml")
     distribution_install = _workflow_job_block(workflow, "distribution-install-tests")
+    release_attestation = _workflow_job_block(workflow, "release-attestation")
     assert "continue-on-error" not in distribution_install
     assert 'python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py"' in (
         distribution_install
     )
     assert "tests/distribution" not in distribution_install
 
+    assert _has_needs(release_attestation, "distribution-install-tests")
+    assert "scripts/release/build_release_attestation.py" in release_attestation
+    assert "scripts/release/verify_release_attestation.py" in release_attestation
+
     for publish_job in ("publish-to-testpypi", "publish-to-pypi"):
         publish_block = _workflow_job_block(workflow, publish_job)
-        assert _has_needs(publish_block, "distribution-install-tests")
+        assert _has_needs(publish_block, "release-attestation")
+        assert "scripts/release/prepare_publish_directory.py" in publish_block
+        assert "packages-dir: build/publish/" in publish_block

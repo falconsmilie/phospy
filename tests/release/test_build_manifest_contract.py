@@ -44,13 +44,14 @@ def test_build_manifest_binds_source_identity_to_wheel_and_sdist(
     monkeypatch.setattr(
         writer,
         "_source_identity_digest",
-        lambda repository_root: "sha256:" + ("a" * 64),
+        lambda repository_root, source_identity_path=None: "sha256:" + ("a" * 64),
     )
 
     written_path = writer.write_build_manifest(
         dist_dir=dist_dir,
         output_path=output_path,
         repository_root=tmp_path,
+        package_name="phospy",
         package_version="1.6.0",
     )
 
@@ -59,6 +60,7 @@ def test_build_manifest_binds_source_identity_to_wheel_and_sdist(
     assert written_path == output_path
     assert payload["schema"] == "phospy.build-manifest/v1"
     assert payload["source_identity_digest"] == "sha256:" + ("a" * 64)
+    assert payload["package_name"] == "phospy"
     assert payload["package_version"] == "1.6.0"
     assert artifacts == {
         "wheel": {

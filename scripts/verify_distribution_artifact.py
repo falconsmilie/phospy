@@ -442,7 +442,8 @@ def _check_packaged_scientific_resources(
         manifest_resource.is_file(),
         "packaged scientific resource manifest is missing: rat/l6_native/manifest.json",
     )
-    manifest_payload = json.loads(manifest_resource.read_text(encoding="utf-8"))
+    manifest_text = manifest_resource.read_text(encoding="utf-8")
+    manifest_payload = json.loads(manifest_text)
     digest_report = _validate_manifest_resource_digests(
         bundle_root,
         manifest_payload,
@@ -457,6 +458,7 @@ def _check_packaged_scientific_resources(
             int(motif_scores.shape[1]),
         ],
         "motif_size_count": int(motif_sizes.size),
+        "manifest_sha256": hashlib.sha256(manifest_text.encode("utf-8")).hexdigest(),
         **digest_report,
     }
 

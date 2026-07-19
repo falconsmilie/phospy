@@ -71,14 +71,14 @@ artifact that passed the full gate. Do not treat a partial local pass, a
 parity-only pass, a performance-only pass, or a gate pass from a different
 commit/distribution as sufficient evidence for public release.
 
-The release gate writes a machine-readable audit record to
-`build/release-gate/release_gate_metadata.json` by default. Override the path
-with `RELEASE_GATE_METADATA_PATH=...` when CI or release packaging needs a
-different deterministic location. The JSON records the PhosPy version, Python
-version, platform, dependency snapshot, test command, marker selectors,
-fixture/reference fingerprints, and UTC generation time. Pytest duration
-summaries are printed during the run, and JUnit reports are written under
-`build/reports/` for retention by CI.
+The release gate writes a source identity record and post-check source-suite
+JSON reports under `build/reports/`. These reports bind the JUnit reports to the
+source identity used for release. The authoritative public release audit record
+is `release-attestation.json`, which is produced only after the source reports,
+build manifest, wheel, sdist, and installed-artifact verification matrix validate
+against `release/attestation-policy.json`. Pytest duration summaries are printed
+during the run, and JUnit reports are written under `build/reports/` for
+retention by CI.
 
 Release-blocking coverage in `make test-release-gate` is:
 
