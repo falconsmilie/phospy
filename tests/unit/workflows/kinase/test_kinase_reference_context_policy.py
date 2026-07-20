@@ -173,7 +173,7 @@ def test_kinase_workflow_unknown_reference_context_passes_with_explicit_policy_a
     assert caveat.severity == "warning"
     assert caveat.details["policy"] == "allow_unknown_with_caveat"
     assert caveat.details["workflow_scope"] == "kinase_scoring"
-    assert caveat.details["missing_contexts"] == ["right"]
+    assert caveat.details["missing_contexts"] == ("right",)
     assert caveat.details["operation"] == (
         "kinase workflow result dataset/reference bundle"
     )

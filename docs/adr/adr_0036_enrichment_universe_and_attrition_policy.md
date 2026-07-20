@@ -93,6 +93,13 @@ Workflow validation is implemented in
 in `src/phospy/workflows/enrichment/interpreter.py`, and result diagnostics plus
 run provenance are assembled in `src/phospy/workflows/enrichment/executor.py`.
 
+`EnrichmentWorkflowResult` stores `diagnostics`, `method_metadata`,
+`background_summary`, and `set_collection_summary` with the shared recursive
+immutable JSON primitive from ADR-0035. These mappings are result facts only;
+they do not calculate enrichment statistics. Invalid JSON-like values fail at
+the contract boundary with `ContractValidationError`, while mapping `copy()` and
+serialization/thawing paths return fresh ordinary `dict`/`list` payloads.
+
 ## Related Records
 
 - [ADR-0030: Ranked-List Enrichment Prerequisites](adr_0030_ranked_list_enrichment_prerequisites.md)

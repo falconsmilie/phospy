@@ -1,5 +1,6 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
+tests/architecture/test_exported_json_state_immutability.py,architecture,204,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_package_dependency_dag.py,architecture,520,7,false,false,,,,,,
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_validation_boundaries.py,architecture,642,22,false,false,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
@@ -126,7 +127,7 @@ tests/unit/test_differential_imputation_policy.py,unit,318,8,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,1062,24,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,91,7,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
-tests/unit/test_differential_result_caveats.py,unit,354,6,false,false,,,,,,
+tests/unit/test_differential_result_caveats.py,unit,356,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,998,33,false,false,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,144,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,851,19,false,false,,,,,,
@@ -157,8 +158,8 @@ tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API 
 tests/unit/test_group_coverage_filter_preprocessing.py,unit,258,7,false,false,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing_config.py,unit,195,10,true,true,,,,,,
 tests/unit/test_historical_baseline_science.py,unit,433,8,true,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for historical baseline science, making artifact and output drift unsafe.",codex-audit,,
-tests/unit/test_importer_analysis_ready_boundary.py,unit,180,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_importer_quality_report.py,unit,173,4,false,false,,,,,,
+tests/unit/test_importer_analysis_ready_boundary.py,unit,263,7,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_importer_quality_report.py,unit,275,7,true,true,,,,,,
 tests/unit/test_imputation_observation_metadata.py,unit,391,17,false,false,,,,,,
 tests/unit/test_intensity_scale_establishment.py,unit,297,11,false,false,,,,,,
 tests/unit/test_intensity_transformation_event.py,unit,107,6,true,true,,,,,,
@@ -213,7 +214,7 @@ tests/unit/test_provenance_regressions.py,unit,715,14,true,false,provenance/gold
 tests/unit/test_public_config_self_validation.py,unit,1079,41,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public config self validation and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_public_contract_boundary_honesty.py,unit,320,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract boundary honesty and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_dataset.py,unit,408,16,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract dataset and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_contract_enrichment.py,unit,275,11,false,false,,,,,,
+tests/unit/test_public_contract_enrichment.py,unit,375,13,true,true,,,,,,
 tests/unit/test_public_contract_errors.py,unit,767,25,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_import_routes.py,unit,280,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_results.py,unit,402,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
@@ -230,7 +231,7 @@ tests/unit/test_reference_organism_identity_boundaries.py,unit,420,11,false,fals
 tests/unit/test_reference_provenance.py,unit,246,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_request_validation_boundaries.py,unit,299,6,true,true,,,,,,
-tests/unit/test_result_caveats.py,unit,279,5,false,false,,,,,,
+tests/unit/test_result_caveats.py,unit,361,7,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
 tests/unit/test_row_attrition_provenance.py,unit,240,12,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_runtime_contract_guards.py,unit,210,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -295,6 +296,6 @@ tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,159
 tests/validation/test_shared_identity_contracts.py,validation,233,6,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
 tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,524,8,false,false,,,,,,
-tests/workflows/test_enrichment_workflow.py,workflows,913,28,true,true,,,,,,
+tests/workflows/test_enrichment_workflow.py,workflows,914,28,true,true,,,,,,
 tests/workflows/test_identity_coherence.py,workflows,184,6,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,121,1,false,false,,,,,,

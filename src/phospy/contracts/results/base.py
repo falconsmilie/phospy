@@ -21,6 +21,10 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
+from phospy.provenance.immutability import (
+    freeze_json_mapping,
+    thaw_json_mapping,
+)
 
 ImporterQualityStatus: TypeAlias = Literal[
     "reported",
@@ -177,16 +181,22 @@ class ImporterMissingIntensitySummary:
         object.__setattr__(
             self,
             "missing_values_by_sample_id",
-            _validate_quality_count_mapping(
-                self.missing_values_by_sample_id,
+            freeze_json_mapping(
+                _validate_quality_count_mapping(
+                    self.missing_values_by_sample_id,
+                    field_name="importer_quality.missing_intensity.by_sample_id",
+                ),
                 field_name="importer_quality.missing_intensity.by_sample_id",
             ),
         )
         object.__setattr__(
             self,
             "missing_values_by_source_column",
-            _validate_quality_count_mapping(
-                self.missing_values_by_source_column,
+            freeze_json_mapping(
+                _validate_quality_count_mapping(
+                    self.missing_values_by_source_column,
+                    field_name="importer_quality.missing_intensity.by_source_column",
+                ),
                 field_name="importer_quality.missing_intensity.by_source_column",
             ),
         )
@@ -206,9 +216,13 @@ class ImporterMissingIntensitySummary:
             "status": self.status,
             "total_missing_values": self.total_missing_values,
             "rows_with_any_missing_intensity": self.rows_with_any_missing_intensity,
-            "missing_values_by_sample_id": dict(self.missing_values_by_sample_id),
-            "missing_values_by_source_column": dict(
-                self.missing_values_by_source_column
+            "missing_values_by_sample_id": thaw_json_mapping(
+                self.missing_values_by_sample_id,
+                field_name="importer_quality.missing_intensity.by_sample_id",
+            ),
+            "missing_values_by_source_column": thaw_json_mapping(
+                self.missing_values_by_source_column,
+                field_name="importer_quality.missing_intensity.by_source_column",
             ),
             "reason": self.reason,
         }
@@ -506,7 +520,14 @@ class ImporterQualityReport:
         object.__setattr__(self, "rows_dropped", rows_dropped)
         object.__setattr__(self, "intensity_column_status", intensity_column_status)
         object.__setattr__(self, "detected_intensity_columns", detected_columns)
-        object.__setattr__(self, "format_specific", dict(self.format_specific))
+        object.__setattr__(
+            self,
+            "format_specific",
+            freeze_json_mapping(
+                self.format_specific,
+                field_name="importer_quality.format_specific",
+            ),
+        )
         object.__setattr__(
             self,
             "warnings",
@@ -530,7 +551,10 @@ class ImporterQualityReport:
             "localisation_confidence": self.localisation_confidence.to_payload(),
             "flagged_rows": self.flagged_rows.to_payload(),
             "duplicate_keys": self.duplicate_keys.to_payload(),
-            "format_specific": dict(self.format_specific),
+            "format_specific": thaw_json_mapping(
+                self.format_specific,
+                field_name="importer_quality.format_specific",
+            ),
             "warnings": list(self.warnings),
         }
 
@@ -552,7 +576,7 @@ class PhosphositeImportResult:
     _sample_column_mapping: dict[str, str]
     localisation_confidence_column: str | None
     warnings: tuple[str, ...]
-    diagnostics: dict[str, object]
+    diagnostics: Mapping[str, object]
     source_name: str
     quality_report: ImporterQualityReport
 
@@ -565,7 +589,7 @@ class PhosphositeImportResult:
         sample_column_mapping: dict[str, str],
         localisation_confidence_column: str | None = None,
         warnings: tuple[str, ...] = (),
-        diagnostics: dict[str, object] | None = None,
+        diagnostics: Mapping[str, object] | None = None,
         source_name: str = "phosphosite_import",
         quality_report: ImporterQualityReport | None = None,
     ) -> None:
@@ -591,7 +615,7 @@ class PhosphositeImportResult:
         sample_column_mapping: dict[str, str],
         localisation_confidence_column: str | None = None,
         warnings: tuple[str, ...] = (),
-        diagnostics: dict[str, object] | None = None,
+        diagnostics: Mapping[str, object] | None = None,
         source_name: str = "phosphosite_import",
         quality_report: ImporterQualityReport | None = None,
         assume_owned: bool,
@@ -632,9 +656,9 @@ class PhosphositeImportResult:
                 "non-empty when provided"
             )
         warning_values = tuple(_validate_warning(value) for value in warnings)
-        if diagnostics is not None and not isinstance(diagnostics, dict):
+        if diagnostics is not None and not isinstance(diagnostics, Mapping):
             raise PhosPyInputError(
-                "phosphosite_import_result.diagnostics must be a dict or None"
+                "phosphosite_import_result.diagnostics must be a mapping or None"
             )
         source_name_value = _validate_source_name(source_name)
         if quality_report is None:
@@ -660,7 +684,14 @@ class PhosphositeImportResult:
             localisation_confidence_column,
         )
         object.__setattr__(self, "warnings", warning_values)
-        object.__setattr__(self, "diagnostics", dict(diagnostics or {}))
+        object.__setattr__(
+            self,
+            "diagnostics",
+            freeze_json_mapping(
+                diagnostics or {},
+                field_name="phosphosite_import_result.diagnostics",
+            ),
+        )
         object.__setattr__(self, "source_name", source_name_value)
         object.__setattr__(self, "quality_report", quality_report_value)
 
@@ -674,7 +705,7 @@ class PhosphositeImportResult:
         sample_column_mapping: dict[str, str],
         localisation_confidence_column: str | None = None,
         warnings: tuple[str, ...] = (),
-        diagnostics: dict[str, object] | None = None,
+        diagnostics: Mapping[str, object] | None = None,
         source_name: str = "phosphosite_import",
         quality_report: ImporterQualityReport | None = None,
     ) -> PhosphositeImportResult:

@@ -272,7 +272,7 @@ def test_signalome_workflow_unknown_reference_context_passes_with_explicit_polic
         assert caveat.severity == "warning"
         assert caveat.details["policy"] == "allow_unknown_with_caveat"
         assert caveat.details["workflow_scope"] == "signalome"
-        assert caveat.details["missing_contexts"] == ["right"]
+        assert caveat.details["missing_contexts"] == ("right",)
         assert isinstance(caveat.details["left_reference_context_id"], str)
         assert caveat.details["right_reference_context_id"] is None
 

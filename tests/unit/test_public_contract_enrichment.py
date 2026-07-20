@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import fields
 from typing import get_args, get_origin, get_type_hints
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -36,6 +37,27 @@ from phospy.api.configs import (
     ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MULTIPLE_TESTING_CORRECTION_NONE,
+)
+
+
+class _DuplicateKeyMapping(Mapping[object, object]):
+    def __iter__(self) -> Iterator[object]:
+        return iter(("duplicate", "duplicate"))
+
+    def __len__(self) -> int:
+        return 2
+
+    def __getitem__(self, key: object) -> object:
+        if key == "duplicate":
+            return "value"
+        raise KeyError(key)
+
+
+_ENRICHMENT_JSON_MAPPING_FIELDS = (
+    "diagnostics",
+    "method_metadata",
+    "background_summary",
+    "set_collection_summary",
 )
 
 
@@ -227,6 +249,84 @@ def test_enrichment_result_contract_is_shape_only() -> None:
     assert result.records == (record,)
     assert result.records[0].p_value is None
     assert result.diagnostics == {"status": "not_computed_by_contract"}
+
+
+def test_enrichment_summary_mappings_are_recursively_immutable() -> None:
+    source_payloads = {
+        field_name: {
+            "nested": {
+                "items": [{"score": 1.0}],
+                "labels": ["kept"],
+            }
+        }
+        for field_name in _ENRICHMENT_JSON_MAPPING_FIELDS
+    }
+    result = EnrichmentWorkflowResult(
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        config=EnrichmentConfig(),
+        diagnostics=source_payloads["diagnostics"],
+        method_metadata=source_payloads["method_metadata"],
+        background_summary=source_payloads["background_summary"],
+        set_collection_summary=source_payloads["set_collection_summary"],
+    )
+
+    for source in source_payloads.values():
+        source["nested"]["items"][0]["score"] = 9.0
+        source["nested"]["items"].append({"score": 10.0})
+        source["nested"]["labels"].append("source-only")
+
+    for field_name in _ENRICHMENT_JSON_MAPPING_FIELDS:
+        mapping = getattr(result, field_name)
+        nested = mapping["nested"]
+        assert isinstance(nested, Mapping)
+        assert nested["items"][0]["score"] == 1.0
+        assert nested["labels"] == ("kept",)
+
+        with pytest.raises(TypeError):
+            nested["items"][0]["score"] = 2.0  # type: ignore[index]
+
+        payload = mapping.copy()
+        payload["nested"]["items"][0]["score"] = 3.0  # type: ignore[index]
+        payload["nested"]["labels"].append("payload-only")  # type: ignore[union-attr]
+
+        assert mapping.copy()["nested"]["items"] == [{"score": 1.0}]
+        assert mapping.copy()["nested"]["labels"] == ["kept"]
+
+
+@pytest.mark.parametrize("field_name", _ENRICHMENT_JSON_MAPPING_FIELDS)
+@pytest.mark.parametrize(
+    ("invalid_value", "expected"),
+    (
+        ({1: "numeric-key"}, "keys must be strings"),
+        (_DuplicateKeyMapping(), "duplicate JSON object key"),
+        ({"bad": float("nan")}, "finite JSON number"),
+        ({"bad": float("inf")}, "finite JSON number"),
+        ({"bad": {"unsupported"}}, "got set"),
+        ({"bad": np.array([1])}, "got ndarray"),
+        ({"bad": bytearray(b"x")}, "got bytearray"),
+        ({"bad": object()}, "got object"),
+    ),
+)
+def test_enrichment_summary_mappings_reject_invalid_json_values(
+    field_name: str,
+    invalid_value: Mapping[object, object],
+    expected: str,
+) -> None:
+    kwargs: dict[str, object] = {name: {} for name in _ENRICHMENT_JSON_MAPPING_FIELDS}
+    kwargs[field_name] = invalid_value
+
+    with pytest.raises(ContractValidationError) as exc_info:
+        EnrichmentWorkflowResult(
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            set_collection=_gene_collection(),
+            config=EnrichmentConfig(),
+            **kwargs,
+        )
+
+    message = str(exc_info.value)
+    assert f"enrichment_result.{field_name}" in message
+    assert expected in message
 
 
 def test_enrichment_public_contract_remains_typed_and_narrow() -> None:

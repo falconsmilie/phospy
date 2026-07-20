@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
 from dataclasses import FrozenInstanceError, asdict
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -27,6 +29,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     ResultCaveat,
 )
+from phospy.errors import ContractValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.enrichment.models import GeneSetCollection
 from phospy.workflows.differential.caveats import (
@@ -45,6 +48,19 @@ from tests.support.site_keys import protein_site_key_index, site_key_context_col
 _GENES = ["MAPK14", "AKT1", "GSK3B", "RPS6"]
 _SITES = ["Y182", "T308", "S9", "S235"]
 _SAMPLES = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
+
+
+class _DuplicateKeyMapping(Mapping[object, object]):
+    def __iter__(self) -> Iterator[object]:
+        return iter(("duplicate", "duplicate"))
+
+    def __len__(self) -> int:
+        return 2
+
+    def __getitem__(self, key: object) -> object:
+        if key == "duplicate":
+            return "value"
+        raise KeyError(key)
 
 
 def _trusted_site_index() -> pd.Index:
@@ -153,6 +169,72 @@ def test_result_caveat_is_immutable() -> None:
         caveat.details["observed_fraction"] = 0.9  # type: ignore[index]
 
 
+def test_result_caveat_details_are_recursively_immutable() -> None:
+    source_details = {
+        "nested": {
+            "items": [{"score": 1.0}],
+            "labels": ["kept"],
+        }
+    }
+    caveat = ResultCaveat(
+        code="nested_details",
+        severity="warning",
+        message="Nested details are frozen.",
+        details=source_details,
+    )
+
+    source_details["nested"]["items"][0]["score"] = 9.0
+    source_details["nested"]["items"].append({"score": 10.0})
+    source_details["nested"]["labels"].append("source-only")
+
+    nested = caveat.details["nested"]
+    assert isinstance(nested, Mapping)
+    assert nested["items"][0]["score"] == 1.0
+    assert nested["labels"] == ("kept",)
+
+    with pytest.raises(TypeError):
+        nested["items"][0]["score"] = 2.0  # type: ignore[index]
+
+    payload = caveat.to_payload()
+    payload["details"]["nested"]["items"][0]["score"] = 3.0  # type: ignore[index]
+    payload["details"]["nested"]["labels"].append("payload-only")  # type: ignore[union-attr]
+
+    fresh_payload = caveat.to_payload()
+    assert fresh_payload["details"]["nested"]["items"] == [{"score": 1.0}]
+    assert fresh_payload["details"]["nested"]["labels"] == ["kept"]
+    assert asdict(caveat) == fresh_payload
+
+
+@pytest.mark.parametrize(
+    ("details", "expected"),
+    (
+        ({1: "numeric-key"}, "keys must be strings"),
+        (_DuplicateKeyMapping(), "duplicate JSON object key"),
+        ({"bad": float("nan")}, "result_caveat.details.'bad'"),
+        ({"bad": float("inf")}, "finite JSON number"),
+        ({"bad": {"unsupported"}}, "got set"),
+        ({"bad": np.array([1])}, "got ndarray"),
+        ({"bad": bytearray(b"x")}, "got bytearray"),
+        ({"bad": object()}, "got object"),
+    ),
+)
+def test_result_caveat_details_reject_invalid_json_values(
+    details: Mapping[object, object],
+    expected: str,
+) -> None:
+    with pytest.raises(ContractValidationError) as exc_info:
+        ResultCaveat(
+            code="bad_details",
+            severity="warning",
+            message="Invalid details.",
+            details=details,
+        )
+
+    message = str(exc_info.value)
+    assert "result_caveat.details" in message
+    assert expected in message
+
+
 def test_workflow_result_defaults_to_empty_caveats() -> None:
     result = EnrichmentWorkflowResult(
         identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
@@ -219,7 +301,7 @@ def test_differential_result_caveat_warns_for_missing_trusted_assertions() -> No
 
     assert caveat.severity == "warning"
     assert caveat.details["trusted_assertion_metadata_provided"] is False
-    assert caveat.details["missing_trusted_assertions"] == [
+    assert caveat.details["missing_trusted_assertions"] == (
         "identity_user_asserted",
         "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
@@ -227,7 +309,7 @@ def test_differential_result_caveat_warns_for_missing_trusted_assertions() -> No
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",
-    ]
+    )
 
 
 def test_kinase_result_caveat_warns_for_missing_trusted_assertions() -> None:
@@ -255,7 +337,7 @@ def test_kinase_result_caveat_warns_for_missing_trusted_assertions() -> None:
 
     assert caveat.severity == "warning"
     assert caveat.details["trusted_assertion_metadata_provided"] is False
-    assert caveat.details["missing_trusted_assertions"] == [
+    assert caveat.details["missing_trusted_assertions"] == (
         "identity_user_asserted",
         "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
@@ -263,7 +345,7 @@ def test_kinase_result_caveat_warns_for_missing_trusted_assertions() -> None:
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",
-    ]
+    )
 
     scoring_caveat = _caveat_by_code(
         result.caveats,

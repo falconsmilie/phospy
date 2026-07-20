@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import TypeAlias, cast
+from typing import TypeAlias, TypeVar, cast
 
 from phospy.errors.input import PhosPyInputError
 
 JsonPrimitive: TypeAlias = str | int | float | bool | None
+_JsonErrorT = TypeVar("_JsonErrorT", bound=Exception)
 
 
 class FrozenJsonMapping(Mapping[str, object]):
@@ -80,6 +81,11 @@ class FrozenJsonMapping(Mapping[str, object]):
 
         return thaw_json_mapping(self, field_name="frozen_json_mapping")
 
+    def __deepcopy__(self, memo: dict[int, object]) -> dict[str, object]:
+        """Return a fresh mutable JSON-safe copy for dataclass helpers."""
+
+        return thaw_json_mapping(self, field_name="frozen_json_mapping")
+
 
 FrozenJsonSequence = tuple
 FrozenJsonValue: TypeAlias = (
@@ -139,6 +145,22 @@ def freeze_optional_json_mapping(
     if value is None:
         return None
     return freeze_json_mapping(value, field_name=field_name)
+
+
+def freeze_json_mapping_with_error_type(
+    value: object,
+    *,
+    field_name: str,
+    error_type: type[_JsonErrorT],
+) -> FrozenJsonMapping:
+    """Return a frozen JSON mapping while preserving a caller-owned boundary error."""
+
+    try:
+        return freeze_json_mapping(value, field_name=field_name)
+    except PhosPyInputError as exc:
+        if error_type is PhosPyInputError:
+            raise
+        raise error_type(str(exc)) from exc
 
 
 def thaw_json_value(value: object, *, field_name: str) -> object:
@@ -208,6 +230,7 @@ __all__ = [
     "FrozenJsonSequence",
     "JsonPrimitive",
     "freeze_json_mapping",
+    "freeze_json_mapping_with_error_type",
     "freeze_json_value",
     "freeze_optional_json_mapping",
     "thaw_json_mapping",

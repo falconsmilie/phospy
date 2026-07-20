@@ -106,6 +106,11 @@ the freezer in `__post_init__`. Serialization helpers and selected public JSON
 accessors route frozen provenance through the thawing path before returning
 payloads.
 
+The same primitive is also the repository-wide policy for exported JSON-like
+scientific and result state. Domain owners may adapt freezer failures to their
+public boundary exception type, but they must not introduce a second immutable
+mapping container or stringify unsupported keys and values.
+
 The concrete container policy is:
 
 - `FrozenJsonMapping` stores a tuple of validated `(str, frozen_value)` pairs
@@ -114,9 +119,11 @@ The concrete container policy is:
   `dict.update`, and related base-class mutation paths cannot operate on it;
 - JSON arrays are stored as tuples, so list base-class mutation cannot operate
   on them;
-- every nested mapping and sequence is recursively frozen before storage; and
+- every nested mapping and sequence is recursively frozen before storage;
 - `thaw_json_mapping()` and `thaw_json_value()` always allocate fresh `dict`
-  and `list` containers for serialization output.
+  and `list` containers for serialization output; and
+- `FrozenJsonMapping.copy()` and dataclass deep-copy helpers thaw into fresh
+  ordinary JSON containers; direct internal mapping access remains immutable.
 
 The current audited fields include:
 
@@ -129,8 +136,20 @@ The current audited fields include:
 - reference and Kinase Library resource `sequence_window`, `source_files`, and
   `manifest` mappings;
 - run-level `workflow_parameters`;
-- scientific-policy `parameters`; and
+- scientific-policy `parameters`;
 - derived-quantitative missingness, matrix-transformation, and parameter
-  mappings; and
+  mappings;
 - trusted dataset construction evidence `details` and construction workflow
-  parameters.
+  parameters;
+- public `ResultCaveat.details`;
+- importer `ImporterQualityReport.format_specific`,
+  `ImporterMissingIntensitySummary` count mappings, and
+  `PhosphositeImportResult.diagnostics`; and
+- enrichment result `diagnostics`, `method_metadata`, `background_summary`, and
+  `set_collection_summary`.
+
+`tests/architecture/test_exported_json_state_immutability.py` owns the exported
+result-state inventory. New public result dataclass fields typed as mappings
+must either enter the immutable JSON policy registry, be typed to a reviewed
+immutable domain object, or be added to a narrow follow-up allowlist with a
+ticket and reason.

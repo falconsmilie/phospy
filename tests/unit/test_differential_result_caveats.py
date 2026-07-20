@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 import pytest
 
@@ -212,7 +214,7 @@ def test_differential_result_caveats_include_direct_dataset_construction() -> No
     assert caveat.severity == "warning"
     assert caveat.details["construction_source"] == "direct_trusted_construction"
     assert caveat.details["trusted_assertion_metadata_provided"] is False
-    assert caveat.details["missing_trusted_assertions"] == [
+    assert caveat.details["missing_trusted_assertions"] == (
         "identity_user_asserted",
         "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
@@ -220,7 +222,7 @@ def test_differential_result_caveats_include_direct_dataset_construction() -> No
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",
-    ]
+    )
     assert "input_tables" not in caveat.details
 
 
@@ -235,7 +237,7 @@ def test_differential_result_caveats_include_withheld_features() -> None:
     assert caveat.severity == "warning"
     assert caveat.details["withheld_feature_count"] == 1
     status_counts = caveat.details["status_counts"]
-    assert isinstance(status_counts, dict)
+    assert isinstance(status_counts, Mapping)
     assert status_counts[DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT] == 1
     assert caveat.details["result_status_column"] == "result_status"
     assert caveat.details["result_status_reason_column"] == "result_status_reason"

@@ -2,52 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import Literal, TypeAlias, cast
 
 from phospy.errors.validation import ContractValidationError
+from phospy.provenance.immutability import (
+    FrozenJsonMapping,
+    freeze_json_mapping_with_error_type,
+    thaw_json_mapping,
+)
 
 ResultCaveatSeverity: TypeAlias = Literal["info", "warning", "error"]
 
 _RESULT_CAVEAT_SEVERITIES = frozenset({"info", "warning", "error"})
-
-
-class _ImmutableDetailsMapping(Mapping[str, object]):
-    """Read-only mapping that deep-copies as a plain dict for dataclass helpers."""
-
-    _data: Mapping[str, object]
-    __slots__ = ("_data",)
-
-    def __init__(self, data: Mapping[str, object]) -> None:
-        object.__setattr__(self, "_data", MappingProxyType(dict(data)))
-
-    def __setattr__(self, name: str, value: object) -> None:
-        raise AttributeError("result caveat details are read-only")
-
-    def __delattr__(self, name: str) -> None:
-        raise AttributeError("result caveat details are read-only")
-
-    def __getitem__(self, key: str) -> object:
-        return self._data[key]
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._data)
-
-    def __len__(self) -> int:
-        return len(self._data)
-
-    def __repr__(self) -> str:
-        return repr(dict(self._data))
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Mapping):
-            return False
-        return dict(self._data) == dict(other)
-
-    def __deepcopy__(self, memo: dict[int, object]) -> dict[str, object]:
-        return dict(self._data)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,11 +52,9 @@ class ResultCaveat:
         object.__setattr__(
             self,
             "details",
-            _ImmutableDetailsMapping(
-                _require_details_mapping(
-                    self.details,
-                    field_name="result_caveat.details",
-                )
+            _freeze_details_mapping(
+                self.details,
+                field_name="result_caveat.details",
             ),
         )
 
@@ -99,7 +65,10 @@ class ResultCaveat:
             "code": self.code,
             "severity": self.severity,
             "message": self.message,
-            "details": dict(self.details),
+            "details": thaw_json_mapping(
+                self.details,
+                field_name="result_caveat.details",
+            ),
         }
 
 
@@ -147,7 +116,7 @@ def result_caveats_from_payloads(
                 code=code,
                 severity=cast(ResultCaveatSeverity, severity),
                 message=message,
-                details=dict(details),
+                details=details,
             )
         )
     return tuple(caveats)
@@ -166,20 +135,23 @@ def _require_non_empty_text(value: object, *, field_name: str) -> str:
     return value.strip()
 
 
-def _require_details_mapping(
+def _freeze_details_mapping(
     value: object,
     *,
     field_name: str,
-) -> dict[str, object]:
+) -> FrozenJsonMapping:
     if not isinstance(value, Mapping):
         raise ContractValidationError(f"{field_name} must be a mapping")
-    details: dict[str, object] = {}
-    for key, item in value.items():
-        if not isinstance(key, str) or key.strip() == "":
+    details = freeze_json_mapping_with_error_type(
+        value,
+        field_name=field_name,
+        error_type=ContractValidationError,
+    )
+    for key in details:
+        if key.strip() == "":
             raise ContractValidationError(
                 f"{field_name} keys must be non-empty strings"
             )
-        details[key] = item
     return details
 
 

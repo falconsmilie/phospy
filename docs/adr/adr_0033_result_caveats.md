@@ -189,6 +189,13 @@ example:
 Result constructors should validate top-level caveats with the common caveat
 contract. They should not infer caveats from result tables, provenance, or logs.
 
+`ResultCaveat.details` is JSON-like scientific state. Constructors freeze it
+recursively with the shared immutable JSON primitive, reject non-string keys,
+duplicate keys, unsupported objects, and non-finite floats, and preserve
+`ContractValidationError` at the caveat boundary. Direct detail access exposes
+immutable mapping/tuple nodes; `to_payload()` and dataclass deep-copy helpers
+return fresh ordinary `dict`/`list` JSON payloads.
+
 Tests for new caveats should assert code, severity, and important structured
 details. Tests should not rely on exact message text unless the public wording
 itself is the contract under review.

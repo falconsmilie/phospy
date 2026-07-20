@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
+
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -31,6 +34,19 @@ class _RecordingMappedImporter:
     def run(self, request: PhosphositeImportRequest) -> PhosphositeImportResult:
         self.requests.append(request)
         return self._delegate.run(request)
+
+
+class _DuplicateKeyMapping(Mapping[object, object]):
+    def __iter__(self) -> Iterator[object]:
+        return iter(("duplicate", "duplicate"))
+
+    def __len__(self) -> int:
+        return 2
+
+    def __getitem__(self, key: object) -> object:
+        if key == "duplicate":
+            return "value"
+        raise KeyError(key)
 
 
 def _boundary_source() -> pd.DataFrame:
@@ -99,6 +115,19 @@ def _fragpipe_source() -> pd.DataFrame:
     )
 
 
+def _minimal_import_result(
+    *,
+    diagnostics: Mapping[str, object] | None = None,
+) -> PhosphositeImportResult:
+    index = pd.Index(["MAPK1;S10;"], name="site_id")
+    return PhosphositeImportResult(
+        phospho_matrix_candidate=pd.DataFrame({"sample_a": [1.0]}, index=index),
+        site_metadata_candidate=pd.DataFrame({"site": ["S10"]}, index=index),
+        sample_column_mapping={"Intensity A": "sample_a"},
+        diagnostics=diagnostics,
+    )
+
+
 def test_mapped_importer_returns_candidate_result_not_analysis_ready_dataset() -> None:
     result = MappedPhosphositeTableImporter().run(_boundary_request(_boundary_source()))
 
@@ -115,6 +144,60 @@ def test_mapped_importer_returns_candidate_result_not_analysis_ready_dataset() -
     ]
     assert result.diagnostics["duplicate_site_candidate_rows"] == 1
     assert result.diagnostics["multi_site_candidate_rows"] == 1
+
+
+def test_import_result_diagnostics_are_recursively_detached() -> None:
+    source_diagnostics = {
+        "adapter": {
+            "warnings": ["retained duplicate"],
+            "counts": {"rows": 1},
+        }
+    }
+    result = _minimal_import_result(diagnostics=source_diagnostics)
+
+    source_diagnostics["adapter"]["warnings"].append("source-only")
+    source_diagnostics["adapter"]["counts"]["rows"] = 9
+
+    adapter = result.diagnostics["adapter"]
+    assert isinstance(adapter, Mapping)
+    assert adapter["warnings"] == ("retained duplicate",)
+    assert adapter["counts"]["rows"] == 1
+
+    with pytest.raises(TypeError):
+        adapter["counts"]["rows"] = 2  # type: ignore[index]
+
+    payload = result.diagnostics.copy()
+    payload["adapter"]["warnings"].append("payload-only")  # type: ignore[union-attr]
+    payload["adapter"]["counts"]["rows"] = 3  # type: ignore[index]
+
+    fresh_payload = result.diagnostics.copy()
+    assert fresh_payload["adapter"]["warnings"] == ["retained duplicate"]
+    assert fresh_payload["adapter"]["counts"]["rows"] == 1
+
+
+@pytest.mark.parametrize(
+    ("diagnostics", "expected"),
+    (
+        ({1: "numeric-key"}, "keys must be strings"),
+        (_DuplicateKeyMapping(), "duplicate JSON object key"),
+        ({"bad": float("nan")}, "finite JSON number"),
+        ({"bad": float("inf")}, "finite JSON number"),
+        ({"bad": {"unsupported"}}, "got set"),
+        ({"bad": np.array([1])}, "got ndarray"),
+        ({"bad": bytearray(b"x")}, "got bytearray"),
+        ({"bad": object()}, "got object"),
+    ),
+)
+def test_import_result_diagnostics_reject_invalid_json_values(
+    diagnostics: Mapping[object, object],
+    expected: str,
+) -> None:
+    with pytest.raises(PhosPyInputError) as exc_info:
+        _minimal_import_result(diagnostics=diagnostics)
+
+    message = str(exc_info.value)
+    assert "phosphosite_import_result.diagnostics" in message
+    assert expected in message
 
 
 def test_import_result_defers_strict_dataset_validation_to_builder() -> None:

@@ -15,6 +15,7 @@ from phospy.contracts.enrichment_identifier_sets import (
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.validation import ContractValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.provenance.models import RunProvenance
 from phospy.science.enrichment.models import (
     EnrichmentIdentifierKind,
@@ -97,22 +98,22 @@ class EnrichmentWorkflowResult:
             field_name="enrichment_result.caveats",
             error_type=ContractValidationError,
         )
-        if not isinstance(self.diagnostics, Mapping):
-            raise ContractValidationError(
-                "enrichment_result.diagnostics must be a mapping"
-            )
-        if not isinstance(self.method_metadata, Mapping):
-            raise ContractValidationError(
-                "enrichment_result.method_metadata must be a mapping"
-            )
-        if not isinstance(self.background_summary, Mapping):
-            raise ContractValidationError(
-                "enrichment_result.background_summary must be a mapping"
-            )
-        if not isinstance(self.set_collection_summary, Mapping):
-            raise ContractValidationError(
-                "enrichment_result.set_collection_summary must be a mapping"
-            )
+        diagnostics = _freeze_enrichment_json_mapping(
+            self.diagnostics,
+            field_name="enrichment_result.diagnostics",
+        )
+        method_metadata = _freeze_enrichment_json_mapping(
+            self.method_metadata,
+            field_name="enrichment_result.method_metadata",
+        )
+        background_summary = _freeze_enrichment_json_mapping(
+            self.background_summary,
+            field_name="enrichment_result.background_summary",
+        )
+        set_collection_summary = _freeze_enrichment_json_mapping(
+            self.set_collection_summary,
+            field_name="enrichment_result.set_collection_summary",
+        )
         selected_identifier_provenance = _validate_optional_identifier_set_provenance(
             self.selected_identifier_provenance,
             field_name="enrichment_result.selected_identifier_provenance",
@@ -139,13 +140,13 @@ class EnrichmentWorkflowResult:
         object.__setattr__(self, "unmatched_identifiers", unmatched_identifiers)
         object.__setattr__(self, "warnings", warnings)
         object.__setattr__(self, "caveats", caveats)
-        object.__setattr__(self, "diagnostics", dict(self.diagnostics))
-        object.__setattr__(self, "method_metadata", dict(self.method_metadata))
-        object.__setattr__(self, "background_summary", dict(self.background_summary))
+        object.__setattr__(self, "diagnostics", diagnostics)
+        object.__setattr__(self, "method_metadata", method_metadata)
+        object.__setattr__(self, "background_summary", background_summary)
         object.__setattr__(
             self,
             "set_collection_summary",
-            dict(self.set_collection_summary),
+            set_collection_summary,
         )
         object.__setattr__(
             self,
@@ -220,6 +221,18 @@ def _validate_enrichment_warning(value: object) -> str:
             "enrichment_result.warnings must contain non-empty strings"
         )
     return value.strip()
+
+
+def _freeze_enrichment_json_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    return freeze_json_mapping_with_error_type(
+        value,
+        field_name=field_name,
+        error_type=ContractValidationError,
+    )
 
 
 def _validate_optional_identifier_set_provenance(

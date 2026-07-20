@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+from collections.abc import Mapping
 from dataclasses import replace
 
 import pandas as pd
@@ -571,7 +572,7 @@ def test_enrichment_workflow_supports_configured_correction_methods(
     assert result.method_metadata["multiple_testing_correction"] == method
     correction_diagnostics = result.diagnostics["multiple_testing_correction"]
     expected_applied = method != "none"
-    assert isinstance(correction_diagnostics, dict)
+    assert isinstance(correction_diagnostics, Mapping)
     assert correction_diagnostics["method"] == method
     assert correction_diagnostics["applied"] is expected_applied
     assert correction_diagnostics["tested_record_count"] == len(result.records)
@@ -690,7 +691,7 @@ def test_enrichment_set_size_filter_excludes_sets_below_minimum() -> None:
     assert result.set_collection_summary["dropped_set_count"] == 1
     assert result.set_collection_summary["dropped_set_ids"] == ("SMALL",)
     diagnostics = result.diagnostics["set_size_filter"]
-    assert isinstance(diagnostics, dict)
+    assert isinstance(diagnostics, Mapping)
     assert diagnostics["dropped_set_reason_counts"] == {
         "below_min_set_size": 1,
         "above_max_set_size": 0,
