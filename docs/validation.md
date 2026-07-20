@@ -144,6 +144,10 @@ Common cross-field checks:
   row, sample, or distance-work budgets fail with a `PhosPyInputError` that
   reports the shape and suggests reducing retained missing rows or choosing a
   simpler missing-data policy.
+- Missing-data and total-protein correction diagnostics in processing state use
+  the shared immutable JSON policy internally. Bundle payloads still serialize
+  as schema v1 `dict`/`list` JSON, and each serialization returns fresh detached
+  containers.
 - `subtract_log_total` requires `total` input data.
 - `subtract_log_total` requires `intensity_transform.policy="log2"`.
 - When `subtract_log_total` runs with `unmatched_policy="allow_uncorrected"` and

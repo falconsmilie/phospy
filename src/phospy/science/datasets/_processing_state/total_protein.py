@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.policy_models import (
@@ -19,13 +19,14 @@ from .json_contracts import (
     require_int,
     require_mapping,
     require_optional_bool,
+    require_optional_frozen_string_to_string_mapping,
     require_optional_non_negative_int,
     require_optional_str,
-    require_optional_string_to_string_mapping,
     require_optional_string_tuple,
     require_required_str,
     require_string_keys,
     set_optional_payload_value,
+    thaw_frozen_json_mapping,
 )
 
 
@@ -82,9 +83,9 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
     unused_total_protein_row_count: int | None = None
     total_rows_used_by_multiple_phosphosites: int | None = None
     corrected_phosphosite_row_ids: tuple[str, ...] | None = None
-    corrected_phosphosite_to_total_protein_row_id: dict[str, str] | None = None
+    corrected_phosphosite_to_total_protein_row_id: Mapping[str, object] | None = None
     unmatched_phosphosite_row_ids: tuple[str, ...] | None = None
-    uncorrected_phosphosite_row_reasons: dict[str, str] | None = None
+    uncorrected_phosphosite_row_reasons: Mapping[str, object] | None = None
     unused_total_protein_row_ids: tuple[str, ...] | None = None
     gene_symbol_matching_used: bool | None = None
     gene_symbol_identity_warning: str | None = None
@@ -94,7 +95,6 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
     diagnostics_schema_version: int = (
         TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
     )
-    _payload: dict[str, JsonValue] = field(init=False, repr=False, compare=False)
 
     @classmethod
     def from_mapping(
@@ -237,7 +237,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 payload.get("corrected_phosphosite_row_ids"),
                 field_name=f"{field_name}.corrected_phosphosite_row_ids",
             ),
-            corrected_phosphosite_to_total_protein_row_id=require_optional_string_to_string_mapping(
+            corrected_phosphosite_to_total_protein_row_id=require_optional_frozen_string_to_string_mapping(
                 payload.get("corrected_phosphosite_to_total_protein_row_id"),
                 field_name=f"{field_name}.corrected_phosphosite_to_total_protein_row_id",
             ),
@@ -245,7 +245,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 payload.get("unmatched_phosphosite_row_ids"),
                 field_name=f"{field_name}.unmatched_phosphosite_row_ids",
             ),
-            uncorrected_phosphosite_row_reasons=require_optional_string_to_string_mapping(
+            uncorrected_phosphosite_row_reasons=require_optional_frozen_string_to_string_mapping(
                 payload.get("uncorrected_phosphosite_row_reasons"),
                 field_name=f"{field_name}.uncorrected_phosphosite_row_reasons",
             ),
@@ -441,7 +441,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
             ),
         )
         corrected_phosphosite_to_total_protein_row_id = (
-            require_optional_string_to_string_mapping(
+            require_optional_frozen_string_to_string_mapping(
                 self.corrected_phosphosite_to_total_protein_row_id,
                 field_name=(
                     "dataset processing state total_protein_correction.diagnostics."
@@ -456,12 +456,14 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "unmatched_phosphosite_row_ids"
             ),
         )
-        uncorrected_phosphosite_row_reasons = require_optional_string_to_string_mapping(
-            self.uncorrected_phosphosite_row_reasons,
-            field_name=(
-                "dataset processing state total_protein_correction.diagnostics."
-                "uncorrected_phosphosite_row_reasons"
-            ),
+        uncorrected_phosphosite_row_reasons = (
+            require_optional_frozen_string_to_string_mapping(
+                self.uncorrected_phosphosite_row_reasons,
+                field_name=(
+                    "dataset processing state total_protein_correction.diagnostics."
+                    "uncorrected_phosphosite_row_reasons"
+                ),
+            )
         )
         unused_total_protein_row_ids = require_optional_string_tuple(
             self.unused_total_protein_row_ids,
@@ -505,83 +507,6 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "output_phospho_hash"
             ),
         )
-
-        payload: dict[str, JsonValue] = {
-            "diagnostics_schema_version": self.diagnostics_schema_version
-        }
-        set_optional_payload_value(payload, "policy", policy)
-        set_optional_payload_value(payload, "requested_policy", requested_policy)
-        set_optional_payload_value(payload, "resolved_policy", resolved_policy)
-        set_optional_payload_value(payload, "formula", formula)
-        set_optional_payload_value(payload, "requires_log_scale", requires_log_scale)
-        set_optional_payload_value(payload, "input_scale", input_scale)
-        set_optional_payload_value(payload, "output_scale", output_scale)
-        payload["quantitative_meaning"] = quantitative_meaning
-        set_optional_payload_value(payload, "matched_rows", matched_rows)
-        set_optional_payload_value(payload, "identity_mode", identity_mode)
-        set_optional_payload_value(
-            payload,
-            "identity_matching_policy",
-            identity_matching_policy,
-        )
-        set_optional_payload_value(payload, "phosphosite_key", phosphosite_key)
-        set_optional_payload_value(payload, "total_protein_key", total_protein_key)
-        set_optional_payload_value(
-            payload, "mapping_phosphosite_key", mapping_phosphosite_key
-        )
-        set_optional_payload_value(
-            payload, "mapping_total_protein_key", mapping_total_protein_key
-        )
-        set_optional_payload_value(
-            payload, "mapping_table_fingerprint", mapping_table_fingerprint
-        )
-        set_optional_payload_value(payload, "duplicate_policy", duplicate_policy)
-        set_optional_payload_value(payload, "unmatched_policy", unmatched_policy)
-        set_optional_payload_value(
-            payload, "phosphosite_row_count", phosphosite_row_count
-        )
-        set_optional_payload_value(
-            payload, "total_protein_row_count", total_protein_row_count
-        )
-        set_optional_payload_value(payload, "corrected_row_count", corrected_row_count)
-        set_optional_payload_value(
-            payload, "uncorrected_row_count", uncorrected_row_count
-        )
-        set_optional_payload_value(
-            payload, "unused_total_protein_row_count", unused_total_protein_row_count
-        )
-        set_optional_payload_value(
-            payload,
-            "total_rows_used_by_multiple_phosphosites",
-            total_rows_used_by_multiple_phosphosites,
-        )
-        if corrected_phosphosite_row_ids is not None:
-            payload["corrected_phosphosite_row_ids"] = list(
-                corrected_phosphosite_row_ids
-            )
-        if corrected_phosphosite_to_total_protein_row_id is not None:
-            payload["corrected_phosphosite_to_total_protein_row_id"] = dict(
-                corrected_phosphosite_to_total_protein_row_id
-            )
-        if unmatched_phosphosite_row_ids is not None:
-            payload["unmatched_phosphosite_row_ids"] = list(
-                unmatched_phosphosite_row_ids
-            )
-        if uncorrected_phosphosite_row_reasons is not None:
-            payload["uncorrected_phosphosite_row_reasons"] = dict(
-                uncorrected_phosphosite_row_reasons
-            )
-        if unused_total_protein_row_ids is not None:
-            payload["unused_total_protein_row_ids"] = list(unused_total_protein_row_ids)
-        set_optional_payload_value(
-            payload, "gene_symbol_matching_used", gene_symbol_matching_used
-        )
-        set_optional_payload_value(
-            payload, "gene_symbol_identity_warning", gene_symbol_identity_warning
-        )
-        set_optional_payload_value(payload, "total_table_hash", total_table_hash)
-        set_optional_payload_value(payload, "input_phospho_hash", input_phospho_hash)
-        set_optional_payload_value(payload, "output_phospho_hash", output_phospho_hash)
 
         object.__setattr__(self, "policy", policy)
         object.__setattr__(self, "requested_policy", requested_policy)
@@ -641,16 +566,115 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         object.__setattr__(self, "total_table_hash", total_table_hash)
         object.__setattr__(self, "input_phospho_hash", input_phospho_hash)
         object.__setattr__(self, "output_phospho_hash", output_phospho_hash)
-        object.__setattr__(self, "_payload", payload)
 
     def __getitem__(self, key: str) -> JsonValue:
-        return self._payload[key]
+        return self.to_payload()[key]
 
     def __iter__(self) -> Iterator[str]:
-        return iter(self._payload)
+        return iter(self.to_payload())
 
     def __len__(self) -> int:
-        return len(self._payload)
+        return len(self.to_payload())
 
     def to_payload(self) -> dict[str, JsonValue]:
-        return dict(self._payload)
+        payload: dict[str, JsonValue] = {
+            "diagnostics_schema_version": int(self.diagnostics_schema_version)
+        }
+        set_optional_payload_value(payload, "policy", self.policy)
+        set_optional_payload_value(payload, "requested_policy", self.requested_policy)
+        set_optional_payload_value(payload, "resolved_policy", self.resolved_policy)
+        set_optional_payload_value(payload, "formula", self.formula)
+        set_optional_payload_value(
+            payload, "requires_log_scale", self.requires_log_scale
+        )
+        set_optional_payload_value(payload, "input_scale", self.input_scale)
+        set_optional_payload_value(payload, "output_scale", self.output_scale)
+        payload["quantitative_meaning"] = self.quantitative_meaning
+        set_optional_payload_value(payload, "matched_rows", self.matched_rows)
+        set_optional_payload_value(payload, "identity_mode", self.identity_mode)
+        set_optional_payload_value(
+            payload,
+            "identity_matching_policy",
+            self.identity_matching_policy,
+        )
+        set_optional_payload_value(payload, "phosphosite_key", self.phosphosite_key)
+        set_optional_payload_value(payload, "total_protein_key", self.total_protein_key)
+        set_optional_payload_value(
+            payload, "mapping_phosphosite_key", self.mapping_phosphosite_key
+        )
+        set_optional_payload_value(
+            payload, "mapping_total_protein_key", self.mapping_total_protein_key
+        )
+        set_optional_payload_value(
+            payload, "mapping_table_fingerprint", self.mapping_table_fingerprint
+        )
+        set_optional_payload_value(payload, "duplicate_policy", self.duplicate_policy)
+        set_optional_payload_value(payload, "unmatched_policy", self.unmatched_policy)
+        set_optional_payload_value(
+            payload, "phosphosite_row_count", self.phosphosite_row_count
+        )
+        set_optional_payload_value(
+            payload, "total_protein_row_count", self.total_protein_row_count
+        )
+        set_optional_payload_value(
+            payload, "corrected_row_count", self.corrected_row_count
+        )
+        set_optional_payload_value(
+            payload, "uncorrected_row_count", self.uncorrected_row_count
+        )
+        set_optional_payload_value(
+            payload,
+            "unused_total_protein_row_count",
+            self.unused_total_protein_row_count,
+        )
+        set_optional_payload_value(
+            payload,
+            "total_rows_used_by_multiple_phosphosites",
+            self.total_rows_used_by_multiple_phosphosites,
+        )
+        if self.corrected_phosphosite_row_ids is not None:
+            payload["corrected_phosphosite_row_ids"] = list(
+                self.corrected_phosphosite_row_ids
+            )
+        if self.corrected_phosphosite_to_total_protein_row_id is not None:
+            payload["corrected_phosphosite_to_total_protein_row_id"] = (
+                thaw_frozen_json_mapping(
+                    self.corrected_phosphosite_to_total_protein_row_id,
+                    field_name=(
+                        "dataset processing state total_protein_correction."
+                        "diagnostics.corrected_phosphosite_to_total_protein_row_id"
+                    ),
+                )
+            )
+        if self.unmatched_phosphosite_row_ids is not None:
+            payload["unmatched_phosphosite_row_ids"] = list(
+                self.unmatched_phosphosite_row_ids
+            )
+        if self.uncorrected_phosphosite_row_reasons is not None:
+            payload["uncorrected_phosphosite_row_reasons"] = thaw_frozen_json_mapping(
+                self.uncorrected_phosphosite_row_reasons,
+                field_name=(
+                    "dataset processing state total_protein_correction."
+                    "diagnostics.uncorrected_phosphosite_row_reasons"
+                ),
+            )
+        if self.unused_total_protein_row_ids is not None:
+            payload["unused_total_protein_row_ids"] = list(
+                self.unused_total_protein_row_ids
+            )
+        set_optional_payload_value(
+            payload, "gene_symbol_matching_used", self.gene_symbol_matching_used
+        )
+        set_optional_payload_value(
+            payload,
+            "gene_symbol_identity_warning",
+            self.gene_symbol_identity_warning,
+        )
+        set_optional_payload_value(payload, "total_table_hash", self.total_table_hash)
+        set_optional_payload_value(
+            payload, "input_phospho_hash", self.input_phospho_hash
+        )
+        set_optional_payload_value(
+            payload, "output_phospho_hash", self.output_phospho_hash
+        )
+        return payload

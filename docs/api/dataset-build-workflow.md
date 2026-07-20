@@ -777,6 +777,11 @@ missing_data = DatasetMissingDataConfig(
 )
 ```
 
+Missing-data diagnostics stored on `dataset.processing_state.missing_data` use
+immutable internal JSON mappings. Calls to `to_payload()` and bundle
+serialization still return ordinary schema v1 JSON `dict`/`list` payloads, and
+each call returns a fresh detached copy.
+
 ## Group Coverage Filter Parameters
 
 `DatasetGroupCoverageFilterConfig` describes a group-aware coverage filter
@@ -939,6 +944,8 @@ Quantitative meaning is explicit after preprocessing:
 
 For mixed datasets, row-level correction status is available in
 `dataset.processing_state.total_protein_correction.diagnostics`.
+Those diagnostics follow the same immutable-internal, fresh-JSON-payload
+contract as missing-data diagnostics.
 
 ## Protein-Aware Preparation Parameters
 

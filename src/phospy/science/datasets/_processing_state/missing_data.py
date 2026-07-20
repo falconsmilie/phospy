@@ -11,22 +11,24 @@ from phospy.science.datasets.preprocessing.policy_models import MissingDataPolic
 from .json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
+    FrozenJsonMapping,
     JsonValue,
+    require_frozen_json_mapping,
     require_int,
-    require_json_mapping,
     require_mapping,
     require_optional_bool,
+    require_optional_frozen_json_mapping,
+    require_optional_frozen_string_to_float_mapping,
     require_optional_int,
-    require_optional_json_mapping,
     require_optional_non_negative_int,
     require_optional_str,
-    require_optional_string_to_float_mapping,
     require_optional_string_tuple,
     require_required_non_negative_int,
     require_required_str,
     require_required_string_tuple,
     require_string_keys,
     set_optional_payload_value,
+    thaw_frozen_json_mapping,
 )
 
 
@@ -66,11 +68,11 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     imputed_row_ids: tuple[str, ...]
     imputed_column_ids: tuple[str, ...]
     dropped_row_ids: tuple[str, ...]
-    method_parameters: dict[str, JsonValue]
+    method_parameters: Mapping[str, object]
     stage_order: tuple[str, ...]
     missingness_mask_hash: str
     rows_not_imputable: tuple[str, ...]
-    row_medians_used: dict[str, float] = field(default_factory=dict)
+    row_medians_used: Mapping[str, object] = field(default_factory=dict)
     imputed_row_count: int | None = None
     imputed_column_count: int | None = None
     dropped_row_count: int | None = None
@@ -80,12 +82,11 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     random_seed: int | None = None
     matrix_scale_requirement: str | None = None
     left_censored_assumption: bool | None = None
-    per_column_distribution_parameters: dict[str, JsonValue] | None = None
+    per_column_distribution_parameters: Mapping[str, object] | None = None
     dropped_rows_above_max_missing_fraction: tuple[str, ...] | None = None
     neighbour_count: int | None = None
     distance_metric: str | None = None
     diagnostics_schema_version: int = MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
-    _payload: dict[str, JsonValue] = field(init=False, repr=False, compare=False)
 
     @classmethod
     def from_mapping(
@@ -197,7 +198,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("random_seed"),
                 field_name=f"{field_name}.random_seed",
             ),
-            method_parameters=require_json_mapping(
+            method_parameters=require_frozen_json_mapping(
                 payload.get("method_parameters"),
                 field_name=f"{field_name}.method_parameters",
             ),
@@ -225,12 +226,12 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("rows_not_imputable"),
                 field_name=f"{field_name}.rows_not_imputable",
             ),
-            row_medians_used=require_optional_string_to_float_mapping(
+            row_medians_used=require_optional_frozen_string_to_float_mapping(
                 payload.get("row_medians_used"),
                 field_name=f"{field_name}.row_medians_used",
             )
-            or {},
-            per_column_distribution_parameters=require_optional_json_mapping(
+            or FrozenJsonMapping(),
+            per_column_distribution_parameters=require_optional_frozen_json_mapping(
                 payload.get("per_column_distribution_parameters"),
                 field_name=f"{field_name}.per_column_distribution_parameters",
             ),
@@ -331,7 +332,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.random_seed,
             field_name="dataset processing state missing_data.diagnostics.random_seed",
         )
-        method_parameters = require_json_mapping(
+        method_parameters = require_frozen_json_mapping(
             self.method_parameters,
             field_name="dataset processing state missing_data.diagnostics.method_parameters",
         )
@@ -360,15 +361,15 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             field_name="dataset processing state missing_data.diagnostics.rows_not_imputable",
         )
         row_medians_used = (
-            require_optional_string_to_float_mapping(
+            require_optional_frozen_string_to_float_mapping(
                 self.row_medians_used,
                 field_name="dataset processing state missing_data.diagnostics.row_medians_used",
             )
-            or {}
+            or FrozenJsonMapping()
         )
         if imputation_method_id != "row_median":
-            row_medians_used = {}
-        per_column_distribution_parameters = require_optional_json_mapping(
+            row_medians_used = FrozenJsonMapping()
+        per_column_distribution_parameters = require_optional_frozen_json_mapping(
             self.per_column_distribution_parameters,
             field_name=(
                 "dataset processing state missing_data.diagnostics."
@@ -424,59 +425,6 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.distance_metric,
             field_name="dataset processing state missing_data.diagnostics.distance_metric",
         )
-        payload: dict[str, JsonValue] = {
-            "diagnostics_schema_version": self.diagnostics_schema_version,
-            "missing_data_policy": missing_data_policy,
-            "input_missing_cell_count": input_missing_cell_count,
-            "output_missing_cell_count": output_missing_cell_count,
-            "imputed_cell_count": imputed_cell_count,
-            "affected_row_count": affected_row_count,
-            "affected_column_count": affected_column_count,
-            "affected_row_ids": list(affected_row_ids),
-            "affected_column_ids": list(affected_column_ids),
-            "imputed_row_ids": list(imputed_row_ids),
-            "imputed_column_ids": list(imputed_column_ids),
-            "dropped_row_ids": list(dropped_row_ids),
-            "method_parameters": dict(method_parameters),
-            "stage_order": list(stage_order),
-            "missingness_mask_hash": missingness_mask_hash,
-            "rows_not_imputable": list(rows_not_imputable),
-            "row_medians_used": dict(row_medians_used),
-        }
-        set_optional_payload_value(payload, "imputed_row_count", imputed_row_count)
-        set_optional_payload_value(
-            payload, "imputed_column_count", imputed_column_count
-        )
-        set_optional_payload_value(payload, "dropped_row_count", dropped_row_count)
-        set_optional_payload_value(
-            payload, "imputation_method_id", imputation_method_id
-        )
-        set_optional_payload_value(
-            payload, "imputation_method_family", imputation_method_family
-        )
-        set_optional_payload_value(payload, "random_seed", random_seed)
-        set_optional_payload_value(
-            payload, "matrix_scale_requirement", matrix_scale_requirement
-        )
-        set_optional_payload_value(
-            payload, "left_censored_assumption", left_censored_assumption
-        )
-        set_optional_payload_value(
-            payload,
-            "imputation_mask_hash",
-            imputation_mask_hash,
-        )
-        if per_column_distribution_parameters is not None:
-            payload["per_column_distribution_parameters"] = dict(
-                per_column_distribution_parameters
-            )
-        if dropped_rows_above_max_missing_fraction is not None:
-            payload["dropped_rows_above_max_missing_fraction"] = list(
-                dropped_rows_above_max_missing_fraction
-            )
-        set_optional_payload_value(payload, "neighbour_count", neighbour_count)
-        set_optional_payload_value(payload, "distance_metric", distance_metric)
-
         object.__setattr__(self, "missing_data_policy", missing_data_policy)
         object.__setattr__(self, "imputation_method_id", imputation_method_id)
         object.__setattr__(self, "imputation_method_family", imputation_method_family)
@@ -494,22 +442,18 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         object.__setattr__(self, "imputed_column_count", imputed_column_count)
         object.__setattr__(self, "dropped_row_count", dropped_row_count)
         object.__setattr__(self, "random_seed", random_seed)
-        object.__setattr__(self, "method_parameters", dict(method_parameters))
+        object.__setattr__(self, "method_parameters", method_parameters)
         object.__setattr__(self, "matrix_scale_requirement", matrix_scale_requirement)
         object.__setattr__(self, "stage_order", stage_order)
         object.__setattr__(self, "missingness_mask_hash", missingness_mask_hash)
         object.__setattr__(self, "imputation_mask_hash", imputation_mask_hash)
         object.__setattr__(self, "left_censored_assumption", left_censored_assumption)
         object.__setattr__(self, "rows_not_imputable", rows_not_imputable)
-        object.__setattr__(self, "row_medians_used", dict(row_medians_used))
+        object.__setattr__(self, "row_medians_used", row_medians_used)
         object.__setattr__(
             self,
             "per_column_distribution_parameters",
-            (
-                None
-                if per_column_distribution_parameters is None
-                else dict(per_column_distribution_parameters)
-            ),
+            per_column_distribution_parameters,
         )
         object.__setattr__(
             self,
@@ -518,16 +462,77 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         )
         object.__setattr__(self, "neighbour_count", neighbour_count)
         object.__setattr__(self, "distance_metric", distance_metric)
-        object.__setattr__(self, "_payload", payload)
 
     def __getitem__(self, key: str) -> JsonValue:
-        return self._payload[key]
+        return self.to_payload()[key]
 
     def __iter__(self) -> Iterator[str]:
-        return iter(self._payload)
+        return iter(self.to_payload())
 
     def __len__(self) -> int:
-        return len(self._payload)
+        return len(self.to_payload())
 
     def to_payload(self) -> dict[str, JsonValue]:
-        return dict(self._payload)
+        payload: dict[str, JsonValue] = {
+            "diagnostics_schema_version": int(self.diagnostics_schema_version),
+            "missing_data_policy": self.missing_data_policy,
+            "input_missing_cell_count": int(self.input_missing_cell_count),
+            "output_missing_cell_count": int(self.output_missing_cell_count),
+            "imputed_cell_count": int(self.imputed_cell_count),
+            "affected_row_count": int(self.affected_row_count),
+            "affected_column_count": int(self.affected_column_count),
+            "affected_row_ids": list(self.affected_row_ids),
+            "affected_column_ids": list(self.affected_column_ids),
+            "imputed_row_ids": list(self.imputed_row_ids),
+            "imputed_column_ids": list(self.imputed_column_ids),
+            "dropped_row_ids": list(self.dropped_row_ids),
+            "method_parameters": thaw_frozen_json_mapping(
+                self.method_parameters,
+                field_name="dataset processing state missing_data.diagnostics.method_parameters",
+            ),
+            "stage_order": list(self.stage_order),
+            "missingness_mask_hash": self.missingness_mask_hash,
+            "rows_not_imputable": list(self.rows_not_imputable),
+            "row_medians_used": thaw_frozen_json_mapping(
+                self.row_medians_used,
+                field_name="dataset processing state missing_data.diagnostics.row_medians_used",
+            ),
+        }
+        set_optional_payload_value(payload, "imputed_row_count", self.imputed_row_count)
+        set_optional_payload_value(
+            payload, "imputed_column_count", self.imputed_column_count
+        )
+        set_optional_payload_value(payload, "dropped_row_count", self.dropped_row_count)
+        set_optional_payload_value(
+            payload, "imputation_method_id", self.imputation_method_id
+        )
+        set_optional_payload_value(
+            payload, "imputation_method_family", self.imputation_method_family
+        )
+        set_optional_payload_value(payload, "random_seed", self.random_seed)
+        set_optional_payload_value(
+            payload, "matrix_scale_requirement", self.matrix_scale_requirement
+        )
+        set_optional_payload_value(
+            payload, "left_censored_assumption", self.left_censored_assumption
+        )
+        set_optional_payload_value(
+            payload,
+            "imputation_mask_hash",
+            self.imputation_mask_hash,
+        )
+        if self.per_column_distribution_parameters is not None:
+            payload["per_column_distribution_parameters"] = thaw_frozen_json_mapping(
+                self.per_column_distribution_parameters,
+                field_name=(
+                    "dataset processing state missing_data.diagnostics."
+                    "per_column_distribution_parameters"
+                ),
+            )
+        if self.dropped_rows_above_max_missing_fraction is not None:
+            payload["dropped_rows_above_max_missing_fraction"] = list(
+                self.dropped_rows_above_max_missing_fraction
+            )
+        set_optional_payload_value(payload, "neighbour_count", self.neighbour_count)
+        set_optional_payload_value(payload, "distance_metric", self.distance_metric)
+        return payload

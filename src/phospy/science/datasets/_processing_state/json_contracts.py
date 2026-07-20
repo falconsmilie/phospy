@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TypeAlias
+from typing import TypeAlias, cast
 
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.immutability import (
+    FrozenJsonMapping,
+    FrozenJsonValue,
+    freeze_json_mapping,
+    freeze_json_value,
+    thaw_json_mapping,
+    thaw_json_value,
+)
 
 JsonPrimitive: TypeAlias = None | str | bool | int | float
 JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
@@ -96,12 +104,18 @@ def require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
 
 
 def require_string_keys(value: Mapping[str, object], *, field_name: str) -> None:
+    seen: set[str] = set()
     for key in value:
         if not isinstance(key, str):
             raise PhosPyInputError(
                 f"{field_name} must contain only string keys; got key "
                 f"{key!r} ({type(key).__name__})"
             )
+        if key in seen:
+            raise PhosPyInputError(
+                f"{field_name} contains duplicate JSON object key {key!r}"
+            )
+        seen.add(key)
 
 
 def require_optional_str(value: object, *, field_name: str) -> str | None:
@@ -194,21 +208,46 @@ def require_optional_string_to_string_mapping(
     *,
     field_name: str,
 ) -> dict[str, str] | None:
+    frozen = require_optional_frozen_string_to_string_mapping(
+        value,
+        field_name=field_name,
+    )
+    if frozen is None:
+        return None
+    return cast(dict[str, str], thaw_json_mapping(frozen, field_name=field_name))
+
+
+def require_optional_frozen_string_to_string_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> FrozenJsonMapping | None:
     if value is None:
         return None
-    if not isinstance(value, Mapping):
-        raise PhosPyInputError(f"{field_name} must be an object of string mappings")
-    parsed: dict[str, str] = {}
-    for raw_key, raw_value in value.items():
+    mapping = require_mapping(value, field_name=field_name)
+    frozen = freeze_json_mapping(mapping, field_name=field_name)
+    parsed: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for raw_key, raw_value in frozen.items():
         key = require_required_str(
             raw_key,
             field_name=f"{field_name}.<key>",
         )
-        parsed[key] = require_required_str(
-            raw_value,
-            field_name=f"{field_name}.{key}",
+        if key in seen:
+            raise PhosPyInputError(
+                f"{field_name} contains duplicate JSON object key {key!r}"
+            )
+        seen.add(key)
+        parsed.append(
+            (
+                key,
+                require_required_str(
+                    raw_value,
+                    field_name=f"{field_name}.{key}",
+                ),
+            )
         )
-    return parsed
+    return FrozenJsonMapping(parsed, field_name=field_name)
 
 
 def require_optional_string_to_float_mapping(
@@ -216,39 +255,87 @@ def require_optional_string_to_float_mapping(
     *,
     field_name: str,
 ) -> dict[str, float] | None:
+    frozen = require_optional_frozen_string_to_float_mapping(
+        value,
+        field_name=field_name,
+    )
+    if frozen is None:
+        return None
+    return cast(dict[str, float], thaw_json_mapping(frozen, field_name=field_name))
+
+
+def require_optional_frozen_string_to_float_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> FrozenJsonMapping | None:
     if value is None:
         return None
-    if not isinstance(value, Mapping):
-        raise PhosPyInputError(f"{field_name} must be an object of numeric mappings")
-    parsed: dict[str, float] = {}
-    for raw_key, raw_value in value.items():
+    mapping = require_mapping(value, field_name=field_name)
+    frozen = freeze_json_mapping(mapping, field_name=field_name)
+    parsed: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for raw_key, raw_value in frozen.items():
         key = require_required_str(
             raw_key,
             field_name=f"{field_name}.<key>",
         )
+        if key in seen:
+            raise PhosPyInputError(
+                f"{field_name} contains duplicate JSON object key {key!r}"
+            )
+        seen.add(key)
         if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
             raise PhosPyInputError(f"{field_name}.{key} must be a float")
-        parsed[key] = float(raw_value)
-    return parsed
+        parsed.append((key, float(raw_value)))
+    return FrozenJsonMapping(parsed, field_name=field_name)
 
 
 def require_json_value(value: object, *, field_name: str) -> JsonValue:
-    if value is None or isinstance(value, (str, bool, int, float)):
-        return value
-    if isinstance(value, (list, tuple)):
-        return [
-            require_json_value(item, field_name=f"{field_name}[]") for item in value
-        ]
-    if isinstance(value, Mapping):
-        normalized: dict[str, JsonValue] = {}
-        for raw_key, raw_value in value.items():
-            key = require_required_str(raw_key, field_name=f"{field_name}.<key>")
-            normalized[key] = require_json_value(
-                raw_value, field_name=f"{field_name}.{key}"
-            )
-        return normalized
-    raise PhosPyInputError(
-        f"{field_name} must be JSON-compatible (null, bool, int, float, string, array, or object)"
+    frozen = freeze_json_value(value, field_name=field_name)
+    return cast(JsonValue, thaw_json_value(frozen, field_name=field_name))
+
+
+def require_frozen_json_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> FrozenJsonMapping:
+    mapping = require_mapping(value, field_name=field_name)
+    if isinstance(mapping, FrozenJsonMapping):
+        return mapping
+    return freeze_json_mapping(mapping, field_name=field_name)
+
+
+def require_optional_frozen_json_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> FrozenJsonMapping | None:
+    if value is None:
+        return None
+    return require_frozen_json_mapping(value, field_name=field_name)
+
+
+def thaw_frozen_json_mapping(
+    value: Mapping[str, object],
+    *,
+    field_name: str,
+) -> dict[str, JsonValue]:
+    return cast(
+        dict[str, JsonValue],
+        thaw_json_mapping(value, field_name=field_name),
+    )
+
+
+def thaw_frozen_json_value(
+    value: FrozenJsonValue,
+    *,
+    field_name: str,
+) -> JsonValue:
+    return cast(
+        JsonValue,
+        thaw_json_value(value, field_name=field_name),
     )
 
 
@@ -257,14 +344,10 @@ def require_json_mapping(
     *,
     field_name: str,
 ) -> dict[str, JsonValue]:
-    mapping = require_mapping(value, field_name=field_name)
-    normalized: dict[str, JsonValue] = {}
-    for raw_key, raw_value in mapping.items():
-        key = require_required_str(raw_key, field_name=f"{field_name}.<key>")
-        normalized[key] = require_json_value(
-            raw_value, field_name=f"{field_name}.{key}"
-        )
-    return normalized
+    return thaw_frozen_json_mapping(
+        require_frozen_json_mapping(value, field_name=field_name),
+        field_name=field_name,
+    )
 
 
 def require_optional_json_mapping(

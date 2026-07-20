@@ -132,6 +132,8 @@ The current audited fields include:
 - environment dependency, platform, BLAS/LAPACK, thread, locale, and
   constraints mappings;
 - preprocessing stage `parameters` and `diagnostics`;
+- dataset processing-state missing-data and total-protein correction
+  diagnostic JSON mappings;
 - batch-correction provenance mappings and rejected-entity `details`;
 - reference and Kinase Library resource `sequence_window`, `source_files`, and
   `manifest` mappings;
