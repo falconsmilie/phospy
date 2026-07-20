@@ -56,7 +56,7 @@ class KinaseResultAssembler:
             list[str],
             attrition_payload["warning_messages"],
         )
-        return KinaseWorkflowResult(
+        return KinaseWorkflowResult._from_owned(
             dataset=request.dataset,
             references=request.references,
             scoring_result=scoring_result,
@@ -77,7 +77,6 @@ class KinaseResultAssembler:
                 request=request,
                 scoring_result=scoring_result,
             ),
-            _assume_owned=True,
         )
 
 

@@ -34,8 +34,10 @@ from phospy.api import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
+    DifferentialAnalysisResult,
     KinasePredictionResult,
     KinaseWorkflowResult,
+    PhosphositeImportResult,
     SignalomeWorkflowResult,
 )
 from phospy.errors.validation import DatasetValidationError, PhosPyValidationError
@@ -69,7 +71,35 @@ from phospy.science.datasets.preprocessing.report_schema import (
     PreprocessingRowAuditRow,
     PreprocessingRowCountRow,
 )
+from phospy.science.differential.models.diagnostics import (
+    EmpiricalBayesPriorDiagnostics,
+)
 from phospy.science.prediction.models import KinaseScoringResult
+from phospy.science.signalomes.constants import (
+    CORRELATION_COLUMN,
+    DISPLAY_ID_COLUMN,
+    GENE_SYMBOL_COLUMN,
+    ISOFORM_ID_COLUMN,
+    MODULE_ID_COLUMN,
+    MODULE_TOP_KINASE_CANDIDATES_COLUMN,
+    MODULE_TOP_KINASE_COLUMN,
+    MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+    MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
+    MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
+    PROTEIN_ACCESSION_COLUMN,
+    PROTEIN_COLUMN,
+    SITE_COLUMN,
+    SITE_KEY_COLUMN,
+    SOURCE_KINASE_COLUMN,
+    TARGET_KINASE_COLUMN,
+    TOP_KINASE_CANDIDATES_COLUMN,
+    TOP_KINASE_COLUMN,
+    TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+    TOP_KINASE_SELECTION_POLICY_COLUMN,
+    TOP_KINASE_TIE_COUNT_COLUMN,
+    TOP_KINASE_WEIGHTS_COLUMN,
+    TOP_SCORE_COLUMN,
+)
 from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -268,6 +298,711 @@ def _references() -> ReferenceBundle:
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
         ),
     )
+
+
+def _analysis_ready_dataset() -> AnalysisReadyPhosphoDataset:
+    return AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def _with_numeric_payload_column(frame: pd.DataFrame) -> pd.DataFrame:
+    copied = frame.copy(deep=True)
+    copied.loc[:, "numeric_payload"] = np.arange(
+        1,
+        len(copied.index) + 1,
+        dtype=float,
+    )
+    return copied
+
+
+def _with_object_payload_column(
+    frame: pd.DataFrame,
+    payload: object,
+) -> pd.DataFrame:
+    copied = frame.copy(deep=True)
+    payloads = [payload, *[_mutable_object_payload() for _ in range(len(copied) - 1)]]
+    copied.loc[:, _OBJECT_PAYLOAD_COLUMN] = pd.Series(
+        payloads,
+        index=copied.index,
+        dtype=object,
+    )
+    return copied
+
+
+def _first_numeric_column(frame: pd.DataFrame) -> str:
+    for column in frame.columns:
+        if pd.api.types.is_numeric_dtype(frame.loc[:, column]):
+            return str(column)
+    raise AssertionError("registry frame has no numeric column")
+
+
+def _mutate_first_numeric_cell(frame: pd.DataFrame, value: float) -> None:
+    column = _first_numeric_column(frame)
+    frame.loc[frame.index[0], column] = value
+
+
+def _first_object_payload(frame: pd.DataFrame) -> object:
+    return frame.loc[frame.index[0], _OBJECT_PAYLOAD_COLUMN]
+
+
+def _differential_result_table() -> pd.DataFrame:
+    table = _site_metadata().copy(deep=True)
+    table.loc[:, "logFC"] = [1.0, -1.0]
+    table.loc[:, "t"] = [2.0, -2.0]
+    table.loc[:, "P.Value"] = [0.05, 0.10]
+    table.loc[:, "adj.P.Val"] = [0.10, 0.10]
+    table.loc[:, "result_status"] = ["tested", "tested"]
+    table.loc[:, "result_status_reason"] = ["", ""]
+    return _with_numeric_payload_column(table)
+
+
+def _differential_prior_diagnostics(
+    index: pd.Index,
+) -> EmpiricalBayesPriorDiagnostics:
+    return EmpiricalBayesPriorDiagnostics(
+        method="standard",
+        robust=False,
+        trend=False,
+        winsor_tail_p=(0.05, 0.1),
+        base_prior_variance=1.0,
+        base_prior_degrees_of_freedom=10.0,
+        robust_outlier_count=0,
+        robust_outlier_fraction=0.0,
+        winsorized_low_count=0,
+        winsorized_high_count=0,
+        prior_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom=pd.Series(
+            np.full(index.size, 10.0),
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+    )
+
+
+def _differential_result_from_table(table: pd.DataFrame) -> DifferentialAnalysisResult:
+    index = table.index.copy()
+    return DifferentialAnalysisResult(
+        residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="residual_variance",
+        ),
+        posterior_residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="posterior_residual_variance",
+        ),
+        prior_residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom_series_value=pd.Series(
+            np.full(index.size, 10.0),
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+        prior_variance=1.0,
+        prior_degrees_of_freedom=10.0,
+        residual_degrees_of_freedom=4.0,
+        empirical_bayes_method="standard",
+        empirical_bayes_robust=False,
+        empirical_bayes_trend=False,
+        prior_diagnostics=_differential_prior_diagnostics(index),
+        mean_variance_trend_diagnostics=None,
+        contrast_tables={"B_vs_A": table},
+    )
+
+
+def _kinase_score_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "MAP2K6": [0.8, 0.2],
+            "AKT1": [0.2, 0.8],
+        },
+        index=_SITE_INDEX.copy(),
+    )
+
+
+def _prediction_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.2, 0.1],
+        },
+        index=_SITE_INDEX.copy(),
+    )
+
+
+def _activity_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"MAP2K6": [1.0, 2.0], "AKT1": [0.5, 1.5]},
+        index=pd.Index(["sample_a", "sample_b"]),
+    )
+
+
+def _activity_target_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "site_id": ["MAPK14;Y182;", "GSK3B;S9;"],
+            "site_key": _SITE_KEYS,
+            "display_id": _DISPLAY_IDS,
+            "kinase": ["MAP2K6", "AKT1"],
+            "score": [0.9, 0.8],
+        }
+    )
+
+
+def _activity_result_from_matrix(matrix: pd.DataFrame) -> KinaseActivityResult:
+    return KinaseActivityResult(
+        activity_matrix=matrix,
+        thresholded_substrate_mean_activity=_activity_matrix(),
+        thresholded_substrate_counts=pd.Series(
+            [2, 2],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_substrates",
+        ),
+        target_counts=pd.Series(
+            [1, 1],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_targets",
+        ),
+        target_table=_activity_target_table(),
+    )
+
+
+def _activity_result_from_target_table(table: pd.DataFrame) -> KinaseActivityResult:
+    return KinaseActivityResult(
+        activity_matrix=_activity_matrix(),
+        thresholded_substrate_mean_activity=_activity_matrix(),
+        thresholded_substrate_counts=pd.Series(
+            [2, 2],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_substrates",
+        ),
+        target_counts=pd.Series(
+            [1, 1],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_targets",
+        ),
+        target_table=table,
+    )
+
+
+def _substrate_list() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "kinase": ["MAP2K6", "AKT1"],
+            "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            "site_key": _SITE_KEYS,
+            "display_id": _DISPLAY_IDS,
+            "score": [0.9, 0.8],
+            "rank": [1, 1],
+        }
+    )
+
+
+def _kinase_substrate_contribution_table() -> pd.DataFrame:
+    return pd.DataFrame.from_records(
+        [
+            {
+                "kinase": "MAP2K6",
+                "substrate_site": "MAPK14;Y182;",
+                "substrate_identifier": "MAPK14;Y182;",
+                "value_used_in_scoring": 0.8,
+                "score_component": "rank_weighted_fusion_scores",
+                "score_source": "profile_only_motif_missing_or_constant",
+                "reference_source_name": "fixture",
+                "reference_source_version": "v1",
+                "reference_bundle_id": "fixture_bundle",
+                "reference_identifier_namespace": "display_id",
+                "status": "included",
+                "exclusion_reason": None,
+                "ambiguous": False,
+            }
+        ],
+        columns=pd.Index(KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS),
+    )
+
+
+def _kinase_workflow_result_from_contributions(
+    table: pd.DataFrame,
+) -> KinaseWorkflowResult:
+    return KinaseWorkflowResult(
+        dataset=_analysis_ready_dataset(),
+        references=_references(),
+        scoring_result=KinaseScoringResult(profile_scores=_kinase_score_matrix()),
+        prediction_result=KinasePredictionResult(pred_mat=_prediction_matrix()),
+        substrate_contributions=table,
+    )
+
+
+def _empty_signalome_assignments_table() -> pd.DataFrame:
+    columns = (
+        SITE_KEY_COLUMN,
+        DISPLAY_ID_COLUMN,
+        GENE_SYMBOL_COLUMN,
+        SITE_COLUMN,
+        PROTEIN_COLUMN,
+        PROTEIN_ACCESSION_COLUMN,
+        ISOFORM_ID_COLUMN,
+        MODULE_ID_COLUMN,
+        TOP_KINASE_COLUMN,
+        TOP_SCORE_COLUMN,
+        TOP_KINASE_CANDIDATES_COLUMN,
+        TOP_KINASE_WEIGHTS_COLUMN,
+        TOP_KINASE_TIE_COUNT_COLUMN,
+        TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+        TOP_KINASE_SELECTION_POLICY_COLUMN,
+        MODULE_TOP_KINASE_COLUMN,
+        MODULE_TOP_KINASE_CANDIDATES_COLUMN,
+        MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
+        MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+        MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
+    )
+    return pd.DataFrame(columns=columns, index=_SITE_INDEX[:0].copy())
+
+
+def _empty_kinase_network_edges() -> pd.DataFrame:
+    return pd.DataFrame(
+        columns=(SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN, CORRELATION_COLUMN)
+    )
+
+
+def _empty_signalome_modules_table() -> pd.DataFrame:
+    return pd.DataFrame({"MAP2K6": pd.Series(dtype="float64")})
+
+
+def _signalome_expanded_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            SITE_KEY_COLUMN: _SITE_KEYS,
+            DISPLAY_ID_COLUMN: _DISPLAY_IDS,
+            "numeric_payload": [1.0, 2.0],
+        },
+        index=_SITE_INDEX.copy(),
+    )
+
+
+def _signalome_result_from_expanded_table(
+    table: pd.DataFrame,
+) -> SignalomeWorkflowResult:
+    return SignalomeWorkflowResult(
+        dataset=_analysis_ready_dataset(),
+        kinase_result=_kinase_workflow_result_from_contributions(
+            _kinase_substrate_contribution_table()
+        ),
+        module_assignments=SignalomeAssignments._from_owned(
+            table=_empty_signalome_assignments_table()
+        ),
+        signalome_modules=SignalomeModules._from_owned(
+            table=_empty_signalome_modules_table()
+        ),
+        kinase_network=KinaseNetwork._from_owned(edges=_empty_kinase_network_edges()),
+        expanded_signalome=table,
+    )
+
+
+def _reference_kinase_map() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "kinase": ["MAP2K6", "AKT1"],
+            "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            "numeric_payload": [1.0, 2.0],
+        }
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _PublicFrameOwnerCase:
+    name: str
+    make_numeric_source: Callable[[], pd.DataFrame]
+    construct_from_numeric: Callable[[pd.DataFrame], object]
+    observe_numeric: Callable[[object], pd.DataFrame]
+    make_object_source: Callable[[object], pd.DataFrame] | None = None
+    construct_from_object: Callable[[pd.DataFrame], object] | None = None
+    observe_object_payload: Callable[[object], object] | None = None
+
+
+def _public_frame_owner_cases() -> tuple[_PublicFrameOwnerCase, ...]:
+    return (
+        _PublicFrameOwnerCase(
+            name="analysis-ready-dataset",
+            make_numeric_source=_phospho,
+            construct_from_numeric=lambda frame: AnalysisReadyPhosphoDataset(
+                phospho=frame,
+                site_metadata=_site_metadata(),
+                organism=Organism.RAT,
+                intensity_scale_state=supported_linear_intensity_scale_state(
+                    has_total_matrix=False
+                ),
+                processing_state=supported_linear_processing_state(
+                    has_total_matrix=False
+                ),
+            ),
+            observe_numeric=lambda owner: owner.to_dataframe(),
+            make_object_source=lambda payload: _object_payload_frame_from_site_metadata(
+                payload
+            ),
+            construct_from_object=lambda frame: AnalysisReadyPhosphoDataset(
+                phospho=_phospho(),
+                site_metadata=frame,
+                organism=Organism.RAT,
+                intensity_scale_state=supported_linear_intensity_scale_state(
+                    has_total_matrix=False
+                ),
+                processing_state=supported_linear_processing_state(
+                    has_total_matrix=False
+                ),
+            ),
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.site_metadata_dataframe()
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="phosphosite-import-result",
+            make_numeric_source=_phospho,
+            construct_from_numeric=lambda frame: PhosphositeImportResult(
+                phospho_matrix_candidate=frame,
+                site_metadata_candidate=_site_metadata(),
+                sample_column_mapping={"sample_a": "sample_a"},
+            ),
+            observe_numeric=lambda owner: owner.phospho_matrix_candidate,
+            make_object_source=lambda payload: _with_object_payload_column(
+                _site_metadata(),
+                payload,
+            ),
+            construct_from_object=lambda frame: PhosphositeImportResult(
+                phospho_matrix_candidate=_phospho(),
+                site_metadata_candidate=frame,
+                sample_column_mapping={"sample_a": "sample_a"},
+            ),
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.site_metadata_candidate
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="differential-result",
+            make_numeric_source=_differential_result_table,
+            construct_from_numeric=_differential_result_from_table,
+            observe_numeric=lambda owner: owner.table_for("B_vs_A"),
+            make_object_source=lambda payload: _with_object_payload_column(
+                _differential_result_table(),
+                payload,
+            ),
+            construct_from_object=_differential_result_from_table,
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.table_for("B_vs_A")
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="kinase-activity-result",
+            make_numeric_source=_activity_matrix,
+            construct_from_numeric=_activity_result_from_matrix,
+            observe_numeric=lambda owner: owner.activity_matrix,
+            make_object_source=lambda payload: _with_object_payload_column(
+                _activity_target_table(),
+                payload,
+            ),
+            construct_from_object=_activity_result_from_target_table,
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.target_table
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="kinase-scoring-result",
+            make_numeric_source=_kinase_score_matrix,
+            construct_from_numeric=lambda frame: KinaseScoringResult(
+                profile_scores=frame
+            ),
+            observe_numeric=lambda owner: owner.profile_scores,
+        ),
+        _PublicFrameOwnerCase(
+            name="kinase-prediction-result",
+            make_numeric_source=_prediction_matrix,
+            construct_from_numeric=lambda frame: KinasePredictionResult(pred_mat=frame),
+            observe_numeric=lambda owner: owner.pred_mat,
+            make_object_source=lambda payload: _with_object_payload_column(
+                _substrate_list(),
+                payload,
+            ),
+            construct_from_object=lambda frame: KinasePredictionResult(
+                pred_mat=_prediction_matrix(),
+                substrate_list=frame,
+            ),
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.substrate_list
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="kinase-workflow-result",
+            make_numeric_source=_kinase_substrate_contribution_table,
+            construct_from_numeric=_kinase_workflow_result_from_contributions,
+            observe_numeric=lambda owner: owner.substrate_contributions,
+        ),
+        _PublicFrameOwnerCase(
+            name="signalome-workflow-result",
+            make_numeric_source=_signalome_expanded_table,
+            construct_from_numeric=_signalome_result_from_expanded_table,
+            observe_numeric=lambda owner: owner.to_dataframe(),
+            make_object_source=lambda payload: _with_object_payload_column(
+                _signalome_expanded_table(),
+                payload,
+            ),
+            construct_from_object=_signalome_result_from_expanded_table,
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.to_dataframe()
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="reference-bundle",
+            make_numeric_source=_reference_kinase_map,
+            construct_from_numeric=lambda frame: ReferenceBundle(
+                organism=Organism.RAT,
+                kinase_substrate_map=frame,
+                site_sequences=_references().site_sequences_dataframe(),
+            ),
+            observe_numeric=lambda owner: owner.kinase_substrate_map_dataframe(),
+            make_object_source=lambda payload: _with_object_payload_column(
+                _reference_kinase_map(),
+                payload,
+            ),
+            construct_from_object=lambda frame: ReferenceBundle(
+                organism=Organism.RAT,
+                kinase_substrate_map=frame,
+                site_sequences=_references().site_sequences_dataframe(),
+            ),
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.kinase_substrate_map_dataframe()
+            ),
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _PublicSeriesOwnerCase:
+    name: str
+    make_source: Callable[[], pd.Series]
+    construct: Callable[[pd.Series], object]
+    observe: Callable[[object], pd.Series]
+
+
+def _public_series_owner_cases() -> tuple[_PublicSeriesOwnerCase, ...]:
+    return (
+        _PublicSeriesOwnerCase(
+            name="differential-residual-variance",
+            make_source=lambda: pd.Series(
+                [1.0, 2.0],
+                index=_SITE_INDEX.copy(),
+                name="residual_variance",
+            ),
+            construct=lambda series: DifferentialAnalysisResult(
+                residual_variance=series,
+                posterior_residual_variance=pd.Series(
+                    [1.0, 2.0],
+                    index=_SITE_INDEX.copy(),
+                    name="posterior_residual_variance",
+                ),
+                prior_residual_variance=pd.Series(
+                    [1.0, 2.0],
+                    index=_SITE_INDEX.copy(),
+                    name="prior_residual_variance",
+                ),
+                prior_degrees_of_freedom_series_value=pd.Series(
+                    [10.0, 10.0],
+                    index=_SITE_INDEX.copy(),
+                    name="prior_degrees_of_freedom",
+                ),
+                prior_variance=1.0,
+                prior_degrees_of_freedom=10.0,
+                residual_degrees_of_freedom=4.0,
+                empirical_bayes_method="standard",
+                empirical_bayes_robust=False,
+                empirical_bayes_trend=False,
+                prior_diagnostics=_differential_prior_diagnostics(_SITE_INDEX.copy()),
+                mean_variance_trend_diagnostics=None,
+                contrast_tables={"B_vs_A": _differential_result_table()},
+            ),
+            observe=lambda owner: owner.residual_variance_series(),
+        ),
+        _PublicSeriesOwnerCase(
+            name="kinase-activity-thresholded-counts",
+            make_source=lambda: pd.Series(
+                [2, 2],
+                index=pd.Index(["MAP2K6", "AKT1"]),
+                name="n_substrates",
+            ),
+            construct=lambda series: KinaseActivityResult(
+                activity_matrix=_activity_matrix(),
+                thresholded_substrate_mean_activity=_activity_matrix(),
+                thresholded_substrate_counts=series,
+                target_counts=pd.Series(
+                    [1, 1],
+                    index=pd.Index(["MAP2K6", "AKT1"]),
+                    name="n_targets",
+                ),
+                target_table=_activity_target_table(),
+            ),
+            observe=lambda owner: owner.thresholded_substrate_counts,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    _public_frame_owner_cases(),
+    ids=lambda case: case.name,
+)
+def test_public_dataframe_bearing_types_isolate_caller_inputs(
+    case: _PublicFrameOwnerCase,
+) -> None:
+    source = case.make_numeric_source()
+    owner = case.construct_from_numeric(source)
+    before = case.observe_numeric(owner).copy(deep=True)
+
+    _mutate_first_numeric_cell(source, 999.0)
+
+    pd.testing.assert_frame_equal(case.observe_numeric(owner), before)
+
+
+@pytest.mark.parametrize(
+    "case",
+    _public_frame_owner_cases(),
+    ids=lambda case: case.name,
+)
+def test_public_dataframe_bearing_types_isolate_caller_numpy_views(
+    case: _PublicFrameOwnerCase,
+) -> None:
+    source = case.make_numeric_source()
+    owner = case.construct_from_numeric(source)
+    before = case.observe_numeric(owner).copy(deep=True)
+    numeric_column = _first_numeric_column(source)
+
+    assert _force_numeric_array_and_bases_writeable_and_mutate(
+        source.loc[:, [numeric_column]].to_numpy(copy=False),
+        value=888.0,
+    )
+
+    pd.testing.assert_frame_equal(case.observe_numeric(owner), before)
+
+
+@pytest.mark.parametrize(
+    "case",
+    _public_frame_owner_cases(),
+    ids=lambda case: case.name,
+)
+def test_public_dataframe_exports_do_not_mutate_owned_state(
+    case: _PublicFrameOwnerCase,
+) -> None:
+    source = case.make_numeric_source()
+    owner = case.construct_from_numeric(source)
+    before = case.observe_numeric(owner).copy(deep=True)
+    exported = case.observe_numeric(owner)
+
+    _mutate_first_numeric_cell(exported, 777.0)
+
+    pd.testing.assert_frame_equal(case.observe_numeric(owner), before)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        case
+        for case in _public_frame_owner_cases()
+        if case.make_object_source is not None
+        and case.construct_from_object is not None
+        and case.observe_object_payload is not None
+    ],
+    ids=lambda case: case.name,
+)
+def test_public_dataframe_bearing_types_isolate_nested_object_cells(
+    case: _PublicFrameOwnerCase,
+) -> None:
+    assert case.make_object_source is not None
+    assert case.construct_from_object is not None
+    assert case.observe_object_payload is not None
+    payload = _mutable_object_payload()
+    source = case.make_object_source(payload)
+    owner = case.construct_from_object(source)
+
+    _mutate_object_payload(payload, "caller")
+    observed_payload = case.observe_object_payload(owner)
+
+    assert _object_payload_state(observed_payload) == _OBJECT_PAYLOAD_STATE
+
+    exported_payload = case.observe_object_payload(owner)
+    _mutate_object_payload(exported_payload, "export")
+
+    assert (
+        _object_payload_state(case.observe_object_payload(owner))
+        == _OBJECT_PAYLOAD_STATE
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    _public_series_owner_cases(),
+    ids=lambda case: case.name,
+)
+def test_public_series_bearing_types_isolate_caller_inputs(
+    case: _PublicSeriesOwnerCase,
+) -> None:
+    source = case.make_source()
+    owner = case.construct(source)
+    before = case.observe(owner).copy(deep=True)
+
+    source.iloc[0] = 999
+
+    pd.testing.assert_series_equal(case.observe(owner), before)
+
+
+@pytest.mark.parametrize(
+    "case",
+    _public_series_owner_cases(),
+    ids=lambda case: case.name,
+)
+def test_public_series_bearing_types_isolate_caller_numpy_views(
+    case: _PublicSeriesOwnerCase,
+) -> None:
+    source = case.make_source()
+    owner = case.construct(source)
+    before = case.observe(owner).copy(deep=True)
+
+    assert _force_numeric_array_and_bases_writeable_and_mutate(
+        source.to_numpy(copy=False),
+        value=888.0,
+    )
+
+    pd.testing.assert_series_equal(case.observe(owner), before)
+
+
+@pytest.mark.parametrize(
+    "case",
+    _public_series_owner_cases(),
+    ids=lambda case: case.name,
+)
+def test_public_series_exports_do_not_mutate_owned_state(
+    case: _PublicSeriesOwnerCase,
+) -> None:
+    source = case.make_source()
+    owner = case.construct(source)
+    before = case.observe(owner).copy(deep=True)
+    exported = case.observe(owner)
+
+    exported.iloc[0] = 777
+
+    pd.testing.assert_series_equal(case.observe(owner), before)
 
 
 def _kinase_result():

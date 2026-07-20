@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -585,7 +584,6 @@ class AnalysisReadyPhosphoDataset:
         allow_opaque_site_values: bool = False,
         trusted_construction_assertions: TrustedDatasetConstructionAssertions
         | None = None,
-        _assume_owned: bool = False,
     ) -> None:
         warnings.warn(
             DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
@@ -607,7 +605,7 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
             allow_opaque_site_values=allow_opaque_site_values,
             trusted_construction_assertions=trusted_construction_assertions,
-            assume_owned=_assume_owned,
+            assume_owned=False,
         )
 
     def _init_analysis_ready_tables(
@@ -976,30 +974,24 @@ class AnalysisReadyPhosphoDataset:
         assume_owned: bool = False,
     ) -> AnalysisReadyPhosphoDataset:
         dataset = cls.__new__(cls)
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
-                category=DeprecationWarning,
-            )
-            AnalysisReadyPhosphoDataset.__init__(
-                dataset,
-                phospho=phospho,
-                site_metadata=site_metadata,
-                intensity_scale_state=intensity_scale_state,
-                processing_state=processing_state,
-                sample_metadata=sample_metadata,
-                total=total,
-                comparisons=comparisons,
-                imputation_observation_mask=imputation_observation_mask,
-                organism=organism,
-                preprocessing_report=preprocessing_report,
-                protein_aware_preparation=protein_aware_preparation,
-                provenance=provenance,
-                allow_opaque_site_values=allow_opaque_site_values,
-                trusted_construction_assertions=trusted_construction_assertions,
-                _assume_owned=assume_owned,
-            )
+        AnalysisReadyPhosphoDataset._init_analysis_ready_tables(
+            dataset,
+            phospho=phospho,
+            site_metadata=site_metadata,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            sample_metadata=sample_metadata,
+            total=total,
+            comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
+            organism=organism,
+            preprocessing_report=preprocessing_report,
+            protein_aware_preparation=protein_aware_preparation,
+            provenance=provenance,
+            allow_opaque_site_values=allow_opaque_site_values,
+            trusted_construction_assertions=trusted_construction_assertions,
+            assume_owned=assume_owned,
+        )
         return dataset
 
     @classmethod

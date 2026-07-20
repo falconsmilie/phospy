@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 from os import PathLike
@@ -897,7 +897,7 @@ class BundledReferenceLane:
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ReferenceBundle:
     """Resolved workflow reference resources.
 
@@ -911,32 +911,55 @@ class ReferenceBundle:
     site_sequences: pd.DataFrame
     provenance: ReferenceProvenance | None = None
     manifest: ReferenceManifest | None = None
-    _assume_owned: InitVar[bool] = False
     _validation_report: ReferenceBundleValidationReport = field(
         init=False,
         repr=False,
         compare=False,
     )
 
-    def __post_init__(self, _assume_owned: bool) -> None:
-        if not isinstance(cast(object, self.organism), Organism):
+    def __init__(
+        self,
+        organism: Organism,
+        kinase_substrate_map: pd.DataFrame,
+        site_sequences: pd.DataFrame,
+        provenance: ReferenceProvenance | None = None,
+        manifest: ReferenceManifest | None = None,
+    ) -> None:
+        self._init_reference_bundle(
+            organism=organism,
+            kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+            provenance=provenance,
+            manifest=manifest,
+            assume_owned=False,
+        )
+
+    def _init_reference_bundle(
+        self,
+        *,
+        organism: Organism,
+        kinase_substrate_map: pd.DataFrame,
+        site_sequences: pd.DataFrame,
+        provenance: ReferenceProvenance | None = None,
+        manifest: ReferenceManifest | None = None,
+        assume_owned: bool,
+    ) -> None:
+        if not isinstance(cast(object, organism), Organism):
             raise ReferenceValidationError(
                 "references.organism must be an Organism enum value"
             )
         kinase_substrate_map = own_dataframe(
-            self.kinase_substrate_map,
+            kinase_substrate_map,
             field_name="references.kinase_substrate_map",
             error_type=ReferenceValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         site_sequences = own_dataframe(
-            self.site_sequences,
+            site_sequences,
             field_name="references.site_sequences",
             error_type=ReferenceValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
-        provenance = self.provenance
-        manifest = self.manifest
         reference_context = (
             reference_context_from_manifest_if_complete(manifest)
             if manifest is not None
@@ -958,7 +981,7 @@ class ReferenceBundle:
                 )
             )
         validation = ReferenceBundleValidator().run(
-            organism=self.organism,
+            organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
             provenance=provenance,
@@ -968,7 +991,7 @@ class ReferenceBundle:
         if provenance is None:
             provenance = ReferenceProvenance(
                 source_type="explicit",
-                organism=self.organism,
+                organism=organism,
                 bundle_id=None,
                 table_fingerprints=(
                     fingerprint_table(
@@ -1024,6 +1047,11 @@ class ReferenceBundle:
                 )
         object.__setattr__(
             self,
+            "organism",
+            organism,
+        )
+        object.__setattr__(
+            self,
             "kinase_substrate_map",
             validation.kinase_substrate_map,
         )
@@ -1046,14 +1074,17 @@ class ReferenceBundle:
         provenance: ReferenceProvenance | None = None,
         manifest: ReferenceManifest | None = None,
     ) -> ReferenceBundle:
-        return cls(
+        bundle = object.__new__(cls)
+        ReferenceBundle._init_reference_bundle(
+            bundle,
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
             provenance=provenance,
             manifest=manifest,
-            _assume_owned=True,
+            assume_owned=True,
         )
+        return bundle
 
     def kinase_substrate_map_dataframe(self) -> pd.DataFrame:
         """Return a kinase-substrate map snapshot isolated from this bundle."""

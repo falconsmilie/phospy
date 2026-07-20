@@ -133,7 +133,7 @@ def test_reference_compatibility_validator_is_single_owner_for_compatibility_rul
 
 
 def test_reference_bundle_contract_validation_has_single_owner() -> None:
-    bundle_source = inspect.getsource(ReferenceBundle.__post_init__)
+    bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)
     validator_source = inspect.getsource(ReferenceBundleValidator.run)
     resolver_source = inspect.getsource(ReferenceResolver.run)
     assert "ReferenceBundleValidator().run(" in bundle_source

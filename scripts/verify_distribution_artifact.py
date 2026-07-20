@@ -4,6 +4,7 @@ import argparse
 import copy
 import hashlib
 import importlib
+import inspect
 import json
 import math
 import platform
@@ -562,7 +563,11 @@ def _check_corrected_construction_and_provenance_path(
 def _check_corrected_derived_and_ownership_path(
     context: VerificationContext,
 ) -> Mapping[str, object]:
-    from phospy.api import Organism
+    from phospy.api import (
+        AnalysisReadyPhosphoDataset,
+        Organism,
+        PhosphositeImportResult,
+    )
     from phospy.errors import DatasetValidationError
     from phospy.provenance import DerivedSampleMapping
     from phospy.provenance.derived_quantitative import (
@@ -574,6 +579,39 @@ def _check_corrected_derived_and_ownership_path(
     )
 
     fixture = _derived_fixture()
+    _require(
+        "_assume_owned"
+        not in inspect.signature(AnalysisReadyPhosphoDataset).parameters,
+        "AnalysisReadyPhosphoDataset exposes public ownership transfer",
+    )
+    _require(
+        "_assume_owned" not in inspect.signature(PhosphositeImportResult).parameters,
+        "PhosphositeImportResult exposes public ownership transfer",
+    )
+    _expect_raises(
+        TypeError,
+        lambda: AnalysisReadyPhosphoDataset(
+            phospho=fixture.phospho,
+            site_metadata=fixture.site_metadata,
+            organism=Organism.RAT,
+            intensity_scale_state=_supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=_supported_linear_processing_state(has_total_matrix=False),
+            _assume_owned=True,
+        ),
+        contains="_assume_owned",
+    )
+    _expect_raises(
+        TypeError,
+        lambda: PhosphositeImportResult(
+            phospho_matrix_candidate=fixture.phospho,
+            site_metadata_candidate=fixture.site_metadata,
+            sample_column_mapping={"bio_a": "bio_a"},
+            _assume_owned=True,
+        ),
+        contains="_assume_owned",
+    )
     provenance = build_derived_quantitative_run_provenance(lineage=fixture.lineage)
     dataset = DerivedAnalysisReadyPhosphoDataset(
         phospho=fixture.phospho,
@@ -686,6 +724,8 @@ def _check_corrected_derived_and_ownership_path(
         "fabricated_input_lineage_rejected": True,
         "caller_owned_inputs_are_isolated": True,
         "public_exports_are_isolated": True,
+        "public_ownership_transfer_parameters_absent": True,
+        "public_ownership_aliasing_rejected": True,
     }
 
 

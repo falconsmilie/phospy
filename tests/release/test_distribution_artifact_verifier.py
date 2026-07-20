@@ -280,6 +280,19 @@ def test_corrected_construction_probe_rejects_stale_direct_constructor_provenanc
     assert "actual exact digest" in message
 
 
+def test_installed_artifact_rejects_public_ownership_aliasing(
+    tmp_path: Path,
+) -> None:
+    verifier = _load_verifier()
+
+    details = verifier._check_corrected_derived_and_ownership_path(
+        _identity_context(verifier, tmp_path)
+    )
+
+    assert details["public_ownership_transfer_parameters_absent"] is True
+    assert details["public_ownership_aliasing_rejected"] is True
+
+
 def test_verifier_returns_nonzero_when_corrected_path_invariant_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

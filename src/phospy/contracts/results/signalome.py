@@ -107,7 +107,42 @@ class SignalomeWorkflowResult:
         protein_site_context: pd.DataFrame | None = None,
         provenance: RunProvenance | None = None,
         caveats: tuple[ResultCaveat, ...] = (),
-        _assume_owned: bool = False,
+    ) -> None:
+        self._init_signalome_workflow_result(
+            dataset=dataset,
+            kinase_result=kinase_result,
+            module_assignments=module_assignments,
+            signalome_modules=signalome_modules,
+            kinase_network=kinase_network,
+            module_selection_diagnostics=module_selection_diagnostics,
+            score_preconditioning_diagnostics=score_preconditioning_diagnostics,
+            alignment_diagnostics=alignment_diagnostics,
+            expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
+            provenance=provenance,
+            caveats=caveats,
+            assume_owned=False,
+        )
+
+    def _init_signalome_workflow_result(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        kinase_result: KinaseWorkflowResult,
+        module_assignments: SignalomeAssignments,
+        signalome_modules: SignalomeModules,
+        kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
+        expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+        assume_owned: bool,
     ) -> None:
         object.__setattr__(self, "dataset", dataset)
         object.__setattr__(self, "kinase_result", kinase_result)
@@ -158,7 +193,7 @@ class SignalomeWorkflowResult:
                 expanded_signalome,
                 site_membership,
                 protein_site_context,
-                _assume_owned,
+                assume_owned,
             ),
         )
         self.__post_init__()
@@ -169,26 +204,26 @@ class SignalomeWorkflowResult:
             raise ContractValidationError(
                 "signalome_result internal initialization payload missing"
             )
-        expanded_signalome, site_membership, protein_site_context, _assume_owned = (
+        expanded_signalome, site_membership, protein_site_context, assume_owned = (
             payload
         )
         expanded_signalome = own_optional_dataframe(
             expanded_signalome,
             field_name="signalome_result.expanded_signalome",
             error_type=ContractValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         site_membership = own_optional_dataframe(
             site_membership,
             field_name="signalome_result.site_membership",
             error_type=ContractValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         protein_site_context = own_optional_dataframe(
             protein_site_context,
             field_name="signalome_result.protein_site_context",
             error_type=ContractValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         _validate_expanded_signalome_shape(expanded_signalome)
         if site_membership is not None:
@@ -261,7 +296,9 @@ class SignalomeWorkflowResult:
         provenance: RunProvenance | None = None,
         caveats: tuple[ResultCaveat, ...] = (),
     ) -> SignalomeWorkflowResult:
-        return cls(
+        result = object.__new__(cls)
+        SignalomeWorkflowResult._init_signalome_workflow_result(
+            result,
             dataset=dataset,
             kinase_result=kinase_result,
             module_assignments=module_assignments,
@@ -275,8 +312,9 @@ class SignalomeWorkflowResult:
             protein_site_context=protein_site_context,
             provenance=provenance,
             caveats=caveats,
-            _assume_owned=True,
+            assume_owned=True,
         )
+        return result
 
     def to_dataframe(self) -> pd.DataFrame | None:
         """Return an expanded-signalome snapshot, not an export."""

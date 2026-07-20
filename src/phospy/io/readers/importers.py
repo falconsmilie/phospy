@@ -127,7 +127,7 @@ class MappedPhosphositeTableImporter:
             warnings=warnings,
             source_name=validated.source_name,
         )
-        return PhosphositeImportResult(
+        return PhosphositeImportResult._from_owned(
             phospho_matrix_candidate=phospho,
             site_metadata_candidate=site_metadata,
             peptide_evidence=peptide_evidence,
@@ -137,7 +137,6 @@ class MappedPhosphositeTableImporter:
             diagnostics=diagnostics,
             source_name=validated.source_name,
             quality_report=quality_report,
-            _assume_owned=True,
         )
 
 

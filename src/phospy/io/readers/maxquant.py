@@ -651,7 +651,7 @@ def _augment_mapped_result(
         reverse_policy=reverse_policy,
         warnings=combined_warnings,
     )
-    return PhosphositeImportResult(
+    return PhosphositeImportResult._from_owned(
         phospho_matrix_candidate=mapped_result.phospho_matrix_candidate,
         site_metadata_candidate=site_metadata,
         peptide_evidence=peptide_evidence,
@@ -661,7 +661,6 @@ def _augment_mapped_result(
         diagnostics=diagnostics,
         source_name=mapped_result.source_name,
         quality_report=quality_report,
-        _assume_owned=True,
     )
 
 

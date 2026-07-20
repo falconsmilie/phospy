@@ -103,7 +103,7 @@ def reconstruct_kinase_result(
         processing_state=processing_state,
     )
 
-    references = ReferenceBundle(
+    references = ReferenceBundle._from_owned(
         organism=parse_required_organism(
             sections.references_metadata.get("organism"),
             field_name="bundle manifest.resolved_references.metadata.organism",
@@ -122,7 +122,7 @@ def reconstruct_kinase_result(
         ),
     )
 
-    scoring_result = KinaseScoringResult(
+    scoring_result = KinaseScoringResult._from_owned(
         profile_scores=read_required_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
@@ -187,7 +187,7 @@ def reconstruct_kinase_result(
         ),
     )
 
-    prediction_result = KinasePredictionResult(
+    prediction_result = KinasePredictionResult._from_owned(
         pred_mat=read_required_table(
             bundle_root=bundle_root,
             tables=sections.prediction_tables,
@@ -284,7 +284,7 @@ def reconstruct_kinase_result(
             activity_method_summary = ActivityMethodSummary.from_payload(
                 sections.activity_method_summary
             )
-        activity_result = KinaseActivityResult(
+        activity_result = KinaseActivityResult._from_owned(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
@@ -318,7 +318,7 @@ def reconstruct_kinase_result(
             )
         activity_result = None
 
-    return KinaseWorkflowResult(
+    return KinaseWorkflowResult._from_owned(
         dataset=dataset,
         references=references,
         scoring_result=scoring_result,
@@ -331,7 +331,6 @@ def reconstruct_kinase_result(
             result_caveats_from_payloads(sections.caveats_payload)
             or _kinase_caveats_from_provenance(provenance)
         ),
-        _assume_owned=True,
     )
 
 

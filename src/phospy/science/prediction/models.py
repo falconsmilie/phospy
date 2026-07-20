@@ -135,7 +135,6 @@ class KinaseScoringResult:
         ),
         motif_sequence_validation: SequenceValidationResult | None = None,
         motif_library_validation: MotifLibraryValidationResult | None = None,
-        _assume_owned: bool = False,
     ) -> None:
         object.__setattr__(self, "motif_sequence_validation", motif_sequence_validation)
         object.__setattr__(self, "motif_library_validation", motif_library_validation)
@@ -166,7 +165,7 @@ class KinaseScoringResult:
         profile_scores = KinaseScoreMatrix(
             frame=profile_scores,
             field_name="scoring_result.profile_scores",
-            _assume_owned=_assume_owned,
+            _assume_owned=False,
         ).frame
         motif_scores = (
             None
@@ -174,7 +173,7 @@ class KinaseScoringResult:
             else KinaseScoreMatrix(
                 frame=motif_scores,
                 field_name="scoring_result.motif_scores",
-                _assume_owned=_assume_owned,
+                _assume_owned=False,
             ).frame
         )
         rank_weighted_fusion_scores = (
@@ -183,7 +182,7 @@ class KinaseScoringResult:
             else KinaseScoreMatrix(
                 frame=rank_weighted_fusion_scores,
                 field_name="scoring_result.rank_weighted_fusion_scores",
-                _assume_owned=_assume_owned,
+                _assume_owned=False,
             ).frame
         )
         kinase_library_motif_scores = (
@@ -193,7 +192,7 @@ class KinaseScoringResult:
                 frame=kinase_library_motif_scores,
                 field_name="scoring_result.kinase_library_motif_scores",
                 enforce_unit_interval=True,
-                _assume_owned=_assume_owned,
+                _assume_owned=False,
             ).frame
         )
         combined_profile_motif_scores = (
@@ -203,7 +202,7 @@ class KinaseScoringResult:
                 frame=combined_profile_motif_scores,
                 field_name="scoring_result.combined_profile_motif_scores",
                 enforce_unit_interval=True,
-                _assume_owned=_assume_owned,
+                _assume_owned=False,
             ).frame
         )
         score_fusion_weights = (
@@ -213,36 +212,36 @@ class KinaseScoringResult:
                 frame=score_fusion_weights,
                 field_name="scoring_result.score_fusion_weights",
                 require_site_index=False,
-                _assume_owned=_assume_owned,
+                _assume_owned=False,
             ).frame
         )
         score_source_matrix = own_optional_dataframe(
             score_source_matrix,
             field_name="scoring_result.score_source_matrix",
             error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=False,
         )
         score_source_summary = own_optional_dataframe(
             score_source_summary,
             field_name="scoring_result.score_source_summary",
             error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=False,
         )
         profile_score_diagnostics = _own_optional_profile_score_diagnostics(
             profile_score_diagnostics,
-            assume_owned=_assume_owned,
+            assume_owned=False,
         )
         kinase_library_site_diagnostics = own_optional_dataframe(
             kinase_library_site_diagnostics,
             field_name="scoring_result.kinase_library_site_diagnostics",
             error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=False,
         )
         kinase_library_kinase_diagnostics = own_optional_dataframe(
             kinase_library_kinase_diagnostics,
             field_name="scoring_result.kinase_library_kinase_diagnostics",
             error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=False,
         )
         score_source_matrix = _validate_score_source_matrix(
             score_source_matrix=score_source_matrix,
@@ -993,18 +992,17 @@ class KinasePredictionResult:
         self,
         pred_mat: pd.DataFrame,
         substrate_list: pd.DataFrame | None = None,
-        _assume_owned: bool = False,
     ) -> None:
         pred_mat = KinasePredictionMatrix(
             frame=pred_mat,
             field_name="prediction_result.pred_mat",
-            _assume_owned=_assume_owned,
+            _assume_owned=False,
         ).frame
         substrate_list = own_optional_dataframe(
             substrate_list,
             field_name="prediction_result.substrate_list",
             error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+            assume_owned=False,
         )
         object.__setattr__(self, "_pred_mat", pred_mat)
         object.__setattr__(self, "_substrate_list", substrate_list)

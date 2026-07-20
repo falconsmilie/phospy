@@ -568,25 +568,51 @@ class PhosphositeImportResult:
         diagnostics: dict[str, object] | None = None,
         source_name: str = "phosphosite_import",
         quality_report: ImporterQualityReport | None = None,
-        _assume_owned: bool = False,
+    ) -> None:
+        self._init_import_result(
+            phospho_matrix_candidate=phospho_matrix_candidate,
+            site_metadata_candidate=site_metadata_candidate,
+            peptide_evidence=peptide_evidence,
+            sample_column_mapping=sample_column_mapping,
+            localisation_confidence_column=localisation_confidence_column,
+            warnings=warnings,
+            diagnostics=diagnostics,
+            source_name=source_name,
+            quality_report=quality_report,
+            assume_owned=False,
+        )
+
+    def _init_import_result(
+        self,
+        *,
+        phospho_matrix_candidate: pd.DataFrame,
+        site_metadata_candidate: pd.DataFrame,
+        peptide_evidence: pd.DataFrame | None = None,
+        sample_column_mapping: dict[str, str],
+        localisation_confidence_column: str | None = None,
+        warnings: tuple[str, ...] = (),
+        diagnostics: dict[str, object] | None = None,
+        source_name: str = "phosphosite_import",
+        quality_report: ImporterQualityReport | None = None,
+        assume_owned: bool,
     ) -> None:
         phospho = own_dataframe(
             phospho_matrix_candidate,
             field_name="phosphosite_import_result.phospho_matrix_candidate",
             error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         site_metadata = own_dataframe(
             site_metadata_candidate,
             field_name="phosphosite_import_result.site_metadata_candidate",
             error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         evidence = own_optional_dataframe(
             peptide_evidence,
             field_name="phosphosite_import_result.peptide_evidence",
             error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         mapping = _validate_sample_column_mapping(sample_column_mapping)
         if localisation_confidence_column is not None and not isinstance(
@@ -637,6 +663,36 @@ class PhosphositeImportResult:
         object.__setattr__(self, "diagnostics", dict(diagnostics or {}))
         object.__setattr__(self, "source_name", source_name_value)
         object.__setattr__(self, "quality_report", quality_report_value)
+
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        phospho_matrix_candidate: pd.DataFrame,
+        site_metadata_candidate: pd.DataFrame,
+        peptide_evidence: pd.DataFrame | None = None,
+        sample_column_mapping: dict[str, str],
+        localisation_confidence_column: str | None = None,
+        warnings: tuple[str, ...] = (),
+        diagnostics: dict[str, object] | None = None,
+        source_name: str = "phosphosite_import",
+        quality_report: ImporterQualityReport | None = None,
+    ) -> PhosphositeImportResult:
+        result = object.__new__(cls)
+        PhosphositeImportResult._init_import_result(
+            result,
+            phospho_matrix_candidate=phospho_matrix_candidate,
+            site_metadata_candidate=site_metadata_candidate,
+            peptide_evidence=peptide_evidence,
+            sample_column_mapping=sample_column_mapping,
+            localisation_confidence_column=localisation_confidence_column,
+            warnings=warnings,
+            diagnostics=diagnostics,
+            source_name=source_name,
+            quality_report=quality_report,
+            assume_owned=True,
+        )
+        return result
 
     @property
     def phospho_matrix_candidate(self) -> pd.DataFrame:

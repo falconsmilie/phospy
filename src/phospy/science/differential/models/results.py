@@ -89,31 +89,79 @@ class DifferentialAnalysisResult:
         caveats: tuple[ResultCaveat, ...] = (),
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
-        _assume_owned: bool = False,
+    ) -> None:
+        self._init_differential_result(
+            residual_variance=residual_variance,
+            posterior_residual_variance=posterior_residual_variance,
+            prior_residual_variance=prior_residual_variance,
+            prior_degrees_of_freedom_series_value=(
+                prior_degrees_of_freedom_series_value
+            ),
+            prior_variance=prior_variance,
+            prior_degrees_of_freedom=prior_degrees_of_freedom,
+            residual_degrees_of_freedom=residual_degrees_of_freedom,
+            empirical_bayes_method=empirical_bayes_method,
+            empirical_bayes_robust=empirical_bayes_robust,
+            empirical_bayes_trend=empirical_bayes_trend,
+            prior_diagnostics=prior_diagnostics,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            contrast_tables=contrast_tables,
+            diagnostics=diagnostics,
+            policy_provenance=policy_provenance,
+            workflow_provenance=workflow_provenance,
+            caveats=caveats,
+            input_dataset_preprocessing_report=input_dataset_preprocessing_report,
+            feature_eligibility=feature_eligibility,
+            assume_owned=False,
+        )
+
+    def _init_differential_result(
+        self,
+        *,
+        residual_variance: pd.Series,
+        posterior_residual_variance: pd.Series,
+        prior_residual_variance: pd.Series,
+        prior_degrees_of_freedom_series_value: pd.Series,
+        prior_variance: float,
+        prior_degrees_of_freedom: float,
+        residual_degrees_of_freedom: float,
+        empirical_bayes_method: str,
+        empirical_bayes_robust: bool,
+        empirical_bayes_trend: bool,
+        prior_diagnostics: EmpiricalBayesPriorDiagnostics,
+        mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+        contrast_tables: Mapping[str, pd.DataFrame],
+        diagnostics: DifferentialModelDiagnostics | None = None,
+        policy_provenance: DifferentialPolicyProvenance | None = None,
+        workflow_provenance: Mapping[str, object] | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+        input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
+        feature_eligibility: pd.DataFrame | None = None,
+        assume_owned: bool,
     ) -> None:
         residual_variance = own_series(
             residual_variance,
             field_name="differential_result.residual_variance",
             error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         posterior_residual_variance = own_series(
             posterior_residual_variance,
             field_name="differential_result.posterior_residual_variance",
             error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         prior_residual_variance = own_series(
             prior_residual_variance,
             field_name="differential_result.prior_residual_variance",
             error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         prior_degrees_of_freedom_series_value = own_series(
             prior_degrees_of_freedom_series_value,
             field_name="differential_result.prior_degrees_of_freedom_series",
             error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         if not residual_variance.index.equals(posterior_residual_variance.index):
             raise PhosPyInputError(
@@ -202,7 +250,7 @@ class DifferentialAnalysisResult:
                 feature_eligibility,
                 field_name="differential_result.feature_eligibility",
                 error_type=PhosPyInputError,
-                assume_owned=_assume_owned,
+                assume_owned=assume_owned,
             )
             _validate_feature_eligibility_table(
                 owned_feature_eligibility,
@@ -218,7 +266,7 @@ class DifferentialAnalysisResult:
                 table,
                 field_name=f"differential_result.contrast_tables[{contrast_name!r}]",
                 error_type=PhosPyInputError,
-                assume_owned=_assume_owned,
+                assume_owned=assume_owned,
             )
             validate_result_table_contract(
                 owned_table,
@@ -382,7 +430,9 @@ class DifferentialAnalysisResult:
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
     ) -> DifferentialAnalysisResult:
-        return cls(
+        result = object.__new__(cls)
+        DifferentialAnalysisResult._init_differential_result(
+            result,
             residual_variance=residual_variance,
             posterior_residual_variance=posterior_residual_variance,
             prior_residual_variance=prior_residual_variance,
@@ -402,8 +452,9 @@ class DifferentialAnalysisResult:
             caveats=caveats,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
             feature_eligibility=feature_eligibility,
-            _assume_owned=True,
+            assume_owned=True,
         )
+        return result
 
 
 def _is_dataset_preprocessing_report(value: object) -> bool:

@@ -160,10 +160,10 @@ def reconstruct_signalome_result(
         sections=sections,
     )
 
-    return SignalomeWorkflowResult(
+    return SignalomeWorkflowResult._from_owned(
         dataset=dataset,
         kinase_result=kinase_result,
-        module_assignments=SignalomeAssignments(
+        module_assignments=SignalomeAssignments._from_owned(
             table=normalize_module_assignments_table(
                 read_required_table(
                     bundle_root=bundle_root,
@@ -173,7 +173,7 @@ def reconstruct_signalome_result(
                 )
             )
         ),
-        signalome_modules=SignalomeModules(
+        signalome_modules=SignalomeModules._from_owned(
             table=read_required_table(
                 bundle_root=bundle_root,
                 tables=sections.signalome_tables,
@@ -181,7 +181,7 @@ def reconstruct_signalome_result(
                 field_name="bundle manifest.signalome_outputs.tables.signalome_modules",
             )
         ),
-        kinase_network=KinaseNetwork(
+        kinase_network=KinaseNetwork._from_owned(
             edges=read_required_table(
                 bundle_root=bundle_root,
                 tables=sections.signalome_tables,
@@ -291,7 +291,7 @@ def _reconstruct_references(
     bundle_root: Path,
     sections: SignalomeManifestSections,
 ) -> ReferenceBundle:
-    return ReferenceBundle(
+    return ReferenceBundle._from_owned(
         organism=parse_required_organism(
             sections.references_metadata.get("organism"),
             field_name="bundle manifest.resolved_references.metadata.organism",
@@ -319,7 +319,7 @@ def _reconstruct_kinase_result(
     references: ReferenceBundle,
     provenance: RunProvenance,
 ) -> KinaseWorkflowResult:
-    return KinaseWorkflowResult(
+    return KinaseWorkflowResult._from_owned(
         dataset=dataset,
         references=references,
         scoring_result=_reconstruct_scoring_result(
@@ -460,7 +460,7 @@ def _reconstruct_scoring_result(
     sections: SignalomeManifestSections,
     provenance: RunProvenance,
 ) -> KinaseScoringResult:
-    return KinaseScoringResult(
+    return KinaseScoringResult._from_owned(
         profile_scores=read_required_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
@@ -542,7 +542,7 @@ def _reconstruct_prediction_result(
     bundle_root: Path,
     sections: SignalomeManifestSections,
 ) -> KinasePredictionResult:
-    return KinasePredictionResult(
+    return KinasePredictionResult._from_owned(
         pred_mat=read_required_table(
             bundle_root=bundle_root,
             tables=sections.prediction_tables,
@@ -626,7 +626,7 @@ def _reconstruct_activity_result(
             raise PhosPyInputError(
                 "bundle manifest upstream_kinase_outputs.activity.tables are incomplete for enabled activity outputs"
             )
-        return KinaseActivityResult(
+        return KinaseActivityResult._from_owned(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,

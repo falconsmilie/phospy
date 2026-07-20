@@ -22,10 +22,10 @@ def test_dataset_boundary_constructor_has_no_canonicalization_or_default_repair(
 def test_reference_boundary_constructor_has_no_canonicalization_or_dedup_repair() -> (
     None
 ):
-    post_init_source = inspect.getsource(ReferenceBundle.__post_init__)
-    assert "canonicalize_site_" not in post_init_source
-    assert "drop_duplicates" not in post_init_source
-    assert ".str.strip" not in post_init_source
+    constructor_source = inspect.getsource(ReferenceBundle._init_reference_bundle)
+    assert "canonicalize_site_" not in constructor_source
+    assert "drop_duplicates" not in constructor_source
+    assert ".str.strip" not in constructor_source
 
 
 def test_workflow_interpreters_have_no_site_id_repair_calls() -> None:

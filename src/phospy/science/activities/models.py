@@ -407,7 +407,57 @@ class KinaseActivityResult:
         | list[ScientificPolicyRecord]
         | ScientificPolicyRecord
         | None = None,
-        _assume_owned: bool = False,
+    ) -> None:
+        self._init_activity_result(
+            weighted_activity=weighted_activity,
+            thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
+            thresholded_substrate_counts=thresholded_substrate_counts,
+            target_counts=target_counts,
+            target_table=target_table,
+            threshold_membership_diagnostics=threshold_membership_diagnostics,
+            activity_substrate_counts=activity_substrate_counts,
+            statistics_table=statistics_table,
+            method_summary=method_summary,
+            activity_method=activity_method,
+            activity_matrix=activity_matrix,
+            p_value_matrix=p_value_matrix,
+            q_value_matrix=q_value_matrix,
+            confidence_interval_low=confidence_interval_low,
+            confidence_interval_high=confidence_interval_high,
+            substrate_count_matrix=substrate_count_matrix,
+            method_diagnostics=method_diagnostics,
+            policy_provenance=policy_provenance,
+            assume_owned=False,
+        )
+
+    def _init_activity_result(
+        self,
+        *,
+        weighted_activity: pd.DataFrame | None = None,
+        thresholded_substrate_mean_activity: pd.DataFrame | None = None,
+        thresholded_substrate_counts: pd.Series | None = None,
+        target_counts: pd.Series | None = None,
+        target_table: pd.DataFrame | None = None,
+        threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics
+        | None = None,
+        activity_substrate_counts: pd.DataFrame | None = None,
+        statistics_table: pd.DataFrame | None = None,
+        method_summary: ActivityMethodSummary | None = None,
+        activity_method: ActivityMethodMetadata = (
+            SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD
+        ),
+        activity_matrix: pd.DataFrame | None = None,
+        p_value_matrix: pd.DataFrame | None = None,
+        q_value_matrix: pd.DataFrame | None = None,
+        confidence_interval_low: pd.DataFrame | None = None,
+        confidence_interval_high: pd.DataFrame | None = None,
+        substrate_count_matrix: pd.DataFrame | None = None,
+        method_diagnostics: ActivityMethodDiagnostics | None = None,
+        policy_provenance: tuple[ScientificPolicyRecord, ...]
+        | list[ScientificPolicyRecord]
+        | ScientificPolicyRecord
+        | None = None,
+        assume_owned: bool,
     ) -> None:
         if not isinstance(activity_method, ActivityMethodMetadata):
             raise WorkflowBoundaryError(
@@ -429,27 +479,27 @@ class KinaseActivityResult:
         activity_matrix = ActivityMatrix(
             frame=raw_activity_matrix,
             field_name="activity_result.activity_matrix",
-            _assume_owned=_assume_owned,
+            _assume_owned=assume_owned,
         ).frame
         p_value_matrix = _validate_optional_probability_matrix(
             p_value_matrix,
             field_name="activity_result.p_value_matrix",
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         q_value_matrix = _validate_optional_probability_matrix(
             q_value_matrix,
             field_name="activity_result.q_value_matrix",
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         confidence_interval_low = _validate_optional_activity_matrix(
             confidence_interval_low,
             field_name="activity_result.confidence_interval_low",
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         confidence_interval_high = _validate_optional_activity_matrix(
             confidence_interval_high,
             field_name="activity_result.confidence_interval_high",
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         if substrate_count_matrix is None:
             substrate_count_matrix = activity_substrate_counts
@@ -458,40 +508,40 @@ class KinaseActivityResult:
         substrate_count_matrix = ActivityCountMatrix(
             frame=substrate_count_matrix,
             field_name="activity_result.substrate_count_matrix",
-            _assume_owned=_assume_owned,
+            _assume_owned=assume_owned,
         ).frame
         if thresholded_substrate_mean_activity is None:
             thresholded_substrate_mean_activity = _empty_activity_matrix()
         thresholded_substrate_mean_activity = ActivityMatrix(
             frame=thresholded_substrate_mean_activity,
             field_name="activity_result.thresholded_substrate_mean_activity",
-            _assume_owned=_assume_owned,
+            _assume_owned=assume_owned,
         ).frame
         if thresholded_substrate_counts is None:
             thresholded_substrate_counts = _empty_count_series("n_substrates")
         thresholded_substrate_counts = ActivityCountSeries(
             series=thresholded_substrate_counts,
             field_name="activity_result.thresholded_substrate_counts",
-            _assume_owned=_assume_owned,
+            _assume_owned=assume_owned,
         ).series
         if activity_substrate_counts is not None:
             activity_substrate_counts = ActivityCountMatrix(
                 frame=activity_substrate_counts,
                 field_name="activity_result.activity_substrate_counts",
-                _assume_owned=_assume_owned,
+                _assume_owned=assume_owned,
             ).frame
         if target_counts is None:
             target_counts = _empty_count_series("n_targets")
         target_counts = ActivityCountSeries(
             series=target_counts,
             field_name="activity_result.target_counts",
-            _assume_owned=_assume_owned,
+            _assume_owned=assume_owned,
         ).series
         if target_table is None:
             target_table = _empty_target_table()
         target_table = ActivityTargetTable(
             frame=target_table,
-            _assume_owned=_assume_owned,
+            _assume_owned=assume_owned,
         ).frame
         if method_diagnostics is not None:
             if not isinstance(method_diagnostics, ActivityMethodDiagnostics):
@@ -510,7 +560,7 @@ class KinaseActivityResult:
         if statistics_table is not None:
             statistics_table = ActivityStatisticsTable(
                 frame=statistics_table,
-                _assume_owned=_assume_owned,
+                _assume_owned=assume_owned,
             ).frame
         _validate_optional_method_summary(method_summary)
         _validate_optional_threshold_membership_diagnostics(
@@ -725,7 +775,9 @@ class KinaseActivityResult:
         | ScientificPolicyRecord
         | None = None,
     ) -> KinaseActivityResult:
-        return cls(
+        result = object.__new__(cls)
+        KinaseActivityResult._init_activity_result(
+            result,
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
@@ -744,8 +796,9 @@ class KinaseActivityResult:
             substrate_count_matrix=substrate_count_matrix,
             method_diagnostics=method_diagnostics,
             policy_provenance=policy_provenance,
-            _assume_owned=True,
+            assume_owned=True,
         )
+        return result
 
     def to_dataframe(self) -> pd.DataFrame:
         """Return a primary kinase activity score snapshot isolated from this result."""
