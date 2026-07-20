@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 
 import numpy as np
 import pandas as pd
@@ -26,6 +25,7 @@ from phospy.frames.validation import (
     require_unique_index,
 )
 from phospy.policies import coerce_policy_enum
+from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.science.configs import (
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES,
@@ -717,7 +717,11 @@ def _own_score_scale_metadata(
         raise PhosPyValidationError(
             "scoring_result.score_scale_metadata must be a mapping or None"
         )
-    return MappingProxyType({str(key): item for key, item in value.items()})
+    return freeze_json_mapping_with_error_type(
+        value,
+        field_name="scoring_result.score_scale_metadata",
+        error_type=PhosPyValidationError,
+    )
 
 
 def _own_optional_profile_score_diagnostics(

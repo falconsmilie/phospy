@@ -153,7 +153,9 @@ def test_rank_deficient_design_fails_before_execution() -> None:
     executor = _ExecutorSpy()
 
     with pytest.raises(WorkflowValidationError, match="rank deficient"):
-        DifferentialAnalysisWorkflow(executor=executor).run(_request(design=design))
+        DifferentialAnalysisWorkflow._with_components(executor=executor).run(
+            _request(design=design)
+        )
     assert executor.calls == 0
 
 
@@ -161,7 +163,7 @@ def test_unknown_contrast_condition_fails_before_execution() -> None:
     executor = _ExecutorSpy()
 
     with pytest.raises(WorkflowValidationError, match="unknown denominator condition"):
-        DifferentialAnalysisWorkflow(executor=executor).run(
+        DifferentialAnalysisWorkflow._with_components(executor=executor).run(
             _request(
                 contrasts=(
                     Contrast(
@@ -182,7 +184,7 @@ def test_insufficient_residual_degrees_of_freedom_fails_before_execution() -> No
         WorkflowValidationError,
         match="residual degrees of freedom must be positive",
     ):
-        DifferentialAnalysisWorkflow(executor=executor).run(
+        DifferentialAnalysisWorkflow._with_components(executor=executor).run(
             _request(
                 dataset=_dataset(samples=("A_1", "B_1")),
                 design=_condition_design(samples=("A_1", "B_1")),

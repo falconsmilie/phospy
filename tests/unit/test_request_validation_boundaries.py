@@ -223,7 +223,7 @@ def test_invalid_dataset_build_request_fails_at_builder_validation_stage() -> No
     request = DatasetBuildRequest(site_resolution_mode="not-a-mode")
 
     with pytest.raises(PhosPyInputError, match="site_resolution_mode"):
-        AnalysisReadyDatasetBuilder(
+        AnalysisReadyDatasetBuilder._with_components(
             interpreter=interpreter,  # type: ignore[arg-type]
             executor=executor,  # type: ignore[arg-type]
         ).run(request)
@@ -247,7 +247,7 @@ def test_invalid_differential_request_fails_at_workflow_validation_stage() -> No
     )
 
     with pytest.raises(WorkflowValidationError, match="denominator condition"):
-        DifferentialAnalysisWorkflow(
+        DifferentialAnalysisWorkflow._with_components(
             interpreter=interpreter,  # type: ignore[arg-type]
             executor=executor,  # type: ignore[arg-type]
         ).run(request)
@@ -267,7 +267,7 @@ def test_invalid_kinase_request_fails_at_workflow_validation_stage() -> None:
         WorkflowValidationError,
         match="reference_display_ambiguity_policy",
     ):
-        KinaseWorkflow(
+        KinaseWorkflow._with_components(
             interpreter=interpreter,  # type: ignore[arg-type]
             executor=executor,  # type: ignore[arg-type]
         ).run(request)
@@ -288,7 +288,7 @@ def test_invalid_signalome_request_fails_at_workflow_validation_stage() -> None:
     )
 
     with pytest.raises(WorkflowValidationError) as exc_info:
-        SignalomeWorkflow(
+        SignalomeWorkflow._with_components(
             interpreter=interpreter,  # type: ignore[arg-type]
             executor=executor,  # type: ignore[arg-type]
         ).run(request)

@@ -17,12 +17,35 @@ from phospy.workflows.differential.validator import DifferentialAnalysisValidato
 class DifferentialAnalysisWorkflow:
     """Public entrypoint for differential analysis workflow execution."""
 
-    def __init__(
-        self,
+    def __init__(self) -> None:
+        self._init_components(
+            validator=None,
+            interpreter=None,
+            executor=None,
+        )
+
+    @classmethod
+    def _with_components(
+        cls,
         *,
         validator: DifferentialAnalysisValidatorContract | None = None,
         interpreter: DifferentialAnalysisInterpreterContract | None = None,
         executor: DifferentialAnalysisExecutorContract | None = None,
+    ) -> DifferentialAnalysisWorkflow:
+        workflow = cls.__new__(cls)
+        workflow._init_components(
+            validator=validator,
+            interpreter=interpreter,
+            executor=executor,
+        )
+        return workflow
+
+    def _init_components(
+        self,
+        *,
+        validator: DifferentialAnalysisValidatorContract | None,
+        interpreter: DifferentialAnalysisInterpreterContract | None,
+        executor: DifferentialAnalysisExecutorContract | None,
     ) -> None:
         self._validator = validator or DifferentialAnalysisValidator()
         self._interpreter = interpreter or DifferentialAnalysisInterpreter()

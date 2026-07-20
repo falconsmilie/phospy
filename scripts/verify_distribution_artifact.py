@@ -24,6 +24,12 @@ SUMMARY_CHECK_KEYS_BY_DETAIL = {
     "artifact-manifest-binding": ("artifact_manifest_binding",),
     "installed-package-identity": ("installed_import_origin", "package_metadata"),
     "packaged-scientific-resources": ("scientific_resources",),
+    "public-boundary-integrity": (
+        "public_signature_boundary",
+        "dataset_provenance_binding",
+        "public_dataframe_ownership",
+        "public_json_immutability",
+    ),
     "corrected-construction-and-provenance-path": (
         "trusted_construction",
         "provenance_immutability",
@@ -33,6 +39,83 @@ SUMMARY_CHECK_KEYS_BY_DETAIL = {
         "dataframe_ownership",
     ),
     "corrected-differential-path": ("differential_execution",),
+}
+PUBLIC_BOUNDARY_OUTCOME_NAMES = (
+    "public-signature-boundary",
+    "dataset-provenance-binding",
+    "public-dataframe-ownership",
+    "public-json-immutability",
+)
+_FORBIDDEN_PUBLIC_PARAMETER_EXACT = frozenset(
+    {
+        "_assume_owned",
+        "assume_owned",
+        "_owned",
+        "owned",
+        "copy",
+        "copy_input",
+        "copy_inputs",
+        "copy_data",
+        "no_copy",
+        "skip_copy",
+        "ownership_token",
+        "transfer_token",
+        "skip_validation",
+        "_skip_validation",
+        "disable_validation",
+        "bypass_validation",
+        "skip_fingerprint",
+        "disable_fingerprint",
+        "bypass_fingerprint",
+        "trust_fingerprint",
+        "suppress_warnings",
+        "ignore_warnings",
+        "disable_warnings",
+        "silence_warnings",
+        "validator",
+        "request_validator",
+        "source_validator",
+        "config_validator",
+        "interpreter",
+        "executor",
+        "path_reader",
+        "source_reader",
+        "batch_correction_runner",
+        "internal_view",
+    }
+)
+_FORBIDDEN_PUBLIC_PARAMETER_FRAGMENTS = (
+    "assume_own",
+    "owned_input",
+    "ownership",
+    "copy_bypass",
+    "validation_bypass",
+    "fingerprint_bypass",
+    "suppress_warning",
+    "ignore_warning",
+    "disable_warning",
+    "silence_warning",
+    "internal_view",
+)
+_FORBIDDEN_PUBLIC_EXPORT_FRAGMENTS = (
+    "Validator",
+    "Interpreter",
+    "Executor",
+    "InternalView",
+    "Ownership",
+    "OwnershipToken",
+    "OwnedFactory",
+    "AssumeOwned",
+)
+_PUBLIC_FRAME_OBJECT_PAYLOAD_COLUMN = "ownership_payload"
+_PUBLIC_FRAME_OBJECT_PAYLOAD_STATE = {
+    "list": ("list-start",),
+    "dict": ("dict-start",),
+    "array": (1.0, 2.0),
+    "set": ("set-start",),
+    "nested_array": (3.0, 4.0),
+    "nested_set": ("nested-set-start",),
+    "nested_list": ("nested-list-start",),
 }
 
 
@@ -463,6 +546,187 @@ def _check_packaged_scientific_resources(
         "manifest_sha256": hashlib.sha256(manifest_text.encode("utf-8")).hexdigest(),
         **digest_report,
     }
+
+
+def _check_public_boundary_integrity(
+    context: VerificationContext,
+) -> Mapping[str, object]:
+    outcomes: dict[str, object] = {}
+    probes: tuple[tuple[str, Callable[[], Mapping[str, object]]], ...] = (
+        ("public-signature-boundary", _probe_public_signature_boundary),
+        ("dataset-provenance-binding", _probe_dataset_provenance_binding),
+        ("public-dataframe-ownership", _probe_public_dataframe_ownership),
+        ("public-json-immutability", _probe_public_json_immutability),
+    )
+    for outcome_name, probe in probes:
+        try:
+            details = probe()
+        except VerificationError as exc:
+            raise VerificationError(f"{outcome_name}: {exc}") from exc
+        outcomes[outcome_name] = {"status": "pass", **dict(details)}
+    _require(
+        tuple(outcomes) == PUBLIC_BOUNDARY_OUTCOME_NAMES,
+        "public-boundary-integrity outcome registry changed unexpectedly",
+    )
+    return {
+        "outcomes": outcomes,
+        "required_outcome_names": list(PUBLIC_BOUNDARY_OUTCOME_NAMES),
+    }
+
+
+def _probe_public_signature_boundary() -> Mapping[str, object]:
+    exports = _public_boundary_exports()
+    forbidden_exports = _forbidden_public_exports(exports)
+    _require(
+        forbidden_exports == {},
+        "private boundary helpers exported from supported public namespaces: "
+        + "; ".join(
+            f"{name} ({reason})" for name, reason in sorted(forbidden_exports.items())
+        ),
+    )
+
+    signature_offenders: dict[str, list[str]] = {}
+    inspected_signatures: list[str] = []
+    for exported_name, exported in sorted(exports.items()):
+        if not (inspect.isclass(exported) or inspect.isfunction(exported)):
+            continue
+        forbidden = _forbidden_public_parameters(exported)
+        inspected_signatures.append(exported_name)
+        if forbidden:
+            signature_offenders[exported_name] = forbidden
+    _require(
+        signature_offenders == {},
+        "public signatures expose private boundary controls: "
+        + "; ".join(
+            f"{name}({', '.join(parameters)})"
+            for name, parameters in sorted(signature_offenders.items())
+        ),
+    )
+    return {
+        "exported_symbol_count": len(exports),
+        "inspected_signature_count": len(inspected_signatures),
+        "inspected_signatures": inspected_signatures,
+    }
+
+
+def _public_boundary_exports() -> dict[str, object]:
+    import phospy
+    import phospy.api as public_api
+
+    exports: dict[str, object] = {}
+    for module_name, module in (("phospy", phospy), ("phospy.api", public_api)):
+        names = getattr(module, "__all__", None)
+        _require(
+            isinstance(names, Sequence) and not isinstance(names, (str, bytes)),
+            f"{module_name}.__all__ must be a sequence of public names",
+        )
+        for name in names:
+            _require(
+                isinstance(name, str) and name.strip(),
+                f"{module_name}.__all__ contains a non-text export name",
+            )
+            _require(
+                not name.startswith("_"),
+                f"{module_name} exports private symbol {name!r}",
+            )
+            _require(hasattr(module, name), f"{module_name}.{name} is missing")
+            exports[f"{module_name}.{name}"] = getattr(module, name)
+    return exports
+
+
+def _forbidden_public_exports(exports: Mapping[str, object]) -> dict[str, str]:
+    offenders: dict[str, str] = {}
+    for exported_name in exports:
+        symbol_name = exported_name.rsplit(".", maxsplit=1)[1]
+        for fragment in _FORBIDDEN_PUBLIC_EXPORT_FRAGMENTS:
+            if fragment in symbol_name:
+                offenders[exported_name] = fragment
+                break
+    return offenders
+
+
+def _forbidden_public_parameters(owner: object) -> list[str]:
+    try:
+        parameters = inspect.signature(owner).parameters
+    except (TypeError, ValueError):
+        return []
+    return [
+        name
+        for name in parameters
+        if name not in {"self", "cls"} and _is_forbidden_public_parameter(name)
+    ]
+
+
+def _is_forbidden_public_parameter(name: str) -> bool:
+    normalized = name.lower()
+    if name.startswith("_") or normalized in _FORBIDDEN_PUBLIC_PARAMETER_EXACT:
+        return True
+    if any(
+        fragment in normalized for fragment in _FORBIDDEN_PUBLIC_PARAMETER_FRAGMENTS
+    ):
+        return True
+    if any(
+        fragment in normalized for fragment in ("validator", "interpreter", "executor")
+    ):
+        return True
+    disabling_tokens = ("skip", "disable", "bypass", "ignore", "suppress", "silence")
+    if "warning" in normalized and any(
+        token in normalized for token in disabling_tokens
+    ):
+        return True
+    if "validation" in normalized and any(
+        token in normalized for token in disabling_tokens
+    ):
+        return True
+    if "fingerprint" in normalized and any(
+        token in normalized for token in (*disabling_tokens, "trust")
+    ):
+        return True
+    if "check" in normalized and any(token in normalized for token in disabling_tokens):
+        return True
+    return False
+
+
+def _probe_dataset_provenance_binding() -> Mapping[str, object]:
+    dataset = _trusted_dataset(
+        identity_details={
+            "columns": ["site_key"],
+            "fixture": "public-boundary-integrity",
+        }
+    )
+    message = _expect_public_dataset_constructor_rejects_stale_provenance(dataset)
+    return {
+        "mutated_table": "dataset.phospho",
+        "stale_provenance_rejected": True,
+        "rejection_message": message,
+    }
+
+
+def _probe_public_dataframe_ownership() -> Mapping[str, object]:
+    probed_cases: list[str] = []
+    object_cell_cases: list[str] = []
+    for case in _public_frame_owner_cases():
+        _assert_numeric_frame_owner_case_isolated(case)
+        probed_cases.append(case.name)
+        if (
+            case.make_object_source is not None
+            and case.construct_from_object is not None
+            and case.observe_object_payload is not None
+        ):
+            _assert_object_frame_owner_case_isolated(case)
+            object_cell_cases.append(case.name)
+    return {
+        "probed_classes": probed_cases,
+        "nested_object_cell_classes": object_cell_cases,
+    }
+
+
+def _probe_public_json_immutability() -> Mapping[str, object]:
+    probed_fields: list[str] = []
+    for case in _json_immutability_cases():
+        _assert_json_owner_case_isolated(case)
+        probed_fields.append(case.name)
+    return {"probed_fields": probed_fields}
 
 
 def _check_corrected_construction_and_provenance_path(
@@ -936,6 +1200,256 @@ class _DerivedFixture:
     lineage: Any
 
 
+@dataclass(frozen=True, slots=True)
+class _PublicFrameOwnerCase:
+    name: str
+    make_numeric_source: Callable[[], Any]
+    construct_from_numeric: Callable[[Any], object]
+    observe_numeric: Callable[[object], Any]
+    make_object_source: Callable[[object], Any] | None = None
+    construct_from_object: Callable[[Any], object] | None = None
+    observe_object_payload: Callable[[object], object] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _JsonImmutabilityCase:
+    name: str
+    construct: Callable[[Mapping[str, object]], object]
+    observe: Callable[[object], object]
+
+
+def _public_frame_owner_cases() -> tuple[_PublicFrameOwnerCase, ...]:
+    return (
+        _PublicFrameOwnerCase(
+            name="AnalysisReadyPhosphoDataset.phospho/site_metadata",
+            make_numeric_source=_small_phospho,
+            construct_from_numeric=lambda frame: _analysis_ready_dataset_from_frames(
+                phospho=frame,
+                site_metadata=_sample_site_metadata(),
+            ),
+            observe_numeric=lambda owner: owner.to_dataframe(),
+            make_object_source=lambda payload: _object_payload_frame(
+                _sample_site_metadata(),
+                payload,
+            ),
+            construct_from_object=lambda frame: _analysis_ready_dataset_from_frames(
+                phospho=_small_phospho(),
+                site_metadata=frame,
+            ),
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.site_metadata_dataframe()
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="PhosphositeImportResult.phospho_matrix_candidate/site_metadata_candidate",
+            make_numeric_source=_small_phospho,
+            construct_from_numeric=lambda frame: _import_result_from_frames(
+                phospho=frame,
+                site_metadata=_sample_site_metadata(),
+            ),
+            observe_numeric=lambda owner: owner.phospho_matrix_candidate,
+            make_object_source=lambda payload: _object_payload_frame(
+                _sample_site_metadata(),
+                payload,
+            ),
+            construct_from_object=lambda frame: _import_result_from_frames(
+                phospho=_small_phospho(),
+                site_metadata=frame,
+            ),
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.site_metadata_candidate
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="DifferentialAnalysisResult.contrast_tables",
+            make_numeric_source=_differential_result_table,
+            construct_from_numeric=_differential_result_from_table,
+            observe_numeric=lambda owner: owner.table_for("B_vs_A"),
+            make_object_source=lambda payload: _object_payload_frame(
+                _differential_result_table(),
+                payload,
+            ),
+            construct_from_object=_differential_result_from_table,
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.table_for("B_vs_A")
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="KinaseActivityResult.activity_matrix/target_table",
+            make_numeric_source=_activity_matrix,
+            construct_from_numeric=_activity_result_from_matrix,
+            observe_numeric=lambda owner: owner.activity_matrix,
+            make_object_source=lambda payload: _object_payload_frame(
+                _activity_target_table(),
+                payload,
+            ),
+            construct_from_object=_activity_result_from_target_table,
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.target_table
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="KinaseScoringResult.profile_scores",
+            make_numeric_source=_kinase_score_matrix,
+            construct_from_numeric=_kinase_scoring_result_from_matrix,
+            observe_numeric=lambda owner: owner.profile_scores,
+        ),
+        _PublicFrameOwnerCase(
+            name="KinasePredictionResult.pred_mat/substrate_list",
+            make_numeric_source=_prediction_matrix,
+            construct_from_numeric=_kinase_prediction_result_from_matrix,
+            observe_numeric=lambda owner: owner.pred_mat,
+            make_object_source=lambda payload: _object_payload_frame(
+                _substrate_list(),
+                payload,
+            ),
+            construct_from_object=_kinase_prediction_result_from_substrate_list,
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.substrate_list
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="KinaseWorkflowResult.substrate_contributions",
+            make_numeric_source=_kinase_substrate_contribution_table,
+            construct_from_numeric=_kinase_workflow_result_from_contributions,
+            observe_numeric=lambda owner: owner.substrate_contributions,
+        ),
+        _PublicFrameOwnerCase(
+            name="SignalomeWorkflowResult.expanded_signalome",
+            make_numeric_source=_signalome_expanded_table,
+            construct_from_numeric=_signalome_result_from_expanded_table,
+            observe_numeric=lambda owner: owner.to_dataframe(),
+            make_object_source=lambda payload: _object_payload_frame(
+                _signalome_expanded_table(),
+                payload,
+            ),
+            construct_from_object=_signalome_result_from_expanded_table,
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.to_dataframe()
+            ),
+        ),
+        _PublicFrameOwnerCase(
+            name="ReferenceBundle.kinase_substrate_map",
+            make_numeric_source=_reference_kinase_map,
+            construct_from_numeric=lambda frame: _reference_bundle_from_kinase_map(
+                frame
+            ),
+            observe_numeric=lambda owner: owner.kinase_substrate_map_dataframe(),
+            make_object_source=lambda payload: _object_payload_frame(
+                _reference_kinase_map(),
+                payload,
+            ),
+            construct_from_object=lambda frame: _reference_bundle_from_kinase_map(
+                frame
+            ),
+            observe_object_payload=lambda owner: _first_object_payload(
+                owner.kinase_substrate_map_dataframe()
+            ),
+        ),
+    )
+
+
+def _json_immutability_cases() -> tuple[_JsonImmutabilityCase, ...]:
+    return (
+        _JsonImmutabilityCase(
+            name="ResultCaveat.details",
+            construct=lambda payload: _result_caveat_with_details(payload),
+            observe=lambda owner: owner.details,
+        ),
+        _JsonImmutabilityCase(
+            name="PhosphositeImportResult.diagnostics",
+            construct=lambda payload: _import_result_from_frames(
+                phospho=_small_phospho(),
+                site_metadata=_sample_site_metadata(),
+                diagnostics=payload,
+            ),
+            observe=lambda owner: owner.diagnostics,
+        ),
+        _JsonImmutabilityCase(
+            name="EnrichmentWorkflowResult.diagnostics",
+            construct=lambda payload: _enrichment_result_with_payload(
+                "diagnostics",
+                payload,
+            ),
+            observe=lambda owner: owner.diagnostics,
+        ),
+        _JsonImmutabilityCase(
+            name="EnrichmentWorkflowResult.method_metadata",
+            construct=lambda payload: _enrichment_result_with_payload(
+                "method_metadata",
+                payload,
+            ),
+            observe=lambda owner: owner.method_metadata,
+        ),
+        _JsonImmutabilityCase(
+            name="EnrichmentWorkflowResult.background_summary",
+            construct=lambda payload: _enrichment_result_with_payload(
+                "background_summary",
+                payload,
+            ),
+            observe=lambda owner: owner.background_summary,
+        ),
+        _JsonImmutabilityCase(
+            name="EnrichmentWorkflowResult.set_collection_summary",
+            construct=lambda payload: _enrichment_result_with_payload(
+                "set_collection_summary",
+                payload,
+            ),
+            observe=lambda owner: owner.set_collection_summary,
+        ),
+        _JsonImmutabilityCase(
+            name="BatchCorrectionResult.diagnostics",
+            construct=lambda payload: _batch_correction_result_with_diagnostics(
+                payload
+            ),
+            observe=lambda owner: owner.diagnostics,
+        ),
+        _JsonImmutabilityCase(
+            name="ProteinAwarePreparationReport.policy_parameters",
+            construct=lambda payload: _protein_aware_report_with_policy_parameters(
+                payload
+            ),
+            observe=lambda owner: owner.policy_parameters,
+        ),
+        _JsonImmutabilityCase(
+            name="IntensityScaleEstablishmentProvenance.parameters",
+            construct=lambda payload: _intensity_scale_provenance_with_parameters(
+                payload
+            ),
+            observe=lambda owner: owner.parameters,
+        ),
+        _JsonImmutabilityCase(
+            name="KinaseScoringResult.score_scale_metadata",
+            construct=lambda payload: _kinase_scoring_result_with_metadata(payload),
+            observe=lambda owner: owner.score_scale_metadata,
+        ),
+        _JsonImmutabilityCase(
+            name="KinaseWorkflowAttritionProvenance.metrics",
+            construct=lambda payload: _kinase_attrition_with_payload(
+                "metrics",
+                payload,
+            ),
+            observe=lambda owner: owner.metrics,
+        ),
+        _JsonImmutabilityCase(
+            name="KinaseWorkflowAttritionProvenance.policy",
+            construct=lambda payload: _kinase_attrition_with_payload(
+                "policy",
+                payload,
+            ),
+            observe=lambda owner: owner.policy,
+        ),
+        _JsonImmutabilityCase(
+            name="KinaseWorkflowAttritionProvenance.policy_violations",
+            construct=lambda payload: _kinase_attrition_with_payload(
+                "policy_violations",
+                payload,
+            ),
+            observe=lambda owner: owner.policy_violations[0],
+        ),
+    )
+
+
 def _trusted_dataset(*, identity_details: Mapping[str, object]) -> Any:
     import pandas as pd
 
@@ -959,7 +1473,640 @@ def _trusted_dataset(*, identity_details: Mapping[str, object]) -> Any:
     )
 
 
+def _small_phospho() -> Any:
+    import pandas as pd
+
+    return pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [2.0, 1.0],
+        },
+        index=_site_index().copy(),
+    )
+
+
+def _sample_site_metadata() -> Any:
+    return _site_metadata(_site_index(), sites=("Y182", "S9"))
+
+
+def _analysis_ready_dataset_from_frames(*, phospho: Any, site_metadata: Any) -> object:
+    from phospy.api import AnalysisReadyPhosphoDataset, Organism
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        return AnalysisReadyPhosphoDataset(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            intensity_scale_state=_supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=_supported_linear_processing_state(has_total_matrix=False),
+        )
+
+
+def _import_result_from_frames(
+    *,
+    phospho: Any,
+    site_metadata: Any,
+    diagnostics: Mapping[str, object] | None = None,
+) -> object:
+    from phospy.api import PhosphositeImportResult
+
+    return PhosphositeImportResult(
+        phospho_matrix_candidate=phospho,
+        site_metadata_candidate=site_metadata,
+        sample_column_mapping={"sample_a": "sample_a"},
+        diagnostics=diagnostics,
+    )
+
+
+def _differential_result_table() -> Any:
+    import numpy as np
+
+    table = _sample_site_metadata()
+    table.loc[:, "logFC"] = [1.0, -1.0]
+    table.loc[:, "t"] = [2.0, -2.0]
+    table.loc[:, "P.Value"] = [0.05, 0.10]
+    table.loc[:, "adj.P.Val"] = [0.10, 0.10]
+    table.loc[:, "result_status"] = ["tested", "tested"]
+    table.loc[:, "result_status_reason"] = ["", ""]
+    table.loc[:, "numeric_payload"] = np.asarray([1.0, 2.0])
+    return table
+
+
+def _differential_prior_diagnostics(index: Any) -> object:
+    import numpy as np
+    import pandas as pd
+
+    from phospy.science.differential.models.diagnostics import (
+        EmpiricalBayesPriorDiagnostics,
+    )
+
+    return EmpiricalBayesPriorDiagnostics(
+        method="standard",
+        robust=False,
+        trend=False,
+        winsor_tail_p=(0.05, 0.1),
+        base_prior_variance=1.0,
+        base_prior_degrees_of_freedom=10.0,
+        robust_outlier_count=0,
+        robust_outlier_fraction=0.0,
+        winsorized_low_count=0,
+        winsorized_high_count=0,
+        prior_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom=pd.Series(
+            np.full(index.size, 10.0),
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+    )
+
+
+def _differential_result_from_table(table: Any) -> object:
+    import numpy as np
+    import pandas as pd
+
+    from phospy.api.results import DifferentialAnalysisResult
+
+    index = table.index.copy()
+    return DifferentialAnalysisResult(
+        residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="residual_variance",
+        ),
+        posterior_residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="posterior_residual_variance",
+        ),
+        prior_residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom_series_value=pd.Series(
+            np.full(index.size, 10.0),
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+        prior_variance=1.0,
+        prior_degrees_of_freedom=10.0,
+        residual_degrees_of_freedom=4.0,
+        empirical_bayes_method="standard",
+        empirical_bayes_robust=False,
+        empirical_bayes_trend=False,
+        prior_diagnostics=_differential_prior_diagnostics(index),
+        mean_variance_trend_diagnostics=None,
+        contrast_tables={"B_vs_A": table},
+    )
+
+
+def _kinase_score_matrix() -> Any:
+    import pandas as pd
+
+    return pd.DataFrame(
+        {
+            "MAP2K6": [0.8, 0.2],
+            "AKT1": [0.2, 0.8],
+        },
+        index=_site_index().copy(),
+    )
+
+
+def _prediction_matrix() -> Any:
+    import pandas as pd
+
+    return pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.2, 0.1],
+        },
+        index=_site_index().copy(),
+    )
+
+
+def _activity_matrix() -> Any:
+    import pandas as pd
+
+    return pd.DataFrame(
+        {"MAP2K6": [1.0, 2.0], "AKT1": [0.5, 1.5]},
+        index=pd.Index(["sample_a", "sample_b"]),
+    )
+
+
+def _activity_target_table() -> Any:
+    return _target_table_rows(score_values=(0.9, 0.8))
+
+
+def _activity_result_from_matrix(matrix: Any) -> object:
+    import pandas as pd
+
+    from phospy.api.results import KinaseActivityResult
+
+    return KinaseActivityResult(
+        activity_matrix=matrix,
+        thresholded_substrate_mean_activity=_activity_matrix(),
+        thresholded_substrate_counts=pd.Series(
+            [2, 2],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_substrates",
+        ),
+        target_counts=pd.Series(
+            [1, 1],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_targets",
+        ),
+        target_table=_activity_target_table(),
+    )
+
+
+def _activity_result_from_target_table(table: Any) -> object:
+    import pandas as pd
+
+    from phospy.api.results import KinaseActivityResult
+
+    return KinaseActivityResult(
+        activity_matrix=_activity_matrix(),
+        thresholded_substrate_mean_activity=_activity_matrix(),
+        thresholded_substrate_counts=pd.Series(
+            [2, 2],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_substrates",
+        ),
+        target_counts=pd.Series(
+            [1, 1],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_targets",
+        ),
+        target_table=table,
+    )
+
+
+def _kinase_scoring_result_from_matrix(matrix: Any) -> object:
+    from phospy.api.results import KinaseScoringResult
+
+    return KinaseScoringResult(profile_scores=matrix)
+
+
+def _kinase_scoring_result_with_metadata(payload: Mapping[str, object]) -> object:
+    from phospy.api.results import KinaseScoringResult
+
+    return KinaseScoringResult(
+        profile_scores=_kinase_score_matrix(),
+        score_scale_metadata=payload,
+    )
+
+
+def _kinase_prediction_result_from_matrix(matrix: Any) -> object:
+    from phospy.api.results import KinasePredictionResult
+
+    return KinasePredictionResult(pred_mat=matrix)
+
+
+def _kinase_prediction_result_from_substrate_list(table: Any) -> object:
+    from phospy.api.results import KinasePredictionResult
+
+    return KinasePredictionResult(
+        pred_mat=_prediction_matrix(),
+        substrate_list=table,
+    )
+
+
+def _substrate_list() -> Any:
+    return _target_table_rows(score_values=(0.9, 0.8), include_rank=True)
+
+
+def _kinase_substrate_contribution_table() -> Any:
+    import pandas as pd
+
+    from phospy.tables.kinase import KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
+
+    return pd.DataFrame.from_records(
+        [
+            {
+                "kinase": "MAP2K6",
+                "substrate_site": "MAPK14;Y182;",
+                "substrate_identifier": "MAPK14;Y182;",
+                "value_used_in_scoring": 0.8,
+                "score_component": "rank_weighted_fusion_scores",
+                "score_source": "profile_only_motif_missing_or_constant",
+                "reference_source_name": "fixture",
+                "reference_source_version": "v1",
+                "reference_bundle_id": "fixture_bundle",
+                "reference_identifier_namespace": "display_id",
+                "status": "included",
+                "exclusion_reason": None,
+                "ambiguous": False,
+            }
+        ],
+        columns=pd.Index(KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS),
+    )
+
+
+def _kinase_workflow_result_from_contributions(table: Any) -> object:
+    from phospy.api.results import (
+        KinasePredictionResult,
+        KinaseScoringResult,
+        KinaseWorkflowResult,
+    )
+
+    return KinaseWorkflowResult(
+        dataset=_analysis_ready_dataset_from_frames(
+            phospho=_small_phospho(),
+            site_metadata=_sample_site_metadata(),
+        ),
+        references=_reference_bundle_from_kinase_map(_reference_kinase_map()),
+        scoring_result=KinaseScoringResult(profile_scores=_kinase_score_matrix()),
+        prediction_result=KinasePredictionResult(pred_mat=_prediction_matrix()),
+        substrate_contributions=table,
+    )
+
+
+def _signalome_expanded_table() -> Any:
+    import pandas as pd
+
+    from phospy.science.signalomes.constants import (
+        DISPLAY_ID_COLUMN,
+        SITE_KEY_COLUMN,
+    )
+
+    return pd.DataFrame(
+        {
+            SITE_KEY_COLUMN: _site_index().astype(str).tolist(),
+            DISPLAY_ID_COLUMN: ["MAPK14;Y182;", "GSK3B;S9;"],
+            "numeric_payload": [1.0, 2.0],
+        },
+        index=_site_index().copy(),
+    )
+
+
+def _signalome_result_from_expanded_table(table: Any) -> object:
+    from phospy.api.results import SignalomeWorkflowResult
+    from phospy.science.signalomes.models import (
+        KinaseNetwork,
+        SignalomeAssignments,
+        SignalomeModules,
+    )
+
+    return SignalomeWorkflowResult(
+        dataset=_analysis_ready_dataset_from_frames(
+            phospho=_small_phospho(),
+            site_metadata=_sample_site_metadata(),
+        ),
+        kinase_result=_kinase_workflow_result_from_contributions(
+            _kinase_substrate_contribution_table()
+        ),
+        module_assignments=SignalomeAssignments._from_owned(
+            table=_empty_signalome_assignments_table()
+        ),
+        signalome_modules=SignalomeModules._from_owned(
+            table=_empty_signalome_modules_table()
+        ),
+        kinase_network=KinaseNetwork._from_owned(edges=_empty_kinase_network_edges()),
+        expanded_signalome=table,
+    )
+
+
+def _empty_signalome_assignments_table() -> Any:
+    import pandas as pd
+
+    from phospy.science.signalomes.constants import (
+        DISPLAY_ID_COLUMN,
+        GENE_SYMBOL_COLUMN,
+        ISOFORM_ID_COLUMN,
+        MODULE_ID_COLUMN,
+        MODULE_TOP_KINASE_CANDIDATES_COLUMN,
+        MODULE_TOP_KINASE_COLUMN,
+        MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+        MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
+        MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
+        PROTEIN_ACCESSION_COLUMN,
+        PROTEIN_COLUMN,
+        SITE_COLUMN,
+        SITE_KEY_COLUMN,
+        TOP_KINASE_CANDIDATES_COLUMN,
+        TOP_KINASE_COLUMN,
+        TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+        TOP_KINASE_SELECTION_POLICY_COLUMN,
+        TOP_KINASE_TIE_COUNT_COLUMN,
+        TOP_KINASE_WEIGHTS_COLUMN,
+        TOP_SCORE_COLUMN,
+    )
+
+    columns = (
+        SITE_KEY_COLUMN,
+        DISPLAY_ID_COLUMN,
+        GENE_SYMBOL_COLUMN,
+        SITE_COLUMN,
+        PROTEIN_COLUMN,
+        PROTEIN_ACCESSION_COLUMN,
+        ISOFORM_ID_COLUMN,
+        MODULE_ID_COLUMN,
+        TOP_KINASE_COLUMN,
+        TOP_SCORE_COLUMN,
+        TOP_KINASE_CANDIDATES_COLUMN,
+        TOP_KINASE_WEIGHTS_COLUMN,
+        TOP_KINASE_TIE_COUNT_COLUMN,
+        TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+        TOP_KINASE_SELECTION_POLICY_COLUMN,
+        MODULE_TOP_KINASE_COLUMN,
+        MODULE_TOP_KINASE_CANDIDATES_COLUMN,
+        MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
+        MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+        MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
+    )
+    return pd.DataFrame(columns=columns, index=_site_index()[:0].copy())
+
+
+def _empty_signalome_modules_table() -> Any:
+    import pandas as pd
+
+    return pd.DataFrame({"MAP2K6": pd.Series(dtype="float64")})
+
+
+def _empty_kinase_network_edges() -> Any:
+    import pandas as pd
+
+    from phospy.science.signalomes.constants import (
+        CORRELATION_COLUMN,
+        SOURCE_KINASE_COLUMN,
+        TARGET_KINASE_COLUMN,
+    )
+
+    return pd.DataFrame(
+        columns=(SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN, CORRELATION_COLUMN)
+    )
+
+
+def _reference_kinase_map() -> Any:
+    import pandas as pd
+
+    return pd.DataFrame(
+        {
+            "kinase": ["MAP2K6", "AKT1"],
+            "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            "numeric_payload": [1.0, 2.0],
+        }
+    )
+
+
+def _reference_bundle_from_kinase_map(kinase_substrate_map: Any) -> object:
+    from phospy.api import Organism, ReferenceBundle
+
+    return ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=kinase_substrate_map,
+        site_sequences=_reference_site_sequences(),
+    )
+
+
+def _reference_site_sequences() -> Any:
+    import pandas as pd
+
+    return pd.DataFrame(
+        {
+            "site_sequence": [
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+            ]
+        },
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+
+
+def _target_table_rows(
+    *,
+    score_values: tuple[float, float],
+    include_rank: bool = False,
+) -> Any:
+    import pandas as pd
+
+    payload: dict[str, object] = {
+        "kinase": ["MAP2K6", "AKT1"],
+        "site_id": ["MAPK14;Y182;", "GSK3B;S9;"],
+        "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+        "site_key": _site_index().astype(str).tolist(),
+        "display_id": ["MAPK14;Y182;", "GSK3B;S9;"],
+        "score": list(score_values),
+    }
+    if include_rank:
+        payload["rank"] = [1, 1]
+    return pd.DataFrame(payload)
+
+
+def _result_caveat_with_details(payload: Mapping[str, object]) -> object:
+    from phospy.api import ResultCaveat
+
+    return ResultCaveat(
+        code="public_boundary_json",
+        severity="info",
+        message="JSON state is protected.",
+        details=payload,
+    )
+
+
+def _enrichment_result_with_payload(
+    field_name: str,
+    payload: Mapping[str, object],
+) -> object:
+    from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+    from phospy.contracts.configs import EnrichmentConfig
+    from phospy.contracts.results import EnrichmentWorkflowResult
+    from phospy.science.enrichment.models import GeneSetCollection
+
+    values: dict[str, object] = {
+        "diagnostics": {},
+        "method_metadata": {},
+        "background_summary": {},
+        "set_collection_summary": {},
+    }
+    values[field_name] = payload
+    return EnrichmentWorkflowResult(
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={"mapk_pathway": ("AKT1", "MAPK1")},
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        ),
+        config=EnrichmentConfig(),
+        **values,
+    )
+
+
+def _batch_correction_result_with_diagnostics(
+    payload: Mapping[str, object],
+) -> object:
+    import pandas as pd
+
+    from phospy.science.datasets.preprocessing.batch_correction import (
+        BATCH_CORRECTION_STATUS_APPLIED,
+        BatchCorrectionDiagnostics,
+        BatchCorrectionPolicy,
+        BatchCorrectionReport,
+        BatchCorrectionResult,
+    )
+
+    report = BatchCorrectionReport(
+        status=BATCH_CORRECTION_STATUS_APPLIED,
+        policy=BatchCorrectionPolicy(
+            method="linear_residualize_batch",
+            batch_column="batch",
+            condition_column="condition",
+        ),
+        diagnostics=BatchCorrectionDiagnostics(
+            number_of_batches=2,
+            batch_levels=("b1", "b2"),
+            condition_levels=("A", "B"),
+            matrix_shape_before=(1, 1),
+            matrix_shape_after=(1, 1),
+        ),
+    )
+    return BatchCorrectionResult(
+        corrected_matrix=pd.DataFrame(
+            {"sample_a": [1.0]},
+            index=pd.Index(["site_a"], name="site_id"),
+        ),
+        report=report,
+        diagnostics=payload,
+    )
+
+
+def _protein_aware_report_with_policy_parameters(
+    payload: Mapping[str, object],
+) -> object:
+    from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+        ProteinAwarePreparationEligibility,
+        ProteinAwareSampleAlignmentDiagnostics,
+    )
+    from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+        ProteinAwarePreparationReport,
+        ProteinAwareSiteEligibility,
+    )
+    from phospy.science.datasets.preprocessing.protein_mapping import (
+        ProteinMappingStatus,
+    )
+
+    return ProteinAwarePreparationReport(
+        site_eligibility=(
+            ProteinAwareSiteEligibility(
+                site_key="site_a",
+                eligibility=(
+                    ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY
+                ),
+                mapping_status=ProteinMappingStatus.MISSING_SITE_PROTEIN_IDENTIFIER,
+                reasons=("compact verifier fixture",),
+            ),
+        ),
+        sample_alignment=ProteinAwareSampleAlignmentDiagnostics(
+            phospho_sample_columns=("sample_a",),
+            total_protein_sample_columns=("sample_a",),
+            exact_sample_order_match=True,
+            sample_order_compatible=True,
+            reordered_sample_columns=False,
+            allow_reordered_samples=False,
+            missing_total_protein_samples=(),
+            extra_total_protein_samples=(),
+        ),
+        policy_parameters=payload,
+    )
+
+
+def _intensity_scale_provenance_with_parameters(
+    payload: Mapping[str, object],
+) -> object:
+    from phospy.science.transformations.models import (
+        IntensityScaleEstablishmentMode,
+        IntensityScaleEstablishmentProvenance,
+        IntensityScaleEstablishmentSource,
+        IntensityScaleEvidenceLevel,
+    )
+
+    return IntensityScaleEstablishmentProvenance(
+        scale="linear",
+        mode=IntensityScaleEstablishmentMode.DECLARED,
+        source=IntensityScaleEstablishmentSource.DECLARED_BY_USER,
+        evidence_level=IntensityScaleEvidenceLevel.DECLARED_BY_USER,
+        parameters=payload,
+    )
+
+
+def _kinase_attrition_with_payload(
+    field_name: str,
+    payload: Mapping[str, object],
+) -> object:
+    from phospy.api.results import KinaseWorkflowAttritionProvenance
+
+    values: dict[str, object] = {
+        "metrics": {"retained": 2},
+        "policy": {"minimum_scored_fraction": 0.5},
+        "policy_violations": (),
+    }
+    if field_name == "policy_violations":
+        values[field_name] = (payload,)
+    else:
+        values[field_name] = payload
+    return KinaseWorkflowAttritionProvenance(
+        metrics=values["metrics"],
+        policy=values["policy"],
+        policy_outcome="warned",
+        policy_violations=values["policy_violations"],
+    )
+
+
 def _expect_direct_constructor_rejects_stale_provenance(dataset: Any) -> str:
+    return _expect_public_dataset_constructor_rejects_stale_provenance(dataset)
+
+
+def _expect_public_dataset_constructor_rejects_stale_provenance(
+    dataset: Any,
+    *,
+    constructor: Callable[..., object] | None = None,
+) -> str:
     from phospy.api import AnalysisReadyPhosphoDataset
     from phospy.errors import DatasetValidationError
 
@@ -969,7 +2116,8 @@ def _expect_direct_constructor_rejects_stale_provenance(dataset: Any) -> str:
     def _construct_with_stale_provenance() -> Any:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            return AnalysisReadyPhosphoDataset(
+            dataset_constructor = constructor or AnalysisReadyPhosphoDataset
+            return dataset_constructor(
                 phospho=phospho,
                 site_metadata=dataset.site_metadata,
                 sample_metadata=dataset.sample_metadata,
@@ -1357,6 +2505,265 @@ def _decoded_index(index: Any) -> tuple[Any, ...]:
     )
 
 
+def _assert_numeric_frame_owner_case_isolated(case: _PublicFrameOwnerCase) -> None:
+    source = case.make_numeric_source()
+    owner = case.construct_from_numeric(source)
+    before = _require_frame(case.observe_numeric(owner), field_name=case.name).copy(
+        deep=True
+    )
+
+    _mutate_first_numeric_cell(source, 999.0)
+    _assert_frame_equal(
+        _require_frame(case.observe_numeric(owner), field_name=case.name),
+        before,
+        label=f"{case.name} retained caller-owned DataFrame input",
+    )
+
+    exported = _require_frame(case.observe_numeric(owner), field_name=case.name)
+    _mutate_first_numeric_cell(exported, 777.0)
+    _assert_frame_equal(
+        _require_frame(case.observe_numeric(owner), field_name=case.name),
+        before,
+        label=f"{case.name} returned a mutable public DataFrame alias",
+    )
+
+
+def _assert_object_frame_owner_case_isolated(case: _PublicFrameOwnerCase) -> None:
+    _require(
+        case.make_object_source is not None
+        and case.construct_from_object is not None
+        and case.observe_object_payload is not None,
+        f"{case.name} object-cell ownership probe is incomplete",
+    )
+    payload = _mutable_object_payload()
+    source = case.make_object_source(payload)
+    owner = case.construct_from_object(source)
+
+    _mutate_object_payload(payload, "caller")
+    observed_payload = case.observe_object_payload(owner)
+    _require(
+        _object_payload_state(observed_payload) == _PUBLIC_FRAME_OBJECT_PAYLOAD_STATE,
+        f"{case.name} retained caller-owned nested object-dtype cell",
+    )
+
+    exported_payload = case.observe_object_payload(owner)
+    _mutate_object_payload(exported_payload, "export")
+    _require(
+        _object_payload_state(case.observe_object_payload(owner))
+        == _PUBLIC_FRAME_OBJECT_PAYLOAD_STATE,
+        f"{case.name} returned a mutable public nested object-dtype cell alias",
+    )
+
+
+def _assert_json_owner_case_isolated(case: _JsonImmutabilityCase) -> None:
+    source = _mutable_json_payload()
+    owner = case.construct(source)
+    before = _json_state(case.observe(owner))
+
+    _mutate_json_payload(source, "caller")
+    _require(
+        _json_state(case.observe(owner)) == before,
+        f"{case.name} retained caller-owned JSON mapping state",
+    )
+
+    exported_payload = _detached_json_payload(case.observe(owner))
+    _mutate_json_payload(exported_payload, "export")
+    _require(
+        _json_state(case.observe(owner)) == before,
+        f"{case.name} returned nested mutable JSON state",
+    )
+
+
+def _require_frame(value: object, *, field_name: str) -> Any:
+    import pandas as pd
+
+    _require(
+        isinstance(value, pd.DataFrame), f"{field_name} did not expose a DataFrame"
+    )
+    return value
+
+
+def _assert_frame_equal(left: Any, right: Any, *, label: str) -> None:
+    import pandas as pd
+
+    try:
+        pd.testing.assert_frame_equal(left, right)
+    except AssertionError as exc:
+        raise VerificationError(f"{label}: {exc}") from exc
+
+
+def _first_numeric_column(frame: Any) -> str:
+    import pandas as pd
+
+    for column in frame.columns:
+        if pd.api.types.is_numeric_dtype(frame.loc[:, column]):
+            return str(column)
+    raise VerificationError("public DataFrame ownership probe has no numeric column")
+
+
+def _mutate_first_numeric_cell(frame: Any, value: float) -> None:
+    column = _first_numeric_column(frame)
+    frame.loc[frame.index[0], column] = value
+
+
+def _object_payload_frame(frame: Any, payload: object) -> Any:
+    copied = frame.copy(deep=True)
+    copied.loc[:, _PUBLIC_FRAME_OBJECT_PAYLOAD_COLUMN] = [
+        payload,
+        *[_mutable_object_payload() for _ in range(len(copied.index) - 1)],
+    ]
+    return copied
+
+
+def _first_object_payload(frame: Any) -> object:
+    _require(
+        _PUBLIC_FRAME_OBJECT_PAYLOAD_COLUMN in frame.columns,
+        "public DataFrame ownership probe lost the nested object payload column",
+    )
+    return frame.loc[frame.index[0], _PUBLIC_FRAME_OBJECT_PAYLOAD_COLUMN]
+
+
+def _mutable_object_payload() -> dict[str, object]:
+    import numpy as np
+
+    return {
+        "list": ["list-start"],
+        "dict": {"inner": ["dict-start"]},
+        "array": np.asarray([1.0, 2.0]),
+        "set": {"set-start"},
+        "nested": [
+            {"array": np.asarray([3.0, 4.0])},
+            {"set": {"nested-set-start"}},
+            ["nested-list-start"],
+        ],
+    }
+
+
+def _mutate_object_payload(payload: object, marker: str) -> None:
+    import numpy as np
+
+    _require(isinstance(payload, dict), "object payload must be a dict")
+    list_value = payload["list"]
+    dict_value = payload["dict"]
+    array_value = payload["array"]
+    set_value = payload["set"]
+    nested_value = payload["nested"]
+    _require(isinstance(list_value, list), "object payload list is invalid")
+    _require(isinstance(dict_value, dict), "object payload dict is invalid")
+    _require(isinstance(array_value, np.ndarray), "object payload array is invalid")
+    _require(isinstance(set_value, set), "object payload set is invalid")
+    _require(isinstance(nested_value, list), "object payload nested list is invalid")
+    nested_array_mapping = nested_value[0]
+    nested_set_mapping = nested_value[1]
+    nested_list = nested_value[2]
+    _require(isinstance(nested_array_mapping, dict), "nested array mapping is invalid")
+    _require(isinstance(nested_set_mapping, dict), "nested set mapping is invalid")
+    _require(isinstance(nested_list, list), "nested list is invalid")
+    nested_array = nested_array_mapping["array"]
+    nested_set = nested_set_mapping["set"]
+    _require(isinstance(nested_array, np.ndarray), "nested array is invalid")
+    _require(isinstance(nested_set, set), "nested set is invalid")
+
+    list_value.append(f"{marker}-list")
+    dict_inner = dict_value["inner"]
+    _require(isinstance(dict_inner, list), "nested dict inner list is invalid")
+    dict_inner.append(f"{marker}-dict")
+    array_value[0] = 99.0
+    set_value.add(f"{marker}-set")
+    nested_array[0] = 88.0
+    nested_set.add(f"{marker}-nested-set")
+    nested_list.append(f"{marker}-nested-list")
+
+
+def _object_payload_state(payload: object) -> dict[str, tuple[object, ...]]:
+    import numpy as np
+
+    _require(isinstance(payload, dict), "object payload must be a dict")
+    nested_value = payload["nested"]
+    _require(isinstance(nested_value, list), "object payload nested list is invalid")
+    nested_array_mapping = nested_value[0]
+    nested_set_mapping = nested_value[1]
+    nested_list = nested_value[2]
+    _require(isinstance(nested_array_mapping, dict), "nested array mapping is invalid")
+    _require(isinstance(nested_set_mapping, dict), "nested set mapping is invalid")
+    _require(isinstance(nested_list, list), "nested list is invalid")
+    array_value = payload["array"]
+    nested_array = nested_array_mapping["array"]
+    set_value = payload["set"]
+    nested_set = nested_set_mapping["set"]
+    dict_value = payload["dict"]
+    list_value = payload["list"]
+    _require(isinstance(array_value, np.ndarray), "object payload array is invalid")
+    _require(isinstance(nested_array, np.ndarray), "nested array is invalid")
+    _require(isinstance(set_value, set), "object payload set is invalid")
+    _require(isinstance(nested_set, set), "nested set is invalid")
+    _require(isinstance(dict_value, dict), "object payload dict is invalid")
+    _require(isinstance(list_value, list), "object payload list is invalid")
+    dict_inner = dict_value["inner"]
+    _require(isinstance(dict_inner, list), "nested dict inner list is invalid")
+    return {
+        "list": tuple(list_value),
+        "dict": tuple(dict_inner),
+        "array": tuple(float(value) for value in array_value.tolist()),
+        "set": tuple(sorted(str(value) for value in set_value)),
+        "nested_array": tuple(float(value) for value in nested_array.tolist()),
+        "nested_set": tuple(sorted(str(value) for value in nested_set)),
+        "nested_list": tuple(nested_list),
+    }
+
+
+def _mutable_json_payload() -> dict[str, object]:
+    return {
+        "nested": {
+            "items": [1],
+            "metadata": {"markers": ["start"]},
+        },
+        "rows": [{"values": [1, 2]}],
+    }
+
+
+def _mutate_json_payload(payload: object, marker: str) -> None:
+    _require(isinstance(payload, dict), "JSON payload must be a mutable dict")
+    nested = payload["nested"]
+    rows = payload["rows"]
+    _require(isinstance(nested, dict), "JSON payload nested value must be a dict")
+    _require(isinstance(rows, list), "JSON payload rows value must be a list")
+    items = nested["items"]
+    metadata = nested["metadata"]
+    _require(isinstance(items, list), "JSON payload nested items must be a list")
+    _require(isinstance(metadata, dict), "JSON payload metadata must be a dict")
+    markers = metadata["markers"]
+    _require(isinstance(markers, list), "JSON payload metadata markers must be a list")
+    row = rows[0]
+    _require(isinstance(row, dict), "JSON payload row must be a dict")
+    values = row["values"]
+    _require(isinstance(values, list), "JSON payload row values must be a list")
+    items.append(marker)
+    markers.append(marker)
+    values.append(marker)
+
+
+def _detached_json_payload(value: object) -> dict[str, object]:
+    copier = getattr(value, "copy", None)
+    if callable(copier):
+        payload = copier()
+    else:
+        payload = copy.deepcopy(value)
+    _require(isinstance(payload, dict), "JSON payload export must be a dict")
+    return payload
+
+
+def _json_state(value: object) -> object:
+    if isinstance(value, Mapping):
+        return tuple(
+            (str(key), _json_state(item))
+            for key, item in sorted(value.items(), key=lambda item: str(item[0]))
+        )
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return tuple(_json_state(item) for item in value)
+    return value
+
+
 def _try_mutate_public_provenance_details(dataset: Any) -> None:
     try:
         public_parameters = dataset.provenance.workflow_parameters
@@ -1690,6 +3097,7 @@ _CHECKS: tuple[tuple[str, CheckFunction], ...] = (
     ("artifact-manifest-binding", _check_artifact_manifest_binding),
     ("installed-package-identity", _check_installed_package_identity),
     ("packaged-scientific-resources", _check_packaged_scientific_resources),
+    ("public-boundary-integrity", _check_public_boundary_integrity),
     (
         "corrected-construction-and-provenance-path",
         _check_corrected_construction_and_provenance_path,

@@ -171,7 +171,7 @@ def test_conflicting_sequence_error_policy_fails_before_scoring() -> None:
     site_key = site_key_from_display_id("GENE1;S10;")
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        KinaseWorkflow(executor=executor).run(
+        KinaseWorkflow._with_components(executor=executor).run(
             _request(policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR)
         )
 

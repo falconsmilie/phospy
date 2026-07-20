@@ -436,7 +436,7 @@ def test_executor_receives_aggregated_matrix() -> None:
             observed_columns.extend(request.matrix.columns.astype(str).tolist())
             return DifferentialComputationExecutor().run(request)
 
-    workflow = DifferentialAnalysisWorkflow(
+    workflow = DifferentialAnalysisWorkflow()._with_components(
         executor=DifferentialAnalysisExecutor(
             computation_executor=_ComputationExecutorSpy()  # type: ignore[arg-type]
         )

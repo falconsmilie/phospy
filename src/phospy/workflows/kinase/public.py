@@ -17,12 +17,35 @@ from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 class KinaseWorkflow:
     """Public entrypoint for the kinase workflow."""
 
-    def __init__(
-        self,
+    def __init__(self) -> None:
+        self._init_components(
+            validator=None,
+            interpreter=None,
+            executor=None,
+        )
+
+    @classmethod
+    def _with_components(
+        cls,
         *,
         validator: KinaseWorkflowValidatorContract | None = None,
         interpreter: KinaseWorkflowInterpreterContract | None = None,
         executor: KinaseWorkflowExecutorContract | None = None,
+    ) -> KinaseWorkflow:
+        workflow = cls.__new__(cls)
+        workflow._init_components(
+            validator=validator,
+            interpreter=interpreter,
+            executor=executor,
+        )
+        return workflow
+
+    def _init_components(
+        self,
+        *,
+        validator: KinaseWorkflowValidatorContract | None,
+        interpreter: KinaseWorkflowInterpreterContract | None,
+        executor: KinaseWorkflowExecutorContract | None,
     ) -> None:
         self._validator = validator or KinaseWorkflowValidator()
         self._interpreter = interpreter or KinaseWorkflowInterpreter()

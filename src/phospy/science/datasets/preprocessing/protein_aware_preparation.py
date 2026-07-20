@@ -17,6 +17,7 @@ from phospy.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.science.configs.preprocessing.total_protein import (
@@ -339,7 +340,11 @@ class ProteinAwarePreparationReport:
         object.__setattr__(
             self,
             "policy_parameters",
-            dict(policy_parameters or {}),
+            freeze_json_mapping_with_error_type(
+                policy_parameters or {},
+                field_name="protein_aware_preparation_report.policy_parameters",
+                error_type=DatasetValidationError,
+            ),
         )
         object.__setattr__(self, "provenance", provenance)
         object.__setattr__(self, "schema_version", int(schema_version))

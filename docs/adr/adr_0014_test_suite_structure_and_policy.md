@@ -25,6 +25,8 @@ The codebase now includes:
 
 - golden fixtures for representative public workflow outputs
 - provenance golden contracts
+- public-boundary adversarial gates for exported API signatures, provenance
+  binding, DataFrame ownership, and recursive JSON immutability
 - parity tests with distinct purpose from golden tests
 - dedicated performance contract tests under `tests/performance/`
 
@@ -37,6 +39,7 @@ not ordinary local default unit-test behavior and are not manual-only checks.
 2. Separate parity, golden, and performance purposes.
 3. Preserve deterministic replay-critical metadata in provenance tests.
 4. Make release blocking policy explicit for scientific production quality.
+5. Prevent public-boundary regressions from hiding behind broad coverage volume.
 
 ## Decision
 
@@ -47,8 +50,21 @@ PhosPy test categories remain:
 - `tests/unit`
 - `tests/integration`
 - `tests/parity`
+- `tests/architecture`
 
 `parity` remains opt-in at local default pytest invocation.
+
+### Public-Boundary Adversarial Governance
+
+1. `tests/architecture/test_public_boundary_integrity.py` inventories
+   `phospy.__all__`, `phospy.api.__all__`, and public result/evidence JSON-like
+   model fields.
+2. `tests/unit/test_public_boundary_adversarial.py` runs compact runtime probes
+   for public signatures, dataset provenance binding, DataFrame ownership, and
+   JSON immutability.
+3. The installed-artifact verifier repeats the same invariant categories through
+   `public-boundary-integrity` without importing repository tests or fixtures.
+4. Public-boundary failures block release attestation.
 
 ### Golden and Provenance Regression Governance
 
@@ -137,8 +153,11 @@ PhosPy test categories remain:
 - `tests/integration/test_signalome_workflow_integration.py`
 - `tests/unit/test_scientific_invariants.py`
 - `tests/parity/`
+- `tests/architecture/test_public_boundary_integrity.py`
+- `tests/unit/test_public_boundary_adversarial.py`
 - `tests/performance/test_performance_contracts.py`
 - `tests/support/performance_contracts.py`
+- `docs/testing/public_boundary_invariant_checklist.md`
 - `docs/performance.md`
 - `docs/maintenance.md`
 - `docs/testing/pytest_markers.md`
@@ -164,6 +183,8 @@ Future changes must satisfy all the following:
 5. Is release-gate semantics preserved (not default local, not manual-only)?
 6. For stochastic preprocessing methods, are seed and imputation provenance
    fields explicitly tested?
+7. Are supported public boundaries still covered by source and installed-artifact
+   adversarial probes?
 
 ## References
 
@@ -174,4 +195,3 @@ i349-i356.
 
 YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR
-

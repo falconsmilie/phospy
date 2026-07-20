@@ -330,7 +330,7 @@ def test_enrichment_workflow_run_rejects_invalid_request_before_execution() -> N
     )
 
     with pytest.raises(WorkflowValidationError, match="identifier_kind"):
-        EnrichmentWorkflow(executor=_ExecutorMustNotRun()).run(request)  # type: ignore[arg-type]
+        EnrichmentWorkflow._with_components(executor=_ExecutorMustNotRun()).run(request)  # type: ignore[arg-type]
 
 
 def test_enrichment_validation_preserves_selected_identifiers_with_explicit_drop() -> (

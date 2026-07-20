@@ -202,7 +202,7 @@ def test_differential_block_fixed_block_invalid_design_skips_executor() -> None:
         WorkflowValidationError,
         match="fixed_block.*at least 2 samples.*incomplete blocks",
     ):
-        DifferentialAnalysisWorkflow(
+        DifferentialAnalysisWorkflow._with_components(
             executor=_ExecutorSpy(),  # type: ignore[arg-type]
         ).run(
             _workflow_request(

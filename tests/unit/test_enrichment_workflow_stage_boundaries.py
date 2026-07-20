@@ -72,7 +72,7 @@ def test_enrichment_workflow_calls_validator_interpreter_executor_in_order() -> 
             assert request is interpreted
             return expected_result
 
-    result = EnrichmentWorkflow(
+    result = EnrichmentWorkflow._with_components(
         validator=_Validator(),  # type: ignore[arg-type]
         interpreter=_Interpreter(),  # type: ignore[arg-type]
         executor=_Executor(),  # type: ignore[arg-type]

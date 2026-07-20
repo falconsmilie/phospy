@@ -201,7 +201,7 @@ def test_kinase_attrition_policy_error_blocks_scoring() -> None:
             raise AssertionError("kinase scoring must not run after policy error")
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        KinaseWorkflow(executor=_ExecutorMustNotRun()).run(
+        KinaseWorkflow._with_components(executor=_ExecutorMustNotRun()).run(
             _request(_strict_scored_fraction_policy(on_violation="error"))
         )
 

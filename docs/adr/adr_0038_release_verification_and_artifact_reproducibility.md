@@ -37,6 +37,9 @@ Release verification requires:
 - wheel and sdist reference-bundle validation against the committed Git index;
 - wheel and sdist installation checks on every supported Python version; and
 - retained duration, JUnit, release metadata, and performance-budget reports.
+- installed-artifact `public-boundary-integrity` verification with passing
+  detail outcomes for public signatures, dataset provenance binding, public
+  DataFrame ownership, and public JSON immutability.
 
 The Pyright development requirement in `pyproject.toml` and the CI constraint
 in `constraints/ci.txt` must move together. CI type checking must install the
@@ -58,7 +61,8 @@ update `docs/performance.md` and the constants in
 
 The release-policy tests under `tests/release/` enforce the documented command,
 the supported Python matrix, the Pyright constraint alignment, the Git-index
-reference-bundle check, and the wheel/sdist artifact checks.
+reference-bundle check, the wheel/sdist artifact checks, and the
+public-boundary integrity attestation details.
 
 This ADR amends ADR-0014's release-gate policy and ADR-0015's reference-data
 release rules by making clean supported-version verification and artifact

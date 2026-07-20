@@ -152,7 +152,7 @@ def test_differential_executor_receives_only_eligible_rows() -> None:
 
     computation_executor = _ComputationExecutorSpy()
 
-    DifferentialAnalysisWorkflow(
+    DifferentialAnalysisWorkflow._with_components(
         executor=DifferentialWorkflowExecutor(
             computation_executor=computation_executor,  # type: ignore[arg-type]
         )
@@ -478,7 +478,7 @@ def test_differential_all_rows_filtered_before_model_fit_fails_before_executor()
         WorkflowBoundaryError,
         match="differential.interpreter.feature_eligibility",
     ) as exc_info:
-        DifferentialAnalysisWorkflow(executor=executor).run(  # type: ignore[arg-type]
+        DifferentialAnalysisWorkflow._with_components(executor=executor).run(  # type: ignore[arg-type]
             DifferentialAnalysisRequest(
                 dataset=_dataset_from_matrix(
                     matrix=matrix,

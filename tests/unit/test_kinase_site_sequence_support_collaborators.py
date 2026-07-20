@@ -209,7 +209,7 @@ def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
     executor = _ExecutorSentinel()
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        KinaseWorkflow(
+        KinaseWorkflow._with_components(
             interpreter=KinaseWorkflowInterpreter(),
             executor=cast(KinaseWorkflowExecutorContract, executor),
         ).run(request)
@@ -243,7 +243,9 @@ def test_interpreter_default_prefer_reference_records_conflict_diagnostics_in_pr
             "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
-    result = KinaseWorkflow(interpreter=KinaseWorkflowInterpreter()).run(
+    result = KinaseWorkflow._with_components(
+        interpreter=KinaseWorkflowInterpreter()
+    ).run(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,

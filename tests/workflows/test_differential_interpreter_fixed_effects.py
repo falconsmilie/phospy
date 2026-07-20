@@ -221,7 +221,7 @@ def test_differential_interpreter_passes_fixed_effect_inputs_to_executor() -> No
         ),
         fixed_effects=(CategoricalCovariate("sex"),),
     )
-    result = DifferentialAnalysisWorkflow(
+    result = DifferentialAnalysisWorkflow._with_components(
         executor=_ExecutorSpy(),  # type: ignore[arg-type]
     ).run(
         DifferentialAnalysisRequest(
@@ -268,7 +268,7 @@ def test_differential_block_fixed_block_inputs_are_passed_to_executor() -> None:
         )
     )
 
-    result = DifferentialAnalysisWorkflow(
+    result = DifferentialAnalysisWorkflow._with_components(
         executor=_ExecutorSpy(),  # type: ignore[arg-type]
     ).run(
         DifferentialAnalysisRequest(

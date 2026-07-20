@@ -457,7 +457,7 @@ def test_enrichment_workflow_stage_collaboration() -> None:
             calls.append(("executor", value))
             return expected
 
-    result = EnrichmentWorkflow(
+    result = EnrichmentWorkflow._with_components(
         validator=Validator(),
         interpreter=Interpreter(),
         executor=Executor(),

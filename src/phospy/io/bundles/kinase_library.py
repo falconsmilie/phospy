@@ -16,8 +16,22 @@ from phospy.science.references.kinase_library import (
 class KinaseLibraryResourceLoader(_KinaseLibraryResourceLoader):
     """Public local-file loader wired with the concrete source table reader."""
 
-    def __init__(
+    def __init__(self) -> None:
+        self._init_components(source_reader=None)
+
+    @classmethod
+    def _with_components(
+        cls,
+        *,
+        source_reader: ReferenceSourceTableReader | None = None,
+    ) -> KinaseLibraryResourceLoader:
+        loader = cls.__new__(cls)
+        loader._init_components(source_reader=source_reader)
+        return loader
+
+    def _init_components(
         self,
+        *,
         source_reader: ReferenceSourceTableReader | None = None,
     ) -> None:
         super().__init__(source_reader=source_reader or ReferenceSourceTableReader())

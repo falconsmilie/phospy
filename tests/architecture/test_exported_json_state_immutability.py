@@ -23,7 +23,17 @@ from phospy.contracts.results import (
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.immutability import FrozenJsonMapping
 from phospy.provenance.models import JsonValue
+from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+)
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwarePreparationReport,
+    ProteinAwareSiteEligibility,
+)
+from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
 from phospy.science.enrichment.models import GeneSetCollection
+from phospy.science.prediction.models import KinaseScoringResult
 
 _IMMUTABLE_JSON_FIELDS = {
     "phospy.contracts.results.base.ImporterMissingIntensitySummary."
@@ -61,6 +71,13 @@ _IMMUTABLE_JSON_FIELDS = {
     "policy_violations": (
         "contract-owned kinase attrition policy violation payloads; recursively frozen"
     ),
+    "phospy.science.datasets.preprocessing.protein_aware_preparation."
+    "ProteinAwarePreparationReport.policy_parameters": (
+        "protein-aware preprocessing policy JSON; recursively frozen"
+    ),
+    "phospy.science.prediction.models.KinaseScoringResult.score_scale_metadata": (
+        "kinase score-scale evidence metadata; recursively frozen"
+    ),
     "phospy.science.result_caveats.ResultCaveat.details": (
         "common result caveat JSON details; recursively frozen"
     ),
@@ -70,19 +87,12 @@ _REVIEWED_JSON_FIELD_ALLOWLIST = {
     "phospy.contracts.results.base.PhosphositeImportResult._sample_column_mapping": (
         "private scalar str->str map; public sample_column_mapping returns a copy"
     ),
-    "phospy.science.datasets.preprocessing.protein_aware_preparation."
-    "ProteinAwarePreparationReport.policy_parameters": (
-        "PHOSPY-REV-003 domain inventory entry for preprocessing diagnostics"
-    ),
     "phospy.science.differential.models.results.DifferentialAnalysisResult."
     "workflow_provenance": (
         "PHOSPY-REV-003 domain inventory entry for differential provenance"
     ),
     "phospy.science.differential.models.results.DifferentialAnalysisResult."
     "_contrast_tables": "private DataFrame mapping; DataFrame ownership is PHOSPY-REV-002",
-    "phospy.science.prediction.models.KinaseScoringResult.score_scale_metadata": (
-        "PHOSPY-REV-004 domain inventory entry for kinase score-scale metadata"
-    ),
 }
 
 
@@ -136,6 +146,48 @@ def _minimal_enrichment_result() -> EnrichmentWorkflowResult:
     )
 
 
+def _minimal_protein_aware_report() -> ProteinAwarePreparationReport:
+    return ProteinAwarePreparationReport(
+        site_eligibility=(
+            ProteinAwareSiteEligibility(
+                site_key="site_a",
+                eligibility=(
+                    ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY
+                ),
+                mapping_status=ProteinMappingStatus.MISSING_SITE_PROTEIN_IDENTIFIER,
+                reasons=("compact architecture fixture",),
+            ),
+        ),
+        sample_alignment=ProteinAwareSampleAlignmentDiagnostics(
+            phospho_sample_columns=("sample_a",),
+            total_protein_sample_columns=("sample_a",),
+            exact_sample_order_match=True,
+            sample_order_compatible=True,
+            reordered_sample_columns=False,
+            allow_reordered_samples=False,
+            missing_total_protein_samples=(),
+            extra_total_protein_samples=(),
+        ),
+        policy_parameters={"nested": {"items": [1]}},
+    )
+
+
+def _minimal_kinase_scoring_result() -> KinaseScoringResult:
+    index = pd.Index(
+        [
+            (
+                "phospy:v1|organism=rat|protein_namespace=protein_id|"
+                "protein_identifier=MAPK14|residue=Y|position=182"
+            )
+        ],
+        name="site_key",
+    )
+    return KinaseScoringResult(
+        profile_scores=pd.DataFrame({"MAP2K6": [0.8]}, index=index),
+        score_scale_metadata={"nested": {"items": [1]}},
+    )
+
+
 def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
     expected = set(_IMMUTABLE_JSON_FIELDS) | set(_REVIEWED_JSON_FIELD_ALLOWLIST)
 
@@ -148,6 +200,8 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
     )
     import_result = _minimal_import_result(diagnostics={"nested": {"items": [1]}})
     enrichment_result = _minimal_enrichment_result()
+    protein_aware_report = _minimal_protein_aware_report()
+    kinase_scoring_result = _minimal_kinase_scoring_result()
     kinase_attrition = KinaseWorkflowAttritionProvenance(
         metrics={"nested": {"items": [1]}},
         policy={"nested": {"items": [1]}},
@@ -193,6 +247,12 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
         "policy": kinase_attrition.policy,
         "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
         "policy_violations": kinase_attrition.policy_violations,
+        "phospy.science.datasets.preprocessing.protein_aware_preparation."
+        "ProteinAwarePreparationReport.policy_parameters": (
+            protein_aware_report.policy_parameters
+        ),
+        "phospy.science.prediction.models.KinaseScoringResult."
+        "score_scale_metadata": kinase_scoring_result.score_scale_metadata,
         "phospy.science.result_caveats.ResultCaveat.details": caveat.details,
     }
 

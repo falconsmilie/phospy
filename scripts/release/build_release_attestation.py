@@ -53,6 +53,7 @@ class _Policy:
     required_artifact_kinds: tuple[str, ...]
     required_matrix: tuple[tuple[str, str], ...]
     required_verifier_check_names: tuple[str, ...]
+    required_verifier_detail_outcomes: dict[str, tuple[str, ...]]
     required_source_suite_report_ids: tuple[str, ...]
     source_suite_report_classes: dict[str, tuple[str, ...]]
     required_report_classes: tuple[str, ...]
@@ -243,6 +244,22 @@ def _load_policy(path: Path, *, evidence_root: Path) -> _Policy:
             + ", ".join(unknown_classes),
         )
 
+    required_verifier_check_names = tuple(
+        _unique_text_list(
+            payload.get("required_verifier_check_names"),
+            field_name="required_verifier_check_names",
+        )
+    )
+    required_verifier_detail_outcomes = _required_verifier_detail_outcomes(payload)
+    unknown_detail_checks = sorted(
+        set(required_verifier_detail_outcomes) - set(required_verifier_check_names)
+    )
+    _require(
+        unknown_detail_checks == [],
+        "required_verifier_detail_outcomes declares unknown verifier checks: "
+        + ", ".join(unknown_detail_checks),
+    )
+
     payload["_filename"] = evidence.filename
     return _Policy(
         path=evidence.path,
@@ -251,12 +268,8 @@ def _load_policy(path: Path, *, evidence_root: Path) -> _Policy:
         supported_python_versions=supported_python_versions,
         required_artifact_kinds=required_artifact_kinds,
         required_matrix=required_matrix,
-        required_verifier_check_names=tuple(
-            _unique_text_list(
-                payload.get("required_verifier_check_names"),
-                field_name="required_verifier_check_names",
-            )
-        ),
+        required_verifier_check_names=required_verifier_check_names,
+        required_verifier_detail_outcomes=required_verifier_detail_outcomes,
         required_source_suite_report_ids=source_suite_report_ids,
         source_suite_report_classes=source_suite_report_classes,
         required_report_classes=required_report_classes,
@@ -306,6 +319,29 @@ def _source_suite_report_classes(
             _unique_text_list(
                 raw_classes,
                 field_name=f"source_suite_report_classes[{suite_id}]",
+            )
+        )
+    return result
+
+
+def _required_verifier_detail_outcomes(
+    payload: Mapping[str, object],
+) -> dict[str, tuple[str, ...]]:
+    value = payload.get("required_verifier_detail_outcomes", {})
+    _require(
+        isinstance(value, Mapping),
+        "required_verifier_detail_outcomes must be an object",
+    )
+    result: dict[str, tuple[str, ...]] = {}
+    for raw_check_name, raw_outcomes in value.items():
+        check_name = _required_text(
+            raw_check_name,
+            field_name="required verifier detail check name",
+        )
+        result[check_name] = tuple(
+            _unique_text_list(
+                raw_outcomes,
+                field_name=f"required_verifier_detail_outcomes[{check_name}]",
             )
         )
     return result
@@ -706,10 +742,58 @@ def _validate_required_verifier_checks(
             name not in observed, f"duplicate artifact verifier check name: {name!r}"
         )
         _require(status == "pass", f"artifact verifier check did not pass: {name}")
+        _validate_required_verifier_detail_outcomes(
+            entry=entry,
+            check_name=name,
+            required_outcomes=policy.required_verifier_detail_outcomes.get(name, ()),
+        )
         observed[name] = status
     missing = sorted(set(policy.required_verifier_check_names) - set(observed))
     _require(missing == [], "missing artifact verifier checks: " + ", ".join(missing))
     return {name: "pass" for name in policy.required_verifier_check_names}
+
+
+def _validate_required_verifier_detail_outcomes(
+    *,
+    entry: Mapping[str, object],
+    check_name: str,
+    required_outcomes: Sequence[str],
+) -> None:
+    if not required_outcomes:
+        return
+    details = _required_mapping(
+        entry.get("details"),
+        field_name=f"artifact-verification {check_name}.details",
+    )
+    outcomes = _required_mapping(
+        details.get("outcomes"),
+        field_name=f"artifact-verification {check_name}.details.outcomes",
+    )
+    missing = sorted(set(required_outcomes) - set(outcomes))
+    _require(
+        missing == [],
+        f"artifact verifier check {check_name} is missing required detail outcomes: "
+        + ", ".join(missing),
+    )
+    for outcome_name in required_outcomes:
+        outcome = _required_mapping(
+            outcomes.get(outcome_name),
+            field_name=(
+                f"artifact-verification {check_name}.details.outcomes[{outcome_name}]"
+            ),
+        )
+        status = _required_text(
+            outcome.get("status"),
+            field_name=(
+                f"artifact-verification {check_name}.details.outcomes"
+                f"[{outcome_name}].status"
+            ),
+        )
+        _require(
+            status == "pass",
+            "artifact verifier detail outcome did not pass: "
+            f"{check_name}/{outcome_name}",
+        )
 
 
 def _scientific_resources_from_report(

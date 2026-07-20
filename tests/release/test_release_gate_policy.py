@@ -218,6 +218,18 @@ def test_publish_workflow_cannot_publish_without_scientific_release_gate() -> No
     assert "packages-dir: build/publish/" in pypi
 
 
+def test_attestation_policy_requires_public_boundary_artifact_gate() -> None:
+    policy = json.loads(_read("release/attestation-policy.json"))
+
+    assert "public-boundary-integrity" in policy["required_verifier_check_names"]
+    assert policy["required_verifier_detail_outcomes"]["public-boundary-integrity"] == [
+        "public-signature-boundary",
+        "dataset-provenance-binding",
+        "public-dataframe-ownership",
+        "public-json-immutability",
+    ]
+
+
 def test_make_release_gate_covers_declared_blocking_marker_policy() -> None:
     markers = _pytest_markers()
     assert markers == {

@@ -42,10 +42,19 @@
     "artifact-manifest-binding",
     "installed-package-identity",
     "packaged-scientific-resources",
+    "public-boundary-integrity",
     "corrected-construction-and-provenance-path",
     "corrected-derived-and-ownership-path",
     "corrected-differential-path"
   ],
+  "required_verifier_detail_outcomes": {
+    "public-boundary-integrity": [
+      "public-signature-boundary",
+      "dataset-provenance-binding",
+      "public-dataframe-ownership",
+      "public-json-immutability"
+    ]
+  },
   "required_report_classes": [
     "scientific",
     "parity",

@@ -161,6 +161,72 @@ def test_verifier_rejects_metadata_runtime_version_disagreement(
         verifier._check_installed_package_identity(context)
 
 
+def test_verifier_rejects_checkout_module_loaded_after_runtime_check(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    verifier = _load_verifier()
+    artifact_path, manifest_path, _artifact_sha256 = _write_artifact_attestation_inputs(
+        tmp_path
+    )
+    report_path = tmp_path / "artifact-report.json"
+    package_init = tmp_path / "site-packages" / "phospy" / "__init__.py"
+    package_init.parent.mkdir(parents=True)
+    package_init.write_text("", encoding="utf-8")
+    contaminant = tmp_path / "repo" / "src" / "phospy" / "contaminated.py"
+    contaminant.parent.mkdir(parents=True)
+    contaminant.write_text("", encoding="utf-8")
+
+    def _identity_check(context: object) -> dict[str, object]:
+        context.package_root = package_init.parent
+        context.distribution_version = "1.6.0"
+        monkeypatch.setitem(
+            sys.modules,
+            "phospy",
+            _fake_phospy_module(package_init, version="1.6.0"),
+        )
+        return {"metadata_version": "1.6.0", "runtime_version": "1.6.0"}
+
+    def _contaminating_check(context: object) -> dict[str, object]:
+        module = ModuleType("phospy.contaminated")
+        module.__file__ = str(contaminant)
+        monkeypatch.setitem(sys.modules, "phospy.contaminated", module)
+        return {"ok": True}
+
+    _clear_phospy_modules(monkeypatch)
+    monkeypatch.setattr(
+        verifier,
+        "_CHECKS",
+        (
+            ("artifact-manifest-binding", verifier._check_artifact_manifest_binding),
+            ("installed-package-identity", _identity_check),
+            ("public-boundary-integrity", _contaminating_check),
+        ),
+    )
+
+    exit_status = verifier.main(
+        [
+            "--artifact-kind",
+            "wheel",
+            "--artifact-path",
+            str(artifact_path),
+            "--build-manifest",
+            str(manifest_path),
+            "--repository-root",
+            str(tmp_path / "repo"),
+            "--report-json",
+            str(report_path),
+        ]
+    )
+
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    checks = {check["name"]: check for check in payload["check_details"]}
+    assert exit_status == 1
+    assert payload["status"] == "failure"
+    assert checks["public-boundary-integrity"]["status"] == "fail"
+    assert "source checkout" in checks["public-boundary-integrity"]["message"]
+
+
 def test_verifier_rejects_digest_invalid_scientific_resource(
     tmp_path: Path,
 ) -> None:
@@ -215,6 +281,7 @@ def test_verifier_report_exposes_stable_artifact_attestation_contract(
             ("artifact-manifest-binding", verifier._check_artifact_manifest_binding),
             ("installed-package-identity", _identity_check),
             ("packaged-scientific-resources", _pass_check),
+            ("public-boundary-integrity", _pass_check),
             ("corrected-construction-and-provenance-path", _pass_check),
             ("corrected-derived-and-ownership-path", _pass_check),
             ("corrected-differential-path", _pass_check),
@@ -254,6 +321,10 @@ def test_verifier_report_exposes_stable_artifact_attestation_contract(
         "installed_import_origin": "pass",
         "package_metadata": "pass",
         "scientific_resources": "pass",
+        "public_signature_boundary": "pass",
+        "dataset_provenance_binding": "pass",
+        "public_dataframe_ownership": "pass",
+        "public_json_immutability": "pass",
         "trusted_construction": "pass",
         "provenance_immutability": "pass",
         "derived_lineage": "pass",
@@ -261,6 +332,36 @@ def test_verifier_report_exposes_stable_artifact_attestation_contract(
         "differential_execution": "pass",
     }
     assert payload["check_details"][0]["name"] == "artifact-manifest-binding"
+    assert [check["name"] for check in payload["check_details"]] == [
+        "artifact-manifest-binding",
+        "installed-package-identity",
+        "packaged-scientific-resources",
+        "public-boundary-integrity",
+        "corrected-construction-and-provenance-path",
+        "corrected-derived-and-ownership-path",
+        "corrected-differential-path",
+    ]
+
+
+def test_public_boundary_integrity_probe_reports_required_detail_outcomes(
+    tmp_path: Path,
+) -> None:
+    verifier = _load_verifier()
+
+    details = verifier._check_public_boundary_integrity(
+        _identity_context(verifier, tmp_path)
+    )
+
+    outcomes = details["outcomes"]
+    assert tuple(outcomes) == (
+        "public-signature-boundary",
+        "dataset-provenance-binding",
+        "public-dataframe-ownership",
+        "public-json-immutability",
+    )
+    assert {name: outcome["status"] for name, outcome in outcomes.items()} == {
+        name: "pass" for name in outcomes
+    }
 
 
 def test_corrected_construction_probe_rejects_stale_direct_constructor_provenance(

@@ -123,7 +123,7 @@ def test_builder_propagates_invalid_input_table_failures() -> None:
         def run(self, request: object) -> object:
             raise PhosPyInputError("dataset.phospho has an invalid input table shape")
 
-    builder = AnalysisReadyDatasetBuilder(
+    builder = AnalysisReadyDatasetBuilder._with_components(
         validator=InvalidInputValidator(),
         interpreter=_PassThroughInterpreter(),
         executor=_UnexpectedExecutor(),
@@ -139,7 +139,7 @@ def test_kinase_workflow_propagates_invalid_user_config_failures() -> None:
                 "invalid user config: scoring_config.min_substrates must be >= 2"
             )
 
-    workflow = KinaseWorkflow(
+    workflow = KinaseWorkflow._with_components(
         validator=InvalidConfigValidator(),
         interpreter=_PassThroughInterpreter(),
         executor=_UnexpectedExecutor(),
@@ -155,7 +155,7 @@ def test_kinase_workflow_propagates_invalid_reference_schema_failures() -> None:
                 "reference schema validation failed: missing substrate_site column"
             )
 
-    workflow = KinaseWorkflow(
+    workflow = KinaseWorkflow._with_components(
         validator=_PassThroughValidator(),
         interpreter=InvalidReferenceInterpreter(),
         executor=_UnexpectedExecutor(),
@@ -171,7 +171,7 @@ def test_signalome_workflow_propagates_resource_limit_guard_failures() -> None:
                 "signalome scale guard blocked execution: site count exceeds max_full_candidate_scoring_sites"
             )
 
-    workflow = SignalomeWorkflow(
+    workflow = SignalomeWorkflow._with_components(
         validator=_PassThroughValidator(),
         interpreter=_PassThroughInterpreter(),
         executor=ResourceLimitExecutor(),
@@ -181,7 +181,7 @@ def test_signalome_workflow_propagates_resource_limit_guard_failures() -> None:
 
 
 def test_builder_does_not_wrap_unexpected_internal_exceptions() -> None:
-    builder = AnalysisReadyDatasetBuilder(
+    builder = AnalysisReadyDatasetBuilder._with_components(
         validator=_PassThroughValidator(),
         interpreter=_PassThroughInterpreter(),
         executor=_UnexpectedExecutor(),

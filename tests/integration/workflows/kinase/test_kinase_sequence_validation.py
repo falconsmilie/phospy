@@ -165,7 +165,7 @@ def test_invalid_fixed_window_sequence_is_rejected_before_scoring() -> None:
     )
 
     with pytest.raises(WorkflowValidationError) as exc_info:
-        KinaseWorkflow(executor=_ExecutorMustNotRun()).run(request)
+        KinaseWorkflow._with_components(executor=_ExecutorMustNotRun()).run(request)
 
     message = str(exc_info.value)
     assert "workflow-specific sequence context contract failed" in message

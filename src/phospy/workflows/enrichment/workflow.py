@@ -17,12 +17,35 @@ from phospy.workflows.enrichment.validator import EnrichmentWorkflowValidator
 class EnrichmentWorkflow:
     """Public entrypoint for enrichment workflow execution."""
 
-    def __init__(
-        self,
+    def __init__(self) -> None:
+        self._init_components(
+            validator=None,
+            interpreter=None,
+            executor=None,
+        )
+
+    @classmethod
+    def _with_components(
+        cls,
         *,
         validator: EnrichmentWorkflowValidatorContract | None = None,
         interpreter: EnrichmentWorkflowInterpreterContract | None = None,
         executor: EnrichmentWorkflowExecutorContract | None = None,
+    ) -> EnrichmentWorkflow:
+        workflow = cls.__new__(cls)
+        workflow._init_components(
+            validator=validator,
+            interpreter=interpreter,
+            executor=executor,
+        )
+        return workflow
+
+    def _init_components(
+        self,
+        *,
+        validator: EnrichmentWorkflowValidatorContract | None,
+        interpreter: EnrichmentWorkflowInterpreterContract | None,
+        executor: EnrichmentWorkflowExecutorContract | None,
     ) -> None:
         self._validator = validator or EnrichmentWorkflowValidator()
         self._interpreter = interpreter or EnrichmentWorkflowInterpreter()

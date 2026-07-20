@@ -222,21 +222,39 @@ def _write_artifact_report(
                     "name": name,
                     "status": "pass",
                     "duration_seconds": 0.0,
-                    "details": (
-                        {
-                            "bundle": "rat/l6_native",
-                            "manifest_sha256": "3" * 64,
-                            "manifest_file_count": 5,
-                        }
-                        if name == "packaged-scientific-resources"
-                        else {}
-                    ),
+                    "details": _artifact_check_detail_payload(name),
                 }
                 for name in check_names
             ],
             "distribution": {"name": "phospy", "version": package_version},
         },
     )
+
+
+def _artifact_check_detail_payload(name: str) -> dict[str, Any]:
+    if name == "packaged-scientific-resources":
+        return {
+            "bundle": "rat/l6_native",
+            "manifest_sha256": "3" * 64,
+            "manifest_file_count": 5,
+        }
+    if name == "public-boundary-integrity":
+        return {
+            "outcomes": {
+                "public-signature-boundary": {"status": "pass"},
+                "dataset-provenance-binding": {"status": "pass"},
+                "public-dataframe-ownership": {"status": "pass"},
+                "public-json-immutability": {"status": "pass"},
+            }
+        }
+    return {}
+
+
+def _artifact_check_detail(payload: dict[str, Any], name: str) -> dict[str, Any]:
+    for check in payload["check_details"]:
+        if check["name"] == name:
+            return check
+    raise AssertionError(f"missing artifact check detail: {name}")
 
 
 def _attest(evidence: EvidenceSet) -> None:
@@ -445,6 +463,79 @@ def test_failed_artifact_verification_report_is_rejected(tmp_path: Path) -> None
     builder = _load_module(BUILDER_PATH, "attestation_failed_artifact")
 
     with pytest.raises(builder.ReleaseAttestationError, match="did not report success"):
+        _attest_with_builder(builder, evidence)
+
+
+@pytest.mark.parametrize(
+    ("status", "match"),
+    [
+        ("fail", "artifact verifier check did not pass"),
+        ("skipped", "artifact verifier check did not pass"),
+    ],
+)
+def test_public_boundary_artifact_check_status_is_release_blocking(
+    tmp_path: Path,
+    status: str,
+    match: str,
+) -> None:
+    evidence = _complete_evidence(tmp_path)
+    payload = _read_json(evidence.artifact_reports[0])
+    check = _artifact_check_detail(payload, "public-boundary-integrity")
+    check["status"] = status
+    _write_json(evidence.artifact_reports[0], payload)
+    builder = _load_module(BUILDER_PATH, f"attestation_public_boundary_{status}")
+
+    with pytest.raises(builder.ReleaseAttestationError, match=match):
+        _attest_with_builder(builder, evidence)
+
+
+def test_missing_public_boundary_artifact_check_is_release_blocking(
+    tmp_path: Path,
+) -> None:
+    evidence = _complete_evidence(tmp_path)
+    payload = _read_json(evidence.artifact_reports[0])
+    payload["check_details"] = [
+        check
+        for check in payload["check_details"]
+        if check["name"] != "public-boundary-integrity"
+    ]
+    _write_json(evidence.artifact_reports[0], payload)
+    builder = _load_module(BUILDER_PATH, "attestation_public_boundary_missing")
+
+    with pytest.raises(builder.ReleaseAttestationError, match="missing artifact"):
+        _attest_with_builder(builder, evidence)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        ("missing", "missing required detail outcomes"),
+        ("renamed", "missing required detail outcomes"),
+        ("failed", "detail outcome did not pass"),
+        ("skipped", "detail outcome did not pass"),
+    ],
+)
+def test_public_boundary_artifact_detail_outcomes_are_release_blocking(
+    tmp_path: Path,
+    mutation: str,
+    match: str,
+) -> None:
+    evidence = _complete_evidence(tmp_path)
+    payload = _read_json(evidence.artifact_reports[0])
+    check = _artifact_check_detail(payload, "public-boundary-integrity")
+    outcomes = check["details"]["outcomes"]
+    if mutation == "missing":
+        del outcomes["public-json-immutability"]
+    elif mutation == "renamed":
+        outcomes["public-json-mutability"] = outcomes.pop("public-json-immutability")
+    elif mutation == "failed":
+        outcomes["public-json-immutability"]["status"] = "fail"
+    elif mutation == "skipped":
+        outcomes["public-json-immutability"]["status"] = "skipped"
+    _write_json(evidence.artifact_reports[0], payload)
+    builder = _load_module(BUILDER_PATH, f"attestation_public_detail_{mutation}")
+
+    with pytest.raises(builder.ReleaseAttestationError, match=match):
         _attest_with_builder(builder, evidence)
 
 

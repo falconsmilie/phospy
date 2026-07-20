@@ -349,7 +349,7 @@ def test_builder_orchestration_uses_collaborators() -> None:
             calls.append("executor")
             return dataset
 
-    builder = AnalysisReadyDatasetBuilder(
+    builder = AnalysisReadyDatasetBuilder._with_components(
         validator=ValidatorSpy(),
         interpreter=InterpreterSpy(),
         executor=ExecutorSpy(),
@@ -404,7 +404,7 @@ def test_builder_orchestration_threads_preprocessing_config_to_executor() -> Non
             )
             return dataset
 
-    built = AnalysisReadyDatasetBuilder(
+    built = AnalysisReadyDatasetBuilder._with_components(
         validator=ValidatorSpy(),
         interpreter=InterpreterSpy(),
         executor=ExecutorSpy(),
@@ -539,7 +539,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
             calls.append("executor")
             return expected
 
-    workflow = KinaseWorkflow(
+    workflow = KinaseWorkflow._with_components(
         validator=ValidatorSpy(),
         interpreter=InterpreterSpy(),
         executor=ExecutorSpy(),
@@ -661,7 +661,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
             calls.append("executor")
             return expected
 
-    workflow = SignalomeWorkflow(
+    workflow = SignalomeWorkflow._with_components(
         validator=ValidatorSpy(),
         interpreter=InterpreterSpy(),
         executor=ExecutorSpy(),

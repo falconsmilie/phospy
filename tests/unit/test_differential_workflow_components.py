@@ -285,7 +285,7 @@ def test_differential_workflow_calls_validator_interpreter_executor_in_order() -
             assert request is interpreted
             return expected_result
 
-    result = DifferentialAnalysisWorkflow(
+    result = DifferentialAnalysisWorkflow._with_components(
         validator=_Validator(),  # type: ignore[arg-type]
         interpreter=_Interpreter(),  # type: ignore[arg-type]
         executor=_Executor(),  # type: ignore[arg-type]
@@ -298,7 +298,7 @@ def test_differential_workflow_calls_validator_interpreter_executor_in_order() -
 def test_differential_workflow_dependency_injection_supports_real_stage_contracts() -> (
     None
 ):
-    workflow = DifferentialAnalysisWorkflow(
+    workflow = DifferentialAnalysisWorkflow._with_components(
         validator=DifferentialAnalysisValidator(),
         interpreter=DifferentialAnalysisInterpreter(),
         executor=DifferentialAnalysisExecutor(),
@@ -640,7 +640,7 @@ def test_differential_invalid_contrast_fails_before_executor() -> None:
         ),
     )
 
-    workflow = DifferentialAnalysisWorkflow(executor=_ExecutorSpy())  # type: ignore[arg-type]
+    workflow = DifferentialAnalysisWorkflow._with_components(executor=_ExecutorSpy())  # type: ignore[arg-type]
     with pytest.raises(WorkflowValidationError):
         workflow.run(bad_request)
     assert calls["executor"] == 0
@@ -664,7 +664,7 @@ def test_differential_misaligned_design_fails_before_executor() -> None:
         )
     )
 
-    workflow = DifferentialAnalysisWorkflow(executor=_ExecutorSpy())  # type: ignore[arg-type]
+    workflow = DifferentialAnalysisWorkflow._with_components(executor=_ExecutorSpy())  # type: ignore[arg-type]
     with pytest.raises(WorkflowValidationError):
         workflow.run(
             DifferentialAnalysisRequest(
@@ -756,7 +756,7 @@ def test_differential_invalid_scale_fails_before_executor() -> None:
         processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
     with pytest.raises(WorkflowValidationError):
-        DifferentialAnalysisWorkflow(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
+        DifferentialAnalysisWorkflow._with_components(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
             DifferentialAnalysisRequest(
                 dataset=linear_dataset,
                 design=_request().design,
@@ -784,7 +784,7 @@ def test_differential_unknown_scale_fails_before_executor() -> None:
         WorkflowValidationError,
         match="requires established log2-scale phospho intensities",
     ):
-        DifferentialAnalysisWorkflow(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
+        DifferentialAnalysisWorkflow._with_components(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
             DifferentialAnalysisRequest(
                 dataset=dataset,
                 design=_request().design,
@@ -816,7 +816,7 @@ def test_differential_workflow_rejects_imputed_dataset_before_executor() -> None
         WorkflowValidationError,
         match="imputed cells as observed measurements",
     ):
-        DifferentialAnalysisWorkflow(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
+        DifferentialAnalysisWorkflow._with_components(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
             DifferentialAnalysisRequest(
                 dataset=imputed_dataset,
                 design=request.design,

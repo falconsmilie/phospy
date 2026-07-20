@@ -45,14 +45,43 @@ class AnalysisReadyDatasetBuilder(_AnalysisReadyDatasetBuilder):
     analysis-ready dataset boundary.
     """
 
-    def __init__(
-        self,
+    def __init__(self) -> None:
+        self._init_components(
+            validator=None,
+            interpreter=None,
+            executor=None,
+            path_reader=None,
+            batch_correction_runner=None,
+        )
+
+    @classmethod
+    def _with_components(
+        cls,
         *,
         validator: DatasetBuildValidatorContract | None = None,
         interpreter: DatasetBuildInterpreterContract | None = None,
         executor: DatasetBuildExecutorContract | None = None,
         path_reader: DatasetPathTableReader | None = None,
         batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
+    ) -> AnalysisReadyDatasetBuilder:
+        builder = cls.__new__(cls)
+        builder._init_components(
+            validator=validator,
+            interpreter=interpreter,
+            executor=executor,
+            path_reader=path_reader,
+            batch_correction_runner=batch_correction_runner,
+        )
+        return builder
+
+    def _init_components(
+        self,
+        *,
+        validator: DatasetBuildValidatorContract | None,
+        interpreter: DatasetBuildInterpreterContract | None,
+        executor: DatasetBuildExecutorContract | None,
+        path_reader: DatasetPathTableReader | None,
+        batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None,
     ) -> None:
         if interpreter is None:
             interpreter = DatasetBuildRequestInterpreter(
@@ -99,10 +128,23 @@ class AnalysisReadyDatasetBuilder(_AnalysisReadyDatasetBuilder):
 class ReferenceBundleBuilder(_ReferenceBundleBuilder):
     """Public reference-bundle builder with default local table reader wiring."""
 
-    def __init__(
-        self,
+    def __init__(self) -> None:
+        self._init_components(source_reader=None)
+
+    @classmethod
+    def _with_components(
+        cls,
         *,
         source_reader: ReferenceSourceTableReader | None = None,
+    ) -> ReferenceBundleBuilder:
+        builder = cls.__new__(cls)
+        builder._init_components(source_reader=source_reader)
+        return builder
+
+    def _init_components(
+        self,
+        *,
+        source_reader: ReferenceSourceTableReader | None,
     ) -> None:
         super().__init__(
             source_reader=source_reader or ReferenceSourceTableReader(),

@@ -718,7 +718,7 @@ def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> No
         },
         index=phospho.index.copy(),
     )
-    builder = AnalysisReadyDatasetBuilder(
+    builder = AnalysisReadyDatasetBuilder._with_components(
         executor=DatasetBuildExecutor(preprocessor=NoopPreprocessor())
     )
 

@@ -378,7 +378,7 @@ def test_kinase_workflow_calls_validator_interpreter_executor_in_order() -> None
             assert request is interpreted
             return expected_result
 
-    result = KinaseWorkflow(
+    result = KinaseWorkflow._with_components(
         validator=_Validator(),  # type: ignore[arg-type]
         interpreter=_Interpreter(),  # type: ignore[arg-type]
         executor=_Executor(),  # type: ignore[arg-type]

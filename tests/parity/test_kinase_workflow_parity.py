@@ -311,46 +311,54 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
     # intentionally exercises the resolved execution contract, where missing
     # values are allowed in the activity matrix used by the scoring lane.
     assert dataset.phospho.notna().all().all()
-    strict = KinaseWorkflow(
-        interpreter=_MixedMissingActivityInterpreter(
-            missing_display_id="GENEA;S2;",
-            missing_sample="sample_c",
+    strict = (
+        KinaseWorkflow()
+        ._with_components(
+            interpreter=_MixedMissingActivityInterpreter(
+                missing_display_id="GENEA;S2;",
+                missing_sample="sample_c",
+            )
         )
-    ).run(
-        KinaseWorkflowRequest(
-            dataset=dataset,
-            references=references,
-            scoring_config=_scoring_config(
-                min_substrates=2,
-                profile_missing_value_strategy="strict",
-            ),
-            prediction_config=KinasePredictionConfig(
-                top_k=2,
-                deterministic_max_selected_kinases=2,
-                adaptive_ensemble_runs=2,
-            ),
-            activity_config=None,
+        .run(
+            KinaseWorkflowRequest(
+                dataset=dataset,
+                references=references,
+                scoring_config=_scoring_config(
+                    min_substrates=2,
+                    profile_missing_value_strategy="strict",
+                ),
+                prediction_config=KinasePredictionConfig(
+                    top_k=2,
+                    deterministic_max_selected_kinases=2,
+                    adaptive_ensemble_runs=2,
+                ),
+                activity_config=None,
+            )
         )
     )
-    median_skipna = KinaseWorkflow(
-        interpreter=_MixedMissingActivityInterpreter(
-            missing_display_id="GENEA;S2;",
-            missing_sample="sample_c",
+    median_skipna = (
+        KinaseWorkflow()
+        ._with_components(
+            interpreter=_MixedMissingActivityInterpreter(
+                missing_display_id="GENEA;S2;",
+                missing_sample="sample_c",
+            )
         )
-    ).run(
-        KinaseWorkflowRequest(
-            dataset=dataset,
-            references=references,
-            scoring_config=_scoring_config(
-                min_substrates=2,
-                profile_missing_value_strategy="median_skipna",
-            ),
-            prediction_config=KinasePredictionConfig(
-                top_k=2,
-                deterministic_max_selected_kinases=2,
-                adaptive_ensemble_runs=2,
-            ),
-            activity_config=None,
+        .run(
+            KinaseWorkflowRequest(
+                dataset=dataset,
+                references=references,
+                scoring_config=_scoring_config(
+                    min_substrates=2,
+                    profile_missing_value_strategy="median_skipna",
+                ),
+                prediction_config=KinasePredictionConfig(
+                    top_k=2,
+                    deterministic_max_selected_kinases=2,
+                    adaptive_ensemble_runs=2,
+                ),
+                activity_config=None,
+            )
         )
     )
 

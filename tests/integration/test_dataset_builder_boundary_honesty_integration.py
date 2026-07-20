@@ -161,7 +161,7 @@ def test_builder_rejects_dead_end_site_matrix_missing_data_modes_before_interpre
         index=phospho.index.copy(),
     )
     interpreter = _InterpreterSentinel()
-    builder = AnalysisReadyDatasetBuilder(interpreter=interpreter)
+    builder = AnalysisReadyDatasetBuilder._with_components(interpreter=interpreter)
 
     with pytest.raises(
         PhosPyInputError,
