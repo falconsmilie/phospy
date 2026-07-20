@@ -30,7 +30,8 @@ Identity boundary summary:
   non-waivable aligned-table structure evidence. Localisation evidence must
   record source, policy, and threshold; sequence presence is not localisation
   evidence. Supplied trusted provenance must match the actual table
-  fingerprints.
+  fingerprints. Supplied compatibility-constructor provenance is checked the
+  same way.
 - Trusted analysis-ready construction requires encoded `site_key` indexes and
   does not silently fall back to display-site identity.
 - Trusted construction validates structural invariants, including required

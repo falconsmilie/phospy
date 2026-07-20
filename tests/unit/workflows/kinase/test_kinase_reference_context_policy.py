@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
@@ -10,11 +12,7 @@ from phospy.api.configs import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.validation import WorkflowValidationError
-from phospy.provenance.models import (
-    EnvironmentProvenance,
-    ReferenceProvenance,
-    RunProvenance,
-)
+from phospy.provenance.models import ReferenceProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import ReferenceContext
 from phospy.validation.identity_contracts import REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE
@@ -41,26 +39,6 @@ def _context(**overrides: object) -> ReferenceContext:
     return ReferenceContext(**values)
 
 
-def _run_provenance(context: ReferenceContext | None) -> RunProvenance:
-    return RunProvenance(
-        environment=EnvironmentProvenance(
-            package_name="phospy",
-            package_version="test",
-            python_version="3.13",
-            dependency_versions={},
-        ),
-        input_tables=(),
-        preprocessing_stages=(),
-        reference=None,
-        workflow_name="unit_test_dataset",
-        workflow_parameters={},
-        random_state=None,
-        random_seed_policy=None,
-        output_tables=(),
-        reference_context=context,
-    )
-
-
 def _window(display_id: str) -> str:
     residue = display_id.split(";")[1][0].upper()
     return ("A" * 15) + residue + ("A" * 15)
@@ -72,7 +50,7 @@ def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
         display_ids,
         protein_namespace="gene_symbol",
     )
-    return AnalysisReadyPhosphoDataset(
+    dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 1.5], "sample_b": [1.1, 1.7]},
             index=site_ids.copy(),
@@ -94,7 +72,21 @@ def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
-        provenance=_run_provenance(context),
+    )
+    if context is None:
+        return dataset
+    provenance = dataset.provenance
+    if provenance is None:
+        raise AssertionError(
+            "analysis-ready dataset must carry construction provenance"
+        )
+    return AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=dataset.site_metadata,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
+        provenance=replace(provenance, reference_context=context),
     )
 
 

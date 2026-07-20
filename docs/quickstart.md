@@ -53,8 +53,9 @@ callers on that path should prefer
 explicit waivers for identity, intensity scale, quantitative meaning,
 localisation, sequence, and reference context, plus non-waivable aligned-table
 structure evidence. Supplied trusted provenance must match the actual table
-fingerprints, and direct constructor compatibility use emits
-`DeprecationWarning`. A display label should look like `TSC2;S939;`; it is not
+fingerprints, supplied compatibility-constructor provenance is checked the same
+way, and direct constructor compatibility use emits `DeprecationWarning`. A
+display label should look like `TSC2;S939;`; it is not
 unique row identity and may repeat when distinct `site_key` rows preserve
 distinct protein context. Rows that resolve to the
 same `site_key` are duplicate scientific evidence for the same analysis-ready

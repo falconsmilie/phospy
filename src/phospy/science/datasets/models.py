@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -351,15 +352,15 @@ def _require_trusted_provenance_table_fingerprints(
     actual_fingerprints: tuple[TableFingerprint, ...],
 ) -> None:
     _require_fingerprint_sets_match(
-        expected=actual_fingerprints,
-        actual=provenance.output_tables,
+        expected=provenance.output_tables,
+        actual=actual_fingerprints,
         field_name="run_provenance.output_tables",
         expected_source="actual analysis-ready dataset tables",
     )
     if provenance.workflow_name == DIRECT_CONSTRUCTION_WORKFLOW_NAME:
         _require_fingerprint_sets_match(
-            expected=actual_fingerprints,
-            actual=provenance.input_tables,
+            expected=provenance.input_tables,
+            actual=actual_fingerprints,
             field_name="run_provenance.input_tables",
             expected_source="actual analysis-ready dataset tables",
         )
@@ -453,8 +454,13 @@ def _require_fingerprint_matches(
     ]
     if mismatched:
         raise DatasetValidationError(
-            f"{field_name} does not match {expected_source}; mismatched fields: "
+            f"{field_name} table fingerprint mismatch for {expected.name!r}; "
+            f"does not match {expected_source}; mismatched fields: "
             + ", ".join(mismatched)
+            + f"; expected exact digest {expected.exact_hash_value}; "
+            f"actual exact digest {actual.exact_hash_value}; "
+            f"expected tolerance digest {expected.tolerance_hash_value}; "
+            f"actual tolerance digest {actual.tolerance_hash_value}"
         )
 
 
@@ -519,7 +525,8 @@ class AnalysisReadyPhosphoDataset:
     that records this audit limitation. The primary
     ``from_trusted_tables(...)`` lane requires typed evidence or an explicit
     waiver for identity, intensity scale, quantitative meaning, aligned table
-    structure, localisation, sequence, and reference context. The compatibility
+    structure, localisation, sequence, and reference context. Any supplied
+    provenance must fingerprint the actual represented tables. The compatibility
     constructor emits ``DeprecationWarning``; new trusted callers should use
     ``from_trusted_tables(...)``.
 
@@ -579,15 +586,50 @@ class AnalysisReadyPhosphoDataset:
         trusted_construction_assertions: TrustedDatasetConstructionAssertions
         | None = None,
         _assume_owned: bool = False,
-        _emit_direct_constructor_deprecation: bool = True,
-        _enforce_trusted_table_fingerprints: bool = False,
     ) -> None:
-        if _emit_direct_constructor_deprecation:
-            warnings.warn(
-                DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        warnings.warn(
+            DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self._init_analysis_ready_tables(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            sample_metadata=sample_metadata,
+            total=total,
+            comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
+            organism=organism,
+            preprocessing_report=preprocessing_report,
+            protein_aware_preparation=protein_aware_preparation,
+            provenance=provenance,
+            allow_opaque_site_values=allow_opaque_site_values,
+            trusted_construction_assertions=trusted_construction_assertions,
+            assume_owned=_assume_owned,
+        )
+
+    def _init_analysis_ready_tables(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        intensity_scale_state: IntensityScaleState,
+        processing_state: DatasetProcessingState,
+        sample_metadata: pd.DataFrame | None = None,
+        total: pd.DataFrame | None = None,
+        comparisons: pd.DataFrame | None = None,
+        imputation_observation_mask: pd.DataFrame | None = None,
+        organism: Organism | None = None,
+        preprocessing_report: DatasetPreprocessingReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationResult | None = None,
+        provenance: RunProvenance | None = None,
+        allow_opaque_site_values: bool = False,
+        trusted_construction_assertions: TrustedDatasetConstructionAssertions
+        | None = None,
+        assume_owned: bool = False,
+    ) -> None:
         _require_instance(
             allow_opaque_site_values,
             expected_type=bool,
@@ -600,7 +642,7 @@ class AnalysisReadyPhosphoDataset:
             total=total,
             comparisons=comparisons,
             imputation_observation_mask=imputation_observation_mask,
-            assume_owned=_assume_owned,
+            assume_owned=assume_owned,
         )
         phospho = frames.phospho
         site_metadata = frames.site_metadata
@@ -738,7 +780,7 @@ class AnalysisReadyPhosphoDataset:
             _resolve_trusted_construction_assertions(
                 trusted_construction_assertions=trusted_construction_assertions,
                 provenance=provenance,
-                assume_owned=_assume_owned,
+                assume_owned=assume_owned,
             )
         )
         comparisons = _validate_optional_comparisons(
@@ -773,23 +815,20 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
             error_type=DatasetValidationError,
         )
-        if _enforce_trusted_table_fingerprints:
-            actual_fingerprints = _fingerprints_for_analysis_ready_tables(
-                phospho=phospho_table.frame,
-                site_metadata=site_metadata_table.frame,
-                sample_metadata=(
-                    None
-                    if sample_metadata_table is None
-                    else sample_metadata_table.frame
-                ),
-                total=None if total_table is None else total_table.frame,
-                comparisons=comparisons,
-                imputation_observation_mask=imputation_observation_mask,
-            )
-            _require_trusted_provenance_table_fingerprints(
-                provenance=provenance,
-                actual_fingerprints=actual_fingerprints,
-            )
+        actual_fingerprints = _fingerprints_for_analysis_ready_tables(
+            phospho=phospho_table.frame,
+            site_metadata=site_metadata_table.frame,
+            sample_metadata=(
+                None if sample_metadata_table is None else sample_metadata_table.frame
+            ),
+            total=None if total_table is None else total_table.frame,
+            comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
+        )
+        _require_trusted_provenance_table_fingerprints(
+            provenance=provenance,
+            actual_fingerprints=actual_fingerprints,
+        )
         object.__setattr__(
             self, "intensity_scale_state", validated_intensity_scale_state
         )
@@ -916,6 +955,54 @@ class AnalysisReadyPhosphoDataset:
         )
 
     @classmethod
+    def _construct_without_direct_constructor_warning(
+        cls,
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        intensity_scale_state: IntensityScaleState,
+        processing_state: DatasetProcessingState,
+        sample_metadata: pd.DataFrame | None = None,
+        total: pd.DataFrame | None = None,
+        comparisons: pd.DataFrame | None = None,
+        imputation_observation_mask: pd.DataFrame | None = None,
+        organism: Organism | None = None,
+        preprocessing_report: DatasetPreprocessingReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationResult | None = None,
+        provenance: RunProvenance | None = None,
+        trusted_construction_assertions: TrustedDatasetConstructionAssertions
+        | None = None,
+        allow_opaque_site_values: bool = False,
+        assume_owned: bool = False,
+    ) -> AnalysisReadyPhosphoDataset:
+        dataset = cls.__new__(cls)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
+                category=DeprecationWarning,
+            )
+            AnalysisReadyPhosphoDataset.__init__(
+                dataset,
+                phospho=phospho,
+                site_metadata=site_metadata,
+                intensity_scale_state=intensity_scale_state,
+                processing_state=processing_state,
+                sample_metadata=sample_metadata,
+                total=total,
+                comparisons=comparisons,
+                imputation_observation_mask=imputation_observation_mask,
+                organism=organism,
+                preprocessing_report=preprocessing_report,
+                protein_aware_preparation=protein_aware_preparation,
+                provenance=provenance,
+                allow_opaque_site_values=allow_opaque_site_values,
+                trusted_construction_assertions=trusted_construction_assertions,
+                _assume_owned=assume_owned,
+            )
+        return dataset
+
+    @classmethod
     def from_trusted_tables(
         cls,
         *,
@@ -940,8 +1027,9 @@ class AnalysisReadyPhosphoDataset:
         This explicit trusted factory is for advanced/internal callers that
         already own fully prepared ``site_key``-indexed tables, complete
         ``site_sequence`` evidence, established intensity-scale state, and
-        coherent processing state. It delegates to the existing constructor and
-        enforces the same structural invariants as direct construction,
+        coherent processing state. It uses the same construction core as direct
+        construction and enforces the same structural invariants as direct
+        construction,
         including table shape, alignment, site identity, ``site_sequence``
         validation, and state coherence.
 
@@ -959,7 +1047,7 @@ class AnalysisReadyPhosphoDataset:
         the assertion fingerprint linked into provenance.
         """
 
-        dataset = cls(
+        dataset = cls._construct_without_direct_constructor_warning(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=intensity_scale_state,
@@ -974,8 +1062,6 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
             trusted_construction_assertions=trusted_construction_assertions,
             allow_opaque_site_values=allow_opaque_site_values,
-            _emit_direct_constructor_deprecation=False,
-            _enforce_trusted_table_fingerprints=True,
         )
         _require_complete_from_trusted_assertions(dataset=dataset)
         return dataset
@@ -998,7 +1084,7 @@ class AnalysisReadyPhosphoDataset:
         provenance: RunProvenance | None = None,
         allow_opaque_site_values: bool = False,
     ) -> AnalysisReadyPhosphoDataset:
-        return cls(
+        return cls._construct_without_direct_constructor_warning(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=intensity_scale_state,
@@ -1012,8 +1098,7 @@ class AnalysisReadyPhosphoDataset:
             protein_aware_preparation=protein_aware_preparation,
             provenance=provenance,
             allow_opaque_site_values=allow_opaque_site_values,
-            _assume_owned=True,
-            _emit_direct_constructor_deprecation=False,
+            assume_owned=True,
         )
 
     def to_dataframe(self) -> pd.DataFrame:

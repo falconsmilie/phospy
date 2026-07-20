@@ -9,6 +9,7 @@ import math
 import platform
 import sys
 import time
+import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import metadata, resources
@@ -543,6 +544,9 @@ def _check_corrected_construction_and_provenance_path(
         ),
         contains="dataset.organism",
     )
+    stale_direct_constructor_message = (
+        _expect_direct_constructor_rejects_stale_provenance(dataset)
+    )
     return {
         "trusted_assertion_fingerprint": (
             dataset.trusted_construction_assertions.assertion_fingerprint
@@ -550,6 +554,8 @@ def _check_corrected_construction_and_provenance_path(
         "provenance_hash": before_hash,
         "round_trip_verified": True,
         "organism_reference_contradiction_rejected": True,
+        "stale_direct_constructor_provenance_rejected": True,
+        "stale_direct_constructor_message": stale_direct_constructor_message,
     }
 
 
@@ -913,6 +919,47 @@ def _trusted_dataset(*, identity_details: Mapping[str, object]) -> Any:
     )
 
 
+def _expect_direct_constructor_rejects_stale_provenance(dataset: Any) -> str:
+    from phospy.api import AnalysisReadyPhosphoDataset
+    from phospy.errors import DatasetValidationError
+
+    phospho = dataset.phospho
+    phospho.iloc[0, 0] = float(phospho.iloc[0, 0]) + 10.0
+
+    def _construct_with_stale_provenance() -> Any:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            return AnalysisReadyPhosphoDataset(
+                phospho=phospho,
+                site_metadata=dataset.site_metadata,
+                sample_metadata=dataset.sample_metadata,
+                total=dataset.total,
+                comparisons=dataset.comparisons,
+                imputation_observation_mask=(
+                    dataset.imputation_observed_mask_dataframe()
+                ),
+                organism=dataset.organism,
+                intensity_scale_state=dataset.intensity_scale_state,
+                processing_state=dataset.processing_state,
+                provenance=dataset.provenance,
+                trusted_construction_assertions=(
+                    dataset.trusted_construction_assertions
+                ),
+            )
+
+    message = _expect_raises(
+        DatasetValidationError,
+        _construct_with_stale_provenance,
+        contains="dataset.phospho",
+    )
+    _require(
+        "expected exact digest" in message and "actual exact digest" in message,
+        "stale direct-constructor provenance error did not report expected and "
+        "actual table digests",
+    )
+    return message
+
+
 def _trusted_assertions(*, identity_details: Mapping[str, object]) -> Any:
     from phospy.provenance import (
         TrustedDatasetConstructionAssertions,
@@ -1079,11 +1126,11 @@ def _derived_fixture() -> _DerivedFixture:
 
 
 def _fingerprints_for_tables(*, phospho: Any, site_metadata: Any) -> tuple[Any, ...]:
-    from phospy.provenance import fingerprint_optional_table
+    from phospy.provenance import fingerprint_optional_table_strict
 
     fingerprints = [
-        fingerprint_optional_table(phospho, name="dataset.phospho"),
-        fingerprint_optional_table(site_metadata, name="dataset.site_metadata"),
+        fingerprint_optional_table_strict(phospho, name="dataset.phospho"),
+        fingerprint_optional_table_strict(site_metadata, name="dataset.site_metadata"),
     ]
     return tuple(item for item in fingerprints if item is not None)
 

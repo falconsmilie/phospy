@@ -15,7 +15,8 @@ row indexes; callers on that path should prefer
 explicit waivers for identity, intensity scale, quantitative meaning,
 localisation, sequence, and reference context, plus non-waivable aligned-table
 structure evidence. Supplied trusted provenance must match the actual table
-fingerprints. The compatibility constructor emits `DeprecationWarning`.
+fingerprints, and supplied compatibility-constructor provenance is checked the
+same way. The compatibility constructor emits `DeprecationWarning`.
 Display-indexed direct construction is invalid. Missing values are rejected by
 default.
 

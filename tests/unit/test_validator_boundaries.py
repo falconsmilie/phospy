@@ -143,7 +143,6 @@ def _rebuild_dataset_with_site_metadata(
         processing_state=dataset.processing_state,
         preprocessing_report=dataset.preprocessing_report,
         protein_aware_preparation=dataset.protein_aware_preparation,
-        provenance=dataset.provenance,
         allow_opaque_site_values=dataset.allow_opaque_site_values,
     )
 

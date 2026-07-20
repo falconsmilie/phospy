@@ -148,7 +148,9 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
     dataset_validator_source = inspect.getsource(
         AnalysisReadyDatasetModelBoundaryValidator
     )
-    dataset_constructor_source = inspect.getsource(AnalysisReadyPhosphoDataset.__init__)
+    dataset_constructor_source = inspect.getsource(
+        AnalysisReadyPhosphoDataset.__init__
+    ) + inspect.getsource(AnalysisReadyPhosphoDataset._init_analysis_ready_tables)
     assert "AnalysisReadyPhosphoDataset(" in dataset_validator_source
     assert "PhosphoIntensityMatrix(" not in dataset_validator_source
     assert "SiteMetadataTable(" not in dataset_validator_source

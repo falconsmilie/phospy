@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import inspect
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.errors import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
 from phospy.provenance.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
     DerivedSampleMapping,
     build_derived_quantitative_run_provenance,
 )
-from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.models import RunProvenance, TableFingerprint
 from phospy.science.datasets.derived_quantitative import (
     CertifiedDerivedQuantitativeParentState,
@@ -179,22 +180,20 @@ def test_public_derived_constructor_rejects_row_order_mismatch() -> None:
         )
 
 
-def test_public_derived_constructor_rejects_sample_mapping_mismatch() -> None:
+def test_derived_lineage_rejects_sample_mapping_mismatch_before_constructor() -> None:
     tables = _valid_tables()
-    renamed = _copy_tables(tables)
-    rename_map = {"bio_a": "other_a", "bio_b": "other_b"}
-    for matrix in (renamed.phospho, renamed.total, renamed.mask):
-        matrix.rename(columns=rename_map, inplace=True)
-    renamed.sample_metadata.rename(index=rename_map, inplace=True)
-    lineage = _lineage_for_tables(renamed)
-    provenance = _provenance_for(lineage)
+    valid_lineage = _lineage_for_tables(tables)
 
-    with pytest.raises(DatasetValidationError, match="sample_mapping"):
-        _build_dataset(
-            tables,
-            lineage=lineage,
-            provenance=provenance,
-            parent_state=_parent_state_for_tables(renamed),
+    with pytest.raises(PhosPyInputError, match="sample_mapping output_sample_id"):
+        replace(
+            valid_lineage,
+            sample_mapping=tuple(
+                replace(
+                    mapping,
+                    output_sample_id=f"other_{mapping.output_sample_id}",
+                )
+                for mapping in valid_lineage.sample_mapping
+            ),
         )
 
 
@@ -590,7 +589,7 @@ def _fingerprints_for_tables(
     )
     fingerprints: list[TableFingerprint] = []
     for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
+        fingerprint = fingerprint_optional_table_strict(table, name=name)
         if fingerprint is not None:
             fingerprints.append(fingerprint)
     return tuple(fingerprints)

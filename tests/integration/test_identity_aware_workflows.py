@@ -89,7 +89,6 @@ def _minimal_site_key_dataset(
         intensity_scale_state=dataset.intensity_scale_state,
         processing_state=dataset.processing_state,
         preprocessing_report=dataset.preprocessing_report,
-        provenance=dataset.provenance,
         allow_opaque_site_values=dataset.allow_opaque_site_values,
     )
 

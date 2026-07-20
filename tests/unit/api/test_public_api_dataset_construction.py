@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from typing import get_type_hints
 
+import phospy
 import phospy.api as public_api
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
@@ -26,12 +28,24 @@ def test_public_api_documents_builder_as_supported_construction_path() -> None:
     assert "construction provenance" in builder_doc
 
 
+def test_exported_dataset_signature_has_no_private_validation_controls() -> None:
+    root_parameters = inspect.signature(phospy.AnalysisReadyPhosphoDataset).parameters
+    api_parameters = inspect.signature(
+        public_api.AnalysisReadyPhosphoDataset
+    ).parameters
+
+    assert root_parameters == api_parameters
+    assert "_emit_direct_constructor_deprecation" not in root_parameters
+    assert "_enforce_trusted_table_fingerprints" not in root_parameters
+
+
 def test_public_api_marks_direct_dataset_construction_advanced_trusted() -> None:
     model_doc = AnalysisReadyPhosphoDataset.__doc__
     factory_doc = AnalysisReadyPhosphoDataset.from_trusted_tables.__doc__
 
     assert model_doc is not None
     assert factory_doc is not None
+    normalized_factory_doc = " ".join(factory_doc.split())
     assert "trusted advanced/internal use" in model_doc
     assert "Ordinary users" in model_doc
     assert "AnalysisReadyDatasetBuilder.run" in model_doc
@@ -43,7 +57,7 @@ def test_public_api_marks_direct_dataset_construction_advanced_trusted() -> None
     assert "biological correctness" in model_doc
     assert "minimal" in model_doc
     assert "direct-construction provenance marker" in model_doc
-    assert "same structural invariants as direct construction" in factory_doc
+    assert "same structural invariants as direct construction" in normalized_factory_doc
     assert "site_sequence" in factory_doc
     assert "source, policy" in factory_doc
     assert "threshold" in factory_doc

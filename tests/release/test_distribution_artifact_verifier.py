@@ -263,6 +263,23 @@ def test_verifier_report_exposes_stable_artifact_attestation_contract(
     assert payload["check_details"][0]["name"] == "artifact-manifest-binding"
 
 
+def test_corrected_construction_probe_rejects_stale_direct_constructor_provenance(
+    tmp_path: Path,
+) -> None:
+    verifier = _load_verifier()
+
+    details = verifier._check_corrected_construction_and_provenance_path(
+        _identity_context(verifier, tmp_path)
+    )
+
+    assert details["stale_direct_constructor_provenance_rejected"] is True
+    message = details["stale_direct_constructor_message"]
+    assert isinstance(message, str)
+    assert "dataset.phospho" in message
+    assert "expected exact digest" in message
+    assert "actual exact digest" in message
+
+
 def test_verifier_returns_nonzero_when_corrected_path_invariant_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

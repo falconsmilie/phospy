@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 
+from phospy.errors.validation import DatasetValidationError
 from phospy.provenance.models import RunProvenance
 from phospy.science.datasets.builders.contracts import (
     DatasetIntensityScaleResolverContract,
@@ -34,6 +37,9 @@ from phospy.science.datasets.builders.transformation_state import (
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
+)
+from phospy.science.datasets.organism_coherence import (
+    normalize_dataset_organism_state,
 )
 from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwarePreparationResult,
@@ -97,6 +103,16 @@ class DatasetBuildExecutor:
             preprocessed=preprocessed,
             validated_site_metadata=validated_site_metadata,
         )
+        normalized_organism_state = normalize_dataset_organism_state(
+            phospho=transformed.phospho,
+            site_metadata=validated_site_metadata,
+            error_type=DatasetValidationError,
+        )
+        transformed = replace(
+            transformed,
+            phospho=normalized_organism_state.phospho,
+        )
+        validated_site_metadata = normalized_organism_state.site_metadata
         protein_aware_preparation = self._run_protein_aware_preparation(
             request=request,
             transformed=transformed,

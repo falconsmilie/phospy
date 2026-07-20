@@ -102,10 +102,10 @@ Trusted construction assertions now require seven evidence dimensions:
 identity, intensity scale, quantitative meaning, aligned table structure,
 localisation, sequence, and reference context. Aligned-structure evidence is
 not waivable because table shape and alignment are mechanically checked.
-Supplied trusted provenance must match strict fingerprints of the actual
-analysis-ready tables, and false fingerprints are rejected. The compatibility
-constructor emits `DeprecationWarning`; new advanced callers should use
-`from_trusted_tables(...)`.
+Supplied provenance on either trusted factory or compatibility-constructor
+construction must match strict fingerprints of every actual represented table,
+and false fingerprints are rejected. The compatibility constructor emits
+`DeprecationWarning`; new advanced callers should use `from_trusted_tables(...)`.
 
 ## Context and Problem Statement
 
@@ -401,6 +401,10 @@ Direct construction without supplied provenance receives a minimal
 direct-construction provenance marker. This marker records audit limitations
 and does not certify biological correctness.
 
+Direct construction with supplied provenance recomputes fingerprints from every
+actual represented table and rejects stale or false table fingerprints rather
+than warning, rebuilding provenance silently, or attaching mismatched evidence.
+
 Builder-created datasets continue to carry builder-owned run provenance,
 including preprocessing stages, construction method, table fingerprints, and
 workflow parameters. Direct-construction markers are deliberately not
@@ -437,7 +441,8 @@ ordinary builder is explicitly scoped:
   advanced/internal use. It validates structural invariants and organism
   coherence, but when assertion metadata is absent it records missing
   trusted-construction assertions rather than certifying biological correctness.
-  It emits `DeprecationWarning`; new advanced callers should use
+  Supplied provenance table fingerprints must match the actual constructed
+  tables. It emits `DeprecationWarning`; new advanced callers should use
   `from_trusted_tables(...)`.
 - `AnalysisReadyDatasetModelBoundaryValidator.run(...)`: validation-domain
   adapter that delegates to the model constructor so tests and internal

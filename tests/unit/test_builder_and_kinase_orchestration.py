@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 
 from phospy import (
@@ -30,7 +32,6 @@ from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
 )
-from phospy.provenance.models import EnvironmentProvenance, RunProvenance
 from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
@@ -446,7 +447,7 @@ def test_kinase_workflow_result_provenance_copies_input_dataset_reference_contex
         proteome_version=None,
         reference_table_sha256="a" * 64,
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    base_dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -454,23 +455,19 @@ def test_kinase_workflow_result_provenance_copies_input_dataset_reference_contex
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
-        provenance=RunProvenance(
-            environment=EnvironmentProvenance(
-                package_name="phospy",
-                package_version="test",
-                python_version="3.13",
-                dependency_versions={},
-            ),
-            input_tables=(),
-            preprocessing_stages=(),
-            reference=None,
-            workflow_name="unit_test_dataset",
-            workflow_parameters={},
-            random_state=None,
-            random_seed_policy=None,
-            output_tables=(),
-            reference_context=reference_context,
-        ),
+    )
+    provenance = base_dataset.provenance
+    if provenance is None:
+        raise AssertionError(
+            "analysis-ready dataset must carry construction provenance"
+        )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata,
+        organism=base_dataset.organism,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
+        provenance=replace(provenance, reference_context=reference_context),
     )
 
     result = KinaseWorkflow().run(

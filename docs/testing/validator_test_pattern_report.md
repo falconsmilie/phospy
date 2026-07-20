@@ -52,23 +52,23 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_public_config_self_validation.py | test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed | 682 | `match="prediction_config.random_state must be greater than or equal to 0",` |
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 101 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
 | tests/unit/test_validator_boundaries.py | test_kinase_scoring_default_sets_two_substrate_support_floor | 94 | `assert KinaseScoringConfig().min_substrates == 2` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 372 | `assert validated.preprocessing_config.missing_data.min_observed_values is None` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_impute_policy_without_min_observed_values | 550 | `def test_dataset_build_request_rejects_impute_policy_without_min_observed_values() -> (` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_min_observed_values_for_forbid_policy | 563 | `def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -> None:` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_site_matrix_policy_overrides | 701 | `"missing_data_policy='require_min_observed_values' is not supported "` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy | 719 | `"minimum_observed_values is not supported for strict "` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_site_matrix_require_min_without_threshold | 736 | `"missing_data_policy='require_min_observed_values' is not supported "` |
-| tests/unit/test_validator_boundaries.py | test_kinase_request_config_policy_fails_at_validator_boundary | 850 | `match="scoring_config.min_substrates must be greater than or equal to 2",` |
-| tests/unit/test_validator_boundaries.py | test_kinase_request_rejects_non_bool_diagnostic_scoring_policy | 861 | `min_substrates=2,` |
-| tests/unit/test_validator_boundaries.py | test_kinase_request_rejects_non_bool_substrate_contribution_policy | 872 | `min_substrates=2,` |
-| tests/unit/test_validator_boundaries.py | test_kinase_reference_compatibility_boundary_matrix | 1019 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_unknown_localisation_by_default | 1077 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_can_require_localisation_probability_presence | 1094 | `min_substrates=2,` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_can_require_localisation_probability_threshold | 1123 | `min_substrates=2,` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_requires_centred_sequence_context | 1185 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_gapped_flanks_when_centre_is_valid | 1210 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
-| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1388 | `module_count: object,` |
-| tests/unit/validation/test_reference_context_compatibility.py | test_kinase_workflow_validator_rejects_mismatched_reference_context | 185 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 371 | `assert validated.preprocessing_config.missing_data.min_observed_values is None` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_impute_policy_without_min_observed_values | 549 | `def test_dataset_build_request_rejects_impute_policy_without_min_observed_values() -> (` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_min_observed_values_for_forbid_policy | 562 | `def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -> None:` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_site_matrix_policy_overrides | 700 | `"missing_data_policy='require_min_observed_values' is not supported "` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy | 718 | `"minimum_observed_values is not supported for strict "` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_site_matrix_require_min_without_threshold | 735 | `"missing_data_policy='require_min_observed_values' is not supported "` |
+| tests/unit/test_validator_boundaries.py | test_kinase_request_config_policy_fails_at_validator_boundary | 849 | `match="scoring_config.min_substrates must be greater than or equal to 2",` |
+| tests/unit/test_validator_boundaries.py | test_kinase_request_rejects_non_bool_diagnostic_scoring_policy | 860 | `min_substrates=2,` |
+| tests/unit/test_validator_boundaries.py | test_kinase_request_rejects_non_bool_substrate_contribution_policy | 871 | `min_substrates=2,` |
+| tests/unit/test_validator_boundaries.py | test_kinase_reference_compatibility_boundary_matrix | 1018 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_unknown_localisation_by_default | 1076 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_can_require_localisation_probability_presence | 1093 | `min_substrates=2,` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_can_require_localisation_probability_threshold | 1122 | `min_substrates=2,` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_requires_centred_sequence_context | 1184 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_gapped_flanks_when_centre_is_valid | 1209 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
+| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1387 | `module_count: object,` |
+| tests/unit/validation/test_reference_context_compatibility.py | test_kinase_workflow_validator_rejects_mismatched_reference_context | 174 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_kinase_interpreter_delegates_resolved_validation | 241 | `min_substrates=2,` |
 
 ### Non-Empty String
@@ -78,10 +78,10 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_blank_protein_id_message_distinguishes_grouping_metadata | 1516 | `assert "to contain non-empty string values" in message` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_blank_site_metadata_protein_id_values | 1596 | `assert "non-empty string values" in message` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_non_string_site_metadata_protein_id_values | 1615 | `assert "non-empty string values" in message` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_missing_site_metadata_protein_values | 1986 | `assert "non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_blank_protein_id_message_distinguishes_grouping_metadata | 1515 | `assert "to contain non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_blank_site_metadata_protein_id_values | 1595 | `assert "non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_non_string_site_metadata_protein_id_values | 1614 | `assert "non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_missing_site_metadata_protein_values | 1985 | `assert "non-empty string values" in message` |
 
 ### Bounded Numeric Range
 
@@ -94,13 +94,13 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_public_config_self_validation.py | test_dataset_intensity_transform_pseudocount_range_matrix | 130 | `pseudocount: object, pattern: str \| None` |
 | tests/unit/test_public_config_self_validation.py | test_kinase_attrition_policy_rejects_nonfinite_fraction | 444 | `match="attrition_policy.minimum_scored_fraction must be finite",` |
 | tests/unit/test_public_config_self_validation.py | test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed | 682 | `match="prediction_config.random_state must be greater than or equal to 0",` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 367 | `validated.preprocessing_config.intensity_transform.pseudocount` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_log2_pseudocount_range_boundary | 533 | `pseudocount: object, pattern: str \| None` |
-| tests/unit/test_validator_boundaries.py | test_dataset_preprocessing_config_validator_allows_log2_subtract_log_total | 583 | `pseudocount=1.0,` |
-| tests/unit/test_validator_boundaries.py | test_dataset_preprocessing_config_validator_rejects_subtract_log_total_without_log2 | 607 | `pseudocount=1.0,` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_subtract_log_total_policy | 631 | `pseudocount=1.0,` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_total_for_subtract_log_total | 656 | `pseudocount=1.0,` |
-| tests/unit/test_validator_boundaries.py | test_kinase_request_config_policy_fails_at_validator_boundary | 850 | `match="scoring_config.min_substrates must be greater than or equal to 2",` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 366 | `validated.preprocessing_config.intensity_transform.pseudocount` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_log2_pseudocount_range_boundary | 532 | `pseudocount: object, pattern: str \| None` |
+| tests/unit/test_validator_boundaries.py | test_dataset_preprocessing_config_validator_allows_log2_subtract_log_total | 582 | `pseudocount=1.0,` |
+| tests/unit/test_validator_boundaries.py | test_dataset_preprocessing_config_validator_rejects_subtract_log_total_without_log2 | 606 | `pseudocount=1.0,` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_subtract_log_total_policy | 630 | `pseudocount=1.0,` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_total_for_subtract_log_total | 655 | `pseudocount=1.0,` |
+| tests/unit/test_validator_boundaries.py | test_kinase_request_config_policy_fails_at_validator_boundary | 849 | `match="scoring_config.min_substrates must be greater than or equal to 2",` |
 
 ### Enum / Supported Literal Validation
 
@@ -119,10 +119,10 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_public_config_self_validation.py | test_kinase_attrition_policy_rejects_invalid_violation_mode | 452 | `match="attrition_policy.on_violation must be one of",` |
 | tests/unit/test_site_identity_validation.py | test_protein_scoped_identity_site_key_index_enforcement | 473 | `invalid = site_metadata.copy(deep=True)` |
 | tests/unit/test_site_identity_validation.py | test_analysis_ready_site_key_column_must_match_index_exactly | 521 | `invalid = site_metadata.copy(deep=True)` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_unknown_quantitative_meaning_literal | 467 | `match="dataset build request quantitative_meaning must be one of:",` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_removed_ratio_to_total_alias | 673 | `match="preprocessing_config.total_protein_correction.policy must be one of",` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_rejects_unknown_reference_display_ambiguity_policy | 887 | `match="reference_display_ambiguity_policy must be one of",` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_reports_invalid_localisation_probability_values | 1678 | `"invalid values in signalome workflow request "` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_unknown_quantitative_meaning_literal | 466 | `match="dataset build request quantitative_meaning must be one of:",` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_removed_ratio_to_total_alias | 672 | `match="preprocessing_config.total_protein_correction.policy must be one of",` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_rejects_unknown_reference_display_ambiguity_policy | 886 | `match="reference_display_ambiguity_policy must be one of",` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_reports_invalid_localisation_probability_values | 1677 | `"invalid values in signalome workflow request "` |
 
 ### Nullable Collection / Optional Field Coupling
 
@@ -135,10 +135,10 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_public_config_self_validation.py | test_optional_positive_integer_config_fields_self_validate | 651 | `# Consolidated matrix for optional integer boundaries keeps field-level messages explicit.` |
 | tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 110 | `match="duplicate \\(kinase, substrate_site\\) pairs",` |
 | tests/unit/test_site_identity_validation.py | test_validate_identity_optional_columns_rejects_non_string_values | 106 | `with pytest.raises(ValueError, match="optional identity columns"):` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_min_observed_values_for_forbid_policy | 567 | `"missing_data.min_observed_values must be None when "` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy | 720 | `"AnalysisReadyPhosphoDataset construction and must be None"` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_duplicate_comparison_pairs_in_config | 828 | `match="contains duplicate pairs regardless of direction",` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_pairs_when_comparison_policy_is_none | 839 | `match="comparisons.pairs must be None when comparisons.policy='none'",` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_min_observed_values_for_forbid_policy | 566 | `"missing_data.min_observed_values must be None when "` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy | 719 | `"AnalysisReadyPhosphoDataset construction and must be None"` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_duplicate_comparison_pairs_in_config | 827 | `match="contains duplicate pairs regardless of direction",` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_pairs_when_comparison_policy_is_none | 838 | `match="comparisons.pairs must be None when comparisons.policy='none'",` |
 
 ### DataFrame Shape / Schema / Alignment
 
@@ -188,21 +188,21 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_site_identity_validation.py | test_protein_scoped_identity_rejects_missing_site_key_column | 297 | `with pytest.raises(ValueError, match="missing required columns: site_key"):` |
 | tests/unit/test_site_identity_validation.py | test_protein_scoped_identity_rejects_missing_display_id_column | 308 | `with pytest.raises(ValueError, match="missing required columns: display_id"):` |
 | tests/unit/test_site_validation_helpers.py | test_require_site_identity_coherence_reports_unparseable_and_mismatched_rows | 68 | `site_metadata = pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_invalid_source_types_at_validator_boundary | 330 | `match="dataset build request phospho must be a pandas DataFrame or a file path",` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_checks_organism_type_at_validator_boundary | 337 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 354 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_boolean_allow_opaque_site_values | 377 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_boolean_suspicious_declared_scale_override | 408 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_supported_quantitative_meaning_literal | 437 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_unknown_quantitative_meaning_literal | 454 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_subtract_log_total_policy | 618 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_total_for_subtract_log_total | 644 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_site_matrix_build_from_metadata_policy | 680 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_sample_metadata_pairs_comparison_policy | 777 | `phospho=pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_sample_metadata_for_comparison_building | 805 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1746 | `phospho=pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1800 | `phospho=pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_cast_numeric_matrices | 1881 | `monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_invalid_source_types_at_validator_boundary | 329 | `match="dataset build request phospho must be a pandas DataFrame or a file path",` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_checks_organism_type_at_validator_boundary | 336 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 353 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_boolean_allow_opaque_site_values | 376 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_boolean_suspicious_declared_scale_override | 407 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_supported_quantitative_meaning_literal | 436 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_unknown_quantitative_meaning_literal | 453 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_subtract_log_total_policy | 617 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_total_for_subtract_log_total | 643 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_site_matrix_build_from_metadata_policy | 679 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_sample_metadata_pairs_comparison_policy | 776 | `phospho=pd.DataFrame(` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_sample_metadata_for_comparison_building | 804 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1745 | `phospho=pd.DataFrame(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1799 | `phospho=pd.DataFrame(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_cast_numeric_matrices | 1880 | `monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_reference_overlap | 178 | `kinase_substrate_map=pd.DataFrame(` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_eligible_kinases | 196 | `kinase_substrate_map=pd.DataFrame(` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_sequence_supported_sites | 212 | `empty_sequences = pd.DataFrame(` |
@@ -216,7 +216,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
 | tests/unit/test_config_validation_primitives.py | test_require_local_filesystem_path_rejects_remote_urls | 60 | `def test_require_local_filesystem_path_rejects_remote_urls() -> None:` |
-| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_invalid_source_types_at_validator_boundary | 330 | `match="dataset build request phospho must be a pandas DataFrame or a file path",` |
+| tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_invalid_source_types_at_validator_boundary | 329 | `match="dataset build request phospho must be a pandas DataFrame or a file path",` |
 
 ### Mixed Total-Protein Quantitative Meaning
 
@@ -225,10 +225,10 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_rejects_mixed_total_protein_quantitative_meaning_by_default | 1060 | `assert "unmatched_policy='allow_uncorrected'" in str(exc_info.value)` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in | 1067 | `allow_mixed_total_protein_quantitative_meaning=True` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_mixed_total_protein_quantitative_meaning_by_default | 1362 | `"with mixed total-protein quantitative meaning"` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in | 1374 | `allow_mixed_total_protein_quantitative_meaning=True` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_rejects_mixed_total_protein_quantitative_meaning_by_default | 1059 | `assert "unmatched_policy='allow_uncorrected'" in str(exc_info.value)` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in | 1066 | `allow_mixed_total_protein_quantitative_meaning=True` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_mixed_total_protein_quantitative_meaning_by_default | 1361 | `"with mixed total-protein quantitative meaning"` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in | 1373 | `allow_mixed_total_protein_quantitative_meaning=True` |
 
 ### Signalome Config Boundary Contracts
 
@@ -242,7 +242,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_public_config_self_validation.py | test_signalome_output_config_accepts_network_minimum_observation_policy | 952 | `config = SignalomeOutputConfig(` |
 | tests/unit/test_public_config_self_validation.py | test_signalome_config_accepts_engine_and_policy_names | 1035 | `clustering=SignalomeClusteringConfig(` |
 | tests/unit/test_public_config_self_validation.py | test_signalome_clustering_config_rejects_removed_tree_engine_argument | 1059 | `SignalomeClusteringConfig(tree_engine="exact") # type: ignore[call-arg]` |
-| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1392 | `config = SignalomeClusteringConfig(module_count=module_count) # type: ignore[arg-type]` |
+| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1391 | `config = SignalomeClusteringConfig(module_count=module_count) # type: ignore[arg-type]` |
 
 ### Reference Compatibility / Bundle Contracts
 
@@ -264,9 +264,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validation_ownership.py | test_reference_resolver_delegates_compatibility_and_does_not_duplicate_checks | 121 | `assert "ReferenceBundleValidator" not in resolver_source` |
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_validator_is_single_owner_for_compatibility_rules | 131 | `assert "ReferencePreset.AUTO requires dataset.organism" in source` |
 | tests/unit/test_validation_ownership.py | test_reference_bundle_contract_validation_has_single_owner | 136 | `bundle_source = inspect.getsource(ReferenceBundle.__post_init__)` |
-| tests/unit/test_validator_boundaries.py | test_kinase_reference_compatibility_boundary_matrix | 1033 | `except ReferenceCompatibilityError as exc: # pragma: no cover - defensive` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1766 | `references = ReferenceBundle(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1820 | `references = ReferenceBundle(` |
+| tests/unit/test_validator_boundaries.py | test_kinase_reference_compatibility_boundary_matrix | 1032 | `except ReferenceCompatibilityError as exc: # pragma: no cover - defensive` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1765 | `references = ReferenceBundle(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1819 | `references = ReferenceBundle(` |
 
 ## Suggested Follow-Up Tickets
 

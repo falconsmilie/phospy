@@ -13,7 +13,7 @@ from phospy.errors.validation import DatasetValidationError
 from phospy.provenance.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
 )
-from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.immutability import thaw_json_value
 from phospy.provenance.models import RunProvenance, TableFingerprint
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -226,7 +226,7 @@ class DerivedAnalysisReadyPhosphoDataset(AnalysisReadyPhosphoDataset):
             )
         if not isinstance(provenance, RunProvenance):
             raise PhosPyInputError("derived dataset requires RunProvenance")
-        super().__init__(
+        self._init_analysis_ready_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=intensity_scale_state,
@@ -240,8 +240,7 @@ class DerivedAnalysisReadyPhosphoDataset(AnalysisReadyPhosphoDataset):
             protein_aware_preparation=None,
             provenance=provenance,
             allow_opaque_site_values=allow_opaque_site_values,
-            _assume_owned=_assume_owned,
-            _emit_direct_constructor_deprecation=False,
+            assume_owned=_assume_owned,
         )
         _require_lineage_matches_owned_state(
             dataset=self,
@@ -398,7 +397,7 @@ def _collect_table_fingerprints(
 ) -> tuple[TableFingerprint, ...]:
     fingerprints: list[TableFingerprint] = []
     for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
+        fingerprint = fingerprint_optional_table_strict(table, name=name)
         if fingerprint is None:
             continue
         fingerprints.append(fingerprint)

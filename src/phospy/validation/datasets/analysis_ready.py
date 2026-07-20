@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import re
+import warnings
+
 import pandas as pd
 
 from phospy.provenance.models import RunProvenance
+from phospy.science.datasets.direct_construction import (
+    DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
+)
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -36,17 +42,22 @@ class AnalysisReadyDatasetModelBoundaryValidator:
         preprocessing_report: DatasetPreprocessingReport | None = None,
         provenance: RunProvenance | None = None,
     ) -> AnalysisReadyPhosphoDataset:
-        return AnalysisReadyPhosphoDataset(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            intensity_scale_state=intensity_scale_state,
-            processing_state=processing_state,
-            sample_metadata=sample_metadata,
-            total=total,
-            comparisons=comparisons,
-            imputation_observation_mask=imputation_observation_mask,
-            organism=organism,
-            preprocessing_report=preprocessing_report,
-            provenance=provenance,
-            _emit_direct_constructor_deprecation=False,
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
+                category=DeprecationWarning,
+            )
+            return AnalysisReadyPhosphoDataset(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                intensity_scale_state=intensity_scale_state,
+                processing_state=processing_state,
+                sample_metadata=sample_metadata,
+                total=total,
+                comparisons=comparisons,
+                imputation_observation_mask=imputation_observation_mask,
+                organism=organism,
+                preprocessing_report=preprocessing_report,
+                provenance=provenance,
+            )

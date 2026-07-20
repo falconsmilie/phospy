@@ -65,8 +65,9 @@ structural validation as direct construction, including required
 waivers for identity, intensity scale, quantitative meaning, localisation,
 sequence, and reference context, plus non-waivable aligned-table structure
 evidence. Supplied trusted provenance must match the actual table fingerprints.
-It cannot prove the biological correctness of user-asserted state or
-provenance. Ordinary dataset construction should use
+Compatibility-constructor provenance is checked against actual table
+fingerprints the same way. It cannot prove the biological correctness of
+user-asserted state or provenance. Ordinary dataset construction should use
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
 Use `phospy.api` for stable request, workflow, primary result, reference, enum,

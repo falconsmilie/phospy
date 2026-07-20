@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
@@ -80,7 +82,7 @@ def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
         display_ids,
         protein_namespace="gene_symbol",
     )
-    return AnalysisReadyPhosphoDataset(
+    dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0, 1.5, 2.0],
@@ -105,10 +107,21 @@ def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
-        provenance=_run_provenance(
-            workflow_name="unit_test_dataset",
-            context=context,
-        ),
+    )
+    if context is None:
+        return dataset
+    provenance = dataset.provenance
+    if provenance is None:
+        raise AssertionError(
+            "analysis-ready dataset must carry construction provenance"
+        )
+    return AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=dataset.site_metadata,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
+        provenance=replace(provenance, reference_context=context),
     )
 
 

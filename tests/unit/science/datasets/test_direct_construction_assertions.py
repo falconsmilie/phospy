@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import inspect
 import json
+import re
+import warnings
 from collections.abc import Mapping
 from dataclasses import replace
 from typing import cast
@@ -13,12 +16,16 @@ from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.provenance import (
     ReferenceProvenance,
     RunProvenance,
+    TableFingerprint,
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
     from_payload,
     to_payload,
 )
 from phospy.provenance.reference_context import ReferenceContext
+from phospy.science.datasets.direct_construction import (
+    DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
+)
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -132,6 +139,62 @@ def _trusted_dataset(
     )
 
 
+def _trusted_dataset_with_all_tables() -> AnalysisReadyPhosphoDataset:
+    index = _site_index()
+    phospho = _phospho(index)
+    return AnalysisReadyPhosphoDataset.from_trusted_tables(
+        phospho=phospho,
+        site_metadata=_site_metadata(index),
+        sample_metadata=pd.DataFrame(
+            {"condition": ["control", "treated"]},
+            index=phospho.columns.copy(),
+        ),
+        total=pd.DataFrame(
+            {
+                "sample_a": [10.0, 20.0],
+                "sample_b": [11.0, 21.0],
+            },
+            index=pd.Index(["MAPK14", "AKT1"], name="protein_id"),
+        ),
+        comparisons=pd.DataFrame(
+            {"treated_vs_control": [0.5, 0.7]},
+            index=index.copy(),
+        ),
+        imputation_observation_mask=pd.DataFrame(
+            {
+                "sample_a": [True, False],
+                "sample_b": [True, True],
+            },
+            index=index.copy(),
+            columns=phospho.columns.copy(),
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=True
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=True),
+        trusted_construction_assertions=_complete_assertions(),
+    )
+
+
+def _public_constructor_payload_from_dataset(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> dict[str, object]:
+    return {
+        "phospho": dataset.phospho,
+        "site_metadata": dataset.site_metadata,
+        "sample_metadata": dataset.sample_metadata,
+        "total": dataset.total,
+        "comparisons": dataset.comparisons,
+        "imputation_observation_mask": dataset.imputation_observed_mask_dataframe(),
+        "organism": dataset.organism,
+        "intensity_scale_state": dataset.intensity_scale_state,
+        "processing_state": dataset.processing_state,
+        "provenance": dataset.provenance,
+        "trusted_construction_assertions": dataset.trusted_construction_assertions,
+    }
+
+
 def _provenance_with_construction_payload(
     assertions: TrustedDatasetConstructionAssertions,
     construction_update: Mapping[str, object],
@@ -166,6 +229,161 @@ def _reference_context(organism: object) -> ReferenceContext:
         proteome_version=None,
         reference_table_sha256="a" * 64,
     )
+
+
+def _mutate_payload_table(payload: dict[str, object], table_name: str) -> None:
+    table_by_name = {
+        "dataset.phospho": "phospho",
+        "dataset.site_metadata": "site_metadata",
+        "dataset.sample_metadata": "sample_metadata",
+        "dataset.total": "total",
+        "dataset.comparisons": "comparisons",
+        "dataset.imputation_observation_mask": "imputation_observation_mask",
+    }
+    frame = payload[table_by_name[table_name]]
+    assert isinstance(frame, pd.DataFrame)
+    if table_name == "dataset.site_metadata":
+        frame["curation_score"] = [0.1, 0.2]
+    elif table_name == "dataset.sample_metadata":
+        frame.loc[:, "condition"] = ["changed", "treated"]
+    elif table_name == "dataset.imputation_observation_mask":
+        frame.iloc[0, 0] = not bool(frame.iloc[0, 0])
+    else:
+        frame.iloc[0, 0] = float(frame.iloc[0, 0]) + 10.0
+
+
+def _fingerprint_named(
+    fingerprints: tuple[TableFingerprint, ...],
+    table_name: str,
+) -> TableFingerprint:
+    for fingerprint in fingerprints:
+        if fingerprint.name == table_name:
+            return fingerprint
+    raise AssertionError(f"missing fingerprint for {table_name}")
+
+
+def _assert_stale_provenance_error(
+    exc: DatasetValidationError,
+    *,
+    provenance: RunProvenance,
+    table_name: str,
+) -> None:
+    expected = _fingerprint_named(provenance.output_tables, table_name)
+    message = str(exc)
+    assert table_name in message
+    assert f"expected exact digest {expected.exact_hash_value}" in message
+    assert "actual exact digest " in message
+    assert f"expected tolerance digest {expected.tolerance_hash_value}" in message
+    assert "actual tolerance digest " in message
+
+
+def _assert_direct_constructor_rejects_stale_table(table_name: str) -> None:
+    trusted = _trusted_dataset_with_all_tables()
+    assert trusted.provenance is not None
+    payload = _public_constructor_payload_from_dataset(trusted)
+    _mutate_payload_table(payload, table_name)
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
+    ):
+        with pytest.raises(DatasetValidationError) as exc_info:
+            AnalysisReadyPhosphoDataset(**payload)
+    _assert_stale_provenance_error(
+        exc_info.value,
+        provenance=trusted.provenance,
+        table_name=table_name,
+    )
+
+
+def test_direct_constructor_rejects_stale_phospho_provenance() -> None:
+    _assert_direct_constructor_rejects_stale_table("dataset.phospho")
+
+
+def test_direct_constructor_rejects_stale_site_metadata_provenance() -> None:
+    _assert_direct_constructor_rejects_stale_table("dataset.site_metadata")
+
+
+@pytest.mark.parametrize(
+    "table_name",
+    [
+        pytest.param("dataset.sample_metadata", id="sample_metadata"),
+        pytest.param("dataset.total", id="total"),
+        pytest.param("dataset.comparisons", id="comparisons"),
+        pytest.param(
+            "dataset.imputation_observation_mask",
+            id="imputation_observation_mask",
+        ),
+    ],
+)
+def test_direct_constructor_rejects_stale_optional_table_provenance(
+    table_name: str,
+) -> None:
+    _assert_direct_constructor_rejects_stale_table(table_name)
+
+
+def test_direct_constructor_warning_cannot_be_suppressed_by_public_argument() -> None:
+    trusted = _trusted_dataset_with_all_tables()
+    payload = _public_constructor_payload_from_dataset(trusted)
+
+    with pytest.raises(TypeError, match="_emit_direct_constructor_deprecation"):
+        AnalysisReadyPhosphoDataset(
+            **payload,
+            _emit_direct_constructor_deprecation=False,
+        )
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
+    ):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_from_trusted_tables_remains_warning_free_and_fingerprint_strict() -> None:
+    trusted = _trusted_dataset_with_all_tables()
+    assert trusted.provenance is not None
+    assert trusted.trusted_construction_assertions is not None
+    payload = _public_constructor_payload_from_dataset(trusted)
+    _mutate_payload_table(payload, "dataset.phospho")
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        with pytest.raises(DatasetValidationError) as exc_info:
+            AnalysisReadyPhosphoDataset.from_trusted_tables(
+                phospho=cast(pd.DataFrame, payload["phospho"]),
+                site_metadata=cast(pd.DataFrame, payload["site_metadata"]),
+                sample_metadata=cast(pd.DataFrame, payload["sample_metadata"]),
+                total=cast(pd.DataFrame, payload["total"]),
+                comparisons=cast(pd.DataFrame, payload["comparisons"]),
+                imputation_observation_mask=cast(
+                    pd.DataFrame,
+                    payload["imputation_observation_mask"],
+                ),
+                organism=Organism.RAT,
+                intensity_scale_state=trusted.intensity_scale_state,
+                processing_state=trusted.processing_state,
+                provenance=trusted.provenance,
+                trusted_construction_assertions=(
+                    trusted.trusted_construction_assertions
+                ),
+            )
+
+    assert all(
+        DIRECT_CONSTRUCTION_DEPRECATION_WARNING not in str(item.message)
+        for item in recorded
+    )
+    _assert_stale_provenance_error(
+        exc_info.value,
+        provenance=trusted.provenance,
+        table_name="dataset.phospho",
+    )
+
+
+def test_exported_dataset_signature_has_no_private_validation_controls() -> None:
+    parameters = inspect.signature(AnalysisReadyPhosphoDataset).parameters
+
+    assert "_emit_direct_constructor_deprecation" not in parameters
+    assert "_enforce_trusted_table_fingerprints" not in parameters
 
 
 def test_from_trusted_tables_records_typed_construction_assertions() -> None:
@@ -427,7 +645,7 @@ def test_trusted_construction_assertions_deserialize_canonical_round_trip() -> N
     assert restored.assertion_fingerprint == assertions.assertion_fingerprint
 
 
-def test_replayed_trusted_construction_rejects_table_fingerprint_mismatch() -> None:
+def test_replayed_dataset_rejects_table_fingerprint_mismatch() -> None:
     assertions = _complete_assertions()
     trusted = _trusted_dataset(assertions)
     assert trusted.provenance is not None

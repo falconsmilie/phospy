@@ -9,7 +9,7 @@ import pandas as pd
 
 from phospy.errors.build import DatasetBuildError
 from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.models import (
     DeterminismKind,
     JsonValue,
@@ -195,7 +195,7 @@ def _collect_fingerprints(
 ) -> tuple[TableFingerprint, ...]:
     fingerprints: list[TableFingerprint] = []
     for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
+        fingerprint = fingerprint_optional_table_strict(table, name=name)
         if fingerprint is None:
             continue
         fingerprints.append(fingerprint)
@@ -207,7 +207,7 @@ def _table_identity_payload(
 ) -> dict[str, dict[str, object] | None]:
     payload: dict[str, dict[str, object] | None] = {}
     for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
+        fingerprint = fingerprint_optional_table_strict(table, name=name)
         if fingerprint is None:
             payload[name] = None
             continue

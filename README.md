@@ -308,7 +308,9 @@ prefer the explicit trusted factory
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`; it runs the same
 structural validation as direct construction, including required
 `site_sequence`, but cannot prove the biological correctness of user-asserted
-state or provenance. Direct construction remains available for compatibility.
+state or provenance. Supplied provenance must fingerprint the actual represented
+tables. Direct construction remains available for compatibility and always emits
+`DeprecationWarning`.
 Construction without supplied provenance receives a minimal direct-construction provenance marker;
 this records audit limitations and does not certify biological correctness.
 Ordinary user construction should go through

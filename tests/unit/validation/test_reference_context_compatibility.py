@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 
 import pandas as pd
 import pytest
@@ -8,11 +9,7 @@ import pytest
 from phospy.api import KinaseWorkflowRequest, Organism, ReferenceBundle
 from phospy.api.configs import KinaseScoringConfig
 from phospy.errors.validation import PhosPyValidationError, WorkflowValidationError
-from phospy.provenance.models import (
-    EnvironmentProvenance,
-    ReferenceProvenance,
-    RunProvenance,
-)
+from phospy.provenance.models import ReferenceProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import ReferenceContext
 from phospy.validation.identity_contracts import (
@@ -44,33 +41,13 @@ def _context(**overrides: object) -> ReferenceContext:
     return ReferenceContext(**values)
 
 
-def _run_provenance(context: ReferenceContext | None) -> RunProvenance:
-    return RunProvenance(
-        environment=EnvironmentProvenance(
-            package_name="phospy",
-            package_version="test",
-            python_version="3.13",
-            dependency_versions={},
-        ),
-        input_tables=(),
-        preprocessing_stages=(),
-        reference=None,
-        workflow_name="unit_test_dataset",
-        workflow_parameters={},
-        random_state=None,
-        random_seed_policy=None,
-        output_tables=(),
-        reference_context=context,
-    )
-
-
 def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
     display_ids = ["MAPK14;Y182;"]
     site_ids = site_key_index_from_display_ids(
         display_ids,
         protein_namespace="gene_symbol",
     )
-    return AnalysisReadyPhosphoDataset(
+    dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame({"sample_a": [1.0], "sample_b": [1.1]}, index=site_ids),
         site_metadata=pd.DataFrame(
             {
@@ -88,7 +65,21 @@ def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
-        provenance=_run_provenance(context),
+    )
+    if context is None:
+        return dataset
+    provenance = dataset.provenance
+    if provenance is None:
+        raise AssertionError(
+            "analysis-ready dataset must carry construction provenance"
+        )
+    return AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=dataset.site_metadata,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
+        provenance=replace(provenance, reference_context=context),
     )
 
 

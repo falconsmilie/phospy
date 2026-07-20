@@ -668,7 +668,6 @@ def test_total_protein_and_imputation_mask_lineage_are_recorded() -> None:
         intensity_scale_state=base.intensity_scale_state,
         processing_state=valid_imputed_processing_state(base.processing_state),
         imputation_observation_mask=mask,
-        provenance=base.provenance,
     )
 
     resolved = _aggregate(
