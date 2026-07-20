@@ -147,6 +147,46 @@ def test_builder_log2_transformation_records_transformed_mode_in_provenance() ->
     assert isinstance(diagnostics.get("output_phospho_hash"), str)
 
 
+def test_builder_intensity_scale_establishment_payloads_are_fresh() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [3.0, 7.0], "sample_b": [15.0, 31.0]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho.index),
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            ),
+        )
+    )
+
+    workflow_payload = _workflow_establishment_payload(built)
+    workflow_parameters = workflow_payload["parameters"]
+    assert isinstance(workflow_parameters, dict)
+    workflow_affected = workflow_parameters["affected_matrices"]
+    assert isinstance(workflow_affected, list)
+    workflow_affected.append("payload-only")
+
+    final_stage_payload = _final_stage_establishment_payload(built)
+    final_parameters = final_stage_payload["parameters"]
+    assert isinstance(final_parameters, dict)
+    final_affected = final_parameters["affected_matrices"]
+    assert isinstance(final_affected, list)
+    final_affected.append("report-only")
+
+    assert _workflow_establishment_payload(built)["parameters"][
+        "affected_matrices"
+    ] == ["phospho"]
+    assert _final_stage_establishment_payload(built)["parameters"][
+        "affected_matrices"
+    ] == ["phospho"]
+
+
 def test_builder_identity_pass_through_without_declared_scale_fails_establishment() -> (
     None
 ):

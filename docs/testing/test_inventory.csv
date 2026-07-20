@@ -1,6 +1,6 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
-tests/architecture/test_exported_json_state_immutability.py,architecture,204,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/architecture/test_exported_json_state_immutability.py,architecture,228,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_package_dependency_dag.py,architecture,520,7,false,false,,,,,,
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_validation_boundaries.py,architecture,642,22,false,false,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
@@ -10,7 +10,7 @@ tests/integration/science/datasets/test_analysis_ready_dataset_construction_boun
 tests/integration/test_dataset_batch_correction_validation.py,integration,294,6,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,496,11,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_dataset_builder_integration.py,integration,1987,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,388,10,true,false,,,,,,
+tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,428,11,true,false,,,,,,
 tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,,,,,
 tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1738,39,true,true,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,177,2,true,false,,,,,,
@@ -233,7 +233,7 @@ tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API cont
 tests/unit/test_request_validation_boundaries.py,unit,299,6,true,true,,,,,,
 tests/unit/test_result_caveats.py,unit,361,7,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
-tests/unit/test_row_attrition_provenance.py,unit,240,12,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_row_attrition_provenance.py,unit,266,13,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_runtime_contract_guards.py,unit,210,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
 tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,760,28,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -268,7 +268,7 @@ tests/unit/test_sps_ruv_style_executor.py,unit,884,21,false,false,,,,,,
 tests/unit/test_sps_ruv_upstream_imputation_masks.py,unit,767,16,true,true,,,,,,
 tests/unit/test_table_schemas.py,unit,1102,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,563,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
-tests/unit/test_transformation_provenance.py,unit,73,2,false,false,,,,,,
+tests/unit/test_transformation_provenance.py,unit,227,5,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_validation_common_ownership.py,unit,27,2,false,false,,,,,,
 tests/unit/test_validation_ownership.py,unit,199,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_validation_ownership_contracts.py,unit,72,2,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -281,8 +281,8 @@ tests/unit/test_workflow_stage_decomposition.py,unit,617,15,false,false,,,,,,[au
 tests/unit/validation/test_reference_context_compatibility.py,validation,191,7,false,false,,,,,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,265,7,false,false,,,,,,
-tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,260,5,false,false,,,,,,
-tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,324,7,false,false,,,,,,
+tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,294,6,false,false,,,,,,
+tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,488,9,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_reference_context_policy.py,kinase,204,4,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_row_attrition.py,kinase,73,2,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_scoring_mode_contracts.py,kinase,467,10,true,true,,,,,,

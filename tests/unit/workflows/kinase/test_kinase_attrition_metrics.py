@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
+    KinaseAttritionPolicy,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
@@ -13,7 +14,10 @@ from phospy.api import (
 )
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.kinase.attrition_metrics import KinaseAttritionMetrics
+from phospy.workflows.kinase.attrition_metrics import (
+    KinaseAttritionMetrics,
+    build_kinase_attrition_provenance_payload,
+)
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -258,3 +262,33 @@ def test_kinase_attrition_metrics_zero_denominator_fails_explicitly() -> None:
             sequence_supported_sites=0,
             scored_sites=0,
         )
+
+
+def test_kinase_attrition_payload_preserves_calculated_metrics_and_policy() -> None:
+    metrics = KinaseAttritionMetrics.from_counts(
+        total_dataset_sites=4,
+        reference_overlap_sites=3,
+        sequence_supported_sites=2,
+        scored_sites=1,
+    )
+    policy = KinaseAttritionPolicy(
+        minimum_reference_overlap_fraction=0.25,
+        minimum_sequence_supported_fraction=0.25,
+        minimum_scored_fraction=0.25,
+        on_violation="warn",
+    )
+
+    payload = build_kinase_attrition_provenance_payload(
+        metrics=metrics,
+        policy=policy,
+        violations=(),
+    )
+
+    assert payload["metrics"] == metrics.to_payload()
+    assert payload["policy"] == {
+        "minimum_reference_overlap_fraction": 0.25,
+        "minimum_sequence_supported_fraction": 0.25,
+        "minimum_scored_fraction": 0.25,
+        "on_violation": "warn",
+    }
+    assert payload["policy_outcome"] == "passed"

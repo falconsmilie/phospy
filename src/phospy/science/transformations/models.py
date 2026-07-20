@@ -9,6 +9,10 @@ from enum import Enum
 from typing import Final, cast
 
 from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.provenance.immutability import (
+    freeze_json_mapping_with_error_type,
+    thaw_json_mapping,
+)
 from phospy.science.transformations._authority import (
     EstablishmentAuthority,
     resolve_establishment_authority_source,
@@ -151,7 +155,7 @@ class IntensityScaleEstablishmentProvenance:
     evidence_level: IntensityScaleEvidenceLevel = IntensityScaleEvidenceLevel.UNKNOWN
     transformer_name: str | None = None
     input_declaration_source: str | None = None
-    parameters: dict[str, object] = field(
+    parameters: Mapping[str, object] = field(
         default_factory=_default_provenance_parameters
     )
     trace_id: str | None = None
@@ -207,9 +211,10 @@ class IntensityScaleEstablishmentProvenance:
         object.__setattr__(
             self,
             "parameters",
-            cast(
-                Mapping[str, object],
-                {str(key): value for key, value in self.parameters.items()},
+            freeze_json_mapping_with_error_type(
+                self.parameters,
+                field_name="intensity_scale_establishment.parameters",
+                error_type=InvalidTransformationStateError,
             ),
         )
         object.__setattr__(
@@ -232,7 +237,10 @@ class IntensityScaleEstablishmentProvenance:
             "evidence_level": self.evidence_level.value,
             "transformer_name": self.transformer_name,
             "input_declaration_source": self.input_declaration_source,
-            "parameters": dict(self.parameters),
+            "parameters": thaw_json_mapping(
+                self.parameters,
+                field_name="intensity_scale_establishment.parameters",
+            ),
             "trace_id": self.trace_id,
             "diagnostic_warnings": list(self.diagnostic_warnings),
         }
@@ -599,7 +607,7 @@ class IntensityScaleState:
                 evidence_level=resolved_evidence_level,
                 transformer_name=transformer_name,
                 input_declaration_source=input_declaration_source,
-                parameters=dict(parameters),
+                parameters=parameters,
                 trace_id=trace_id,
                 diagnostic_warnings=diagnostic_warnings,
             ),

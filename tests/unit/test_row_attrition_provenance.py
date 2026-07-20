@@ -127,6 +127,32 @@ def test_row_attrition_report_composes_typed_records() -> None:
     assert report.to_payload()["records"] == [record.to_payload() for record in records]
 
 
+def test_row_attrition_payload_mutation_does_not_change_report() -> None:
+    report = RowAttritionReport.from_records(
+        (
+            RowAttritionRecord(
+                stage="site_matrix",
+                input_rows=3,
+                output_rows=1,
+                removed_rows=2,
+                reason="duplicate_site_resolution",
+                examples=("SITE_A", "SITE_B"),
+            ),
+        )
+    )
+
+    payload = report.to_payload()
+    records = payload["records"]
+    assert isinstance(records, list)
+    first_record = records[0]
+    assert isinstance(first_record, dict)
+    examples = first_record["examples"]
+    assert isinstance(examples, list)
+    examples.append("PAYLOAD_ONLY")
+
+    assert report.to_payload()["records"][0]["examples"] == ["SITE_A", "SITE_B"]
+
+
 def test_row_attrition_report_rejects_plain_dict_records() -> None:
     with pytest.raises(
         PhosPyInputError,

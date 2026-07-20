@@ -312,6 +312,10 @@ That override is auditable. Successful builds record
 policy (`"error"` or `"warn"`), the input declaration source, establishment mode,
 and diagnostic warnings in `dataset.provenance.workflow_parameters` and in the
 final `dataset.preprocessing_report.operations` row.
+Intensity-scale establishment parameters are recursively immutable inside the
+typed provenance model. Public payloads and saved-bundle JSON keep the same keys
+and values, but each payload read returns detached ordinary `dict`/`list`
+containers.
 
 Use explicit groups when you need a specific preprocessing policy:
 

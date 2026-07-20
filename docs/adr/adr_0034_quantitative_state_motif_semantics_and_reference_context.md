@@ -124,6 +124,12 @@ interpretation, workflows attach the shared
 validation: workflows that require established intensity scale must still reject
 unestablished or incompatible state.
 
+`IntensityScaleEstablishmentProvenance` keeps scale, establishment mode, source,
+evidence level, transformer, trace ID, and warnings as typed top-level fields.
+Its `parameters` mapping is JSON-like evidence and follows ADR-0035 recursive
+immutability: constructor input is frozen without key stringification, and
+`to_payload()` returns fresh ordinary JSON containers.
+
 Unknown evidence is not a permission to proceed silently. It is an explicit
 state that validators and result assembly must treat according to workflow
 policy. Scientific caveats must not be removed to make tests pass.
@@ -232,6 +238,12 @@ serialize complete removed-ID lists.
 Compatibility metrics remain available through `row_attrition_metrics`, but
 metrics do not create machine-readable stage causality. When a metric and a
 typed causal record describe the same stage count, they must agree.
+
+Kinase attrition threshold evidence is stored separately as
+`KinaseWorkflowAttritionProvenance`. Kinase science and workflow components own
+the calculation of attrition counts and policy outcomes; the public result
+contract only validates and freezes the already-calculated `metrics`, `policy`,
+and `policy_violations` payloads under ADR-0035.
 
 Current classification:
 

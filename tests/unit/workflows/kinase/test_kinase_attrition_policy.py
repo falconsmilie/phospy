@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from typing import cast
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -16,7 +18,11 @@ from phospy.api import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.results import KinaseWorkflowAttritionProvenance
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance.hashing import hash_json_payload
+from phospy.provenance.models import JsonValue
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.workflows.intensity_scale_evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
@@ -130,6 +136,61 @@ def _caveat_by_code(result: KinaseWorkflowResult, code: str):
     return matches[0]
 
 
+class _DuplicateKeyMapping(Mapping[str, object]):
+    def __iter__(self) -> Iterator[str]:
+        return iter(("duplicate", "duplicate"))
+
+    def __len__(self) -> int:
+        return 2
+
+    def __getitem__(self, key: str) -> object:
+        if key == "duplicate":
+            return "value"
+        raise KeyError(key)
+
+
+def _attrition_provenance(
+    *,
+    metrics: Mapping[object, object] | None = None,
+    policy: Mapping[object, object] | None = None,
+    policy_violations: tuple[Mapping[object, object], ...] = (),
+) -> KinaseWorkflowAttritionProvenance:
+    return KinaseWorkflowAttritionProvenance(
+        metrics=cast(
+            Mapping[str, object],
+            {
+                "scored_fraction": 0.5,
+                "nested": {"counts": [1, {"scored_sites": 2}]},
+            }
+            if metrics is None
+            else metrics,
+        ),
+        policy=cast(
+            Mapping[str, object],
+            {
+                "minimum_scored_fraction": 0.75,
+                "nested": {"thresholds": [0.75]},
+                "on_violation": "warn",
+            }
+            if policy is None
+            else policy,
+        ),
+        policy_outcome="warned",
+        policy_violations=cast(
+            tuple[Mapping[str, object], ...],
+            policy_violations
+            or (
+                {
+                    "threshold_name": "minimum_scored_fraction",
+                    "details": {"examples": [{"site": "KIN1;S1;"}]},
+                    "message": "Kinase scoring retained too few sites.",
+                },
+            ),
+        ),
+        warning_messages=("Kinase scoring retained too few sites.",),
+    )
+
+
 def test_kinase_attrition_policy_error_blocks_scoring() -> None:
     class _ExecutorMustNotRun:
         def run(
@@ -233,6 +294,109 @@ def test_kinase_attrition_policy_error_message_contains_counts_and_threshold() -
     attrition_provenance = exc_info.value.details["attrition_provenance"]
     assert isinstance(attrition_provenance, dict)
     assert attrition_provenance["policy_outcome"] == "failed"
+
+
+def test_kinase_attrition_evidence_is_recursively_immutable() -> None:
+    metrics: dict[object, object] = {
+        "scored_fraction": 0.5,
+        "nested": {"counts": [1, {"scored_sites": 2}]},
+    }
+    policy: dict[object, object] = {
+        "minimum_scored_fraction": 0.75,
+        "nested": {"thresholds": [0.75]},
+        "on_violation": "warn",
+    }
+    violation: dict[object, object] = {
+        "threshold_name": "minimum_scored_fraction",
+        "details": {"examples": [{"site": "KIN1;S1;"}]},
+        "message": "Kinase scoring retained too few sites.",
+    }
+
+    provenance = _attrition_provenance(
+        metrics=metrics,
+        policy=policy,
+        policy_violations=(violation,),
+    )
+
+    cast(
+        list[object],
+        cast(dict[str, object], metrics["nested"])["counts"],
+    ).append("source-only")
+    cast(
+        list[object],
+        cast(dict[str, object], policy["nested"])["thresholds"],
+    ).append("source-only")
+    cast(
+        list[object],
+        cast(
+            dict[str, object], cast(dict[str, object], violation["details"])["examples"]
+        ),
+    ).append({"site": "payload-only"})
+
+    payload = provenance.to_payload()
+    assert payload["metrics"] == {
+        "scored_fraction": 0.5,
+        "nested": {"counts": [1, {"scored_sites": 2}]},
+    }
+    assert payload["policy"] == {
+        "minimum_scored_fraction": 0.75,
+        "nested": {"thresholds": [0.75]},
+        "on_violation": "warn",
+    }
+    assert payload["policy_violations"] == [
+        {
+            "threshold_name": "minimum_scored_fraction",
+            "details": {"examples": [{"site": "KIN1;S1;"}]},
+            "message": "Kinase scoring retained too few sites.",
+        }
+    ]
+
+    first_hash = hash_json_payload(cast(JsonValue, payload))
+    cast(
+        list[object],
+        cast(dict[str, object], cast(dict[str, object], payload["metrics"])["nested"])[
+            "counts"
+        ],
+    ).append("payload-only")
+
+    fresh_payload = provenance.to_payload()
+    restored = KinaseWorkflowAttritionProvenance(
+        metrics=cast(Mapping[str, object], fresh_payload["metrics"]),
+        policy=cast(Mapping[str, object], fresh_payload["policy"]),
+        policy_outcome=cast(str, fresh_payload["policy_outcome"]),
+        policy_violations=tuple(
+            cast(list[Mapping[str, object]], fresh_payload["policy_violations"])
+        ),
+        warning_messages=tuple(cast(list[str], fresh_payload["warning_messages"])),
+    )
+
+    assert fresh_payload["metrics"] == {
+        "scored_fraction": 0.5,
+        "nested": {"counts": [1, {"scored_sites": 2}]},
+    }
+    assert hash_json_payload(cast(JsonValue, fresh_payload)) == first_hash
+    assert restored.to_payload() == fresh_payload
+
+
+def test_kinase_attrition_rejects_invalid_json_keys_without_stringifying() -> None:
+    with pytest.raises(PhosPyInputError, match="keys must be strings"):
+        _attrition_provenance(metrics={1: "numeric-key", "1": "string-key"})
+
+    with pytest.raises(PhosPyInputError, match="keys must be strings"):
+        _attrition_provenance(policy={"nested": {1: "numeric-key"}})
+
+    with pytest.raises(PhosPyInputError, match="duplicate JSON object key"):
+        _attrition_provenance(policy_violations=(_DuplicateKeyMapping(),))
+
+    invalid_metrics = (
+        {"bad": float("nan")},
+        {"bad": float("inf")},
+        {"bad": {"unsupported"}},
+        {"bad": np.array([1.0])},
+    )
+    for metrics in invalid_metrics:
+        with pytest.raises(PhosPyInputError):
+            _attrition_provenance(metrics=metrics)
 
 
 def test_kinase_result_exposes_attrition_metrics() -> None:

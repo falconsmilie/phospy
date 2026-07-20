@@ -16,6 +16,7 @@ from phospy.contracts.results import (
     EnrichmentWorkflowResult,
     ImporterMissingIntensitySummary,
     ImporterQualityReport,
+    KinaseWorkflowAttritionProvenance,
     PhosphositeImportResult,
     ResultCaveat,
 )
@@ -50,6 +51,16 @@ _IMMUTABLE_JSON_FIELDS = {
     "set_collection_summary": (
         "contract-owned enrichment set-collection summary; recursively frozen"
     ),
+    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance.metrics": (
+        "contract-owned kinase attrition metrics; recursively frozen"
+    ),
+    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance.policy": (
+        "contract-owned kinase attrition policy payload; recursively frozen"
+    ),
+    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
+    "policy_violations": (
+        "contract-owned kinase attrition policy violation payloads; recursively frozen"
+    ),
     "phospy.science.result_caveats.ResultCaveat.details": (
         "common result caveat JSON details; recursively frozen"
     ),
@@ -59,14 +70,6 @@ _REVIEWED_JSON_FIELD_ALLOWLIST = {
     "phospy.contracts.results.base.PhosphositeImportResult._sample_column_mapping": (
         "private scalar str->str map; public sample_column_mapping returns a copy"
     ),
-    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance.metrics": (
-        "PHOSPY-REV-004 owns kinase attrition JSON-state closure"
-    ),
-    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance.policy": (
-        "PHOSPY-REV-004 owns kinase attrition JSON-state closure"
-    ),
-    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
-    "policy_violations": "PHOSPY-REV-004 owns kinase attrition JSON-state closure",
     "phospy.science.datasets.preprocessing.protein_aware_preparation."
     "ProteinAwarePreparationReport.policy_parameters": (
         "PHOSPY-REV-003 domain inventory entry for preprocessing diagnostics"
@@ -145,6 +148,17 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
     )
     import_result = _minimal_import_result(diagnostics={"nested": {"items": [1]}})
     enrichment_result = _minimal_enrichment_result()
+    kinase_attrition = KinaseWorkflowAttritionProvenance(
+        metrics={"nested": {"items": [1]}},
+        policy={"nested": {"items": [1]}},
+        policy_outcome="warned",
+        policy_violations=(
+            {
+                "threshold_name": "minimum_scored_fraction",
+                "details": {"items": [1]},
+            },
+        ),
+    )
     caveat = ResultCaveat(
         code="json_state",
         severity="info",
@@ -173,13 +187,23 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
         "background_summary": enrichment_result.background_summary,
         "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
         "set_collection_summary": enrichment_result.set_collection_summary,
+        "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
+        "metrics": kinase_attrition.metrics,
+        "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
+        "policy": kinase_attrition.policy,
+        "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
+        "policy_violations": kinase_attrition.policy_violations,
         "phospy.science.result_caveats.ResultCaveat.details": caveat.details,
     }
 
     assert set(protected_values) == set(_IMMUTABLE_JSON_FIELDS)
     for field_id, value in protected_values.items():
-        assert isinstance(value, FrozenJsonMapping), field_id
-        assert not isinstance(value, dict), field_id
+        if field_id.endswith(".policy_violations"):
+            assert isinstance(value, tuple), field_id
+            assert all(isinstance(item, FrozenJsonMapping) for item in value), field_id
+        else:
+            assert isinstance(value, FrozenJsonMapping), field_id
+            assert not isinstance(value, dict), field_id
 
     nested = caveat.details["nested"]
     assert isinstance(nested, FrozenJsonMapping)

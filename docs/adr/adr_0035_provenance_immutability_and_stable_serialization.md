@@ -37,6 +37,14 @@ the actual constructed tables; table hashes, shape, axis alignment, organism
 coherence, and `site_sequence` presence are mechanically checked facts rather
 than waivable assertion text.
 
+Update note (2026-07-20, scale and kinase attrition evidence closure):
+`IntensityScaleEstablishmentProvenance.parameters` and
+`KinaseWorkflowAttritionProvenance` JSON evidence (`metrics`, `policy`, and each
+`policy_violations` entry) now use the shared recursive freezer directly at
+their model boundaries. The transformation and result contracts retain typed
+top-level fields while rejecting invalid JSON keys, unsupported nested objects,
+and non-finite floats in evidence mappings.
+
 ## Decision
 
 All JSON-like provenance values must be normalized through the
@@ -143,12 +151,15 @@ The current audited fields include:
   mappings;
 - trusted dataset construction evidence `details` and construction workflow
   parameters;
+- intensity-scale establishment `parameters`;
 - public `ResultCaveat.details`;
 - importer `ImporterQualityReport.format_specific`,
   `ImporterMissingIntensitySummary` count mappings, and
-  `PhosphositeImportResult.diagnostics`; and
+  `PhosphositeImportResult.diagnostics`;
 - enrichment result `diagnostics`, `method_metadata`, `background_summary`, and
-  `set_collection_summary`.
+  `set_collection_summary`; and
+- kinase workflow attrition `metrics`, `policy`, and `policy_violations`
+  entries.
 
 `tests/architecture/test_exported_json_state_immutability.py` owns the exported
 result-state inventory. New public result dataclass fields typed as mappings

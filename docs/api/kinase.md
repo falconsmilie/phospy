@@ -236,6 +236,7 @@ Important fields:
 | `activity_result` | Optional `KinaseActivityResult`. |
 | `eligibility_report` | Optional compact eligibility counters. |
 | `site_attrition_summary` | Optional preprocessing/scoring attrition counters. |
+| `attrition_provenance` | Optional immutable attrition metrics, policy, outcome, violations, and warning messages. |
 | `substrate_contributions` | Optional substrate-level contribution table when enabled. |
 | `provenance` | Workflow provenance. |
 | `input_dataset_preprocessing_report` | Input dataset preprocessing report when available. |
@@ -361,6 +362,13 @@ encode site/kinase-pair loss as row loss. `row_attrition_metrics` remains
 available for legacy compatibility diagnostics, including
 `site_kinase_pairs_considered`, `site_kinase_pairs_scored`, and unscored-pair
 counts.
+
+`KinaseWorkflowAttritionProvenance` stores the workflow-calculated attrition
+metrics, configured policy payload, policy outcome, policy violations, and
+warning messages. The result contract does not calculate those values. It
+recursively freezes the JSON-like `metrics`, `policy`, and violation details at
+construction, rejects invalid JSON state instead of stringifying it, and
+returns fresh ordinary `dict`/`list` payloads from `to_payload()`.
 
 ## Limitations
 

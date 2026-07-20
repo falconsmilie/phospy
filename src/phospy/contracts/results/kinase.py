@@ -11,6 +11,7 @@ import pandas as pd
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_optional_dataframe
+from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.provenance.models import RunProvenance
 from phospy.science.activities.models import (
     ActivityMethodDiagnostics,
@@ -91,10 +92,11 @@ class KinaseWorkflowAttritionProvenance:
             _require_mapping(
                 violation,
                 field_name=(
-                    "kinase_workflow_result.attrition_provenance.policy_violations[]"
+                    "kinase_workflow_result.attrition_provenance."
+                    f"policy_violations[{index}]"
                 ),
             )
-            for violation in self.policy_violations
+            for index, violation in enumerate(self.policy_violations)
         )
         warning_messages = tuple(
             _require_non_empty_text(
@@ -113,11 +115,24 @@ class KinaseWorkflowAttritionProvenance:
 
     def to_payload(self) -> dict[str, object]:
         return {
-            "metrics": dict(self.metrics),
-            "policy": dict(self.policy),
+            "metrics": thaw_json_mapping(
+                self.metrics,
+                field_name="kinase_workflow_result.attrition_provenance.metrics",
+            ),
+            "policy": thaw_json_mapping(
+                self.policy,
+                field_name="kinase_workflow_result.attrition_provenance.policy",
+            ),
             "policy_outcome": self.policy_outcome,
             "policy_violations": [
-                dict(violation) for violation in self.policy_violations
+                thaw_json_mapping(
+                    violation,
+                    field_name=(
+                        "kinase_workflow_result.attrition_provenance."
+                        f"policy_violations[{index}]"
+                    ),
+                )
+                for index, violation in enumerate(self.policy_violations)
             ],
             "warning_messages": list(self.warning_messages),
         }
@@ -325,10 +340,8 @@ def _own_attrition_provenance(
     )
 
 
-def _require_mapping(value: object, *, field_name: str) -> dict[str, object]:
-    if not isinstance(value, Mapping):
-        raise PhosPyInputError(f"{field_name} must be a mapping")
-    return {str(key): item for key, item in value.items()}
+def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
+    return freeze_json_mapping(value, field_name=field_name)
 
 
 def _require_non_empty_text(value: object, *, field_name: str) -> str:
