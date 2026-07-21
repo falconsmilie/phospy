@@ -154,15 +154,17 @@ def supported_dataset(
         intensity_scale_state = supported_log2_intensity_scale_state(
             has_total_matrix=False
         )
+    processing_state = build_dataset_processing_state(
+        plan=PreprocessingPlan.default(),
+        intensity_scale_state=intensity_scale_state,
+    )
+    intensity_scale_state = processing_state.intensity_scale
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
         intensity_scale_state=intensity_scale_state,
-        processing_state=build_dataset_processing_state(
-            plan=PreprocessingPlan.default(),
-            intensity_scale_state=intensity_scale_state,
-        ),
+        processing_state=processing_state,
     )
 
 

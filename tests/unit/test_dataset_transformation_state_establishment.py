@@ -23,6 +23,7 @@ from phospy.errors.transformations import (
 from phospy.errors.validation import TransformationValidationError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
+    intensity_scale_state_to_payload,
 )
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
@@ -59,6 +60,7 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     IntensityTransformationEvent,
     MatrixIntensityScaleState,
+    QuantitativeMeaningEvidenceMode,
     establish_intensity_scale_state,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
@@ -346,23 +348,14 @@ def test_dataset_boundary_rejects_declared_intensity_scale_state_bypass() -> Non
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
             intensity_scale_state=intensity_scale_state,
-            processing_state=_processing_state_for(intensity_scale_state),
+            processing_state=_processing_state_for(
+                supported_linear_intensity_scale_state(has_total_matrix=False)
+            ),
         )
 
 
 def test_dataset_boundary_accepts_supported_established_state() -> None:
-    declared_linear = IntensityScaleState.raw(has_total_matrix=False)
-    supported_state = (
-        DatasetIntensityScaleResolver(transformer=IdentityTransformer())
-        .run(
-            phospho=_phospho(),
-            total=None,
-            expected_scale_kind=IntensityScaleKind.LINEAR,
-            declared_input_scale_state=declared_linear,
-            input_declaration_source="tests.unit",
-        )
-        .intensity_scale_state
-    )
+    supported_state = supported_linear_intensity_scale_state(has_total_matrix=False)
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
@@ -1187,16 +1180,22 @@ def test_builder_rejects_old_diagnostics_only_intensity_state() -> None:
 
 
 def test_bundle_reconstruction_lane_establishes_state() -> None:
+    payload = {
+        "phospho": {
+            "kind": "linear",
+            "transformed": False,
+            "established_by": "bundle.fixture",
+        },
+        "total": None,
+        "quantity": "phosphosite_abundance",
+    }
+
+    with pytest.raises(PhosPyInputError, match="quantitative_meaning_provenance"):
+        intensity_scale_state_from_payload(payload)
+
     state = intensity_scale_state_from_payload(
-        {
-            "phospho": {
-                "kind": "linear",
-                "transformed": False,
-                "established_by": "bundle.fixture",
-            },
-            "total": None,
-            "quantity": "phosphosite_abundance",
-        }
+        payload,
+        legacy_quantitative_meaning_policy="migrate_unverified",
     )
 
     assert state.is_established
@@ -1206,6 +1205,30 @@ def test_bundle_reconstruction_lane_establishes_state() -> None:
     assert (
         provenance.source
         is IntensityScaleEstablishmentSource.RESTORED_FROM_TRUSTED_PROVENANCE
+    )
+    meaning_provenance = state.quantitative_meaning_provenance
+    assert meaning_provenance is not None
+    assert (
+        meaning_provenance.evidence_mode
+        is QuantitativeMeaningEvidenceMode.LEGACY_UNVERIFIED
+    )
+    assert meaning_provenance.diagnostic_caveat_codes == (
+        "quantitative_meaning_legacy_unverified",
+    )
+
+
+def test_bundle_round_trip_preserves_quantitative_meaning_provenance() -> None:
+    state = supported_linear_intensity_scale_state(has_total_matrix=False)
+
+    payload = intensity_scale_state_to_payload(state)
+    restored = intensity_scale_state_from_payload(payload)
+
+    assert "quantitative_meaning_provenance" in payload
+    assert restored.quantity == state.quantity
+    assert restored.quantitative_meaning_provenance is not None
+    assert (
+        restored.quantitative_meaning_provenance.to_payload()
+        == payload["quantitative_meaning_provenance"]
     )
 
 

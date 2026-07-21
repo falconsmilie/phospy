@@ -22,6 +22,14 @@ That blending made ownership and validation ambiguous.
 Recent implementation changes also established explicit intensity-scale
 establishment modes, so the ADR must record the supported provenance model.
 
+Update note (2026-07-21, quantitative-meaning provenance):
+`IntensityScaleState` now separates numerical scale establishment from
+quantitative-meaning establishment. Changing scientific meaning, such as moving
+from abundance to phospho/total ratio, fold change, differential effect, or
+activity score, requires an authority-gated semantic transition with its own
+`QuantitativeMeaningTransitionProvenance`. Scale-compatible enum values are not
+evidence that the scientific operation happened.
+
 Update note (2026-07-13, enrichment identifier-set provenance):
 `EnrichmentWorkflowRequest` may carry typed selected/background identifier-set
 provenance. For PhosPy-derived quantitative identifier sets, the provenance
@@ -41,8 +49,9 @@ PhosPy uses two required boundary models on `AnalysisReadyPhosphoDataset`:
 2. `processing_state: DatasetProcessingState`
 
 `IntensityScaleState` is narrow and authoritative for quantitative scale and
-quantitative meaning; `DatasetProcessingState` is authoritative for
-preprocessing-policy summary.
+quantitative meaning, but it keeps those two facts as separate provenance
+contracts. `DatasetProcessingState` is authoritative for preprocessing-policy
+summary.
 
 Intensity-scale establishment is evidence-backed and explicit. Establishment is
 tracked with `IntensityScaleEstablishmentMode`:
@@ -69,6 +78,16 @@ Declared-scale diagnostics are safeguards and audit aids only. They can flag
 suspicious declared values (for example ranges that resemble raw linear values
 when declared as `log2`), but diagnostics do not prove scientific truth of the
 declaration and do not silently change scale.
+
+Quantitative meaning is established or transitioned separately from intensity
+scale. Initial base meanings may be declared by the caller or inferred from an
+already established scale contract. Operation-derived meanings must be produced
+by the operation that performed the scientific transformation and must record
+source meaning, target meaning, operation and producer identifiers, immutable
+parameters, relevant input/output table fingerprints, trace ID when available,
+and deterministic caveat codes. Bundle reconstruction may restore trusted
+serialized semantic provenance or explicitly migrate legacy payloads as
+unverified; it must not reinterpret a missing record as derived evidence.
 
 This ADR supersedes the old transformation-state wording but does not remove
 compatibility behavior where historical names appear in non-contract internals.
@@ -106,6 +125,10 @@ compatibility behavior where historical names appear in non-contract internals.
   `src/phospy/validation/transformations/state.py`.
 - Intensity-scale establishment modes and structured establishment provenance
   are defined in `src/phospy/science/transformations/models.py`.
+- Quantitative-meaning transition authority and provenance are defined in
+  `src/phospy/science/transformations/_authority.py` and
+  `src/phospy/science/transformations/models.py`. Public DTOs may request a
+  declaration, but they do not mint transition authority.
 - Numeric intensity transformations (including default preprocessing log2) must
   execute through transformer implementations in
   `src/phospy/science/transformations/transformers/`; preprocessing stages
@@ -117,7 +140,7 @@ compatibility behavior where historical names appear in non-contract internals.
 - Bundle metadata and reconstruction use explicit `intensity_scale_state` keys
   under `src/phospy/io/bundles/_shared/intensity_scale_state.py`.
 - Workflow validators consume established boundary state; they do not establish
-  intensity scale.
+  intensity scale or repair missing quantitative-meaning lineage.
 
 ## References
 

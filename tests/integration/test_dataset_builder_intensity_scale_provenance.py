@@ -9,7 +9,9 @@ from phospy.api import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetTotalProteinCorrectionConfig,
 )
+from phospy.errors import PhosPyInputError
 from phospy.errors.transformations import TransformationStateEstablishmentError
 from phospy.science.transformations.models import IntensityScaleEstablishmentSource
 
@@ -46,6 +48,15 @@ def _workflow_establishment_payload(dataset) -> dict[str, object]:
     return payload
 
 
+def _workflow_meaning_payload(dataset) -> dict[str, object]:
+    assert dataset.provenance is not None
+    payload = dataset.provenance.workflow_parameters.get(
+        "quantitative_meaning_provenance"
+    )
+    assert isinstance(payload, dict)
+    return payload
+
+
 def _final_stage_establishment_payload(dataset) -> dict[str, object]:
     assert dataset.preprocessing_report is not None
     final_stage = dataset.preprocessing_report.operations.loc[
@@ -55,6 +66,13 @@ def _final_stage_establishment_payload(dataset) -> dict[str, object]:
     parameters = final_stage["parameters"]
     assert isinstance(parameters, dict)
     payload = parameters.get("intensity_scale_establishment")
+    assert isinstance(payload, dict)
+    return payload
+
+
+def _final_stage_meaning_payload(dataset) -> dict[str, object]:
+    parameters = _final_stage_parameters(dataset)
+    payload = parameters.get("quantitative_meaning_provenance")
     assert isinstance(payload, dict)
     return payload
 
@@ -100,6 +118,144 @@ def test_builder_declared_log2_records_declared_establishment_mode_in_provenance
         "dataset_build_request.input_intensity_scale"
     )
     assert final_stage_payload["establishment_mode"] == "declared"
+    meaning_payload = _workflow_meaning_payload(built)
+    assert meaning_payload["evidence_mode"] == "inferred_from_scale_contract"
+    assert meaning_payload["source_quantity"] is None
+    assert meaning_payload["target_quantity"] == "phosphosite_log_abundance"
+    assert _final_stage_meaning_payload(built) == meaning_payload
+
+
+def test_builder_caller_declared_base_meaning_records_declaration_provenance() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [100.0], "sample_b": [200.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho.index),
+            input_intensity_scale="linear",
+            quantitative_meaning="phosphosite_abundance",
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(policy="identity")
+            ),
+        )
+    )
+
+    payload = _workflow_meaning_payload(built)
+    assert payload["evidence_mode"] == "declared_by_caller"
+    assert payload["target_quantity"] == "phosphosite_abundance"
+    assert payload["operation_id"] == (
+        "phospy.dataset_builder.quantitative_meaning.declaration"
+    )
+    assert payload["diagnostic_caveat_codes"] == ["quantitative_meaning_user_declared"]
+    assert built.provenance is not None
+    assert built.provenance.workflow_parameters[
+        "quantitative_meaning_caveat_codes"
+    ] == ["quantitative_meaning_user_declared"]
+
+
+def test_builder_rejects_operation_derived_public_quantitative_meaning() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.1, 2.0], "sample_b": [2.0, 3.1]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+
+    with pytest.raises(PhosPyInputError, match="may only declare direct input"):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho.index),
+                input_intensity_scale="log2",
+                quantitative_meaning="contrast_log2_fold_change",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="identity"
+                    )
+                ),
+            )
+        )
+
+
+def test_builder_rejects_incompatible_base_meaning_declaration() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.1, 2.0], "sample_b": [2.0, 3.1]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="phosphosite_abundance.*linear intensity scale",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho.index),
+                input_intensity_scale="log2",
+                quantitative_meaning="phosphosite_abundance",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="identity"
+                    )
+                ),
+            )
+        )
+
+
+def test_total_protein_correction_records_derived_meaning_transition() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [3.0, 7.0], "sample_b": [15.0, 31.0]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+    total = pd.DataFrame(
+        {"sample_a": [2.0, 5.0], "sample_b": [8.0, 16.0]},
+        index=pd.Index(["MAPK14", "GSK3B"], name="protein_id"),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            total=total,
+            site_metadata=_site_metadata(phospho.index),
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total"
+                ),
+            ),
+        )
+    )
+
+    meaning_payload = _workflow_meaning_payload(built)
+    assert meaning_payload["evidence_mode"] == "derived_by_phospy_operation"
+    assert meaning_payload["source_quantity"] == "phosphosite_log_abundance"
+    assert meaning_payload["target_quantity"] == "phospho_total_log_ratio"
+    assert meaning_payload["operation_id"] == (
+        "phospy.dataset_preprocessing.total_protein_correction.subtract_log_total"
+    )
+    assert str(meaning_payload["trace_id"]).startswith(
+        "total_protein_correction:subtract_log_total:"
+    )
+    input_names = {
+        str(item["name"])
+        for item in meaning_payload["input_table_fingerprints"]
+        if isinstance(item, dict)
+    }
+    assert {"dataset.phospho", "dataset.total"}.issubset(input_names)
+    output_fingerprint = meaning_payload["output_table_fingerprint"]
+    assert isinstance(output_fingerprint, dict)
+    assert output_fingerprint["name"] == "dataset.phospho"
+    parameters = meaning_payload["parameters"]
+    assert isinstance(parameters, dict)
+    assert parameters["total_protein_correction_policy"] == "subtract_log_total"
+    assert parameters["diagnostics.formula"] == "log2_phospho - log2_total"
+    assert built.intensity_scale_state.establishment_provenance is not None
+    assert (
+        built.intensity_scale_state.establishment_provenance.to_payload()
+        == _workflow_establishment_payload(built)
+    )
 
 
 def test_builder_log2_transformation_records_transformed_mode_in_provenance() -> None:

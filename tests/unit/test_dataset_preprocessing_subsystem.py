@@ -2251,7 +2251,7 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
     ]
 
 
-def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance() -> (
+def test_dataset_builder_request_rejects_operation_derived_quantitative_meaning() -> (
     None
 ):
     phospho = pd.DataFrame(
@@ -2269,7 +2269,7 @@ def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance()
         index=phospho.index.copy(),
     )
 
-    built = DatasetBuildExecutor().run(
+    with pytest.raises(PhosPyInputError, match="may only declare direct input"):
         DatasetBuildRequestInterpreter().run(
             DatasetBuildRequest(
                 phospho=phospho,
@@ -2279,13 +2279,6 @@ def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance()
                 quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
             )
         )
-    )
-
-    expected = QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
-    assert built.intensity_scale_state.quantity is not None
-    assert built.intensity_scale_state.quantity.value == expected
-    assert built.provenance is not None
-    assert built.provenance.workflow_parameters["quantitative_meaning"] == expected
 
 
 def test_dataset_interpreter_defers_reference_site_sequence_fill_when_fasta_is_configured() -> (

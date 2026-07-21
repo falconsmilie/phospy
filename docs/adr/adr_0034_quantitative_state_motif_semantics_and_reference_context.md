@@ -28,7 +28,9 @@ models, not unstructured dictionaries or inferred prose.
 The primary models are:
 
 - `IntensityScaleState`, `IntensityScaleEstablishmentProvenance`,
-  `IntensityScaleEvidenceLevel`, and `QuantitativeMeaning`
+  `IntensityScaleEvidenceLevel`, `QuantitativeMeaning`,
+  `QuantitativeMeaningTransitionProvenance`, and
+  `QuantitativeMeaningEvidenceMode`
 - `InputIntensityScaleEvidence`
 - `ReferenceContext`
 - `KinaseScoringModeInputContract`
@@ -170,6 +172,39 @@ abundance and total-corrected log ratio; mixed total-protein meaning requires an
 explicit workflow opt-in. Differential analysis requires
 `phosphosite_log_abundance`. Unknown quantitative meaning is rejected by default
 unless a workflow adds an explicit policy for it.
+
+Quantitative meaning is a provenance-bearing scientific fact, not a mutable
+label attached to an intensity scale. A scale-compatible target value does not
+prove that the corresponding transformation occurred. Any meaning change must
+use the internal transformation authority and must carry
+`QuantitativeMeaningTransitionProvenance` with source meaning, target meaning,
+stable operation identifier, producer/component identifier, evidence mode,
+immutable parameters, trace ID when available, deterministic caveat codes, and
+data table fingerprints for derived transitions.
+
+`DatasetBuildRequest.quantitative_meaning` is retained only as an explicit
+caller declaration for supplied input matrices. The exact caller-declarable set
+is:
+
+- `unknown`
+- `phosphosite_abundance`
+- `phosphosite_log_abundance`
+
+Those declarations record `declared_by_caller` evidence and may add a
+`quantitative_meaning_user_declared` caveat. They are assertions about the input
+matrix, not proof that PhosPy or an upstream tool performed a transformation.
+The builder rejects caller declarations for meanings that require an operation
+not performed by the builder, including `phospho_total_log_ratio`,
+`mixed_phospho_total_log_ratio_and_phosphosite_log_abundance`,
+`contrast_log2_fold_change`, `differential_effect_size`, and
+`activity_score`.
+
+Default base meanings inferred solely from an established linear or log2 scale
+record `inferred_from_scale_contract` evidence. Successful subtract-log-total
+protein correction records a derived transition to
+`phospho_total_log_ratio` or the mixed total-protein meaning, with stage/event
+identifier, parameters, consumed phospho/total input fingerprints, and produced
+phospho output fingerprint.
 
 ## Reference Context
 

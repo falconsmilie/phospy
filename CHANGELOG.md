@@ -16,6 +16,19 @@ All notable changes to this project are documented here.
 - Rejected conflicting supplied peptide-evidence `site_sequence` contexts for
   the same resolved phosphosite deterministically instead of selecting whichever
   sequence appeared first in input row order.
+- Prevented quantitative-meaning relabelling from reusing unrelated
+  intensity-scale establishment provenance. Meaning changes now require
+  authority-gated semantic provenance; dataset-build caller declarations are
+  limited to `unknown`, `phosphosite_abundance`, and
+  `phosphosite_log_abundance`, and derived total-protein meanings carry
+  operation fingerprints.
+
+### Changed
+
+- Added `quantitative_meaning_provenance` to saved `IntensityScaleState`
+  payloads. New bundle payloads round-trip the semantic provenance exactly;
+  legacy payloads without the field are loaded only through the explicit
+  migration path as `legacy_unverified`, not as derived evidence.
 
 ### Documentation
 

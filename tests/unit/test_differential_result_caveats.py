@@ -115,8 +115,10 @@ def _dataset(
         plan=PreprocessingPlan.default(),
         intensity_scale_state=intensity_scale_state,
     )
+    intensity_scale_state = processing_state.intensity_scale
     if imputed:
         processing_state = valid_imputed_processing_state(processing_state)
+        intensity_scale_state = processing_state.intensity_scale
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
         site_metadata=_site_metadata(phospho.index),

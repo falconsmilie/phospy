@@ -854,7 +854,10 @@ def _parse_bundle_intensity_scale_state(
     payload: Mapping[str, object],
 ) -> IntensityScaleState:
     try:
-        return intensity_scale_state_from_payload(payload)
+        return intensity_scale_state_from_payload(
+            payload,
+            legacy_quantitative_meaning_policy="migrate_unverified",
+        )
     except PhosPyInputError as exc:
         _raise_legacy_bundle_schema(exc)
 

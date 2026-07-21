@@ -24,6 +24,7 @@ from phospy.science.evidence.dataset_resolution import PeptideEvidenceDatasetRes
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
+    caller_declarable_quantitative_meaning_values,
 )
 
 
@@ -110,14 +111,23 @@ def _resolve_quantitative_meaning(
     if quantitative_meaning is None:
         return None
     if isinstance(quantitative_meaning, QuantitativeMeaning):
-        return quantitative_meaning
-    try:
-        return QuantitativeMeaning(str(quantitative_meaning))
-    except ValueError as exc:
-        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        resolved = quantitative_meaning
+    else:
+        try:
+            resolved = QuantitativeMeaning(str(quantitative_meaning))
+        except ValueError as exc:
+            supported = ", ".join(member.value for member in QuantitativeMeaning)
+            raise PhosPyInputError(
+                "dataset build request quantitative_meaning must be one of: "
+                f"{supported}"
+            ) from exc
+    allowed = caller_declarable_quantitative_meaning_values()
+    if resolved.value not in allowed:
         raise PhosPyInputError(
-            f"dataset build request quantitative_meaning must be one of: {supported}"
-        ) from exc
+            "dataset build request quantitative_meaning may only declare direct "
+            "input meanings: " + ", ".join(allowed) + f"; got {resolved.value!r}"
+        )
+    return resolved
 
 
 def _resolve_input_intensity_scale_kind(

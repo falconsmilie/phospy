@@ -81,6 +81,7 @@ class DatasetPreprocessingReportAssembler:
         final_dataset_rows: int,
         intensity_scale_label: str,
         intensity_scale_establishment: Mapping[str, object],
+        quantitative_meaning_provenance: Mapping[str, object],
         quantitative_meaning: str,
         peptide_evidence_resolution: PeptideEvidenceResolutionSummary | None,
         preprocessing_plan: PreprocessingPlan | None = None,
@@ -213,6 +214,9 @@ class DatasetPreprocessingReportAssembler:
                     "intensity_scale_label": intensity_scale_label,
                     "intensity_scale_establishment": dict(
                         intensity_scale_establishment
+                    ),
+                    "quantitative_meaning_provenance": dict(
+                        quantitative_meaning_provenance
                     ),
                     "intensity_transformation_state": {
                         "before_preprocessing": _resolve_input_intensity_scale_label(

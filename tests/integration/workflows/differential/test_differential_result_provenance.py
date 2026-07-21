@@ -244,15 +244,16 @@ def test_differential_policy_provenance_records_declared_scale_override() -> Non
     base = _dataset()
     suspicious_phospho = base.phospho * 10000.0
     state = _declared_log2_intensity_scale_state(suspicious_phospho)
+    processing_state = build_dataset_processing_state(
+        plan=PreprocessingPlan.default(),
+        intensity_scale_state=state,
+    )
     suspicious_dataset = AnalysisReadyPhosphoDataset(
         phospho=suspicious_phospho,
         site_metadata=base.site_metadata,
         organism=base.organism,
-        intensity_scale_state=state,
-        processing_state=build_dataset_processing_state(
-            plan=PreprocessingPlan.default(),
-            intensity_scale_state=state,
-        ),
+        intensity_scale_state=processing_state.intensity_scale,
+        processing_state=processing_state,
     )
 
     result = DifferentialAnalysisWorkflow().run(

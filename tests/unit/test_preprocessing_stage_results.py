@@ -913,9 +913,7 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
     assert "final_dataset_construction" in set(report.operations.loc[:, "stage"])
 
 
-def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenance() -> (
-    None
-):
+def test_executor_rejects_operation_derived_public_quantitative_meaning() -> None:
     site_index = _analysis_site_index()
     phospho = pd.DataFrame(
         {
@@ -925,41 +923,23 @@ def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenanc
         index=site_index,
     )
     site_metadata = _analysis_site_metadata(phospho.index)
-    built = DatasetBuildExecutor().run(
-        InterpretedDatasetBuildRequest(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            sample_metadata=None,
-            total=None,
-            organism=None,
-            declared_input_intensity_scale_kind=IntensityScaleKind.LOG2,
-            preprocessing_plan=PreprocessingPlan.default(),
-            quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
-        )
-    )
 
-    assert built.intensity_scale_state.quantity is not None
-    assert (
-        built.intensity_scale_state.quantity.value
-        == QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
-    )
-    assert (
-        built.processing_state.total_protein_correction.quantitative_meaning
-        == QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
-    )
-    assert built.preprocessing_report is not None
-    final_operation = built.preprocessing_report.operations.loc[
-        built.preprocessing_report.operations.loc[:, "stage"]
-        == "final_dataset_construction"
-    ].iloc[0]
-    assert final_operation["parameters"]["quantitative_meaning"] == (
-        QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
-    )
-    assert built.provenance is not None
-    assert (
-        built.provenance.workflow_parameters["quantitative_meaning"]
-        == QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
-    )
+    with pytest.raises(
+        DatasetBuildError,
+        match="may only declare direct input meanings",
+    ):
+        DatasetBuildExecutor().run(
+            InterpretedDatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=None,
+                total=None,
+                organism=None,
+                declared_input_intensity_scale_kind=IntensityScaleKind.LOG2,
+                preprocessing_plan=PreprocessingPlan.default(),
+                quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            )
+        )
 
 
 def test_pipeline_trace_preserves_intensity_transform_diagnostics() -> None:

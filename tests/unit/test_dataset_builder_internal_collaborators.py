@@ -250,6 +250,21 @@ def test_run_provenance_assembler_records_opaque_token_mode() -> None:
         preprocessing_trace=None,
         intensity_scale_label="linear",
         intensity_scale_establishment={"source": "test"},
+        quantitative_meaning_provenance={
+            "schema_version": 1,
+            "source_quantity": None,
+            "target_quantity": "phosphosite_abundance",
+            "operation_id": (
+                "phospy.dataset_builder.quantitative_meaning.infer_from_scale_contract"
+            ),
+            "producer_id": "test",
+            "evidence_mode": "inferred_from_scale_contract",
+            "parameters": {},
+            "input_table_fingerprints": {},
+            "output_table_fingerprint": None,
+            "trace_id": None,
+            "diagnostic_caveat_codes": [],
+        },
         quantitative_meaning="phosphosite_abundance",
         allow_opaque_site_values=True,
     )

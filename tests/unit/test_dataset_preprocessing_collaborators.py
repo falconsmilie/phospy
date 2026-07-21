@@ -319,21 +319,11 @@ def test_processing_state_builder_emits_default_total_correction_diagnostics_whe
             id="log-abundance-default",
         ),
         pytest.param(
-            PreprocessingPlan(
-                intensity_transform_policy="log2",
-                total_protein_correction_policy="subtract_log_total",
-            ),
-            _supported_log2_intensity_scale_state(has_total_matrix=True),
-            None,
-            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO.value,
-            id="phospho-total-ratio-default",
-        ),
-        pytest.param(
             PreprocessingPlan.default(),
             _supported_log2_intensity_scale_state(has_total_matrix=False),
-            QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
-            QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
-            id="contrast-logfc-explicit",
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE.value,
+            id="log-abundance-explicit",
         ),
     ],
 )
@@ -356,6 +346,36 @@ def test_processing_state_builder_quantitative_meaning_matrix(
     assert built.total_protein_correction.diagnostics.get("quantitative_meaning") == (
         expected
     )
+
+
+def test_processing_state_builder_rejects_total_correction_meaning_without_trace() -> (
+    None
+):
+    with pytest.raises(DatasetBuildError, match="requires a total_protein_correction"):
+        DatasetProcessingStateBuilder().build(
+            plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                total_protein_correction_policy="subtract_log_total",
+            ),
+            intensity_scale_state=_supported_log2_intensity_scale_state(
+                has_total_matrix=True
+            ),
+            preprocessing_trace=None,
+        )
+
+
+def test_processing_state_builder_rejects_operation_derived_explicit_meaning() -> None:
+    with pytest.raises(DatasetBuildError, match="may only declare direct input"):
+        DatasetProcessingStateBuilder().build(
+            plan=PreprocessingPlan.default(),
+            intensity_scale_state=_supported_log2_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            explicit_quantitative_meaning=(
+                QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE
+            ),
+            preprocessing_trace=None,
+        )
 
 
 def test_pipeline_rejects_malformed_stage_diagnostics_before_trace_is_recorded() -> (

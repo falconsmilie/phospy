@@ -228,7 +228,8 @@ def test_preserve_existing_conflict_policy_is_durable_in_processing_state(
                 },
                 "total": None,
                 "quantity": "phosphosite_abundance",
-            }
+            },
+            legacy_quantitative_meaning_policy="migrate_unverified",
         ),
         preprocessing_trace=preprocessed.preprocessing_trace,
         final_phospho=preprocessed.phospho,
@@ -396,7 +397,8 @@ def test_site_sequence_resolution_processing_state_populates_fasta_provenance(
                 },
                 "total": None,
                 "quantity": "phosphosite_abundance",
-            }
+            },
+            legacy_quantitative_meaning_policy="migrate_unverified",
         ),
         preprocessing_trace=preprocessed.preprocessing_trace,
         final_phospho=preprocessed.phospho,

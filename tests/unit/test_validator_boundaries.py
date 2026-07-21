@@ -425,11 +425,12 @@ def test_dataset_build_request_requires_boolean_suspicious_declared_scale_overri
 @pytest.mark.parametrize(
     "quantitative_meaning",
     [
-        QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
-        QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE.value,
+        QuantitativeMeaning.UNKNOWN.value,
+        QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE.value,
+        QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE.value,
     ],
 )
-def test_dataset_build_request_allows_supported_quantitative_meaning_literal(
+def test_dataset_build_request_allows_caller_declarable_quantitative_meaning_literal(
     quantitative_meaning: str,
 ) -> None:
     request = DatasetBuildRequest(
@@ -446,6 +447,35 @@ def test_dataset_build_request_allows_supported_quantitative_meaning_literal(
     )
     validated = DatasetBuildRequestValidator().run(request)
     assert validated is request
+
+
+@pytest.mark.parametrize(
+    "quantitative_meaning",
+    [
+        QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
+        QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE.value,
+        QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO.value,
+        QuantitativeMeaning.ACTIVITY_SCORE.value,
+    ],
+)
+def test_dataset_build_request_rejects_operation_derived_quantitative_meaning_literal(
+    quantitative_meaning: str,
+) -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        quantitative_meaning=quantitative_meaning,
+    )
+
+    with pytest.raises(PhosPyInputError, match="may only declare direct input"):
+        DatasetBuildRequestValidator().run(request)
 
 
 def test_dataset_build_request_rejects_unknown_quantitative_meaning_literal() -> None:

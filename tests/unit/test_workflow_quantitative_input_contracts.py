@@ -23,10 +23,15 @@ from phospy.api.results import (
 from phospy.errors import WorkflowValidationError
 from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.science.references.models import ReferenceBundle
+from phospy.science.transformations._authority import (
+    bundle_quantitative_meaning_restoration_authority,
+)
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
+    QuantitativeMeaningTransitionProvenance,
 )
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
@@ -81,9 +86,21 @@ def _dataset_with_meaning(
     meaning: QuantitativeMeaning,
 ) -> AnalysisReadyPhosphoDataset:
     dataset = _dataset()
+    provenance = QuantitativeMeaningTransitionProvenance(
+        source_quantity=dataset.intensity_scale_state.quantity,
+        target_quantity=meaning,
+        operation_id=("tests.workflow_quantitative_input_contracts.restore_test_state"),
+        producer_id="tests.unit.test_workflow_quantitative_input_contracts",
+        evidence_mode=(
+            QuantitativeMeaningEvidenceMode.RESTORED_FROM_TRUSTED_SERIALIZED_PROVENANCE
+        ),
+    )
     unsafe_replace_dataset_intensity_scale_state(
         dataset,
-        dataset.intensity_scale_state.with_quantitative_meaning(meaning),
+        dataset.intensity_scale_state.restore_quantitative_meaning_provenance(
+            provenance=provenance,
+            authority=bundle_quantitative_meaning_restoration_authority(),
+        ),
     )
     return dataset
 

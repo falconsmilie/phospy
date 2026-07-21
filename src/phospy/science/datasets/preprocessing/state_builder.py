@@ -5,6 +5,9 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.errors.build import DatasetBuildError
+from phospy.errors.input import PhosPyInputError
+from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.provenance.models import TableFingerprint
 from phospy.science.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -31,10 +34,28 @@ from phospy.science.datasets.processing_state import (
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
+from phospy.science.transformations._authority import (
+    dataset_quantitative_meaning_transition_authority,
+)
 from phospy.science.transformations.models import (
-    IntensityScaleKind,
+    QUANTITATIVE_MEANING_OPERATION_CALLER_DECLARATION,
+    QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
+    QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
+    QUANTITATIVE_MEANING_USER_DECLARED_CAVEAT_CODE,
     IntensityScaleState,
     QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
+    QuantitativeMeaningTransitionProvenance,
+    caller_declarable_quantitative_meaning_values,
+    default_quantitative_meaning_for_scale_kind,
+    is_caller_declarable_quantitative_meaning,
+)
+
+_DATASET_BUILDER_QUANTITATIVE_MEANING_PRODUCER = (
+    "phospy.science.datasets.preprocessing.state_builder"
+)
+_TOTAL_PROTEIN_CORRECTION_QUANTITATIVE_MEANING_PRODUCER = (
+    "phospy.science.datasets.preprocessing.stages.total_protein_correction"
 )
 
 
@@ -93,6 +114,7 @@ class DatasetProcessingStateBuilder:
             total_correction_policy=resolved_total_policy,
             correction_diagnostics=correction_diagnostics,
             explicit_quantitative_meaning=explicit_quantitative_meaning,
+            preprocessing_trace=preprocessing_trace,
         )
         default_formula = (
             "log2_phospho - log2_total"
@@ -333,10 +355,13 @@ def _resolve_quantitative_meaning_state(
     total_correction_policy: TotalProteinCorrectionPolicy,
     correction_diagnostics: dict[str, object] | None,
     explicit_quantitative_meaning: QuantitativeMeaning | None = None,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None = None,
 ) -> IntensityScaleState:
+    resolved_state = intensity_scale_state
     if explicit_quantitative_meaning is not None:
-        return intensity_scale_state.with_quantitative_meaning(
-            explicit_quantitative_meaning
+        resolved_state = _apply_caller_declared_quantitative_meaning(
+            intensity_scale_state=resolved_state,
+            target=explicit_quantitative_meaning,
         )
     quantitative_meaning = ProcessingTraceDiagnostics.resolve_optional_string(
         correction_diagnostics,
@@ -346,9 +371,7 @@ def _resolve_quantitative_meaning_state(
     )
     if quantitative_meaning is not None:
         try:
-            return intensity_scale_state.with_quantitative_meaning(
-                QuantitativeMeaning(quantitative_meaning)
-            )
+            target = QuantitativeMeaning(quantitative_meaning)
         except ValueError as exc:
             supported = ", ".join(member.value for member in QuantitativeMeaning)
             raise DatasetBuildError(
@@ -356,19 +379,199 @@ def _resolve_quantitative_meaning_state(
                 "quantitative_meaning must be one of: "
                 f"{supported}; got {quantitative_meaning!r}"
             ) from exc
+        if total_correction_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL:
+            if resolved_state.quantity is None:
+                resolved_state = _infer_quantitative_meaning_from_scale_contract(
+                    intensity_scale_state=resolved_state
+                )
+            return _apply_total_protein_correction_quantitative_meaning(
+                intensity_scale_state=resolved_state,
+                target=target,
+                preprocessing_trace=preprocessing_trace,
+                correction_diagnostics=correction_diagnostics,
+            )
+        if explicit_quantitative_meaning is None:
+            return _apply_caller_declared_quantitative_meaning(
+                intensity_scale_state=resolved_state,
+                target=target,
+            )
+        return resolved_state
     if total_correction_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL:
-        return intensity_scale_state.with_quantitative_meaning(
-            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
+        if resolved_state.quantity is None:
+            resolved_state = _infer_quantitative_meaning_from_scale_contract(
+                intensity_scale_state=resolved_state
+            )
+        return _apply_total_protein_correction_quantitative_meaning(
+            intensity_scale_state=resolved_state,
+            target=QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+            preprocessing_trace=preprocessing_trace,
+            correction_diagnostics=correction_diagnostics,
         )
-    if intensity_scale_state.kind is IntensityScaleKind.LINEAR:
-        return intensity_scale_state.with_quantitative_meaning(
-            QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
+    if resolved_state.quantity is not None:
+        return resolved_state
+    return _infer_quantitative_meaning_from_scale_contract(
+        intensity_scale_state=resolved_state
+    )
+
+
+def _apply_caller_declared_quantitative_meaning(
+    *,
+    intensity_scale_state: IntensityScaleState,
+    target: QuantitativeMeaning,
+) -> IntensityScaleState:
+    if not is_caller_declarable_quantitative_meaning(target):
+        allowed = caller_declarable_quantitative_meaning_values()
+        raise DatasetBuildError(
+            "dataset build request quantitative_meaning may only declare direct "
+            "input meanings: " + ", ".join(allowed) + f"; got {target.value!r}"
         )
-    if intensity_scale_state.kind is IntensityScaleKind.LOG2:
-        return intensity_scale_state.with_quantitative_meaning(
-            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+    provenance = QuantitativeMeaningTransitionProvenance(
+        source_quantity=intensity_scale_state.quantity,
+        target_quantity=target,
+        operation_id=QUANTITATIVE_MEANING_OPERATION_CALLER_DECLARATION,
+        producer_id=_DATASET_BUILDER_QUANTITATIVE_MEANING_PRODUCER,
+        evidence_mode=QuantitativeMeaningEvidenceMode.DECLARED_BY_CALLER,
+        parameters={
+            "request_field": "DatasetBuildRequest.quantitative_meaning",
+            "declared_quantitative_meaning": target.value,
+        },
+        diagnostic_caveat_codes=(QUANTITATIVE_MEANING_USER_DECLARED_CAVEAT_CODE,),
+    )
+    try:
+        return intensity_scale_state.transition_quantitative_meaning(
+            target_quantity=target,
+            provenance=provenance,
+            authority=dataset_quantitative_meaning_transition_authority(),
         )
-    return intensity_scale_state.with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
+    except InvalidTransformationStateError as exc:
+        raise PhosPyInputError(
+            "dataset build request quantitative_meaning is incompatible with the "
+            f"established intensity scale: {exc}"
+        ) from exc
+
+
+def _infer_quantitative_meaning_from_scale_contract(
+    *,
+    intensity_scale_state: IntensityScaleState,
+) -> IntensityScaleState:
+    target = default_quantitative_meaning_for_scale_kind(intensity_scale_state.kind)
+    provenance = QuantitativeMeaningTransitionProvenance(
+        source_quantity=intensity_scale_state.quantity,
+        target_quantity=target,
+        operation_id=QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
+        producer_id=_DATASET_BUILDER_QUANTITATIVE_MEANING_PRODUCER,
+        evidence_mode=QuantitativeMeaningEvidenceMode.INFERRED_FROM_SCALE_CONTRACT,
+        parameters={
+            "scale_kind": intensity_scale_state.kind.value,
+            "scale_label": intensity_scale_state.label,
+        },
+    )
+    return intensity_scale_state.transition_quantitative_meaning(
+        target_quantity=target,
+        provenance=provenance,
+        authority=dataset_quantitative_meaning_transition_authority(),
+    )
+
+
+def _apply_total_protein_correction_quantitative_meaning(
+    *,
+    intensity_scale_state: IntensityScaleState,
+    target: QuantitativeMeaning,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    correction_diagnostics: dict[str, object] | None,
+) -> IntensityScaleState:
+    stage = _require_total_protein_correction_stage(preprocessing_trace)
+    input_fingerprints = stage.consumed_input_tables
+    _require_stage_input_fingerprint_names(
+        stage,
+        required_names=("dataset.phospho", "dataset.total"),
+    )
+    output_fingerprint = _require_stage_output_fingerprint(
+        stage,
+        table_name="dataset.phospho",
+    )
+    parameters = dict(stage.parameters)
+    if correction_diagnostics is not None:
+        for key in (
+            "formula",
+            "matched_rows",
+            "corrected_row_count",
+            "uncorrected_row_count",
+            "identity_mode",
+            "identity_matching_policy",
+            "duplicate_policy",
+            "unmatched_policy",
+        ):
+            if key in correction_diagnostics:
+                parameters[f"diagnostics.{key}"] = correction_diagnostics[key]
+    provenance = QuantitativeMeaningTransitionProvenance(
+        source_quantity=intensity_scale_state.quantity,
+        target_quantity=target,
+        operation_id=QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
+        producer_id=_TOTAL_PROTEIN_CORRECTION_QUANTITATIVE_MEANING_PRODUCER,
+        evidence_mode=QuantitativeMeaningEvidenceMode.DERIVED_BY_PHOSPY_OPERATION,
+        parameters=parameters,
+        input_table_fingerprints=input_fingerprints,
+        output_table_fingerprint=output_fingerprint,
+        trace_id=f"{stage.stage}:{stage.operation}:{stage.output_hash}",
+        diagnostic_caveat_codes=_total_correction_meaning_caveat_codes(target),
+    )
+    return intensity_scale_state.transition_quantitative_meaning(
+        target_quantity=target,
+        provenance=provenance,
+        authority=dataset_quantitative_meaning_transition_authority(),
+    )
+
+
+def _require_total_protein_correction_stage(
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> PreprocessingStageExecution:
+    for stage in preprocessing_trace or ():
+        if stage.stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
+            return stage
+    raise DatasetBuildError(
+        "subtract-log-total quantitative meaning transition requires a "
+        "total_protein_correction preprocessing trace stage with fingerprints"
+    )
+
+
+def _require_stage_output_fingerprint(
+    stage: PreprocessingStageExecution,
+    *,
+    table_name: str,
+) -> TableFingerprint:
+    for fingerprint in stage.produced_output_tables:
+        if fingerprint.name == table_name:
+            return fingerprint
+    raise DatasetBuildError(
+        "subtract-log-total quantitative meaning transition requires output "
+        f"fingerprint for {table_name!r}"
+    )
+
+
+def _require_stage_input_fingerprint_names(
+    stage: PreprocessingStageExecution,
+    *,
+    required_names: tuple[str, ...],
+) -> None:
+    observed = {fingerprint.name for fingerprint in stage.consumed_input_tables}
+    missing = tuple(name for name in required_names if name not in observed)
+    if missing:
+        raise DatasetBuildError(
+            "subtract-log-total quantitative meaning transition requires input "
+            "fingerprints for " + ", ".join(repr(name) for name in missing)
+        )
+
+
+def _total_correction_meaning_caveat_codes(
+    target: QuantitativeMeaning,
+) -> tuple[str, ...]:
+    if (
+        target
+        is QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE
+    ):
+        return ("quantitative_meaning_mixed_total_protein_correction",)
+    return ()
 
 
 def _resolve_ruv_readiness_state(

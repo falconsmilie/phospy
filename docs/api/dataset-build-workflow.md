@@ -79,6 +79,7 @@ from phospy.api import (
     ObservationMask,
     Organism,
     OriginallyMissingCellTracking,
+    QuantitativeMeaning,
     SpsRuvBatchCorrectionConfig,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
@@ -98,7 +99,7 @@ from phospy.api import (
 | `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | No | Externally resolved batch-corrected preprocessing output. Use only when it is the only matrix-changing preprocessing input after upstream boundary handling; downstream matrix-consuming preprocessing stages must not also be configured. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
 | `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | No | Conservative override for high-confidence declared `log2` diagnostics. Keep `False` unless you intentionally trust a `log2` declaration despite raw-linear-looking matrix values; successful overrides are recorded in provenance and the preprocessing report. |
-| `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
+| `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional caller declaration for the supplied phospho matrix only. Allowed values are `unknown`, `phosphosite_abundance`, and `phosphosite_log_abundance`. |
 
 Supported file suffixes are `.csv`, `.tsv`, `.txt` as tab-separated text, and
 `.parquet`. CSV, TSV, and TXT inputs are read with the first column as the row
@@ -316,6 +317,31 @@ Intensity-scale establishment parameters are recursively immutable inside the
 typed provenance model. Public payloads and saved-bundle JSON keep the same keys
 and values, but each payload read returns detached ordinary `dict`/`list`
 containers.
+
+## Quantitative Meaning Declarations
+
+`quantitative_meaning` declares what the supplied phospho matrix already means.
+It is not evidence that PhosPy or an upstream tool performed a scientific
+transformation. The builder accepts only direct input meanings:
+
+- `unknown`
+- `phosphosite_abundance`
+- `phosphosite_log_abundance`
+
+These declarations record `declared_by_caller` semantic provenance and may add
+the stable caveat code `quantitative_meaning_user_declared` to dataset
+provenance. A declaration must also be compatible with the established
+intensity scale: `phosphosite_abundance` requires linear scale, while
+`phosphosite_log_abundance` requires log2 scale.
+
+The builder rejects declarations for operation-derived meanings it did not
+perform, including `phospho_total_log_ratio`,
+`mixed_phospho_total_log_ratio_and_phosphosite_log_abundance`,
+`contrast_log2_fold_change`, `differential_effect_size`, and `activity_score`.
+Successful total-protein correction creates its own derived semantic transition
+with stage provenance and table fingerprints. When no explicit base meaning is
+declared, the builder records `inferred_from_scale_contract` evidence for the
+default linear or log2 phosphosite-abundance meaning.
 
 Use explicit groups when you need a specific preprocessing policy:
 

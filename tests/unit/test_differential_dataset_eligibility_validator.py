@@ -13,7 +13,6 @@ from phospy.science.sites.site_keys import (
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
-    QuantitativeMeaning,
 )
 from phospy.validation.workflows.differential import (
     DifferentialDatasetEligibilityValidator,
@@ -177,9 +176,7 @@ def test_eligibility_validator_rejects_raw_phospho_scale_if_representable() -> N
 
 def test_eligibility_validator_rejects_unknown_phospho_scale_if_representable() -> None:
     dataset = _dataset_with_log2_scale()
-    unknown_state = IntensityScaleState.raw(
-        has_total_matrix=False
-    ).with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
+    unknown_state = IntensityScaleState.raw(has_total_matrix=False)
     unsafe_replace_dataset_intensity_scale_state(dataset, unknown_state)
     with pytest.raises(
         WorkflowValidationError,

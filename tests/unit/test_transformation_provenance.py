@@ -14,9 +14,11 @@ from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
 from phospy.science.transformations._authority import (
+    dataset_quantitative_meaning_transition_authority,
     dataset_resolver_establishment_authority,
 )
 from phospy.science.transformations.models import (
+    QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentProvenance,
     IntensityScaleEstablishmentSource,
@@ -24,6 +26,8 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
+    QuantitativeMeaningTransitionProvenance,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
 
@@ -82,6 +86,20 @@ def _scale_provenance_from_payload(
     )
 
 
+def _meaning_provenance(
+    parameters: Mapping[object, object],
+) -> QuantitativeMeaningTransitionProvenance:
+    return QuantitativeMeaningTransitionProvenance(
+        source_quantity=None,
+        target_quantity=QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE,
+        operation_id=QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
+        producer_id="tests.transformer",
+        evidence_mode=QuantitativeMeaningEvidenceMode.INFERRED_FROM_SCALE_CONTRACT,
+        parameters=cast(Mapping[str, object], parameters),
+        diagnostic_caveat_codes=("quantitative_meaning_test",),
+    )
+
+
 def test_establishment_provenance_payload_exposes_mode_and_scale() -> None:
     declared_linear = IntensityScaleState(
         phospho=MatrixIntensityScaleState.linear(established_by="trusted.input"),
@@ -112,7 +130,7 @@ def test_establishment_provenance_payload_exposes_mode_and_scale() -> None:
     assert payload["diagnostic_warnings"] == []
 
 
-def test_quantitative_meaning_update_preserves_establishment_provenance() -> None:
+def test_with_quantitative_meaning_is_blocked() -> None:
     declared_linear = IntensityScaleState(
         phospho=MatrixIntensityScaleState.linear(established_by="trusted.input"),
         total=None,
@@ -127,10 +145,38 @@ def test_quantitative_meaning_update_preserves_establishment_provenance() -> Non
         )
         .intensity_scale_state
     )
-    updated = state.with_quantitative_meaning(QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE)
+
+    with pytest.raises(InvalidTransformationStateError, match="no longer supported"):
+        state.with_quantitative_meaning(QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE)
+
+
+def test_quantitative_meaning_transition_has_separate_provenance() -> None:
+    declared_linear = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.linear(established_by="trusted.input"),
+        total=None,
+    )
+    state = (
+        DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+        .run(
+            phospho=_phospho(),
+            total=None,
+            declared_input_scale_state=declared_linear,
+            input_declaration_source="tests.unit",
+        )
+        .intensity_scale_state
+    )
+    provenance = _meaning_provenance({"scale_kind": "linear"})
+
+    updated = state.transition_quantitative_meaning(
+        target_quantity=QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE,
+        provenance=provenance,
+        authority=dataset_quantitative_meaning_transition_authority(),
+    )
 
     assert updated.establishment_mode is IntensityScaleEstablishmentMode.DECLARED
     assert updated.establishment_provenance == state.establishment_provenance
+    assert updated.quantitative_meaning_provenance == provenance
+    assert updated.quantitative_meaning_provenance != updated.establishment_provenance
 
 
 def test_intensity_scale_establishment_parameters_are_recursively_immutable() -> None:
@@ -158,6 +204,31 @@ def test_intensity_scale_establishment_parameters_are_recursively_immutable() ->
     }
 
 
+def test_quantitative_meaning_parameters_are_recursively_immutable() -> None:
+    source: dict[object, object] = {
+        "nested_list": ["meaning", {"thresholds": [0.25, 0.75]}],
+        "nested_mapping": {"labels": ["abundance"], "details": {"version": 1}},
+    }
+
+    provenance = _meaning_provenance(source)
+
+    cast(list[object], source["nested_list"]).append("source-only")
+    cast(
+        list[object],
+        cast(dict[str, object], source["nested_mapping"])["labels"],
+    ).append("source-only")
+    cast(
+        dict[str, object],
+        cast(dict[str, object], source["nested_mapping"])["details"],
+    )["version"] = 2
+
+    payload = provenance.to_payload()
+    assert payload["parameters"] == {
+        "nested_list": ["meaning", {"thresholds": [0.25, 0.75]}],
+        "nested_mapping": {"labels": ["abundance"], "details": {"version": 1}},
+    }
+
+
 def test_intensity_scale_payload_is_fresh_and_hash_stable() -> None:
     provenance = _scale_provenance(
         {
@@ -181,6 +252,37 @@ def test_intensity_scale_payload_is_fresh_and_hash_stable() -> None:
     assert second_payload["parameters"] == {
         "nested_list": ["phospho", {"thresholds": [0.25, 0.75]}],
         "nested_mapping": {"labels": ["linear"], "details": {"version": 1}},
+    }
+    assert hash_json_payload(cast(JsonValue, second_payload)) == first_hash
+    assert restored.to_payload() == second_payload
+    assert hash_json_payload(
+        cast(JsonValue, restored.to_payload())
+    ) == hash_json_payload(cast(JsonValue, second_payload))
+
+
+def test_quantitative_meaning_payload_is_fresh_and_hash_stable() -> None:
+    provenance = _meaning_provenance(
+        {
+            "nested_list": ["meaning", {"thresholds": [0.25, 0.75]}],
+            "nested_mapping": {"labels": ["abundance"], "details": {"version": 1}},
+        }
+    )
+
+    first_payload = provenance.to_payload()
+    first_hash = hash_json_payload(cast(JsonValue, first_payload))
+    first_parameters = cast(dict[str, object], first_payload["parameters"])
+    cast(list[object], first_parameters["nested_list"]).append("payload-only")
+    cast(
+        list[object],
+        cast(dict[str, object], first_parameters["nested_mapping"])["labels"],
+    ).append("payload-only")
+
+    second_payload = provenance.to_payload()
+    restored = QuantitativeMeaningTransitionProvenance.from_payload(second_payload)
+
+    assert second_payload["parameters"] == {
+        "nested_list": ["meaning", {"thresholds": [0.25, 0.75]}],
+        "nested_mapping": {"labels": ["abundance"], "details": {"version": 1}},
     }
     assert hash_json_payload(cast(JsonValue, second_payload)) == first_hash
     assert restored.to_payload() == second_payload

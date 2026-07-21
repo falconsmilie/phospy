@@ -36,6 +36,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
+    with_restored_quantitative_meaning_for_tests,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
@@ -624,9 +625,10 @@ def test_dataset_construction_rejects_total_correction_state_without_total_matri
     None
 ):
     phospho, site_metadata = _dataset_frames()
-    scale = supported_log2_intensity_scale_state(
-        has_total_matrix=True
-    ).with_quantitative_meaning(QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO)
+    scale = with_restored_quantitative_meaning_for_tests(
+        supported_log2_intensity_scale_state(has_total_matrix=True),
+        QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+    )
     base_state = supported_log2_processing_state(has_total_matrix=True)
     processing_state = replace(
         base_state,

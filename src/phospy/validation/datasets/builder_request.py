@@ -23,6 +23,7 @@ from phospy.science.references.models import Organism
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
+    caller_declarable_quantitative_meaning_values,
 )
 from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 from phospy.validation.datasets.preprocessing import DatasetPreprocessingConfigValidator
@@ -223,17 +224,25 @@ def _validate_peptide_sample_columns(value: object) -> None:
 def _validate_quantitative_meaning(
     quantitative_meaning: QuantitativeMeaning | str | None,
 ) -> None:
-    if quantitative_meaning is None or isinstance(
-        quantitative_meaning, QuantitativeMeaning
-    ):
+    if quantitative_meaning is None:
         return
     try:
-        QuantitativeMeaning(str(quantitative_meaning))
+        resolved = (
+            quantitative_meaning
+            if isinstance(quantitative_meaning, QuantitativeMeaning)
+            else QuantitativeMeaning(str(quantitative_meaning))
+        )
     except ValueError as exc:
         supported = ", ".join(member.value for member in QuantitativeMeaning)
         raise PhosPyInputError(
             f"dataset build request quantitative_meaning must be one of: {supported}"
         ) from exc
+    allowed = caller_declarable_quantitative_meaning_values()
+    if resolved.value not in allowed:
+        raise PhosPyInputError(
+            "dataset build request quantitative_meaning may only declare direct "
+            "input meanings: " + ", ".join(allowed) + f"; got {resolved.value!r}"
+        )
 
 
 def _validate_input_intensity_scale(

@@ -26,6 +26,19 @@ def require_intensity_scale_state_coherence(
             "supported PhosPy path; use AnalysisReadyDatasetBuilder or a "
             "supported transformer/bundle reconstruction path"
         )
+    if require_established and intensity_scale_state.quantity is None:
+        raise TransformationValidationError(
+            "dataset.intensity_scale_state must have established quantitative "
+            "meaning provenance"
+        )
+    if (
+        require_established
+        and intensity_scale_state.quantitative_meaning_provenance is None
+    ):
+        raise TransformationValidationError(
+            "dataset.intensity_scale_state must carry quantitative meaning "
+            "provenance separate from intensity-scale establishment provenance"
+        )
     if has_total_matrix and intensity_scale_state.total is None:
         raise TransformationValidationError(
             "intensity_scale_state.total is required when dataset.total is provided"

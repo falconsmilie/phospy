@@ -210,7 +210,10 @@ def processing_state_from_payload(
             "requires_log_scale"
         ),
     )
-    intensity_scale_state = intensity_scale_state_from_payload(payloads.intensity_scale)
+    intensity_scale_state = intensity_scale_state_from_payload(
+        payloads.intensity_scale,
+        legacy_quantitative_meaning_policy="migrate_unverified",
+    )
     correction_diagnostics = _parse_total_correction_diagnostics(
         payloads.total_protein_correction.get("diagnostics"),
         field_name=(

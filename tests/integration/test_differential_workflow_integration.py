@@ -33,7 +33,6 @@ from phospy.science.statistics.multiple_testing import adjust_p_values
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
-    QuantitativeMeaning,
 )
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -454,9 +453,7 @@ def test_differential_workflow_rejects_unestablished_log2_scale_before_execution
 
 def test_differential_workflow_rejects_unknown_scale_before_execution() -> None:
     dataset = _dataset()
-    unknown_state = IntensityScaleState.raw(
-        has_total_matrix=False
-    ).with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
+    unknown_state = IntensityScaleState.raw(has_total_matrix=False)
     unsafe_replace_dataset_intensity_scale_state(dataset, unknown_state)
 
     with pytest.raises(

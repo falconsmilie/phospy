@@ -45,7 +45,6 @@ from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
-    QuantitativeMeaning,
 )
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
@@ -775,9 +774,7 @@ def test_differential_unknown_scale_fails_before_executor() -> None:
             raise AssertionError("executor should not be called")
 
     dataset = _dataset()
-    unknown_state = IntensityScaleState.raw(
-        has_total_matrix=False
-    ).with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
+    unknown_state = IntensityScaleState.raw(has_total_matrix=False)
     unsafe_replace_dataset_intensity_scale_state(dataset, unknown_state)
 
     with pytest.raises(

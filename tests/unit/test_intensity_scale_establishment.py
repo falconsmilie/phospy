@@ -280,9 +280,16 @@ def test_plausible_declared_log2_has_no_warning_and_no_failure() -> None:
 def test_analysis_ready_dataset_rejects_unestablished_scale_state() -> None:
     phospho = _phospho([1.0])
     state = IntensityScaleState.raw(has_total_matrix=False)
+    established = DatasetIntensityScaleResolver(transformer=IdentityTransformer()).run(
+        phospho=phospho,
+        total=None,
+        declared_input_scale_state=_declared_state("linear"),
+        declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+        input_declaration_source="test.processing_state_setup",
+    )
     processing_state = build_dataset_processing_state(
         plan=PreprocessingPlan.default(),
-        intensity_scale_state=state,
+        intensity_scale_state=established.intensity_scale_state,
     )
 
     with pytest.raises(

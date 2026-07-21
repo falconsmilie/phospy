@@ -9,10 +9,16 @@ from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.transformations._authority import (
+    bundle_quantitative_meaning_restoration_authority,
+)
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
+    QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
+    QuantitativeMeaningTransitionProvenance,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
 
@@ -39,7 +45,7 @@ def supported_linear_intensity_scale_state(
             else None
         ),
     )
-    return (
+    established_state = (
         DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=phospho,
@@ -50,6 +56,10 @@ def supported_linear_intensity_scale_state(
         )
         .intensity_scale_state
     )
+    return build_dataset_processing_state(
+        plan=PreprocessingPlan.default(),
+        intensity_scale_state=established_state,
+    ).intensity_scale
 
 
 def supported_linear_processing_state(*, has_total_matrix: bool):
@@ -59,6 +69,25 @@ def supported_linear_processing_state(*, has_total_matrix: bool):
     return build_dataset_processing_state(
         plan=PreprocessingPlan.default(),
         intensity_scale_state=intensity_scale_state,
+    )
+
+
+def with_restored_quantitative_meaning_for_tests(
+    intensity_scale_state: IntensityScaleState,
+    meaning: QuantitativeMeaning,
+) -> IntensityScaleState:
+    provenance = QuantitativeMeaningTransitionProvenance(
+        source_quantity=intensity_scale_state.quantity,
+        target_quantity=meaning,
+        operation_id="tests.support.intensity_scale_states.restore_meaning",
+        producer_id="tests.support.intensity_scale_states",
+        evidence_mode=(
+            QuantitativeMeaningEvidenceMode.RESTORED_FROM_TRUSTED_SERIALIZED_PROVENANCE
+        ),
+    )
+    return intensity_scale_state.restore_quantitative_meaning_provenance(
+        provenance=provenance,
+        authority=bundle_quantitative_meaning_restoration_authority(),
     )
 
 
@@ -84,7 +113,7 @@ def supported_log2_intensity_scale_state(
             else None
         ),
     )
-    return (
+    established_state = (
         DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=phospho,
@@ -95,6 +124,10 @@ def supported_log2_intensity_scale_state(
         )
         .intensity_scale_state
     )
+    return build_dataset_processing_state(
+        plan=PreprocessingPlan.default(),
+        intensity_scale_state=established_state,
+    ).intensity_scale
 
 
 def supported_log2_processing_state(*, has_total_matrix: bool):

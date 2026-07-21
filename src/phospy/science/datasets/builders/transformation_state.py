@@ -45,6 +45,7 @@ class ResolvedDatasetTransformationState:
     processing_state: DatasetProcessingState
     quantitative_meaning: str
     intensity_scale_establishment: Mapping[str, object]
+    quantitative_meaning_provenance: Mapping[str, object]
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +194,13 @@ class DatasetTransformationStateResolver:
             raise DatasetBuildError(
                 "intensity-scale state is missing quantitative meaning"
             )
+        quantitative_meaning_provenance = (
+            intensity_scale_state.quantitative_meaning_provenance
+        )
+        if quantitative_meaning_provenance is None:
+            raise TransformationStateEstablishmentError(
+                "intensity-scale state is missing quantitative meaning provenance"
+            )
         establishment_provenance = intensity_scale_state.establishment_provenance
         if establishment_provenance is None:
             raise TransformationStateEstablishmentError(
@@ -206,6 +214,9 @@ class DatasetTransformationStateResolver:
             processing_state=processing_state,
             quantitative_meaning=quantitative_meaning.value,
             intensity_scale_establishment=establishment_provenance.to_payload(),
+            quantitative_meaning_provenance=(
+                quantitative_meaning_provenance.to_payload()
+            ),
         )
 
 

@@ -44,7 +44,8 @@ def _intensity_scale_state(*, quantity: str = "phospho_total_log_ratio"):
                 "established_by": "bundle.fixture",
             },
             "quantity": quantity,
-        }
+        },
+        legacy_quantitative_meaning_policy="migrate_unverified",
     )
 
 

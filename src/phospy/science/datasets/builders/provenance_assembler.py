@@ -80,6 +80,7 @@ class DatasetRunProvenanceAssembler:
         preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
         intensity_scale_label: str,
         intensity_scale_establishment: Mapping[str, object],
+        quantitative_meaning_provenance: Mapping[str, object],
         quantitative_meaning: str,
         allow_opaque_site_values: bool,
         protein_aware_preparation_report: ProteinAwarePreparationReport | None = None,
@@ -109,6 +110,7 @@ class DatasetRunProvenanceAssembler:
             ),
             "intensity_scale_label": intensity_scale_label,
             "intensity_scale_establishment": dict(intensity_scale_establishment),
+            "quantitative_meaning_provenance": dict(quantitative_meaning_provenance),
             "allow_suspicious_declared_input_intensity_scale": (
                 request.allow_suspicious_declared_input_intensity_scale
             ),
@@ -154,6 +156,14 @@ class DatasetRunProvenanceAssembler:
                     "intensity_scale_establishment": dict(
                         intensity_scale_establishment
                     ),
+                    "quantitative_meaning_provenance": dict(
+                        quantitative_meaning_provenance
+                    ),
+                    "quantitative_meaning_caveat_codes": list(
+                        _quantitative_meaning_caveat_codes(
+                            quantitative_meaning_provenance
+                        )
+                    ),
                     "preprocessing_trace_stages": [
                         item.stage for item in (preprocessing_trace or ())
                     ],
@@ -164,6 +174,13 @@ class DatasetRunProvenanceAssembler:
         row_attrition_report = _build_row_attrition_report(preprocessing_trace)
         if row_attrition_report is not None:
             workflow_parameters["row_attrition"] = row_attrition_report.to_payload()
+        caveat_codes = _quantitative_meaning_caveat_codes(
+            quantitative_meaning_provenance
+        )
+        if caveat_codes:
+            workflow_parameters["quantitative_meaning_caveat_codes"] = list(
+                caveat_codes
+            )
         if protein_aware_preparation_report is not None:
             workflow_parameters["protein_aware_preparation"] = (
                 _protein_aware_preparation_to_payload(protein_aware_preparation_report)
@@ -200,6 +217,15 @@ def _collect_fingerprints(
             continue
         fingerprints.append(fingerprint)
     return tuple(fingerprints)
+
+
+def _quantitative_meaning_caveat_codes(
+    provenance: Mapping[str, object],
+) -> tuple[str, ...]:
+    raw = provenance.get("diagnostic_caveat_codes")
+    if not isinstance(raw, list | tuple):
+        return ()
+    return tuple(str(item) for item in raw if str(item).strip())
 
 
 def _table_identity_payload(

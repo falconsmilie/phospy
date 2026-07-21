@@ -45,6 +45,15 @@ their model boundaries. The transformation and result contracts retain typed
 top-level fields while rejecting invalid JSON keys, unsupported nested objects,
 and non-finite floats in evidence mappings.
 
+Update note (2026-07-21, quantitative-meaning transition provenance):
+`QuantitativeMeaningTransitionProvenance` is a schema-versioned immutable domain
+object. Its `parameters`, `input_table_fingerprints`, and diagnostic caveat
+codes are frozen at construction and serialized into fresh stable payloads.
+New `IntensityScaleState` payloads include `quantitative_meaning_provenance`.
+Historical payloads that lack the field may be loaded only through the explicit
+legacy migration path, which labels the evidence as `legacy_unverified` and must
+not claim that a derived operation occurred.
+
 ## Decision
 
 All JSON-like provenance values must be normalized through the
@@ -152,6 +161,8 @@ The current audited fields include:
 - trusted dataset construction evidence `details` and construction workflow
   parameters;
 - intensity-scale establishment `parameters`;
+- quantitative-meaning transition `parameters`, input/output table fingerprint
+  payloads, and diagnostic caveat codes;
 - public `ResultCaveat.details`;
 - importer `ImporterQualityReport.format_specific`,
   `ImporterMissingIntensitySummary` count mappings, and

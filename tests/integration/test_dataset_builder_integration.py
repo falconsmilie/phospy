@@ -33,7 +33,6 @@ from phospy.errors import PhosPyInputError
 from phospy.io.publishers.workflows import publish_dataset
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.science.transformations.models import (
-    IntensityScaleState,
     MatrixIntensityScaleState,
 )
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
@@ -184,14 +183,17 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
         "protein_identifier",
         "site_key",
     ]
-    assert built.intensity_scale_state == IntensityScaleState(
-        phospho=MatrixIntensityScaleState.linear(
-            established_by=(
-                "phospy.science.datasets.builders.executor.input_intensity_scale"
-            )
-        ),
-        total=None,
+    assert built.intensity_scale_state.phospho == MatrixIntensityScaleState.linear(
+        established_by=(
+            "phospy.science.datasets.builders.executor.input_intensity_scale"
+        )
     )
+    assert built.intensity_scale_state.total is None
+    assert built.intensity_scale_state.quantity is not None
+    assert built.intensity_scale_state.quantity.value == "phosphosite_abundance"
+    meaning_provenance = built.intensity_scale_state.quantitative_meaning_provenance
+    assert meaning_provenance is not None
+    assert meaning_provenance.evidence_mode.value == "inferred_from_scale_contract"
     assert built.processing_state.intensity_scale == built.intensity_scale_state
     assert built.processing_state.missing_data.policy == "forbid"
     assert built.processing_state.missing_data.imputed is False
@@ -290,18 +292,21 @@ def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -
     )
     assert built.total is not None
     pdt.assert_frame_equal(built.total, total)
-    assert built.intensity_scale_state == IntensityScaleState(
-        phospho=MatrixIntensityScaleState.linear(
-            established_by=(
-                "phospy.science.datasets.builders.executor.input_intensity_scale"
-            )
-        ),
-        total=MatrixIntensityScaleState.linear(
-            established_by=(
-                "phospy.science.datasets.builders.executor.input_intensity_scale"
-            )
-        ),
+    assert built.intensity_scale_state.phospho == MatrixIntensityScaleState.linear(
+        established_by=(
+            "phospy.science.datasets.builders.executor.input_intensity_scale"
+        )
     )
+    assert built.intensity_scale_state.total == MatrixIntensityScaleState.linear(
+        established_by=(
+            "phospy.science.datasets.builders.executor.input_intensity_scale"
+        )
+    )
+    assert built.intensity_scale_state.quantity is not None
+    assert built.intensity_scale_state.quantity.value == "phosphosite_abundance"
+    meaning_provenance = built.intensity_scale_state.quantitative_meaning_provenance
+    assert meaning_provenance is not None
+    assert meaning_provenance.evidence_mode.value == "inferred_from_scale_contract"
     assert built.intensity_scale_state.label == "linear"
 
 

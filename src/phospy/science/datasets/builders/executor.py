@@ -217,6 +217,9 @@ class DatasetBuildExecutor:
             final_dataset_rows=int(len(transformed.phospho.index)),
             intensity_scale_label=transformed.intensity_scale_state.label,
             intensity_scale_establishment=transformed.intensity_scale_establishment,
+            quantitative_meaning_provenance=(
+                transformed.quantitative_meaning_provenance
+            ),
             declared_input_intensity_scale_kind=(
                 None
                 if request.declared_input_intensity_scale_kind is None
@@ -270,6 +273,9 @@ class DatasetBuildExecutor:
             preprocessing_trace=preprocessed.preprocessing_trace,
             intensity_scale_label=transformed.intensity_scale_state.label,
             intensity_scale_establishment=transformed.intensity_scale_establishment,
+            quantitative_meaning_provenance=(
+                transformed.quantitative_meaning_provenance
+            ),
             quantitative_meaning=transformed.quantitative_meaning,
             allow_opaque_site_values=request.allow_opaque_site_values,
             protein_aware_preparation_report=(

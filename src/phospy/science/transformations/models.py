@@ -3,25 +3,62 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Final, cast
 
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.provenance.immutability import (
     freeze_json_mapping_with_error_type,
     thaw_json_mapping,
 )
+from phospy.provenance.models import TableFingerprint
+from phospy.provenance.serialization import (
+    table_fingerprint_from_payload,
+    table_fingerprint_to_payload,
+)
 from phospy.science.transformations._authority import (
     EstablishmentAuthority,
+    QuantitativeMeaningTransitionAuthority,
     resolve_establishment_authority_source,
+    resolve_quantitative_meaning_transition_authority_source,
 )
 
 IDENTITY_INTENSITY_SCALE_ESTABLISHER: Final[str] = (
     "phospy.science.transformations.transformers.identity"
 )
+QUANTITATIVE_MEANING_PROVENANCE_SCHEMA_VERSION_V1: Final[int] = 1
+QUANTITATIVE_MEANING_OPERATION_CALLER_DECLARATION: Final[str] = (
+    "phospy.dataset_builder.quantitative_meaning.declaration"
+)
+QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE: Final[str] = (
+    "phospy.dataset_builder.quantitative_meaning.infer_from_scale_contract"
+)
+QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL: Final[str] = (
+    "phospy.dataset_preprocessing.total_protein_correction.subtract_log_total"
+)
+QUANTITATIVE_MEANING_OPERATION_LEGACY_BUNDLE_MIGRATION: Final[str] = (
+    "phospy.bundle.legacy_intensity_scale_state_quantitative_meaning_migration"
+)
+QUANTITATIVE_MEANING_USER_DECLARED_CAVEAT_CODE: Final[str] = (
+    "quantitative_meaning_user_declared"
+)
+QUANTITATIVE_MEANING_LEGACY_UNVERIFIED_CAVEAT_CODE: Final[str] = (
+    "quantitative_meaning_legacy_unverified"
+)
 _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER: Final[object] = object()
+_QUANTITATIVE_MEANING_OPERATION_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"^[a-z0-9][a-z0-9_]*(?:\.[a-z0-9][a-z0-9_]*)*$"
+)
+_DATASET_QUANTITATIVE_MEANING_AUTHORITY_SOURCE: Final[str] = (
+    "phospy.science.datasets.preprocessing.state_builder"
+)
+_BUNDLE_QUANTITATIVE_MEANING_AUTHORITY_SOURCE: Final[str] = (
+    "phospy.io.bundles._shared.intensity_scale_state"
+)
 
 
 def _default_provenance_parameters() -> dict[str, object]:
@@ -81,6 +118,29 @@ class QuantitativeMeaning(str, Enum):
         "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
     )
     UNKNOWN = "unknown"
+
+
+class QuantitativeMeaningEvidenceMode(str, Enum):
+    """Evidence mode supporting quantitative-meaning state."""
+
+    DERIVED_BY_PHOSPY_OPERATION = "derived_by_phospy_operation"
+    DECLARED_BY_CALLER = "declared_by_caller"
+    RESTORED_FROM_TRUSTED_SERIALIZED_PROVENANCE = (
+        "restored_from_trusted_serialized_provenance"
+    )
+    INFERRED_FROM_SCALE_CONTRACT = "inferred_from_scale_contract"
+    LEGACY_UNVERIFIED = "legacy_unverified"
+
+
+CALLER_DECLARABLE_QUANTITATIVE_MEANINGS: Final[frozenset[QuantitativeMeaning]] = (
+    frozenset(
+        {
+            QuantitativeMeaning.UNKNOWN,
+            QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE,
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+        }
+    )
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +203,242 @@ if set(_QUANTITATIVE_MEANING_SCALE_RULE_BY_MEANING) != set(QuantitativeMeaning):
     raise RuntimeError(
         "QuantitativeMeaning scale rules must cover every QuantitativeMeaning member"
     )
+
+
+@dataclass(frozen=True, slots=True)
+class QuantitativeMeaningTransitionProvenance:
+    """Structured provenance for quantitative-meaning establishment/transition."""
+
+    source_quantity: QuantitativeMeaning | str | None
+    target_quantity: QuantitativeMeaning | str
+    operation_id: str
+    producer_id: str
+    evidence_mode: QuantitativeMeaningEvidenceMode | str
+    parameters: Mapping[str, object] = field(
+        default_factory=_default_provenance_parameters
+    )
+    input_table_fingerprints: tuple[TableFingerprint | Mapping[str, object], ...] = ()
+    output_table_fingerprint: TableFingerprint | Mapping[str, object] | None = None
+    trace_id: str | None = None
+    diagnostic_caveat_codes: tuple[str, ...] = ()
+    schema_version: int = QUANTITATIVE_MEANING_PROVENANCE_SCHEMA_VERSION_V1
+
+    def __post_init__(self) -> None:
+        if (
+            int(self.schema_version)
+            != QUANTITATIVE_MEANING_PROVENANCE_SCHEMA_VERSION_V1
+        ):
+            raise InvalidTransformationStateError(
+                "quantitative meaning provenance schema_version must be "
+                f"{QUANTITATIVE_MEANING_PROVENANCE_SCHEMA_VERSION_V1}"
+            )
+        object.__setattr__(
+            self,
+            "source_quantity",
+            _normalize_optional_quantitative_meaning(self.source_quantity),
+        )
+        target_quantity = _normalize_required_quantitative_meaning(
+            self.target_quantity,
+            field_name="quantitative_meaning_provenance.target_quantity",
+        )
+        object.__setattr__(self, "target_quantity", target_quantity)
+        evidence_mode = _normalize_quantitative_meaning_evidence_mode(
+            self.evidence_mode
+        )
+        object.__setattr__(self, "evidence_mode", evidence_mode)
+        object.__setattr__(
+            self,
+            "operation_id",
+            _normalize_quantitative_meaning_operation_id(self.operation_id),
+        )
+        object.__setattr__(
+            self,
+            "producer_id",
+            _normalize_required_provenance_text(
+                self.producer_id,
+                field_name="quantitative_meaning_provenance.producer_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "parameters",
+            freeze_json_mapping_with_error_type(
+                self.parameters,
+                field_name="quantitative_meaning_provenance.parameters",
+                error_type=InvalidTransformationStateError,
+            ),
+        )
+        input_fingerprints = _canonical_table_fingerprint_payload_tuple(
+            self.input_table_fingerprints,
+            field_name="quantitative_meaning_provenance.input_table_fingerprints",
+        )
+        object.__setattr__(self, "input_table_fingerprints", input_fingerprints)
+        output_fingerprint = (
+            None
+            if self.output_table_fingerprint is None
+            else _canonical_table_fingerprint_payload(
+                self.output_table_fingerprint,
+                field_name=("quantitative_meaning_provenance.output_table_fingerprint"),
+            )
+        )
+        object.__setattr__(self, "output_table_fingerprint", output_fingerprint)
+        trace_id = None if self.trace_id is None else str(self.trace_id).strip() or None
+        object.__setattr__(self, "trace_id", trace_id)
+        object.__setattr__(
+            self,
+            "diagnostic_caveat_codes",
+            _normalize_diagnostic_caveat_codes(self.diagnostic_caveat_codes),
+        )
+        if (
+            evidence_mode is QuantitativeMeaningEvidenceMode.DERIVED_BY_PHOSPY_OPERATION
+            and self.source_quantity is None
+        ):
+            raise InvalidTransformationStateError(
+                "derived quantitative meaning transitions require a source "
+                "quantitative meaning"
+            )
+        if (
+            evidence_mode is QuantitativeMeaningEvidenceMode.DERIVED_BY_PHOSPY_OPERATION
+            and (not input_fingerprints or output_fingerprint is None)
+        ):
+            raise InvalidTransformationStateError(
+                "derived quantitative meaning transitions require input table "
+                "fingerprints and an output table fingerprint"
+            )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return JSON-safe quantitative-meaning provenance payload."""
+
+        source_quantity = cast(QuantitativeMeaning | None, self.source_quantity)
+        target_quantity = cast(QuantitativeMeaning, self.target_quantity)
+        evidence_mode = cast(QuantitativeMeaningEvidenceMode, self.evidence_mode)
+        return {
+            "schema_version": int(self.schema_version),
+            "source_quantity": (
+                None if source_quantity is None else source_quantity.value
+            ),
+            "target_quantity": target_quantity.value,
+            "operation_id": self.operation_id,
+            "producer_id": self.producer_id,
+            "evidence_mode": evidence_mode.value,
+            "parameters": thaw_json_mapping(
+                self.parameters,
+                field_name="quantitative_meaning_provenance.parameters",
+            ),
+            "input_table_fingerprints": [
+                thaw_json_mapping(
+                    fingerprint,
+                    field_name=(
+                        "quantitative_meaning_provenance.input_table_fingerprints[]"
+                    ),
+                )
+                for fingerprint in self.input_table_fingerprints
+            ],
+            "output_table_fingerprint": (
+                None
+                if self.output_table_fingerprint is None
+                else thaw_json_mapping(
+                    self.output_table_fingerprint,
+                    field_name=(
+                        "quantitative_meaning_provenance.output_table_fingerprint"
+                    ),
+                )
+            ),
+            "trace_id": self.trace_id,
+            "diagnostic_caveat_codes": list(self.diagnostic_caveat_codes),
+        }
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> QuantitativeMeaningTransitionProvenance:
+        """Deserialize quantitative-meaning provenance from a payload."""
+
+        payload = _require_payload_mapping(
+            payload,
+            field_name="quantitative_meaning_provenance",
+        )
+        input_fingerprints = tuple(
+            _require_payload_mapping(
+                item,
+                field_name=(
+                    "quantitative_meaning_provenance.input_table_fingerprints"
+                    f"[{position}]"
+                ),
+            )
+            for position, item in enumerate(
+                _require_payload_sequence(
+                    payload.get("input_table_fingerprints"),
+                    field_name=(
+                        "quantitative_meaning_provenance.input_table_fingerprints"
+                    ),
+                )
+            )
+        )
+        output_raw = payload.get("output_table_fingerprint")
+        return cls(
+            schema_version=_require_payload_int(
+                payload.get("schema_version"),
+                field_name="quantitative_meaning_provenance.schema_version",
+            ),
+            source_quantity=_optional_payload_str(
+                payload.get("source_quantity"),
+                field_name="quantitative_meaning_provenance.source_quantity",
+            ),
+            target_quantity=_require_payload_str(
+                payload.get("target_quantity"),
+                field_name="quantitative_meaning_provenance.target_quantity",
+            ),
+            operation_id=_require_payload_str(
+                payload.get("operation_id"),
+                field_name="quantitative_meaning_provenance.operation_id",
+            ),
+            producer_id=_require_payload_str(
+                payload.get("producer_id"),
+                field_name="quantitative_meaning_provenance.producer_id",
+            ),
+            evidence_mode=_require_payload_str(
+                payload.get("evidence_mode"),
+                field_name="quantitative_meaning_provenance.evidence_mode",
+            ),
+            parameters=_require_payload_mapping(
+                payload.get("parameters"),
+                field_name="quantitative_meaning_provenance.parameters",
+            ),
+            input_table_fingerprints=input_fingerprints,
+            output_table_fingerprint=(
+                None
+                if output_raw is None
+                else _require_payload_mapping(
+                    output_raw,
+                    field_name=(
+                        "quantitative_meaning_provenance.output_table_fingerprint"
+                    ),
+                )
+            ),
+            trace_id=_optional_payload_str(
+                payload.get("trace_id"),
+                field_name="quantitative_meaning_provenance.trace_id",
+            ),
+            diagnostic_caveat_codes=tuple(
+                _require_payload_str(
+                    item,
+                    field_name=(
+                        "quantitative_meaning_provenance.diagnostic_caveat_codes"
+                        f"[{position}]"
+                    ),
+                )
+                for position, item in enumerate(
+                    _require_payload_sequence(
+                        payload.get("diagnostic_caveat_codes"),
+                        field_name=(
+                            "quantitative_meaning_provenance.diagnostic_caveat_codes"
+                        ),
+                    )
+                )
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -416,6 +712,14 @@ class IntensityScaleState:
         repr=False,
         compare=False,
     )
+    _quantitative_meaning_provenance: QuantitativeMeaningTransitionProvenance | None = (
+        field(
+            default=None,
+            init=False,
+            repr=False,
+            compare=True,
+        )
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(cast(object, self.phospho), MatrixIntensityScaleState):
@@ -428,14 +732,12 @@ class IntensityScaleState:
             raise InvalidTransformationStateError(
                 "intensity_scale_state.total must be a MatrixIntensityScaleState or None"
             )
-        quantity = _normalize_quantitative_meaning(
-            self.quantity,
-            default_kind=self.phospho.kind,
-        )
-        _validate_quantitative_meaning_kind_coherence(
-            quantity=quantity,
-            kind=self.phospho.kind,
-        )
+        quantity = _normalize_quantitative_meaning(self.quantity)
+        if quantity is not None:
+            _validate_quantitative_meaning_kind_coherence(
+                quantity=quantity,
+                kind=self.phospho.kind,
+            )
         object.__setattr__(self, "quantity", quantity)
 
     @property
@@ -495,6 +797,14 @@ class IntensityScaleState:
         if not self.is_established:
             return None
         return self._establishment_authority_source
+
+    @property
+    def quantitative_meaning_provenance(
+        self,
+    ) -> QuantitativeMeaningTransitionProvenance | None:
+        """Structured quantitative-meaning provenance, when established."""
+
+        return self._quantitative_meaning_provenance
 
     @classmethod
     def raw(cls, *, has_total_matrix: bool = False) -> IntensityScaleState:
@@ -612,43 +922,140 @@ class IntensityScaleState:
                 diagnostic_warnings=diagnostic_warnings,
             ),
         )
+        object.__setattr__(
+            established,
+            "_quantitative_meaning_provenance",
+            self._quantitative_meaning_provenance,
+        )
         return established
 
     def with_quantitative_meaning(
         self,
         quantity: QuantitativeMeaning,
     ) -> IntensityScaleState:
-        """Clone this state with a different quantitative meaning."""
+        """Deprecated unrestricted relabel path; use authority-gated transition."""
 
-        normalized_quantity = _normalize_quantitative_meaning(
-            quantity,
-            default_kind=self.phospho.kind,
+        raise InvalidTransformationStateError(
+            "IntensityScaleState.with_quantitative_meaning() is no longer supported "
+            "because changing quantitative meaning requires explicit semantic "
+            "provenance and transition authority. Use "
+            "transition_quantitative_meaning(..., provenance=..., authority=...)."
         )
-        if normalized_quantity is self.quantity:
-            return self
+
+    def transition_quantitative_meaning(
+        self,
+        *,
+        target_quantity: QuantitativeMeaning | str,
+        provenance: QuantitativeMeaningTransitionProvenance,
+        authority: QuantitativeMeaningTransitionAuthority | None,
+    ) -> IntensityScaleState:
+        """Return state with authority-gated quantitative-meaning provenance."""
+
+        authority_source = resolve_quantitative_meaning_transition_authority_source(
+            authority
+        )
+        if authority_source != _DATASET_QUANTITATIVE_MEANING_AUTHORITY_SOURCE:
+            raise InvalidTransformationStateError(
+                "bundle restoration authority cannot mint a new quantitative "
+                "meaning transition"
+            )
+        target = _normalize_required_quantitative_meaning(
+            target_quantity,
+            field_name="quantitative meaning transition target_quantity",
+        )
+        if not isinstance(
+            cast(object, provenance), QuantitativeMeaningTransitionProvenance
+        ):
+            raise InvalidTransformationStateError(
+                "quantitative meaning transition requires "
+                "QuantitativeMeaningTransitionProvenance"
+            )
+        if not self.is_established:
+            raise InvalidTransformationStateError(
+                "quantitative meaning transition requires an established intensity "
+                "scale state"
+            )
+        _validate_quantitative_meaning_transition_contract(
+            current_quantity=self.quantity,
+            target_quantity=target,
+            provenance=provenance,
+            kind=self.phospho.kind,
+        )
+        if target is self.quantity:
+            if self._quantitative_meaning_provenance == provenance:
+                return self
+            raise InvalidTransformationStateError(
+                "quantitative meaning transition target equals the current meaning "
+                "but supplied provenance differs from the existing semantic "
+                "provenance"
+            )
+        provenance_source = cast(QuantitativeMeaning | None, provenance.source_quantity)
+        if provenance_source != self.quantity:
+            current = None if self.quantity is None else self.quantity.value
+            source = None if provenance_source is None else provenance_source.value
+            raise InvalidTransformationStateError(
+                "quantitative meaning transition provenance source_quantity must "
+                f"match current state quantity; current={current!r}, "
+                f"provenance source={source!r}"
+            )
         updated = IntensityScaleState(
             phospho=self.phospho,
             total=self.total,
-            quantity=normalized_quantity,
+            quantity=target,
         )
+        _copy_intensity_scale_establishment(source=self, target=updated)
+        object.__setattr__(
+            updated,
+            "_quantitative_meaning_provenance",
+            provenance,
+        )
+        return updated
+
+    def restore_quantitative_meaning_provenance(
+        self,
+        *,
+        provenance: QuantitativeMeaningTransitionProvenance,
+        authority: QuantitativeMeaningTransitionAuthority | None,
+    ) -> IntensityScaleState:
+        """Restore validated serialized quantitative-meaning provenance."""
+
+        authority_source = resolve_quantitative_meaning_transition_authority_source(
+            authority
+        )
+        if authority_source != _BUNDLE_QUANTITATIVE_MEANING_AUTHORITY_SOURCE:
+            raise InvalidTransformationStateError(
+                "quantitative meaning provenance restoration requires bundle "
+                "reconstruction authority"
+            )
+        if not isinstance(
+            cast(object, provenance), QuantitativeMeaningTransitionProvenance
+        ):
+            raise InvalidTransformationStateError(
+                "quantitative meaning provenance restoration requires "
+                "QuantitativeMeaningTransitionProvenance"
+            )
         if not self.is_established:
-            return updated
-        object.__setattr__(updated, "_established_via", self._established_via)
-        object.__setattr__(
-            updated,
-            "_establishment_authority_source",
-            self._establishment_authority_source,
+            raise InvalidTransformationStateError(
+                "quantitative meaning provenance restoration requires an "
+                "established intensity scale state"
+            )
+        source_quantity = cast(QuantitativeMeaning | None, provenance.source_quantity)
+        target_quantity = cast(QuantitativeMeaning, provenance.target_quantity)
+        _validate_quantitative_meaning_source_target_scale_contract(
+            source_quantity=source_quantity,
+            target_quantity=target_quantity,
+            kind=self.phospho.kind,
         )
-        object.__setattr__(
-            updated,
-            "_establishment_marker",
-            _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER,
+        updated = IntensityScaleState(
+            phospho=self.phospho,
+            total=self.total,
+            quantity=target_quantity,
         )
-        object.__setattr__(updated, "_establishment_mode", self._establishment_mode)
+        _copy_intensity_scale_establishment(source=self, target=updated)
         object.__setattr__(
             updated,
-            "_establishment_provenance",
-            self._establishment_provenance,
+            "_quantitative_meaning_provenance",
+            provenance,
         )
         return updated
 
@@ -687,6 +1094,83 @@ def establish_intensity_scale_state(
     )
 
 
+def _copy_intensity_scale_establishment(
+    *,
+    source: IntensityScaleState,
+    target: IntensityScaleState,
+) -> None:
+    if not source.is_established:
+        return
+    established_via = source.established_via
+    authority_source = source.establishment_authority_source
+    establishment_mode = source.establishment_mode
+    establishment_provenance = source.establishment_provenance
+    if (
+        established_via is None
+        or authority_source is None
+        or establishment_mode is None
+        or establishment_provenance is None
+    ):
+        return
+    object.__setattr__(target, "_established_via", established_via)
+    object.__setattr__(target, "_establishment_authority_source", authority_source)
+    object.__setattr__(
+        target,
+        "_establishment_marker",
+        _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER,
+    )
+    object.__setattr__(target, "_establishment_mode", establishment_mode)
+    object.__setattr__(target, "_establishment_provenance", establishment_provenance)
+
+
+def _validate_quantitative_meaning_transition_contract(
+    *,
+    current_quantity: QuantitativeMeaning | None,
+    target_quantity: QuantitativeMeaning,
+    provenance: QuantitativeMeaningTransitionProvenance,
+    kind: IntensityScaleKind,
+) -> None:
+    source_quantity = cast(QuantitativeMeaning | None, provenance.source_quantity)
+    provenance_target = cast(QuantitativeMeaning, provenance.target_quantity)
+    _validate_quantitative_meaning_source_target_scale_contract(
+        source_quantity=source_quantity,
+        target_quantity=target_quantity,
+        kind=kind,
+    )
+    if provenance_target is not target_quantity:
+        raise InvalidTransformationStateError(
+            "quantitative meaning transition provenance target_quantity must match "
+            "the requested target_quantity"
+        )
+    if (
+        current_quantity is not None
+        and source_quantity is None
+        and provenance.evidence_mode
+        is not QuantitativeMeaningEvidenceMode.LEGACY_UNVERIFIED
+    ):
+        raise InvalidTransformationStateError(
+            "quantitative meaning transition provenance source_quantity may be "
+            "None only for initial establishment"
+        )
+
+
+def _validate_quantitative_meaning_source_target_scale_contract(
+    *,
+    source_quantity: QuantitativeMeaning | None,
+    target_quantity: QuantitativeMeaning,
+    kind: IntensityScaleKind,
+) -> None:
+    if source_quantity is not None:
+        _validate_quantitative_meaning_kind_coherence(
+            quantity=source_quantity,
+            kind=kind,
+        )
+    _validate_quantitative_meaning_kind_coherence(
+        quantity=target_quantity,
+        kind=kind,
+    )
+
+
 def _normalize_required_text(value: object, *, field_name: str) -> str:
     if not isinstance(value, str):
         raise InvalidTransformationStateError(
@@ -696,6 +1180,17 @@ def _normalize_required_text(value: object, *, field_name: str) -> str:
     if not normalized:
         raise InvalidTransformationStateError(
             f"intensity transformation event {field_name} must be a non-empty string"
+        )
+    return normalized
+
+
+def _normalize_required_provenance_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise InvalidTransformationStateError(f"{field_name} must be a string")
+    normalized = value.strip()
+    if not normalized:
+        raise InvalidTransformationStateError(
+            f"{field_name} must be a non-empty string"
         )
     return normalized
 
@@ -723,6 +1218,166 @@ def _normalize_intensity_scale_evidence_level(
             "unsupported intensity-scale evidence level "
             f"{raw_evidence_level!r}; supported: {supported}"
         ) from exc
+
+
+def _normalize_quantitative_meaning_evidence_mode(
+    evidence_mode: QuantitativeMeaningEvidenceMode | str,
+) -> QuantitativeMeaningEvidenceMode:
+    raw_evidence_mode = cast(object, evidence_mode)
+    if isinstance(raw_evidence_mode, QuantitativeMeaningEvidenceMode):
+        return raw_evidence_mode
+    try:
+        return QuantitativeMeaningEvidenceMode(str(raw_evidence_mode).strip())
+    except ValueError as exc:
+        supported = ", ".join(
+            member.value for member in QuantitativeMeaningEvidenceMode
+        )
+        raise InvalidTransformationStateError(
+            "unsupported quantitative meaning evidence mode "
+            f"{raw_evidence_mode!r}; supported: {supported}"
+        ) from exc
+
+
+def _normalize_quantitative_meaning_operation_id(value: object) -> str:
+    raw = _normalize_required_provenance_text(
+        value,
+        field_name="quantitative_meaning_provenance.operation_id",
+    )
+    normalized = raw.strip().lower().replace("-", "_")
+    normalized = re.sub(r"[\s_]+", "_", normalized)
+    normalized = re.sub(r"\.+", ".", normalized)
+    if not _QUANTITATIVE_MEANING_OPERATION_PATTERN.fullmatch(normalized):
+        raise InvalidTransformationStateError(
+            "quantitative_meaning_provenance.operation_id must be a stable "
+            "dot-separated machine identifier using lowercase ASCII letters, "
+            "digits, and underscores"
+        )
+    return normalized
+
+
+def _normalize_diagnostic_caveat_codes(values: object) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes, bytearray)):
+        raise InvalidTransformationStateError(
+            "quantitative_meaning_provenance.diagnostic_caveat_codes must be a "
+            "sequence of strings"
+        )
+    if not isinstance(values, Sequence):
+        raise InvalidTransformationStateError(
+            "quantitative_meaning_provenance.diagnostic_caveat_codes must be a "
+            "sequence of strings"
+        )
+    raw_values = tuple(cast(Sequence[object], values))
+    codes: list[str] = []
+    for code in raw_values:
+        normalized = str(code).strip().lower().replace("-", "_").replace(" ", "_")
+        normalized = re.sub(r"_+", "_", normalized)
+        if not normalized:
+            continue
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_]*", normalized):
+            raise InvalidTransformationStateError(
+                "quantitative_meaning_provenance.diagnostic_caveat_codes must "
+                "contain stable lowercase ASCII caveat codes"
+            )
+        if normalized not in codes:
+            codes.append(normalized)
+    return tuple(codes)
+
+
+def _canonical_table_fingerprint_payload_tuple(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[Mapping[str, object], ...]:
+    if isinstance(values, (str, bytes, bytearray)):
+        raise InvalidTransformationStateError(f"{field_name} must be a sequence")
+    if not isinstance(values, Sequence):
+        raise InvalidTransformationStateError(f"{field_name} must be a sequence")
+    raw_values = tuple(cast(Sequence[object], values))
+    return tuple(
+        _canonical_table_fingerprint_payload(
+            value,
+            field_name=f"{field_name}[{position}]",
+        )
+        for position, value in enumerate(raw_values)
+    )
+
+
+def _canonical_table_fingerprint_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    try:
+        if isinstance(value, TableFingerprint):
+            payload = table_fingerprint_to_payload(value)
+        elif isinstance(value, Mapping):
+            fingerprint = table_fingerprint_from_payload(
+                cast(Mapping[str, object], value)
+            )
+            payload = table_fingerprint_to_payload(fingerprint)
+        else:
+            raise InvalidTransformationStateError(
+                f"{field_name} must be a TableFingerprint or table fingerprint payload"
+            )
+    except PhosPyInputError as exc:
+        raise InvalidTransformationStateError(
+            f"{field_name} must be a valid table fingerprint payload: {exc}"
+        ) from exc
+    return cast(
+        Mapping[str, object],
+        freeze_json_mapping_with_error_type(
+            payload,
+            field_name=field_name,
+            error_type=InvalidTransformationStateError,
+        ),
+    )
+
+
+def _require_payload_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    if isinstance(value, Mapping):
+        raw_mapping = cast(Mapping[object, object], value)
+        result: dict[str, object] = {}
+        for key, item in raw_mapping.items():
+            if not isinstance(key, str):
+                raise InvalidTransformationStateError(
+                    f"{field_name} JSON object keys must be strings; "
+                    f"got {type(key).__name__}"
+                )
+            if key in result:
+                raise InvalidTransformationStateError(
+                    f"{field_name} contains duplicate JSON object key {key!r}"
+                )
+            result[key] = item
+        return result
+    raise InvalidTransformationStateError(f"{field_name} must be an object")
+
+
+def _require_payload_sequence(value: object, *, field_name: str) -> list[object]:
+    if isinstance(value, (str, bytes, bytearray)):
+        raise InvalidTransformationStateError(f"{field_name} must be an array")
+    if isinstance(value, Sequence):
+        return list(cast(Sequence[object], value))
+    raise InvalidTransformationStateError(f"{field_name} must be an array")
+
+
+def _require_payload_str(value: object, *, field_name: str) -> str:
+    return _normalize_required_provenance_text(value, field_name=field_name)
+
+
+def _optional_payload_str(value: object, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    return _require_payload_str(value, field_name=field_name)
+
+
+def _require_payload_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise InvalidTransformationStateError(f"{field_name} must be an int")
+    return int(value)
 
 
 def _normalize_intensity_transformation_pseudocount(
@@ -820,15 +1475,9 @@ def _matrix_intensity_scale_payload(
 
 def _normalize_quantitative_meaning(
     quantity: QuantitativeMeaning | str | None,
-    *,
-    default_kind: IntensityScaleKind,
-) -> QuantitativeMeaning:
+) -> QuantitativeMeaning | None:
     if quantity is None:
-        if default_kind is IntensityScaleKind.LINEAR:
-            return QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
-        if default_kind is IntensityScaleKind.LOG2:
-            return QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
-        return QuantitativeMeaning.UNKNOWN
+        return None
     if isinstance(quantity, QuantitativeMeaning):
         return quantity
     try:
@@ -839,6 +1488,60 @@ def _normalize_quantitative_meaning(
             "unsupported intensity-scale quantitative meaning "
             f"'{quantity}'; supported: {supported}"
         ) from exc
+
+
+def _normalize_optional_quantitative_meaning(
+    quantity: QuantitativeMeaning | str | None,
+) -> QuantitativeMeaning | None:
+    return _normalize_quantitative_meaning(quantity)
+
+
+def _normalize_required_quantitative_meaning(
+    quantity: QuantitativeMeaning | str,
+    *,
+    field_name: str,
+) -> QuantitativeMeaning:
+    normalized = _normalize_quantitative_meaning(quantity)
+    if normalized is None:
+        raise InvalidTransformationStateError(f"{field_name} must not be None")
+    return normalized
+
+
+def default_quantitative_meaning_for_scale_kind(
+    kind: IntensityScaleKind,
+) -> QuantitativeMeaning:
+    """Return the base quantitative meaning implied by a scale contract."""
+
+    if kind is IntensityScaleKind.LINEAR:
+        return QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
+    if kind is IntensityScaleKind.LOG2:
+        return QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+    return QuantitativeMeaning.UNKNOWN
+
+
+def is_caller_declarable_quantitative_meaning(
+    meaning: QuantitativeMeaning | str,
+) -> bool:
+    """Return whether a public caller may declare this direct input meaning."""
+
+    normalized = _normalize_required_quantitative_meaning(
+        meaning,
+        field_name="quantitative_meaning",
+    )
+    return normalized in CALLER_DECLARABLE_QUANTITATIVE_MEANINGS
+
+
+def caller_declarable_quantitative_meaning_values() -> tuple[str, ...]:
+    """Return stable public caller-declarable quantitative meaning values."""
+
+    return tuple(
+        meaning.value
+        for meaning in (
+            QuantitativeMeaning.UNKNOWN,
+            QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE,
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+        )
+    )
 
 
 def _validate_quantitative_meaning_kind_coherence(
