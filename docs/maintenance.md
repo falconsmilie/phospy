@@ -17,8 +17,8 @@ pip install -c constraints/ci.txt -e ".[dev,test]"
 
 For full release checks, install the release extras first. The maintainer
 release command is `make release-check`; it runs normal lint, type, unit,
-parity, performance, checked-in reference, metadata, packaged-reference, and
-build checks:
+parity, performance, release/golden/reproducibility, checked-in reference,
+metadata, packaged-reference, and build checks:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
@@ -36,18 +36,25 @@ pyright
 pytest -m "not parity"
 ```
 
-Run parity tests when scientific logic, fixture data, reference handling, or
-scoring behaviour changes:
+Run blocking parity tests when scientific logic, fixture data, reference
+handling, or scoring behaviour changes:
 
 ```bash
-pytest tests/parity -m parity -s
+pytest tests/parity -m "parity and not parity_diagnostic" -s
 ```
 
 Run performance checks when preprocessing, scoring, prediction, or signalome hot
 paths change:
 
 ```bash
-pytest tests/performance -m performance
+pytest tests/performance -m "performance or release_gate"
+```
+
+Run release/golden checks when changing release policy, provenance fixtures,
+reference manifests, or reproducibility contracts:
+
+```bash
+make test-release-gates
 ```
 
 Run the maintainer release checks before tagging a release:
@@ -57,13 +64,15 @@ make release-check
 ```
 
 Default `pytest` or `pytest -m "not parity"` is a fast local development check,
-not sufficient for publishing. Parity tests, performance contracts, reference
+not sufficient for publishing. The configured default pytest `testpaths` omit
+`tests/release`, `tests/golden`, and `tests/performance`. Blocking parity tests,
+performance contracts, release/golden/reproducibility tests, reference
 validation, metadata checks, packaged-reference checks, and the wheel smoke test
 are not optional for public release decisions.
 
-The publish pipeline (`.github/workflows/publish.yml`) runs `make
-release-check` once on the checked-out tag, uploads the fresh `dist/` directory,
-and publishes those artifacts through trusted publishing.
+The publish pipeline (`.github/workflows/publish.yml`) runs
+`make release-check` once on the checked-out tag, uploads the fresh `dist/`
+directory, and publishes those artifacts through trusted publishing.
 
 This process provides normal CI/build confidence, not formal
 exact-source/exact-artifact attestation. Do not treat a partial local pass, a
@@ -77,14 +86,19 @@ Release-blocking coverage in `make release-check` is:
 | Lint | `ruff check .` |
 | Type checking | `python scripts/run_pyright.py` |
 | Default non-parity suite | `pytest -m "not parity"` |
-| Threshold-bearing parity | `pytest tests/parity -m parity -s` |
+| Threshold-bearing parity | `pytest tests/parity -m "parity and not parity_diagnostic" -s` |
 | Performance release contracts | `pytest tests/performance -m "performance or release_gate"` |
 | Checked-in reference bundles | `python scripts/validate_reference_bundle_index.py --repo-root .` |
+| Release/golden/reproducibility gates | `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"` |
 | Distribution build and packaged-reference checks | `make build` |
 
-`parity_diagnostic` checks are intentionally non-blocking diagnostics unless a
-maintainer deliberately promotes them into the release selector and updates this
-policy.
+`parity_diagnostic` checks are intentionally excluded from the blocking parity
+target unless a maintainer deliberately promotes them into the release selector
+and updates this policy. `make release-check` is the authoritative aggregate
+command. The release policy tests use
+`tools/testing/release_selector_coverage.py` to collect pytest node IDs and
+effective markers, then fail if any release-blocking node is absent from every
+authoritative release target.
 
 ## Type Checking
 
@@ -126,8 +140,8 @@ is ignored by git.
 ## Source and Release Archive Hygiene
 
 Source and release archives should be built from the tagged source state. Use a
-clean tree and `make build` for package distributions after `make
-release-check` passes:
+clean tree and `make build` for package distributions after
+`make release-check` passes:
 
 ```bash
 make build

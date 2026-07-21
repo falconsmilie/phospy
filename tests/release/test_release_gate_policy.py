@@ -32,6 +32,7 @@ RELEASE_CHECK_DEPENDENCIES = (
     "test-parity",
     "test-performance",
     "validate-reference-bundles",
+    "test-release-gates",
     "build",
 )
 
@@ -118,7 +119,6 @@ def test_release_check_command_is_maintained_project_authority() -> None:
     assert AUTHORITATIVE_RELEASE_COMMAND == "make release-check"
     assert target_dependencies == RELEASE_CHECK_DEPENDENCIES
     assert _make_target_body("release-check") == ""
-    assert "test-release-gate:" not in _read("Makefile")
 
 
 @pytest.mark.parametrize(
@@ -152,11 +152,23 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         "parity_diagnostic",
     }
 
+    makefile = _read("Makefile")
+    assert re.search(r"(?ms)^\.PHONY:.*test-release-gates", makefile) is not None
+    assert "make test-release-gates" in _make_target_body("help")
+
     assert '$(PYTEST) -m "not parity"' in _make_target_body("test-unit")
-    assert "$(PYTEST) tests/parity -m parity -s" in _make_target_body("test-parity")
+    assert (
+        '$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s'
+        in _make_target_body("test-parity")
+    )
     assert 'tests/performance -m "performance or release_gate"' in _make_target_body(
         "test-performance"
     )
+    release_gates = _make_target_body("test-release-gates")
+    assert '$(MKDIR_P) "$(PYTEST_REPORT_DIR)"' in release_gates
+    assert "$(PYTEST) -o addopts= tests/release tests/golden" in release_gates
+    assert '-m "release_gate or golden or reproducibility"' in release_gates
+    assert '--junitxml "$(PYTEST_REPORT_DIR)/release-gates.xml"' in release_gates
     assert (
         "$(PYTHON) scripts/validate_reference_bundle_index.py --repo-root ."
         in _make_target_body("validate-reference-bundles")
@@ -204,10 +216,16 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     default_suite = _workflow_job_block(workflow, "default-suite")
     hard_parity = _workflow_job_block(workflow, "parity-tests")
     diagnostics = _workflow_job_block(workflow, "parity-diagnostics")
+    performance = _workflow_job_block(workflow, "performance-contracts")
+    reference_bundles = _workflow_job_block(workflow, "reference-bundles")
+    release_gates = _workflow_job_block(workflow, "release-gates")
     build = _workflow_job_block(workflow, "build-distributions")
 
     _assert_supported_python_matrix(clean_install)
     _assert_supported_python_matrix(default_suite)
+    assert "make test-performance" in performance
+    assert "make validate-reference-bundles" in reference_bundles
+    assert "make test-release-gates" in release_gates
     assert '-m "parity and not parity_diagnostic"' in hard_parity
     assert "continue-on-error: true" not in hard_parity
     assert "continue-on-error: true" in diagnostics

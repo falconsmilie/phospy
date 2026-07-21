@@ -14,17 +14,22 @@ The testing audit system exists to:
 ## Release-Check Policy
 
 Default `pytest` excludes parity tests for developer speed through the
-`pyproject.toml` addopts setting. It is not sufficient for publishing. Public
-releases must run the maintainer command, `make release-check`; that command
-runs lint, type checking, the default non-parity suite, threshold-bearing parity
-tests, performance contracts, checked-in reference validation, a fresh build,
-metadata checks, and packaged-reference checks.
+`pyproject.toml` addopts setting, and the configured `testpaths` omit
+`tests/release`, `tests/golden`, and `tests/performance`. It is not sufficient
+for publishing. Public releases must run the maintainer command,
+`make release-check`; that command runs lint, type checking, the default
+non-parity suite, threshold-bearing parity tests excluding
+`parity_diagnostic`, performance contracts, release/golden/reproducibility
+gates, checked-in reference validation, a fresh build, metadata checks, and
+packaged-reference checks.
 
 This provides normal CI/build confidence, not formal exact-source/exact-artifact
 attestation.
 
 `parity_diagnostic` tests are informational unless they are intentionally
-promoted into the release selector.
+promoted into the release selector. `make test-release-gates` selects
+`tests/release` and `tests/golden` explicitly with
+`release_gate or golden or reproducibility`.
 
 ## Read This First
 
@@ -71,6 +76,11 @@ These reports are generated from static analysis scripts and provide focused sli
 - `tools/testing/find_dataframe_ownership_tests.py`
 - `tools/testing/find_diagnostic_assertion_clusters.py`
 - `tools/testing/find_orchestration_test_candidates.py`
+
+`tools/testing/release_selector_coverage.py` is a dynamic collection helper used
+by release-policy tests. It does not execute tests; it invokes pytest
+collection-only subprocesses and records node IDs plus effective markers for the
+release selector audit.
 
 ### Local Freshness Check
 

@@ -88,19 +88,20 @@ validated PhosPy implementations:
 | Signalome | Public workflow reference and backend parity lanes (`tests/fixtures/public_workflow_reference/`) |
 | Activity parity | Activity-stage parity fixtures and threshold-bearing checks in `tests/parity/test_activity_stage_parity.py` |
 
-Run the parity suite with:
+Run the blocking parity suite with:
 
 ```bash
-pytest tests/parity -m parity -s
+pytest tests/parity -m "parity and not parity_diagnostic" -s
 ```
 
-Release decisions should run the maintainer release checks (`make
-release-check`). Parity failures in that check are release-blocking, and
-performance, checked-in reference, packaged-reference, metadata, and
-threshold-bearing parity checks must all pass before a public scientific
-release. Packaged reference validation blocks release when a bundled reference
-is missing file hashes, fails hash verification, lacks license/organism/namespace
-metadata, or declares a non-release-eligible `redistribution_status`.
+Release decisions should run the maintainer release checks (`make release-check`).
+Parity failures in that check are release-blocking, and
+performance, release/golden/reproducibility, checked-in reference,
+packaged-reference, metadata, and threshold-bearing parity checks must all pass
+before a public scientific release. Packaged reference validation blocks release
+when a bundled reference is missing file hashes, fails hash verification, lacks
+license/organism/namespace metadata, or declares a non-release-eligible
+`redistribution_status`.
 `unresolved` bundled references block release, and `external_only` references
 must not be shipped as bundled data. `approved` requires verified evidence in
 the manifest for the exact packaged files; developers and Codex agents must not

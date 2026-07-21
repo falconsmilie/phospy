@@ -20,7 +20,9 @@ policy.
 
 Public releases must run the maintainer release command, `make release-check`.
 Default `pytest` is a local development check and is not sufficient for
-publishing. The release check blocks release on:
+publishing. The configured default `testpaths` deliberately omit
+`tests/release`, `tests/golden`, and `tests/performance`; release-only suites are
+selected by explicit Makefile targets. The release check blocks release on:
 
 | Marker or suite | Release status |
 | --- | --- |
@@ -29,10 +31,11 @@ publishing. The release check blocks release on:
 | Default non-parity suite | Blocking through `pytest -m "not parity"` over configured `testpaths`. |
 | Checked-in reference bundles | Blocking through `python scripts/validate_reference_bundle_index.py --repo-root .`. |
 | Built distributions | Blocking through `make build`, metadata checks, and packaged-reference validation. |
-| `parity` | Blocking through `pytest tests/parity -m parity -s`. |
-| `activity_parity` | Blocking because the activity parity file is also marked `parity`; CI also has a dedicated activity parity gate. |
+| `release_gate`, `golden`, `reproducibility` in `tests/release` or `tests/golden` | Blocking through `make test-release-gates`, which runs `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"`. |
+| `parity` | Blocking through `pytest tests/parity -m "parity and not parity_diagnostic" -s`. |
+| `activity_parity` | Blocking because the activity parity file is also marked `parity` and is not marked `parity_diagnostic`; CI also has a dedicated activity parity gate. |
 | `performance` | Blocking through `pytest tests/performance -m "performance or release_gate"`. |
-| `parity_diagnostic` | Non-blocking diagnostic unless intentionally promoted out of the exclusion. |
+| `parity_diagnostic` | Explicitly excluded from the blocking parity target unless intentionally promoted out of the exclusion. |
 | `slow` | Not selected solely by marker for release; it runs only when also collected by a blocking selector. |
 
 ## Local Command Conventions
@@ -45,15 +48,23 @@ The current pytest defaults are configured in `pyproject.toml` with:
 Based on that configuration:
 
 - Default local run: `pytest`
-- Include parity locally: `pytest tests/parity -m parity -s`
+- Blocking parity validation: `pytest tests/parity -m "parity and not parity_diagnostic" -s`
 - Exclude slow tests in local loops: `pytest -m "not parity and not slow"`
 - Performance-only validation: `pytest tests/performance -m "performance or release_gate"`
+- Release/golden validation: `make test-release-gates`
 - Full release-check command: `make release-check`
 
-The default local run deliberately omits release tests, threshold-bearing parity
-tests, and performance contracts unless they are selected separately through
-the release check. This process provides normal CI/build confidence, not formal
-exact-source/exact-artifact attestation.
+The default local run deliberately omits release tests, golden tests,
+threshold-bearing parity tests, and performance contracts unless they are
+selected separately through the release check. `make release-check` is the
+authoritative aggregate command. This process provides normal CI/build
+confidence, not formal exact-source/exact-artifact attestation.
+
+The release policy test suite includes a collection-only selector audit using
+`tools/testing/release_selector_coverage.py`. It compares actual collected node
+IDs and effective markers against the authoritative Makefile selectors, so a new
+release-blocking node cannot be added without either being selected by a release
+target or failing the release-policy test.
 
 This page documents marker usage and the release-check command path used by
 release CI.

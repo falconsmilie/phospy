@@ -51,12 +51,13 @@ For reproducible scientific/regression runs aligned to CI:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test]"
-pytest tests/parity -m parity -s
+pytest tests/parity -m "parity and not parity_diagnostic" -s
 ```
 
 For public release checks, the maintainer command is `make release-check`. It
-runs the normal lint, type, unit, parity, performance, checked-in reference, and
-distribution build checks:
+runs the normal lint, type, unit, blocking parity, performance,
+release/golden/reproducibility, checked-in reference, and distribution build
+checks:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
@@ -66,9 +67,12 @@ make release-check
 This process provides normal CI/build confidence, not formal
 exact-source/exact-artifact attestation. Partial local passes, such as default
 tests, parity-only tests, or performance-only tests, are useful development
-checks but are insufficient for publishing. `make build` starts from an empty
-`dist/`, builds one wheel and one sdist, runs metadata checks, and validates the
-packaged reference manifests and declared file hashes in both archives.
+checks but are insufficient for publishing. Default pytest `testpaths` omit
+`tests/release`, `tests/golden`, and `tests/performance`; the
+`test-release-gates` Make target selects release/golden checks explicitly.
+`make build` starts from an empty `dist/`, builds one wheel and one sdist, runs
+metadata checks, and validates the packaged reference manifests and declared
+file hashes in both archives.
 
 ## Quick Start
 

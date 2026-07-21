@@ -358,12 +358,13 @@ Parity failures therefore require review, not blind rollback toward the legacy r
 ## Release-Gate Relationship
 
 Parity checks that protect active scientific lanes are release-gate checks.
-Release validation should run the explicit release-gate command
-(`make test-release-gate`) so parity is evaluated together with normal
-unit/integration, reproducibility/golden, and performance contracts.
+Release validation should run the authoritative aggregate command
+(`make release-check`) so parity is evaluated together with normal
+unit/integration, release/golden/reproducibility, and performance contracts.
 
 Within that release gate, threshold-bearing parity failures are release-blocking.
-Informational `parity_diagnostic` checks remain non-threshold-bearing.
+Informational `parity_diagnostic` checks remain non-threshold-bearing and are
+excluded from the blocking parity target.
 
 ## Relationship to Fresh-Start Rewrite
 

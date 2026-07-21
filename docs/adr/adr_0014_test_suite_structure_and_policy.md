@@ -51,8 +51,13 @@ PhosPy test categories remain:
 - `tests/integration`
 - `tests/parity`
 - `tests/architecture`
+- `tests/release`
+- `tests/golden`
+- `tests/performance`
 
-`parity` remains opt-in at local default pytest invocation.
+`parity`, `tests/release`, `tests/golden`, and `tests/performance` remain
+outside the default local pytest invocation and are selected by explicit release
+targets.
 
 ### Public-Boundary Adversarial Governance
 
@@ -104,7 +109,7 @@ PhosPy test categories remain:
    unit/integration run.
 3. tests/performance are not manual-only checks.
 4. `tests/performance` run in a dedicated CI/release job or explicit
-   release-validation command (`make test-release-gate`).
+   release-validation target (`make test-performance`).
 5. Failures in `tests/performance` block release until fixed, waived, or the
    contract is intentionally updated.
 6. Contract updates require updating both `docs/performance.md` and related
@@ -117,14 +122,19 @@ PhosPy test categories remain:
 1. A documented release-gate command must run:
    - normal unit tests
    - integration tests
-   - release-gated reproducibility/golden tests
-   - parity tests
+   - release-gated reproducibility/golden tests through `make test-release-gates`
+   - threshold-bearing parity tests through
+     `pytest tests/parity -m "parity and not parity_diagnostic" -s`
    - performance contract tests
-2. Fast local defaults may keep parity/performance out of the default marker
-   selection.
+2. Fast local defaults may keep parity, release/golden, and performance suites
+   out of the default marker selection.
 3. Scientific parity failures are release-blocking.
 4. Missing optional dependency failures in release-gate execution must include
    clear setup guidance in maintainer docs.
+5. `make release-check` is the authoritative aggregate release command.
+6. A collection-only selector audit must compare actual pytest node IDs and
+   effective markers against the authoritative release targets so
+   release-blocking tests cannot be missed silently.
 
 ### Why Release-Gate Is the Correct Policy
 
@@ -157,11 +167,12 @@ PhosPy test categories remain:
 - `tests/unit/test_public_boundary_adversarial.py`
 - `tests/performance/test_performance_contracts.py`
 - `tests/support/performance_contracts.py`
+- `tools/testing/release_selector_coverage.py`
 - `docs/testing/public_boundary_invariant_checklist.md`
 - `docs/performance.md`
 - `docs/maintenance.md`
 - `docs/testing/pytest_markers.md`
-- `Makefile` (`test-release-gate`)
+- `Makefile` (`release-check`, `test-release-gates`, `test-performance`)
 - `.github/workflows/publish.yml` (release-gate enforcement)
 - `src/phospy/science/signalomes/clustering/scale_guards.py`
 - `pyproject.toml`
@@ -185,6 +196,8 @@ Future changes must satisfy all the following:
    fields explicitly tested?
 7. Are supported public boundaries still covered by source and installed-artifact
    adversarial probes?
+8. Does the selector coverage audit still prove that every release-blocking
+   collected node is selected by at least one authoritative release target?
 
 ## References
 

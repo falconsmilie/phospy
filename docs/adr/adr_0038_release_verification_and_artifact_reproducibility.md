@@ -18,6 +18,9 @@ described below are historical and are no longer active release requirements.
 PhosPy deliberately keeps normal tests, constrained builds, metadata checks,
 packaged-reference validation, trusted publishing, and one installed-wheel smoke
 test, while no longer providing formal exact-source/exact-artifact attestation.
+The active release command is `make release-check`; release/golden tests are
+selected through `make test-release-gates`, not the superseded
+`make test-release-gate` command named in this historical decision.
 
 ## Context
 
@@ -33,9 +36,9 @@ manifests and file hashes selected by the source identity.
 
 ## Decision
 
-The authoritative release-verification command is `make test-release-gate`.
-Release CI and publish CI must invoke that same documented command rather than
-a private variant.
+The superseded release-verification command was `make test-release-gate`.
+Release CI and publish CI were expected to invoke that same documented command
+rather than a private variant. ADR-0039 replaces this with `make release-check`.
 
 Release verification requires:
 

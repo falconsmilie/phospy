@@ -30,7 +30,7 @@ TWINE ?= $(PYTHON) -m twine
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance validate-reference-bundles release-check test-seams build clean \
+	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance test-release-gates validate-reference-bundles release-check test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
@@ -46,6 +46,7 @@ help:
 	@printf '%s\n' '  make test-unit                     Run the non-parity pytest suite'
 	@printf '%s\n' '  make test-parity                   Run the parity pytest suite'
 	@printf '%s\n' '  make test-performance              Run the performance contract suite'
+	@printf '%s\n' '  make test-release-gates            Run release/golden/reproducibility gates'
 	@printf '%s\n' '  make validate-reference-bundles    Validate checked-in reference bundle manifests and files'
 	@printf '%s\n' '  make release-check                 Run maintainer release checks'
 	@printf '%s\n' '  make test                          Run unit and parity tests'
@@ -99,16 +100,22 @@ test-unit: check-tools
 	$(PYTEST) -m "not parity"
 
 test-parity: check-tools
-	$(PYTEST) tests/parity -m parity -s
+	$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s
 
 test-performance: check-tools
 	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
 	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" --junitxml "$(PYTEST_REPORT_DIR)/performance.xml"
 
+test-release-gates: check-tools
+	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
+	$(PYTEST) -o addopts= tests/release tests/golden \
+		-m "release_gate or golden or reproducibility" \
+		--junitxml "$(PYTEST_REPORT_DIR)/release-gates.xml"
+
 validate-reference-bundles: check-tools
 	$(PYTHON) scripts/validate_reference_bundle_index.py --repo-root .
 
-release-check: lint type-check test-unit test-parity test-performance validate-reference-bundles build
+release-check: lint type-check test-unit test-parity test-performance validate-reference-bundles test-release-gates build
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"

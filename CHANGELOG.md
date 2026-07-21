@@ -13,6 +13,10 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- Added the `test-release-gates` target to `make release-check` and a
+  collection-only selector audit so release-blocking `tests/release`,
+  `tests/golden`, parity, and performance nodes cannot be omitted silently from
+  authoritative release targets.
 - Rejected conflicting supplied peptide-evidence `site_sequence` contexts for
   the same resolved phosphosite deterministically instead of selecting whichever
   sequence appeared first in input row order.
