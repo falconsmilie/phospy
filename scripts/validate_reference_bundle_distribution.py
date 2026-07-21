@@ -16,6 +16,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+if __package__ in {None, ""}:  # pragma: no cover - direct script execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 WHEEL_REFERENCE_BUNDLES_ROOT = PurePosixPath("phospy/data/reference_bundles")
 SOURCE_REFERENCE_BUNDLES_ROOT = PurePosixPath("src/phospy/data/reference_bundles")
 MANIFEST_FILENAME = "manifest.json"
@@ -148,12 +151,69 @@ def _collect_archive_path_issues(
     contents = _read_reference_files_from_archive(archive_path)
     issues = list(contents.issues)
     issues.extend(_collect_packaged_manifest_issues(archive_path, contents.files))
+    issues.extend(
+        _collect_packaged_extra_reference_file_issues(archive_path, contents.files)
+    )
     if compare_git_index:
         issues.extend(
             _collect_git_index_comparison_issues(
                 archive_path=archive_path,
                 archive_files=contents.files,
                 repo_root=repo_root,
+            )
+        )
+    return issues
+
+
+def _collect_packaged_extra_reference_file_issues(
+    archive_path: Path,
+    archive_files: Mapping[str, _ArchiveReferenceFile],
+) -> list[_ValidationIssue]:
+    manifests = sorted(
+        path
+        for path in archive_files
+        if _is_source_reference_bundle_manifest(PurePosixPath(path))
+    )
+    if not manifests:
+        return []
+
+    required_paths: set[str] = set(manifests)
+    issues: list[_ValidationIssue] = []
+    for manifest_path in manifests:
+        manifest_file = archive_files[manifest_path]
+        bundle_path = PurePosixPath(manifest_path).parent
+        bundle_path_text = bundle_path.as_posix()
+        payload, payload_issue = _load_manifest_payload(
+            raw_payload=manifest_file.data,
+            archive_path=archive_path,
+            bundle_path=bundle_path_text,
+        )
+        if payload_issue is not None:
+            issues.append(payload_issue)
+            continue
+        reference_id = _reference_id(payload)
+        declared_files, declaration_issues = _declared_manifest_files(
+            payload=payload,
+            archive_path=archive_path,
+            bundle_path=bundle_path_text,
+            reference_id=reference_id,
+        )
+        issues.extend(declaration_issues)
+        for declared_file in declared_files:
+            required_paths.add(
+                bundle_path.joinpath(declared_file.relative_path).as_posix()
+            )
+
+    for extra_path in sorted(set(archive_files) - required_paths):
+        issues.append(
+            _ValidationIssue(
+                archive_path=archive_path,
+                bundle_path=str(PurePosixPath(extra_path).parent),
+                reference_id=None,
+                affected_file=extra_path,
+                expected_digest="manifest-declared packaged reference-bundle file",
+                actual_digest="extra",
+                reason="distribution archive contains undeclared reference-bundle file",
             )
         )
     return issues
@@ -854,7 +914,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--repo-root",
         type=Path,
         default=None,
-        help="Git repository root for Git-index comparison.",
+        help="Source root for optional Git-index comparison.",
     )
     parser.add_argument(
         "--no-git-index-compare",

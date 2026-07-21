@@ -89,7 +89,7 @@ File hashes establish source and package byte identity for validation; hashes
 alone do not establish redistribution approval.
 
 Runtime bundled-reference loading validates the manifest and file hashes before
-the tables are exposed to workflows. The release gate enforces stricter
+the tables are exposed to workflows. The release checks enforce stricter
 publication rules: every packaged file must be listed, every declared file hash
 must match, required organism/source/license metadata must be present,
 approved bundled references require structured exact-snapshot redistribution

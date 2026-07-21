@@ -233,7 +233,7 @@ def test_docs_importer_support_matches_public_importers() -> None:
     assert "not upstream statistical result import" in normalized
 
 
-def test_reference_provenance_docs_match_manifest_schema_and_release_gate() -> None:
+def test_reference_provenance_docs_match_manifest_schema_and_release_checks() -> None:
     reference_bundle_text = _reference_bundles_text().lower()
     docs_text = (
         _readme_text()
@@ -264,7 +264,7 @@ def test_reference_provenance_docs_match_manifest_schema_and_release_gate() -> N
         "unresolved bundled references block release",
         "external-only references must not be shipped as bundled data",
         "must not mark references approved without verified evidence",
-        "release gate enforces stricter publication rules",
+        "release checks enforce stricter publication rules",
         'each bundled manifest must declare `redistribution_status="approved"`',
     ):
         assert required in normalized
@@ -444,7 +444,6 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
         "src/phospy/io",
         "src/phospy/policies",
         "src/phospy/provenance",
-        "src/phospy/release",
         "src/phospy/science",
         "src/phospy/tables",
         "src/phospy/validation",

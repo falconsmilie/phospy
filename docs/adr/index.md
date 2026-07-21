@@ -54,4 +54,5 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0035 | Provenance Immutability and Stable Serialization | Accepted | 2026-07-15 | [adr_0035_provenance_immutability_and_stable_serialization.md](adr_0035_provenance_immutability_and_stable_serialization.md) |
 | ADR-0036 | Enrichment Universe and Attrition Policy | Accepted | 2026-07-16 | [adr_0036_enrichment_universe_and_attrition_policy.md](adr_0036_enrichment_universe_and_attrition_policy.md) |
 | ADR-0037 | Deterministic KNN Missing-Data Imputation | Accepted | 2026-07-16 | [adr_0037_deterministic_knn_missing_data_imputation.md](adr_0037_deterministic_knn_missing_data_imputation.md) |
-| ADR-0038 | Release Verification and Artifact Reproducibility | Accepted | 2026-07-16 | [adr_0038_release_verification_and_artifact_reproducibility.md](adr_0038_release_verification_and_artifact_reproducibility.md) |
+| ADR-0038 | Release Verification and Artifact Reproducibility | Superseded | 2026-07-16 | [adr_0038_release_verification_and_artifact_reproducibility.md](adr_0038_release_verification_and_artifact_reproducibility.md) |
+| ADR-0039 | Lightweight Solo-Maintainer Release Process | Accepted | 2026-07-20 | [adr_0039_lightweight_solo_maintainer_release_process.md](adr_0039_lightweight_solo_maintainer_release_process.md) |

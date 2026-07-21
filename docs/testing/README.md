@@ -11,23 +11,17 @@ The testing audit system exists to:
 - identify what must not regress during consolidation,
 - and separate machine-generated evidence from human review decisions.
 
-## Release-Gate Policy
+## Release-Check Policy
 
 Default `pytest` excludes parity tests for developer speed through the
-`pyproject.toml` addopts setting. It is not sufficient for release. Public
-releases must run the authoritative release-gate command,
-`make test-release-gate`; that target is the release-blocking command and
-includes the default non-parity suite, release tests, provenance/golden checks,
-reference manifest gates, threshold-bearing parity tests, and performance
-contracts. The target also runs `scripts/validate_reference_bundle_index.py`
-against the actual Git index before release manifest tests, and CI runs the
-target on Python 3.10, 3.11, and 3.12.
+`pyproject.toml` addopts setting. It is not sufficient for publishing. Public
+releases must run the maintainer command, `make release-check`; that command
+runs lint, type checking, the default non-parity suite, threshold-bearing parity
+tests, performance contracts, checked-in reference validation, a fresh build,
+metadata checks, and packaged-reference checks.
 
-Release-gate pytest steps emit duration summaries and JUnit XML under
-`build/reports/`. CI also retains source identity and source-suite JSON reports
-from that directory. Public publication is authorized only by the final
-`release-attestation.json`, after the retained evidence validates against
-`release/attestation-policy.json`.
+This provides normal CI/build confidence, not formal exact-source/exact-artifact
+attestation.
 
 `parity_diagnostic` tests are informational unless they are intentionally
 promoted into the release selector.

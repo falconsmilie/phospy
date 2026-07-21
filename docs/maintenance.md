@@ -15,16 +15,16 @@ For CI-aligned dependency resolution:
 pip install -c constraints/ci.txt -e ".[dev,test]"
 ```
 
-For full release-gate validation, install the release extras first. The
-authoritative release-gate command is `make test-release-gate`; it includes
-release tests, reproducibility/golden checks, parity tests, and performance
-contract tests. CI runs the same command on Python 3.10, 3.11, and 3.12:
+For full release checks, install the release extras first. The maintainer
+release command is `make release-check`; it runs normal lint, type, unit,
+parity, performance, checked-in reference, metadata, packaged-reference, and
+build checks:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 ```
 
-If `make test-release-gate` fails with import errors for optional engines, install
+If `make release-check` fails with import errors for optional engines, install
 the optional extras above and rerun.
 
 ## Common Checks
@@ -50,46 +50,37 @@ paths change:
 pytest tests/performance -m performance
 ```
 
-Run full scientific release validation before tagging a release:
+Run the maintainer release checks before tagging a release:
 
 ```bash
-make test-release-gate
+make release-check
 ```
 
 Default `pytest` or `pytest -m "not parity"` is a fast local development check,
-not sufficient for release and not release verification. Parity tests, release
-tests, reproducibility/golden checks, and performance contracts are not optional
-for public release decisions.
+not sufficient for publishing. Parity tests, performance contracts, reference
+validation, metadata checks, packaged-reference checks, and the wheel smoke test
+are not optional for public release decisions.
 
-The publish pipeline (`.github/workflows/publish.yml`) runs this same release
-gate across all supported Python versions before building and uploading tagged
-distributions.
+The publish pipeline (`.github/workflows/publish.yml`) runs `make
+release-check` once on the checked-out tag, uploads the fresh `dist/` directory,
+and publishes those artifacts through trusted publishing.
 
-Release confidence is artifact-level. A public scientific release claim applies
-only to the exact tagged source tree, source archive, wheel, or other release
-artifact that passed the full gate. Do not treat a partial local pass, a
-parity-only pass, a performance-only pass, or a gate pass from a different
+This process provides normal CI/build confidence, not formal
+exact-source/exact-artifact attestation. Do not treat a partial local pass, a
+parity-only pass, a performance-only pass, or a check pass from a different
 commit/distribution as sufficient evidence for public release.
 
-The release gate writes a source identity record and post-check source-suite
-JSON reports under `build/reports/`. These reports bind the JUnit reports to the
-source identity used for release. The authoritative public release audit record
-is `release-attestation.json`, which is produced only after the source reports,
-build manifest, wheel, sdist, and installed-artifact verification matrix validate
-against `release/attestation-policy.json`. Pytest duration summaries are printed
-during the run, and JUnit reports are written under `build/reports/` for
-retention by CI.
-
-Release-blocking coverage in `make test-release-gate` is:
+Release-blocking coverage in `make release-check` is:
 
 | Gate | Command selector |
 | --- | --- |
-| Git-index reference bundle check | `python scripts/validate_reference_bundle_index.py` |
-| Default non-parity suite | `pytest -m "not parity and not performance and not release_gate"` |
-| Provenance/golden contracts | `pytest tests/golden ... -m "release_gate and (reproducibility or golden)"` |
-| Reference manifest gates | `pytest tests/release -m "release_gate"` |
-| Threshold-bearing parity | `pytest tests/parity -m "parity and not parity_diagnostic" -s` |
-| Performance release contracts | `pytest tests/performance -m "performance or release_gate" -q` |
+| Lint | `ruff check .` |
+| Type checking | `python scripts/run_pyright.py` |
+| Default non-parity suite | `pytest -m "not parity"` |
+| Threshold-bearing parity | `pytest tests/parity -m parity -s` |
+| Performance release contracts | `pytest tests/performance -m "performance or release_gate"` |
+| Checked-in reference bundles | `python scripts/validate_reference_bundle_index.py --repo-root .` |
+| Distribution build and packaged-reference checks | `make build` |
 
 `parity_diagnostic` checks are intentionally non-blocking diagnostics unless a
 maintainer deliberately promotes them into the release selector and updates this
@@ -106,7 +97,6 @@ Pyright is the configured type checker. The checked scope is listed in
 - `src/phospy/io`
 - `src/phospy/policies`
 - `src/phospy/provenance`
-- `src/phospy/release`
 - `src/phospy/science`
 - `src/phospy/tables`
 - `src/phospy/validation`
@@ -135,26 +125,25 @@ is ignored by git.
 
 ## Source and Release Archive Hygiene
 
-Source and release archives must be built from tracked source state, not from a
-local working-tree zip. Use a clean tree and `make build` for package
-distributions after the release gate passes:
+Source and release archives should be built from the tagged source state. Use a
+clean tree and `make build` for package distributions after `make
+release-check` passes:
 
 ```bash
 make build
 ```
 
-`make build` runs the Git-index reference-bundle validation first, builds the
-wheel and sdist, and validates both built archives against the committed
-reference manifests and file hashes.
+`make build` clears stale wheel/sdist files, builds one wheel and one sdist,
+runs metadata checks, and validates both built archives against their packaged
+reference manifests and declared file hashes. It does not require Git metadata
+and can run from a copied source tree.
 
 Do not broaden a release claim from one artifact to another. If the tagged
 source tree, source archive, wheel, dependency constraints, or bundled fixture
-set changes after a gate run, rerun the full release gate and keep the new
-metadata JSON with the release audit material.
+set changes after a release-check run, rerun the checks and rebuild `dist/`.
 
-The release-verification CI verdict is reproducible only when the constrained
-`[dev,test]` install matrix, full default-suite matrix, full release-gate matrix,
-wheel/sdist install matrix, and built-archive reference validation all pass.
+Release confidence is based on the ordinary CI matrix, the maintainer
+release-check command, and the freshly built wheel/sdist artifacts.
 
 Do not include generated artefacts in source/release archives. Exclude build
 outputs, documentation sites, cache directories, previous archive files, and

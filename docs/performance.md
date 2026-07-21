@@ -6,7 +6,7 @@ identical runtime on every machine.
 
 ## Target Dataset Scale Contract
 
-PhosPy currently targets two practical execution scales for release-gated
+PhosPy currently targets two practical execution scales for release-checked
 scientific workflows:
 
 | Scale | Phosphosites | Samples | Conditions | Missingness in raw phospho input | Reference bundle workload | Kinase scoring workload | Signalome graph/network workload |
@@ -61,9 +61,9 @@ Current KNN execution budgets:
 - estimated distance-feature operations:
   `rows_with_missing_values x retained_rows x sample_columns <= 2,000,000,000`
 - pairwise distance chunk target: `48 MiB` per target-by-donor matrix
-- release-gate peak memory budget: `< 384 MiB`
+- release-check peak memory budget: `< 384 MiB`
 
-Release-gate KNN benchmark fixtures measure both sparse and moderate retained
+Release-check KNN benchmark fixtures measure both sparse and moderate retained
 missing-target workloads. They intentionally do not claim broad random
 missingness across all retained rows.
 
@@ -98,15 +98,15 @@ when its scientific semantics are acceptable.
 
 ## Execution and Release Policy
 
-- `tests/performance/` are release-gate checks.
+- `tests/performance/` are release-check confidence checks.
 - They are excluded from default local unit/integration pytest runs.
 - They are not manual-only checks.
-- They should run in dedicated CI/release validation jobs or explicit
-  release-validation commands (`make test-release-gate`).
-- The release-gate selector is
-  `pytest tests/performance -m "performance or release_gate" -q`.
-- Release-gate and performance CI jobs publish pytest duration summaries and
-  retain JUnit reports from `build/reports/`, so current runtimes can be
-  reviewed with the budget constants in `tests/support/performance_contracts.py`.
+- They should run in dedicated CI/release validation jobs or the explicit
+  release command (`make release-check`).
+- The release-check selector is
+  `pytest tests/performance -m "performance or release_gate"`.
+- Performance CI jobs publish pytest duration summaries and retain JUnit reports
+  from `build/reports/`, so current runtimes can be reviewed with the budget
+  constants in `tests/support/performance_contracts.py`.
 - Failing performance contracts block release until fixed, formally waived, or
   intentionally updated with matching test and documentation changes.

@@ -314,39 +314,6 @@ jobs:
       - name: Run rewrite parity scientific gates
         run: pytest tests/parity -m "parity and not parity_diagnostic" -s
 
-  release-gate:
-    needs: repo-hygiene
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            constraints/ci.txt
-      - name: Install release-gate dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,test,parquet]"
-      - name: Run documented scientific release gate
-        run: make test-release-gate
-      - name: Retain release-gate audit and duration reports
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-gate-py${{ matrix.python-version }}
-          path: |
-            build/release-gate/
-            build/reports/
-
   parity-diagnostics:
     needs: repo-hygiene
     runs-on: ubuntu-latest
@@ -370,8 +337,7 @@ jobs:
         run: pytest tests/parity -m "parity_diagnostic" -s
 
   build-distributions:
-    needs:
-      - release-gate
+    needs: repo-hygiene
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -389,139 +355,30 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -c constraints/ci.txt build twine setuptools wheel
           make build
-          twine check dist/*
+      - name: Smoke-test installed wheel outside checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          sdists=(dist/*.tar.gz)
+          if (( ${#wheels[@]} != 1 )); then
+            echo "Expected exactly one wheel in dist/, found ${#wheels[@]}" >&2
+            exit 1
+          fi
+          if (( ${#sdists[@]} != 1 )); then
+            echo "Expected exactly one sdist in dist/, found ${#sdists[@]}" >&2
+            exit 1
+          fi
+          smoke_dir="$(mktemp -d)"
+          python -m venv "$smoke_dir/venv"
+          "$smoke_dir/venv/bin/python" -m pip install --upgrade pip
+          "$smoke_dir/venv/bin/python" -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${wheels[0]}"
+          "$smoke_dir/venv/bin/python" -m pip check
+          cd "$smoke_dir"
+          "$smoke_dir/venv/bin/python" -I -c "import pathlib, phospy; print(pathlib.Path(phospy.__file__).resolve())"
       - name: Store distribution artifacts
         uses: actions/upload-artifact@v5
         with:
           name: python-package-distributions
           path: dist/
-      - name: Store build manifest
-        uses: actions/upload-artifact@v5
-        with:
-          name: python-package-build-manifest
-          path: build/reports/build-manifest.json
-
-  distribution-install-tests:
-    needs: build-distributions
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            constraints/ci.txt
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v6
-        with:
-          name: python-package-distributions
-          path: dist/
-      - name: Download build manifest
-        uses: actions/download-artifact@v6
-        with:
-          name: python-package-build-manifest
-          path: build/reports/
-      - name: Install wheel artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build/reports
-          python -m venv .venv-wheel
-          source .venv-wheel/bin/activate
-          python -m pip install --upgrade pip
-          wheel=("$GITHUB_WORKSPACE"/dist/*.whl)
-          python -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${wheel[0]}"
-          python -m pip check
-          verify_dir="$(mktemp -d)"
-          cd "$verify_dir"
-          python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py" \
-            --artifact-kind wheel \
-            --artifact-path "${wheel[0]}" \
-            --build-manifest "$GITHUB_WORKSPACE/build/reports/build-manifest.json" \
-            --repository-root "$GITHUB_WORKSPACE" \
-            --report-json "$GITHUB_WORKSPACE/build/reports/wheel-artifact-py${{ matrix.python-version }}.json"
-          python -m pip freeze > "$GITHUB_WORKSPACE/build/reports/wheel-install-py${{ matrix.python-version }}.txt"
-      - name: Install sdist artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build/reports
-          python -m venv .venv-sdist
-          source .venv-sdist/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" setuptools wheel
-          sdist=("$GITHUB_WORKSPACE"/dist/*.tar.gz)
-          python -m pip install --no-build-isolation -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${sdist[0]}"
-          python -m pip check
-          verify_dir="$(mktemp -d)"
-          cd "$verify_dir"
-          python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py" \
-            --artifact-kind sdist \
-            --artifact-path "${sdist[0]}" \
-            --build-manifest "$GITHUB_WORKSPACE/build/reports/build-manifest.json" \
-            --repository-root "$GITHUB_WORKSPACE" \
-            --report-json "$GITHUB_WORKSPACE/build/reports/sdist-artifact-py${{ matrix.python-version }}.json"
-          python -m pip freeze > "$GITHUB_WORKSPACE/build/reports/sdist-install-py${{ matrix.python-version }}.txt"
-      - name: Retain distribution install reports
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: distribution-install-py${{ matrix.python-version }}
-          path: build/reports/
-
-  release-verdict:
-    needs:
-      - repo-hygiene
-      - lint
-      - type-check
-      - clean-constrained-install
-      - default-suite
-      - performance-contracts
-      - release-gate
-      - build-distributions
-      - distribution-install-tests
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Publish reproducible release verdict
-        shell: bash
-        run: |
-          set -euo pipefail
-          declare -A results=(
-            [repo-hygiene]="${{ needs.repo-hygiene.result }}"
-            [lint]="${{ needs.lint.result }}"
-            [type-check]="${{ needs.type-check.result }}"
-            [clean-constrained-install]="${{ needs.clean-constrained-install.result }}"
-            [default-suite]="${{ needs.default-suite.result }}"
-            [performance-contracts]="${{ needs.performance-contracts.result }}"
-            [release-gate]="${{ needs.release-gate.result }}"
-            [build-distributions]="${{ needs.build-distributions.result }}"
-            [distribution-install-tests]="${{ needs.distribution-install-tests.result }}"
-          )
-
-          {
-            echo "## Release Verification Verdict"
-            echo
-            echo "| Check | Result |"
-            echo "| --- | --- |"
-            for job in repo-hygiene lint type-check clean-constrained-install default-suite performance-contracts release-gate build-distributions distribution-install-tests; do
-              echo "| ${job} | ${results[$job]} |"
-            done
-            echo
-            echo "The release verdict is valid only when every row is success."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          for job in "${!results[@]}"; do
-            if [[ "${results[$job]}" != "success" ]]; then
-              echo "Release verification failed at ${job}: ${results[$job]}" >&2
-              exit 1
-            fi
-          done

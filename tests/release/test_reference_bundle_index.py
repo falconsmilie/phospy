@@ -95,6 +95,48 @@ def test_staged_index_validation_rejects_crlf_payload_mismatch(
     assert f"actual digest={sha256(converted_bytes).hexdigest()}" in message
 
 
+def test_staged_index_validation_rejects_extra_reference_file(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _run_git(repo, "init")
+    bundle_root = repo / "src" / "phospy" / "data" / "reference_bundles" / "rat"
+    bundle_root = bundle_root / "l6_native"
+    bundle_root.mkdir(parents=True)
+    attribution_path = bundle_root / "ATTRIBUTION.md"
+    attribution_path.write_text("Unit attribution\n", encoding="utf-8")
+    extra_path = bundle_root / "extra.csv"
+    extra_path.write_text("extra\n", encoding="utf-8")
+    manifest_path = bundle_root / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "reference_id": "l6_native",
+                "files": [
+                    {
+                        "relative_path": "ATTRIBUTION.md",
+                        "sha256": sha256(attribution_path.read_bytes()).hexdigest(),
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _run_git(repo, "add", "src/phospy/data/reference_bundles")
+
+    with pytest.raises(ReferenceBundleIndexError) as exc_info:
+        validate_reference_bundle_index(repo_root=repo)
+
+    message = str(exc_info.value)
+    assert "Git index contains undeclared reference-bundle file" in message
+    assert (
+        "affected file=src/phospy/data/reference_bundles/rat/l6_native/extra.csv"
+        in (message)
+    )
+
+
 def _run_git(repo: Path, *args: str) -> None:
     subprocess.run(
         ("git", *args),

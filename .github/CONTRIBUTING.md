@@ -51,22 +51,22 @@ Run parity tests when scientific logic or fixture-backed behaviour changes:
 pytest tests/parity -m parity -s
 ```
 
-Run full release validation when changing scientific/parity/provenance/performance
-behavior or before preparing a release. The authoritative release-gate command
-is `make test-release-gate`; default `pytest` is not sufficient for release, and
-release tests, reproducibility/golden checks, parity tests, and performance
-contracts are release-blocking. CI runs this same command on Python 3.10, 3.11,
-and 3.12:
+Run full release checks when changing scientific/parity/provenance/performance
+behavior or before preparing a release. The maintainer release command is
+`make release-check`; default `pytest` is not sufficient for publishing, and
+parity tests, performance contracts, checked-in reference validation, metadata
+checks, packaged-reference checks, and the wheel smoke test are release-blocking.
+This provides normal CI/build confidence, not formal exact-source/exact-artifact
+attestation:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
-make test-release-gate
+make release-check
 ```
 
-Before publishing distributions, use `make build`. It validates reference-bundle
-files from the actual Git index, builds the wheel and sdist, and checks both
-archives against the committed reference manifests. Release-gate duration and
-JUnit reports are written under `build/reports/`.
+Before publishing distributions, use `make build`. It starts from an empty
+`dist/`, builds one wheel and one sdist, runs metadata checks, and validates the
+packaged reference manifests and declared file hashes in both archives.
 
 ## Style
 

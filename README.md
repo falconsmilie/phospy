@@ -54,31 +54,21 @@ pip install -c constraints/ci.txt -e ".[dev,test]"
 pytest tests/parity -m parity -s
 ```
 
-For public release verification, the authoritative release-gate command is
-`make test-release-gate`. It runs the default non-parity suite, release tests,
-reproducibility/golden checks, threshold-bearing parity tests, and performance
-contract tests. CI runs the same command on Python 3.10, 3.11, and 3.12:
+For public release checks, the maintainer command is `make release-check`. It
+runs the normal lint, type, unit, parity, performance, checked-in reference, and
+distribution build checks:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
-make test-release-gate
+make release-check
 ```
 
-Public scientific release confidence applies only to the exact source tag,
-source archive, wheel, or other release artifact that passed the full release
-gate. Partial local passes, such as default tests, parity-only tests, or
-performance-only tests, are useful development checks but are insufficient for a
-public scientific release; default `pytest` is not sufficient for release and is
-not release verification. The release gate writes a source identity record and
-post-check source-suite JSON reports under `build/reports/`; those records bind
-the JUnit reports to the source identity used for release. The final public
-release audit record is `release-attestation.json`, produced only after the
-source reports, build manifest, wheel, sdist, and installed-artifact verification
-matrix validate against `release/attestation-policy.json`.
-
-Release builds must use `make build`, which validates reference-bundle manifests
-from the actual Git index before building and validates both wheel and sdist
-archives against the committed reference manifests.
+This process provides normal CI/build confidence, not formal
+exact-source/exact-artifact attestation. Partial local passes, such as default
+tests, parity-only tests, or performance-only tests, are useful development
+checks but are insufficient for publishing. `make build` starts from an empty
+`dist/`, builds one wheel and one sdist, runs metadata checks, and validates the
+packaged reference manifests and declared file hashes in both archives.
 
 ## Quick Start
 
@@ -122,7 +112,7 @@ Scientific scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture
 evidence lives in [`docs/parity.md`](docs/parity.md). Parity claims are
 fixture-scoped; they do not transfer to untested fixtures, broader PhosR
-surfaces, or artifacts that did not pass the full release gate.
+surfaces, or artifacts that did not pass the maintainer release checks.
 Future coverage direction is tracked in
 [`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
 that roadmap is not a current feature-support claim.

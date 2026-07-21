@@ -96,6 +96,17 @@ def test_distribution_validation_compares_archives_to_git_index(
     assert f"actual digest={_sha256(changed_bytes)}" in message
 
 
+def test_distribution_validation_can_skip_git_index_comparison_for_copied_trees(
+    tmp_path: Path,
+) -> None:
+    wheel_path = _write_reference_wheel(tmp_path=tmp_path)
+
+    validate_reference_bundle_archive(
+        wheel_path,
+        compare_git_index=False,
+    )
+
+
 def test_distribution_validation_fails_for_changed_attribution_file(
     tmp_path: Path,
 ) -> None:
@@ -141,6 +152,23 @@ def test_distribution_validation_fails_for_missing_csv(tmp_path: Path) -> None:
     assert "affected file=substrate_map.csv" in message
     assert f"expected digest={_sha256(_BASE_FILES['substrate_map.csv'])}" in message
     assert "actual digest=missing" in message
+
+
+def test_distribution_validation_fails_for_extra_reference_file(
+    tmp_path: Path,
+) -> None:
+    wheel_path = _write_reference_wheel(
+        tmp_path=tmp_path,
+        extra_files={"extra.csv": b"extra\n"},
+    )
+
+    message = _distribution_error(wheel_path)
+
+    assert "distribution archive contains undeclared reference-bundle file" in message
+    assert (
+        "affected file=src/phospy/data/reference_bundles/rat/l6_native/extra.csv"
+        in (message)
+    )
 
 
 def test_distribution_validation_fails_for_digest_mismatch(tmp_path: Path) -> None:
@@ -244,6 +272,8 @@ def _write_reference_wheel(
     tmp_path: Path,
     packaged_file_overrides: dict[str, bytes] | None = None,
     omitted_files: set[str] | None = None,
+    manifest_payload: dict[str, object] | None = None,
+    extra_files: dict[str, bytes] | None = None,
 ) -> Path:
     packaged_files = dict(_BASE_FILES)
     if packaged_file_overrides is not None:
@@ -253,11 +283,13 @@ def _write_reference_wheel(
     with ZipFile(wheel_path, "w", compression=ZIP_DEFLATED) as archive:
         archive.writestr(
             (_BUNDLE_ROOT / "manifest.json").as_posix(),
-            json.dumps(_manifest_payload(), indent=2) + "\n",
+            json.dumps(manifest_payload or _manifest_payload(), indent=2) + "\n",
         )
         for relative_path, data in packaged_files.items():
             if relative_path in omitted:
                 continue
+            archive.writestr((_BUNDLE_ROOT / relative_path).as_posix(), data)
+        for relative_path, data in (extra_files or {}).items():
             archive.writestr((_BUNDLE_ROOT / relative_path).as_posix(), data)
         archive.writestr("phospy/__init__.py", b"")
         archive.writestr(
@@ -292,12 +324,12 @@ def _add_tar_bytes(
 
 
 def _write_git_source_bundle(repo: Path) -> None:
+    (repo / "NOTICE.md").write_text("Repository notice\n", encoding="utf-8")
     bundle_root = repo / "src" / "phospy" / "data" / "reference_bundles"
     bundle_root = bundle_root / "rat" / "l6_native"
     bundle_root.mkdir(parents=True)
-    (bundle_root / "manifest.json").write_text(
-        json.dumps(_manifest_payload(), indent=2) + "\n",
-        encoding="utf-8",
+    (bundle_root / "manifest.json").write_bytes(
+        (json.dumps(_manifest_payload(), indent=2) + "\n").encode("utf-8")
     )
     for relative_path, data in _BASE_FILES.items():
         (bundle_root / relative_path).write_bytes(data)
@@ -312,12 +344,16 @@ def _run_git(repo: Path, *args: str) -> None:
     )
 
 
-def _manifest_payload() -> dict[str, object]:
+def _manifest_payload(
+    *,
+    file_bytes: dict[str, bytes] | None = None,
+) -> dict[str, object]:
     return {
         "reference_id": "l6_native",
         "reference_version": "bundled-snapshot-2026-04-16",
         "redistribution_evidence": {
             "attribution": {
+                "repository_notice_path": "NOTICE.md",
                 "bundle_attribution_path": "ATTRIBUTION.md",
             },
         },
@@ -326,16 +362,19 @@ def _manifest_payload() -> dict[str, object]:
                 "substrate_map.csv",
                 role="kinase_substrate",
                 file_format="csv",
+                file_bytes=file_bytes,
             ),
             _file_payload(
                 "site_sequences.csv",
                 role="site_sequences",
                 file_format="csv",
+                file_bytes=file_bytes,
             ),
             _file_payload(
                 "ATTRIBUTION.md",
                 role="attribution",
                 file_format="markdown",
+                file_bytes=file_bytes,
             ),
         ],
     }
@@ -346,12 +385,14 @@ def _file_payload(
     *,
     role: str,
     file_format: str,
+    file_bytes: dict[str, bytes] | None = None,
 ) -> dict[str, object]:
+    files = _BASE_FILES if file_bytes is None else file_bytes
     return {
         "relative_path": relative_path,
         "role": role,
         "format": file_format,
-        "sha256": _sha256(_BASE_FILES[relative_path]),
+        "sha256": _sha256(files[relative_path]),
         "row_count": None,
         "column_names": None,
     }

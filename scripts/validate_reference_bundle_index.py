@@ -107,14 +107,29 @@ def _collect_index_issues(
 
     issues: list[_ValidationIssue] = []
     validated_files: list[StagedReferenceBundleFile] = []
+    required_paths: set[str] = set()
     for manifest_path in manifests:
-        manifest_issues, manifest_files = _validate_manifest_from_index(
-            repo_root=repo_root,
-            manifest_path=manifest_path,
-            index_files=index_files,
+        manifest_issues, manifest_files, manifest_required_paths = (
+            _validate_manifest_from_index(
+                repo_root=repo_root,
+                manifest_path=manifest_path,
+                index_files=index_files,
+            )
         )
         issues.extend(manifest_issues)
         validated_files.extend(manifest_files)
+        required_paths.update(manifest_required_paths)
+    for extra_path in sorted(index_files - required_paths):
+        issues.append(
+            _ValidationIssue(
+                manifest_path=str(PurePosixPath(extra_path).parent / MANIFEST_FILENAME),
+                reference_id=None,
+                affected_file=extra_path,
+                expected_digest="manifest-declared reference-bundle file",
+                actual_digest="extra",
+                reason="Git index contains undeclared reference-bundle file",
+            )
+        )
     return issues, validated_files
 
 
@@ -123,7 +138,8 @@ def _validate_manifest_from_index(
     repo_root: Path,
     manifest_path: str,
     index_files: set[str],
-) -> tuple[list[_ValidationIssue], list[StagedReferenceBundleFile]]:
+) -> tuple[list[_ValidationIssue], list[StagedReferenceBundleFile], set[str]]:
+    required_paths = {manifest_path}
     manifest_bytes, manifest_issue = _read_staged_blob(
         repo_root=repo_root,
         path=manifest_path,
@@ -133,14 +149,14 @@ def _validate_manifest_from_index(
         expected_digest="staged manifest blob",
     )
     if manifest_issue is not None:
-        return [manifest_issue], []
+        return [manifest_issue], [], required_paths
 
     payload, payload_issue = _load_manifest_payload(
         raw_payload=manifest_bytes,
         manifest_path=manifest_path,
     )
     if payload_issue is not None:
-        return [payload_issue], []
+        return [payload_issue], [], required_paths
 
     reference_id = _reference_id(payload)
     declared_files, declaration_issues = _declared_manifest_files(
@@ -154,6 +170,7 @@ def _validate_manifest_from_index(
 
     for declared_file in declared_files:
         staged_path = bundle_path.joinpath(declared_file.relative_path).as_posix()
+        required_paths.add(staged_path)
         if staged_path not in index_files:
             issues.append(
                 _ValidationIssue(
@@ -201,7 +218,7 @@ def _validate_manifest_from_index(
             )
         )
 
-    return issues, validated_files
+    return issues, validated_files, required_paths
 
 
 def _load_manifest_payload(

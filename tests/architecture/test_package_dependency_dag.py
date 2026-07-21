@@ -35,7 +35,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.io", "phospy.validation"),
         ("phospy.policies", "phospy.errors"),
         ("phospy.provenance", "phospy.errors"),
-        ("phospy.release", "phospy.provenance"),
         ("phospy.science", "phospy.errors"),
         ("phospy.science", "phospy.frames"),
         ("phospy.science", "phospy.policies"),

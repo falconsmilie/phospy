@@ -13,9 +13,9 @@ All notable changes to this project are documented here.
 
 ### Documentation
 
-- Aligned release documentation with completed FU-01 through FU-05 follow-up
-  behavior: exact-byte source-tree and wheel reference-bundle validation; typed
-  exact-snapshot redistribution evidence; strict manifest/evidence schema
+- Aligned reference documentation with completed FU-01 through FU-05 follow-up
+  behavior: wheel reference-bundle validation; typed exact-snapshot
+  redistribution evidence; strict manifest/evidence schema
   rejection of unknown fields; strict raw JSON Boolean approval-state parsing;
   mandatory explicit `verified_at` dates for approved bundled evidence; separate
   local `reference_version` and upstream `source_version` in the builder,
@@ -23,6 +23,12 @@ All notable changes to this project are documented here.
   background enrichment provenance without changing ORA statistics; and causal
   kinase/signalome site-row attrition while preserving legacy compatibility
   metrics such as site/kinase-pair counts.
+- Superseded the retained-evidence release process with ADR-0039's lightweight
+  solo-maintainer release path. The planned final attestation run is cancelled:
+  releases now rely on normal CI/build confidence, fresh wheel/sdist builds,
+  metadata checks, packaged-reference validation, one installed-wheel smoke
+  test, and trusted publishing rather than formal exact-source/exact-artifact
+  attestation.
 
 ## [1.6.0] - 2026-06-18
 

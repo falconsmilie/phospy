@@ -1,4 +1,9 @@
+ifeq ($(OS),Windows_NT)
+BASH ?= C:/Program Files/Git/bin/bash.exe
+SHELL := $(BASH)
+else
 SHELL := /usr/bin/env bash
+endif
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 
@@ -10,7 +15,7 @@ BUILD ?= $(PYTHON) -m build --no-isolation
 PRE_COMMIT ?= $(PYTHON) -m pre_commit
 RSCRIPT ?= Rscript
 MKDIR_P ?= mkdir -p
-RM ?= rm -rf
+RM_RF ?= rm -rf
 
 TRACE_KINASES ?= PRKAA1,MAPK1
 TRACE_TOP_N ?= 10
@@ -19,45 +24,44 @@ REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 ACTIVE_SCRIPTS_DIR ?= scripts/active
-SOURCE_IDENTITY_PATH ?= build/reports/source-identity.json
-PYTHON_MINOR ?= $(shell $(PYTHON) -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 PYTEST_DURATION_ARGS ?= --durations=25 --durations-min=0.01
 PYTEST_REPORT_DIR ?= build/reports
+TWINE ?= $(PYTHON) -m twine
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance validate-reference-bundles test-release-gate test-seams build clean \
+	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance validate-reference-bundles release-check test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
 help:
-	@echo Available targets:
-	@echo   make install                       Install the package in editable mode
-	@echo   make install-dev                   Install editable package with dev and test extras
-	@echo   make lint                          Run Ruff checks
-	@echo   make format                        Run Ruff formatter
-	@echo   make type-check                    Run the same Pyright entrypoint used by CI and pre-commit
-	@echo   make pre-commit                    Run all pre-commit hooks
-	@echo   make test-unit                     Run the non-parity pytest suite
-	@echo   make test-parity                   Run the parity pytest suite
-	@echo   make test-performance              Run the performance contract suite
-	@echo   make validate-reference-bundles    Validate Git-index reference bundle manifests and files
-	@echo   make test-release-gate             Run release validation (default non-parity suite, provenance goldens, reference manifests, parity, performance)
-	@echo   make test                          Run unit and parity tests
-	@echo   make tests-all                     Alias for all-tests
-	@echo   make test-seams                    Run seam-focused rewrite parity tests
-	@echo   make dataset-builder-demo          Run examples.dataset_builder_demo.main()
-	@echo   make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()
-	@echo   make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()
-	@echo   make build                         Build and validate source/wheel distributions
-	@echo   make clean                         Remove common local build and test artefacts
-	@echo   make fixtures-r-l6                 Generate the main L6 R-backed fixture family
-	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
-	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
-	@echo   make fixtures-provenance-goldens   Regenerate provenance golden hash fixtures
-	@echo   make fixtures-all                  Bootstrap active maintainer fixture families from scratch
-	@echo   make fixtures                      Alias for fixtures-all
+	@printf '%s\n' 'Available targets:'
+	@printf '%s\n' '  make install                       Install the package in editable mode'
+	@printf '%s\n' '  make install-dev                   Install editable package with dev and test extras'
+	@printf '%s\n' '  make lint                          Run Ruff checks'
+	@printf '%s\n' '  make format                        Run Ruff formatter'
+	@printf '%s\n' '  make type-check                    Run the same Pyright entrypoint used by CI and pre-commit'
+	@printf '%s\n' '  make pre-commit                    Run all pre-commit hooks'
+	@printf '%s\n' '  make test-unit                     Run the non-parity pytest suite'
+	@printf '%s\n' '  make test-parity                   Run the parity pytest suite'
+	@printf '%s\n' '  make test-performance              Run the performance contract suite'
+	@printf '%s\n' '  make validate-reference-bundles    Validate checked-in reference bundle manifests and files'
+	@printf '%s\n' '  make release-check                 Run maintainer release checks'
+	@printf '%s\n' '  make test                          Run unit and parity tests'
+	@printf '%s\n' '  make tests-all                     Alias for all-tests'
+	@printf '%s\n' '  make test-seams                    Run seam-focused rewrite parity tests'
+	@printf '%s\n' '  make dataset-builder-demo          Run examples.dataset_builder_demo.main()'
+	@printf '%s\n' '  make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()'
+	@printf '%s\n' '  make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()'
+	@printf '%s\n' '  make build                         Build and validate source/wheel distributions'
+	@printf '%s\n' '  make clean                         Remove common local build and test artefacts'
+	@printf '%s\n' '  make fixtures-r-l6                 Generate the main L6 R-backed fixture family'
+	@printf '%s\n' '  make traces-r                      Regenerate the committed R L6 prediction trace'
+	@printf '%s\n' '  make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures'
+	@printf '%s\n' '  make fixtures-provenance-goldens   Regenerate provenance golden hash fixtures'
+	@printf '%s\n' '  make fixtures-all                  Bootstrap active maintainer fixture families from scratch'
+	@printf '%s\n' '  make fixtures                      Alias for fixtures-all'
 
 check-tools:
 	@command -v "$(PYTHON)" >/dev/null 2>&1 || { printf 'Python executable not found: %s\n' "$(PYTHON)" >&2; exit 1; }
@@ -102,22 +106,9 @@ test-performance: check-tools
 	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" --junitxml "$(PYTEST_REPORT_DIR)/performance.xml"
 
 validate-reference-bundles: check-tools
-	$(PYTHON) scripts/validate_reference_bundle_index.py
+	$(PYTHON) scripts/validate_reference_bundle_index.py --repo-root .
 
-test-release-gate: check-tools
-	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
-	$(PYTHON) scripts/release/create_source_identity.py --repository-root . --output "$(SOURCE_IDENTITY_PATH)"
-	$(PYTHON) scripts/validate_reference_bundle_index.py
-	$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not performance and not release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"
-	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-default-py$(PYTHON_MINOR)" --report-class test --report-class architecture --junit-xml "$(PYTEST_REPORT_DIR)/release-default.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-default-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not performance and not release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"'
-	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)" --junitxml "$(PYTEST_REPORT_DIR)/release-golden.xml"
-	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-golden-py$(PYTHON_MINOR)" --report-class reproducibility --junit-xml "$(PYTEST_REPORT_DIR)/release-golden.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-golden-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)" --junitxml "$(PYTEST_REPORT_DIR)/release-golden.xml"'
-	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml"
-	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-reference-manifest-py$(PYTHON_MINOR)" --report-class scientific --junit-xml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-reference-manifest-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml"'
-	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and not parity_diagnostic" -s --junitxml "$(PYTEST_REPORT_DIR)/release-parity.xml"
-	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-parity-py$(PYTHON_MINOR)" --report-class parity --junit-xml "$(PYTEST_REPORT_DIR)/release-parity.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-parity-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and not parity_diagnostic" -s --junitxml "$(PYTEST_REPORT_DIR)/release-parity.xml"'
-	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" -q --junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"
-	$(PYTHON) scripts/release/write_source_check_report.py --suite-id "release-performance-py$(PYTHON_MINOR)" --report-class performance --junit-xml "$(PYTEST_REPORT_DIR)/release-performance.xml" --source-identity "$(SOURCE_IDENTITY_PATH)" --output "$(PYTEST_REPORT_DIR)/source-release-performance-py$(PYTHON_MINOR).json" --repository-root . --python-version "$(PYTHON_MINOR)" --command '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" -q --junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"'
+release-check: lint type-check test-unit test-parity test-performance validate-reference-bundles build
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"
@@ -153,13 +144,15 @@ test-seams: check-tools
 fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference
 
 build: check-tools
-	$(PYTHON) scripts/release/create_source_identity.py --repository-root . --output "$(SOURCE_IDENTITY_PATH)"
-	$(PYTHON) scripts/validate_reference_bundle_index.py
+	$(RM_RF) dist
 	$(BUILD)
-	$(PYTHON) scripts/write_build_manifest.py --dist-dir dist --output build/reports/build-manifest.json --repository-root . --source-identity "$(SOURCE_IDENTITY_PATH)"
-	$(PYTHON) scripts/validate_reference_bundle_distribution.py dist/*
+	@shopt -s nullglob; wheels=(dist/*.whl); sdists=(dist/*.tar.gz); \
+	if (( $${#wheels[@]} != 1 )); then printf 'Expected exactly one wheel in dist/, found %s\n' "$${#wheels[@]}" >&2; exit 1; fi; \
+	if (( $${#sdists[@]} != 1 )); then printf 'Expected exactly one sdist in dist/, found %s\n' "$${#sdists[@]}" >&2; exit 1; fi
+	$(TWINE) check dist/*
+	$(PYTHON) scripts/validate_reference_bundle_distribution.py --no-git-index-compare dist/*
 
 clean:
-	$(RM) .pytest_cache .ruff_cache build dist .eggs
-	find . -type d \( -name '__pycache__' -o -name '*.egg-info' \) -prune -exec $(RM) {} +
+	$(RM_RF) .pytest_cache .ruff_cache build dist .eggs
+	find . -type d \( -name '__pycache__' -o -name '*.egg-info' \) -prune -exec $(RM_RF) {} +
 	find . -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete

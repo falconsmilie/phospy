@@ -267,7 +267,7 @@ snapshot. The
 approval does not generalize to other upstream databases, future PhosR versions,
 future PhosPy bundles, or arbitrary external datasets. Bundled release
 eligibility is governed by `redistribution_status`, not by broad source-name
-assumptions. The release gate rejects bundled manifests that are missing
+assumptions. The release checks reject bundled manifests that are missing
 required metadata, omit packaged files, fail file hash verification, omit
 typed exact-file redistribution evidence, or declare a
 non-release-eligible status. Unresolved bundled references block release.
@@ -304,7 +304,7 @@ Every scientific scope claim in public docs must map to one category:
 
 | Category | Meaning |
 | --- | --- |
-| `parity-gated` | Executable lane with active fixture-backed parity checks in release gates |
+| `parity-gated` | Executable lane with active fixture-backed parity checks in release checks |
 | `validated PhosPy implementation` | Executable lane validated by PhosPy contract/unit/integration tests; not a PhosR-equivalence claim by itself |
 | `experimental` | Executable but intentionally provisional/approximate behavior with explicit caveats |
 | `open gap` | Not currently executable in the supported public workflow lane |
@@ -345,28 +345,29 @@ claimed.
 | Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release. The exact rat `l6_native` snapshot is derived from upstream PhosR 1.20.0 package data. | Runtime behavior, reference compatibility tests, manifest `redistribution_status` release checks, typed exact-file rat manifest evidence, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle` unless a future release commits approved redistributable packaged data with verified typed evidence. External-only references must not be shipped as bundled data, unresolved bundled references block release, and the rat `l6_native` bundle should not be treated as redistribution approval for other reference data, future bundles, other rat bundles, other organisms, or an independent direct permission claim from PhosphoSitePlus, PRIDE, Kinase Library, or another upstream scientific database. |
 | Full PhosR package equivalence claim | `not planned` | Not claimed | Guardrail documentation in this matrix and `docs/parity.md` | Any implication of global PhosR parity is out of scope. |
 
-## Release-Gated Scientific Checks
+## Release-Check Scientific Checks
 
 Release-bearing scientific checks are documented and executable through the
-authoritative local release-gate command, `make test-release-gate`. Default
-`pytest` is not sufficient for release because it does not run all release
-tests, threshold-bearing parity lanes, reproducibility/golden checks, and
-performance contracts. The maintained commands/workflows are:
+maintainer command, `make release-check`. Default `pytest` is not sufficient for
+publishing because it does not run threshold-bearing parity lanes, performance
+contracts, checked-in reference validation, distribution metadata checks, or
+packaged-reference validation. The maintained commands/workflows are:
 
-- Local release gate command: `make test-release-gate`
-- `make test-release-gate` executes:
-  - `python scripts/validate_reference_bundle_index.py`
-  - `pytest -m "not parity and not performance and not release_gate"`
-  - `pytest tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"`
-  - `pytest tests/release -m "release_gate"`
-  - `pytest tests/parity -m "parity and not parity_diagnostic" -s`
-  - `pytest tests/performance -m "performance or release_gate" -q`
-- Publish pipeline release gate workflow:
-  - `.github/workflows/publish.yml` job `release-gate` runs `make test-release-gate` on Python 3.10, 3.11, and 3.12
-  - `.github/workflows/publish.yml` validates and installs both wheel and sdist artifacts before publishing
-- CI release-verdict workflow:
-  - `.github/workflows/ci.yml` runs clean constrained `[dev,test]` installs, the full default suite, the full release gate, and wheel/sdist installation tests on Python 3.10, 3.11, and 3.12
-  - Release-gate and performance jobs retain duration/JUnit reports from `build/reports/`
+- Local release command: `make release-check`
+- `make release-check` executes lint, type checking, `pytest -m "not parity"`,
+  `pytest tests/parity -m parity -s`,
+  `pytest tests/performance -m "performance or release_gate"`,
+  `python scripts/validate_reference_bundle_index.py --repo-root .`, and
+  `make build`.
+- `make build` starts from an empty `dist/`, builds one wheel and one sdist,
+  runs metadata checks, and validates packaged reference manifests and declared
+  file hashes in both archives. It does not require Git metadata.
+- The publish workflow runs `make release-check` once on the checked-out tag and
+  publishes the freshly built `dist/` artifacts through trusted publishing.
+- CI still runs clean constrained `[dev,test]` installs and the full default
+  source suite on Python 3.10, 3.11, and 3.12.
+- This process provides normal CI/build confidence, not formal
+  exact-source/exact-artifact attestation.
 - CI parity workflows:
   - `.github/workflows/ci.yml` job `activity-parity-gate` runs `pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -s`
   - `.github/workflows/ci.yml` job `parity-tests` runs `pytest tests/parity -m "parity and not parity_diagnostic" -s`

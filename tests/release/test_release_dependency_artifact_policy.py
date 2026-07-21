@@ -19,8 +19,6 @@ WORKFLOW_PATHS = (
     Path(".github/workflows/ci.yml"),
     Path(".github/workflows/publish.yml"),
 )
-ARTIFACT_VERIFIER = Path("scripts/verify_distribution_artifact.py")
-BUILD_MANIFEST_WRITER = Path("scripts/write_build_manifest.py")
 EXPLICITLY_JUSTIFIED_UNPINNED_DIRECT_INSTALLS = {
     "pip": "bootstrap installer upgraded before constraint-enforced installs",
 }
@@ -158,23 +156,23 @@ def test_ci_and_publish_install_commands_share_the_ci_constraints() -> None:
 def test_distribution_build_uses_preinstalled_constrained_pep517_dependencies() -> None:
     makefile = _read("Makefile")
     assert "BUILD ?= $(PYTHON) -m build --no-isolation" in makefile
-    assert "$(PYTHON) scripts/write_build_manifest.py" in makefile
+    assert "TWINE ?= $(PYTHON) -m twine" in makefile
+    assert "$(TWINE) check dist/*" in makefile
 
-    for workflow_path in WORKFLOW_PATHS:
-        workflow = _read(workflow_path)
-        build_job = _workflow_job_block(
-            workflow,
-            "build" if workflow_path.name == "publish.yml" else "build-distributions",
-        )
+    ci_build = _workflow_job_block(
+        _read(".github/workflows/ci.yml"), "build-distributions"
+    )
+    publish_build = _workflow_job_block(_read(".github/workflows/publish.yml"), "build")
+    for build_job in (ci_build, publish_build):
         assert (
             "python -m pip install -c constraints/ci.txt build twine setuptools wheel"
             in build_job
         )
-        assert "make build" in build_job
-        assert "build/reports/build-manifest.json" in build_job
+    assert "make build" in ci_build
+    assert "make release-check" in publish_build
 
 
-def test_python_support_declaration_matches_release_workflow_matrices() -> None:
+def test_python_support_declaration_matches_source_test_matrices() -> None:
     pyproject = _load_pyproject()
     classifiers = set(pyproject["project"]["classifiers"])
     assert pyproject["project"]["requires-python"] == ">=3.10,<3.13"
@@ -184,104 +182,40 @@ def test_python_support_declaration_matches_release_workflow_matrices() -> None:
         if classifier.startswith("Programming Language :: Python :: 3.")
     } == set(SUPPORTED_PYTHON_VERSIONS)
 
+    workflow = _read(".github/workflows/ci.yml")
     matrix_literal = _expected_matrix_literal()
-    for workflow_path in WORKFLOW_PATHS:
-        workflow = _read(workflow_path)
-        release_gate = _workflow_job_block(workflow, "release-gate")
-        distribution_install = _workflow_job_block(
-            workflow,
-            "distribution-install-tests",
-        )
-        assert matrix_literal in release_gate
-        assert matrix_literal in distribution_install
+    for job_name in ("clean-constrained-install", "default-suite"):
+        assert matrix_literal in _workflow_job_block(workflow, job_name)
 
 
-def test_installed_artifact_verification_is_standalone_and_outside_tests() -> None:
-    verifier_path = ROOT / ARTIFACT_VERIFIER
-    verifier_source = verifier_path.read_text(encoding="utf-8")
-    manifest_writer_path = ROOT / BUILD_MANIFEST_WRITER
-
-    assert verifier_path.is_file()
-    assert manifest_writer_path.is_file()
-    assert ARTIFACT_VERIFIER.parts[0] != "tests"
-    assert BUILD_MANIFEST_WRITER.parts[0] != "tests"
-    assert not (ROOT / "tests" / "distribution").exists()
-    assert not re.search(
-        r"(?m)^\s*(?:import pytest|from pytest import )", verifier_source
+def test_ci_build_smoke_installs_one_wheel_outside_checkout() -> None:
+    build_job = _workflow_job_block(
+        _read(".github/workflows/ci.yml"), "build-distributions"
     )
-    assert not re.search(
-        r"(?m)^\s*(?:import tests|from tests(?:\.|\s))", verifier_source
-    )
-    assert "sys.path" not in verifier_source
+
+    assert "make build" in build_job
+    assert "dist/*.whl" in build_job
+    assert "dist/*.tar.gz" in build_job
+    assert "Expected exactly one wheel" in build_job
+    assert "Expected exactly one sdist" in build_job
+    assert "mktemp -d" in build_job
+    assert "python -m venv" in build_job
+    assert "-m pip check" in build_job
+    assert 'cd "$smoke_dir"' in build_job
+    assert 'python" -I -c' in build_job
+    assert "import pathlib, phospy" in build_job
 
 
-def test_artifact_install_jobs_run_standalone_verifier_for_wheel_and_sdist() -> None:
-    verifier_command = (
-        'python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py"'
-    )
-    for workflow_path in WORKFLOW_PATHS:
-        workflow = _read(workflow_path)
-        distribution_install = _workflow_job_block(
-            workflow,
-            "distribution-install-tests",
-        )
-
-        assert "mktemp -d" in distribution_install
-        assert 'cd "$verify_dir"' in distribution_install
-        assert distribution_install.count(verifier_command) == 2
-        assert "--artifact-kind wheel" in distribution_install
-        assert "--artifact-kind sdist" in distribution_install
-        assert "--artifact-path" in distribution_install
-        assert "--build-manifest" in distribution_install
-        assert '--repository-root "$GITHUB_WORKSPACE"' in distribution_install
-        assert "python-package-build-manifest" in distribution_install
-        assert "$GITHUB_WORKSPACE/build/reports/build-manifest.json" in (
-            distribution_install
-        )
-        assert (
-            "wheel-artifact-py${{ matrix.python-version }}.json" in distribution_install
-        )
-        assert (
-            "sdist-artifact-py${{ matrix.python-version }}.json" in distribution_install
-        )
-        assert "tests/distribution" not in distribution_install
-        assert "python -m pytest" not in distribution_install
-        assert '"${wheel[0]}"' in distribution_install
-        assert '"${wheel[0]}[test]"' not in distribution_install
-        assert '"${sdist[0]}"' in distribution_install
-        assert '"${sdist[0]}[test]"' not in distribution_install
-        assert (
-            'python -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" '
-            "setuptools wheel"
-        ) in distribution_install
-        assert (
-            "python -m pip install --no-build-isolation -c "
-            '"$GITHUB_WORKSPACE/constraints/ci.txt" "${sdist[0]}"'
-        ) in distribution_install
-        assert distribution_install.index('"${wheel[0]}"') < (
-            distribution_install.index("--artifact-kind wheel")
-        )
-        assert distribution_install.index('"${sdist[0]}"') < (
-            distribution_install.index("--artifact-kind sdist")
-        )
-
-
-def test_distribution_artifact_failures_block_publish_jobs() -> None:
+def test_publish_jobs_wait_for_single_release_check_build() -> None:
     workflow = _read(".github/workflows/publish.yml")
-    distribution_install = _workflow_job_block(workflow, "distribution-install-tests")
-    release_attestation = _workflow_job_block(workflow, "release-attestation")
-    assert "continue-on-error" not in distribution_install
-    assert 'python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py"' in (
-        distribution_install
-    )
-    assert "tests/distribution" not in distribution_install
+    build = _workflow_job_block(workflow, "build")
 
-    assert _has_needs(release_attestation, "distribution-install-tests")
-    assert "scripts/release/build_release_attestation.py" in release_attestation
-    assert "scripts/release/verify_release_attestation.py" in release_attestation
-
+    assert "run: make release-check" in build
+    assert "path: dist/" in build
     for publish_job in ("publish-to-testpypi", "publish-to-pypi"):
         publish_block = _workflow_job_block(workflow, publish_job)
-        assert _has_needs(publish_block, "release-attestation")
-        assert "scripts/release/prepare_publish_directory.py" in publish_block
-        assert "packages-dir: build/publish/" in publish_block
+        assert _has_needs(publish_block, "build")
+        assert "uses: actions/download-artifact@v6" in publish_block
+        assert "name: python-package-distributions" in publish_block
+        assert "packages-dir: dist/" in publish_block
+        assert "id-token: write" in publish_block

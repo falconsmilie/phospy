@@ -27,10 +27,10 @@ A parity claim must say:
 Parity evidence here should be interpreted only for the exact fixture + output +
 comparison rule documented by each test lane.
 
-Parity evidence is also artifact-scoped. A public scientific claim is supported
-only for the exact release artifact that passed the release gate with that
-fixture evidence. A local parity-only pass, default pytest pass, or copied result
-from another commit or distribution is not sufficient release evidence.
+Parity evidence is also release-scoped. A public scientific claim should be made
+only after the maintainer release checks pass for the tagged source and freshly
+built artifacts. A local parity-only pass, default pytest pass, or copied result
+from another commit or distribution is not sufficient release confidence.
 
 ## Active Parity Areas
 
@@ -94,12 +94,12 @@ Run the parity suite with:
 pytest tests/parity -m parity -s
 ```
 
-Release decisions should run the full release gate (`make test-release-gate`).
-Parity failures in that gate are release-blocking, and performance,
-reproducibility, golden, reference-manifest, and threshold-bearing parity gates
-must all pass before a public scientific release. The same gate also scans
-packaged reference manifests and blocks release when a bundled reference is
-missing file hashes, fails hash verification, lacks license/organism/namespace
+Release decisions should run the maintainer release checks (`make
+release-check`). Parity failures in that check are release-blocking, and
+performance, checked-in reference, packaged-reference, metadata, and
+threshold-bearing parity checks must all pass before a public scientific
+release. Packaged reference validation blocks release when a bundled reference
+is missing file hashes, fails hash verification, lacks license/organism/namespace
 metadata, or declares a non-release-eligible `redistribution_status`.
 `unresolved` bundled references block release, and `external_only` references
 must not be shipped as bundled data. `approved` requires verified evidence in
@@ -107,16 +107,8 @@ the manifest for the exact packaged files; developers and Codex agents must not
 use optimistic wording or source-lineage notes as a substitute for that
 evidence.
 
-Release-gate source reports are written under:
-
-```text
-build/reports/
-```
-
-Treat those files as source-suite evidence, not as publication authorization.
-The publication audit record is `release-attestation.json`; it is written only
-after the policy-required source reports, build manifest, wheel, sdist, and
-installed-artifact verification reports agree.
+This process provides normal CI/build confidence, not formal
+exact-source/exact-artifact attestation.
 
 Some diagnostic parity tests are informational. Release decisions should use the
 threshold-bearing gates and the documented fixture expectations, not visual

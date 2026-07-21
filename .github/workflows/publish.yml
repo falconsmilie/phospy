@@ -15,41 +15,7 @@ env:
   PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/constraints/ci.txt
 
 jobs:
-  release-gate:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            constraints/ci.txt
-      - name: Install release-gate dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,test,parquet]"
-      - name: Run documented scientific release gate
-        run: make test-release-gate
-      - name: Store release-gate reports
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-gate-py${{ matrix.python-version }}
-          path: |
-            build/release-gate/
-            build/reports/
-
   build:
-    needs:
-      - release-gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -62,236 +28,58 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             constraints/ci.txt
-      - name: Build and validate distributions
+      - name: Install constrained release dependencies
         run: |
           python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
           python -m pip install -c constraints/ci.txt build twine setuptools wheel
-          make build
-          twine check dist/*
+      - name: Run release checks and build distributions
+        run: make release-check
       - name: Store distribution artifacts
         uses: actions/upload-artifact@v5
         with:
           name: python-package-distributions
           path: dist/
-      - name: Store build manifest
-        uses: actions/upload-artifact@v5
-        with:
-          name: python-package-build-manifest
-          path: |
-            build/reports/build-manifest.json
-            build/reports/source-identity.json
-
-  distribution-install-tests:
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            constraints/ci.txt
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v6
-        with:
-          name: python-package-distributions
-          path: dist/
-      - name: Download build manifest
-        uses: actions/download-artifact@v6
-        with:
-          name: python-package-build-manifest
-          path: build/reports/
-      - name: Install wheel artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build/reports
-          python -m venv .venv-wheel
-          source .venv-wheel/bin/activate
-          python -m pip install --upgrade pip
-          wheel=("$GITHUB_WORKSPACE"/dist/*.whl)
-          python -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${wheel[0]}"
-          python -m pip check
-          verify_dir="$(mktemp -d)"
-          cd "$verify_dir"
-          python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py" \
-            --artifact-kind wheel \
-            --artifact-path "${wheel[0]}" \
-            --build-manifest "$GITHUB_WORKSPACE/build/reports/build-manifest.json" \
-            --repository-root "$GITHUB_WORKSPACE" \
-            --report-json "$GITHUB_WORKSPACE/build/reports/wheel-artifact-py${{ matrix.python-version }}.json"
-          python -m pip freeze > "$GITHUB_WORKSPACE/build/reports/wheel-install-py${{ matrix.python-version }}.txt"
-      - name: Install sdist artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build/reports
-          python -m venv .venv-sdist
-          source .venv-sdist/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" setuptools wheel
-          sdist=("$GITHUB_WORKSPACE"/dist/*.tar.gz)
-          python -m pip install --no-build-isolation -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${sdist[0]}"
-          python -m pip check
-          verify_dir="$(mktemp -d)"
-          cd "$verify_dir"
-          python -I "$GITHUB_WORKSPACE/scripts/verify_distribution_artifact.py" \
-            --artifact-kind sdist \
-            --artifact-path "${sdist[0]}" \
-            --build-manifest "$GITHUB_WORKSPACE/build/reports/build-manifest.json" \
-            --repository-root "$GITHUB_WORKSPACE" \
-            --report-json "$GITHUB_WORKSPACE/build/reports/sdist-artifact-py${{ matrix.python-version }}.json"
-          python -m pip freeze > "$GITHUB_WORKSPACE/build/reports/sdist-install-py${{ matrix.python-version }}.txt"
-      - name: Store distribution install reports
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: distribution-install-py${{ matrix.python-version }}
-          path: build/reports/
-
-  release-attestation:
-    needs:
-      - release-gate
-      - build
-      - distribution-install-tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v6
-        with:
-          name: python-package-distributions
-          path: dist/
-      - name: Download build records
-        uses: actions/download-artifact@v6
-        with:
-          name: python-package-build-manifest
-          path: build/reports/
-      - name: Download source-check reports
-        uses: actions/download-artifact@v6
-        with:
-          pattern: release-gate-py*
-          path: build/evidence/
-          merge-multiple: true
-      - name: Download artifact-verification reports
-        uses: actions/download-artifact@v6
-        with:
-          pattern: distribution-install-py*
-          path: build/evidence/
-          merge-multiple: true
-      - name: Build release attestation
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s globstar nullglob
-          source_reports=(build/evidence/**/source-release-*.json)
-          artifact_reports=(build/evidence/**/*-artifact-py*.json)
-          python scripts/release/build_release_attestation.py \
-            --policy release/attestation-policy.json \
-            --source-identity build/reports/source-identity.json \
-            --build-manifest build/reports/build-manifest.json \
-            --artifact dist/*.whl dist/*.tar.gz \
-            --source-check-report "${source_reports[@]}" \
-            --artifact-verification-report "${artifact_reports[@]}" \
-            --output build/release/release-attestation.json \
-            --evidence-root .
-          python scripts/release/verify_release_attestation.py \
-            --attestation build/release/release-attestation.json \
-            --evidence-root . \
-            --artifact-dir dist
-      - name: Store release attestation
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-attestation
-          path: build/release/release-attestation.json
 
   publish-to-testpypi:
     if: startsWith(github.ref, 'refs/tags/tv')
-    needs:
-      - release-attestation
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: testpypi
       url: https://test.pypi.org/p/phospy
     permissions:
+      contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Download distribution artifacts
         uses: actions/download-artifact@v6
         with:
           name: python-package-distributions
           path: dist/
-      - name: Download release attestation
-        uses: actions/download-artifact@v6
-        with:
-          name: release-attestation
-          path: build/release/
-      - name: Prepare attested publication directory
-        run: |
-          python scripts/release/prepare_publish_directory.py \
-            --attestation build/release/release-attestation.json \
-            --dist-dir dist \
-            --output-dir build/publish
       - name: Publish distributions to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-          packages-dir: build/publish/
+          packages-dir: dist/
 
   publish-to-pypi:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs:
-      - release-attestation
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/phospy
     permissions:
+      contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Download distribution artifacts
         uses: actions/download-artifact@v6
         with:
           name: python-package-distributions
           path: dist/
-      - name: Download release attestation
-        uses: actions/download-artifact@v6
-        with:
-          name: release-attestation
-          path: build/release/
-      - name: Prepare attested publication directory
-        run: |
-          python scripts/release/prepare_publish_directory.py \
-            --attestation build/release/release-attestation.json \
-            --dist-dir dist \
-            --output-dir build/publish
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: build/publish/
+          packages-dir: dist/
