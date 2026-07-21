@@ -91,6 +91,27 @@ surrounding whitespace and uppercasing letters, but it must not repair
 biological sequence context. In particular, the resolver must never rewrite the
 centre residue of a provided `site_sequence` to match a resolved site token.
 
+When multiple peptide-evidence rows collapse to one resolved site, supplied
+`site_sequence` context is resolved as a set, not by row order. All non-null,
+non-blank supplied values for that resolved site are normalized with the same
+rules. They must normalize to exactly one unique valid value, and there must be
+no invalid supplied non-blank values in the same group.
+
+Conflicting valid contexts are rejected with `PhosPyInputError`. PhosPy must not
+guess by choosing the first row, the most common value, the lexicographically
+smallest value, or any other implicit precedence. Mixed evidence containing one
+valid supplied value and one or more invalid supplied values is also rejected,
+because reducing that group to the valid value would hide source-evidence
+disagreement.
+
+Split multi-site peptide-context derivation is a fallback for absent or
+unusable split-site context when existing split-domain rules can derive the
+resolved-site window from `peptide_sequence` plus `site_string`. It is not a
+precedence rule over conflicting valid supplied contexts. When all supplied
+contexts for a split target are invalid, derivation may succeed only if it
+produces exactly one distinct normalized sequence; multiple derived candidates
+or no derived candidate fail deterministically.
+
 For unambiguous centred sequence windows, centre-residue mismatch is a hard
 input error. Users must remove the peptide-evidence `site_sequence` value to
 allow trusted reference derivation, or correct the upstream evidence. A future

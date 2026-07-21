@@ -355,6 +355,18 @@ class _SiteSequenceResolution:
     rejected_provided_context_count: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class _InvalidProvidedSiteSequence:
+    value: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class _PeptideContextSequenceDerivation:
+    site_sequence: str | None
+    distinct_sequences: tuple[str, ...]
+
+
 def _build_site_metadata(
     *,
     mapped_rows: pd.DataFrame,
@@ -433,53 +445,88 @@ def _resolve_site_sequence_for_resolved_site(
     resolved_site_token: str,
     multi_site_policy: str,
 ) -> _SiteSequenceResolution:
-    provided_site_sequence = (
-        _first_non_empty_string(group.loc[:, "site_sequence"])
+    supplied_values = (
+        _non_empty_strings(group.loc[:, "site_sequence"])
         if "site_sequence" in group.columns
-        else None
+        else []
     )
-    if provided_site_sequence is not None:
+    valid_sequences: set[str] = set()
+    invalid_sequences: list[_InvalidProvidedSiteSequence] = []
+    for supplied_value in supplied_values:
         try:
             normalized = _normalize_site_sequence_for_resolved_site(
                 site_id=site_id,
-                site_sequence=provided_site_sequence,
+                site_sequence=supplied_value,
                 resolved_site_token=resolved_site_token,
             )
-        except PhosPyInputError:
-            if not _is_split_multisite_context(
-                group=group,
-                multi_site_policy=multi_site_policy,
-            ):
-                raise
+        except PhosPyInputError as exc:
+            invalid_sequences.append(
+                _InvalidProvidedSiteSequence(
+                    value=supplied_value,
+                    reason=" ".join(str(exc).split()),
+                )
+            )
+            continue
+        if normalized is not None:
+            valid_sequences.add(normalized)
+
+    distinct_valid_sequences = tuple(sorted(valid_sequences))
+    if len(distinct_valid_sequences) > 1:
+        _raise_conflicting_supplied_site_sequences(
+            site_id=site_id,
+            distinct_sequences=distinct_valid_sequences,
+        )
+    if len(distinct_valid_sequences) == 1 and invalid_sequences:
+        _raise_mixed_supplied_site_sequence_evidence(
+            site_id=site_id,
+            valid_sequence=distinct_valid_sequences[0],
+            invalid_sequences=tuple(invalid_sequences),
+        )
+    if len(distinct_valid_sequences) == 1:
+        return _SiteSequenceResolution(
+            site_sequence=distinct_valid_sequences[0],
+            source=_SITE_SEQUENCE_SOURCE_PROVIDED,
+        )
+
+    split_multisite_context = _is_split_multisite_context(
+        group=group,
+        multi_site_policy=multi_site_policy,
+    )
+    if supplied_values:
+        if split_multisite_context:
             derived = _derive_site_sequence_from_peptide_context(
                 group=group,
                 site_id=site_id,
                 resolved_site_token=resolved_site_token,
             )
-            if derived is None:
-                raise
-            return _SiteSequenceResolution(
-                site_sequence=derived,
-                source=_SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
-                rejected_provided_context_count=1,
+            if derived.site_sequence is not None:
+                return _SiteSequenceResolution(
+                    site_sequence=derived.site_sequence,
+                    source=_SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
+                    rejected_provided_context_count=len(invalid_sequences),
+                )
+            _raise_invalid_supplied_site_sequences(
+                site_id=site_id,
+                invalid_sequences=tuple(invalid_sequences),
+                derived_sequences=derived.distinct_sequences,
+                derivation_allowed=True,
             )
-        return _SiteSequenceResolution(
-            site_sequence=normalized,
-            source=_SITE_SEQUENCE_SOURCE_PROVIDED,
+        _raise_invalid_supplied_site_sequences(
+            site_id=site_id,
+            invalid_sequences=tuple(invalid_sequences),
+            derived_sequences=(),
+            derivation_allowed=False,
         )
 
-    if _is_split_multisite_context(
-        group=group,
-        multi_site_policy=multi_site_policy,
-    ):
+    if split_multisite_context:
         derived = _derive_site_sequence_from_peptide_context(
             group=group,
             site_id=site_id,
             resolved_site_token=resolved_site_token,
         )
-        if derived is not None:
+        if derived.site_sequence is not None:
             return _SiteSequenceResolution(
-                site_sequence=derived,
+                site_sequence=derived.site_sequence,
                 source=_SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
             )
 
@@ -506,8 +553,8 @@ def _derive_site_sequence_from_peptide_context(
     group: pd.DataFrame,
     site_id: str,
     resolved_site_token: str,
-) -> str | None:
-    derived_sequences: list[str] = []
+) -> _PeptideContextSequenceDerivation:
+    derived_sequences: set[str] = set()
     for _, row in group.iterrows():
         derived = _derive_site_sequence_from_peptide_row(
             row=row,
@@ -515,11 +562,17 @@ def _derive_site_sequence_from_peptide_context(
             resolved_site_token=resolved_site_token,
         )
         if derived is not None:
-            derived_sequences.append(derived)
-    distinct = tuple(dict.fromkeys(derived_sequences))
+            derived_sequences.add(derived)
+    distinct = tuple(sorted(derived_sequences))
     if len(distinct) != 1:
-        return None
-    return distinct[0]
+        return _PeptideContextSequenceDerivation(
+            site_sequence=None,
+            distinct_sequences=distinct,
+        )
+    return _PeptideContextSequenceDerivation(
+        site_sequence=distinct[0],
+        distinct_sequences=distinct,
+    )
 
 
 def _derive_site_sequence_from_peptide_row(
@@ -639,21 +692,6 @@ def _normalize_site_sequence_for_resolved_site(
     )
 
 
-def _first_non_empty_string(values: pd.Series) -> str | None:
-    for value in values.tolist():
-        try:
-            if bool(pd.isna(value)):
-                continue
-        except (TypeError, ValueError):
-            pass
-        if value is None:
-            continue
-        text = str(value).strip()
-        if text:
-            return text
-    return None
-
-
 def _single_non_empty_string_or_error(
     values: pd.Series,
     *,
@@ -702,6 +740,92 @@ def _count_non_empty_strings(values: pd.Series) -> int:
         if str(value).strip():
             count += 1
     return count
+
+
+def _raise_conflicting_supplied_site_sequences(
+    *,
+    site_id: str,
+    distinct_sequences: tuple[str, ...],
+) -> None:
+    preview = _preview_quoted_values(distinct_sequences)
+    raise PhosPyInputError(
+        "dataset peptide evidence site_sequence values conflict for resolved "
+        f"site_id={site_id!r}: distinct_normalized_value_count="
+        f"{len(distinct_sequences)}, values=[{preview}]. PhosPy rejects "
+        "conflicting supplied site-sequence contexts instead of selecting by "
+        "row order, frequency, or lexical order. Correct the source evidence "
+        "or choose an explicit upstream reference-resolution policy before "
+        "dataset building."
+    )
+
+
+def _raise_mixed_supplied_site_sequence_evidence(
+    *,
+    site_id: str,
+    valid_sequence: str,
+    invalid_sequences: tuple[_InvalidProvidedSiteSequence, ...],
+) -> None:
+    invalid_preview = _preview_invalid_site_sequence_values(invalid_sequences)
+    raise PhosPyInputError(
+        "dataset peptide evidence site_sequence values are inconsistent for "
+        f"resolved site_id={site_id!r}: valid_normalized_value="
+        f"{valid_sequence!r}, invalid_supplied_values=[{invalid_preview}]. "
+        "Mixed valid and invalid supplied evidence must not be silently "
+        "reduced to the valid value. Correct the source evidence or choose an "
+        "explicit upstream reference-resolution policy before dataset building."
+    )
+
+
+def _raise_invalid_supplied_site_sequences(
+    *,
+    site_id: str,
+    invalid_sequences: tuple[_InvalidProvidedSiteSequence, ...],
+    derived_sequences: tuple[str, ...],
+    derivation_allowed: bool,
+) -> None:
+    invalid_preview = _preview_invalid_site_sequence_values(invalid_sequences)
+    if derivation_allowed:
+        derived_preview = _preview_quoted_values(derived_sequences)
+        derivation_detail = (
+            "peptide-context derivation did not establish exactly one fallback "
+            f"sequence; derived_candidate_count={len(derived_sequences)}, "
+            f"derived_candidates=[{derived_preview}]"
+        )
+    else:
+        derivation_detail = (
+            "peptide-context derivation is only available for split multi-site "
+            "context under multi_site_policy='split'"
+        )
+    raise PhosPyInputError(
+        "dataset peptide evidence site_sequence values are invalid for resolved "
+        f"site_id={site_id!r}: invalid_supplied_values=[{invalid_preview}]. "
+        f"{derivation_detail}. Correct the source evidence or choose an explicit "
+        "upstream reference-resolution policy before dataset building."
+    )
+
+
+def _preview_quoted_values(values: tuple[str, ...]) -> str:
+    preview = ", ".join(repr(value) for value in values[:5])
+    suffix = "" if len(values) <= 5 else " ..."
+    return f"{preview}{suffix}"
+
+
+def _preview_invalid_site_sequence_values(
+    invalid_sequences: tuple[_InvalidProvidedSiteSequence, ...],
+) -> str:
+    distinct = tuple(
+        sorted(
+            {
+                (invalid_sequence.value, invalid_sequence.reason)
+                for invalid_sequence in invalid_sequences
+            }
+        )
+    )
+    preview = ", ".join(
+        f"value={value!r}, reason={reason!r}" for value, reason in distinct[:5]
+    )
+    suffix = "" if len(distinct) <= 5 else " ..."
+    return f"{preview}{suffix}"
 
 
 def _validate_dataset_multi_site_policy(policy: object, *, field_name: str) -> None:

@@ -65,6 +65,12 @@ correct, centered on the phosphosite, sourced for motif scoring, or compatible
 with a future resource-specific window. Stricter centered-sequence validation
 belongs to the sequence-aware workflow validators.
 
+For peptide-evidence input, ADR-0020 owns the earlier collapse from peptide rows
+to one site-level `site_sequence` value. Workflow dataset/reference conflict
+policies must not be used to choose among contradictory supplied peptide
+contexts for the same resolved site; those conflicts are rejected before
+`AnalysisReadyPhosphoDataset` construction.
+
 ## Kinase Scoring Mode Semantics
 
 Kinase scoring modes are explicit workflow contracts.

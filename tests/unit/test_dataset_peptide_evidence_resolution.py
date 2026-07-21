@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from itertools import permutations
 
 import pandas as pd
 import pytest
@@ -24,6 +25,7 @@ from phospy.science.evidence import (
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN,
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceTable,
+    build_multi_site_handling_config_for_dataset_policy,
 )
 from phospy.science.evidence.dataset_resolution import (
     _single_non_empty_string_or_error,
@@ -129,6 +131,49 @@ def _peptide_evidence_center_residue_mismatch_frame() -> pd.DataFrame:
     return single_site.reset_index(drop=True)
 
 
+def _same_resolved_site_evidence_frame(
+    site_sequences: tuple[object, ...],
+) -> pd.DataFrame:
+    base_row = _single_site_peptide_evidence_frame().iloc[0].to_dict()
+    peptide_sequences = (
+        "AAASAAA",
+        "CCCSCCC",
+        "GGGSGGG",
+        "HHHSHHH",
+        "KKKSKKK",
+    )
+    rows: list[dict[str, object]] = []
+    for index, site_sequence in enumerate(site_sequences, start=1):
+        peptide_sequence = peptide_sequences[(index - 1) % len(peptide_sequences)]
+        row = dict(base_row)
+        row["peptide_row_id"] = f"pep_single_{index}"
+        row["unique_feature_id"] = f"feat_single_{index}"
+        row["sample_a"] = float(6 + index)
+        row["sample_b"] = float(8 + index)
+        row["peptide_sequence"] = peptide_sequence
+        row["modified_peptide_sequence"] = peptide_sequence
+        row["site_sequence"] = site_sequence
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def _split_multisite_ambiguous_derivation_frame() -> pd.DataFrame:
+    base_row = _peptide_evidence_frame(include_single_site=False).iloc[0].to_dict()
+    rows: list[dict[str, object]] = []
+    for index, peptide_sequence in enumerate(("AAASTTAAAA", "CCCSATCCCC"), start=1):
+        row = dict(base_row)
+        row["peptide_row_id"] = f"pep_joint_{index}"
+        row["unique_feature_id"] = f"feat_joint_{index}"
+        row["site_string"] = "S10,T12"
+        row["sample_a"] = float(10 * index)
+        row["sample_b"] = float(12 * index)
+        row["peptide_sequence"] = peptide_sequence
+        row["modified_peptide_sequence"] = peptide_sequence
+        row["site_sequence"] = "AAAAASAAAAA"
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def _assert_site_sequence_center_mismatch_message(message: str) -> None:
     lower_message = message.lower()
     assert "site_sequence" in message
@@ -136,6 +181,16 @@ def _assert_site_sequence_center_mismatch_message(message: str) -> None:
     assert "expected='S'" in message
     assert "observed='T'" in message
     assert "AKT1;S473;" in message
+
+
+def _assert_site_sequence_conflict_message(message: str) -> None:
+    assert "site_sequence values conflict" in message
+    assert "site_id='AKT1;S473;'" in message
+    assert "distinct_normalized_value_count=2" in message
+    assert "values=['AAASAAA', 'CCCSCCC']" in message
+    assert "row order" in message
+    assert "Correct the source evidence" in message
+    assert "explicit upstream reference-resolution policy" in message
 
 
 def test_site_level_input_works_with_safe_default_or_explicit_declaration() -> None:
@@ -311,6 +366,98 @@ def test_builder_rejects_peptide_evidence_sequence_center_residue_mismatch() -> 
     _assert_site_sequence_center_mismatch_message(str(exc_info.value))
 
 
+def test_peptide_evidence_rejects_conflicting_valid_site_sequences() -> None:
+    evidence = _same_resolved_site_evidence_frame(("AAASAAA", "CCCSCCC"))
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=evidence,
+                sample_intensity_columns=("sample_a", "sample_b"),
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        )
+
+    _assert_site_sequence_conflict_message(str(exc_info.value))
+
+
+def test_peptide_evidence_conflicting_site_sequence_details_are_order_invariant() -> (
+    None
+):
+    messages: list[str] = []
+    for site_sequences in (("AAASAAA", "CCCSCCC"), ("CCCSCCC", "AAASAAA")):
+        with pytest.raises(PhosPyInputError) as exc_info:
+            PeptideEvidenceDatasetResolver().run(
+                evidence=PeptideEvidenceTable(
+                    frame=_same_resolved_site_evidence_frame(site_sequences),
+                    sample_intensity_columns=("sample_a", "sample_b"),
+                ),
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            )
+        messages.append(str(exc_info.value))
+
+    assert messages[0] == messages[1]
+    _assert_site_sequence_conflict_message(messages[0])
+
+
+def test_peptide_evidence_equivalent_site_sequences_normalize_to_one_value() -> None:
+    resolved = PeptideEvidenceDatasetResolver().run(
+        evidence=PeptideEvidenceTable(
+            frame=_same_resolved_site_evidence_frame((" aaAsaaa ", "AAASAAA")),
+            sample_intensity_columns=("sample_a", "sample_b"),
+        ),
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    )
+
+    assert resolved.site_metadata.loc["AKT1;S473;", "site_sequence"] == "AAASAAA"
+    payload = resolved.summary.to_payload()
+    assert int(payload["provided_site_sequence_count"]) == 2
+    assert int(payload["accepted_site_sequence_count"]) == 1
+    assert int(payload["rejected_site_sequence_count"]) == 0
+    assert int(payload["provided_site_sequence_used_count"]) == 1
+
+
+def test_peptide_evidence_rejects_mixed_valid_and_invalid_site_sequences() -> None:
+    evidence = _same_resolved_site_evidence_frame(("AAASAAA", "AAATAAA"))
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=evidence,
+                sample_intensity_columns=("sample_a", "sample_b"),
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        )
+
+    message = str(exc_info.value)
+    assert "Mixed valid and invalid supplied evidence" in message
+    assert "site_id='AKT1;S473;'" in message
+    assert "valid_normalized_value='AAASAAA'" in message
+    assert "AAATAAA" in message
+    assert "expected='S'" in message
+    assert "observed='T'" in message
+    assert "explicit upstream reference-resolution policy" in message
+
+
+def test_peptide_evidence_ignores_blank_and_null_sequence_values_for_conflicts() -> (
+    None
+):
+    resolved = PeptideEvidenceDatasetResolver().run(
+        evidence=PeptideEvidenceTable(
+            frame=_same_resolved_site_evidence_frame(("AAASAAA", " ", pd.NA, None)),
+            sample_intensity_columns=("sample_a", "sample_b"),
+        ),
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    )
+
+    assert resolved.site_metadata.loc["AKT1;S473;", "site_sequence"] == "AAASAAA"
+    payload = resolved.summary.to_payload()
+    assert int(payload["provided_site_sequence_count"]) == 1
+    assert int(payload["accepted_site_sequence_count"]) == 1
+    assert int(payload["rejected_site_sequence_count"]) == 0
+    assert int(payload["provided_site_sequence_used_count"]) == 1
+
+
 def test_split_policy_derives_site_specific_context_when_shared_window_mismatches() -> (
     None
 ):
@@ -346,6 +493,68 @@ def test_split_policy_derives_site_specific_context_when_shared_window_mismatche
     assert int(payload["provided_site_sequence_used_count"]) == 1
     assert int(payload["peptide_context_derived_site_sequence_count"]) == 1
     assert int(payload["missing_site_sequence_count"]) == 0
+
+
+def test_split_policy_rejects_non_unique_peptide_context_derivation() -> None:
+    with pytest.raises(PhosPyInputError) as exc_info:
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=_split_multisite_ambiguous_derivation_frame(),
+                sample_intensity_columns=("sample_a", "sample_b"),
+                multi_site_handling_config=(
+                    build_multi_site_handling_config_for_dataset_policy(
+                        multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT
+                    )
+                ),
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+        )
+
+    message = str(exc_info.value)
+    assert "site_id='MAPK1;T12;'" in message
+    assert "invalid_supplied_values" in message
+    assert "derived_candidate_count=2" in message
+    assert "derived_candidates=['AASTTAAAA', 'CCSATCCCC']" in message
+    assert "explicit upstream reference-resolution policy" in message
+
+
+def test_peptide_evidence_resolution_is_invariant_to_row_permutation() -> None:
+    expected_phospho: pd.DataFrame | None = None
+    expected_site_metadata: pd.DataFrame | None = None
+    expected_payload: dict[str, object] | None = None
+    for site_sequences in permutations((" aaAsaaa ", pd.NA, "AAASAAA")):
+        resolved = PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=_same_resolved_site_evidence_frame(tuple(site_sequences)),
+                sample_intensity_columns=("sample_a", "sample_b"),
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        )
+        payload = resolved.summary.to_payload()
+        if expected_phospho is None:
+            expected_phospho = resolved.phospho
+            expected_site_metadata = resolved.site_metadata
+            expected_payload = payload
+            continue
+        pd.testing.assert_frame_equal(resolved.phospho, expected_phospho)
+        assert expected_site_metadata is not None
+        pd.testing.assert_frame_equal(resolved.site_metadata, expected_site_metadata)
+        assert payload == expected_payload
+
+    failure_messages: set[str] = set()
+    for site_sequences in permutations(("AAASAAA", "CCCSCCC", " ")):
+        with pytest.raises(PhosPyInputError) as exc_info:
+            PeptideEvidenceDatasetResolver().run(
+                evidence=PeptideEvidenceTable(
+                    frame=_same_resolved_site_evidence_frame(tuple(site_sequences)),
+                    sample_intensity_columns=("sample_a", "sample_b"),
+                ),
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            )
+        failure_messages.add(str(exc_info.value))
+
+    assert len(failure_messages) == 1
+    _assert_site_sequence_conflict_message(next(iter(failure_messages)))
 
 
 def test_peptide_evidence_preserves_matching_sequence_with_only_text_normalisation() -> (

@@ -11,6 +11,12 @@ All notable changes to this project are documented here.
   through dataset properties, builder reports, workflow results, and provenance
   records.
 
+### Fixed
+
+- Rejected conflicting supplied peptide-evidence `site_sequence` contexts for
+  the same resolved phosphosite deterministically instead of selecting whichever
+  sequence appeared first in input row order.
+
 ### Documentation
 
 - Aligned reference documentation with completed FU-01 through FU-05 follow-up

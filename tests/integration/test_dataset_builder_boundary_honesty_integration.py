@@ -14,6 +14,10 @@ from phospy.api import (
     PhosPyInputError,
 )
 from phospy.api.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
+from phospy.api.requests import (
+    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+)
 from phospy.errors.references import UnsupportedOrganismError
 from phospy.errors.validation import DatasetValidationError
 from tests.support.site_keys import site_key_from_display_id
@@ -494,3 +498,66 @@ def test_builder_fails_clearly_for_unsupported_organism_when_site_sequences_need
                 input_intensity_scale="linear",
             )
         )
+
+
+def test_builder_rejects_conflicting_peptide_site_sequences_before_construction() -> (
+    None
+):
+    peptide_evidence = pd.DataFrame(
+        [
+            {
+                "peptide_row_id": "pep_1",
+                "site_id": "AKT1;S473;",
+                "unique_feature_id": "feat_1",
+                "gene_symbol": "AKT1",
+                "protein_accession": "P31749",
+                "site_string": "S473",
+                "sample_a": 7.0,
+                "sample_b": 9.0,
+                "peptide_sequence": "AAASAAA",
+                "modified_peptide_sequence": "AAASAAA",
+                "multi_site": False,
+                "provenance_source": "maxquant",
+                "site_sequence": "AAASAAA",
+                "localisation_confidence": 0.95,
+            },
+            {
+                "peptide_row_id": "pep_2",
+                "site_id": "AKT1;S473;",
+                "unique_feature_id": "feat_2",
+                "gene_symbol": "AKT1",
+                "protein_accession": "P31749",
+                "site_string": "S473",
+                "sample_a": 11.0,
+                "sample_b": 13.0,
+                "peptide_sequence": "CCCSCCC",
+                "modified_peptide_sequence": "CCCSCCC",
+                "multi_site": False,
+                "provenance_source": "maxquant",
+                "site_sequence": "CCCSCCC",
+                "localisation_confidence": 0.96,
+            },
+        ]
+    )
+    dataset: object | None = None
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        dataset = AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+                peptide_evidence=peptide_evidence,
+                peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                input_intensity_scale="linear",
+                organism=Organism.HUMAN,
+            )
+        )
+
+    assert dataset is None
+    message = str(exc_info.value)
+    assert "dataset_builder.peptide_evidence_resolution failed" in message
+    assert "site_sequence values conflict" in message
+    assert "site_id='AKT1;S473;'" in message
+    assert "distinct_normalized_value_count=2" in message
+    assert "values=['AAASAAA', 'CCCSCCC']" in message
+    assert "explicit upstream reference-resolution policy" in message
