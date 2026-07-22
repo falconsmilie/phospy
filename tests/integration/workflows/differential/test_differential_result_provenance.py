@@ -33,6 +33,9 @@ from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -87,7 +90,7 @@ def _dataset(*, with_batch_correction: bool = False) -> AnalysisReadyPhosphoData
                 ),
             )
         )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -248,7 +251,7 @@ def test_differential_policy_provenance_records_declared_scale_override() -> Non
         plan=PreprocessingPlan.default(),
         intensity_scale_state=state,
     )
-    suspicious_dataset = AnalysisReadyPhosphoDataset(
+    suspicious_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=suspicious_phospho,
         site_metadata=base.site_metadata,
         organism=base.organism,

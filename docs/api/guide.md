@@ -56,18 +56,18 @@ from phospy import (
 )
 ```
 
-`AnalysisReadyPhosphoDataset` remains exported for advanced/trusted callers who
-already own fully prepared `site_key`-indexed tables and processing-state
-provenance. Advanced callers should prefer
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, which runs the same
-structural validation as direct construction, including required
+`AnalysisReadyPhosphoDataset` remains exported as a public result/domain type.
+The direct `AnalysisReadyPhosphoDataset` constructor raises immediately.
+Advanced callers who already own fully prepared `site_key`-indexed tables and
+processing-state provenance must use
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, which runs the private
+dataset structural validation, including required
 `site_sequence`, and requires typed trusted-construction evidence or explicit
 waivers for identity, intensity scale, quantitative meaning, localisation,
 sequence, and reference context, plus non-waivable aligned-table structure
 evidence. Supplied trusted provenance must match the actual table fingerprints.
-Compatibility-constructor provenance is checked against actual table
-fingerprints the same way. It cannot prove the biological correctness of
-user-asserted state or provenance. Ordinary dataset construction should use
+It cannot prove the biological correctness of user-asserted state or
+provenance. Ordinary dataset construction should use
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
 Use `phospy.api` for stable request, workflow, primary result, reference, enum,

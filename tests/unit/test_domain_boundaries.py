@@ -39,6 +39,9 @@ from phospy.science.references.resolution import ReferenceResolver
 from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -202,6 +205,7 @@ def test_analysis_ready_from_trusted_tables_enforces_site_sequence() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
+            trusted_construction_assertions=_trusted_assertions(),
             **_supported_dataset_state(has_total_matrix=False),
         )
 
@@ -218,10 +222,11 @@ def test_analysis_ready_from_trusted_tables_matches_constructor_validation() -> 
             site_metadata=_site_metadata(),
             sample_metadata=bad_sample_metadata,
             organism=Organism.RAT,
+            trusted_construction_assertions=_trusted_assertions(),
             **_supported_dataset_state(has_total_matrix=False),
         )
     with pytest.raises(DatasetValidationError) as constructor_exc:
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             sample_metadata=bad_sample_metadata,
@@ -250,7 +255,7 @@ def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker(
     assert provenance.workflow_name == "analysis_ready_dataset_direct_construction"
     construction = provenance.workflow_parameters["construction"]
     assert isinstance(construction, Mapping)
-    assert construction["method"] == "AnalysisReadyPhosphoDataset.__init__"
+    assert construction["method"] == "AnalysisReadyPhosphoDataset.from_trusted_tables"
     assert construction["source"] == "direct_trusted_construction"
     assert construction["builder_used"] is False
     assert construction["warning"] == (
@@ -262,7 +267,7 @@ def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker(
 
 
 def test_direct_construction_records_provenance_marker() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -279,7 +284,7 @@ def test_direct_construction_records_provenance_marker() -> None:
 
 
 def test_trusted_factory_records_same_direct_construction_marker() -> None:
-    direct_dataset = AnalysisReadyPhosphoDataset(
+    direct_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -313,7 +318,7 @@ def test_dataset_rejects_missing_site_sequence_column() -> None:
         DatasetValidationError,
         match="dataset.site_metadata is missing required columns: site_sequence",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
@@ -324,7 +329,7 @@ def test_dataset_rejects_missing_site_sequence_column() -> None:
 def test_analysis_ready_dataset_still_exposes_pandas_frames_after_schema_wrappers() -> (
     None
 ):
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -345,7 +350,7 @@ def test_kinase_prediction_result_rejects_malformed_pred_mat_immediately() -> No
 
 
 def test_dataset_exposes_optional_preprocessing_report_field() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -363,7 +368,7 @@ def test_dataset_rejects_blank_gene_symbol_values() -> None:
         DatasetValidationError,
         match="dataset.site_metadata.gene_symbol must contain non-empty string values",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
@@ -378,7 +383,7 @@ def test_dataset_rejects_blank_site_values() -> None:
         DatasetValidationError,
         match="dataset.site_metadata.site must contain non-empty string values",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
@@ -395,7 +400,7 @@ def test_dataset_rejects_blank_site_sequence_values() -> None:
             "dataset.site_metadata.site_sequence must contain non-empty string values"
         ),
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
@@ -410,7 +415,7 @@ def test_dataset_rejects_null_site_sequence_values() -> None:
         DatasetValidationError,
         match="dataset.site_metadata.site_sequence must not contain missing values",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
@@ -420,7 +425,7 @@ def test_dataset_rejects_null_site_sequence_values() -> None:
 
 def test_dataset_rejects_empty_phospho_matrix() -> None:
     with pytest.raises(DatasetValidationError):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(),
             site_metadata=pd.DataFrame(),
             organism=Organism.RAT,
@@ -432,7 +437,7 @@ def test_dataset_rejects_nan_in_phospho_matrix() -> None:
     phospho = _phospho()
     phospho.loc[_SITE_KEY, "sample_a"] = float("nan")
     with pytest.raises(DatasetValidationError, match="must not contain missing values"):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
@@ -449,7 +454,7 @@ def test_dataset_rejects_infinite_values_in_phospho_matrix(
     with pytest.raises(
         DatasetValidationError, match="must contain finite numeric values"
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
@@ -462,7 +467,7 @@ def test_dataset_rejects_infinite_values_in_comparisons_matrix(
     invalid_value: float,
 ) -> None:
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
@@ -482,7 +487,7 @@ def test_dataset_rejects_nan_in_comparisons_matrix() -> None:
         DatasetValidationError,
         match="dataset.comparisons must not contain missing values",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
@@ -496,7 +501,7 @@ def test_dataset_rejects_nan_in_comparisons_matrix() -> None:
 
 def test_dataset_rejects_boolean_columns_in_total_matrix() -> None:
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [True]}, index=["MAPK14"]),
@@ -510,7 +515,7 @@ def test_dataset_rejects_boolean_columns_in_total_matrix() -> None:
 
 def test_dataset_rejects_boolean_columns_in_comparisons_matrix() -> None:
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
@@ -562,7 +567,7 @@ def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
 
 def test_dataset_validates_intensity_scale_state_for_total_matrix() -> None:
     with pytest.raises(TransformationValidationError):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
@@ -575,7 +580,7 @@ def test_dataset_rejects_mixed_intensity_scale_kind_between_phospho_and_total() 
     supported_state = supported_linear_intensity_scale_state(has_total_matrix=True)
     object.__setattr__(supported_state, "total", MatrixIntensityScaleState.log2())
     with pytest.raises(TransformationValidationError):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
@@ -589,7 +594,7 @@ def test_dataset_rejects_inf_in_total_matrix() -> None:
     with pytest.raises(
         DatasetValidationError, match="dataset.total must contain finite numeric values"
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [float("-inf")]}, index=["MAPK14"]),
@@ -603,7 +608,7 @@ def test_dataset_rejects_total_matrix_sample_mismatch() -> None:
         DatasetValidationError,
         match="dataset.total.columns must exactly match dataset.phospho.columns",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_b": [2.0]}, index=["MAPK14"]),
@@ -613,7 +618,7 @@ def test_dataset_rejects_total_matrix_sample_mismatch() -> None:
 
 
 def test_dataset_accepts_aligned_numeric_comparisons() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         comparisons=pd.DataFrame(
@@ -632,7 +637,7 @@ def test_dataset_rejects_comparisons_index_mismatch() -> None:
         DatasetValidationError,
         match="dataset.comparisons.index must exactly match dataset.phospho.index",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
@@ -1156,7 +1161,7 @@ def test_dataset_internal_view_exposes_only_required_frames() -> None:
     assert not hasattr(DatasetInternalView, "imputation_observed_mask")
     assert not hasattr(
         DatasetInternalView(
-            AnalysisReadyPhosphoDataset(
+            trusted_analysis_ready_dataset_from_tables(
                 phospho=_phospho(),
                 site_metadata=_site_metadata(),
                 organism=Organism.RAT,
@@ -1168,7 +1173,7 @@ def test_dataset_internal_view_exposes_only_required_frames() -> None:
 
 
 def test_dataset_internal_view_returns_defensive_frame_snapshots() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         sample_metadata=pd.DataFrame(

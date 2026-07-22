@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import cast
@@ -36,7 +35,6 @@ from phospy.provenance.models import (
     TrustedDatasetConstructionAssertions,
 )
 from phospy.science.datasets.direct_construction import (
-    DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
     DIRECT_CONSTRUCTION_WORKFLOW_NAME,
     build_direct_construction_provenance,
 )
@@ -226,17 +224,22 @@ def _validate_optional_comparisons(
     return comparisons_frame
 
 
+_DIRECT_CONSTRUCTION_ERROR_MESSAGE = (
+    "AnalysisReadyPhosphoDataset(...) direct construction is no longer supported. "
+    "Use AnalysisReadyDatasetBuilder for ordinary construction, or "
+    "AnalysisReadyPhosphoDataset.from_trusted_tables(...) with complete "
+    "TrustedDatasetConstructionAssertions for advanced trusted reconstruction."
+)
+
+
 def _resolve_trusted_construction_assertions(
     *,
     trusted_construction_assertions: TrustedDatasetConstructionAssertions | None,
     provenance: RunProvenance | None,
     assume_owned: bool,
 ) -> TrustedDatasetConstructionAssertions | None:
-    if trusted_construction_assertions is not None:
-        return trusted_construction_assertions
-    if provenance is None or not assume_owned:
-        return TrustedDatasetConstructionAssertions.missing()
-    return None
+    del provenance, assume_owned
+    return trusted_construction_assertions
 
 
 def _require_complete_from_trusted_assertions(
@@ -362,6 +365,35 @@ def _require_trusted_provenance_table_fingerprints(
             actual=actual_fingerprints,
             field_name="run_provenance.input_tables",
             expected_source="actual analysis-ready dataset tables",
+        )
+
+
+def _require_builder_output_provenance(provenance: object) -> None:
+    if not isinstance(provenance, RunProvenance):
+        raise DatasetValidationError(
+            "AnalysisReadyPhosphoDataset._from_builder_output requires "
+            "builder-created RunProvenance"
+        )
+    construction_raw = provenance.workflow_parameters.get("construction")
+    if provenance.workflow_name != "dataset_builder" or not isinstance(
+        construction_raw,
+        Mapping,
+    ):
+        raise DatasetValidationError(
+            "AnalysisReadyPhosphoDataset._from_builder_output requires "
+            "AnalysisReadyDatasetBuilder provenance"
+        )
+    construction = cast(Mapping[str, object], construction_raw)
+    if construction.get("method") != "AnalysisReadyDatasetBuilder.run":
+        raise DatasetValidationError(
+            "AnalysisReadyPhosphoDataset._from_builder_output requires "
+            "provenance.workflow_parameters['construction']['method'] to be "
+            "'AnalysisReadyDatasetBuilder.run'"
+        )
+    if not isinstance(construction.get("processing_state_establishment"), Mapping):
+        raise DatasetValidationError(
+            "AnalysisReadyPhosphoDataset._from_builder_output requires "
+            "builder-created processing state establishment provenance"
         )
 
 
@@ -504,30 +536,24 @@ def _object_level_missing_value_count(matrix: pd.DataFrame) -> int:
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
 
-    Direct construction is for trusted advanced/internal use. Ordinary users
-    should construct datasets through ``AnalysisReadyDatasetBuilder.run(...)``,
-    which owns user-input interpretation, preprocessing, processing-state
-    establishment, and construction provenance. Advanced callers who already
-    own complete analysis-ready tables should prefer
-    ``AnalysisReadyPhosphoDataset.from_trusted_tables(...)`` as the explicit
-    trusted construction lane. The public constructor remains available for
-    compatibility, but it is not the primary advanced construction API.
+    ``AnalysisReadyPhosphoDataset`` remains a stable public result/domain type,
+    but ordinary direct construction is not a supported creation path. Use
+    ``AnalysisReadyDatasetBuilder.run(...)`` for ordinary dataset construction;
+    it owns user-input interpretation, preprocessing, processing-state
+    establishment, private validation, and construction provenance. Advanced
+    callers who already own complete analysis-ready tables must use
+    ``AnalysisReadyPhosphoDataset.from_trusted_tables(...)`` with complete
+    ``TrustedDatasetConstructionAssertions`` and provenance-linked table
+    fingerprints.
 
     Construction validates structural invariants, including table shape,
     alignment, analysis-ready ``site_key`` identity, processing-state
     coherence, and established transformation state. It cannot prove the
-    biological correctness of user-asserted provenance or scientific claims
-    supplied by a direct caller.
-    Direct construction without supplied assertion metadata records explicit
-    missing trusted-construction assertions; direct construction without
-    supplied provenance receives a minimal direct-construction provenance marker
-    that records this audit limitation. The primary
-    ``from_trusted_tables(...)`` lane requires typed evidence or an explicit
+    biological correctness of caller-asserted provenance or scientific claims.
+    The ``from_trusted_tables(...)`` lane requires typed evidence or an explicit
     waiver for identity, intensity scale, quantitative meaning, aligned table
     structure, localisation, sequence, and reference context. Any supplied
-    provenance must fingerprint the actual represented tables. The compatibility
-    constructor emits ``DeprecationWarning``; new trusted callers should use
-    ``from_trusted_tables(...)``.
+    provenance must fingerprint the actual represented tables.
 
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
@@ -585,28 +611,23 @@ class AnalysisReadyPhosphoDataset:
         trusted_construction_assertions: TrustedDatasetConstructionAssertions
         | None = None,
     ) -> None:
-        warnings.warn(
-            DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
-            DeprecationWarning,
-            stacklevel=2,
+        del (
+            phospho,
+            site_metadata,
+            intensity_scale_state,
+            processing_state,
+            sample_metadata,
+            total,
+            comparisons,
+            imputation_observation_mask,
+            organism,
+            preprocessing_report,
+            protein_aware_preparation,
+            provenance,
+            allow_opaque_site_values,
+            trusted_construction_assertions,
         )
-        self._init_analysis_ready_tables(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            intensity_scale_state=intensity_scale_state,
-            processing_state=processing_state,
-            sample_metadata=sample_metadata,
-            total=total,
-            comparisons=comparisons,
-            imputation_observation_mask=imputation_observation_mask,
-            organism=organism,
-            preprocessing_report=preprocessing_report,
-            protein_aware_preparation=protein_aware_preparation,
-            provenance=provenance,
-            allow_opaque_site_values=allow_opaque_site_values,
-            trusted_construction_assertions=trusted_construction_assertions,
-            assume_owned=False,
-        )
+        raise TypeError(_DIRECT_CONSTRUCTION_ERROR_MESSAGE)
 
     def _init_analysis_ready_tables(
         self,
@@ -781,6 +802,13 @@ class AnalysisReadyPhosphoDataset:
                 assume_owned=assume_owned,
             )
         )
+        if provenance is None and resolved_trusted_construction_assertions is None:
+            raise DatasetValidationError(
+                "AnalysisReadyPhosphoDataset private construction requires "
+                "builder-created provenance or complete "
+                "TrustedDatasetConstructionAssertions supplied through "
+                "AnalysisReadyPhosphoDataset.from_trusted_tables(...)"
+            )
         comparisons = _validate_optional_comparisons(
             comparisons=comparisons,
             expected_index=phospho_table.frame.index,
@@ -793,6 +821,12 @@ class AnalysisReadyPhosphoDataset:
             )
         )
         if provenance is None:
+            if resolved_trusted_construction_assertions is None:
+                raise DatasetValidationError(
+                    "AnalysisReadyPhosphoDataset.from_trusted_tables requires "
+                    "complete TrustedDatasetConstructionAssertions before "
+                    "trusted-table reconstruction provenance can be created"
+                )
             provenance = build_direct_construction_provenance(
                 phospho=phospho_table.frame,
                 site_metadata=site_metadata_table.frame,
@@ -953,7 +987,7 @@ class AnalysisReadyPhosphoDataset:
         )
 
     @classmethod
-    def _construct_without_direct_constructor_warning(
+    def _construct_via_private_initializer(
         cls,
         *,
         phospho: pd.DataFrame,
@@ -973,7 +1007,7 @@ class AnalysisReadyPhosphoDataset:
         allow_opaque_site_values: bool = False,
         assume_owned: bool = False,
     ) -> AnalysisReadyPhosphoDataset:
-        dataset = cls.__new__(cls)
+        dataset = object.__new__(cls)
         AnalysisReadyPhosphoDataset._init_analysis_ready_tables(
             dataset,
             phospho=phospho,
@@ -1019,9 +1053,8 @@ class AnalysisReadyPhosphoDataset:
         This explicit trusted factory is for advanced/internal callers that
         already own fully prepared ``site_key``-indexed tables, complete
         ``site_sequence`` evidence, established intensity-scale state, and
-        coherent processing state. It uses the same construction core as direct
-        construction and enforces the same structural invariants as direct
-        construction,
+        coherent processing state. It uses the private dataset initializer and
+        enforces the same structural invariants as the builder-owned path,
         including table shape, alignment, site identity, ``site_sequence``
         validation, and state coherence.
 
@@ -1034,12 +1067,20 @@ class AnalysisReadyPhosphoDataset:
         evidence must record source, policy, and threshold; otherwise callers
         must record an explicit waiver. Supplied run provenance must fingerprint
         the exact analysis-ready tables; false table fingerprints are rejected.
-        Without supplied run provenance, the dataset receives the same direct
-        trusted-construction marker used by the compatibility constructor, with
-        the assertion fingerprint linked into provenance.
+        Without supplied run provenance, the dataset receives a trusted-table
+        reconstruction provenance marker with the assertion fingerprint linked
+        into provenance.
         """
 
-        dataset = cls._construct_without_direct_constructor_warning(
+        if trusted_construction_assertions is None:
+            raise DatasetValidationError(
+                "AnalysisReadyPhosphoDataset.from_trusted_tables requires "
+                "trusted_construction_assertions with typed evidence or an "
+                "explicit waiver for identity, intensity scale, quantitative "
+                "meaning, aligned structure, localisation, sequence, and "
+                "reference context"
+            )
+        dataset = cls._construct_via_private_initializer(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=intensity_scale_state,
@@ -1059,7 +1100,7 @@ class AnalysisReadyPhosphoDataset:
         return dataset
 
     @classmethod
-    def _from_owned(
+    def _from_builder_output(
         cls,
         *,
         phospho: pd.DataFrame,
@@ -1073,10 +1114,11 @@ class AnalysisReadyPhosphoDataset:
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
         protein_aware_preparation: ProteinAwarePreparationResult | None = None,
-        provenance: RunProvenance | None = None,
+        provenance: RunProvenance,
         allow_opaque_site_values: bool = False,
     ) -> AnalysisReadyPhosphoDataset:
-        return cls._construct_without_direct_constructor_warning(
+        _require_builder_output_provenance(provenance)
+        return cls._construct_via_private_initializer(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=intensity_scale_state,

@@ -47,6 +47,9 @@ from phospy.science.signalomes.models import (
     SignalomeModules,
 )
 from phospy.validation.datasets.builder_request import DatasetBuildRequestValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -101,7 +104,7 @@ def _supported_dataset_state(*, has_total_matrix: bool) -> dict[str, object]:
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_id = "MAPK14;Y182;"
     index = site_key_index_from_display_ids([display_id])
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
         site_metadata=pd.DataFrame(
             {
@@ -415,7 +418,7 @@ def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error
         DatasetValidationError,
         match="dataset.phospho must be a pandas DataFrame",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=object(),
             site_metadata=pd.DataFrame(
                 {
@@ -437,7 +440,7 @@ def test_dataset_constructor_rejects_blank_gene_symbol_values() -> None:
         DatasetValidationError,
         match="dataset.site_metadata.gene_symbol must contain non-empty string values",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {
@@ -462,7 +465,7 @@ def test_dataset_constructor_rejects_blank_site_values() -> None:
         DatasetValidationError,
         match="dataset.site_metadata.site must contain non-empty string values",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {
@@ -482,7 +485,7 @@ def test_dataset_constructor_rejects_blank_site_values() -> None:
 
 def test_dataset_constructor_accepts_site_identity_coherence() -> None:
     phospho, site_metadata = _coherent_site_identity_inputs()
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -498,7 +501,7 @@ def test_dataset_constructor_rejects_site_identity_gene_symbol_mismatch() -> Non
         DatasetValidationError,
         match="site-identity coherence failed",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
@@ -513,7 +516,7 @@ def test_dataset_constructor_rejects_site_identity_site_mismatch() -> None:
         DatasetValidationError,
         match="site_sequence central residue must agree with site/residue metadata",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
@@ -529,7 +532,7 @@ def test_dataset_constructor_rejects_when_one_row_has_site_identity_mismatch() -
         DatasetValidationError,
         match="site_sequence central residue must agree with site/residue metadata",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
@@ -544,7 +547,7 @@ def test_dataset_constructor_rejects_missing_site_sequence_column() -> None:
         DatasetValidationError,
         match="dataset.site_metadata is missing required columns: site_sequence",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {
@@ -568,7 +571,7 @@ def test_dataset_constructor_rejects_blank_site_sequence_values() -> None:
         DatasetValidationError,
         match="dataset.site_metadata.site_sequence must contain non-empty string values",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {

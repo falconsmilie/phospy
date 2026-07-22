@@ -20,6 +20,9 @@ from phospy.errors import (
 from phospy.science.references.models import ReferencePreset
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.science.sites.identifiers import canonicalize_site_identifier
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -286,9 +289,7 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index must be named 'site_key'",
     ):
-        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(
                 {
                     "sample_a": [1.0, 3.0],
@@ -320,9 +321,7 @@ def test_dataset_boundary_rejects_lowercase_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
-        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(
                 {
                     "sample_a": [1.0],
@@ -354,9 +353,7 @@ def test_dataset_boundary_rejects_whitespace_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
-        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(
                 {
                     "sample_a": [1.0],
@@ -388,9 +385,7 @@ def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
-        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(
                 {
                     "sample_a": [1.0],
@@ -422,10 +417,8 @@ def test_dataset_boundary_rejects_duplicate_site_key_identity() -> None:
         DatasetValidationError,
         match="duplicate_site_key_values",
     ):
-        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
         site_key = _site_key("MAPK14;Y182;")
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(
                 {
                     "sample_a": [1.0, 3.0],
@@ -465,9 +458,7 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
-        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(
                 {
                     "sample_a": [1.0, 3.0],
@@ -501,10 +492,9 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
 
 
 def test_dataset_boundary_accepts_site_key_row_identity() -> None:
-    from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
     site_key = _site_key("MAPK14;Y182;")
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0],
@@ -538,11 +528,12 @@ def test_dataset_boundary_accepts_site_key_row_identity() -> None:
 
 
 def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> None:
-    with pytest.raises(TypeError, match="missing .* required positional argument"):
-        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
+    with pytest.raises(
+        TypeError,
+        match="missing .* required keyword-only argument",
+    ):
         site_key = _site_key("MAPK14;Y182;")
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=pd.DataFrame(
                 {"sample_a": [1.0]},
                 index=pd.Index([site_key], name="site_key"),

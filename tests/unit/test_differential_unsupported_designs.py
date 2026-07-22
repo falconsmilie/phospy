@@ -23,6 +23,9 @@ from phospy.errors import (
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as CoreDiffRequest,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -50,7 +53,6 @@ def _dataset(
     *,
     samples: tuple[str, ...] = ("A_1", "A_2", "B_1", "B_2"),
 ) -> object:
-    from phospy import AnalysisReadyPhosphoDataset
 
     genes = ["MAPK14", "GSK3B", "AKT1"]
     sites = ["Y182", "S9", "T308"]
@@ -78,7 +80,7 @@ def _dataset(
         },
         index=phospho.index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,

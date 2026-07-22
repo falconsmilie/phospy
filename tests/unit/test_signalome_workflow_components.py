@@ -57,6 +57,9 @@ from phospy.workflows.signalome.result_assembly import (
     SignalomeExpandedSignalomeBuilder,
     SignalomeResultAssembler,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -95,7 +98,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         },
         index=pd.Index(site_keys, name="site_key"),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,

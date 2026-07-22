@@ -36,6 +36,9 @@ from phospy.science.references.models import ReferenceBundle
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -80,7 +83,7 @@ def _differential_dataset(
         site_ids = _site_keys(["MAPK14;Y182;", "AKT1;T308;"])
         metadata_sites = ["FOO", "BAR"]
         sequence_values = [("A" * 15) + "Y" + ("A" * 15)] * 2
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "A_1": [1.0, 2.0],
@@ -134,7 +137,7 @@ def _differential_request(
 def _kinase_dataset() -> AnalysisReadyPhosphoDataset:
     display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
     site_ids = _site_keys(display_ids)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [1.1, 2.1]},
             index=site_ids.copy(),
@@ -266,7 +269,7 @@ def _duplicate_display_differential_dataset() -> AnalysisReadyPhosphoDataset:
         protein_identifiers=["P28482", "Q99999"],
         sites=["Y182", "Y182"],
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "A_1": [1.0, 2.0],
@@ -290,7 +293,7 @@ def _duplicate_display_kinase_dataset() -> AnalysisReadyPhosphoDataset:
         protein_identifiers=["P28482", "Q99999"],
         sites=["Y182", "Y182"],
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [1.1, 2.1]},
             index=site_ids.copy(),
@@ -500,7 +503,7 @@ def test_differential_identity_contract_rejects_opaque_sites_even_with_explicit_
 
 def test_signalome_validator_requires_signalome_protein_grouping_metadata() -> None:
     source = _kinase_dataset()
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=source.phospho,
         site_metadata=source.site_metadata.drop(columns=["protein_id"]),
         sample_metadata=source.sample_metadata,

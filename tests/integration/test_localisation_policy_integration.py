@@ -19,6 +19,9 @@ from phospy.science.prediction.models import KinasePredictionResult, KinaseScori
 from phospy.science.references.models import Organism, ReferenceBundle
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -67,7 +70,7 @@ def _dataset(
     )
     if localisation_probability is not None:
         site_metadata.loc[:, "localisation_probability"] = [localisation_probability]
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,

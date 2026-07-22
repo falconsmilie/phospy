@@ -1,4 +1,4 @@
-"""Trusted direct dataset construction provenance helpers."""
+"""Trusted-table dataset reconstruction provenance helpers."""
 
 from __future__ import annotations
 
@@ -13,17 +13,11 @@ from phospy.provenance.models import (
 )
 
 DIRECT_CONSTRUCTION_WORKFLOW_NAME = "analysis_ready_dataset_direct_construction"
-DIRECT_CONSTRUCTION_METHOD = "AnalysisReadyPhosphoDataset.__init__"
+DIRECT_CONSTRUCTION_METHOD = "AnalysisReadyPhosphoDataset.from_trusted_tables"
 DIRECT_CONSTRUCTION_SOURCE = "direct_trusted_construction"
 DIRECT_CONSTRUCTION_WARNING = (
     "Direct construction cannot prove biological correctness of caller-provided "
     "analysis-ready state."
-)
-DIRECT_CONSTRUCTION_DEPRECATION_WARNING = (
-    "AnalysisReadyPhosphoDataset(...) direct construction is deprecated; use "
-    "AnalysisReadyPhosphoDataset.from_trusted_tables(...) with "
-    "TrustedDatasetConstructionAssertions for trusted construction, or "
-    "AnalysisReadyDatasetBuilder.run(...) for ordinary dataset construction."
 )
 DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING = (
     "No typed trusted construction assertion metadata was supplied; identity, "
@@ -41,15 +35,11 @@ def build_direct_construction_provenance(
     total: pd.DataFrame | None,
     comparisons: pd.DataFrame | None,
     imputation_observation_mask: pd.DataFrame | None,
-    trusted_construction_assertions: TrustedDatasetConstructionAssertions | None,
+    trusted_construction_assertions: TrustedDatasetConstructionAssertions,
 ) -> RunProvenance:
-    """Build the minimal provenance marker for trusted direct construction."""
+    """Build the minimal provenance marker for trusted-table reconstruction."""
 
-    assertions = (
-        TrustedDatasetConstructionAssertions.missing()
-        if trusted_construction_assertions is None
-        else trusted_construction_assertions
-    )
+    assertions = trusted_construction_assertions
     table_entries = (
         ("dataset.phospho", phospho),
         ("dataset.site_metadata", site_metadata),
@@ -102,7 +92,6 @@ def _fingerprint_direct_construction_tables(
 
 __all__ = [
     "DIRECT_CONSTRUCTION_METHOD",
-    "DIRECT_CONSTRUCTION_DEPRECATION_WARNING",
     "DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING",
     "DIRECT_CONSTRUCTION_SOURCE",
     "DIRECT_CONSTRUCTION_WARNING",

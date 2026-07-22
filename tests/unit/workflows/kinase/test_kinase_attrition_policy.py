@@ -33,6 +33,9 @@ from phospy.workflows.kinase.caveats import (
 )
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -50,7 +53,7 @@ def _window(display_id: str) -> str:
 
 def _dataset(display_ids: list[str]) -> AnalysisReadyPhosphoDataset:
     site_index = site_key_index_from_display_ids(display_ids)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0 + index for index, _ in enumerate(display_ids)],

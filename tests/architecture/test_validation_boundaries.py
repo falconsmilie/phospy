@@ -13,7 +13,6 @@ import phospy.api.requests as public_request_api
 import phospy.api.workflows as public_workflow_api
 import phospy.validation.identity_contracts as identity_contracts
 from phospy.errors.validation import DatasetValidationError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism
 from phospy.tables.datasets import SiteMetadataTable
 from phospy.validation.identity_contracts import (
@@ -45,6 +44,9 @@ from phospy.workflows.kinase.sequence_contracts import (
 )
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -574,7 +576,7 @@ def test_analysis_ready_dataset_still_requires_site_sequence() -> None:
     payload["site_metadata"] = site_metadata.drop(columns=["site_sequence"])
 
     with pytest.raises(DatasetValidationError, match="site_sequence"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_kinase_scoring_mode_input_requirements_are_contract_owned() -> None:

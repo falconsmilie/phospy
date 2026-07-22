@@ -42,6 +42,9 @@ from phospy.workflows.differential.executor import (
 )
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -156,7 +159,6 @@ def _site_key(
 
 
 def _build_dataset(matrix: pd.DataFrame):
-    from phospy import AnalysisReadyPhosphoDataset
 
     display_ids = matrix.index.astype(str).tolist()
     parsed = [site_id.split(";") for site_id in display_ids]
@@ -178,7 +180,7 @@ def _build_dataset(matrix: pd.DataFrame):
         },
         index=pd.Index(site_keys, name="site_key"),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -814,7 +816,6 @@ def test_workflow_rejects_incoherent_duplicate_display_ids() -> None:
 
 
 def test_workflow_keeps_duplicate_display_ids_with_distinct_site_keys() -> None:
-    from phospy import AnalysisReadyPhosphoDataset
 
     site_keys = [
         _site_key(
@@ -854,7 +855,7 @@ def test_workflow_keeps_duplicate_display_ids_with_distinct_site_keys() -> None:
         },
         index=phospho.index.copy(),
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,

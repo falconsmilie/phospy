@@ -40,7 +40,6 @@ from phospy.science.datasets.builders.preprocessing import (
 from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     PreprocessingPlan,
@@ -64,6 +63,9 @@ from phospy.science.transformations.models import (
     establish_intensity_scale_state,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
@@ -343,7 +345,7 @@ def test_dataset_boundary_rejects_declared_intensity_scale_state_bypass() -> Non
         TransformationValidationError,
         match="must be established through a supported PhosPy path",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
@@ -356,7 +358,7 @@ def test_dataset_boundary_rejects_declared_intensity_scale_state_bypass() -> Non
 
 def test_dataset_boundary_accepts_supported_established_state() -> None:
     supported_state = supported_linear_intensity_scale_state(has_total_matrix=False)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,

@@ -34,6 +34,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -83,7 +86,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         },
         index=phospho.index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -183,7 +186,7 @@ def test_differential_workflow_excludes_withheld_rows_from_multiple_testing() ->
     base_dataset = _dataset()
     matrix = base_dataset.phospho
     matrix.iloc[0, :] = 5.0
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=matrix,
         site_metadata=base_dataset.site_metadata,
         organism=base_dataset.organism,
@@ -403,7 +406,7 @@ def test_documented_two_vs_two_differential_example_contract() -> None:
 
 def test_differential_workflow_rejects_linear_scale_before_execution() -> None:
     valid_dataset = _dataset()
-    linear_dataset = AnalysisReadyPhosphoDataset(
+    linear_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=valid_dataset.phospho,
         site_metadata=valid_dataset.site_metadata,
         organism=valid_dataset.organism,

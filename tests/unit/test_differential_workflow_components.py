@@ -56,6 +56,9 @@ from phospy.workflows.differential.provenance import (
     build_differential_policy_provenance,
 )
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -98,7 +101,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         },
         index=phospho.index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -236,7 +239,7 @@ def _dataset_with_protein_aware_preparation() -> tuple[
         protein_aware_preparation=preparation.report
     )
     return (
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=base_dataset.phospho,
             site_metadata=base_dataset.site_metadata,
             sample_metadata=base_dataset.sample_metadata,
@@ -311,7 +314,7 @@ def test_differential_workflow_uses_explicit_design_not_sample_metadata_conditio
 ):
     base_request = _request()
     base_dataset = base_request.dataset
-    dataset_with_passive_metadata = AnalysisReadyPhosphoDataset(
+    dataset_with_passive_metadata = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata,
         sample_metadata=pd.DataFrame(
@@ -400,7 +403,7 @@ def test_differential_workflow_does_not_consume_protein_aware_preparation_result
 def test_differential_result_references_input_dataset_preprocessing_report() -> None:
     base_dataset = _dataset()
     preprocessing_report = DatasetPreprocessingReport.from_rows()
-    dataset_with_report = AnalysisReadyPhosphoDataset(
+    dataset_with_report = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata,
         sample_metadata=base_dataset.sample_metadata,
@@ -692,7 +695,7 @@ def test_differential_validator_rejects_non_differential_config_type() -> None:
 
 def test_differential_validator_rejects_established_linear_scale() -> None:
     valid_dataset = _dataset()
-    linear_dataset = AnalysisReadyPhosphoDataset(
+    linear_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=valid_dataset.phospho,
         site_metadata=valid_dataset.site_metadata,
         organism=valid_dataset.organism,
@@ -745,7 +748,7 @@ def test_differential_invalid_scale_fails_before_executor() -> None:
             raise AssertionError("executor should not be called")
 
     valid_dataset = _dataset()
-    linear_dataset = AnalysisReadyPhosphoDataset(
+    linear_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=valid_dataset.phospho,
         site_metadata=valid_dataset.site_metadata,
         organism=valid_dataset.organism,
@@ -801,7 +804,7 @@ def test_differential_workflow_rejects_imputed_dataset_before_executor() -> None
 
     request = _request()
     processing_state = request.dataset.processing_state
-    imputed_dataset = AnalysisReadyPhosphoDataset(
+    imputed_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=request.dataset.phospho,
         site_metadata=request.dataset.site_metadata,
         organism=request.dataset.organism,

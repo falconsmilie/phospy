@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import cast
 
 import pandas as pd
@@ -38,6 +39,10 @@ from phospy.science.references.resolution import ReferenceResolver
 from phospy.science.sites.site_keys import ProteinScopedPhosphositeKey
 from phospy.science.transformations.models import IntensityScaleState
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
+from tests.support.analysis_ready_dataset_factories import (
+    complete_trusted_dataset_construction_assertions_for_tests,
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -110,6 +115,14 @@ def test_trusted_dataset_constructor_rejects_provenance_reference_context_mismat
             intensity_scale_state=_payload_intensity_scale_state(payload),
             processing_state=_payload_processing_state(payload),
             provenance=_run_provenance(reference_context=_context("human")),
+            trusted_construction_assertions=(
+                complete_trusted_dataset_construction_assertions_for_tests(
+                    phospho=_payload_phospho(payload),
+                    site_metadata=_payload_site_metadata(payload),
+                    intensity_scale_state=_payload_intensity_scale_state(payload),
+                    processing_state=_payload_processing_state(payload),
+                )
+            ),
         )
 
 
@@ -150,7 +163,16 @@ def test_builder_dataset_construction_rejects_bad_assembled_reference_context(
     def _bad_run(
         self: DatasetRunProvenanceAssembler, **_kwargs: object
     ) -> RunProvenance:
-        return _run_provenance(reference_context=_context("human"))
+        return replace(
+            _run_provenance(reference_context=_context("human")),
+            workflow_name="dataset_builder",
+            workflow_parameters={
+                "construction": {
+                    "method": "AnalysisReadyDatasetBuilder.run",
+                    "processing_state_establishment": {"source": "unit-test"},
+                }
+            },
+        )
 
     monkeypatch.setattr(DatasetRunProvenanceAssembler, "run", _bad_run)
 
@@ -326,7 +348,7 @@ def _analysis_ready_payload(*, organism: Organism) -> dict[str, object]:
 def _dataset_from_payload(
     payload: dict[str, object],
 ) -> AnalysisReadyPhosphoDataset:
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=_payload_phospho(payload),
         site_metadata=_payload_site_metadata(payload),
         organism=_payload_organism(payload),

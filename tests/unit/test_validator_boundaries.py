@@ -54,6 +54,9 @@ from phospy.validation.datasets.preprocessing import (
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -121,7 +124,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         },
         index=site_index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -133,7 +136,7 @@ def _rebuild_dataset_with_site_metadata(
     dataset: AnalysisReadyPhosphoDataset,
     site_metadata: pd.DataFrame,
 ) -> AnalysisReadyPhosphoDataset:
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=dataset.phospho,
         site_metadata=site_metadata,
         sample_metadata=dataset.sample_metadata,
@@ -246,7 +249,7 @@ def _kinase_result(
 def _two_site_kinase_result() -> KinaseWorkflowResult:
     display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
     site_index = _site_keys(display_ids)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [1.5, 2.5]},
             index=site_index.copy(),
@@ -1490,7 +1493,7 @@ def test_signalome_validator_requires_signalome_protein_grouping_metadata_column
     None
 ):
     kinase_result = _kinase_result()
-    dataset_without_protein_id = AnalysisReadyPhosphoDataset(
+    dataset_without_protein_id = trusted_analysis_ready_dataset_from_tables(
         phospho=kinase_result.dataset.phospho,
         site_metadata=kinase_result.dataset.site_metadata.drop(columns=["protein_id"]),
         sample_metadata=kinase_result.dataset.sample_metadata,
@@ -1589,7 +1592,7 @@ def _signalome_request_with_site_metadata(
     site_metadata: pd.DataFrame,
 ) -> SignalomeWorkflowRequest:
     kinase_result = _kinase_result()
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=kinase_result.dataset.phospho,
         site_metadata=site_metadata,
         sample_metadata=kinase_result.dataset.sample_metadata,
@@ -1771,7 +1774,7 @@ def test_signalome_validator_allows_gapped_flanks_when_centre_is_valid() -> None
 def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None:
     display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
     site_ids = _site_keys(display_ids)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0]},
             index=site_ids.copy(),
@@ -1825,7 +1828,7 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
 def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> None:
     display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
     site_ids = _site_keys(display_ids)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0]},
             index=site_ids.copy(),

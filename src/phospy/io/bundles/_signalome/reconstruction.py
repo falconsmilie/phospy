@@ -33,6 +33,9 @@ from phospy.io.bundles._shared.tables import (
     read_optional_table,
     read_required_table,
 )
+from phospy.io.bundles._shared.trusted_dataset_assertions import (
+    build_bundle_reconstruction_assertions,
+)
 from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_from_payload,
     signalome_module_selection_diagnostics_from_payload,
@@ -145,7 +148,11 @@ def reconstruct_signalome_result(
     """Rebuild a SignalomeWorkflowResult from validated manifest sections."""
 
     provenances = _parse_bundle_provenances(sections)
-    dataset = _reconstruct_dataset(bundle_root=bundle_root, sections=sections)
+    dataset = _reconstruct_dataset(
+        bundle_root=bundle_root,
+        sections=sections,
+        provenance=provenances.signalome,
+    )
     references = _reconstruct_references(bundle_root=bundle_root, sections=sections)
     kinase_result = _reconstruct_kinase_result(
         bundle_root=bundle_root,
@@ -235,6 +242,7 @@ def _reconstruct_dataset(
     *,
     bundle_root: Path,
     sections: SignalomeManifestSections,
+    provenance: RunProvenance,
 ) -> AnalysisReadyPhosphoDataset:
     processing_state_payload = require_mapping(
         sections.dataset_metadata.get("processing_state"),
@@ -255,34 +263,46 @@ def _reconstruct_dataset(
     dataset_site_metadata = _normalize_site_metadata_for_dataset_contract(
         dataset_site_metadata
     )
-    return AnalysisReadyPhosphoDataset._from_owned(
-        phospho=read_required_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="phospho",
-            field_name="bundle manifest.dataset.tables.phospho",
-        ),
+    phospho = read_required_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="phospho",
+        field_name="bundle manifest.dataset.tables.phospho",
+    )
+    sample_metadata = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="sample_metadata",
+        field_name="bundle manifest.dataset.tables.sample_metadata",
+    )
+    total = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="total",
+        field_name="bundle manifest.dataset.tables.total",
+    )
+    intensity_scale_state = _parse_bundle_intensity_scale_state(intensity_scale_payload)
+    return AnalysisReadyPhosphoDataset.from_trusted_tables(
+        phospho=phospho,
         site_metadata=dataset_site_metadata,
-        sample_metadata=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="sample_metadata",
-            field_name="bundle manifest.dataset.tables.sample_metadata",
-        ),
-        total=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="total",
-            field_name="bundle manifest.dataset.tables.total",
-        ),
+        sample_metadata=sample_metadata,
+        total=total,
         organism=parse_optional_organism(
             sections.dataset_metadata.get("organism"),
             field_name="bundle manifest.dataset.metadata.organism",
         ),
-        intensity_scale_state=_parse_bundle_intensity_scale_state(
-            intensity_scale_payload
-        ),
+        intensity_scale_state=intensity_scale_state,
         processing_state=processing_state,
+        trusted_construction_assertions=build_bundle_reconstruction_assertions(
+            bundle_kind="signalome_workflow_result",
+            phospho=phospho,
+            site_metadata=dataset_site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            provenance=provenance,
+        ),
     )
 
 

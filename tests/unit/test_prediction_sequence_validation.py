@@ -4,7 +4,7 @@ import warnings
 
 import pandas as pd
 
-from phospy import AnalysisReadyPhosphoDataset, KinaseWorkflow
+from phospy import KinaseWorkflow
 from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -36,6 +36,9 @@ from phospy.science.prediction.sequence_validation import (
 )
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -436,7 +439,7 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         },
         index=site_ids,
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -577,7 +580,7 @@ def test_sequence_coverage_summary_reports_zero_coverage_for_all_invalid_sites()
 def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> None:
     display_ids = ["MAPK1;S202;", "MAPK1;T205;", "MAPK1;S210;"]
     site_ids = site_key_index_from_display_ids(display_ids)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0, 2.0, 3.0],
@@ -662,7 +665,7 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
 def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
     display_ids = ["MAPK1;S202;", "MAPK1;T205;"]
     site_ids = site_key_index_from_display_ids(display_ids)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [2.0, 3.0]},
             index=site_ids,

@@ -31,6 +31,9 @@ from phospy.validation.references.bundle import ReferenceBundleValidator
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -54,7 +57,7 @@ def _site_key() -> str:
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
     index = pd.Index([_site_key()], name="site_key")
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
         site_metadata=pd.DataFrame(
             {
@@ -151,7 +154,9 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
     dataset_constructor_source = inspect.getsource(
         AnalysisReadyPhosphoDataset.__init__
     ) + inspect.getsource(AnalysisReadyPhosphoDataset._init_analysis_ready_tables)
-    assert "AnalysisReadyPhosphoDataset(" in dataset_validator_source
+    assert (
+        "AnalysisReadyPhosphoDataset.from_trusted_tables(" in dataset_validator_source
+    )
     assert "PhosphoIntensityMatrix(" not in dataset_validator_source
     assert "SiteMetadataTable(" not in dataset_validator_source
     assert "TotalProteinMatrix(" not in dataset_validator_source
@@ -189,7 +194,7 @@ def test_major_validation_rules_have_documented_owners() -> None:
     assert documented["reference bundle structural contract"]
     assert (
         documented["analysis-ready dataset structural contract"]
-        == "AnalysisReadyPhosphoDataset.__init__"
+        == "AnalysisReadyPhosphoDataset._init_analysis_ready_tables"
     )
     assert documented["dataset/intensity-scale-state coherence"]
     assert (

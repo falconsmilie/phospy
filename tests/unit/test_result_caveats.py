@@ -39,6 +39,9 @@ from phospy.workflows.kinase.caveats import (
     KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
     KINASE_SCORING_LIMITATION_CAVEAT_CODE,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -102,9 +105,9 @@ def _trusted_site_metadata(index: pd.Index) -> pd.DataFrame:
     )
 
 
-def _trusted_dataset_without_assertion_metadata() -> AnalysisReadyPhosphoDataset:
+def _trusted_dataset_with_complete_assertion_metadata() -> AnalysisReadyPhosphoDataset:
     index = _trusted_site_index()
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=_trusted_phospho(index),
         site_metadata=_trusted_site_metadata(index),
         organism=Organism.RAT,
@@ -279,10 +282,10 @@ def test_result_caveat_contains_code_severity_message_and_details() -> None:
     assert asdict(caveat) == caveat.to_payload()
 
 
-def test_differential_result_caveat_warns_for_missing_trusted_assertions() -> None:
+def test_differential_result_caveat_is_info_for_complete_trusted_assertions() -> None:
     result = DifferentialAnalysisWorkflow().run(
         DifferentialAnalysisRequest(
-            dataset=_trusted_dataset_without_assertion_metadata(),
+            dataset=_trusted_dataset_with_complete_assertion_metadata(),
             design=_differential_design(),
             contrasts=(
                 Contrast(
@@ -299,23 +302,15 @@ def test_differential_result_caveat_warns_for_missing_trusted_assertions() -> No
         DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
     )
 
-    assert caveat.severity == "warning"
-    assert caveat.details["trusted_assertion_metadata_provided"] is False
-    assert caveat.details["missing_trusted_assertions"] == (
-        "identity_user_asserted",
-        "intensity_scale_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "aligned_structure_user_asserted",
-        "localisation_user_asserted",
-        "sequence_user_asserted",
-        "reference_context_user_asserted",
-    )
+    assert caveat.severity == "info"
+    assert caveat.details["trusted_assertion_metadata_provided"] is True
+    assert caveat.details["missing_trusted_assertions"] == ()
 
 
-def test_kinase_result_caveat_warns_for_missing_trusted_assertions() -> None:
+def test_kinase_result_caveat_is_info_for_complete_trusted_assertions() -> None:
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
-            dataset=_trusted_dataset_without_assertion_metadata(),
+            dataset=_trusted_dataset_with_complete_assertion_metadata(),
             references=_kinase_references(),
             scoring_config=KinaseScoringConfig(
                 min_substrates=2,
@@ -335,17 +330,9 @@ def test_kinase_result_caveat_warns_for_missing_trusted_assertions() -> None:
 
     caveat = _caveat_by_code(result.caveats, KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE)
 
-    assert caveat.severity == "warning"
-    assert caveat.details["trusted_assertion_metadata_provided"] is False
-    assert caveat.details["missing_trusted_assertions"] == (
-        "identity_user_asserted",
-        "intensity_scale_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "aligned_structure_user_asserted",
-        "localisation_user_asserted",
-        "sequence_user_asserted",
-        "reference_context_user_asserted",
-    )
+    assert caveat.severity == "info"
+    assert caveat.details["trusted_assertion_metadata_provided"] is True
+    assert caveat.details["missing_trusted_assertions"] == ()
 
     scoring_caveat = _caveat_by_code(
         result.caveats,

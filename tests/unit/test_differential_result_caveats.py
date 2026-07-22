@@ -45,6 +45,9 @@ from phospy.workflows.differential.caveats import (
 from phospy.workflows.intensity_scale_evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import supported_log2_intensity_scale_state
 from tests.support.processing_state import (
     imputed_processing_state as valid_imputed_processing_state,
@@ -119,7 +122,7 @@ def _dataset(
     if imputed:
         processing_state = valid_imputed_processing_state(processing_state)
         intensity_scale_state = processing_state.intensity_scale
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=_site_metadata(phospho.index),
         imputation_observation_mask=imputation_observation_mask,
@@ -207,24 +210,16 @@ def _caveat_by_code(result, code: str):
     return matches[0]
 
 
-def test_differential_result_caveats_include_direct_dataset_construction() -> None:
+def test_differential_result_caveats_include_trusted_table_reconstruction() -> None:
     index = _site_index()
     result = DifferentialAnalysisWorkflow().run(_request(_dataset(_phospho(index))))
 
     caveat = _caveat_by_code(result, DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE)
 
-    assert caveat.severity == "warning"
+    assert caveat.severity == "info"
     assert caveat.details["construction_source"] == "direct_trusted_construction"
-    assert caveat.details["trusted_assertion_metadata_provided"] is False
-    assert caveat.details["missing_trusted_assertions"] == (
-        "identity_user_asserted",
-        "intensity_scale_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "aligned_structure_user_asserted",
-        "localisation_user_asserted",
-        "sequence_user_asserted",
-        "reference_context_user_asserted",
-    )
+    assert caveat.details["trusted_assertion_metadata_provided"] is True
+    assert caveat.details["missing_trusted_assertions"] == ()
     assert "input_tables" not in caveat.details
 
 

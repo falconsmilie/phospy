@@ -8,15 +8,14 @@ errors are fixable once you know which boundary rejected the input.
 `phospho` must be a non-empty numeric pandas `DataFrame` or supported file path.
 Rows are phosphosites and columns are samples. Builder input may use display
 labels such as `MAPK14;Y182;` as the index when `site_metadata` provides enough
-protein context to derive `site_key`. Direct `AnalysisReadyPhosphoDataset`
-construction is advanced/trusted use and must already use encoded `site_key`
-row indexes; callers on that path should prefer
+protein context to derive `site_key`. The direct
+`AnalysisReadyPhosphoDataset` constructor raises immediately. Advanced
+trusted reconstruction of already prepared tables must use
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with typed evidence or
 explicit waivers for identity, intensity scale, quantitative meaning,
 localisation, sequence, and reference context, plus non-waivable aligned-table
 structure evidence. Supplied trusted provenance must match the actual table
-fingerprints, and supplied compatibility-constructor provenance is checked the
-same way. The compatibility constructor emits `DeprecationWarning`.
+fingerprints.
 Display-indexed direct construction is invalid. Missing values are rejected by
 default.
 
@@ -56,9 +55,9 @@ input index like `TSC2;S939;`. It does not derive `protein_id` from the
 gene-symbol prefix, and it does not treat the display prefix as protein context
 or signalome grouping metadata. Builder ingestion may accept legacy
 display-indexed input only when enough protein context exists to derive
-`site_key`. The trusted analysis-ready factory and compatibility constructor
-must receive `site_key`; they do not silently fall back to `GENE;SITE;` display
-labels and cannot prove the biological correctness of user-asserted provenance.
+`site_key`. The trusted analysis-ready factory must receive `site_key`; it does
+not silently fall back to `GENE;SITE;` display labels and cannot prove the
+biological correctness of user-asserted provenance.
 
 ## Analysis-Ready Dataset Boundary
 

@@ -8,7 +8,6 @@ import pytest
 
 from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.models import (
-    AnalysisReadyPhosphoDataset,
     ImputationObservationMetadata,
     _analysis_ready_matrix_missing_value_count,
     _require_boolean_observation_mask,
@@ -19,6 +18,9 @@ from phospy.validation.datasets.site_metadata import (
     assess_localisation_probability_column,
 )
 from phospy.validation.identity_contracts import enforce_site_key_matches_metadata
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -107,7 +109,7 @@ def test_medium_dataset_construction_completes_under_generous_threshold(
     phospho, site_metadata = medium_dataset_tables
 
     dataset, runtime_seconds, _peak_mib = measure_runtime_and_peak_mib(
-        lambda: AnalysisReadyPhosphoDataset(
+        lambda: trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,

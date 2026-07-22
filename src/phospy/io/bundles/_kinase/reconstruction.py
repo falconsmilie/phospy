@@ -30,6 +30,9 @@ from phospy.io.bundles._shared.tables import (
     read_optional_table,
     read_required_table,
 )
+from phospy.io.bundles._shared.trusted_dataset_assertions import (
+    build_bundle_reconstruction_assertions,
+)
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.science.activities.models import (
@@ -73,34 +76,46 @@ def reconstruct_kinase_result(
         field_name="bundle manifest.dataset.tables.site_metadata",
     )
     site_metadata = _normalise_site_metadata_bundle_table(site_metadata)
-    dataset = AnalysisReadyPhosphoDataset._from_owned(
-        phospho=read_required_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="phospho",
-            field_name="bundle manifest.dataset.tables.phospho",
-        ),
+    phospho = read_required_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="phospho",
+        field_name="bundle manifest.dataset.tables.phospho",
+    )
+    sample_metadata = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="sample_metadata",
+        field_name="bundle manifest.dataset.tables.sample_metadata",
+    )
+    total = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="total",
+        field_name="bundle manifest.dataset.tables.total",
+    )
+    intensity_scale_state = _parse_bundle_intensity_scale_state(intensity_scale_payload)
+    dataset = AnalysisReadyPhosphoDataset.from_trusted_tables(
+        phospho=phospho,
         site_metadata=site_metadata,
-        sample_metadata=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="sample_metadata",
-            field_name="bundle manifest.dataset.tables.sample_metadata",
-        ),
-        total=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="total",
-            field_name="bundle manifest.dataset.tables.total",
-        ),
+        sample_metadata=sample_metadata,
+        total=total,
         organism=parse_optional_organism(
             sections.dataset_metadata.get("organism"),
             field_name="bundle manifest.dataset.metadata.organism",
         ),
-        intensity_scale_state=_parse_bundle_intensity_scale_state(
-            intensity_scale_payload
-        ),
+        intensity_scale_state=intensity_scale_state,
         processing_state=processing_state,
+        trusted_construction_assertions=build_bundle_reconstruction_assertions(
+            bundle_kind="kinase_workflow_result",
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            provenance=provenance,
+        ),
     )
 
     references = ReferenceBundle._from_owned(

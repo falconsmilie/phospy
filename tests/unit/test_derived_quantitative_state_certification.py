@@ -22,6 +22,9 @@ from phospy.science.datasets.derived_quantitative import (
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -653,7 +656,7 @@ def _parent_dataset_from_tables(
     parent_tables: _ParentTables,
 ) -> AnalysisReadyPhosphoDataset:
     base_processing_state = supported_linear_processing_state(has_total_matrix=True)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=parent_tables.phospho,
         site_metadata=parent_tables.site_metadata,
         sample_metadata=parent_tables.sample_metadata,

@@ -29,6 +29,9 @@ from phospy.science.references.kinase_library import (
 )
 from phospy.science.references.models import SequenceWindowDefinition
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -54,7 +57,7 @@ def _window(residue: str, *, flank: int = 7) -> str:
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_ids = ["GENE1;S10;"]
     site_index = site_key_index_from_display_ids(display_ids)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=site_index.copy()),
         site_metadata=pd.DataFrame(
             {

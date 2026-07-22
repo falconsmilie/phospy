@@ -19,6 +19,9 @@ from phospy.workflows.kinase.attrition_metrics import (
     build_kinase_attrition_provenance_payload,
 )
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -43,7 +46,7 @@ def _dataset(
     missing_sequence_display_ids: set[str] | None = None,
 ) -> AnalysisReadyPhosphoDataset:
     site_index = site_key_index_from_display_ids(display_ids)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0 + index for index, _ in enumerate(display_ids)],

@@ -6,6 +6,21 @@ All notable changes to this project are documented here.
 
 ### API
 
+- Breaking: sealed ordinary direct construction of
+  `AnalysisReadyPhosphoDataset`. The class remains importable as the public
+  analysis-ready result/domain type, but `AnalysisReadyPhosphoDataset(...)`
+  now raises immediately. Use
+  `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))` for ordinary
+  construction, or
+  `AnalysisReadyPhosphoDataset.from_trusted_tables(..., trusted_construction_assertions=...)`
+  for advanced reconstruction from already analysis-ready trusted tables with
+  complete `TrustedDatasetConstructionAssertions`. Migration examples:
+  replace `AnalysisReadyPhosphoDataset(phospho=..., site_metadata=..., ...)`
+  with `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(phospho=..., site_metadata=..., ...))`
+  for normal inputs, or with
+  `AnalysisReadyPhosphoDataset.from_trusted_tables(..., trusted_construction_assertions=assertions)`
+  for audited trusted-table replay. This is expected to ship in the next
+  breaking release; no package version is bumped in this change.
 - Removed internal dataset processing-state and diagnostic implementation
   classes from `phospy.api.datasets`. Stable users should inspect diagnostics
   through dataset properties, builder reports, workflow results, and provenance

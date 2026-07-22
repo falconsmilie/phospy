@@ -25,6 +25,9 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -68,7 +71,7 @@ def duplicate_display_site_metadata(site_index: pd.Index) -> pd.DataFrame:
 
 def build_duplicate_display_differential_dataset() -> AnalysisReadyPhosphoDataset:
     site_index = duplicate_display_site_index()
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "A_1": [1.0, 2.0],
@@ -89,7 +92,7 @@ def build_duplicate_display_differential_dataset() -> AnalysisReadyPhosphoDatase
 
 def build_duplicate_display_kinase_dataset() -> AnalysisReadyPhosphoDataset:
     site_index = duplicate_display_site_index()
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [1.1, 2.1]},
             index=site_index.copy(),

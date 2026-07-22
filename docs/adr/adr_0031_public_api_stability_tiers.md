@@ -49,6 +49,12 @@ preprocessing diagnostics remain inspectable from returned objects such as
 `dataset.preprocessing_report` and workflow result properties when present; the
 diagnostic model classes are not supported import targets under `phospy.api`.
 
+Update note (2026-07-22): `AnalysisReadyPhosphoDataset` remains a stable public
+result/domain type and import target. Its ordinary public constructor is sealed
+and raises immediately; supported creation is through
+`AnalysisReadyDatasetBuilder` or the advanced
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` factory.
+
 ## Dataset Diagnostics Policy
 
 ADR-0031 chooses Option A: PhosPy does not provide a public diagnostic

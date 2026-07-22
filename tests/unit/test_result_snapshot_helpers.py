@@ -60,6 +60,9 @@ from phospy.science.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -244,7 +247,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         },
         index=site_index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,

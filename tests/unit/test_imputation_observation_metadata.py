@@ -13,6 +13,9 @@ from phospy.api import (
 )
 from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -98,7 +101,7 @@ def _construct_dataset_with_mask(
     mask: pd.DataFrame,
 ) -> AnalysisReadyPhosphoDataset:
     index = _site_index()
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=_complete_phospho(index),
         site_metadata=_site_metadata(index),
         imputation_observation_mask=mask,
@@ -190,7 +193,7 @@ def test_dataset_imputation_summary_fails_when_imputed_state_lacks_mask() -> Non
     index = _site_index()
     processing_state = supported_linear_processing_state(has_total_matrix=False)
     imputed_processing_state = valid_imputed_processing_state(processing_state)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_complete_phospho(index),
         site_metadata=_site_metadata(index),
         organism=Organism.RAT,
@@ -214,7 +217,7 @@ def test_analysis_ready_dataset_rejects_imputed_without_observation_mask() -> No
     index = _site_index()
     processing_state = supported_linear_processing_state(has_total_matrix=False)
     imputed_processing_state = valid_imputed_processing_state(processing_state)
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_complete_phospho(index),
         site_metadata=_site_metadata(index),
         organism=Organism.RAT,

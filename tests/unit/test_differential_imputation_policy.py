@@ -21,6 +21,9 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
 )
 from phospy.science.statistics.multiple_testing import adjust_p_values
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -88,7 +91,7 @@ def _imputed_processing_state():
 
 def _imputed_dataset(*, with_metadata: bool = True) -> AnalysisReadyPhosphoDataset:
     index = _site_index()
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(index),
         site_metadata=_site_metadata(index),
         imputation_observation_mask=(_observed_mask(index) if with_metadata else None),

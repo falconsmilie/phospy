@@ -18,8 +18,8 @@ Identity boundary summary:
   `site_metadata.index`.
 - Advanced/trusted analysis-ready construction should use
   `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` when callers already
-  own prepared tables. The compatibility constructor remains available for
-  advanced/internal compatibility.
+  own prepared tables. The direct `AnalysisReadyPhosphoDataset` constructor
+  raises immediately.
 - Trusted analysis-ready construction requires auditable protein context
   metadata:
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
@@ -30,8 +30,7 @@ Identity boundary summary:
   non-waivable aligned-table structure evidence. Localisation evidence must
   record source, policy, and threshold; sequence presence is not localisation
   evidence. Supplied trusted provenance must match the actual table
-  fingerprints. Supplied compatibility-constructor provenance is checked the
-  same way.
+  fingerprints.
 - Trusted analysis-ready construction requires encoded `site_key` indexes and
   does not silently fall back to display-site identity.
 - Trusted construction validates structural invariants, including required

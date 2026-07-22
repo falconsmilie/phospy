@@ -11,6 +11,10 @@ from phospy.science.sites.site_keys import (
     decode_site_key,
     encode_site_key,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    complete_trusted_dataset_construction_assertions_for_tests,
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -122,7 +126,7 @@ def test_uniform_row_organism_infers_dataset_organism_and_normalizes_aliases() -
         organism=None,
     )
 
-    dataset = AnalysisReadyPhosphoDataset(**payload)
+    dataset = trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert dataset.organism is Organism.HUMAN
     assert dataset.phospho.index.tolist() == [canonical_key]
@@ -138,7 +142,7 @@ def test_explicit_dataset_organism_must_agree_with_every_row() -> None:
         DatasetValidationError,
         match="dataset\\.organism must match every .* row_examples",
     ):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_decoded_site_key_organism_must_agree_with_row_metadata() -> None:
@@ -154,14 +158,14 @@ def test_decoded_site_key_organism_must_agree_with_row_metadata() -> None:
     )
 
     with pytest.raises(DatasetValidationError, match="metadata-derived"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_mixed_row_organisms_fail_with_actionable_row_identifiers() -> None:
     payload = _payload(row_organisms=["human", "rat"], organism=None)
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     message = str(exc_info.value)
     assert (
@@ -183,6 +187,14 @@ def test_trusted_construction_enforces_dataset_organism_coherence() -> None:
             organism=payload["organism"],
             intensity_scale_state=payload["intensity_scale_state"],
             processing_state=payload["processing_state"],
+            trusted_construction_assertions=(
+                complete_trusted_dataset_construction_assertions_for_tests(
+                    phospho=payload["phospho"],
+                    site_metadata=payload["site_metadata"],
+                    intensity_scale_state=payload["intensity_scale_state"],
+                    processing_state=payload["processing_state"],
+                )
+            ),
         )
 
 

@@ -34,6 +34,9 @@ from phospy.workflows.kinase.contributions import (
 )
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -360,7 +363,7 @@ def test_substrate_contribution_flag_does_not_change_activity_outputs() -> None:
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_ids = ["MAPK14;Y182;", "GSK3B;S9;"]
     site_index = site_key_index_from_display_ids(display_ids)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [2.0, 3.0]},
             index=site_index.copy(),
@@ -442,7 +445,7 @@ def _ambiguous_dataset() -> AnalysisReadyPhosphoDataset:
         protein_identifiers=["MAPK14_A", "MAPK14_B", "GSK3B"],
         sites=["Y182", "Y182", "S9"],
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0, 1.2, 2.0],

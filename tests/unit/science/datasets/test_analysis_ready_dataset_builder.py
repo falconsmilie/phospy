@@ -167,7 +167,8 @@ def test_builder_records_construction_provenance() -> None:
     assert construction["method"] == "AnalysisReadyDatasetBuilder.run"
     assert construction["dataset_type"] == "AnalysisReadyPhosphoDataset"
     assert (
-        construction["model_constructor"] == "AnalysisReadyPhosphoDataset._from_owned"
+        construction["model_constructor"]
+        == "AnalysisReadyPhosphoDataset._from_builder_output"
     )
 
     input_identities = construction["input_table_identities"]
@@ -190,7 +191,7 @@ def test_builder_records_construction_provenance() -> None:
         "DatasetTransformationStateResolver.run"
     )
     assert establishment["analysis_ready_boundary"] == (
-        "AnalysisReadyPhosphoDataset.__init__"
+        "AnalysisReadyPhosphoDataset._from_builder_output"
     )
     assert isinstance(establishment["intensity_scale_establishment"], Mapping)
 

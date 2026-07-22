@@ -2,15 +2,9 @@
 
 from __future__ import annotations
 
-import re
-import warnings
-
 import pandas as pd
 
-from phospy.provenance.models import RunProvenance
-from phospy.science.datasets.direct_construction import (
-    DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
-)
+from phospy.provenance.models import RunProvenance, TrustedDatasetConstructionAssertions
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -24,7 +18,8 @@ class AnalysisReadyDatasetModelBoundaryValidator:
     """Validate by delegating to `AnalysisReadyPhosphoDataset` construction.
 
     This adapter does not own analysis-ready invariants. The model constructor
-    remains the single authoritative owner for strict dataset-boundary checks.
+    remains the single authoritative owner for strict dataset-boundary checks,
+    and trusted callers must supply typed construction assertions.
     """
 
     def run(
@@ -41,23 +36,20 @@ class AnalysisReadyDatasetModelBoundaryValidator:
         imputation_observation_mask: pd.DataFrame | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
         provenance: RunProvenance | None = None,
+        trusted_construction_assertions: TrustedDatasetConstructionAssertions
+        | None = None,
     ) -> AnalysisReadyPhosphoDataset:
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
-                category=DeprecationWarning,
-            )
-            return AnalysisReadyPhosphoDataset(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                intensity_scale_state=intensity_scale_state,
-                processing_state=processing_state,
-                sample_metadata=sample_metadata,
-                total=total,
-                comparisons=comparisons,
-                imputation_observation_mask=imputation_observation_mask,
-                organism=organism,
-                preprocessing_report=preprocessing_report,
-                provenance=provenance,
-            )
+        return AnalysisReadyPhosphoDataset.from_trusted_tables(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            sample_metadata=sample_metadata,
+            total=total,
+            comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
+            organism=organism,
+            preprocessing_report=preprocessing_report,
+            provenance=provenance,
+            trusted_construction_assertions=trusted_construction_assertions,
+        )

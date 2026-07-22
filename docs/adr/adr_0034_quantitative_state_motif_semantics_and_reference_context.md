@@ -147,6 +147,9 @@ construction, intensity-scale evidence is also a separate
 `TrustedDatasetConstructionAssertions.intensity_scale` dimension. It is not
 satisfied by the quantitative-meaning assertion; callers must explicitly record
 how the already-established `IntensityScaleState` was known.
+Direct `AnalysisReadyPhosphoDataset(...)` construction is sealed; advanced
+trusted reconstruction must use `from_trusted_tables(...)` with complete
+assertions.
 
 ## Quantitative Matrix Meaning
 

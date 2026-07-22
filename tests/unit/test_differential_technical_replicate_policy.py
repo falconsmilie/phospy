@@ -39,6 +39,9 @@ from phospy.workflows.differential.replicates import (
     TechnicalReplicateResolver,
 )
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -87,7 +90,7 @@ def _dataset_with_technical_replicates() -> AnalysisReadyPhosphoDataset:
         },
         index=phospho.index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -168,7 +171,7 @@ def _dataset_with_technical_replicates_and_total() -> AnalysisReadyPhosphoDatase
         },
         index=pd.Index(["MAPK14", "GSK3B"], name="protein_id"),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho_only.phospho,
         site_metadata=phospho_only.site_metadata,
         total=total,
@@ -340,7 +343,7 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
         },
         index=phospho.index.copy(),
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -481,7 +484,7 @@ def test_phospho_and_total_matrices_are_both_aggregated_when_total_present() -> 
 def test_aggregation_returns_derived_dataset_with_fresh_provenance() -> None:
     base_dataset = _dataset_with_technical_replicates()
     source_report = DatasetPreprocessingReport.from_rows()
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata,
         sample_metadata=base_dataset.sample_metadata,
@@ -598,7 +601,7 @@ def test_mean_and_median_derived_provenance_differ() -> None:
         },
         index=site_index.copy(),
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -659,7 +662,7 @@ def test_total_protein_and_imputation_mask_lineage_are_recorded() -> None:
     )
     mask.loc[base.phospho.index[0], "A1_T2"] = False
     mask.loc[base.phospho.index[1], "B2_T1"] = False
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=base.phospho,
         site_metadata=base.site_metadata,
         sample_metadata=base.sample_metadata,

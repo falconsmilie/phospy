@@ -11,7 +11,6 @@ from phospy.science.datasets.builders.preprocessing import (
 from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.transformations.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
@@ -21,6 +20,9 @@ from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
@@ -296,7 +298,7 @@ def test_analysis_ready_dataset_rejects_unestablished_scale_state() -> None:
         TransformationValidationError,
         match="must be established through a supported PhosPy path",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=_site_metadata(phospho.index),
             intensity_scale_state=state,

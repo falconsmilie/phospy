@@ -56,6 +56,9 @@ from phospy.science.transformations.transformers import (
 )
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
 )
@@ -148,7 +151,6 @@ def supported_dataset(
     site_metadata: pd.DataFrame,
     intensity_scale_state: IntensityScaleState | None = None,
 ):
-    from phospy import AnalysisReadyPhosphoDataset
 
     if intensity_scale_state is None:
         intensity_scale_state = supported_log2_intensity_scale_state(
@@ -159,7 +161,7 @@ def supported_dataset(
         intensity_scale_state=intensity_scale_state,
     )
     intensity_scale_state = processing_state.intensity_scale
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,

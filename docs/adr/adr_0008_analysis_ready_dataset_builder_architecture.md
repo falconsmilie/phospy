@@ -197,19 +197,23 @@ The builder should not expose a second semi-ready dataset form as part of the pu
 
 Diagnostics or separate build-report outputs are not a current concern and are outside the initial contract.
 
-## Relationship to Direct Dataset Construction
+## Relationship to Trusted Reconstruction
 
-Direct construction of `AnalysisReadyPhosphoDataset` remains acceptable for
-trusted advanced/internal callers who already possess fully analysis-ready data.
-Under ADR-0024, fully analysis-ready means `site_key` indexes plus the required
-auditable protein context metadata, not display-indexed `GENE;SITE;` rows.
+Direct construction of `AnalysisReadyPhosphoDataset(...)` is sealed and raises
+immediately. Trusted advanced/internal callers who already possess fully
+analysis-ready data must use
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with complete
+`TrustedDatasetConstructionAssertions`. Under ADR-0024, fully analysis-ready
+means `site_key` indexes plus the required auditable protein context metadata,
+not display-indexed `GENE;SITE;` rows.
 
 However:
 
 - the builder should be the recommended public path for real-world ingestion
-- direct construction should not become the expected path for messy industry inputs
-- direct construction validates structure but cannot prove biological
-  correctness of user-asserted provenance
+- trusted reconstruction should not become the expected path for messy industry
+  inputs
+- trusted reconstruction validates structure but cannot prove biological
+  correctness of user-asserted provenance or assertions
 
 This preserves the usefulness of the strict model without forcing all callers through a low-level manual preparation burden.
 

@@ -24,6 +24,9 @@ from phospy.workflows.signalome.constants import (
 )
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -92,7 +95,7 @@ def _dataset(*, with_protein_id: bool) -> AnalysisReadyPhosphoDataset:
     )
     if with_protein_id:
         site_metadata.loc[:, "protein_id"] = ["P53778", "P31749"]
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [3.0, 4.0]},
             index=index,

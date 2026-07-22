@@ -34,6 +34,9 @@ from phospy.io.bundles._shared.processing_state import (
 from phospy.provenance.hashing import hash_table_exact, hash_table_tolerance
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.provenance.serialization import from_payload, to_payload
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -88,7 +91,7 @@ def _dataset_for_workflows() -> AnalysisReadyPhosphoDataset:
         },
         index=site_index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -143,7 +146,7 @@ def _signalome_config(**kwargs: object):
     )
 
 
-def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
+def test_trusted_table_reconstruction_marker_is_not_builder_equivalent() -> None:
     dataset = _dataset_for_workflows()
 
     provenance = dataset.provenance
@@ -158,26 +161,19 @@ def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
     assert "preprocessing_plan" not in provenance.workflow_parameters
     construction = provenance.workflow_parameters["construction"]
     assert isinstance(construction, Mapping)
-    assert construction["method"] == "AnalysisReadyPhosphoDataset.__init__"
+    assert construction["method"] == "AnalysisReadyPhosphoDataset.from_trusted_tables"
     assert construction["source"] == "direct_trusted_construction"
     assert construction["builder_used"] is False
     assert construction["warning"] == (
         "Direct construction cannot prove biological correctness of "
         "caller-provided analysis-ready state."
     )
-    assert construction["trusted_assertion_metadata_provided"] is False
-    assert construction["missing_trusted_assertions"] == [
-        "identity_user_asserted",
-        "intensity_scale_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "aligned_structure_user_asserted",
-        "localisation_user_asserted",
-        "sequence_user_asserted",
-        "reference_context_user_asserted",
-    ]
+    assert construction["trusted_assertion_metadata_provided"] is True
+    assert construction["missing_trusted_assertions"] == []
     trusted_assertions = construction["trusted_construction_assertions"]
     assert isinstance(trusted_assertions, Mapping)
-    assert trusted_assertions["assertion_metadata_provided"] is False
+    assert trusted_assertions["assertion_metadata_provided"] is True
+    assert trusted_assertions["missing_assertions"] == []
     payload = to_payload(provenance)
     restored = from_payload(payload)
     assert to_payload(restored) == payload
@@ -187,15 +183,7 @@ def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
     assert isinstance(payload_construction, dict)
     payload_assertions = payload_construction["trusted_construction_assertions"]
     assert isinstance(payload_assertions, dict)
-    assert payload_assertions["missing_assertions"] == [
-        "identity_user_asserted",
-        "intensity_scale_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "aligned_structure_user_asserted",
-        "localisation_user_asserted",
-        "sequence_user_asserted",
-        "reference_context_user_asserted",
-    ]
+    assert payload_assertions["missing_assertions"] == []
     assert {item.name for item in provenance.input_tables} == {
         "dataset.phospho",
         "dataset.site_metadata",

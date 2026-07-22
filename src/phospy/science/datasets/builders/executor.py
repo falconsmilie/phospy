@@ -296,7 +296,7 @@ class DatasetBuildExecutor:
         protein_aware_preparation: ProteinAwarePreparationResult | None,
         provenance: RunProvenance,
     ) -> AnalysisReadyPhosphoDataset:
-        return AnalysisReadyPhosphoDataset._from_owned(
+        return AnalysisReadyPhosphoDataset._from_builder_output(
             phospho=transformed.phospho,
             site_metadata=validated_site_metadata,
             sample_metadata=preprocessed.sample_metadata,

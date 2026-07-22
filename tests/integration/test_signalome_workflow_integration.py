@@ -15,7 +15,6 @@ from pandas.api.types import (
 
 import phospy.workflows.signalome.interpreter as signalome_interpreter
 from phospy import (
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
@@ -37,6 +36,9 @@ from phospy.science.signalomes.constants import (
 )
 from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
+)
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
 )
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
@@ -361,7 +363,7 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
     None
 ):
     base_dataset = build_rat_l6_dataset(n_sites=260)
-    dataset_without_protein = AnalysisReadyPhosphoDataset(
+    dataset_without_protein = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata.drop(columns=["protein_id"]),
         sample_metadata=base_dataset.sample_metadata,
@@ -409,7 +411,7 @@ def test_signalome_workflow_uses_explicit_dataset_protein_grouping_metadata_when
     site_metadata.loc[:, "protein_id"] = [
         f"PROT_{position:05d}" for position in range(site_metadata.shape[0])
     ]
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=site_metadata,
         sample_metadata=base_dataset.sample_metadata,

@@ -10,7 +10,7 @@ import warnings
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -110,6 +110,9 @@ from phospy.tables.datasets import PhosphoIntensityMatrix
 from phospy.tables.kinase import KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -301,7 +304,7 @@ def _references() -> ReferenceBundle:
 
 
 def _analysis_ready_dataset() -> AnalysisReadyPhosphoDataset:
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -640,31 +643,35 @@ def _public_frame_owner_cases() -> tuple[_PublicFrameOwnerCase, ...]:
         _PublicFrameOwnerCase(
             name="analysis-ready-dataset",
             make_numeric_source=_phospho,
-            construct_from_numeric=lambda frame: AnalysisReadyPhosphoDataset(
-                phospho=frame,
-                site_metadata=_site_metadata(),
-                organism=Organism.RAT,
-                intensity_scale_state=supported_linear_intensity_scale_state(
-                    has_total_matrix=False
-                ),
-                processing_state=supported_linear_processing_state(
-                    has_total_matrix=False
-                ),
+            construct_from_numeric=lambda frame: (
+                trusted_analysis_ready_dataset_from_tables(
+                    phospho=frame,
+                    site_metadata=_site_metadata(),
+                    organism=Organism.RAT,
+                    intensity_scale_state=supported_linear_intensity_scale_state(
+                        has_total_matrix=False
+                    ),
+                    processing_state=supported_linear_processing_state(
+                        has_total_matrix=False
+                    ),
+                )
             ),
             observe_numeric=lambda owner: owner.to_dataframe(),
             make_object_source=lambda payload: _object_payload_frame_from_site_metadata(
                 payload
             ),
-            construct_from_object=lambda frame: AnalysisReadyPhosphoDataset(
-                phospho=_phospho(),
-                site_metadata=frame,
-                organism=Organism.RAT,
-                intensity_scale_state=supported_linear_intensity_scale_state(
-                    has_total_matrix=False
-                ),
-                processing_state=supported_linear_processing_state(
-                    has_total_matrix=False
-                ),
+            construct_from_object=lambda frame: (
+                trusted_analysis_ready_dataset_from_tables(
+                    phospho=_phospho(),
+                    site_metadata=frame,
+                    organism=Organism.RAT,
+                    intensity_scale_state=supported_linear_intensity_scale_state(
+                        has_total_matrix=False
+                    ),
+                    processing_state=supported_linear_processing_state(
+                        has_total_matrix=False
+                    ),
+                )
             ),
             observe_object_payload=lambda owner: _first_object_payload(
                 owner.site_metadata_dataframe()
@@ -1049,7 +1056,7 @@ def _kinase_result():
     )
     return KinaseWorkflow().run(
         KinaseWorkflowRequest(
-            dataset=AnalysisReadyPhosphoDataset(
+            dataset=trusted_analysis_ready_dataset_from_tables(
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
@@ -1078,7 +1085,7 @@ def _kinase_result():
 
 
 def _signalome_request_for_read_path_mutation_checks() -> SignalomeWorkflowRequest:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -1366,7 +1373,7 @@ def _assert_copy_keyword_rejected(
     ),
     [
         pytest.param(
-            lambda p, s: AnalysisReadyPhosphoDataset(
+            lambda p, s: trusted_analysis_ready_dataset_from_tables(
                 phospho=p,
                 site_metadata=s,
                 organism=Organism.RAT,
@@ -1434,7 +1441,7 @@ def test_public_constructor_copy_contract_matrix(
             "dataset-site-metadata",
             lambda payload: (
                 lambda dataset: dataset.site_metadata,
-                AnalysisReadyPhosphoDataset(
+                trusted_analysis_ready_dataset_from_tables(
                     phospho=_phospho(),
                     site_metadata=_object_payload_frame_from_site_metadata(payload),
                     organism=Organism.RAT,
@@ -1524,7 +1531,7 @@ class _UnsupportedMutableObject:
     ("factory", "error_type"),
     [
         pytest.param(
-            lambda payload: AnalysisReadyPhosphoDataset(
+            lambda payload: trusted_analysis_ready_dataset_from_tables(
                 phospho=_phospho(),
                 site_metadata=_object_payload_frame_from_site_metadata(payload),
                 organism=Organism.RAT,
@@ -1791,7 +1798,7 @@ def test_phospy_frame_borrowing_preserves_pandas_copy_on_write_option(
     copy_on_write: bool,
 ) -> None:
     with pd.option_context("mode.copy_on_write", copy_on_write):
-        dataset = AnalysisReadyPhosphoDataset(
+        dataset = trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
@@ -1822,7 +1829,7 @@ def test_phospy_frame_borrowing_does_not_touch_deprecated_copy_on_write_option()
 ):
     with warnings.catch_warnings():
         warnings.simplefilter("error", _pandas4_warning_type())
-        dataset = AnalysisReadyPhosphoDataset(
+        dataset = trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
@@ -1849,7 +1856,7 @@ def test_representative_kinase_workflow_preserves_pandas_global_options() -> Non
 
 
 def test_concurrent_borrowed_access_preserves_pandas_copy_on_write_option() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -1884,7 +1891,7 @@ def test_concurrent_borrowed_access_preserves_pandas_copy_on_write_option() -> N
 
 
 def test_internal_borrowed_dataset_access_is_detached_snapshot_contract() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_mixed_numeric_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -1948,7 +1955,7 @@ def test_restoring_writeability_on_dataset_numeric_surfaces_cannot_mutate_owner(
     surface_name: str,
     mutator: Callable[[pd.DataFrame], bool],
 ) -> None:
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_mixed_numeric_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -2158,7 +2165,7 @@ def test_signalome_interpreter_read_path_does_not_mutate_dataset_frames() -> Non
 def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None:
     phospho = _phospho()
     site_metadata = _site_metadata()
-    dataset = AnalysisReadyPhosphoDataset._from_owned(
+    provenance_source = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -2166,6 +2173,30 @@ def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    assert provenance_source.provenance is not None
+    builder_provenance = replace(
+        provenance_source.provenance,
+        workflow_name="dataset_builder",
+        workflow_parameters={
+            "construction": {
+                "method": "AnalysisReadyDatasetBuilder.run",
+                "processing_state_establishment": {
+                    "source": "test builder-shaped provenance"
+                },
+            }
+        },
+    )
+
+    dataset = AnalysisReadyPhosphoDataset._from_builder_output(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        provenance=builder_provenance,
     )
 
     phospho.iloc[0, 0] = 321.0
@@ -2326,7 +2357,7 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
     [
         pytest.param(
             lambda: (
-                AnalysisReadyPhosphoDataset(
+                trusted_analysis_ready_dataset_from_tables(
                     phospho=_phospho(),
                     site_metadata=_site_metadata(),
                     organism=Organism.RAT,
@@ -2480,7 +2511,7 @@ def test_public_signalome_exports_isolated_from_mutation() -> None:
     [
         pytest.param(
             lambda: (
-                AnalysisReadyPhosphoDataset(
+                trusted_analysis_ready_dataset_from_tables(
                     phospho=_phospho(),
                     site_metadata=_site_metadata(),
                     organism=Organism.RAT,
@@ -2525,7 +2556,7 @@ def test_dataset_dataframe_properties_are_defensive_snapshots() -> None:
         {"batch": [1, 2]},
         index=pd.Index(["sample_a", "sample_b"]),
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         sample_metadata=sample_metadata,
@@ -2735,7 +2766,7 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
         columns=pd.Index(KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS),
     )
     workflow_result = KinaseWorkflowResult(
-        dataset=AnalysisReadyPhosphoDataset(
+        dataset=trusted_analysis_ready_dataset_from_tables(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,

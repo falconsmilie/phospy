@@ -49,6 +49,9 @@ from phospy.validation.datasets.preprocessing import (
 from phospy.workflows.batch_correction import BatchCorrectionWorkflow
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -130,7 +133,7 @@ def _corrected_dataset(
     )
     if ruv_readiness is not None:
         processing_state = replace(processing_state, ruv_readiness=ruv_readiness)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         sample_metadata=sample_metadata,

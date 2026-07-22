@@ -82,6 +82,9 @@ from phospy.workflows.signalome.contracts import (
 )
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -143,7 +146,7 @@ def _dataset(
         },
         index=site_index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -163,7 +166,7 @@ def _dataset_with_missing_protein_ids(
     site_metadata = dataset.site_metadata
     for site_id in missing_site_ids:
         site_metadata.loc[_site_key(site_id), "protein_id"] = np.nan
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=dataset.phospho,
         site_metadata=site_metadata,
         organism=dataset.organism,
@@ -467,7 +470,7 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
         gene_symbols=["MAPK14", "GSK3B"],
         protein_ids=["P28482", "Q9Y243"],
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata.drop(columns=["protein_id"]),
         sample_metadata=base_dataset.sample_metadata,
@@ -546,7 +549,7 @@ def test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_
         gene_symbols=["MAPK14", "MAPK14"],
         protein_ids=["P28482-1", "P28482-2"],
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata.drop(columns=["protein_id"]),
         sample_metadata=base_dataset.sample_metadata,

@@ -34,6 +34,9 @@ from phospy.workflows.kinase.science import (
     score_profile_correlations,
 )
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -47,7 +50,7 @@ from tests.support.site_keys import (
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_ids = ["AKT1;S1;", "MAPK1;S2;", "GSK3B;S3;"]
     site_index = site_key_index_from_display_ids(display_ids)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0, 2.0, 8.0],

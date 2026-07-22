@@ -40,12 +40,14 @@ every workflow lane. Sequence-aware workflow validators own strict centred
 context checks (odd length, central residue match to site token, strict
 character policy unless an explicit relaxation is configured).
 
-Update note (2026-06-29, construction boundary): The builder is the supported
-ordinary user construction path for `AnalysisReadyPhosphoDataset`. Direct
-dataset construction remains exported only for trusted advanced/internal use
-and compatibility. Builder-created datasets must record construction
-provenance, including construction method, input table identities, and
-processing-state establishment.
+Update note (2026-06-29, construction boundary; amended 2026-07-22): The
+builder is the supported ordinary user construction path for
+`AnalysisReadyPhosphoDataset`. Direct public construction is sealed and raises
+immediately; trusted advanced/internal callers must use
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with complete
+`TrustedDatasetConstructionAssertions`. Builder-created datasets must record
+construction provenance, including construction method, input table identities,
+and processing-state establishment.
 
 Update note (2026-07-01, declared intensity-scale diagnostics): Declared input
 intensity scales are conservative for high-confidence `log2` mismatches by
@@ -120,10 +122,10 @@ data.
 That route should be more prominent than direct manual dataset construction for
 typical messy industry inputs.
 
-Direct construction of `AnalysisReadyPhosphoDataset` remains valid for trusted
-advanced/internal callers who already have fully prepared `site_key`-indexed
-data with required protein context metadata, but it is not the recommended
-story for ordinary ingestion.
+Direct construction of `AnalysisReadyPhosphoDataset(...)` is not a supported
+construction story. Trusted advanced/internal callers who already have fully
+prepared `site_key`-indexed data with required protein context metadata must
+use `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`.
 
 ## Public Builder Shape
 

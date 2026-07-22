@@ -11,7 +11,9 @@ from phospy.errors.validation import (
     DatasetValidationError,
     TransformationValidationError,
 )
+from phospy.provenance.models import TrustedDatasetConstructionAssertions
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.references.models import Organism
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
@@ -23,6 +25,10 @@ from phospy.science.transformations.models import (
 )
 from phospy.validation.datasets.analysis_ready import (
     AnalysisReadyDatasetModelBoundaryValidator,
+)
+from tests.support.analysis_ready_dataset_factories import (
+    complete_trusted_dataset_construction_assertions_for_tests,
+    trusted_analysis_ready_dataset_from_tables,
 )
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -123,17 +129,85 @@ def _valid_payload_with_explicit_positions(
     return payload
 
 
+def _trusted_assertions_for_payload(
+    payload: dict[str, object],
+) -> TrustedDatasetConstructionAssertions:
+    return complete_trusted_dataset_construction_assertions_for_tests(
+        phospho=payload.get("phospho")
+        if isinstance(
+            payload.get("phospho"),
+            pd.DataFrame,
+        )
+        else None,
+        site_metadata=payload.get("site_metadata")
+        if isinstance(
+            payload.get("site_metadata"),
+            pd.DataFrame,
+        )
+        else None,
+        sample_metadata=payload.get("sample_metadata")
+        if isinstance(
+            payload.get("sample_metadata"),
+            pd.DataFrame,
+        )
+        else None,
+        total=payload.get("total")
+        if isinstance(
+            payload.get("total"),
+            pd.DataFrame,
+        )
+        else None,
+        intensity_scale_state=payload.get("intensity_scale_state")
+        if isinstance(
+            payload.get("intensity_scale_state"),
+            IntensityScaleState,
+        )
+        else None,
+        processing_state=payload.get("processing_state")
+        if isinstance(
+            payload.get("processing_state"),
+            DatasetProcessingState,
+        )
+        else None,
+    )
+
+
+def _boundary_validator_run(**payload: object) -> AnalysisReadyPhosphoDataset:
+    typed_payload = dict(payload)
+    return _BOUNDARY_VALIDATOR.run(
+        **typed_payload,
+        trusted_construction_assertions=_trusted_assertions_for_payload(typed_payload),
+    )
+
+
+def _builder_like_provenance_for_private_factory():
+    trusted = trusted_analysis_ready_dataset_from_tables(**_valid_payload())
+    assert trusted.provenance is not None
+    return replace(
+        trusted.provenance,
+        workflow_name="dataset_builder",
+        workflow_parameters={
+            "construction": {
+                "method": "AnalysisReadyDatasetBuilder.run",
+                "processing_state_establishment": {
+                    "source": "test builder-shaped provenance"
+                },
+            }
+        },
+    )
+
+
 def _assert_constructor_and_adapter_reject(payload: dict[str, object]) -> None:
     with pytest.raises(_MODEL_BOUNDARY_ERRORS):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
     with pytest.raises(_MODEL_BOUNDARY_ERRORS):
-        _BOUNDARY_VALIDATOR.run(**payload)
+        _boundary_validator_run(**payload)
 
 
 def test_model_boundary_validator_accepts_valid_payload() -> None:
     payload = _valid_payload()
-    constructed = AnalysisReadyPhosphoDataset(**payload)
-    validated = _BOUNDARY_VALIDATOR.run(**payload)
+    constructed = trusted_analysis_ready_dataset_from_tables(**payload)
+    validated = _boundary_validator_run(**payload)
     assert isinstance(constructed, AnalysisReadyPhosphoDataset)
     assert isinstance(validated, AnalysisReadyPhosphoDataset)
     assert constructed.phospho.index.name == "site_key"
@@ -152,7 +226,7 @@ def test_analysis_ready_dataset_constructor_preserves_frame_ownership() -> None:
     assert isinstance(site_metadata, pd.DataFrame)
     assert isinstance(sample_metadata, pd.DataFrame)
 
-    dataset = AnalysisReadyPhosphoDataset(**payload)
+    dataset = trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert dataset._phospho is not phospho
     assert dataset._site_metadata is not site_metadata
@@ -181,7 +255,7 @@ def test_analysis_ready_dataset_constructor_requires_site_sequence() -> None:
     payload["site_metadata"] = payload["site_metadata"].drop(columns=["site_sequence"])
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_sequence"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_analysis_ready_dataset_constructor_requires_established_log2_state() -> None:
@@ -194,7 +268,7 @@ def test_analysis_ready_dataset_constructor_requires_established_log2_state() ->
     )
 
     with pytest.raises(TransformationValidationError, match="must be established"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_analysis_ready_dataset_internal_construction_does_not_bypass_validation() -> (
@@ -202,9 +276,10 @@ def test_analysis_ready_dataset_internal_construction_does_not_bypass_validation
 ):
     payload = _valid_payload()
     payload["site_metadata"] = payload["site_metadata"].drop(columns=["site_sequence"])
+    payload["provenance"] = _builder_like_provenance_for_private_factory()
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_sequence"):
-        AnalysisReadyPhosphoDataset._from_owned(**payload)
+        AnalysisReadyPhosphoDataset._from_builder_output(**payload)
 
 
 @pytest.mark.parametrize(
@@ -228,8 +303,8 @@ def test_model_boundary_validator_treats_protein_id_as_optional_signalome_metada
         site_metadata.loc[:, "protein_id"] = protein_id_values
     payload["site_metadata"] = site_metadata
 
-    constructed = AnalysisReadyPhosphoDataset(**payload)
-    validated = _BOUNDARY_VALIDATOR.run(**payload)
+    constructed = trusted_analysis_ready_dataset_from_tables(**payload)
+    validated = _boundary_validator_run(**payload)
 
     assert ("protein_id" in constructed.site_metadata.columns) is expected_present
     assert ("protein_id" in validated.site_metadata.columns) is expected_present
@@ -257,7 +332,7 @@ def test_direct_dataset_boundary_accepts_strict_integer_position_metadata(
     )
     payload["site_metadata"] = site_metadata
 
-    dataset = AnalysisReadyPhosphoDataset(**payload)
+    dataset = trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert dataset.site_metadata.loc[site_metadata.index[1], column_name] == 308
 
@@ -270,7 +345,7 @@ def test_direct_dataset_boundary_accepts_equivalent_position_and_site_position_m
         site_position_value=np.int64(308),
     )
 
-    dataset = AnalysisReadyPhosphoDataset(**payload)
+    dataset = trusted_analysis_ready_dataset_from_tables(**payload)
 
     row_key = dataset.site_metadata.index[1]
     assert dataset.site_metadata.loc[row_key, "position"] == 308
@@ -298,7 +373,7 @@ def test_direct_dataset_boundary_rejects_invalid_site_position_when_position_val
     )
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     message = str(exc_info.value)
     assert "dataset.site_metadata" in message
@@ -327,7 +402,7 @@ def test_direct_dataset_boundary_rejects_invalid_position_when_site_position_val
     )
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     message = str(exc_info.value)
     assert "dataset.site_metadata" in message
@@ -351,7 +426,7 @@ def test_direct_dataset_boundary_rejects_disagreeing_position_and_site_position_
     )
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     message = str(exc_info.value)
     assert "dataset.site_metadata" in message
@@ -367,7 +442,7 @@ def test_direct_dataset_boundary_rejects_invalid_position_and_site_position_meta
     )
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     message = str(exc_info.value)
     assert "dataset.site_metadata" in message
@@ -401,7 +476,7 @@ def test_direct_dataset_boundary_rejects_loose_explicit_position_metadata(
     payload["site_metadata"] = site_metadata
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     message = str(exc_info.value)
     assert "dataset.site_metadata" in message
@@ -444,23 +519,23 @@ def test_model_boundary_validator_rejects_display_indexed_direct_constructor_pay
     payload["site_metadata"] = site_metadata
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display-indexed"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display-indexed"):
-        _BOUNDARY_VALIDATOR.run(**payload)
+        _boundary_validator_run(**payload)
 
 
 def test_model_boundary_validator_rejects_missing_site_key_column() -> None:
     payload = _valid_payload()
     payload["site_metadata"] = payload["site_metadata"].drop(columns=["site_key"])
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_key"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_model_boundary_validator_rejects_missing_display_id_column() -> None:
     payload = _valid_payload()
     payload["site_metadata"] = payload["site_metadata"].drop(columns=["display_id"])
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display_id"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 @pytest.mark.parametrize(
@@ -474,7 +549,7 @@ def test_model_boundary_validator_rejects_missing_site_key_context_column(
     payload["site_metadata"] = payload["site_metadata"].drop(columns=[column_name])
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match=column_name):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_model_boundary_validator_rejects_site_key_residue_mismatch() -> None:
@@ -487,7 +562,7 @@ def test_model_boundary_validator_rejects_site_key_residue_mismatch() -> None:
     payload["site_metadata"] = site_metadata
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="metadata-derived"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_model_boundary_validator_rejects_site_key_position_mismatch() -> None:
@@ -499,7 +574,7 @@ def test_model_boundary_validator_rejects_site_key_position_mismatch() -> None:
     payload["site_metadata"] = site_metadata
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="metadata-derived"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_model_boundary_validator_rejects_site_key_protein_identifier_mismatch() -> (
@@ -512,7 +587,7 @@ def test_model_boundary_validator_rejects_site_key_protein_identifier_mismatch()
     payload["site_metadata"] = site_metadata
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="metadata-derived"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site_key() -> (
@@ -544,7 +619,7 @@ def test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site
         index=site_index.copy(),
     )
 
-    dataset = AnalysisReadyPhosphoDataset(**payload)
+    dataset = trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert dataset.site_metadata.loc[:, "display_id"].nunique() == 1
     assert dataset.site_metadata.loc[:, "site_key"].nunique() == 2
@@ -563,7 +638,7 @@ def test_model_boundary_validator_rejects_duplicate_site_key() -> None:
     payload["site_metadata"] = site_metadata
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="duplicate_site_key"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_model_boundary_validator_rejects_site_key_column_index_mismatch() -> None:
@@ -577,7 +652,7 @@ def test_model_boundary_validator_rejects_site_key_column_index_mismatch() -> No
     payload["site_metadata"] = site_metadata
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_key.*index"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
 def test_model_boundary_validator_rejects_phospho_site_metadata_index_mismatch() -> (
@@ -589,10 +664,10 @@ def test_model_boundary_validator_rejects_phospho_site_metadata_index_mismatch()
     payload["phospho"] = phospho
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="must exactly match"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
-def test_analysis_ready_from_owned_rejects_invalid_site_identity() -> None:
+def test_analysis_ready_from_builder_output_rejects_invalid_site_identity() -> None:
     payload = _valid_payload()
     phospho = payload["phospho"].copy(deep=True)
     site_metadata = payload["site_metadata"].copy(deep=True)
@@ -600,9 +675,10 @@ def test_analysis_ready_from_owned_rejects_invalid_site_identity() -> None:
     site_metadata.index = phospho.index.copy()
     payload["phospho"] = phospho
     payload["site_metadata"] = site_metadata
+    payload["provenance"] = _builder_like_provenance_for_private_factory()
 
     with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display-indexed"):
-        AnalysisReadyPhosphoDataset._from_owned(**payload)
+        AnalysisReadyPhosphoDataset._from_builder_output(**payload)
 
 
 def test_model_boundary_validator_parity_for_misaligned_site_metadata() -> None:
@@ -661,12 +737,12 @@ def test_model_boundary_validator_rejects_duplicate_sample_metadata_columns() ->
         _MODEL_BOUNDARY_ERRORS,
         match="dataset.sample_metadata.columns must be unique",
     ):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
     with pytest.raises(
         _MODEL_BOUNDARY_ERRORS,
         match="dataset.sample_metadata.columns must be unique",
     ):
-        _BOUNDARY_VALIDATOR.run(**payload)
+        _boundary_validator_run(**payload)
 
 
 def test_model_boundary_validator_accepts_distinct_sample_metadata_columns() -> None:
@@ -679,7 +755,7 @@ def test_model_boundary_validator_accepts_distinct_sample_metadata_columns() -> 
         index=pd.Index(["sample_a", "sample_b"], name="sample_id"),
     )
 
-    dataset = AnalysisReadyPhosphoDataset(**payload)
+    dataset = trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert dataset.sample_metadata is not None
     assert list(dataset.sample_metadata.columns) == ["condition", "batch"]
@@ -734,7 +810,7 @@ def test_analysis_ready_numeric_matrix_missing_values_use_fast_path(
     )
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert str(exc_info.value) == _NO_MISSING_PROCESSING_STATE_ERROR
 
@@ -756,7 +832,7 @@ def test_analysis_ready_object_matrix_missing_values_use_fallback(
     monkeypatch.setattr(dataset_models, "_is_missing_value", spy_is_missing_value)
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert str(exc_info.value) == _NO_MISSING_PROCESSING_STATE_ERROR
     assert observed_values
@@ -781,7 +857,7 @@ def test_analysis_ready_missing_value_detection_preserves_error_behavior(
     payload["phospho"] = phospho
 
     with pytest.raises(DatasetValidationError) as exc_info:
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
     assert str(exc_info.value) == _NO_MISSING_PROCESSING_STATE_ERROR
 

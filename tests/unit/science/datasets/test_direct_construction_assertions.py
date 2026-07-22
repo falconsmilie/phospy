@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 import json
-import re
 import warnings
 from collections.abc import Mapping
 from dataclasses import replace
@@ -23,9 +22,6 @@ from phospy.provenance import (
     to_payload,
 )
 from phospy.provenance.reference_context import ReferenceContext
-from phospy.science.datasets.direct_construction import (
-    DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
-)
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -277,18 +273,30 @@ def _assert_stale_provenance_error(
     assert "actual tolerance digest " in message
 
 
-def _assert_direct_constructor_rejects_stale_table(table_name: str) -> None:
+def _assert_from_trusted_tables_rejects_stale_table(table_name: str) -> None:
     trusted = _trusted_dataset_with_all_tables()
     assert trusted.provenance is not None
+    assert trusted.trusted_construction_assertions is not None
     payload = _public_constructor_payload_from_dataset(trusted)
     _mutate_payload_table(payload, table_name)
 
-    with pytest.warns(
-        DeprecationWarning,
-        match=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
-    ):
-        with pytest.raises(DatasetValidationError) as exc_info:
-            AnalysisReadyPhosphoDataset(**payload)
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset.from_trusted_tables(
+            phospho=cast(pd.DataFrame, payload["phospho"]),
+            site_metadata=cast(pd.DataFrame, payload["site_metadata"]),
+            sample_metadata=cast(pd.DataFrame | None, payload["sample_metadata"]),
+            total=cast(pd.DataFrame | None, payload["total"]),
+            comparisons=cast(pd.DataFrame | None, payload["comparisons"]),
+            imputation_observation_mask=cast(
+                pd.DataFrame | None,
+                payload["imputation_observation_mask"],
+            ),
+            organism=Organism.RAT,
+            intensity_scale_state=trusted.intensity_scale_state,
+            processing_state=trusted.processing_state,
+            provenance=trusted.provenance,
+            trusted_construction_assertions=trusted.trusted_construction_assertions,
+        )
     _assert_stale_provenance_error(
         exc_info.value,
         provenance=trusted.provenance,
@@ -296,12 +304,12 @@ def _assert_direct_constructor_rejects_stale_table(table_name: str) -> None:
     )
 
 
-def test_direct_constructor_rejects_stale_phospho_provenance() -> None:
-    _assert_direct_constructor_rejects_stale_table("dataset.phospho")
+def test_from_trusted_tables_rejects_stale_phospho_provenance() -> None:
+    _assert_from_trusted_tables_rejects_stale_table("dataset.phospho")
 
 
-def test_direct_constructor_rejects_stale_site_metadata_provenance() -> None:
-    _assert_direct_constructor_rejects_stale_table("dataset.site_metadata")
+def test_from_trusted_tables_rejects_stale_site_metadata_provenance() -> None:
+    _assert_from_trusted_tables_rejects_stale_table("dataset.site_metadata")
 
 
 @pytest.mark.parametrize(
@@ -316,13 +324,13 @@ def test_direct_constructor_rejects_stale_site_metadata_provenance() -> None:
         ),
     ],
 )
-def test_direct_constructor_rejects_stale_optional_table_provenance(
+def test_from_trusted_tables_rejects_stale_optional_table_provenance(
     table_name: str,
 ) -> None:
-    _assert_direct_constructor_rejects_stale_table(table_name)
+    _assert_from_trusted_tables_rejects_stale_table(table_name)
 
 
-def test_direct_constructor_warning_cannot_be_suppressed_by_public_argument() -> None:
+def test_direct_constructor_cannot_be_unsealed_by_public_argument() -> None:
     trusted = _trusted_dataset_with_all_tables()
     payload = _public_constructor_payload_from_dataset(trusted)
 
@@ -332,9 +340,9 @@ def test_direct_constructor_warning_cannot_be_suppressed_by_public_argument() ->
             _emit_direct_constructor_deprecation=False,
         )
 
-    with pytest.warns(
-        DeprecationWarning,
-        match=re.escape(DIRECT_CONSTRUCTION_DEPRECATION_WARNING),
+    with pytest.raises(
+        TypeError,
+        match="AnalysisReadyDatasetBuilder.*from_trusted_tables",
     ):
         AnalysisReadyPhosphoDataset(**payload)
 
@@ -368,10 +376,7 @@ def test_from_trusted_tables_remains_warning_free_and_fingerprint_strict() -> No
                 ),
             )
 
-    assert all(
-        DIRECT_CONSTRUCTION_DEPRECATION_WARNING not in str(item.message)
-        for item in recorded
-    )
+    assert recorded == []
     _assert_stale_provenance_error(
         exc_info.value,
         provenance=trusted.provenance,
@@ -556,6 +561,14 @@ def test_from_trusted_tables_rejects_missing_localisation_evidence() -> None:
         )
 
 
+def test_from_trusted_tables_rejects_incomplete_missing_assertion_bundle() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="from_trusted_tables requires.*trusted_construction_assertions",
+    ):
+        _trusted_dataset(assertions=TrustedDatasetConstructionAssertions.missing())
+
+
 def test_from_trusted_tables_accepts_and_serializes_localisation_waiver() -> None:
     assertions = _complete_assertions(
         localisation=TrustedDatasetConstructionEvidence.waiver(
@@ -687,13 +700,12 @@ def test_replayed_trusted_construction_rejects_reference_organism_contradiction(
         _trusted_dataset(assertions=assertions, provenance=replayed_provenance)
 
 
-def test_direct_constructor_emits_deprecation_warning() -> None:
+def test_direct_constructor_fails_immediately_and_names_supported_paths() -> None:
     index = _site_index()
 
-    with pytest.warns(
-        DeprecationWarning,
-        match="AnalysisReadyPhosphoDataset\\(\\.\\.\\.\\) direct construction "
-        "is deprecated",
+    with pytest.raises(
+        TypeError,
+        match="AnalysisReadyDatasetBuilder.*from_trusted_tables",
     ):
         AnalysisReadyPhosphoDataset(
             phospho=_phospho(index),

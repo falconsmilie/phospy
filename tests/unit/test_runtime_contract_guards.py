@@ -23,6 +23,9 @@ from phospy.workflows.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
     ResolvedKinaseInputs,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -51,7 +54,7 @@ class _DatasetPathReader:
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_id = "MAPK14;Y182;"
     index = site_key_index_from_display_ids([display_id])
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
         site_metadata=pd.DataFrame(
             {

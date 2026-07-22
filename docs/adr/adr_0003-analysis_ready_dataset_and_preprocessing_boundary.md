@@ -56,17 +56,18 @@ human-readable `GENE;SITE;` label and may repeat. Direct analysis-ready
 construction requires `site_key` indexes and required protein context metadata;
 display-indexed input is builder compatibility only.
 
-Update note (2026-06-29, supported construction boundary): The supported
-ordinary user path for constructing `AnalysisReadyPhosphoDataset` is
-`AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`. Direct
-construction remains available for trusted advanced/internal use, but it is not
-the primary public construction story. The constructor validates structural
-invariants and processing-state coherence; it cannot prove biological
-correctness of user-asserted provenance.
+Update note (2026-06-29, supported construction boundary; amended 2026-07-22):
+The supported ordinary user path for constructing
+`AnalysisReadyPhosphoDataset` is
+`AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`. Direct public
+construction is sealed and raises immediately. Advanced trusted reconstruction
+of already prepared analysis-ready tables must use
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`.
 
-Update note (2026-07-01, direct-construction provenance): Direct construction
-without supplied provenance receives a minimal direct-construction provenance
-marker. This marker records audit limitations and does not certify biological
+Update note (2026-07-01, trusted-table reconstruction provenance; amended
+2026-07-22): `from_trusted_tables(...)` may create a minimal trusted-table
+reconstruction provenance marker when the caller does not supply provenance.
+The marker records audit limitations and does not certify biological
 correctness.
 
 Update note (2026-07-01, sequence-context repair boundary): Builder and
@@ -93,9 +94,8 @@ advanced path for caller-owned analysis-ready tables is
 provenance-linked `TrustedDatasetConstructionAssertions` with typed evidence or
 an explicit waiver for user-asserted scientific dimensions. Localisation
 evidence must record source, policy, and threshold; sequence presence is not
-localisation evidence. The compatibility constructor remains available only for
-advanced/internal compatibility and records missing trusted-construction
-assertion metadata when callers omit it.
+localisation evidence. Missing assertion metadata is rejected; it is no longer
+converted into a successful analysis-ready construction.
 
 Update note (2026-07-17, seven-dimension trusted construction attestations):
 Trusted construction assertions now require seven evidence dimensions:
@@ -104,8 +104,8 @@ localisation, sequence, and reference context. Aligned-structure evidence is
 not waivable because table shape and alignment are mechanically checked.
 Supplied provenance on either trusted factory or compatibility-constructor
 construction must match strict fingerprints of every actual represented table,
-and false fingerprints are rejected. The compatibility constructor emits
-`DeprecationWarning`; new advanced callers should use `from_trusted_tables(...)`.
+and false fingerprints are rejected. Direct public constructor calls now fail
+immediately; advanced callers must use `from_trusted_tables(...)`.
 
 ## Context and Problem Statement
 
@@ -395,15 +395,16 @@ The following decisions are now resolved for this ADR.
 ### Provenance Rule
 
 Preprocessing provenance remains outside the core public dataset identity, but
-direct construction must not be silently provenance-free.
+trusted-table reconstruction must not be silently provenance-free.
 
-Direct construction without supplied provenance receives a minimal
-direct-construction provenance marker. This marker records audit limitations
-and does not certify biological correctness.
+Trusted-table reconstruction without supplied provenance receives a minimal
+trusted-table reconstruction provenance marker. This marker records audit
+limitations and does not certify biological correctness.
 
-Direct construction with supplied provenance recomputes fingerprints from every
-actual represented table and rejects stale or false table fingerprints rather
-than warning, rebuilding provenance silently, or attaching mismatched evidence.
+Trusted-table reconstruction with supplied provenance recomputes fingerprints
+from every actual represented table and rejects stale or false table
+fingerprints rather than warning, rebuilding provenance silently, or attaching
+mismatched evidence.
 
 Builder-created datasets continue to carry builder-owned run provenance,
 including preprocessing stages, construction method, table fingerprints, and
@@ -423,8 +424,8 @@ the derived dataset's own provenance is forbidden.
 The standard source dataset construction path is
 `AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`, implemented by
 `DatasetBuildExecutor` and the private
-`AnalysisReadyPhosphoDataset._from_owned(...)` transfer after preprocessing,
-state establishment, and builder provenance assembly.
+`AnalysisReadyPhosphoDataset._from_builder_output(...)` transfer after
+preprocessing, state establishment, and builder provenance assembly.
 
 Every source path that constructs an analysis-ready dataset without the
 ordinary builder is explicitly scoped:
@@ -437,22 +438,18 @@ ordinary builder is explicitly scoped:
   assertion dimensions may be waived; these remain typed evidence or waiver
   assertions. Aligned table structure is not waivable, and supplied trusted
   provenance table fingerprints must match the actual constructed tables.
-- `AnalysisReadyPhosphoDataset(...)`: compatibility constructor for
-  advanced/internal use. It validates structural invariants and organism
-  coherence, but when assertion metadata is absent it records missing
-  trusted-construction assertions rather than certifying biological correctness.
-  Supplied provenance table fingerprints must match the actual constructed
-  tables. It emits `DeprecationWarning`; new advanced callers should use
-  `from_trusted_tables(...)`.
+- `AnalysisReadyPhosphoDataset(...)`: sealed public constructor. It exists only
+  to preserve the class as an importable public type and raises `TypeError`
+  immediately with the two supported construction paths.
 - `AnalysisReadyDatasetModelBoundaryValidator.run(...)`: validation-domain
-  adapter that delegates to the model constructor so tests and internal
-  validators exercise the same dataset boundary. It is not a separate public
-  construction policy.
-- `AnalysisReadyPhosphoDataset._from_owned(...)`: private ownership-transfer
-  constructor used by the builder and bundle reconstruction code only after
-  those callers have assembled typed provenance and already-owned tables. It
-  does not relax organism, table, sequence, processing-state, or fingerprint
-  validity.
+  adapter that delegates to `from_trusted_tables(...)` with caller-supplied
+  `TrustedDatasetConstructionAssertions`. It is not a separate public
+  construction policy and must not mint trusted assertions.
+- `AnalysisReadyPhosphoDataset._from_builder_output(...)`: private
+  ownership-transfer constructor used by the builder only after it has
+  assembled builder provenance, established processing state, and already-owned
+  tables. It does not relax organism, table, sequence, processing-state, or
+  fingerprint validity.
 - `DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables(...)`: private
   workflow-derived quantitative lane, currently for technical-replicate
   aggregation. It validates through the same analysis-ready boundary, carries
@@ -460,7 +457,7 @@ ordinary builder is explicitly scoped:
   tables, and must not masquerade as a fresh source dataset.
 
 Reviewers should treat any new call to `AnalysisReadyPhosphoDataset(...)`,
-`from_trusted_tables(...)`, `_from_owned(...)`, or
+`from_trusted_tables(...)`, `_from_builder_output(...)`, or
 `DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables(...)` as a
 construction-boundary decision and require one of the scoped rationales above.
 

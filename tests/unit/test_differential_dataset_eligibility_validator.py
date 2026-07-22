@@ -17,6 +17,9 @@ from phospy.science.transformations.models import (
 from phospy.validation.workflows.differential import (
     DifferentialDatasetEligibilityValidator,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -87,7 +90,7 @@ def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def _dataset_with_log2_scale() -> AnalysisReadyPhosphoDataset:
     phospho, site_metadata = _frames()
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -100,7 +103,7 @@ def _dataset_with_log2_scale() -> AnalysisReadyPhosphoDataset:
 
 def _dataset_with_linear_scale() -> AnalysisReadyPhosphoDataset:
     phospho, site_metadata = _frames()
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -114,7 +117,7 @@ def _dataset_with_linear_scale() -> AnalysisReadyPhosphoDataset:
 def _dataset_with_imputed_missing_data_state() -> AnalysisReadyPhosphoDataset:
     dataset = _dataset_with_log2_scale()
     processing_state = dataset.processing_state
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=dataset.phospho,
         site_metadata=dataset.site_metadata,
         organism=dataset.organism,

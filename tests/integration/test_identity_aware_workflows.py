@@ -36,6 +36,9 @@ from phospy.science.references.models import ReferenceBundle
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
 from tests.support.unsafe_dataset_states import (
@@ -80,7 +83,7 @@ def _minimal_site_key_dataset(
     if include_protein_id:
         return dataset
     without_protein = dataset.site_metadata.drop(columns=["protein_id"])
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=dataset.phospho,
         site_metadata=without_protein,
         sample_metadata=dataset.sample_metadata,
@@ -271,7 +274,7 @@ def test_builder_allows_duplicate_display_ids_across_distinct_protein_ids() -> N
 
 def test_signalome_still_requires_explicit_protein_identity() -> None:
     base_dataset = build_rat_l6_dataset(n_sites=260)
-    dataset_without_protein = AnalysisReadyPhosphoDataset(
+    dataset_without_protein = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata.drop(columns=["protein_id"]),
         sample_metadata=base_dataset.sample_metadata,

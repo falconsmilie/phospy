@@ -23,6 +23,9 @@ from phospy.api.configs import (
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -52,7 +55,7 @@ def _dataset_from_phospho(
         },
         index=phospho.index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -122,7 +125,7 @@ def _continuous_adjustment_dataset() -> AnalysisReadyPhosphoDataset:
         },
         index=phospho.index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,

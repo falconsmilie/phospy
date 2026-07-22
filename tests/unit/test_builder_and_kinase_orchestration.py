@@ -50,6 +50,9 @@ from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -94,7 +97,7 @@ def _site_metadata() -> pd.DataFrame:
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -447,7 +450,7 @@ def test_kinase_workflow_result_provenance_copies_input_dataset_reference_contex
         proteome_version=None,
         reference_table_sha256="a" * 64,
     )
-    base_dataset = AnalysisReadyPhosphoDataset(
+    base_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
@@ -461,7 +464,7 @@ def test_kinase_workflow_result_provenance_copies_input_dataset_reference_contex
         raise AssertionError(
             "analysis-ready dataset must carry construction provenance"
         )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
         site_metadata=base_dataset.site_metadata,
         organism=base_dataset.organism,

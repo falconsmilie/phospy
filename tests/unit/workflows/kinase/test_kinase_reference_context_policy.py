@@ -16,6 +16,9 @@ from phospy.provenance.models import ReferenceProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import ReferenceContext
 from phospy.validation.identity_contracts import REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -50,7 +53,7 @@ def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
         display_ids,
         protein_namespace="gene_symbol",
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 1.5], "sample_b": [1.1, 1.7]},
             index=site_ids.copy(),
@@ -80,7 +83,7 @@ def _dataset(context: ReferenceContext | None) -> AnalysisReadyPhosphoDataset:
         raise AssertionError(
             "analysis-ready dataset must carry construction provenance"
         )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=dataset.phospho,
         site_metadata=dataset.site_metadata,
         organism=dataset.organism,

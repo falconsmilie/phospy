@@ -36,6 +36,9 @@ from phospy.science.transformations.models import (
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -52,7 +55,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
     sites = ["Y182", "T308"]
     site_index = protein_site_key_index(protein_identifiers=genes, sites=sites)
     display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "A_1": [1.0, 2.0],

@@ -32,6 +32,9 @@ from phospy.workflows.kinase.validator import (
     KinaseWorkflowValidator,
     _selected_explicit_reference_sequence_context,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -60,7 +63,7 @@ def _dataset(
 ) -> AnalysisReadyPhosphoDataset:
     display_ids = ["GENE1;S10;", "GENE2;T20;"]
     site_index = site_key_index_from_display_ids(display_ids)
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [1.5, 2.5]},
             index=site_index.copy(),

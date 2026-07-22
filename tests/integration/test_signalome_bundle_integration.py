@@ -83,6 +83,18 @@ def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     assert provenance_to_payload(
         loaded.result.kinase_result.provenance
     ) == provenance_to_payload(result.kinase_result.provenance)
+    assert loaded.result.dataset.provenance is not None
+    assert (
+        loaded.result.dataset.provenance.workflow_name
+        == "analysis_ready_dataset_direct_construction"
+    )
+    construction = loaded.result.dataset.provenance.workflow_parameters.get(
+        "construction"
+    )
+    assert isinstance(construction, dict)
+    assert construction["method"] == "AnalysisReadyPhosphoDataset.from_trusted_tables"
+    assert loaded.result.dataset.trusted_construction_assertions is not None
+    assert loaded.result.dataset.trusted_construction_assertions.all_required_assertions_present
     assert (
         loaded.result.kinase_result.attrition_provenance
         == result.kinase_result.attrition_provenance

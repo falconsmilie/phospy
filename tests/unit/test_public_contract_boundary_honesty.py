@@ -11,6 +11,9 @@ from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -116,7 +119,7 @@ def _construct_analysis_ready_dataset(
     site_metadata: pd.DataFrame,
     organism: Organism = Organism.RAT,
 ) -> AnalysisReadyPhosphoDataset:
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=organism,

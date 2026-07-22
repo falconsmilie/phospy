@@ -9,6 +9,9 @@ from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest, Organism
 from phospy.errors import DatasetValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -88,20 +91,30 @@ def test_supported_construction_boundary_uses_builder_path_with_provenance() -> 
     assert dataset.site_metadata.index.equals(dataset.phospho.index)
 
 
-def test_direct_constructor_still_rejects_invalid_tables() -> None:
+def test_direct_constructor_fails_immediately_with_supported_paths() -> None:
+    payload = _direct_constructor_payload()
+
+    with pytest.raises(
+        TypeError,
+        match="AnalysisReadyDatasetBuilder.*from_trusted_tables",
+    ):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_trusted_factory_still_rejects_invalid_tables() -> None:
     payload = _direct_constructor_payload()
     site_metadata = payload["site_metadata"]
     assert isinstance(site_metadata, pd.DataFrame)
     payload["site_metadata"] = site_metadata.drop(columns=["site_sequence"])
 
     with pytest.raises(DatasetValidationError, match="site_sequence"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)
 
 
-def test_direct_constructor_rejects_invalid_nested_processing_state() -> None:
+def test_trusted_factory_rejects_invalid_nested_processing_state() -> None:
     payload = _direct_constructor_payload()
     processing_state = payload["processing_state"]
     object.__setattr__(processing_state, "ruv_readiness", object())
 
     with pytest.raises(DatasetValidationError, match="ruv_readiness"):
-        AnalysisReadyPhosphoDataset(**payload)
+        trusted_analysis_ready_dataset_from_tables(**payload)

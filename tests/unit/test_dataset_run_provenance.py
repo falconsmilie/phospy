@@ -30,6 +30,9 @@ from phospy.science.sites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -72,7 +75,7 @@ def _direct_analysis_ready_dataset() -> AnalysisReadyPhosphoDataset:
     ]
     site_index = pd.Index(site_keys, name="site_key")
     sample_index = pd.Index(["sample_a", "sample_b"], name="sample_id")
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0, 2.0],
@@ -330,7 +333,7 @@ def test_collect_environment_provenance_uses_process_cache(
     assert first == second
 
 
-def test_direct_dataset_construction_without_provenance_records_marker() -> None:
+def test_trusted_table_reconstruction_without_provenance_records_marker() -> None:
     dataset = _direct_analysis_ready_dataset()
 
     provenance = dataset.provenance
@@ -344,26 +347,19 @@ def test_direct_dataset_construction_without_provenance_records_marker() -> None
     assert provenance.scientific_policies == ()
     construction = provenance.workflow_parameters["construction"]
     assert isinstance(construction, Mapping)
-    assert construction["method"] == "AnalysisReadyPhosphoDataset.__init__"
+    assert construction["method"] == "AnalysisReadyPhosphoDataset.from_trusted_tables"
     assert construction["source"] == "direct_trusted_construction"
     assert construction["builder_used"] is False
     assert construction["warning"] == (
         "Direct construction cannot prove biological correctness of "
         "caller-provided analysis-ready state."
     )
-    assert construction["trusted_assertion_metadata_provided"] is False
-    assert construction["missing_trusted_assertions"] == [
-        "identity_user_asserted",
-        "intensity_scale_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "aligned_structure_user_asserted",
-        "localisation_user_asserted",
-        "sequence_user_asserted",
-        "reference_context_user_asserted",
-    ]
+    assert construction["trusted_assertion_metadata_provided"] is True
+    assert construction["missing_trusted_assertions"] == []
     assertions = construction["trusted_construction_assertions"]
     assert isinstance(assertions, Mapping)
-    assert assertions["assertion_metadata_provided"] is False
+    assert assertions["assertion_metadata_provided"] is True
+    assert assertions["missing_assertions"] == []
     assert {item.name for item in provenance.input_tables} == {
         "dataset.phospho",
         "dataset.site_metadata",
@@ -374,7 +370,7 @@ def test_direct_dataset_construction_without_provenance_records_marker() -> None
     assert provenance.input_tables == provenance.output_tables
 
 
-def test_direct_dataset_construction_provenance_serializes_round_trip() -> None:
+def test_trusted_table_reconstruction_provenance_serializes_round_trip() -> None:
     dataset = _direct_analysis_ready_dataset()
     assert dataset.provenance is not None
 
@@ -391,16 +387,8 @@ def test_direct_dataset_construction_provenance_serializes_round_trip() -> None:
     assert isinstance(construction, dict)
     trusted_assertions = construction["trusted_construction_assertions"]
     assert isinstance(trusted_assertions, dict)
-    assert trusted_assertions["assertion_metadata_provided"] is False
-    assert trusted_assertions["missing_assertions"] == [
-        "identity_user_asserted",
-        "intensity_scale_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "aligned_structure_user_asserted",
-        "localisation_user_asserted",
-        "sequence_user_asserted",
-        "reference_context_user_asserted",
-    ]
+    assert trusted_assertions["assertion_metadata_provided"] is True
+    assert trusted_assertions["missing_assertions"] == []
 
 
 def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:

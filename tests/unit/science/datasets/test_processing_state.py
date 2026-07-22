@@ -12,7 +12,6 @@ from phospy.errors import DatasetProcessingStateError, DatasetValidationError
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.immutability import FrozenJsonMapping
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.policy_models import (
     MissingDataPolicy,
     TotalProteinCorrectionPolicy,
@@ -31,6 +30,9 @@ from phospy.science.datasets.processing_state import (
 )
 from phospy.science.references.models import Organism
 from phospy.science.transformations.models import QuantitativeMeaning
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -637,7 +639,7 @@ def test_dataset_construction_rejects_total_correction_state_without_total_matri
     )
 
     with pytest.raises(DatasetValidationError, match="requires dataset.total"):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=scale,
@@ -652,7 +654,7 @@ def test_dataset_rejects_no_missing_state_when_matrix_contains_missing_values() 
     phospho.iloc[0, 0] = np.nan
 
     with pytest.raises(DatasetValidationError, match="claims no missing values"):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=supported_linear_intensity_scale_state(
@@ -674,7 +676,7 @@ def test_dataset_rejects_observation_mask_with_mismatched_labels() -> None:
     with pytest.raises(
         DatasetValidationError, match="imputation_observation_mask.index"
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=supported_linear_intensity_scale_state(
@@ -689,7 +691,7 @@ def test_dataset_rejects_observation_mask_with_mismatched_labels() -> None:
 def test_valid_processing_state_constructs_dataset_successfully() -> None:
     phospho, site_metadata = _dataset_frames()
 
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         intensity_scale_state=supported_linear_intensity_scale_state(

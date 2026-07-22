@@ -13,7 +13,6 @@ import pytest
 import phospy.workflows.kinase.executor as kinase_executor
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
 from phospy.api import (
@@ -35,6 +34,9 @@ from phospy.api.configs import (
 from phospy.errors import DatasetValidationError, WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
 from phospy.science.activities.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_kinase_public_predmat_provenance_golden,
@@ -183,7 +185,7 @@ def test_analysis_ready_dataset_boundary_rejects_missing_site_sequence_column() 
         DatasetValidationError,
         match="dataset.site_metadata is missing required columns: site_sequence",
     ):
-        AnalysisReadyPhosphoDataset(
+        trusted_analysis_ready_dataset_from_tables(
             phospho=dataset.phospho,
             site_metadata=dataset.site_metadata.drop(columns=["site_sequence"]),
             intensity_scale_state=dataset.intensity_scale_state,

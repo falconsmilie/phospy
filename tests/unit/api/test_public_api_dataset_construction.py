@@ -46,18 +46,17 @@ def test_public_api_marks_direct_dataset_construction_advanced_trusted() -> None
     assert model_doc is not None
     assert factory_doc is not None
     normalized_factory_doc = " ".join(factory_doc.split())
-    assert "trusted advanced/internal use" in model_doc
-    assert "Ordinary users" in model_doc
+    assert "stable public result/domain type" in model_doc
+    assert "ordinary direct construction is not a supported creation path" in model_doc
     assert "AnalysisReadyDatasetBuilder.run" in model_doc
     assert "from_trusted_tables" in model_doc
-    assert "not the primary advanced construction API" in model_doc
     assert "typed evidence or an explicit" in model_doc
     assert "localisation" in model_doc
     assert "cannot prove" in model_doc
     assert "biological correctness" in model_doc
-    assert "minimal" in model_doc
-    assert "direct-construction provenance marker" in model_doc
-    assert "same structural invariants as direct construction" in normalized_factory_doc
+    assert "same structural invariants as the builder-owned path" in (
+        normalized_factory_doc
+    )
     assert "site_sequence" in factory_doc
     assert "source, policy" in factory_doc
     assert "threshold" in factory_doc
@@ -84,4 +83,4 @@ def test_public_docs_examples_use_builder_path() -> None:
     ) not in documentation
     assert "advanced/trusted" in documentation
     assert "AnalysisReadyPhosphoDataset.from_trusted_tables" in documentation
-    assert "minimal direct-construction provenance marker" in documentation
+    assert "raises immediately" in documentation

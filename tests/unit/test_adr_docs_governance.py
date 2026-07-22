@@ -184,7 +184,7 @@ def test_dataset_boundary_adr_inventories_non_builder_construction_paths() -> No
         "AnalysisReadyPhosphoDataset.from_trusted_tables",
         "AnalysisReadyPhosphoDataset(...)",
         "AnalysisReadyDatasetModelBoundaryValidator.run",
-        "AnalysisReadyPhosphoDataset._from_owned",
+        "AnalysisReadyPhosphoDataset._from_builder_output",
         "DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables",
         "typed evidence or waiver assertions",
         "Localisation evidence must record source, policy, and threshold",

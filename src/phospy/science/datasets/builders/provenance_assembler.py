@@ -139,7 +139,7 @@ class DatasetRunProvenanceAssembler:
             "construction": {
                 "method": "AnalysisReadyDatasetBuilder.run",
                 "dataset_type": "AnalysisReadyPhosphoDataset",
-                "model_constructor": "AnalysisReadyPhosphoDataset._from_owned",
+                "model_constructor": "AnalysisReadyPhosphoDataset._from_builder_output",
                 "input_table_identities": _table_identity_payload(input_entries),
                 "output_table_identities": _table_identity_payload(output_entries),
                 "processing_state_establishment": {
@@ -167,7 +167,9 @@ class DatasetRunProvenanceAssembler:
                     "preprocessing_trace_stages": [
                         item.stage for item in (preprocessing_trace or ())
                     ],
-                    "analysis_ready_boundary": ("AnalysisReadyPhosphoDataset.__init__"),
+                    "analysis_ready_boundary": (
+                        "AnalysisReadyPhosphoDataset._from_builder_output"
+                    ),
                 },
             },
         }

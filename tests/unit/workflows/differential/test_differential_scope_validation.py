@@ -26,6 +26,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -86,7 +89,7 @@ def _dataset(
         },
         index=site_index.copy(),
     )
-    return AnalysisReadyPhosphoDataset(
+    return trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
@@ -196,7 +199,7 @@ def test_insufficient_residual_degrees_of_freedom_fails_before_execution() -> No
 
 def test_imputed_data_are_rejected_under_default_policy() -> None:
     dataset = _dataset()
-    imputed_dataset = AnalysisReadyPhosphoDataset(
+    imputed_dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=dataset.phospho,
         site_metadata=dataset.site_metadata,
         organism=dataset.organism,
