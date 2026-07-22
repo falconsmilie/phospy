@@ -36,6 +36,34 @@ _LEGACY_PROVENANCE_SCHEMA_ERROR = (
     "Legacy provenance schemas are no longer supported. Regenerate the result "
     "with the current PhosPy version."
 )
+_LEGACY_PEPTIDE_RESOLUTION_AGGREGATION_POLICY = "mapping_weighted_mean"
+_LEGACY_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_POLICY = "sum_to_one_per_peptide_row"
+_LEGACY_DUPLICATE_PEPTIDE_POLICY = "retain_all_peptide_rows_as_independent_observations"
+_LEGACY_MIXED_AMBIGUITY_POLICY = (
+    "mixed_ambiguous_and_unambiguous_rows_share_same_weighted_mean_aggregation"
+)
+_CURRENT_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY = (
+    "explicit_mapping_weight_when_supplied_else_equal_fraction_per_resolved_site"
+)
+_CURRENT_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY = (
+    "sum_to_one_per_peptide_evidence_row"
+)
+_CURRENT_PEPTIDE_SIGNAL_ALLOCATION_POLICY = (
+    "multiply_peptide_signal_by_mapping_fraction"
+)
+_CURRENT_PEPTIDE_SITE_SUMMARISATION_POLICY = "arithmetic_mean_of_allocated_signals"
+_CURRENT_PEPTIDE_DUPLICATE_EVIDENCE_POLICY = (
+    "retain_duplicate_peptide_evidence_rows_as_separate_observations"
+)
+_CURRENT_PEPTIDE_MIXED_AMBIGUITY_POLICY = (
+    "combine_ambiguous_and_unambiguous_allocated_signals_in_site_mean"
+)
+_CURRENT_PEPTIDE_LOCALISATION_AGGREGATION_POLICY = (
+    "arithmetic_mean_of_finite_reported_localisation_values"
+)
+_CURRENT_PEPTIDE_LEGACY_AGGREGATION_ALIAS = (
+    "legacy_alias_for_arithmetic_mean_of_allocated_signals"
+)
 _LEGACY_TABLE_FINGERPRINT_FIELDS = frozenset({"hash_algorithm", "hash_value"})
 _LEGACY_PREPROCESSING_STAGE_FIELDS = frozenset({"is_deterministic"})
 _DETERMINISM_ALIASES = {
@@ -117,6 +145,7 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
         payload.get("workflow_parameters"),
         field_name="provenance.workflow_parameters",
     )
+    workflow_parameters = _normalise_workflow_parameters(workflow_parameters)
     return RunProvenance(
         environment=_environment_from_payload(environment_payload),
         input_tables=tuple(
@@ -175,6 +204,122 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
         if reference_context_payload is None
         else ReferenceContext.from_payload(reference_context_payload),
     )
+
+
+def _normalise_workflow_parameters(
+    workflow_parameters: Mapping[str, object],
+) -> dict[str, object]:
+    normalized = dict(workflow_parameters)
+    peptide_resolution = normalized.get("peptide_evidence_resolution")
+    if isinstance(peptide_resolution, Mapping):
+        peptide_resolution_payload = cast(Mapping[str, object], peptide_resolution)
+        normalized["peptide_evidence_resolution"] = (
+            _normalise_peptide_evidence_resolution_workflow_parameter(
+                peptide_resolution_payload
+            )
+        )
+    return normalized
+
+
+def _normalise_peptide_evidence_resolution_workflow_parameter(
+    payload: Mapping[str, object],
+) -> dict[str, object]:
+    normalized = dict(payload)
+    normalized["mapping_weight_source_policy"] = str(
+        normalized.get("mapping_weight_source_policy")
+        or _CURRENT_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY
+    )
+
+    legacy_normalization = normalized.get("mapping_weight_normalisation")
+    if "mapping_weight_normalization_policy" not in normalized:
+        normalized["mapping_weight_normalization_policy"] = (
+            _CURRENT_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY
+            if legacy_normalization
+            in (
+                None,
+                _LEGACY_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_POLICY,
+                _CURRENT_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY,
+            )
+            else str(legacy_normalization)
+        )
+    normalized["mapping_weight_normalisation"] = str(
+        normalized.get("mapping_weight_normalisation")
+        or normalized["mapping_weight_normalization_policy"]
+    )
+    if (
+        normalized["mapping_weight_normalisation"]
+        == _LEGACY_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_POLICY
+    ):
+        normalized["mapping_weight_normalisation"] = str(
+            normalized["mapping_weight_normalization_policy"]
+        )
+
+    normalized["signal_allocation_policy"] = str(
+        normalized.get("signal_allocation_policy")
+        or _CURRENT_PEPTIDE_SIGNAL_ALLOCATION_POLICY
+    )
+    normalized["site_summarisation_policy"] = str(
+        normalized.get("site_summarisation_policy")
+        or _CURRENT_PEPTIDE_SITE_SUMMARISATION_POLICY
+    )
+
+    legacy_duplicate_policy = normalized.get("duplicate_peptide_policy")
+    if "duplicate_evidence_policy" not in normalized:
+        normalized["duplicate_evidence_policy"] = (
+            _CURRENT_PEPTIDE_DUPLICATE_EVIDENCE_POLICY
+            if legacy_duplicate_policy
+            in (
+                None,
+                _LEGACY_DUPLICATE_PEPTIDE_POLICY,
+                _CURRENT_PEPTIDE_DUPLICATE_EVIDENCE_POLICY,
+            )
+            else str(legacy_duplicate_policy)
+        )
+    normalized["duplicate_peptide_policy"] = str(
+        normalized.get("duplicate_peptide_policy")
+        or normalized["duplicate_evidence_policy"]
+    )
+    if normalized["duplicate_peptide_policy"] == _LEGACY_DUPLICATE_PEPTIDE_POLICY:
+        normalized["duplicate_peptide_policy"] = str(
+            normalized["duplicate_evidence_policy"]
+        )
+
+    mixed_ambiguity_policy = normalized.get("mixed_ambiguity_policy")
+    normalized["mixed_ambiguity_policy"] = (
+        _CURRENT_PEPTIDE_MIXED_AMBIGUITY_POLICY
+        if mixed_ambiguity_policy
+        in (
+            None,
+            _LEGACY_MIXED_AMBIGUITY_POLICY,
+            _CURRENT_PEPTIDE_MIXED_AMBIGUITY_POLICY,
+        )
+        else str(mixed_ambiguity_policy)
+    )
+    normalized["localisation_aggregation_policy"] = str(
+        normalized.get("localisation_aggregation_policy")
+        or _CURRENT_PEPTIDE_LOCALISATION_AGGREGATION_POLICY
+    )
+
+    aggregation_policy = normalized.get("aggregation_policy")
+    normalized["aggregation_policy"] = (
+        _CURRENT_PEPTIDE_LEGACY_AGGREGATION_ALIAS
+        if aggregation_policy
+        in (
+            None,
+            _LEGACY_PEPTIDE_RESOLUTION_AGGREGATION_POLICY,
+            _CURRENT_PEPTIDE_LEGACY_AGGREGATION_ALIAS,
+        )
+        else str(aggregation_policy)
+    )
+    normalized["aggregation_formula"] = str(
+        normalized.get("aggregation_formula")
+        or (
+            "a[p,s,j] = mapping_fraction[p,s] * peptide_signal[p,j]; "
+            "site_signal[s,j] = arithmetic_mean(a[p,s,j] for retained peptide "
+            "rows p mapped to s)"
+        )
+    )
+    return normalized
 
 
 def batch_correction_provenance_to_payload(

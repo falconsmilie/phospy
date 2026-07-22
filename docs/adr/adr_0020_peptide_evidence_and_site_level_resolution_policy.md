@@ -40,19 +40,58 @@ resolution logic (`PeptideEvidenceTable`, `MultiSiteHandlingConfig`,
 Peptide-to-site aggregation is scientifically explicit and owned by
 `phospy.science.evidence.dataset_resolution`:
 
-- **Aggregation policy name:** `mapping_weighted_mean`
-- **Formula:** `site_intensity = mean(per_peptide_intensity * mapping_weight)`
-- **Mapping-weight representation:** `site_mapping.mapping_weight`
+- **Mapping-weight source policy:**
+  `explicit_mapping_weight_when_supplied_else_equal_fraction_per_resolved_site`
+- **Mapping-weight normalisation policy:**
+  `sum_to_one_per_peptide_evidence_row`
+- **Signal allocation policy:** `multiply_peptide_signal_by_mapping_fraction`
+- **Site summarisation policy:** `arithmetic_mean_of_allocated_signals`
+- **Duplicate evidence policy:**
+  `retain_duplicate_peptide_evidence_rows_as_separate_observations`
+- **Mixed ambiguity policy:**
+  `combine_ambiguous_and_unambiguous_allocated_signals_in_site_mean`
+- **Localisation aggregation policy:**
+  `arithmetic_mean_of_finite_reported_localisation_values`
+- **Legacy aggregation-policy alias:**
+  `legacy_alias_for_arithmetic_mean_of_allocated_signals`
+- **Mapping-fraction representation:** `site_mapping.mapping_weight`
 - **Weight normalisation contract:** mapping weights must sum to `1.0` per
   `peptide_row_id`
 - **Derived default when absent:** equal weight per mapped site
-- **Duplicate peptide handling:** retain all peptide rows as independent
-  observations (no sequence-level de-duplication)
-- **Mixed ambiguous/unambiguous handling:** both contribute through the same
-  weighted-mean aggregation once mapping is resolved
 
-This replaces implicit split-plus-mean behaviour with named, provenance-visible
-semantics.
+The current supported mathematics is:
+
+```text
+a[p,s,j] = w[p,s] * x[p,j]
+y[s,j] = mean over retained evidence rows p mapped to s of a[p,s,j]
+```
+
+where:
+
+- `p` is a retained peptide evidence row.
+- `s` is a resolved site.
+- `j` is a sample.
+- `x[p,j]` is the peptide-row signal.
+- `w[p,s]` is the mapping allocation fraction for that peptide row and site.
+- `a[p,s,j]` is the allocated peptide-row signal.
+- `y[s,j]` is the site-level signal.
+
+`w[p,s]` is an allocation fraction, not a statistical inverse-variance weight
+or localisation-confidence weight. The final arithmetic mean is taken over
+allocated evidence-row signals. This is not equivalent in general to either
+`sum(w * x)` or `sum(w * x) / sum(w)`.
+
+This policy does not generally conserve total signal after site-level
+summarisation because the allocated signals are averaged per resolved site.
+Duplicate retained rows affect the arithmetic mean because they are treated as
+separate evidence observations. Ambiguous and unambiguous evidence rows mapped
+to the same site are summarised by the same arithmetic mean over allocated
+signals.
+
+This ADR documents the currently supported policy. It does not claim that this
+policy is universally optimal; alternatives such as summation, conventional
+normalised weighted means, robust medians, best-peptide methods, or hierarchical
+models require separate scientific review and a future ADR.
 
 ### Protein Identity Metadata
 
@@ -128,10 +167,14 @@ The dataset report/provenance includes:
 - excluded observations
 - split observations (when applicable)
 - selected multi-site policy
-- aggregation policy + formula
-- mapping-weight source + normalisation contract
-- duplicate peptide policy + duplicate peptide row count
+- mapping-weight source policy and actual source observed for the run
+- mapping-weight normalisation policy
+- signal allocation policy
+- site summarisation policy
+- legacy aggregation-policy alias + formula
+- duplicate evidence policy + duplicate peptide row count
 - mixed-ambiguity handling policy
+- localisation aggregation policy
 
 ## Consequences
 

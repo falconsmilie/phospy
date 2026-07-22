@@ -16,14 +16,25 @@ from phospy.api.requests import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
+from phospy.provenance.serialization import from_payload
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.evidence import (
+    DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS,
     DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS,
+    DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES,
     DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE,
+    DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY_SUM_TO_ONE_PER_PEPTIDE_ROW,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
+    DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL,
+    DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_COMBINE_ALLOCATED_SIGNALS,
+    DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION,
     DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR,
+    DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS,
+    DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN,
     PeptideEvidenceDatasetResolver,
+    PeptideEvidenceResolutionResult,
+    PeptideEvidenceResolutionSummary,
     PeptideEvidenceTable,
     build_multi_site_handling_config_for_dataset_policy,
 )
@@ -107,6 +118,72 @@ def _peptide_evidence_frame(*, include_single_site: bool = True) -> pd.DataFrame
             }
         )
     return pd.DataFrame(rows)
+
+
+def _resolution_policy_evidence_row(
+    *,
+    peptide_row_id: str,
+    sample_a: float,
+    site_id: str = "MAPK1;S10;",
+    site_string: str = "S10",
+    peptide_sequence: str = "AAASAAA",
+    multi_site: bool = False,
+    localisation_confidence: object = 0.9,
+) -> dict[str, object]:
+    return {
+        "peptide_row_id": peptide_row_id,
+        "site_id": site_id,
+        "unique_feature_id": f"feat_{peptide_row_id}",
+        "gene_symbol": "MAPK1",
+        "protein_accession": "P28482",
+        "site_string": site_string,
+        "sample_a": sample_a,
+        "peptide_sequence": peptide_sequence,
+        "modified_peptide_sequence": peptide_sequence,
+        "multi_site": multi_site,
+        "provenance_source": "unit-test",
+        "localisation_confidence": localisation_confidence,
+    }
+
+
+def _resolution_policy_evidence_table(
+    rows: list[dict[str, object]],
+    *,
+    split: bool = False,
+    site_mapping: pd.DataFrame | None = None,
+) -> PeptideEvidenceTable:
+    return PeptideEvidenceTable(
+        frame=pd.DataFrame(rows),
+        sample_intensity_columns=("sample_a",),
+        site_mapping=site_mapping,
+        multi_site_handling_config=(
+            build_multi_site_handling_config_for_dataset_policy(
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT
+            )
+            if split
+            else None
+        ),
+    )
+
+
+def _run_policy_resolution(
+    rows: list[dict[str, object]],
+    *,
+    split: bool = False,
+    site_mapping: pd.DataFrame | None = None,
+) -> PeptideEvidenceResolutionResult:
+    return PeptideEvidenceDatasetResolver().run(
+        evidence=_resolution_policy_evidence_table(
+            rows,
+            split=split,
+            site_mapping=site_mapping,
+        ),
+        multi_site_policy=(
+            DATASET_MULTI_SITE_POLICY_SPLIT
+            if split
+            else DATASET_MULTI_SITE_POLICY_KEEP_JOINT
+        ),
+    )
 
 
 def _single_site_peptide_evidence_frame() -> pd.DataFrame:
@@ -796,6 +873,282 @@ def test_multiple_peptides_mapping_to_one_site_are_mean_aggregated() -> None:
     assert float(built.phospho.loc[mapk1_s10, "sample_b"]) == pytest.approx(23.0)
 
 
+def test_single_peptide_split_allocates_fraction_before_site_mean() -> None:
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                site_string="S10,T12",
+                multi_site=True,
+            )
+        ],
+        split=True,
+    )
+
+    assert float(resolved.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(5.0)
+    assert float(resolved.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(5.0)
+
+
+def test_two_split_rows_use_arithmetic_mean_of_allocated_values() -> None:
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                site_string="S10,T12",
+                peptide_sequence="AAASAAA",
+                multi_site=True,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_2",
+                sample_a=30.0,
+                site_string="S10,T12",
+                peptide_sequence="CCCSCCC",
+                multi_site=True,
+            ),
+        ],
+        split=True,
+    )
+
+    assert float(resolved.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(10.0)
+    assert float(resolved.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(10.0)
+
+
+def test_site_summarisation_is_not_conventional_normalized_weighted_mean() -> None:
+    mapping = pd.DataFrame(
+        {
+            "peptide_row_id": ["pep_1", "pep_1", "pep_2", "pep_2"],
+            "site_id": ["MAPK1;S10;", "MAPK1;T12;", "MAPK1;S10;", "MAPK1;T12;"],
+            "mapping_weight": [0.2, 0.8, 0.8, 0.2],
+        }
+    )
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                site_string="S10,T12",
+                peptide_sequence="AAASAAA",
+                multi_site=True,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_2",
+                sample_a=30.0,
+                site_string="S10,T12",
+                peptide_sequence="CCCSCCC",
+                multi_site=True,
+            ),
+        ],
+        split=True,
+        site_mapping=mapping,
+    )
+
+    current_policy_value = float(resolved.phospho.loc["MAPK1;S10;", "sample_a"])
+    conventional_normalized_weighted_mean = ((0.2 * 10.0) + (0.8 * 30.0)) / (0.2 + 0.8)
+    assert current_policy_value == pytest.approx(13.0)
+    assert current_policy_value != pytest.approx(conventional_normalized_weighted_mean)
+
+
+def test_unequal_explicit_fractions_use_mean_of_allocated_values() -> None:
+    mapping = pd.DataFrame(
+        {
+            "peptide_row_id": ["pep_1", "pep_1", "pep_2", "pep_2"],
+            "site_id": ["MAPK1;S10;", "MAPK1;T12;", "MAPK1;S10;", "MAPK1;T12;"],
+            "mapping_weight": [0.25, 0.75, 0.75, 0.25],
+        }
+    )
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                site_string="S10,T12",
+                peptide_sequence="AAASAAA",
+                multi_site=True,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_2",
+                sample_a=20.0,
+                site_string="S10,T12",
+                peptide_sequence="CCCSCCC",
+                multi_site=True,
+            ),
+        ],
+        split=True,
+        site_mapping=mapping,
+    )
+
+    assert float(resolved.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(
+        (2.5 + 15.0) / 2.0
+    )
+    assert float(resolved.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(
+        (7.5 + 5.0) / 2.0
+    )
+
+
+def test_mapping_weight_sum_tolerance_accepts_near_unit_fraction_total() -> None:
+    mapping = pd.DataFrame(
+        {
+            "peptide_row_id": ["pep_1", "pep_1"],
+            "site_id": ["MAPK1;S10;", "MAPK1;T12;"],
+            "mapping_weight": [0.7000004, 0.2999999],
+        }
+    )
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                site_string="S10,T12",
+                multi_site=True,
+            )
+        ],
+        split=True,
+        site_mapping=mapping,
+    )
+
+    assert float(resolved.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(
+        7.000004
+    )
+
+
+def test_allocated_signal_summarisation_is_invariant_to_row_permutation() -> None:
+    rows = [
+        _resolution_policy_evidence_row(
+            peptide_row_id="pep_1",
+            sample_a=10.0,
+            site_string="S10,T12",
+            peptide_sequence="AAASAAA",
+            multi_site=True,
+        ),
+        _resolution_policy_evidence_row(
+            peptide_row_id="pep_2",
+            sample_a=30.0,
+            site_string="S10,T12",
+            peptide_sequence="CCCSCCC",
+            multi_site=True,
+        ),
+        _resolution_policy_evidence_row(
+            peptide_row_id="pep_3",
+            sample_a=20.0,
+            peptide_sequence="GGGSGGG",
+        ),
+    ]
+    expected = _run_policy_resolution(rows, split=True).phospho
+
+    for row_order in permutations(rows):
+        resolved = _run_policy_resolution(list(row_order), split=True)
+        pd.testing.assert_frame_equal(resolved.phospho, expected)
+
+
+def test_duplicate_evidence_rows_affect_mean_under_retained_duplicate_policy() -> None:
+    unduplicated = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                peptide_sequence="AAASAAA",
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_2",
+                sample_a=30.0,
+                peptide_sequence="CCCSCCC",
+            ),
+        ]
+    )
+    duplicated = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                peptide_sequence="AAASAAA",
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1_duplicate",
+                sample_a=10.0,
+                peptide_sequence="AAASAAA",
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_2",
+                sample_a=30.0,
+                peptide_sequence="CCCSCCC",
+            ),
+        ]
+    )
+
+    assert float(unduplicated.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(
+        20.0
+    )
+    assert float(duplicated.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(
+        (10.0 + 10.0 + 30.0) / 3.0
+    )
+    assert duplicated.summary.duplicate_evidence_policy == (
+        DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS
+    )
+    assert duplicated.summary.duplicate_peptide_rows == 2
+
+
+def test_mixed_ambiguous_and_unambiguous_rows_share_allocated_signal_mean() -> None:
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_split",
+                sample_a=10.0,
+                site_string="S10,T12",
+                peptide_sequence="AAASAAA",
+                multi_site=True,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_single",
+                sample_a=20.0,
+                peptide_sequence="CCCSCCC",
+            ),
+        ],
+        split=True,
+    )
+
+    assert float(resolved.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(
+        (5.0 + 20.0) / 2.0
+    )
+    assert float(resolved.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(5.0)
+    assert resolved.summary.mixed_ambiguity_policy == (
+        DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_COMBINE_ALLOCATED_SIGNALS
+    )
+
+
+def test_localisation_aggregation_uses_mean_of_finite_reported_values() -> None:
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                peptide_sequence="AAASAAA",
+                localisation_confidence=0.2,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_2",
+                sample_a=20.0,
+                peptide_sequence="CCCSCCC",
+                localisation_confidence=pd.NA,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_3",
+                sample_a=30.0,
+                peptide_sequence="GGGSGGG",
+                localisation_confidence=1.0,
+            ),
+        ]
+    )
+
+    assert float(
+        resolved.site_metadata.loc["MAPK1;S10;", "localisation_confidence"]
+    ) == pytest.approx(0.6)
+    assert resolved.summary.localisation_aggregation_policy == (
+        DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES
+    )
+
+
 def test_duplicate_peptide_rows_are_retained_as_independent_observations() -> None:
     evidence = _peptide_evidence_frame(include_single_site=False)
     evidence = pd.concat([evidence, evidence.copy(deep=True)], ignore_index=True)
@@ -877,6 +1230,167 @@ def test_mapping_weights_must_sum_to_one_per_peptide_row() -> None:
         )
 
 
+def test_new_resolution_summary_serializes_explicit_policy_identifiers_in_order() -> (
+    None
+):
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=10.0,
+                site_string="S10,T12",
+                multi_site=True,
+            )
+        ],
+        split=True,
+    )
+
+    payload = resolved.summary.to_payload()
+    ordered_policy_keys = [
+        "mapping_weight_source_policy",
+        "mapping_weight_normalization_policy",
+        "signal_allocation_policy",
+        "site_summarisation_policy",
+        "duplicate_evidence_policy",
+        "mixed_ambiguity_policy",
+        "localisation_aggregation_policy",
+    ]
+    assert [key for key in payload if key in ordered_policy_keys] == (
+        ordered_policy_keys
+    )
+    assert payload["mapping_weight_source_policy"] == (
+        DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL
+    )
+    assert payload["mapping_weight_normalization_policy"] == (
+        DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY_SUM_TO_ONE_PER_PEPTIDE_ROW
+    )
+    assert payload["signal_allocation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION
+    )
+    assert payload["site_summarisation_policy"] == (
+        DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS
+    )
+    assert payload["duplicate_evidence_policy"] == (
+        DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS
+    )
+    assert payload["mixed_ambiguity_policy"] == (
+        DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_COMBINE_ALLOCATED_SIGNALS
+    )
+    assert payload["localisation_aggregation_policy"] == (
+        DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES
+    )
+    assert (
+        payload["aggregation_policy"]
+        == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS
+    )
+    assert (
+        payload["aggregation_policy"]
+        != DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
+    )
+
+
+def test_legacy_mapping_weighted_mean_provenance_reconstructs_policy_tuple() -> None:
+    legacy_resolution_payload: dict[str, object] = {
+        "input_mode": DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+        "multi_site_policy": DATASET_MULTI_SITE_POLICY_SPLIT,
+        "peptide_observations_received": 1,
+        "unique_site_ids_produced": 2,
+        "ambiguous_observations": 1,
+        "excluded_observations": 0,
+        "split_observations": 1,
+        "aggregation_policy": (
+            DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
+        ),
+        "aggregation_formula": (
+            "site_intensity = mean(per_peptide_intensity * mapping_weight)"
+        ),
+        "mapping_weight_source": DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
+        "mapping_weight_normalisation": "sum_to_one_per_peptide_row",
+        "duplicate_peptide_policy": (
+            "retain_all_peptide_rows_as_independent_observations"
+        ),
+        "duplicate_peptide_rows": 0,
+        "mixed_ambiguity_policy": (
+            "mixed_ambiguous_and_unambiguous_rows_share_same_weighted_mean_aggregation"
+        ),
+        "site_sequence_column_present": False,
+        "provided_site_sequence_count": 0,
+        "accepted_site_sequence_count": 0,
+        "rejected_site_sequence_count": 0,
+        "provided_site_sequence_used_count": 0,
+        "peptide_context_derived_site_sequence_count": 0,
+        "missing_site_sequence_count": 2,
+        "site_sequence_policy": DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR,
+    }
+
+    summary = PeptideEvidenceResolutionSummary.from_payload(legacy_resolution_payload)
+    assert summary.signal_allocation_policy == (
+        DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION
+    )
+    assert summary.site_summarisation_policy == (
+        DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS
+    )
+    assert summary.aggregation_policy == (
+        DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS
+    )
+
+    restored = from_payload(
+        {
+            "environment": {
+                "schema_version": 2,
+                "package_name": "phospy",
+                "package_version": "0",
+                "python_version": "3.13",
+                "dependency_versions": {},
+                "platform": {},
+                "blas_lapack": {},
+                "thread_environment": {},
+                "timezone": None,
+                "locale": {},
+                "constraints_fingerprint": {},
+            },
+            "input_tables": [],
+            "preprocessing_stages": [],
+            "reference": None,
+            "reference_context": None,
+            "workflow_name": "dataset_builder",
+            "workflow_parameters": {
+                "peptide_evidence_resolution": legacy_resolution_payload
+            },
+            "random_state": None,
+            "random_seed_policy": None,
+            "output_tables": [],
+            "scientific_policies": [],
+        }
+    )
+    restored_resolution = restored.workflow_parameters["peptide_evidence_resolution"]
+    assert isinstance(restored_resolution, Mapping)
+    assert restored_resolution["mapping_weight_source_policy"] == (
+        DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL
+    )
+    assert restored_resolution["mapping_weight_normalization_policy"] == (
+        DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY_SUM_TO_ONE_PER_PEPTIDE_ROW
+    )
+    assert restored_resolution["signal_allocation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION
+    )
+    assert restored_resolution["site_summarisation_policy"] == (
+        DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS
+    )
+    assert restored_resolution["duplicate_evidence_policy"] == (
+        DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS
+    )
+    assert restored_resolution["mixed_ambiguity_policy"] == (
+        DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_COMBINE_ALLOCATED_SIGNALS
+    )
+    assert restored_resolution["localisation_aggregation_policy"] == (
+        DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES
+    )
+    assert restored_resolution["aggregation_policy"] == (
+        DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS
+    )
+
+
 def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() -> None:
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -891,9 +1405,31 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
     assert isinstance(payload, Mapping)
+    assert payload["mapping_weight_source_policy"] == (
+        DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL
+    )
+    assert (
+        payload["mapping_weight_normalization_policy"]
+        == DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY_SUM_TO_ONE_PER_PEPTIDE_ROW
+    )
+    assert payload["signal_allocation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION
+    )
+    assert payload["site_summarisation_policy"] == (
+        DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS
+    )
+    assert payload["duplicate_evidence_policy"] == (
+        DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS
+    )
+    assert payload["mixed_ambiguity_policy"] == (
+        DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_COMBINE_ALLOCATED_SIGNALS
+    )
+    assert payload["localisation_aggregation_policy"] == (
+        DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES
+    )
     assert (
         payload["aggregation_policy"]
-        == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
+        == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS
     )
     assert (
         payload["mapping_weight_normalisation"]
@@ -914,9 +1450,15 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
     ].iloc[0]
     parameters = resolution_row["parameters"]
     assert isinstance(parameters, dict)
+    assert parameters["signal_allocation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION
+    )
+    assert parameters["site_summarisation_policy"] == (
+        DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS
+    )
     assert (
         parameters["aggregation_policy"]
-        == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
+        == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS
     )
     assert (
         parameters["site_sequence_policy"]
