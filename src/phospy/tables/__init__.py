@@ -1,29 +1,32 @@
-"""Internal scientific table schema wrappers."""
+"""Compatibility aggregate for scientific table schema imports."""
 
-from phospy.tables.activity import (
+from phospy.frames.table_schema import TableSchema
+from phospy.science.tables.activity import (
     ActivityCountSeries,
     ActivityMatrix,
     ActivityTargetTable,
 )
-from phospy.tables.base import TableSchema
-from phospy.tables.datasets import (
+from phospy.science.tables.datasets import (
     PhosphoIntensityMatrix,
     SampleMetadataTable,
     SiteMetadataTable,
     TotalProteinMatrix,
 )
-from phospy.tables.differential import (
+from phospy.science.tables.differential import (
     filter_differential_results,
     rank_differential_results,
 )
-from phospy.tables.kinase import (
+from phospy.science.tables.kinase import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
     KinasePredictionMatrix,
     KinaseScoreMatrix,
     KinaseSubstrateContributionTable,
 )
-from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
-from phospy.tables.signalome import (
+from phospy.science.tables.references import (
+    KinaseSubstrateReference,
+    SiteSequenceReference,
+)
+from phospy.science.tables.signalome import (
     KinaseNetworkCandidateCorrelationsTable,
     KinaseNetworkEdgesTable,
     KinaseNetworkNodesTable,

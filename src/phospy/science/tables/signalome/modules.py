@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.frames.table_schema import TableSchema, require_canonical_label_index
 from phospy.frames.validation import (
     require_dataframe,
     require_finite_numeric_dataframe,
@@ -12,7 +13,6 @@ from phospy.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.science.tables.base import TableSchema, require_canonical_label_index
 from phospy.science.tables.signalome.common import (
     _require_integer_compatible_index,
     _require_non_negative_integer_index,

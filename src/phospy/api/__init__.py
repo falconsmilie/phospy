@@ -149,11 +149,11 @@ from phospy.science.references.models import (
     ReferenceBundle,
     ReferenceBundleBuildRequest,
 )
-from phospy.science.transformations.models import IntensityScaleKind
-from phospy.tables.differential import (
+from phospy.science.tables.differential import (
     filter_differential_results,
     rank_differential_results,
 )
+from phospy.science.transformations.models import IntensityScaleKind
 
 # Stable public API: default imports for user workflows and examples.
 _STABLE_PUBLIC_API = (

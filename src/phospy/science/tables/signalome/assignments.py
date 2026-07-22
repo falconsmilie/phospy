@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.frames.table_schema import TableSchema, ValidationErrorType
 from phospy.frames.validation import (
     require_columns,
     require_dataframe,
@@ -39,7 +40,6 @@ from phospy.science.sites.identity_contracts import (
     enforce_analysis_ready_site_key_index,
     enforce_site_key_column_matches_index,
 )
-from phospy.science.tables.base import TableSchema, ValidationErrorType
 from phospy.science.tables.signalome.common import (
     _column_series,
     _numeric_series,

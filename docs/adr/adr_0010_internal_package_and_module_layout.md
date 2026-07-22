@@ -12,7 +12,8 @@
 
 This ADR defines module-splitting governance and compatibility-shim governance
 for internal PhosPy packages. The architecture uses split component modules and
-keeps compatibility layers limited to explicit serialization/bundle concerns.
+keeps compatibility layers limited to explicit serialization/bundle concerns
+and documented identity-preserving import routes.
 
 ## Status
 
@@ -91,8 +92,11 @@ Without governance:
 2. `phospy.workflows` owns orchestration only.
 3. `phospy.validation` owns validation infrastructure only.
 4. `phospy.provenance` owns shared provenance infrastructure only.
-5. `phospy.tables` owns table/schema wrapper infrastructure only.
-6. `phospy.frames` owns pandas frame ownership helpers only.
+5. `phospy.tables` owns identity-preserving compatibility imports only. It
+   must not own scientific table logic or define duplicate table/schema
+   classes.
+6. `phospy.frames` owns pandas frame ownership helpers and generic table-schema
+   infrastructure.
 7. `phospy.data` owns packaged static resources only.
 8. Public contract ownership stays under `phospy.api`.
 
@@ -119,13 +123,13 @@ The enforced package rules are:
 
 The current top-level orientation is:
 
-- `api -> contracts, errors, io, science, tables, validation, workflows`
-- `contracts -> errors, frames, policies, provenance, science, tables`
+- `api -> contracts, errors, io, science, validation, workflows`
+- `contracts -> errors, frames, policies, provenance, science`
 - `io -> contracts, errors, provenance, science, validation`
 - `science -> errors, frames, policies, provenance`
-- `tables -> errors, frames, science`
+- `tables -> frames, science`
 - `validation -> contracts, errors, frames, provenance, science`
-- `workflows -> contracts, errors, provenance, science, tables, validation`
+- `workflows -> contracts, errors, provenance, science, validation`
 
 The CI graph check lives in
 `tests/architecture/test_package_dependency_dag.py`. New exemptions require an
@@ -136,6 +140,10 @@ ADR update and a named test change; unexplained exemptions are not allowed.
 - bundle-format compatibility adapters where the compatibility concern is
   explicit (for example payload normalization/parsing modules under
   `io/bundles/.../compatibility/`)
+- `phospy.tables.*` identity-preserving re-export modules that keep supported
+  legacy scientific table import routes available while owned
+  implementations live under `phospy.science.tables` and generic schema
+  infrastructure lives under `phospy.frames`
 
 ### Unacceptable Compatibility Shim Examples
 

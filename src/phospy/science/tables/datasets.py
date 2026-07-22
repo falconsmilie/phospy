@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
+from phospy.frames.table_schema import (
+    TableSchema,
+)
 from phospy.frames.validation import (
     require_dataframe,
     require_exact_index_match,
@@ -34,9 +37,6 @@ from phospy.science.sites.metadata_validation import (
     enforce_site_identity_rows,
     validate_site_identity_metadata,
     validate_site_sequence_column,
-)
-from phospy.science.tables.base import (
-    TableSchema,
 )
 
 

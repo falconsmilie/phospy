@@ -1,15 +1,13 @@
-"""Signalome sidecar table schema wrappers."""
+"""Compatibility re-exports for signalome table schemas."""
 
-from phospy.tables.signalome.assignments import SignalomeAssignmentsTable
-from phospy.tables.signalome.context import (
-    SignalomeProteinSiteContext,
-    SignalomeSiteContext,
-)
-from phospy.tables.signalome.modules import SignalomeModulesTable
-from phospy.tables.signalome.network import (
+from phospy.science.tables.signalome import (
     KinaseNetworkCandidateCorrelationsTable,
     KinaseNetworkEdgesTable,
     KinaseNetworkNodesTable,
+    SignalomeAssignmentsTable,
+    SignalomeModulesTable,
+    SignalomeProteinSiteContext,
+    SignalomeSiteContext,
 )
 
 __all__ = [

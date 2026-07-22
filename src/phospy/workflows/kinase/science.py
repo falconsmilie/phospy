@@ -15,7 +15,7 @@ from phospy.contracts.configs import (
     KinaseProfileMissingValueStrategy,
 )
 from phospy.errors.workflows import WorkflowStageError
-from phospy.tables.kinase import (
+from phospy.science.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,

@@ -48,6 +48,10 @@ All notable changes to this project are documented here.
   payloads. New bundle payloads round-trip the semantic provenance exactly;
   legacy payloads without the field are loaded only through the explicit
   migration path as `legacy_unverified`, not as derived evidence.
+- Consolidated scientific table schema implementations under
+  `phospy.science.tables`, with generic `TableSchema` infrastructure under
+  `phospy.frames`. Supported `phospy.tables.*` imports are preserved as
+  identity-preserving compatibility re-exports.
 
 ### Documentation
 

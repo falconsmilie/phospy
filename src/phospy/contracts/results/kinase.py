@@ -26,7 +26,7 @@ from phospy.science.datasets.models import (
 )
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
-from phospy.tables.kinase import KinaseSubstrateContributionTable
+from phospy.science.tables.kinase import KinaseSubstrateContributionTable
 
 KinaseWorkflowCaveat = ResultCaveat
 

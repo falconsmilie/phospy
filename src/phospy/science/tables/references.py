@@ -12,6 +12,7 @@ from phospy.errors.validation import (
     ReferenceIdentifierNormalisationValidationError,
     ReferenceValidationError,
 )
+from phospy.frames.table_schema import TableSchema
 from phospy.frames.validation import (
     require_canonical_string_column,
     require_columns,
@@ -27,7 +28,6 @@ from phospy.science.references.identifiers import (
     normalise_reference_protein_accession,
     normalise_reference_site_id,
 )
-from phospy.science.tables.base import TableSchema
 
 
 def _raise_with_identifier_normalisation_report(

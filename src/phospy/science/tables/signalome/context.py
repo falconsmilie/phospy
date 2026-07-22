@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
+from phospy.frames.table_schema import TableSchema
 from phospy.frames.validation import (
     require_columns,
     require_dataframe,
@@ -47,7 +48,6 @@ from phospy.science.signalomes.context import (
     SITE_MEMBERSHIP_TOP_KINASE_WEIGHT_COLUMN,
 )
 from phospy.science.sites.validation import require_canonical_site_series
-from phospy.science.tables.base import TableSchema
 from phospy.science.tables.signalome.common import (
     _require_boolean_column,
     _require_integer_compatible_column,

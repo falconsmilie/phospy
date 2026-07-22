@@ -2,8 +2,9 @@ path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrizat
 tests/architecture/test_analysis_ready_construction_paths.py,architecture,53,2,false,false,,,,,,
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
 tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,519,7,false,false,,,,,,
+tests/architecture/test_package_dependency_dag.py,architecture,520,7,false,false,,,,,,
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
+tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/architecture/test_validation_boundaries.py,architecture,644,22,false,false,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,369,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
@@ -19,7 +20,7 @@ tests/integration/test_differential_with_technical_replicates.py,integration,201
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,476,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/integration/test_kinase_bundle_integration.py,integration,953,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,
+tests/integration/test_kinase_bundle_integration.py,integration,951,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,
 tests/integration/test_kinase_library_workflow_scoring.py,integration,256,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,303,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,285,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
@@ -30,7 +31,7 @@ tests/integration/test_public_examples_smoke.py,integration,52,1,true,true,publi
 tests/integration/test_quantitative_meaning_output_audit.py,integration,455,7,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for quantitative meaning output audit, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_readme_kinase_workflow_integration.py,integration,99,1,true,false,,,,,,
 tests/integration/test_reference_bundle_builder_integration.py,integration,129,2,true,false,,,,,,
-tests/integration/test_signalome_bundle_integration.py,integration,807,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/integration/test_signalome_bundle_integration.py,integration,805,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/integration/test_signalome_publishing_integration.py,integration,204,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome publishing integration and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_signalome_workflow_integration.py,integration,776,9,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/workflows/differential/test_differential_result_provenance.py,differential,275,3,false,false,,,,,,
@@ -79,7 +80,7 @@ tests/unit/science/differential/test_differential_diagnostics.py,differential,11
 tests/unit/test_activity_science.py,unit,1410,39,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_analysis_ready_model_boundary_validator.py,unit,870,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
+tests/unit/test_analysis_ready_model_boundary_validator.py,unit,880,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,59,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1136,14,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
@@ -152,7 +153,7 @@ tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific 
 tests/unit/test_experimental_design_contract.py,unit,986,34,false,false,,,,,,
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,379,14,false,false,,,,,,
-tests/unit/test_frame_ownership_policy.py,unit,2913,47,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 70 hit(s); indicators: private_member_access
+tests/unit/test_frame_ownership_policy.py,unit,2917,47,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 70 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
 tests/unit/test_group_coverage_filter_preprocessing.py,unit,258,7,false,false,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing_config.py,unit,195,10,true,true,,,,,,
@@ -266,7 +267,7 @@ tests/unit/test_site_matrix_components.py,unit,864,16,true,true,scientific invar
 tests/unit/test_site_validation_helpers.py,unit,90,5,false,false,,,,,,
 tests/unit/test_sps_ruv_style_executor.py,unit,884,21,false,false,,,,,,
 tests/unit/test_sps_ruv_upstream_imputation_masks.py,unit,767,16,true,true,,,,,,
-tests/unit/test_table_schemas.py,unit,1102,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_table_schemas.py,unit,1108,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,563,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_transformation_provenance.py,unit,329,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_validation_common_ownership.py,unit,27,2,false,false,,,,,,

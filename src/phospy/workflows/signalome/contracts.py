@@ -36,7 +36,7 @@ from phospy.science.signalomes.models import (
     default_signalome_alignment_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
-from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
+from phospy.science.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 
 
 @dataclass(frozen=True, slots=True)

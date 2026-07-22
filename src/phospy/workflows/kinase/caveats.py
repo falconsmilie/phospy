@@ -16,7 +16,9 @@ from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP,
 )
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
-from phospy.tables.kinase import KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED
+from phospy.science.tables.kinase import (
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+)
 from phospy.validation.identity_contracts import (
     validate_reference_context_compatibility,
 )

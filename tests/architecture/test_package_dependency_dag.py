@@ -18,7 +18,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.api", "phospy.errors"),
         ("phospy.api", "phospy.io"),
         ("phospy.api", "phospy.science"),
-        ("phospy.api", "phospy.tables"),
         ("phospy.api", "phospy.validation"),
         ("phospy.api", "phospy.workflows"),
         ("phospy.contracts", "phospy.errors"),
@@ -26,7 +25,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.contracts", "phospy.policies"),
         ("phospy.contracts", "phospy.provenance"),
         ("phospy.contracts", "phospy.science"),
-        ("phospy.contracts", "phospy.tables"),
         ("phospy.frames", "phospy.errors"),
         ("phospy.io", "phospy.contracts"),
         ("phospy.io", "phospy.errors"),
@@ -39,7 +37,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.science", "phospy.frames"),
         ("phospy.science", "phospy.policies"),
         ("phospy.science", "phospy.provenance"),
-        ("phospy.tables", "phospy.errors"),
         ("phospy.tables", "phospy.frames"),
         ("phospy.tables", "phospy.science"),
         ("phospy.validation", "phospy.contracts"),
@@ -51,7 +48,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.workflows", "phospy.errors"),
         ("phospy.workflows", "phospy.provenance"),
         ("phospy.workflows", "phospy.science"),
-        ("phospy.workflows", "phospy.tables"),
         ("phospy.workflows", "phospy.validation"),
     }
 )
@@ -135,6 +131,7 @@ ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES = frozenset(
         ("phospy.contracts.results.kinase", "phospy.science.datasets.models"),
         ("phospy.contracts.results.kinase", "phospy.science.prediction.models"),
         ("phospy.contracts.results.kinase", "phospy.science.references.models"),
+        ("phospy.contracts.results.kinase", "phospy.science.tables.kinase"),
         (
             "phospy.contracts.results.preprocessing",
             "phospy.science.datasets.preprocessing.batch_correction",
@@ -146,6 +143,10 @@ ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES = frozenset(
         ("phospy.contracts.results.signalome", "phospy.science.datasets.models"),
         ("phospy.contracts.results.signalome", "phospy.science.signalomes.constants"),
         ("phospy.contracts.results.signalome", "phospy.science.signalomes.models"),
+        (
+            "phospy.contracts.results.signalome",
+            "phospy.science.tables.signalome",
+        ),
     }
 )
 

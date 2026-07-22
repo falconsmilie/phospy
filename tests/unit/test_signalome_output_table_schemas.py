@@ -10,7 +10,7 @@ from phospy.science.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
-from phospy.tables.signalome import SignalomeAssignmentsTable
+from phospy.science.tables.signalome import SignalomeAssignmentsTable
 from tests.support.site_keys import (
     protein_site_key_index,
     site_key_index_from_display_ids,

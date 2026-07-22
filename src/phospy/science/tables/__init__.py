@@ -1,11 +1,11 @@
 """Internal scientific table schema wrappers."""
 
+from phospy.frames.table_schema import TableSchema
 from phospy.science.tables.activity import (
     ActivityCountSeries,
     ActivityMatrix,
     ActivityTargetTable,
 )
-from phospy.science.tables.base import TableSchema
 from phospy.science.tables.datasets import (
     PhosphoIntensityMatrix,
     SampleMetadataTable,

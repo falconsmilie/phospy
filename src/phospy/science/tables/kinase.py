@@ -11,6 +11,7 @@ import pandas as pd
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.numeric import require_numeric_unit_interval
 from phospy.frames.ownership import own_dataframe
+from phospy.frames.table_schema import TableSchema, require_canonical_label_index
 from phospy.frames.validation import (
     require_dataframe,
     require_finite_numeric_dataframe,
@@ -19,7 +20,6 @@ from phospy.frames.validation import (
     require_unique_index,
 )
 from phospy.science.sites.validation import require_site_key_index
-from phospy.science.tables.base import TableSchema, require_canonical_label_index
 
 KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED = "included"
 KINASE_SUBSTRATE_CONTRIBUTION_STATUS_EXCLUDED = "excluded"

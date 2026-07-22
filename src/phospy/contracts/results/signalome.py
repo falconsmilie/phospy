@@ -33,7 +33,7 @@ from phospy.science.signalomes.models import (
     default_signalome_module_selection_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
-from phospy.tables.signalome import (
+from phospy.science.tables.signalome import (
     SignalomeProteinSiteContext,
     SignalomeSiteContext,
 )

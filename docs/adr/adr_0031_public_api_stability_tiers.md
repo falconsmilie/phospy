@@ -98,6 +98,12 @@ attributes may remain on lower-level wrappers during migration, but wildcard
 exports and documented examples must not promote names classified here as
 internal / experimental.
 
+Scientific table import routes under `phospy.tables` are retained as advanced
+supported compatibility routes outside the aggregate `phospy.api` facade. They
+must re-export the exact owned objects from `phospy.science.tables` or
+`phospy.frames`; they do not own scientific logic, validation behavior, or
+duplicate class definitions.
+
 No validators, workflow executors, workflow interpreters, private result
 assemblers, or reference manifest validation internals may be promoted into
 `phospy.api` without a new contract review.

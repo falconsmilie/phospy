@@ -67,7 +67,7 @@ _REFERENCE_IDENTIFIER_COLUMN_HINT = re.compile(
     re.IGNORECASE,
 )
 _REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/science/references/identifiers.py"
-_PRODUCTION_REFERENCE_TABLES = "src/phospy/tables/references.py"
+_PRODUCTION_REFERENCE_TABLES = "src/phospy/science/tables/references.py"
 _FORBIDDEN_PROTEIN_ACCESSION_BOUNDARY_LEAK_TARGETS = (
     "src/phospy/science/sequences",
     "src/phospy/science/scoring",
@@ -1274,7 +1274,7 @@ def test_production_reference_table_owns_protein_accession_normalisation() -> No
     source = (ROOT / _PRODUCTION_REFERENCE_TABLES).read_text(encoding="utf-8")
     assert "class ProteinAccessionReference" in source, (
         "protein accession normalisation must be owned by an explicit production "
-        "reference ingestion boundary in src/phospy/tables/references.py"
+        f"reference ingestion boundary in {_PRODUCTION_REFERENCE_TABLES}"
     )
     assert "normalise_reference_protein_accession" in source, (
         "production protein accession ingestion must call the reference identifier "

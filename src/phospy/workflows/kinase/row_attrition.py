@@ -9,7 +9,7 @@ import pandas as pd
 
 from phospy.provenance.models import RowAttritionRecord, RowAttritionReport
 from phospy.science.prediction.models import KinaseScoringResult
-from phospy.tables.kinase import (
+from phospy.science.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
 )
 from phospy.workflows._row_attrition import (

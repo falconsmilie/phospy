@@ -10,6 +10,11 @@ import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import own_dataframe, own_series
+from phospy.frames.table_schema import (
+    TableSchema,
+    ValidationErrorType,
+    require_canonical_label_index,
+)
 from phospy.frames.validation import (
     require_canonical_string_column,
     require_columns,
@@ -23,11 +28,6 @@ from phospy.frames.validation import (
 from phospy.science.sites.validation import (
     require_canonical_site_series,
     require_site_key_series,
-)
-from phospy.science.tables.base import (
-    TableSchema,
-    ValidationErrorType,
-    require_canonical_label_index,
 )
 
 

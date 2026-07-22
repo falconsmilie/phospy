@@ -16,6 +16,7 @@ from phospy.frames.ownership import (
     export_optional_dataframe,
     own_optional_dataframe,
 )
+from phospy.frames.table_schema import require_canonical_label_index
 from phospy.frames.validation import (
     require_dataframe,
     require_exact_index_match,
@@ -45,7 +46,6 @@ from phospy.science.scoring.policy_models import (
     ProfileSelfInclusionPolicy,
 )
 from phospy.science.sites.validation import require_site_key_index
-from phospy.science.tables.base import require_canonical_label_index
 from phospy.science.tables.kinase import (
     KinasePredictionMatrix,
     KinaseProfileScoreDiagnosticTable,

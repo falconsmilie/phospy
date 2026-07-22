@@ -5,6 +5,11 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.frames.table_schema import (
+    TableSchema,
+    ValidationErrorType,
+    require_canonical_label_index,
+)
 from phospy.frames.validation import (
     require_canonical_string_column,
     require_columns,
@@ -21,11 +26,6 @@ from phospy.science.signalomes.constants import (
     SOURCE_KINASE_COLUMN,
     TARGET_KINASE_COLUMN,
     VALID_OBSERVATIONS_COLUMN,
-)
-from phospy.science.tables.base import (
-    TableSchema,
-    ValidationErrorType,
-    require_canonical_label_index,
 )
 from phospy.science.tables.signalome.common import (
     _column_series,

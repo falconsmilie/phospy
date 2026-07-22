@@ -52,7 +52,7 @@ from phospy.science.prediction.scientific_policies import (
     build_kinase_library_motif_scoring_policy,
     build_motif_profile_rank_fusion_policy,
 )
-from phospy.tables.kinase import (
+from phospy.science.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
 )
 from phospy.workflows.intensity_scale_evidence import (

@@ -17,16 +17,22 @@ from phospy.science.sites.site_keys import (
     decode_site_key,
     encode_site_key,
 )
-from phospy.tables.activity import ActivityMatrix, ActivityTargetTable
-from phospy.tables.datasets import (
+from phospy.science.tables.activity import ActivityMatrix, ActivityTargetTable
+from phospy.science.tables.datasets import (
     PhosphoIntensityMatrix,
     SampleMetadataTable,
     SiteMetadataTable,
     TotalProteinMatrix,
 )
-from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
-from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
-from phospy.tables.signalome import SignalomeProteinSiteContext, SignalomeSiteContext
+from phospy.science.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
+from phospy.science.tables.references import (
+    KinaseSubstrateReference,
+    SiteSequenceReference,
+)
+from phospy.science.tables.signalome import (
+    SignalomeProteinSiteContext,
+    SignalomeSiteContext,
+)
 
 _PROPERTY_SETTINGS = settings(
     max_examples=30,

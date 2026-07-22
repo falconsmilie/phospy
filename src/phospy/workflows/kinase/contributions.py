@@ -9,7 +9,7 @@ from typing import SupportsFloat, cast
 import pandas as pd
 
 from phospy.science.references.models import ReferenceBundle
-from phospy.tables.kinase import (
+from phospy.science.tables.kinase import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
     KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES,
     KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_MISSING_SCORE_VALUE,
