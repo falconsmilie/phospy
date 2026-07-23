@@ -1,8 +1,9 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_analysis_ready_construction_paths.py,architecture,53,2,false,false,,,,,,
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
+tests/architecture/test_config_ownership.py,architecture,282,6,false,false,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,520,7,false,false,,,,,,
+tests/architecture/test_package_dependency_dag.py,architecture,574,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/architecture/test_validation_boundaries.py,architecture,644,22,false,false,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
@@ -132,7 +133,7 @@ tests/unit/test_differential_result_contract.py,unit,999,33,false,false,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,144,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,854,19,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,250,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_differential_workflow_components.py,unit,1019,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
+tests/unit/test_differential_workflow_components.py,unit,1033,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,828,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,
@@ -188,7 +189,7 @@ tests/unit/test_phosphosite_importer_foundation.py,unit,197,6,false,false,,,,,,
 tests/unit/test_phosphosite_sequence_resolver.py,unit,255,12,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for phosphosite sequence resolver, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_policy_enum_boundaries.py,unit,378,18,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for policy enum boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-ENUM,
 tests/unit/test_policy_module_ownership.py,unit,91,7,true,true,,,,,,
-tests/unit/test_prediction_adaptive_sampling.py,unit,341,13,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for prediction adaptive sampling, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_prediction_adaptive_sampling.py,unit,329,13,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for prediction adaptive sampling, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_prediction_mode_regression.py,unit,311,5,true,true,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in prediction mode regression and increase risk of silent reintroduction.,codex-audit,,
 tests/unit/test_prediction_science.py,unit,250,10,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for prediction science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_prediction_sequence_validation.py,unit,1098,31,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for prediction sequence validation, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
@@ -278,7 +279,7 @@ tests/unit/test_workflow_boundary_error.py,unit,342,9,false,false,regression for
 tests/unit/test_workflow_identity_contracts.py,unit,536,14,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_workflow_quantitative_input_contracts.py,unit,433,14,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_workflow_stage_decomposition.py,unit,617,15,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_workflow_stage_decomposition.py,unit,632,15,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/validation/test_reference_context_compatibility.py,validation,194,7,false,false,,,,,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,270,7,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access

@@ -9,9 +9,14 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.contracts.configs import DifferentialAnalysisConfig, PairedDesignPolicy
+from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.configs.differential import (
+    DifferentialImputedValuePolicy,
+    MultipleTestingMethod,
+    PairedDesignPolicy,
+)
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -27,10 +32,12 @@ from phospy.science.differential.models import (
     DesignMatrix,
     DifferentialAnalysisResult,
     DifferentialPolicyProvenance,
+    EmpiricalBayesConfig,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
+from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregationPlan,
 )
@@ -61,6 +68,53 @@ class ValidatedDifferentialAnalysisRequest:
             design_decomposition=self.design_decomposition,
             design_matrix=self.design_matrix,
             seam="differential.validator.design_decomposition_identity",
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedDifferentialExecutionConfig:
+    """Execution-ready differential policy resolved from public configuration."""
+
+    technical_replicate_policy: TechnicalReplicatePolicy
+    paired_design_policy: PairedDesignPolicy
+    imputed_value_policy: DifferentialImputedValuePolicy
+    imputed_value_max_fraction: float
+    allow_design_subset: bool
+    allow_suspicious_declared_input_scale: bool
+    minimum_condition_replicates: int
+    empirical_bayes: EmpiricalBayesConfig
+    multiple_testing_method: MultipleTestingMethod
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "paired_design_policy",
+            str(self.paired_design_policy),
+        )
+        object.__setattr__(
+            self,
+            "imputed_value_policy",
+            str(self.imputed_value_policy),
+        )
+        object.__setattr__(
+            self,
+            "imputed_value_max_fraction",
+            float(self.imputed_value_max_fraction),
+        )
+        object.__setattr__(
+            self,
+            "allow_design_subset",
+            bool(self.allow_design_subset),
+        )
+        object.__setattr__(
+            self,
+            "allow_suspicious_declared_input_scale",
+            bool(self.allow_suspicious_declared_input_scale),
+        )
+        object.__setattr__(
+            self,
+            "minimum_condition_replicates",
+            int(self.minimum_condition_replicates),
         )
 
 
@@ -249,6 +303,7 @@ class InterpretedDifferentialAnalysisRequest:
     computation_request: DifferentialComputationRequest
     result_identity_metadata: pd.DataFrame
     config: DifferentialAnalysisConfig
+    execution_config: ResolvedDifferentialExecutionConfig
     design_rank: int
     residual_degrees_of_freedom: float
     design_decomposition: DifferentialDesignDecomposition
@@ -366,6 +421,7 @@ __all__ = [
     "DifferentialExecutionDesignInputs",
     "DifferentialFeatureEligibilityInputs",
     "DifferentialImputationPolicyInputs",
+    "ResolvedDifferentialExecutionConfig",
     "DifferentialAnalysisExecutorContract",
     "DifferentialAnalysisInterpreterContract",
     "DifferentialAnalysisValidatorContract",

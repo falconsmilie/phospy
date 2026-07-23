@@ -3,57 +3,30 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, cast
+from typing import cast
 
 from phospy.errors.validation import ContractValidationError
+from phospy.science.configs.differential import (
+    IMPUTED_VALUE_POLICY_REJECT,
+    IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
+    MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
+    MULTIPLE_TESTING_METHOD_BENJAMINI_YEKUTIELI,
+    MULTIPLE_TESTING_METHOD_BONFERRONI,
+    MULTIPLE_TESTING_METHOD_HOLM,
+    MULTIPLE_TESTING_METHOD_NONE,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
+    SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES,
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
+    SUPPORTED_PAIRED_DESIGN_POLICIES,
+    DifferentialImputedValuePolicy,
+    MultipleTestingMethod,
+    PairedDesignPolicy,
+)
 from phospy.science.differential.models.empirical_bayes_config import (
     EmpiricalBayesConfig,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
-from phospy.science.statistics.multiple_testing import (
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,
-    MULTIPLE_TESTING_CORRECTION_BONFERRONI,
-    MULTIPLE_TESTING_CORRECTION_HOLM,
-    MULTIPLE_TESTING_CORRECTION_NONE,
-    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
-    MultipleTestingCorrection,
-)
-
-PairedDesignPolicy = Literal["reject", "fixed_block"]
-DifferentialImputedValuePolicy = Literal["reject", "withhold_imputed_features"]
-MultipleTestingMethod = MultipleTestingCorrection
-MULTIPLE_TESTING_METHOD_NONE: MultipleTestingMethod = MULTIPLE_TESTING_CORRECTION_NONE
-MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG: MultipleTestingMethod = (
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
-)
-MULTIPLE_TESTING_METHOD_BONFERRONI: MultipleTestingMethod = (
-    MULTIPLE_TESTING_CORRECTION_BONFERRONI
-)
-MULTIPLE_TESTING_METHOD_HOLM: MultipleTestingMethod = MULTIPLE_TESTING_CORRECTION_HOLM
-MULTIPLE_TESTING_METHOD_BENJAMINI_YEKUTIELI: MultipleTestingMethod = (
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI
-)
-SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[MultipleTestingMethod, ...] = tuple(
-    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS
-)
-PAIRED_DESIGN_POLICY_REJECT: PairedDesignPolicy = "reject"
-PAIRED_DESIGN_POLICY_FIXED_BLOCK: PairedDesignPolicy = "fixed_block"
-IMPUTED_VALUE_POLICY_REJECT: DifferentialImputedValuePolicy = "reject"
-IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES: DifferentialImputedValuePolicy = (
-    "withhold_imputed_features"
-)
-SUPPORTED_PAIRED_DESIGN_POLICIES: tuple[PairedDesignPolicy, ...] = (
-    PAIRED_DESIGN_POLICY_REJECT,
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
-)
-SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES: tuple[
-    DifferentialImputedValuePolicy,
-    ...,
-] = (
-    IMPUTED_VALUE_POLICY_REJECT,
-    IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
-)
 
 
 @dataclass(frozen=True, slots=True)

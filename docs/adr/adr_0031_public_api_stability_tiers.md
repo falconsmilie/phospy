@@ -55,6 +55,13 @@ and raises immediately; supported creation is through
 `AnalysisReadyDatasetBuilder` or the advanced
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` factory.
 
+Update note (2026-07-22, config ownership): Stable public configuration import
+routes are preserved through `phospy.api.configs` and `phospy.api`. Some public
+config names are compatibility re-exports of science-owned policy objects; those
+routes must re-export the exact object identity. Public transport DTO classes
+remain owned by `phospy.contracts.configs` and are translated by workflow
+interpreters into resolved execution models before numerical science code runs.
+
 ## Dataset Diagnostics Policy
 
 ADR-0031 chooses Option A: PhosPy does not provide a public diagnostic
@@ -103,6 +110,11 @@ supported compatibility routes outside the aggregate `phospy.api` facade. They
 must re-export the exact owned objects from `phospy.science.tables` or
 `phospy.frames`; they do not own scientific logic, validation behavior, or
 duplicate class definitions.
+
+Configuration wrapper routes under `phospy.api.configs.*` are retained public
+routes. They must forward to the owning contract/science route and preserve
+constructor behavior, enum values, defaults, and deliberate object identity for
+science-owned policies.
 
 No validators, workflow executors, workflow interpreters, private result
 assemblers, or reference manifest validation internals may be promoted into

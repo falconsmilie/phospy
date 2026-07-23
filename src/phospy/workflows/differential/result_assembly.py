@@ -227,8 +227,8 @@ def _build_model_diagnostics(
             robust=bool(result.empirical_bayes_robust),
             trend=bool(result.empirical_bayes_trend),
         ),
-        multiple_testing_method=request.config.multiple_testing.method,
-        imputation_policy=request.config.imputed_value_policy,
+        multiple_testing_method=request.execution_config.multiple_testing_method,
+        imputation_policy=request.execution_config.imputed_value_policy,
         missing_value_policy=(
             "reject_missing_values_before_differential_execution"
             if policy is None

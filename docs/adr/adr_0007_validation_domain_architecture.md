@@ -71,6 +71,14 @@ Validation ownership is explicit and enforced by module boundaries:
 12. Validation modules may depend on consumer-owned protocols and science-owned
     value models, but concrete workflow/build/preprocessing collaborators must
     not depend back on validation implementations.
+13. Validators do not own contextual interpretation. They may enforce
+    construction-time and boundary invariants for public config objects, but
+    interpreter stages own translation from public DTOs to resolved execution
+    models.
+14. Generic scalar configuration validation primitives live in the lowest
+    applicable shared layer, such as `phospy.policies`. Domain-specific config
+    helpers may live with their domain owner and be re-exported by higher
+    layers, but duplicated helper implementations are not allowed.
 
 The ownership map in `docs/validation-ownership.md` is part of ADR governance,
 not optional commentary.
@@ -135,6 +143,8 @@ not optional commentary.
   `tests/architecture/test_validation_boundaries.py`.
 - Package dependency checks live in
   `tests/architecture/test_package_dependency_dag.py`.
+- Config ownership and duplicate-definition checks live in
+  `tests/architecture/test_config_ownership.py`.
 - Adapter wiring checks live in `tests/unit/test_protocol_adapter_wiring.py`.
 
 ## References

@@ -10,7 +10,10 @@ from phospy.errors import (
     WorkflowStageError,
 )
 from phospy.science.prediction import sampling_core
-from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.science.prediction.execution import (
+    AdaptiveEnsemblePredictionExecutionConfig,
+    run_adaptive_ensemble_prediction,
+)
 from phospy.science.prediction.policies import (
     resolve_prediction_sampling_policy,
 )
@@ -225,13 +228,10 @@ def test_run_adaptive_ensemble_prediction_averages_per_ensemble_scores(
     observed = run_adaptive_ensemble_prediction(
         prediction_score_matrix=score_matrix,
         candidate_substrates={"K1": ["S1"]},
-        prediction_config=KinasePredictionConfig(
-            top_k=2,
-            deterministic_max_selected_kinases=2,
+        prediction_config=AdaptiveEnsemblePredictionExecutionConfig(
             adaptive_ensemble_runs=2,
-            mode="adaptive_ensemble",
+            adaptive_policy="stable",
             n_iterations=2,
-            random_state=5,
         ),
         random_state=5,
     )
@@ -249,13 +249,10 @@ def test_run_adaptive_ensemble_prediction_requires_negative_pool() -> None:
         run_adaptive_ensemble_prediction(
             prediction_score_matrix=score_matrix,
             candidate_substrates={"K1": ["S1", "S2"]},
-            prediction_config=KinasePredictionConfig(
-                top_k=2,
-                deterministic_max_selected_kinases=1,
+            prediction_config=AdaptiveEnsemblePredictionExecutionConfig(
                 adaptive_ensemble_runs=1,
-                mode="adaptive_ensemble",
+                adaptive_policy="stable",
                 n_iterations=1,
-                random_state=0,
             ),
             random_state=0,
         )
@@ -273,13 +270,10 @@ def test_adaptive_prediction_is_deterministic_for_same_seed() -> None:
         "K1": ["S1", "S2", "S3"],
         "K2": ["S4", "S5", "S6"],
     }
-    prediction_config = KinasePredictionConfig(
-        top_k=3,
-        deterministic_max_selected_kinases=2,
+    prediction_config = AdaptiveEnsemblePredictionExecutionConfig(
         adaptive_ensemble_runs=4,
-        mode="adaptive_ensemble",
+        adaptive_policy="stable",
         n_iterations=3,
-        random_state=17,
     )
 
     first = run_adaptive_ensemble_prediction(
@@ -314,26 +308,20 @@ def test_adaptive_prediction_outputs_can_differ_for_different_seeds() -> None:
     first = run_adaptive_ensemble_prediction(
         prediction_score_matrix=score_matrix,
         candidate_substrates=candidate_substrates,
-        prediction_config=KinasePredictionConfig(
-            top_k=3,
-            deterministic_max_selected_kinases=2,
+        prediction_config=AdaptiveEnsemblePredictionExecutionConfig(
             adaptive_ensemble_runs=4,
-            mode="adaptive_ensemble",
+            adaptive_policy="stable",
             n_iterations=3,
-            random_state=17,
         ),
         random_state=17,
     )
     second = run_adaptive_ensemble_prediction(
         prediction_score_matrix=score_matrix,
         candidate_substrates=candidate_substrates,
-        prediction_config=KinasePredictionConfig(
-            top_k=3,
-            deterministic_max_selected_kinases=2,
+        prediction_config=AdaptiveEnsemblePredictionExecutionConfig(
             adaptive_ensemble_runs=4,
-            mode="adaptive_ensemble",
+            adaptive_policy="stable",
             n_iterations=3,
-            random_state=23,
         ),
         random_state=23,
     )

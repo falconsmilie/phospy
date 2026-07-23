@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import cast
 
 from phospy.errors.validation import ContractValidationError
-from phospy.science.enrichment.models import (
+from phospy.science.configs.enrichment import (
     ENRICHMENT_IDENTIFIER_KIND_DISPLAY_ID,
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_PHOSPHOSITE,
     ENRICHMENT_IDENTIFIER_KIND_PROTEIN_ID,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     ENRICHMENT_METHOD_OVER_REPRESENTATION,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR,
     GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,
@@ -23,21 +25,12 @@ from phospy.science.enrichment.models import (
     PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS,
     SUPPORTED_ENRICHMENT_IDENTIFIER_KINDS,
     SUPPORTED_ENRICHMENT_METHODS,
+    SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES,
     SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
     EnrichmentIdentifierKind,
     EnrichmentMethod,
-    MultipleTestingCorrection,
-)
-
-ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR = "error"
-ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP = "drop"
-EnrichmentOutsideBackgroundPolicy = Literal["error", "drop"]
-SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES: tuple[
     EnrichmentOutsideBackgroundPolicy,
-    ...,
-] = (
-    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR,
-    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
+    MultipleTestingCorrection,
 )
 
 

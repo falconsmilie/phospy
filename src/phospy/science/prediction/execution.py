@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
-from phospy.science.configs import KinasePredictionConfig
+from phospy.science.configs.prediction import KinaseAdaptivePolicy
 from phospy.science.prediction.policies import (
     resolve_prediction_sampling_policy,
 )
@@ -16,11 +17,20 @@ from phospy.science.prediction.sampling_core import run_adaptive_sampling_ensemb
 from phospy.science.prediction.sampling_runtime import PredictionSamplingRandomSource
 
 
+@dataclass(frozen=True, slots=True)
+class AdaptiveEnsemblePredictionExecutionConfig:
+    """Resolved adaptive prediction policy consumed by numerical execution."""
+
+    adaptive_policy: KinaseAdaptivePolicy
+    adaptive_ensemble_runs: int
+    n_iterations: int
+
+
 def run_adaptive_ensemble_prediction(
     *,
     prediction_score_matrix: pd.DataFrame,
     candidate_substrates: Mapping[str, list[str]],
-    prediction_config: KinasePredictionConfig,
+    prediction_config: AdaptiveEnsemblePredictionExecutionConfig,
     random_state: int,
     kernel: str = "rbf",
 ) -> pd.DataFrame:
@@ -115,4 +125,7 @@ def run_adaptive_ensemble_prediction(
     )
 
 
-__all__ = ["run_adaptive_ensemble_prediction"]
+__all__ = [
+    "AdaptiveEnsemblePredictionExecutionConfig",
+    "run_adaptive_ensemble_prediction",
+]

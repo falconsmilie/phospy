@@ -3,35 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
 from phospy.contracts.configs.common import _require_int_at_least
 from phospy.errors.validation import ContractValidationError
-
-KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING = "deterministic_ranking"
-KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE = "adaptive_ensemble"
-KinasePredictionMode = Literal[
-    "deterministic_ranking",
-    "adaptive_ensemble",
-]
-KINASE_PREDICTION_MODES = frozenset(
-    {
-        KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
-        KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
-    }
+from phospy.science.configs.prediction import (
+    KINASE_ADAPTIVE_POLICIES,
+    KINASE_ADAPTIVE_POLICY_R_PARITY,
+    KINASE_ADAPTIVE_POLICY_STABLE,
+    KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
+    KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
+    KINASE_PREDICTION_DEFAULT_ITERATIONS,
+    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    KINASE_PREDICTION_MODES,
+    KinaseAdaptivePolicy,
+    KinasePredictionMode,
 )
-KINASE_ADAPTIVE_POLICY_STABLE = "stable"
-KINASE_ADAPTIVE_POLICY_R_PARITY = "r_parity"
-KinaseAdaptivePolicy = Literal["stable", "r_parity"]
-KINASE_ADAPTIVE_POLICIES = frozenset(
-    {
-        KINASE_ADAPTIVE_POLICY_STABLE,
-        KINASE_ADAPTIVE_POLICY_R_PARITY,
-    }
-)
-KINASE_PREDICTION_DEFAULT_ITERATIONS = 5
-KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES = 10
-KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS = 10
 
 
 @dataclass(frozen=True, slots=True)

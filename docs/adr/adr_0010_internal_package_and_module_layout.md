@@ -72,6 +72,25 @@ Without governance:
 3. Root-level dumping-ground modules (for example `phospy.policy_models`) are
    not allowed.
 
+### Configuration Ownership
+
+1. Each configuration dataclass, enum, or validation helper has exactly one
+   implementation owner.
+2. Algorithm and scientific policy types used directly by numerical code live
+   in the owning science domain. Higher layers may re-export those exact
+   objects, but must not copy the source or wrap them in subclasses.
+3. Public transport/request configuration lives under `phospy.contracts.configs`
+   when it describes API shape, optional user input, or workflow composition.
+   `phospy.science` must not import those public DTOs.
+4. Interpreters translate public config DTOs into distinctly named resolved
+   execution models where defaults, references, seeds, eligible sets, or
+   contextual choices are interpreted.
+5. Shared scalar validation helpers live in `phospy.policies` or another lower
+   shared layer. Generic `common.py` dumping grounds for unrelated policies are
+   not acceptable.
+6. Re-export shims are allowed only when they preserve object identity and
+   respect the package DAG.
+
 ### Scientific-Policy Record Ownership
 
 1. Shared scientific policy record models belong in
@@ -132,8 +151,10 @@ The current top-level orientation is:
 - `workflows -> contracts, errors, provenance, science, validation`
 
 The CI graph check lives in
-`tests/architecture/test_package_dependency_dag.py`. New exemptions require an
-ADR update and a named test change; unexplained exemptions are not allowed.
+`tests/architecture/test_package_dependency_dag.py`. Config ownership checks
+also live in `tests/architecture/test_config_ownership.py`. New exemptions
+require an ADR update and a named test change; unexplained exemptions are not
+allowed.
 
 ### Acceptable Compatibility Shim Examples
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.differential.models import (
@@ -39,6 +40,7 @@ from phospy.workflows.differential.eligibility import (
 )
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
+    ResolvedDifferentialExecutionConfig,
     ValidatedDifferentialAnalysisRequest,
 )
 from phospy.workflows.differential.provenance import (
@@ -91,6 +93,7 @@ class DifferentialAnalysisInterpreter:
         resolved_design_decomposition = request.design_decomposition
         resolved_workflow_provenance = request.workflow_provenance
         resolved_design_build_result = request.design_build_result
+        execution_config = _resolve_execution_config(request.config)
 
         if aggregation_plan is not None and aggregation_plan.requires_aggregation:
             technical_replicate_resolution = self._technical_replicate_aggregator.run(
@@ -107,9 +110,11 @@ class DifferentialAnalysisInterpreter:
                 dataset=resolved_dataset,
                 design=resolved_design,
                 contrasts=request.contrasts,
-                allow_design_subset=request.config.allow_design_subset,
-                minimum_condition_replicates=request.config.minimum_condition_replicates,
-                paired_design_policy=request.config.paired_design_policy,
+                allow_design_subset=execution_config.allow_design_subset,
+                minimum_condition_replicates=(
+                    execution_config.minimum_condition_replicates
+                ),
+                paired_design_policy=execution_config.paired_design_policy,
             )
             resolved_contrasts = resolved_design_contract.contrasts
             resolved_analysis_sample_ids = resolved_design_contract.analysis_sample_ids
@@ -162,9 +167,11 @@ class DifferentialAnalysisInterpreter:
             analysis_sample_ids=analysis_sample_ids,
             design=resolved_design,
             contrasts=resolved_contrasts,
-            policy=request.config.imputed_value_policy,
-            max_fraction=request.config.imputed_value_max_fraction,
-            minimum_condition_replicates=request.config.minimum_condition_replicates,
+            policy=execution_config.imputed_value_policy,
+            max_fraction=execution_config.imputed_value_max_fraction,
+            minimum_condition_replicates=(
+                execution_config.minimum_condition_replicates
+            ),
         )
         imputation_policy_inputs = pre_fit_eligibility.imputation_policy_inputs
         feature_eligibility_inputs = pre_fit_eligibility.feature_eligibility_inputs
@@ -215,7 +222,7 @@ class DifferentialAnalysisInterpreter:
             design_aligned=design_aligned,
             contrasts_aligned=contrasts_aligned,
             design_build_result=resolved_design_build_result,
-            paired_design_policy=request.config.paired_design_policy,
+            paired_design_policy=execution_config.paired_design_policy,
             design_decomposition=resolved_design_decomposition,
         )
         computation_request = DifferentialComputationRequest(
@@ -223,8 +230,8 @@ class DifferentialAnalysisInterpreter:
             design=execution_design.design_matrix,
             contrasts=execution_design.contrast_matrix,
             design_decomposition=resolved_design_decomposition,
-            empirical_bayes=request.config.empirical_bayes,
-            multiple_testing_method=request.config.multiple_testing.method,
+            empirical_bayes=execution_config.empirical_bayes,
+            multiple_testing_method=execution_config.multiple_testing_method,
         )
         resolved_workflow_provenance = with_input_intensity_scale_evidence(
             resolved_workflow_provenance,
@@ -271,6 +278,7 @@ class DifferentialAnalysisInterpreter:
             computation_request=computation_request,
             result_identity_metadata=result_identity_metadata,
             config=request.config,
+            execution_config=execution_config,
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
             design_decomposition=resolved_design_decomposition,
@@ -440,6 +448,24 @@ def _prefer_site_key_index_for_differential_results(
     remapped = dataframe_copy(matrix, deep=True)
     remapped.index = pd.Index(series_as_strings(site_keys), name="site_key")
     return remapped
+
+
+def _resolve_execution_config(
+    config: DifferentialAnalysisConfig,
+) -> ResolvedDifferentialExecutionConfig:
+    return ResolvedDifferentialExecutionConfig(
+        technical_replicate_policy=config.technical_replicate_policy,
+        paired_design_policy=config.paired_design_policy,
+        imputed_value_policy=config.imputed_value_policy,
+        imputed_value_max_fraction=config.imputed_value_max_fraction,
+        allow_design_subset=config.allow_design_subset,
+        allow_suspicious_declared_input_scale=(
+            config.allow_suspicious_declared_input_scale
+        ),
+        minimum_condition_replicates=config.minimum_condition_replicates,
+        empirical_bayes=config.empirical_bayes,
+        multiple_testing_method=config.multiple_testing.method,
+    )
 
 
 def _normalisation_state_label(dataset: object) -> str:

@@ -96,6 +96,13 @@ class KinaseWorkflow:
 The same pattern applies to `DifferentialAnalysisWorkflow` and
 `SignalomeWorkflow`.
 
+Configuration follows the same boundary. Public request/config DTOs record user
+intent and remain stable transport objects. When a workflow needs contextual
+interpretation, the interpreter converts those DTOs into distinctly named
+resolved execution models before numerical science code is called. Executors and
+science kernels consume the resolved model or primitive science-owned policy
+values, not raw public workflow request DTOs.
+
 ## Method Naming Convention
 
 All workflow-stage components must expose a `run(...)` method.
@@ -487,6 +494,13 @@ collaborators must remain concrete, domain-specific, and acyclic.
 ### Config Movement
 
 Configuration should flow through the system as typed objects. Repeatedly unpacking config into long scalar argument lists is discouraged and should be treated as a maintainability smell.
+
+Typed config flow does not mean public transport DTOs should cross every layer.
+Public configs may be stored on validated/interpreted workflow records for
+requested-value provenance, while resolved execution models carry effective
+defaults, references, seeds, eligible sets, and contextual choices for execution.
+Those resolved models must use different names from public DTOs and must be
+owned by the workflow or science domain that interprets them.
 
 ## Scope Boundaries
 

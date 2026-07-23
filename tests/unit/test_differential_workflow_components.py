@@ -50,6 +50,7 @@ from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
+    ResolvedDifferentialExecutionConfig,
     ValidatedDifferentialAnalysisRequest,
 )
 from phospy.workflows.differential.provenance import (
@@ -520,6 +521,19 @@ def test_differential_executor_consumes_interpreter_resolved_design_inputs() -> 
         DifferentialAnalysisValidator().run(_request())
     )
     assert interpreted.execution_design is not None
+    assert isinstance(
+        interpreted.execution_config,
+        ResolvedDifferentialExecutionConfig,
+    )
+    assert interpreted.execution_config.minimum_condition_replicates == (
+        interpreted.config.minimum_condition_replicates
+    )
+    assert interpreted.computation_request.empirical_bayes is (
+        interpreted.execution_config.empirical_bayes
+    )
+    assert interpreted.computation_request.multiple_testing_method == (
+        interpreted.execution_config.multiple_testing_method
+    )
 
     class _ComputationExecutorSpy:
         def __init__(self) -> None:

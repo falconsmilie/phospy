@@ -76,34 +76,88 @@ ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES = frozenset(
         ("phospy.contracts.configs.dataset", "phospy.science.configs.dataset"),
         (
             "phospy.contracts.configs.differential",
+            "phospy.science.configs.differential",
+        ),
+        (
+            "phospy.contracts.configs.differential",
             "phospy.science.differential.models.empirical_bayes_config",
         ),
         (
             "phospy.contracts.configs.differential",
             "phospy.science.differential.policy_models",
         ),
+        ("phospy.contracts.configs.enrichment", "phospy.science.configs.enrichment"),
+        ("phospy.contracts.configs.kinase", "phospy.science.configs.kinase"),
         (
-            "phospy.contracts.configs.differential",
-            "phospy.science.statistics.multiple_testing",
+            "phospy.contracts.configs.localisation",
+            "phospy.science.configs.localisation",
         ),
-        ("phospy.contracts.configs.enrichment", "phospy.science.enrichment.models"),
-        ("phospy.contracts.configs.kinase", "phospy.science.scoring.policy_models"),
+        ("phospy.contracts.configs.prediction", "phospy.science.configs.prediction"),
         (
             "phospy.contracts.configs.preprocessing",
             "phospy.science.configs.preprocessing",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing._validation",
+            "phospy.science.configs.preprocessing.validation",
         ),
         (
             "phospy.contracts.configs.preprocessing.batch_correction",
             "phospy.science.configs.preprocessing.batch_correction",
         ),
         (
+            "phospy.contracts.configs.preprocessing.comparisons",
+            "phospy.science.configs.preprocessing.comparisons",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.control_sites",
+            "phospy.science.configs.preprocessing.control_sites",
+        ),
+        (
             "phospy.contracts.configs.preprocessing.correction_missingness",
             "phospy.science.configs.preprocessing.correction_missingness",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.coverage_filter",
+            "phospy.science.configs.preprocessing.coverage_filter",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.intensity_transform",
+            "phospy.science.configs.preprocessing.intensity_transform",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.internal_batch_correction",
+            "phospy.science.configs.preprocessing.internal_batch_correction",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.localisation",
+            "phospy.science.configs.preprocessing.localisation",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.missing_data",
+            "phospy.science.configs.preprocessing.missing_data",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.normalisation",
+            "phospy.science.configs.preprocessing.normalisation",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.site_matrix",
+            "phospy.science.configs.preprocessing.site_matrix",
+        ),
+        (
+            "phospy.contracts.configs.preprocessing.site_sequence",
+            "phospy.science.configs.preprocessing.site_sequence",
         ),
         (
             "phospy.contracts.configs.preprocessing.total_protein",
             "phospy.science.configs.preprocessing.total_protein",
         ),
+        (
+            "phospy.contracts.configs.reference_context",
+            "phospy.science.configs.reference_context",
+        ),
+        ("phospy.contracts.configs.signalome", "phospy.science.configs.signalome"),
         ("phospy.contracts.dataset_build", "phospy.science.evidence"),
         (
             "phospy.contracts.dataset_build",

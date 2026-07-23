@@ -10,7 +10,6 @@ import pandas as pd
 from phospy.contracts.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
-    KinasePredictionConfig,
 )
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -19,7 +18,10 @@ from phospy.science.prediction.candidates import (
     build_candidate_substrate_list,
     summarize_candidate_shortfall,
 )
-from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.science.prediction.execution import (
+    AdaptiveEnsemblePredictionExecutionConfig,
+    run_adaptive_ensemble_prediction,
+)
 from phospy.science.prediction.models import KinasePredictionResult
 from phospy.workflows.kinase.component_models import (
     CANDIDATE_MIN_INCLUSION,
@@ -199,10 +201,7 @@ class KinasePredictionRunner:
             adaptive_scores = self._run_adaptive_prediction(
                 prediction_score_matrix=downstream_score_matrix,
                 candidate_substrates=candidate_substrates,
-                prediction_config=self._as_prediction_config(
-                    config,
-                    random_state=adaptive_random_state,
-                ),
+                prediction_config=self._as_adaptive_prediction_execution_config(config),
                 random_state=adaptive_random_state,
             )
         except ImportError as exc:
@@ -277,21 +276,13 @@ class KinasePredictionRunner:
         return annotated
 
     @staticmethod
-    def _as_prediction_config(
+    def _as_adaptive_prediction_execution_config(
         config: ResolvedKinaseExecutionConfig,
-        *,
-        random_state: int,
-    ) -> KinasePredictionConfig:
-        return KinasePredictionConfig(
-            top_k=config.prediction_top_k,
-            deterministic_max_selected_kinases=(
-                config.prediction_deterministic_max_selected_kinases
-            ),
+    ) -> AdaptiveEnsemblePredictionExecutionConfig:
+        return AdaptiveEnsemblePredictionExecutionConfig(
             adaptive_ensemble_runs=config.prediction_adaptive_ensemble_runs,
-            mode=config.prediction_mode,
             adaptive_policy=config.prediction_adaptive_policy,
             n_iterations=config.prediction_n_iterations,
-            random_state=random_state,
         )
 
     @staticmethod

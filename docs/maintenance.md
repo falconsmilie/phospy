@@ -181,6 +181,19 @@ Docs subdirectories are intentional:
 - `docs/adr/` for architecture decision records
 - `docs/testing/` for testing-audit and consolidation material
 
+## Config Ownership
+
+Config concepts must have one implementation owner. Public transport DTOs that
+describe request shape or optional user intent belong under
+`phospy.contracts.configs` and stay available through `phospy.api.configs`.
+Science-owned algorithm policies belong in the owning science domain, and
+contract/API routes may re-export them only by exact object identity.
+
+Workflow interpreters own contextual translation from public config DTOs into
+distinct resolved execution models. Numerical science modules must not import
+`phospy.contracts` or accept public workflow config DTOs. The architecture guard
+for this is `tests/architecture/test_config_ownership.py`.
+
 ### Scientific Claims Checklist
 
 Before merging docs or examples that describe scientific results, check that the

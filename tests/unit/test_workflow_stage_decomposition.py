@@ -42,6 +42,7 @@ from phospy.workflows.differential.fitting import DifferentialModelFitter
 from phospy.workflows.differential.models import (
     DifferentialFeatureEligibilityInputs,
     InterpretedDifferentialAnalysisRequest,
+    ResolvedDifferentialExecutionConfig,
 )
 from phospy.workflows.differential.provenance import (
     DifferentialWorkflowProvenanceAssembler,
@@ -128,10 +129,24 @@ def _interpreted_differential_request(
         _computation_request() if computation_request is None else computation_request
     )
     decomposition = request.design_decomposition
+    config = DifferentialAnalysisConfig()
     return InterpretedDifferentialAnalysisRequest(
         computation_request=request,
         result_identity_metadata=_identity_metadata(request.matrix.index),
-        config=DifferentialAnalysisConfig(),
+        config=config,
+        execution_config=ResolvedDifferentialExecutionConfig(
+            technical_replicate_policy=config.technical_replicate_policy,
+            paired_design_policy=config.paired_design_policy,
+            imputed_value_policy=config.imputed_value_policy,
+            imputed_value_max_fraction=config.imputed_value_max_fraction,
+            allow_design_subset=config.allow_design_subset,
+            allow_suspicious_declared_input_scale=(
+                config.allow_suspicious_declared_input_scale
+            ),
+            minimum_condition_replicates=config.minimum_condition_replicates,
+            empirical_bayes=config.empirical_bayes,
+            multiple_testing_method=config.multiple_testing.method,
+        ),
         design_rank=int(decomposition.rank),
         residual_degrees_of_freedom=float(decomposition.residual_degrees_of_freedom),
         design_decomposition=decomposition,
