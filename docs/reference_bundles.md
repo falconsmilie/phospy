@@ -330,8 +330,8 @@ PhosPy also has schema and loader support for local Kinase Library-style motif
 matrix resources. These resources can be used by opt-in `KinaseWorkflow`
 scoring modes through `KinaseWorkflowRequest.kinase_library_resource`:
 
-- `KinaseScoringConfig(scoring_mode="kinase_library_motif")`
-- `KinaseScoringConfig(scoring_mode="combined_profile_motif")`
+- `KinaseScoringConfig(reliability_profile=KinaseReliabilityProfile.CUSTOM, scoring_mode="kinase_library_motif")`
+- `KinaseScoringConfig(reliability_profile=KinaseReliabilityProfile.CUSTOM, scoring_mode="combined_profile_motif")`
 
 This is support for caller-supplied local resources with explicit provenance.
 PhosPy does not bundle official Kinase Library data and does not claim official

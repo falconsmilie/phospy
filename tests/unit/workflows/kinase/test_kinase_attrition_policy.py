@@ -29,7 +29,11 @@ from phospy.workflows.intensity_scale_evidence import (
 )
 from phospy.workflows.kinase.caveats import (
     KINASE_ATTRITION_POLICY_CAVEAT_CODE,
+    KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE,
+    KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE,
+    KINASE_LOW_SUBSTRATE_FLOOR_CAVEAT_CODE,
     KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
+    KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
 )
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
@@ -229,6 +233,49 @@ def test_kinase_result_caveats_include_attrition_warning() -> None:
     assert caveat.details["configured_threshold"] == pytest.approx(0.75)
     assert caveat.details["observed_value"] == pytest.approx(0.5)
     assert result.attrition_provenance.warning_messages == (caveat.message,)
+
+
+def test_kinase_result_caveats_include_exploratory_reliability_warnings() -> None:
+    result = KinaseWorkflow().run(_request(KinaseAttritionPolicy()))
+
+    expected_codes = [
+        KINASE_LOW_SUBSTRATE_FLOOR_CAVEAT_CODE,
+        KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE,
+        KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE,
+        KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
+        KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
+    ]
+    observed_reliability_codes = [
+        caveat.code for caveat in result.caveats if caveat.code in expected_codes
+    ]
+
+    assert observed_reliability_codes == expected_codes
+    low_substrate = _caveat_by_code(result, KINASE_LOW_SUBSTRATE_FLOOR_CAVEAT_CODE)
+    assert low_substrate.details["min_substrates"] == 2
+    assert low_substrate.details["effective_reliability_profile"] == "custom"
+    zero_threshold = _caveat_by_code(
+        result, KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE
+    )
+    assert zero_threshold.details["zero_thresholds"] == (
+        "minimum_reference_overlap_fraction",
+        "minimum_sequence_supported_fraction",
+        "minimum_scored_fraction",
+    )
+    warning_mode = _caveat_by_code(
+        result,
+        KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE,
+    )
+    assert warning_mode.details["on_violation"] == "warn"
+    self_inclusion = _caveat_by_code(
+        result,
+        KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
+    )
+    assert self_inclusion.details["self_inclusion_allowed"] is True
+    for caveat in (low_substrate, zero_threshold, warning_mode):
+        assert caveat.details["score_interpretation"] == (
+            "substrate_motif_support_evidence"
+        )
+        assert caveat.details["not_causal_activity_proof"] is True
 
 
 def test_kinase_result_caveats_include_permissive_localisation_policy() -> None:
@@ -488,4 +535,13 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
     assert policy_violations[0]["scored_sites"] == caveat.details["scored_sites"]
     scoring_config = result.provenance.workflow_parameters["scoring_config"]
     assert isinstance(scoring_config, Mapping)
+    assert scoring_config["requested_reliability_profile"] is None
+    assert scoring_config["effective_reliability_profile"] == "custom"
+    assert scoring_config["min_substrates"] == 2
+    assert scoring_config["profile_self_inclusion_policy"] == "allow"
+    assert scoring_config["localisation_requirement"] == {
+        "policy": "allow_unknown",
+        "require_present": False,
+        "minimum_probability": None,
+    }
     assert scoring_config["attrition_policy"] == result.attrition_provenance.policy

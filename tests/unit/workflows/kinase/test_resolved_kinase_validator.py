@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
 from phospy.api import (
     KinasePredictionConfig,
+    KinaseReliabilityProfile,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
@@ -226,6 +229,27 @@ def test_resolved_kinase_validator_rejects_no_sequence_supported_sites() -> None
 
     assert exc_info.value.seam == "kinase.interpreter.sequence_support"
     assert exc_info.value.details["sequence_supported_sites"] == 0
+
+
+def test_resolved_kinase_validator_enforces_production_reliability_profile() -> None:
+    resolved_inputs = _resolved_inputs()
+    production_labelled_config = replace(
+        resolved_inputs.execution_config,
+        requested_reliability_profile=KinaseReliabilityProfile.PRODUCTION,
+        effective_reliability_profile=KinaseReliabilityProfile.PRODUCTION,
+    )
+    resolved_inputs = replace(
+        resolved_inputs,
+        execution_config=production_labelled_config,
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        ResolvedKinaseEligibilityValidator().run(resolved_inputs)
+
+    assert exc_info.value.seam == "kinase.interpreter.production_reliability_profile"
+    assert "min_substrates must be at least 5" in str(exc_info.value)
+    assert exc_info.value.details["effective_reliability_profile"] == "production"
+    assert exc_info.value.details["scoring_config_min_substrates"] == 2
 
 
 def test_kinase_interpreter_delegates_resolved_validation() -> None:

@@ -135,7 +135,11 @@ activity method is run.
 The ssGSEA-style kinase activity method is a PhosPy rank-walk
 substrate-set activity implementation over kinase-substrate membership and
 phosphosite effect/statistic values. It is not PTM-SEA parity and is separate
-from the native ORA enrichment workflow.
+from the native ORA enrichment workflow. When permutations are disabled,
+ssGSEA-style statistics record an explicit significance-unavailable status and
+leave p-value/q-value fields missing rather than using numeric placeholders.
+Seeded permutations provide permutation-significance estimates only; they do
+not convert activity-like scores into causal kinase activation evidence.
 
 Current bundled runtime reference data is rat-only. Human and mouse analyses
 can be run when the caller supplies an explicit `ReferenceBundle`.

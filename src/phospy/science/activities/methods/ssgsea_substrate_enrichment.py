@@ -49,6 +49,16 @@ SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES = "insufficient_substrates"
 SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES = "no_finite_background_values"
 SSGSEA_STATUS_INSUFFICIENT_BACKGROUND_SITES = "insufficient_background_sites"
 SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES = "no_finite_substrate_values"
+SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE = "permutation_significance_available"
+SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED = (
+    "permutation_p_value_available_q_value_unavailable_adjustment_disabled"
+)
+SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS = (
+    "significance_unavailable_no_permutations"
+)
+SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NOT_COMPUTABLE = (
+    "significance_unavailable_not_computable"
+)
 
 _KINASE_COLUMN = "kinase"
 _SUBSTRATE_COLUMN = "substrate_site"
@@ -239,6 +249,11 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                             ] = float(p_value)
 
                 counts[status] += 1
+                significance_status = _resolve_significance_status(
+                    computability_status=status,
+                    permutation_count=int(self.permutation_count),
+                    adjust_p_values=bool(self.adjust_p_values),
+                )
                 rows.append(
                     {
                         "kinase": str(kinase_name),
@@ -251,6 +266,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                         ),
                         "p_value": float(p_value) if np.isfinite(p_value) else np.nan,
                         "q_value": np.nan,
+                        "significance_status": significance_status,
                         "n_substrates": int(n_substrates),
                         "n_background_sites": int(n_background),
                         "evidence_threshold": np.nan,
@@ -280,6 +296,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                 "enrichment_score",
                 "p_value",
                 "q_value",
+                "significance_status",
                 "n_substrates",
                 "n_background_sites",
                 "evidence_threshold",
@@ -472,6 +489,21 @@ def _resolve_status(
     return SSGSEA_STATUS_COMPUTED, ""
 
 
+def _resolve_significance_status(
+    *,
+    computability_status: str,
+    permutation_count: int,
+    adjust_p_values: bool,
+) -> str:
+    if int(permutation_count) <= 0:
+        return SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS
+    if computability_status != SSGSEA_STATUS_COMPUTED:
+        return SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NOT_COMPUTABLE
+    if not bool(adjust_p_values):
+        return SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED
+    return SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
+
+
 def _score_from_hit_mask(hit_mask: np.ndarray) -> float:
     n_background = int(hit_mask.size)
     n_substrates = int(hit_mask.sum())
@@ -620,6 +652,10 @@ __all__ = [
     "SSGSEA_RANKING_DIRECTION_ASCENDING",
     "SSGSEA_RANKING_DIRECTION_DESCENDING",
     "SSGSEA_RANKING_DIRECTIONS",
+    "SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE",
+    "SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED",
+    "SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS",
+    "SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NOT_COMPUTABLE",
     "SSGSEA_STATUS_COMPUTED",
     "SSGSEA_STATUS_INSUFFICIENT_BACKGROUND_SITES",
     "SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES",

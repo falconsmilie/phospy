@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass, field
+from typing import cast
 
 from phospy.contracts.configs._validation import coerce_policy_enum
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
@@ -50,6 +52,10 @@ from phospy.science.configs.kinase import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    KINASE_RELIABILITY_PROFILE_CUSTOM,
+    KINASE_RELIABILITY_PROFILE_EXPLORATORY,
+    KINASE_RELIABILITY_PROFILE_PRODUCTION,
+    KINASE_RELIABILITY_PROFILES,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KINASE_SCORING_MODE_ALIASES,
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
@@ -69,11 +75,14 @@ from phospy.science.configs.kinase import (
     KinaseAttritionViolationMode,
     KinaseProfileMissingValueStrategy,
     KinaseReferenceDisplayAmbiguityPolicy,
+    KinaseReliabilityProfile,
     KinaseScoringMode,
     KinaseSiteSequenceConflictPolicy,
     ProfileSelfInclusionPolicy,
     normalize_kinase_scoring_mode,
 )
+
+_UNSET = object()
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,9 +134,16 @@ class KinaseAttritionPolicy:
         object.__setattr__(self, "minimum_scored_fraction", scored)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class KinaseScoringConfig:
     """Public scoring-stage configuration.
+
+    ``reliability_profile`` exposes whether scoring is using the explicit
+    exploratory preset, the stricter production preset, or custom caller values.
+    Direct construction without ``reliability_profile`` keeps historical
+    numerical defaults and is classified from the supplied values: exact old
+    defaults resolve to ``EXPLORATORY`` and modified values resolve to
+    ``CUSTOM``. ``PRODUCTION`` is never inferred from values alone.
 
     `min_substrates` is constrained to the public scoring support floor used by
     the supported rewrite contract. The default and minimum public value is `2`.
@@ -230,8 +246,93 @@ class KinaseScoringConfig:
     allow_mixed_total_protein_quantitative_meaning: bool = (
         KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
     )
+    reliability_profile: KinaseReliabilityProfile = field(init=False)
+    requested_reliability_profile: KinaseReliabilityProfile | None = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
-    def __post_init__(self) -> None:
+    def __init__(
+        self,
+        min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+        scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        include_diagnostic_scoring_tables: bool = False,
+        include_substrate_contributions: bool = False,
+        profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
+            KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+        ),
+        profile_self_inclusion_policy: ProfileSelfInclusionPolicy = (
+            ProfileSelfInclusionPolicy.ALLOW
+        ),
+        attrition_policy: KinaseAttritionPolicy | object = _UNSET,
+        localisation_requirement: LocalisationRequirement | object = _UNSET,
+        reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
+            REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH
+        ),
+        allow_mixed_total_protein_quantitative_meaning: bool = (
+            KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
+        ),
+        *,
+        reliability_profile: KinaseReliabilityProfile | str | None | object = _UNSET,
+    ) -> None:
+        object.__setattr__(self, "min_substrates", min_substrates)
+        object.__setattr__(self, "scoring_mode", scoring_mode)
+        object.__setattr__(
+            self,
+            "include_diagnostic_scoring_tables",
+            include_diagnostic_scoring_tables,
+        )
+        object.__setattr__(
+            self,
+            "include_substrate_contributions",
+            include_substrate_contributions,
+        )
+        object.__setattr__(
+            self,
+            "profile_missing_value_strategy",
+            profile_missing_value_strategy,
+        )
+        object.__setattr__(
+            self,
+            "profile_self_inclusion_policy",
+            profile_self_inclusion_policy,
+        )
+        object.__setattr__(
+            self,
+            "attrition_policy",
+            (
+                KinaseAttritionPolicy()
+                if attrition_policy is _UNSET
+                else attrition_policy
+            ),
+        )
+        object.__setattr__(
+            self,
+            "localisation_requirement",
+            (
+                LocalisationRequirement()
+                if localisation_requirement is _UNSET
+                else localisation_requirement
+            ),
+        )
+        object.__setattr__(
+            self,
+            "reference_context_compatibility_policy",
+            reference_context_compatibility_policy,
+        )
+        object.__setattr__(
+            self,
+            "allow_mixed_total_protein_quantitative_meaning",
+            allow_mixed_total_protein_quantitative_meaning,
+        )
+        self._validate_and_resolve_profile(reliability_profile=reliability_profile)
+
+    def _validate_and_resolve_profile(
+        self,
+        *,
+        reliability_profile: KinaseReliabilityProfile | str | None | object,
+    ) -> None:
         if not isinstance(self.include_diagnostic_scoring_tables, bool):
             raise ContractValidationError(
                 "scoring_config.include_diagnostic_scoring_tables must be a bool"
@@ -301,11 +402,45 @@ class KinaseScoringConfig:
                 "scoring_config.localisation_requirement must be "
                 "LocalisationRequirement"
             )
+        requested_profile = _parse_requested_reliability_profile(
+            reliability_profile,
+            field_name="scoring_config.reliability_profile",
+        )
+        effective_profile = _resolve_reliability_profile(
+            config=self,
+            requested_profile=requested_profile,
+        )
+        object.__setattr__(
+            self,
+            "requested_reliability_profile",
+            requested_profile,
+        )
+        object.__setattr__(self, "reliability_profile", effective_profile)
+
+    @property
+    def effective_reliability_profile(self) -> KinaseReliabilityProfile:
+        """Return the resolved reliability profile for this scoring config."""
+
+        return self.reliability_profile
 
     @classmethod
     def default(cls) -> KinaseScoringConfig:
-        """Return the package default kinase scoring profile."""
-        return cls()
+        """Deprecated alias for :meth:`exploratory`."""
+        warnings.warn(
+            (
+                "KinaseScoringConfig.default() is deprecated because the name is "
+                "ambiguous; use KinaseScoringConfig.exploratory() for the "
+                "historical exploratory behavior."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.exploratory()
+
+    @classmethod
+    def exploratory(cls) -> KinaseScoringConfig:
+        """Return the explicit exploratory profile preserving old defaults."""
+        return cls(reliability_profile=KINASE_RELIABILITY_PROFILE_EXPLORATORY)
 
     @classmethod
     def strict_missing_values(cls) -> KinaseScoringConfig:
@@ -317,11 +452,164 @@ class KinaseScoringConfig:
         )
 
     @classmethod
-    def production(cls) -> KinaseScoringConfig:
-        """Return production scoring config with strict site-level localisation."""
+    def production(
+        cls,
+        *,
+        minimum_reference_overlap_fraction: float,
+        minimum_sequence_supported_fraction: float,
+        minimum_scored_fraction: float,
+    ) -> KinaseScoringConfig:
+        """Return production scoring config with caller-chosen coverage thresholds."""
         return cls(
-            localisation_requirement=LocalisationRequirement.production_site_level()
+            min_substrates=5,
+            profile_self_inclusion_policy=(
+                KINASE_PROFILE_SELF_INCLUSION_POLICY_LEAVE_ONE_OUT
+            ),
+            localisation_requirement=LocalisationRequirement.production_site_level(),
+            attrition_policy=KinaseAttritionPolicy(
+                minimum_reference_overlap_fraction=(minimum_reference_overlap_fraction),
+                minimum_sequence_supported_fraction=(
+                    minimum_sequence_supported_fraction
+                ),
+                minimum_scored_fraction=minimum_scored_fraction,
+                on_violation=KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
+            ),
+            reliability_profile=KINASE_RELIABILITY_PROFILE_PRODUCTION,
         )
+
+
+def validate_kinase_production_reliability_invariants(
+    *,
+    min_substrates: int,
+    profile_self_inclusion_policy: ProfileSelfInclusionPolicy,
+    localisation_requirement: LocalisationRequirement,
+    attrition_policy: KinaseAttritionPolicy,
+    field_name: str,
+    error_type: type[Exception],
+) -> None:
+    """Validate production reliability invariants for config and workflow seams."""
+
+    if int(min_substrates) < 5:
+        raise error_type(f"{field_name}.min_substrates must be at least 5")
+    if profile_self_inclusion_policy is not ProfileSelfInclusionPolicy.LEAVE_ONE_OUT:
+        raise error_type(
+            f"{field_name}.profile_self_inclusion_policy must be leave_one_out "
+            "for production reliability"
+        )
+    requirement = localisation_requirement
+    production_requirement = LocalisationRequirement.production_site_level()
+    if not bool(requirement.require_present):
+        raise error_type(
+            f"{field_name}.localisation_requirement must reject unknown "
+            "localisation for production reliability"
+        )
+    if requirement.minimum_probability is None:
+        raise error_type(
+            f"{field_name}.localisation_requirement.minimum_probability is "
+            "required for production reliability"
+        )
+    if float(requirement.minimum_probability) < float(
+        cast(float, production_requirement.minimum_probability)
+    ):
+        raise error_type(
+            f"{field_name}.localisation_requirement.minimum_probability must be "
+            f"at least {production_requirement.minimum_probability} for "
+            "production reliability"
+        )
+    if attrition_policy.on_violation != KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR:
+        raise error_type(
+            f"{field_name}.attrition_policy.on_violation must be error for "
+            "production reliability"
+        )
+    for threshold_name, threshold_value in _attrition_threshold_items(attrition_policy):
+        if float(threshold_value) <= 0.0:
+            raise error_type(
+                f"{field_name}.attrition_policy.{threshold_name} must be set "
+                "above 0.0 for production reliability"
+            )
+
+
+def _parse_requested_reliability_profile(
+    value: KinaseReliabilityProfile | str | None | object,
+    *,
+    field_name: str,
+) -> KinaseReliabilityProfile | None:
+    if value is _UNSET or value is None:
+        return None
+    return coerce_policy_enum(
+        KinaseReliabilityProfile,
+        value,
+        field_name=field_name,
+        error_type=ContractValidationError,
+    )
+
+
+def _resolve_reliability_profile(
+    *,
+    config: KinaseScoringConfig,
+    requested_profile: KinaseReliabilityProfile | None,
+) -> KinaseReliabilityProfile:
+    if requested_profile is None:
+        if _matches_exploratory_scoring_preset(config):
+            return KINASE_RELIABILITY_PROFILE_EXPLORATORY
+        return KINASE_RELIABILITY_PROFILE_CUSTOM
+    if requested_profile is KINASE_RELIABILITY_PROFILE_CUSTOM:
+        return KINASE_RELIABILITY_PROFILE_CUSTOM
+    if requested_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY:
+        if not _matches_exploratory_scoring_preset(config):
+            raise ContractValidationError(
+                "scoring_config.reliability_profile='exploratory' requires the "
+                "exploratory preset values; use reliability_profile='custom' for "
+                "modified exploratory settings"
+            )
+        return KINASE_RELIABILITY_PROFILE_EXPLORATORY
+    if requested_profile is KINASE_RELIABILITY_PROFILE_PRODUCTION:
+        validate_kinase_production_reliability_invariants(
+            min_substrates=int(config.min_substrates),
+            profile_self_inclusion_policy=config.profile_self_inclusion_policy,
+            localisation_requirement=config.localisation_requirement,
+            attrition_policy=config.attrition_policy,
+            field_name="scoring_config",
+            error_type=ContractValidationError,
+        )
+        return KINASE_RELIABILITY_PROFILE_PRODUCTION
+    allowed = ", ".join(str(profile) for profile in KINASE_RELIABILITY_PROFILES)
+    raise ContractValidationError(
+        f"scoring_config.reliability_profile must be one of: {allowed}"
+    )
+
+
+def _matches_exploratory_scoring_preset(config: KinaseScoringConfig) -> bool:
+    return (
+        int(config.min_substrates) == KINASE_SCORING_MIN_SUBSTRATES_FLOOR
+        and str(config.scoring_mode) == KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
+        and bool(config.include_diagnostic_scoring_tables) is False
+        and bool(config.include_substrate_contributions) is False
+        and config.profile_missing_value_strategy
+        == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+        and config.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.ALLOW
+        and config.attrition_policy == KinaseAttritionPolicy()
+        and config.localisation_requirement == LocalisationRequirement()
+        and config.reference_context_compatibility_policy
+        is ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
+        and bool(config.allow_mixed_total_protein_quantitative_meaning) is False
+    )
+
+
+def _attrition_threshold_items(
+    policy: KinaseAttritionPolicy,
+) -> tuple[tuple[str, float], ...]:
+    return (
+        (
+            "minimum_reference_overlap_fraction",
+            policy.minimum_reference_overlap_fraction,
+        ),
+        (
+            "minimum_sequence_supported_fraction",
+            policy.minimum_sequence_supported_fraction,
+        ),
+        ("minimum_scored_fraction", policy.minimum_scored_fraction),
+    )
 
 
 def _require_attrition_fraction(value: object, *, field_name: str) -> float:
@@ -465,6 +753,37 @@ class KinaseActivityConfig:
                 "activity_config.ssgsea_adjust_p_values must be a bool"
             )
 
+    @classmethod
+    def ssgsea_with_permutation_significance(
+        cls,
+        *,
+        permutations: int,
+        random_seed: int,
+        ssgsea_min_substrates: int = KINASE_ACTIVITY_SSGSEA_DEFAULT_MIN_SUBSTRATES,
+        ssgsea_ranking_direction: KinaseActivitySsgseaRankingDirection = (
+            KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_DESCENDING
+        ),
+        ssgsea_adjust_p_values: bool = KINASE_ACTIVITY_SSGSEA_DEFAULT_ADJUST_P_VALUES,
+        enabled: bool = True,
+    ) -> KinaseActivityConfig:
+        """Return ssGSEA config with explicit seeded permutation p-values."""
+
+        config = cls(
+            enabled=enabled,
+            method=KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+            ssgsea_min_substrates=ssgsea_min_substrates,
+            ssgsea_ranking_direction=ssgsea_ranking_direction,
+            ssgsea_permutations=permutations,
+            ssgsea_random_seed=random_seed,
+            ssgsea_adjust_p_values=ssgsea_adjust_p_values,
+        )
+        if int(config.ssgsea_permutations) <= 0:
+            raise ContractValidationError(
+                "activity_config.ssgsea_permutations must be greater than 0 "
+                "when requesting ssGSEA permutation significance"
+            )
+        return config
+
 
 __all__ = [
     "KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
@@ -505,6 +824,10 @@ __all__ = [
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR",
+    "KINASE_RELIABILITY_PROFILE_CUSTOM",
+    "KINASE_RELIABILITY_PROFILE_EXPLORATORY",
+    "KINASE_RELIABILITY_PROFILE_PRODUCTION",
+    "KINASE_RELIABILITY_PROFILES",
     "KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF",
     "KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF",
     "KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF",
@@ -522,6 +845,7 @@ __all__ = [
     "KinaseAttritionViolationMode",
     "KinaseProfileMissingValueStrategy",
     "KinaseReferenceDisplayAmbiguityPolicy",
+    "KinaseReliabilityProfile",
     "KinaseScoringMode",
     "KinaseSiteSequenceConflictPolicy",
     "LocalisationRequirement",

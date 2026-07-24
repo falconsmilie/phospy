@@ -28,6 +28,7 @@ from phospy.api import (
     IntensityScaleKind,
     KinaseActivityConfig,
     KinasePredictionConfig,
+    KinaseReliabilityProfile,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
@@ -853,6 +854,7 @@ def test_api_docs_kinase_request_example_is_constructible() -> None:
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(
+            reliability_profile=KinaseReliabilityProfile.CUSTOM,
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
             profile_missing_value_strategy="strict",

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.api.configs import KinaseAttritionPolicy
+from phospy.api.configs import (
+    KinaseAttritionPolicy,
+    KinaseReliabilityProfile,
+    LocalisationRequirement,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import KinaseWorkflowConfigSnapshot
 
@@ -10,6 +14,8 @@ from phospy.io.bundles.kinase import KinaseWorkflowConfigSnapshot
 def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
     payload = {
         "scoring_config": {
+            "reliability_profile": "custom",
+            "requested_reliability_profile": None,
             "min_substrates": 3,
             "include_diagnostic_scoring_tables": False,
             "include_substrate_contributions": True,
@@ -20,6 +26,11 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
                 "minimum_sequence_supported_fraction": 0.4,
                 "minimum_scored_fraction": 0.6,
                 "on_violation": "error",
+            },
+            "localisation_requirement": {
+                "policy": "allow_unknown",
+                "require_present": False,
+                "minimum_probability": None,
             },
             "allow_mixed_total_protein_quantitative_meaning": True,
             "reference_context_compatibility_policy": "require_known_match",
@@ -43,6 +54,11 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
             "ksea_evidence_threshold": None,
             "ksea_p_value_method": "normal_approximation",
             "ksea_adjust_p_values": True,
+            "ssgsea_min_substrates": 5,
+            "ssgsea_ranking_direction": "descending",
+            "ssgsea_permutations": 0,
+            "ssgsea_random_seed": 0,
+            "ssgsea_adjust_p_values": True,
         },
     }
 
@@ -54,6 +70,73 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
         on_violation="error",
     )
     assert snapshot.to_payload() == payload
+
+
+def test_historical_kinase_snapshot_without_profile_maps_old_defaults_to_exploratory() -> (
+    None
+):
+    snapshot = KinaseWorkflowConfigSnapshot.from_payload(
+        {
+            "scoring_config": {
+                "min_substrates": 2,
+                "include_diagnostic_scoring_tables": False,
+                "profile_missing_value_strategy": "strict",
+            },
+            "prediction_config": {
+                "top_k": 30,
+                "deterministic_max_selected_kinases": 10,
+                "adaptive_ensemble_runs": 10,
+                "mode": "deterministic_ranking",
+                "adaptive_policy": "stable",
+                "n_iterations": 5,
+                "random_state": None,
+            },
+            "activity_config": None,
+        }
+    )
+
+    assert (
+        snapshot.scoring_config.reliability_profile
+        is KinaseReliabilityProfile.EXPLORATORY
+    )
+    assert snapshot.scoring_config.requested_reliability_profile is None
+
+
+def test_historical_kinase_snapshot_strict_localisation_without_profile_is_custom() -> (
+    None
+):
+    snapshot = KinaseWorkflowConfigSnapshot.from_payload(
+        {
+            "scoring_config": {
+                "min_substrates": 2,
+                "include_diagnostic_scoring_tables": False,
+                "profile_missing_value_strategy": "strict",
+                "localisation_requirement": {
+                    "policy": "require_threshold",
+                    "require_present": True,
+                    "minimum_probability": 0.75,
+                },
+            },
+            "prediction_config": {
+                "top_k": 30,
+                "deterministic_max_selected_kinases": 10,
+                "adaptive_ensemble_runs": 10,
+                "mode": "deterministic_ranking",
+                "adaptive_policy": "stable",
+                "n_iterations": 5,
+                "random_state": None,
+            },
+            "activity_config": None,
+        }
+    )
+
+    assert snapshot.scoring_config.localisation_requirement == (
+        LocalisationRequirement.production_site_level()
+    )
+    assert (
+        snapshot.scoring_config.reliability_profile is KinaseReliabilityProfile.CUSTOM
+    )
+    assert snapshot.scoring_config.requested_reliability_profile is None
 
 
 def test_kinase_snapshot_requires_scoring_config_object() -> None:

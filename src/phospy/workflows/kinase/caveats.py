@@ -5,8 +5,13 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.contracts.configs import (
+    KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
+    KINASE_RELIABILITY_PROFILE_CUSTOM,
+    KINASE_RELIABILITY_PROFILE_EXPLORATORY,
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+    LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.contracts.result_caveats import ResultCaveat
@@ -35,6 +40,11 @@ from phospy.workflows.result_caveat_helpers import (
 )
 
 KINASE_ATTRITION_POLICY_CAVEAT_CODE = "kinase_attrition_policy_violation"
+KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE = "kinase_reliability_attrition_warning_mode"
+KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE = (
+    "kinase_reliability_attrition_zero_threshold"
+)
+KINASE_LOW_SUBSTRATE_FLOOR_CAVEAT_CODE = "kinase_reliability_low_substrate_floor"
 KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE = (
     "kinase_permissive_localisation_policy"
 )
@@ -71,6 +81,15 @@ def build_kinase_result_caveats(
     if direct_construction is not None:
         caveats.append(direct_construction)
     caveats.extend(_attrition_policy_caveats(request))
+    low_substrate = _low_substrate_floor_caveat(request)
+    if low_substrate is not None:
+        caveats.append(low_substrate)
+    attrition_zero = _attrition_zero_threshold_caveat(request)
+    if attrition_zero is not None:
+        caveats.append(attrition_zero)
+    attrition_warning_mode = _attrition_warning_mode_caveat(request)
+    if attrition_warning_mode is not None:
+        caveats.append(attrition_warning_mode)
     localisation = _permissive_localisation_caveat(request)
     if localisation is not None:
         caveats.append(localisation)
@@ -114,11 +133,115 @@ def _attrition_policy_caveats(
     return tuple(caveats)
 
 
+def _low_substrate_floor_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+) -> ResultCaveat | None:
+    if not _uses_exploratory_or_custom_reliability(request):
+        return None
+    min_substrates = int(request.execution_config.scoring_min_substrates)
+    if min_substrates >= 5:
+        return None
+    return ResultCaveat(
+        code=KINASE_LOW_SUBSTRATE_FLOOR_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Kinase scoring used fewer than five substrates as the minimum "
+            "profile-support floor. Results are substrate/motif support evidence "
+            "within this run and require cautious interpretation."
+        ),
+        details={
+            "requested_reliability_profile": _requested_profile_value(request),
+            "effective_reliability_profile": _effective_profile_value(request),
+            "min_substrates": min_substrates,
+            "production_min_substrates": 5,
+            "score_interpretation": "substrate_motif_support_evidence",
+            "not_causal_activity_proof": True,
+        },
+    )
+
+
+def _attrition_zero_threshold_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+) -> ResultCaveat | None:
+    if not _uses_exploratory_or_custom_reliability(request):
+        return None
+    policy = request.execution_config.attrition_policy
+    zero_thresholds = [
+        name
+        for name, value in (
+            (
+                "minimum_reference_overlap_fraction",
+                policy.minimum_reference_overlap_fraction,
+            ),
+            (
+                "minimum_sequence_supported_fraction",
+                policy.minimum_sequence_supported_fraction,
+            ),
+            ("minimum_scored_fraction", policy.minimum_scored_fraction),
+        )
+        if float(value) == 0.0
+    ]
+    if not zero_thresholds:
+        return None
+    return ResultCaveat(
+        code=KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Kinase scoring used one or more zero attrition thresholds. The "
+            "workflow can report substrate/motif support despite weak reference, "
+            "sequence, or final scored-site coverage."
+        ),
+        details={
+            "requested_reliability_profile": _requested_profile_value(request),
+            "effective_reliability_profile": _effective_profile_value(request),
+            "zero_thresholds": zero_thresholds,
+            "minimum_reference_overlap_fraction": float(
+                policy.minimum_reference_overlap_fraction
+            ),
+            "minimum_sequence_supported_fraction": float(
+                policy.minimum_sequence_supported_fraction
+            ),
+            "minimum_scored_fraction": float(policy.minimum_scored_fraction),
+            "score_interpretation": "substrate_motif_support_evidence",
+            "not_causal_activity_proof": True,
+        },
+    )
+
+
+def _attrition_warning_mode_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+) -> ResultCaveat | None:
+    if not _uses_exploratory_or_custom_reliability(request):
+        return None
+    policy = request.execution_config.attrition_policy
+    if policy.on_violation == KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR:
+        return None
+    return ResultCaveat(
+        code=KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Kinase attrition policy is warning-only. Coverage shortfalls can "
+            "remain in substrate/motif support outputs instead of stopping the "
+            "workflow."
+        ),
+        details={
+            "requested_reliability_profile": _requested_profile_value(request),
+            "effective_reliability_profile": _effective_profile_value(request),
+            "on_violation": str(policy.on_violation),
+            "production_on_violation": KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
+            "score_interpretation": "substrate_motif_support_evidence",
+            "not_causal_activity_proof": True,
+        },
+    )
+
+
 def _permissive_localisation_caveat(
     request: ResolvedKinaseWorkflowRequest,
 ) -> ResultCaveat | None:
+    if not _uses_exploratory_or_custom_reliability(request):
+        return None
     requirement = request.execution_config.localisation_requirement
-    if not is_permissive_localisation_requirement(requirement):
+    if _meets_production_localisation_requirement(requirement):
         return None
     details = build_localisation_policy_details(
         site_metadata=request.dataset.site_metadata,
@@ -126,15 +249,33 @@ def _permissive_localisation_caveat(
         workflow_scope="kinase_scoring",
     )
     policy = str(requirement.policy)
+    minimum_probability = requirement.minimum_probability
     return ResultCaveat(
         code=KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
         severity="warning",
         message=(
-            "Kinase workflow localisation policy does not enforce a minimum "
-            "localisation probability; unknown or low-confidence phosphosite "
-            "localisation can remain in scoring inputs."
+            "Kinase workflow localisation policy is below the production "
+            "site-level requirement. Unknown or lower-confidence phosphosite "
+            "localisation can remain in substrate/motif support inputs."
         ),
-        details=details | {"policy_is_permissive": True, "policy": policy},
+        details=details
+        | {
+            "requested_reliability_profile": _requested_profile_value(request),
+            "effective_reliability_profile": _effective_profile_value(request),
+            "policy_is_permissive": is_permissive_localisation_requirement(requirement),
+            "policy": policy,
+            "permits_unknown_localisation": not requirement.require_present,
+            "permits_low_confidence_localisation": (
+                minimum_probability is None
+                or float(minimum_probability)
+                < LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY
+            ),
+            "production_minimum_probability": (
+                LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY
+            ),
+            "score_interpretation": "substrate_motif_support_evidence",
+            "not_causal_activity_proof": True,
+        },
     )
 
 
@@ -358,6 +499,35 @@ def _reference_details(request: ResolvedKinaseWorkflowRequest) -> dict[str, obje
     return details
 
 
+def _uses_exploratory_or_custom_reliability(
+    request: ResolvedKinaseWorkflowRequest,
+) -> bool:
+    return request.execution_config.effective_reliability_profile in {
+        KINASE_RELIABILITY_PROFILE_EXPLORATORY,
+        KINASE_RELIABILITY_PROFILE_CUSTOM,
+    }
+
+
+def _requested_profile_value(request: ResolvedKinaseWorkflowRequest) -> str | None:
+    requested = request.execution_config.requested_reliability_profile
+    return None if requested is None else str(requested)
+
+
+def _effective_profile_value(request: ResolvedKinaseWorkflowRequest) -> str:
+    return str(request.execution_config.effective_reliability_profile)
+
+
+def _meets_production_localisation_requirement(
+    requirement: LocalisationRequirement,
+) -> bool:
+    minimum_probability = requirement.minimum_probability
+    return (
+        bool(requirement.require_present)
+        and minimum_probability is not None
+        and float(minimum_probability) >= LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY
+    )
+
+
 def _score_source_summary_details(summary: pd.DataFrame) -> dict[str, object]:
     fallback_columns = (
         "profile_only_motif_missing_or_constant_count",
@@ -419,7 +589,10 @@ def _sum_int(frame: pd.DataFrame, column: str) -> int:
 
 __all__ = [
     "KINASE_ATTRITION_POLICY_CAVEAT_CODE",
+    "KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE",
+    "KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE",
     "KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE",
+    "KINASE_LOW_SUBSTRATE_FLOOR_CAVEAT_CODE",
     "KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE",
     "KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE",
     "KINASE_REFERENCE_AUTO_RESOLUTION_CAVEAT_CODE",

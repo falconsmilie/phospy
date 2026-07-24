@@ -2,10 +2,17 @@
   "workflow_name": "kinase_workflow",
   "workflow_parameters": {
     "scoring_config": {
+      "requested_reliability_profile": null,
+      "effective_reliability_profile": "custom",
       "min_substrates": 2,
       "include_diagnostic_scoring_tables": false,
       "profile_missing_value_strategy": "strict",
       "profile_self_inclusion_policy": "allow",
+      "localisation_requirement": {
+        "policy": "allow_unknown",
+        "require_present": false,
+        "minimum_probability": null
+      },
       "reference_context_compatibility_policy": "allow_unknown_with_caveat",
       "attrition_policy": {
         "minimum_reference_overlap_fraction": 0.0,

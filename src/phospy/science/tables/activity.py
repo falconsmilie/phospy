@@ -285,14 +285,17 @@ class ActivityStatisticsTable(TableSchema):
         if frame.empty:
             return frame
 
-        for column_name in (
+        string_columns = (
             "kinase",
             "condition",
             "evidence_threshold_operator",
             "evidence_threshold_description",
             "computability_status",
             "reason",
-        ):
+        )
+        if "significance_status" in frame.columns:
+            string_columns = (*string_columns, "significance_status")
+        for column_name in string_columns:
             values = _column_series(frame, column_name)
             if values.isna().any():
                 raise self._error_type(
@@ -362,6 +365,11 @@ class ActivityStatisticsTable(TableSchema):
             raise self._error_type(
                 f"{self._field_name}.q_value must be between 0.0 and 1.0 when present"
             )
+        _validate_optional_significance_status_probability_values(
+            frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+        )
         return frame
 
 
@@ -507,6 +515,76 @@ def _require_integer_compatible_column(
     if not np.isclose(array, np.round(array)).all():
         raise error_type(f"{field_name}.{column_name} must be integer-compatible")
     return array
+
+
+def _validate_optional_significance_status_probability_values(
+    frame: pd.DataFrame,
+    *,
+    field_name: str,
+    error_type: type[PhosPyValidationError],
+) -> None:
+    if "significance_status" not in frame.columns:
+        return
+    statuses = _column_series(frame, "significance_status").astype(str)
+    allowed_statuses = frozenset(
+        {
+            "permutation_significance_available",
+            "permutation_p_value_available_q_value_unavailable_adjustment_disabled",
+            "significance_unavailable_no_permutations",
+            "significance_unavailable_not_computable",
+        }
+    )
+    invalid_statuses = sorted(set(statuses).difference(allowed_statuses))
+    if invalid_statuses:
+        allowed = ", ".join(sorted(allowed_statuses))
+        invalid = ", ".join(invalid_statuses)
+        raise error_type(
+            f"{field_name}.significance_status must be one of: {allowed}; "
+            f"invalid_values={invalid}"
+        )
+
+    p_values = pd.to_numeric(_column_series(frame, "p_value"), errors="coerce")
+    q_values = pd.to_numeric(_column_series(frame, "q_value"), errors="coerce")
+    p_missing = p_values.isna()
+    q_missing = q_values.isna()
+
+    unavailable = statuses.isin(
+        {
+            "significance_unavailable_no_permutations",
+            "significance_unavailable_not_computable",
+        }
+    )
+    p_only = (
+        statuses
+        == "permutation_p_value_available_q_value_unavailable_adjustment_disabled"
+    )
+    available = statuses == "permutation_significance_available"
+
+    if (p_missing & ~(unavailable)).any():
+        raise error_type(
+            f"{field_name}.p_value may be missing only when significance_status "
+            "declares significance unavailable"
+        )
+    if ((~p_missing) & unavailable).any():
+        raise error_type(
+            f"{field_name}.p_value must be missing when significance_status "
+            "declares significance unavailable"
+        )
+    if (q_missing & ~(unavailable | p_only)).any():
+        raise error_type(
+            f"{field_name}.q_value may be missing only when significance_status "
+            "declares significance unavailable or q-value adjustment is disabled"
+        )
+    if ((~q_missing) & (unavailable | p_only)).any():
+        raise error_type(
+            f"{field_name}.q_value must be missing when significance_status "
+            "declares significance unavailable or q-value adjustment is disabled"
+        )
+    if ((p_missing | q_missing) & available).any():
+        raise error_type(
+            f"{field_name}.p_value and q_value must be present when "
+            "significance_status declares permutation significance available"
+        )
 
 
 def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:

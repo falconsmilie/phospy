@@ -17,6 +17,7 @@ from phospy.contracts.configs import (
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
+    LocalisationRequirement,
 )
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import _fingerprint_optional_table_with_normalized_axes
@@ -32,6 +33,9 @@ from phospy.provenance.scientific_policy_models import (
 from phospy.science.activities.methods import (
     KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
     SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
+    SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,
+    SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED,
+    SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS,
 )
 from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.activities.scientific_policies import (
@@ -394,6 +398,10 @@ def _build_activity_config_payload(
 ) -> dict[str, object] | None:
     if config.activity is None:
         return None
+    ssgsea_significance = _build_ssgsea_significance_payload(
+        config=config,
+        activity_result=activity_result,
+    )
     return {
         "method": str(config.activity.method),
         "threshold": float(config.activity.threshold),
@@ -434,6 +442,8 @@ def _build_activity_config_payload(
             and config.activity.ssgsea_adjust_p_values
             else None
         ),
+        "ssgsea_significance_status": ssgsea_significance["status"],
+        "ssgsea_significance_status_counts": ssgsea_significance["status_counts"],
         "activity_method": (
             None
             if activity_result is None
@@ -463,10 +473,19 @@ def _build_scoring_config_payload(
         str(config.scoring_mode) != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
     )
     payload: dict[str, object] = {
+        "requested_reliability_profile": (
+            None
+            if config.requested_reliability_profile is None
+            else str(config.requested_reliability_profile)
+        ),
+        "effective_reliability_profile": str(config.effective_reliability_profile),
         "include_diagnostic_scoring_tables": bool(
             config.include_diagnostic_scoring_tables
         ),
         "profile_self_inclusion_policy": str(config.profile_self_inclusion_policy),
+        "localisation_requirement": _localisation_requirement_to_payload(
+            config.localisation_requirement
+        ),
         "reference_context_compatibility_policy": str(
             config.reference_context_compatibility_policy
         ),
@@ -506,6 +525,59 @@ def _build_scoring_config_payload(
         }
     )
     return payload
+
+
+def _localisation_requirement_to_payload(
+    requirement: LocalisationRequirement,
+) -> dict[str, object]:
+    return {
+        "policy": str(requirement.policy),
+        "require_present": bool(requirement.require_present),
+        "minimum_probability": (
+            None
+            if requirement.minimum_probability is None
+            else float(requirement.minimum_probability)
+        ),
+    }
+
+
+def _build_ssgsea_significance_payload(
+    *,
+    config: ResolvedKinaseExecutionConfig,
+    activity_result: KinaseActivityResult | None,
+) -> dict[str, object]:
+    activity_config = config.activity
+    if activity_config is None:
+        return {"status": None, "status_counts": None}
+    if activity_config.method != KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+        return {"status": None, "status_counts": None}
+    status: str
+    if int(activity_config.ssgsea_permutations) <= 0:
+        status = SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS
+    elif not bool(activity_config.ssgsea_adjust_p_values):
+        status = SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED
+    else:
+        status = SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
+    status_counts = _ssgsea_significance_status_counts(activity_result)
+    return {"status": status, "status_counts": status_counts}
+
+
+def _ssgsea_significance_status_counts(
+    activity_result: KinaseActivityResult | None,
+) -> dict[str, int] | None:
+    if activity_result is None:
+        return None
+    statistics_table = activity_result.statistics_table
+    if statistics_table is None or "significance_status" not in statistics_table:
+        return None
+    return {
+        str(key): int(value)
+        for key, value in statistics_table.loc[:, "significance_status"]
+        .astype(str)
+        .value_counts()
+        .sort_index()
+        .items()
+    }
 
 
 def _build_attrition_provenance_payload(

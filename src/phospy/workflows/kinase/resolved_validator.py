@@ -7,7 +7,13 @@ from typing import NoReturn, TypedDict, cast
 
 import pandas as pd
 
-from phospy.contracts.configs import KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR
+from phospy.contracts.configs import (
+    KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
+    KINASE_RELIABILITY_PROFILE_PRODUCTION,
+)
+from phospy.contracts.configs.kinase import (
+    validate_kinase_production_reliability_invariants,
+)
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.motif_scoring import (
@@ -74,6 +80,7 @@ class ResolvedKinaseEligibilityValidator:
         mode_contract = kinase_scoring_mode_input_contract(
             resolved_inputs.execution_config.scoring_mode
         )
+        self._validate_reliability_profile(resolved_inputs)
         requires_profile_context = mode_contract.requires_substrate_reference_overlap
         if requires_profile_context:
             self._validate_reference_coverage(
@@ -289,6 +296,65 @@ class ResolvedKinaseEligibilityValidator:
             scoring_site_residue_classes=tuple(sorted(site_residue_classes)),
             scoring_site_count=int(site_sequences.shape[0]),
         )
+
+    def _validate_reliability_profile(
+        self,
+        resolved_inputs: ResolvedKinaseInputs,
+    ) -> None:
+        config = resolved_inputs.execution_config
+        if (
+            config.effective_reliability_profile
+            is not KINASE_RELIABILITY_PROFILE_PRODUCTION
+        ):
+            return
+        try:
+            validate_kinase_production_reliability_invariants(
+                min_substrates=int(config.scoring_min_substrates),
+                profile_self_inclusion_policy=config.profile_self_inclusion_policy,
+                localisation_requirement=config.localisation_requirement,
+                attrition_policy=config.attrition_policy,
+                field_name="kinase.execution_config",
+                error_type=WorkflowBoundaryError,
+            )
+        except WorkflowBoundaryError as exc:
+            self._raise_boundary_error(
+                seam="kinase.interpreter.production_reliability_profile",
+                next_action=(
+                    "use KinaseScoringConfig.production(...) with explicit "
+                    "coverage thresholds, leave-one-out profile scoring, and "
+                    "strict site-level localisation"
+                ),
+                requested_reliability_profile=(
+                    None
+                    if config.requested_reliability_profile is None
+                    else str(config.requested_reliability_profile)
+                ),
+                effective_reliability_profile=str(config.effective_reliability_profile),
+                scoring_config_min_substrates=int(config.scoring_min_substrates),
+                profile_self_inclusion_policy=str(config.profile_self_inclusion_policy),
+                localisation_requirement_policy=str(
+                    config.localisation_requirement.policy
+                ),
+                localisation_requirement_require_present=bool(
+                    config.localisation_requirement.require_present
+                ),
+                localisation_requirement_minimum_probability=(
+                    None
+                    if config.localisation_requirement.minimum_probability is None
+                    else float(config.localisation_requirement.minimum_probability)
+                ),
+                attrition_policy_on_violation=str(config.attrition_policy.on_violation),
+                minimum_reference_overlap_fraction=float(
+                    config.attrition_policy.minimum_reference_overlap_fraction
+                ),
+                minimum_sequence_supported_fraction=float(
+                    config.attrition_policy.minimum_sequence_supported_fraction
+                ),
+                minimum_scored_fraction=float(
+                    config.attrition_policy.minimum_scored_fraction
+                ),
+                validation_error=str(exc),
+            )
 
     def _enforce_attrition_policy(
         self,

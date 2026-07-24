@@ -112,10 +112,11 @@ envelope. Differential validators and interpreters own the design, contrast,
 scale, imputation, and eligibility facts. The differential caveat builder owns
 the public `DifferentialAnalysisResult.caveats` entries.
 
-Kinase workflow caveats include attrition policy warnings, permissive
-localisation policy, non-default reference sources, automatic reference
-resolution, score-source fallback, and scoring scope that is not
-PhosR-equivalent.
+Kinase workflow caveats include exploratory/custom reliability warnings
+for low substrate floors, self-inclusion, permissive localisation, zero
+attrition thresholds, warning-only attrition behavior, non-default reference
+sources, automatic reference resolution, score-source fallback, and scoring
+scope that is not PhosR-equivalent.
 Kinase validators and interpreters own reference compatibility, resolved
 eligibility, and score-source facts. Kinase result assembly owns the final
 top-level caveats on `KinaseWorkflowResult`.

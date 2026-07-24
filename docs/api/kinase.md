@@ -68,11 +68,15 @@ same site-level threshold requirement into the kinase request:
 ```python
 from phospy.api import KinaseScoringConfig
 
-scoring_config = KinaseScoringConfig.production()
+scoring_config = KinaseScoringConfig.production(
+    minimum_reference_overlap_fraction=study_reference_overlap_floor,
+    minimum_sequence_supported_fraction=study_sequence_support_floor,
+    minimum_scored_fraction=study_scored_site_floor,
+)
 ```
 
-The default `KinaseScoringConfig.default()` keeps localisation permissive for
-backwards compatibility, but reference-context compatibility is conservative:
+`KinaseScoringConfig.exploratory()` names the historical permissive profile
+explicitly. Reference-context compatibility remains conservative by default:
 unknown context fails unless
 `ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT` is set
 explicitly.
@@ -112,11 +116,12 @@ Important `KinaseScoringConfig` fields:
 | Field | Default | Notes |
 | --- | --- | --- |
 | `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
+| `reliability_profile` | `"exploratory"` for unchanged defaults | Direct construction with old defaults is classified as exploratory; modified direct construction is custom unless an explicit profile is supplied and its invariants pass. |
 | `min_substrates` | `2` | Minimum unique usable substrates for kinase scoring support. The public floor is `2`. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
 | `include_substrate_contributions` | `False` | Assembles and adds an optional substrate-level contribution table to `KinaseWorkflowResult`. |
 | `profile_missing_value_strategy` | `"strict"` | Use `"median_skipna"` only when skipping missing profile values is intended. |
-| `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. Use `KinaseScoringConfig.production()` for the 0.75 production threshold. |
+| `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. Use `KinaseScoringConfig.production(...)` for the 0.75 production site-level threshold plus production attrition requirements. |
 | `allow_mixed_total_protein_quantitative_meaning` | `False` | Keep `False` unless mixed corrected/uncorrected rows are intended. |
 
 ### Minimum Substrate Support
@@ -263,14 +268,18 @@ documentation or code.
 
 ### Substrate Contribution Table
 
-Set `KinaseScoringConfig(include_substrate_contributions=True)` to assemble and
+Set a custom `KinaseScoringConfig` with `include_substrate_contributions=True`
+to assemble and
 attach `kinase_result.substrate_contributions`.
 
 ```python
+from phospy.api import KinaseReliabilityProfile
+
 request = KinaseWorkflowRequest(
     dataset=dataset,
     references=references,
     scoring_config=KinaseScoringConfig(
+        reliability_profile=KinaseReliabilityProfile.CUSTOM,
         min_substrates=2,
         include_substrate_contributions=True,
     ),
@@ -389,6 +398,7 @@ returns fresh ordinary `dict`/`list` payloads from `to_payload()`.
 ```python
 from phospy import KinaseWorkflow
 from phospy.api import (
+    KinaseReliabilityProfile,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
@@ -400,6 +410,7 @@ request = KinaseWorkflowRequest(
     dataset=dataset,
     references=ReferencePreset.AUTO,
     scoring_config=KinaseScoringConfig(
+        reliability_profile=KinaseReliabilityProfile.CUSTOM,
         min_substrates=2,
         include_diagnostic_scoring_tables=False,
         reference_context_compatibility_policy=(

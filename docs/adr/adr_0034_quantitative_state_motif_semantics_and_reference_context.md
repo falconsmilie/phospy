@@ -113,6 +113,14 @@ scores for known substrates. The `leave_one_out` policy recomputes applicable
 profile scores after excluding the scored site from its own kinase profile and
 records diagnostics for cells that cannot be scored after exclusion.
 
+Kinase scoring reliability profiles are public policy labels. Direct
+construction with historical defaults is `exploratory`; modified direct
+construction is `custom` unless the caller explicitly selects a profile and its
+invariants pass. `production` requires at least five substrates,
+leave-one-out profile scoring, production site-level localisation, and
+caller-selected non-zero attrition thresholds with error-on-violation behavior.
+Production is never inferred from strict localisation alone.
+
 ## Intensity-Scale Evidence
 
 Intensity-scale evidence is recorded separately from the numeric scale itself.

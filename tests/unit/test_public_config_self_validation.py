@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
@@ -15,9 +15,13 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+    KINASE_RELIABILITY_PROFILE_CUSTOM,
+    KINASE_RELIABILITY_PROFILE_EXPLORATORY,
+    KINASE_RELIABILITY_PROFILE_PRODUCTION,
     LOCALISATION_POLICY_REQUIRE_THRESHOLD,
     LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
     REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
@@ -41,6 +45,7 @@ from phospy.api.configs import (
     KinaseActivityConfig,
     KinaseAttritionPolicy,
     KinasePredictionConfig,
+    KinaseReliabilityProfile,
     KinaseScoringConfig,
     LocalisationRequirement,
     ProfileSelfInclusionPolicy,
@@ -468,6 +473,11 @@ def test_kinase_config_uses_default_attrition_policy() -> None:
         config.reference_context_compatibility_policy
         is ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
     )
+    assert config.reliability_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY
+    assert (
+        config.effective_reliability_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY
+    )
+    assert config.requested_reliability_profile is None
 
 
 def test_kinase_scoring_config_accepts_attrition_policy() -> None:
@@ -496,24 +506,156 @@ def test_localisation_requirement_production_requires_probability_threshold() ->
     assert LocalisationRequirement().minimum_probability is None
 
 
-def test_kinase_production_config_uses_strict_localisation() -> None:
-    production = KinaseScoringConfig.production()
+def test_kinase_scoring_exploratory_matches_historical_default() -> None:
+    direct = KinaseScoringConfig()
+    exploratory = KinaseScoringConfig.exploratory()
+
+    assert exploratory == direct
+    assert exploratory.reliability_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY
+    assert (
+        exploratory.requested_reliability_profile
+        is KINASE_RELIABILITY_PROFILE_EXPLORATORY
+    )
+
+
+def test_kinase_scoring_default_is_deprecated_exploratory_alias() -> None:
+    with pytest.warns(DeprecationWarning, match="exploratory"):
+        default = KinaseScoringConfig.default()
+
+    assert default == KinaseScoringConfig.exploratory()
+    assert default.reliability_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY
+
+
+def test_kinase_production_requires_explicit_attrition_thresholds() -> None:
+    with pytest.raises(TypeError):
+        KinaseScoringConfig.production()  # type: ignore[call-arg]
+
+
+def test_kinase_production_config_uses_strict_reliability_invariants() -> None:
+    production = KinaseScoringConfig.production(
+        minimum_reference_overlap_fraction=0.25,
+        minimum_sequence_supported_fraction=0.5,
+        minimum_scored_fraction=0.75,
+    )
 
     assert (
         production.localisation_requirement
         == LocalisationRequirement.production_site_level()
     )
+    assert production.min_substrates == 5
+    assert (
+        production.profile_self_inclusion_policy
+        is ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
+    )
+    assert production.attrition_policy == KinaseAttritionPolicy(
+        minimum_reference_overlap_fraction=0.25,
+        minimum_sequence_supported_fraction=0.5,
+        minimum_scored_fraction=0.75,
+        on_violation="error",
+    )
+    assert production.reliability_profile is KINASE_RELIABILITY_PROFILE_PRODUCTION
+    assert (
+        production.requested_reliability_profile
+        is KINASE_RELIABILITY_PROFILE_PRODUCTION
+    )
     assert (
         production.profile_missing_value_strategy
         == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
-    assert KinaseScoringConfig.default().localisation_requirement == (
-        LocalisationRequirement()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"min_substrates": 4},
+            "scoring_config.min_substrates must be at least 5",
+        ),
+        (
+            {"profile_self_inclusion_policy": "allow"},
+            "profile_self_inclusion_policy must be leave_one_out",
+        ),
+        (
+            {"localisation_requirement": LocalisationRequirement()},
+            "must reject unknown localisation",
+        ),
+        (
+            {
+                "localisation_requirement": LocalisationRequirement(
+                    require_present=True,
+                    minimum_probability=0.5,
+                )
+            },
+            "minimum_probability must be at least",
+        ),
+        (
+            {"attrition_policy": KinaseAttritionPolicy(on_violation="warn")},
+            "attrition_policy.on_violation must be error",
+        ),
+        (
+            {
+                "attrition_policy": KinaseAttritionPolicy(
+                    minimum_reference_overlap_fraction=0.25,
+                    minimum_sequence_supported_fraction=0.0,
+                    minimum_scored_fraction=0.75,
+                    on_violation="error",
+                )
+            },
+            "minimum_sequence_supported_fraction must be set above 0.0",
+        ),
+    ],
+)
+def test_kinase_production_label_rejects_weakened_invariants(
+    kwargs: dict[str, object],
+    pattern: str,
+) -> None:
+    valid_values: dict[str, object] = {
+        "min_substrates": 5,
+        "profile_self_inclusion_policy": "leave_one_out",
+        "localisation_requirement": LocalisationRequirement.production_site_level(),
+        "attrition_policy": KinaseAttritionPolicy(
+            minimum_reference_overlap_fraction=0.25,
+            minimum_sequence_supported_fraction=0.5,
+            minimum_scored_fraction=0.75,
+            on_violation="error",
+        ),
+    }
+    valid_values.update(kwargs)
+
+    with pytest.raises(ContractValidationError, match=pattern):
+        KinaseScoringConfig(
+            **valid_values,
+            reliability_profile=KINASE_RELIABILITY_PROFILE_PRODUCTION,
+        )
+
+
+def test_kinase_modified_exploratory_preset_resolves_to_custom() -> None:
+    modified = replace(KinaseScoringConfig.exploratory(), min_substrates=3)
+
+    assert modified.reliability_profile is KINASE_RELIABILITY_PROFILE_CUSTOM
+    assert modified.requested_reliability_profile is None
+
+
+def test_kinase_explicit_exploratory_rejects_modified_values() -> None:
+    with pytest.raises(ContractValidationError, match="requires the exploratory"):
+        KinaseScoringConfig(
+            min_substrates=3,
+            reliability_profile=KinaseReliabilityProfile.EXPLORATORY,
+        )
+
+
+def test_kinase_explicit_custom_accepts_modified_values() -> None:
+    config = KinaseScoringConfig(
+        min_substrates=3,
+        reliability_profile=KinaseReliabilityProfile.CUSTOM,
     )
+
+    assert config.reliability_profile is KINASE_RELIABILITY_PROFILE_CUSTOM
+    assert config.requested_reliability_profile is KINASE_RELIABILITY_PROFILE_CUSTOM
 
 
 def test_kinase_scoring_config_presets_return_expected_values() -> None:
-    default = KinaseScoringConfig.default()
+    default = KinaseScoringConfig.exploratory()
     strict_missing = KinaseScoringConfig.strict_missing_values()
 
     assert (
@@ -757,6 +899,34 @@ def test_kinase_activity_config_self_validates(
 ) -> None:
     with pytest.raises(ContractValidationError, match=pattern):
         KinaseActivityConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_kinase_activity_ssgsea_permutation_helper_requires_seed_and_is_reproducible() -> (
+    None
+):
+    with pytest.raises(TypeError):
+        KinaseActivityConfig.ssgsea_with_permutation_significance(  # type: ignore[call-arg]
+            permutations=10
+        )
+    with pytest.raises(ContractValidationError, match="must be greater than 0"):
+        KinaseActivityConfig.ssgsea_with_permutation_significance(
+            permutations=0,
+            random_seed=3,
+        )
+
+    first = KinaseActivityConfig.ssgsea_with_permutation_significance(
+        permutations=10,
+        random_seed=3,
+    )
+    second = KinaseActivityConfig.ssgsea_with_permutation_significance(
+        permutations=10,
+        random_seed=3,
+    )
+
+    assert first == second
+    assert first.method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT
+    assert first.ssgsea_permutations == 10
+    assert first.ssgsea_random_seed == 3
 
 
 @pytest.mark.parametrize(

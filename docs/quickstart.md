@@ -76,6 +76,7 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     KinasePredictionConfig,
+    KinaseReliabilityProfile,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
@@ -126,6 +127,7 @@ kinase_result = KinaseWorkflow().run(
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(
+            reliability_profile=KinaseReliabilityProfile.CUSTOM,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
             )

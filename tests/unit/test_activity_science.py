@@ -16,6 +16,9 @@ from phospy.science.activities.methods.ksea_zscore import (
 )
 from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
     SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
+    SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,
+    SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED,
+    SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS,
     SSGSEA_STATUS_COMPUTED,
     SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES,
     SsgseaSubstrateEnrichmentActivityMethod,
@@ -214,6 +217,7 @@ def _assert_named_ssgsea_result_equal(
         "enrichment_score",
         "p_value",
         "q_value",
+        "significance_status",
         "n_substrates",
         "n_background_sites",
         "permutation_count",
@@ -273,7 +277,12 @@ def test_ssgsea_deterministic_rank_score_on_synthetic_data() -> None:
     assert stats is not None
     top = stats.loc[stats["kinase"] == "K_TOP"].iloc[0]
     assert top["computability_status"] == SSGSEA_STATUS_COMPUTED
+    assert top["significance_status"] == (
+        SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS
+    )
     assert top["enrichment_score"] == pytest.approx(0.5)
+    assert pd.isna(top["p_value"])
+    assert pd.isna(top["q_value"])
     assert top["ranking_direction"] == "descending"
     assert result.p_value_matrix is None
     assert result.q_value_matrix is None
@@ -325,6 +334,7 @@ def test_ssgsea_p_value_adjustment_is_bh_per_condition_when_enabled() -> None:
     assert result.q_value_matrix is not None
     stats = result.statistics_table
     assert stats is not None
+    assert set(stats["significance_status"]) == {SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE}
     computed = stats.loc[
         stats["computability_status"] == SSGSEA_STATUS_COMPUTED,
         :,
@@ -492,6 +502,10 @@ def test_ssgsea_permutation_results_ignore_unrelated_kinase_insertion() -> None:
         index_labels=["K_TOP", "K_BOTTOM"],
         compare_q_values=False,
     )
+    assert first.statistics_table is not None
+    assert set(first.statistics_table["significance_status"]) == {
+        SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED
+    }
 
 
 def test_ssgsea_permutation_seed_derivation_changes_with_global_seed() -> None:

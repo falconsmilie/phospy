@@ -26,6 +26,7 @@ from phospy.api.results import (
     KinaseWorkflowSiteAttritionSummary,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.methods import SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
 from phospy.science.activities.scientific_policies import (
     SSGSEA_PERMUTATION_RNG_SEED_POLICY,
     SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
@@ -1411,6 +1412,10 @@ def test_provenance_builder_includes_ssgsea_policy_when_selected() -> None:
     assert activity_payload["ssgsea_permutation_rng_seed_policy_version"] == (
         SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
     )
+    assert activity_payload["ssgsea_significance_status"] == (
+        SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
+    )
+    assert activity_payload["ssgsea_significance_status_counts"] is None
 
 
 def test_result_assembler_preserves_owned_dataframe_transfer() -> None:

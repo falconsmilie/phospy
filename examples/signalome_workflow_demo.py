@@ -14,6 +14,7 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
+    KinaseReliabilityProfile,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
@@ -82,9 +83,10 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(
+                reliability_profile=KinaseReliabilityProfile.CUSTOM,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
-                )
+                ),
             ),
             activity_config=None,
         )

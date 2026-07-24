@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Protocol
 import pandas as pd
 
 from phospy.contracts.configs import (
+    KINASE_RELIABILITY_PROFILE_EXPLORATORY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KinaseActivityMethod,
@@ -18,6 +19,7 @@ from phospy.contracts.configs import (
     KinaseAttritionPolicy,
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
+    KinaseReliabilityProfile,
     KinaseScoringMode,
     LocalisationRequirement,
     ProfileSelfInclusionPolicy,
@@ -738,6 +740,10 @@ class ResolvedKinaseExecutionConfig:
     activity: ResolvedKinaseActivityExecutionConfig | None = None
     scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
     include_substrate_contributions: bool = False
+    requested_reliability_profile: KinaseReliabilityProfile | None = None
+    effective_reliability_profile: KinaseReliabilityProfile = (
+        KINASE_RELIABILITY_PROFILE_EXPLORATORY
+    )
     localisation_requirement: LocalisationRequirement = field(
         default_factory=LocalisationRequirement
     )
@@ -770,6 +776,29 @@ class ResolvedKinaseExecutionConfig:
                 field_name=(
                     "kinase.execution_config.reference_context_compatibility_policy"
                 ),
+                error_type=WorkflowBoundaryError,
+            ),
+        )
+        if self.requested_reliability_profile is not None:
+            object.__setattr__(
+                self,
+                "requested_reliability_profile",
+                coerce_policy_enum(
+                    KinaseReliabilityProfile,
+                    self.requested_reliability_profile,
+                    field_name=(
+                        "kinase.execution_config.requested_reliability_profile"
+                    ),
+                    error_type=WorkflowBoundaryError,
+                ),
+            )
+        object.__setattr__(
+            self,
+            "effective_reliability_profile",
+            coerce_policy_enum(
+                KinaseReliabilityProfile,
+                self.effective_reliability_profile,
+                field_name="kinase.execution_config.effective_reliability_profile",
                 error_type=WorkflowBoundaryError,
             ),
         )

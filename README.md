@@ -170,6 +170,7 @@ from phospy.api import (
     ReferencePreset,
 )
 from phospy.api.configs import (
+    KinaseReliabilityProfile,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
@@ -259,6 +260,7 @@ kinase_result = KinaseWorkflow().run(
         # references in this release are rat-only.
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(
+            reliability_profile=KinaseReliabilityProfile.CUSTOM,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
             )

@@ -6,7 +6,6 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset, KinaseWorkflow
 from phospy.api import Organism, ReferenceBundle
 from phospy.api.configs import (
-    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -14,6 +13,7 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.science.activities.methods import SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -94,11 +94,10 @@ def test_kinase_workflow_runs_ssgsea_substrate_enrichment_activity() -> None:
                 deterministic_max_selected_kinases=2,
                 adaptive_ensemble_runs=2,
             ),
-            activity_config=KinaseActivityConfig(
-                method=KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+            activity_config=KinaseActivityConfig.ssgsea_with_permutation_significance(
                 ssgsea_min_substrates=2,
-                ssgsea_permutations=12,
-                ssgsea_random_seed=19,
+                permutations=12,
+                random_seed=19,
             ),
         )
     )
@@ -116,9 +115,20 @@ def test_kinase_workflow_runs_ssgsea_substrate_enrichment_activity() -> None:
     )
     assert activity.p_value_matrix is not None
     assert activity.q_value_matrix is not None
+    assert activity.statistics_table is not None
+    assert set(activity.statistics_table["significance_status"]) == {
+        SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
+    }
     assert activity.substrate_count_matrix.at["K_TOP", "condition_positive"] == 2
     assert {"site_key", "display_id"} <= set(activity.target_table.columns)
 
     assert result.provenance is not None
+    activity_payload = result.provenance.workflow_parameters["activity_config"]
+    assert isinstance(activity_payload, dict)
+    assert activity_payload["ssgsea_permutations"] == 12
+    assert activity_payload["ssgsea_random_seed"] == 19
+    assert activity_payload["ssgsea_significance_status"] == (
+        SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
+    )
     policy_ids = {policy.id for policy in result.provenance.scientific_policies}
     assert ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY in policy_ids

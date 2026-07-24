@@ -370,6 +370,12 @@ class KinaseWorkflowInterpreter:
             ),
             attrition_policy=request.scoring_config.attrition_policy,
             activity=activity,
+            requested_reliability_profile=(
+                request.scoring_config.requested_reliability_profile
+            ),
+            effective_reliability_profile=(
+                request.scoring_config.effective_reliability_profile
+            ),
             localisation_requirement=request.scoring_config.localisation_requirement,
             reference_context_compatibility_policy=(
                 request.scoring_config.reference_context_compatibility_policy
