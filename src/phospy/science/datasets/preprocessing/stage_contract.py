@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from phospy.errors.build import DatasetBuildError
 from phospy.provenance.models import DeterminismKind
@@ -14,9 +15,15 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStateTableKey,
 )
 
+if TYPE_CHECKING:
+    from phospy.science.datasets.preprocessing.stages.batch_correction import (
+        BatchCorrectionAdequacyValidatorProtocol,
+        BatchDesignMetadataValidatorProtocol,
+        SpsRuvStyleBatchCorrectionRunner,
+    )
+
 _ParameterSerializer = Callable[[PreprocessingPlan], dict[str, object]]
 _OperationResolver = Callable[[PreprocessingPlan], str]
-_StageFactory = Callable[[], PreprocessingStage]
 _PlanValidator = Callable[[PreprocessingPlan], None]
 _RandomSeedResolver = Callable[[Mapping[str, object], str], int | None]
 _DeterminismDeclaration = (
@@ -55,6 +62,22 @@ class InterpretedPreprocessingStageContract:
     produced_output_tables: tuple[PreprocessingStateTableKey, ...]
     determinism_kind: DeterminismKind
     backend: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PreprocessingStageFactoryContext:
+    """Composition-time collaborators for preprocessing stage factories."""
+
+    batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None
+    batch_correction_metadata_validator: BatchDesignMetadataValidatorProtocol | None = (
+        None
+    )
+    batch_correction_adequacy_validator: (
+        BatchCorrectionAdequacyValidatorProtocol | None
+    ) = None
+
+
+_StageFactory = Callable[[PreprocessingStageFactoryContext], PreprocessingStage]
 
 
 @dataclass(frozen=True, slots=True)

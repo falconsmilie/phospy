@@ -16,6 +16,9 @@ from phospy.science.datasets.builders.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
+from phospy.science.datasets.preprocessing.event_validation import (
+    _TransformationEventSequenceValidator,
+)
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingReportRow,
@@ -173,6 +176,17 @@ def _log2_event() -> IntensityTransformationEvent:
 
 def _linear_identity_event() -> IntensityTransformationEvent:
     scale = _linear_scale()
+    return IntensityTransformationEvent(
+        transformer_name="tests.IdentityTransformer",
+        input_scale=scale,
+        output_scale=scale,
+        evidence_level=IntensityScaleEvidenceLevel.DECLARED_BY_USER,
+        transformation_kind="identity",
+    )
+
+
+def _log2_identity_event() -> IntensityTransformationEvent:
+    scale = _log2_scale()
     return IntensityTransformationEvent(
         transformer_name="tests.IdentityTransformer",
         input_scale=scale,
@@ -652,7 +666,7 @@ def test_pipeline_uses_stage_owned_diagnostics_and_report_rows() -> None:
 
     final_state, trace = PreprocessingPipeline(
         stage_registry=(FakeStage(),),
-        stage_metadata_registry=(_custom_stage_metadata("fake_stage"),),
+        stage_contract_registry=(_custom_stage_metadata("fake_stage"),),
     ).run_with_trace(state)
 
     assert len(trace) == 1
@@ -795,11 +809,45 @@ def test_pipeline_rejects_conflicting_intensity_transformation_events() -> None:
     ):
         PreprocessingPipeline(
             stage_registry=(Log2EventStage(), LinearIdentityEventStage()),
-            stage_metadata_registry=(
+            stage_contract_registry=(
                 _custom_stage_metadata("log2_event"),
                 _custom_stage_metadata("linear_identity_event"),
             ),
         ).run_with_trace(state)
+
+
+def test_transformation_event_sequence_validator_accepts_contiguous_events() -> None:
+    validator = _TransformationEventSequenceValidator()
+    first = _log2_event()
+    second = _log2_identity_event()
+
+    assert validator.run(stage_key="log2_event", event=first) is first
+    assert validator.run(stage_key="log2_identity_event", event=second) is second
+
+
+def test_transformation_event_sequence_validator_rejects_conflicting_events() -> None:
+    validator = _TransformationEventSequenceValidator()
+    validator.run(stage_key="log2_event", event=_log2_event())
+
+    with pytest.raises(
+        DatasetBuildError,
+        match="intensity transformation event conflict",
+    ):
+        validator.run(
+            stage_key="linear_identity_event",
+            event=_linear_identity_event(),
+        )
+
+
+def test_transformation_event_sequence_validator_rejects_malformed_event() -> None:
+    with pytest.raises(
+        DatasetBuildError,
+        match="intensity transformation event parse error",
+    ):
+        _TransformationEventSequenceValidator().run(
+            stage_key="bad_event",
+            event={"kind": "not typed"},
+        )
 
 
 def test_pipeline_rejects_unsupported_stage_report_rows() -> None:
@@ -843,7 +891,7 @@ def test_pipeline_rejects_unsupported_stage_report_rows() -> None:
     ):
         PreprocessingPipeline(
             stage_registry=(FakeStage(),),
-            stage_metadata_registry=(_custom_stage_metadata("fake_stage"),),
+            stage_contract_registry=(_custom_stage_metadata("fake_stage"),),
         ).run_with_trace(state)
 
 
@@ -887,7 +935,7 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
         preprocessor=DatasetPreprocessor(
             pipeline=PreprocessingPipeline(
                 stage_registry=(FakeStage(),),
-                stage_metadata_registry=(_custom_stage_metadata("fake_stage"),),
+                stage_contract_registry=(_custom_stage_metadata("fake_stage"),),
             ),
         )
     )

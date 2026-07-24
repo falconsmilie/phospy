@@ -17,6 +17,7 @@ from phospy.science.datasets.preprocessing.policy_models import IntensityTransfo
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 from phospy.science.transformations.contracts import Transformer
 from phospy.science.transformations.transformers import (
@@ -123,6 +124,12 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return {"pseudocount": float(plan.intensity_transform_pseudocount)}
 
 
+def _build_intensity_transform_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> IntensityTransformStage:
+    return IntensityTransformStage()
+
+
 INTENSITY_TRANSFORM_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     display_label=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
@@ -137,7 +144,7 @@ INTENSITY_TRANSFORM_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_PHOSPHO,
         PreprocessingStateTableKey.DATASET_TOTAL,
     ),
-    stage_factory=IntensityTransformStage,
+    stage_factory=_build_intensity_transform_stage,
     backend="numpy",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={

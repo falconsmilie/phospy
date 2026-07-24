@@ -329,7 +329,7 @@ def test_preprocessing_pipeline_applies_plan_order() -> None:
 
     pipeline = PreprocessingPipeline(
         stage_registry=(StageA(), StageB()),
-        stage_metadata_registry=(
+        stage_contract_registry=(
             _custom_stage_metadata("stage_a"),
             _custom_stage_metadata("stage_b"),
         ),
@@ -381,7 +381,7 @@ def test_preprocessing_pipeline_passes_stage_state_forward() -> None:
     )
     pipeline = PreprocessingPipeline(
         stage_registry=(AddOneStage(), InspectStage()),
-        stage_metadata_registry=(
+        stage_contract_registry=(
             _custom_stage_metadata("add_one"),
             _custom_stage_metadata("inspect"),
         ),

@@ -28,6 +28,7 @@ from phospy.science.datasets.preprocessing.report_schema import PreprocessingRow
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 from phospy.science.datasets.processing_state import JsonValue, MissingDataDiagnosticsV1
 
@@ -430,6 +431,12 @@ def _resolve_determinism_kind(plan: PreprocessingPlan) -> DeterminismKind:
     return DeterminismKind.DETERMINISTIC
 
 
+def _build_missing_data_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> MissingDataStage:
+    return MissingDataStage()
+
+
 MISSING_DATA_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     display_label=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -446,7 +453,7 @@ MISSING_DATA_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
     ),
-    stage_factory=MissingDataStage,
+    stage_factory=_build_missing_data_stage,
     backend="pandas",
     determinism_kind=_resolve_determinism_kind,
     diagnostics_metadata={

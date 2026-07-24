@@ -13,7 +13,27 @@ from phospy.api import (
     DatasetTotalProteinCorrectionConfig,
     Organism,
 )
+from phospy.provenance.hashing import fingerprint_optional_table, hash_table_tolerance
 from phospy.provenance.models import PreprocessingStageProvenance, TableFingerprint
+from phospy.science.datasets.preprocessing.diagnostics_normalization import (
+    _StageDiagnosticsDefaultsResolver,
+    _StageDiagnosticsNormalizer,
+)
+from phospy.science.datasets.preprocessing.fingerprints import (
+    _hash_stage_table_fingerprints,
+    _StageFingerprintService,
+)
+from phospy.science.datasets.preprocessing.models import (
+    PreprocessingPlan,
+    PreprocessingStageResult,
+    PreprocessingState,
+    PreprocessingStateTableKey,
+)
+from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.science.datasets.preprocessing.stage_registry import (
+    PreprocessingStageMetadata,
+)
+from phospy.science.datasets.preprocessing.trace_builder import _StageTraceBuilder
 
 
 def _base_phospho() -> pd.DataFrame:
@@ -103,6 +123,111 @@ def _hash_by_name(
     return next(
         item.tolerance_hash_value for item in fingerprints if item.name == table_name
     )
+
+
+def test_stage_fingerprint_service_reproduces_existing_exact_and_tolerance_hashes() -> (
+    None
+):
+    phospho = _base_phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_base_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.default(),
+    )
+
+    bundle = _StageFingerprintService().run(
+        stage_key="fake_stage",
+        previous=state,
+        current=state,
+        consumed_input_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+        produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    )
+
+    expected_fingerprint = fingerprint_optional_table(
+        phospho,
+        name="dataset.phospho",
+    )
+    assert expected_fingerprint is not None
+    assert bundle.consumed_input_tables == (expected_fingerprint,)
+    assert bundle.produced_output_tables == (expected_fingerprint,)
+    assert bundle.phospho_input_hash == hash_table_tolerance(
+        phospho,
+        name="fake_stage.input.phospho",
+    )
+    assert bundle.phospho_output_hash == hash_table_tolerance(
+        phospho,
+        name="fake_stage.output.phospho",
+    )
+    assert bundle.input_hash == _hash_stage_table_fingerprints(
+        stage_key="fake_stage",
+        direction="input",
+        table_fingerprints=(expected_fingerprint,),
+    )
+
+
+def test_stage_trace_builder_reproduces_pipeline_trace_payload() -> None:
+    class FakeStage:
+        stage_key = "fake_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={"diagnostics": {"policy": "fake"}},
+            )
+
+    contract = PreprocessingStageMetadata(
+        stage_key="fake_stage",
+        display_label="fake_stage",
+        operation_name=lambda _plan: "fake_operation",
+        serialize_parameters=lambda _plan: {"mode": "test"},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+    phospho = _base_phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_base_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(stage_order=("fake_stage",)),
+    )
+
+    _, pipeline_trace = PreprocessingPipeline(
+        stage_registry=(FakeStage(),),
+        stage_contract_registry=(contract,),
+    ).run_with_trace(state)
+    stage_result = FakeStage().run(state)
+    diagnostics = _StageDiagnosticsNormalizer().run(
+        stage_key="fake_stage",
+        raw=stage_result.diagnostics,
+        defaults=_StageDiagnosticsDefaultsResolver().run(
+            previous=state,
+            current=stage_result.state,
+        ),
+    )
+    fingerprints = _StageFingerprintService().run(
+        stage_key="fake_stage",
+        previous=state,
+        current=stage_result.state,
+        consumed_input_tables=contract.consumed_input_tables,
+        produced_output_tables=contract.produced_output_tables,
+    )
+    trace = _StageTraceBuilder().run(
+        stage_key="fake_stage",
+        contract=contract,
+        interpreted_contract=contract.interpret(state.plan),
+        previous=state,
+        current=stage_result.state,
+        stage_result=stage_result,
+        diagnostics=diagnostics,
+        fingerprints=fingerprints,
+        intensity_transformation_event=None,
+    )
+
+    assert trace == pipeline_trace[0]
 
 
 def test_site_metadata_change_updates_site_matrix_stage_provenance() -> None:

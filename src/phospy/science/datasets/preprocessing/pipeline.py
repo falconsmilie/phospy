@@ -2,25 +2,23 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
-from collections.abc import Mapping, Sequence
+import warnings
+from collections.abc import Sequence
 from dataclasses import replace
-from typing import TypedDict
-
-import pandas as pd
 
 from phospy.errors.build import DatasetBuildError
-from phospy.provenance.hashing import (
-    fingerprint_optional_table,
-    hash_table_tolerance,
+from phospy.science.datasets.preprocessing.diagnostics_normalization import (
+    _StageDiagnosticsDefaultsResolver,
+    _StageDiagnosticsNormalizer,
 )
-from phospy.provenance.models import (
-    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
-    DeterminismKind,
-    ReproducibilityCaveat,
-    TableFingerprint,
+from phospy.science.datasets.preprocessing.event_validation import (
+    _TransformationEventSequenceValidator,
+)
+from phospy.science.datasets.preprocessing.fingerprints import (
+    _resolve_state_table as _resolve_state_table,
+)
+from phospy.science.datasets.preprocessing.fingerprints import (
+    _StageFingerprintService,
 )
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingReportRow,
@@ -28,10 +26,12 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageExecution,
     PreprocessingStageResult,
     PreprocessingState,
-    PreprocessingStateTableKey,
 )
 from phospy.science.datasets.preprocessing.report_rows import (
     validate_preprocessing_report_row,
+)
+from phospy.science.datasets.preprocessing.stage_contract import (
+    PreprocessingStageFactoryContext,
 )
 from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
@@ -43,30 +43,14 @@ from phospy.science.datasets.preprocessing.stages import (
     BatchDesignMetadataValidatorProtocol,
     SpsRuvStyleBatchCorrectionRunner,
 )
-from phospy.science.transformations.models import (
-    IntensityTransformationEvent,
-    MatrixIntensityScaleState,
+from phospy.science.datasets.preprocessing.trace_builder import _StageTraceBuilder
+
+_LEGACY_STAGE_METADATA_REGISTRY_DEPRECATION_MESSAGE = (
+    "PreprocessingPipeline(stage_metadata_registry=...) is deprecated because "
+    "stage_metadata_registry is a legacy alias for stage_contract_registry; use "
+    "stage_contract_registry instead. The legacy alias is planned for removal in "
+    "PhosPy 1.8.0."
 )
-
-_RESERVED_DIAGNOSTIC_KEYS = frozenset(
-    {
-        "dropped_row_ids",
-        "dropped_row_count",
-        "imputed_cell_count",
-        "imputed_row_ids",
-        "notes",
-        "diagnostics",
-    }
-)
-
-
-class _NormalizedStageDiagnostics(TypedDict):
-    dropped_row_ids: tuple[str, ...]
-    dropped_row_count: int
-    imputed_cell_count: int
-    imputed_row_ids: tuple[str, ...]
-    notes: str | None
-    diagnostics: dict[str, object]
 
 
 class PreprocessingPipeline:
@@ -86,19 +70,21 @@ class PreprocessingPipeline:
             BatchCorrectionAdequacyValidatorProtocol | None
         ) = None,
     ) -> None:
-        contract_overrides = (
-            stage_metadata_registry
-            if stage_contract_registry is None
-            else stage_contract_registry
+        contract_overrides = _resolve_stage_contract_overrides(
+            stage_contract_registry=stage_contract_registry,
+            stage_metadata_registry=stage_metadata_registry,
         )
         resolved_metadata_registry = resolve_registered_preprocessing_stages(
             contract_overrides
         )
-        stages = stage_registry or build_registered_preprocessing_stage_instances(
-            resolved_metadata_registry,
+        factory_context = PreprocessingStageFactoryContext(
             batch_correction_runner=batch_correction_runner,
             batch_correction_metadata_validator=batch_correction_metadata_validator,
             batch_correction_adequacy_validator=batch_correction_adequacy_validator,
+        )
+        stages = stage_registry or build_registered_preprocessing_stage_instances(
+            resolved_metadata_registry,
+            context=factory_context,
         )
         self._stages_by_key = {stage.stage_key: stage for stage in stages}
         if len(self._stages_by_key) != len(stages):
@@ -120,23 +106,15 @@ class PreprocessingPipeline:
         current = state
         trace: list[PreprocessingStageExecution] = []
         report_rows: list[PreprocessingReportRow] = list(current.report_rows)
-        previous_intensity_transformation_event: IntensityTransformationEvent | None = (
-            None
-        )
-        previous_intensity_transformation_stage: str | None = None
+        event_validator = _TransformationEventSequenceValidator()
+        diagnostics_defaults_resolver = _StageDiagnosticsDefaultsResolver()
+        diagnostics_normalizer = _StageDiagnosticsNormalizer()
+        fingerprint_service = _StageFingerprintService()
+        trace_builder = _StageTraceBuilder()
+
         for stage_key in current.plan.stage_order:
-            stage = self._stages_by_key.get(stage_key)
-            if stage is None:
-                raise DatasetBuildError(
-                    "dataset preprocessing plan references an unsupported stage: "
-                    f"{stage_key}"
-                )
-            contract = self._stage_contract_by_key.get(stage_key)
-            if contract is None:
-                raise DatasetBuildError(
-                    "dataset preprocessing stage metadata is not registered for "
-                    f"stage {stage_key!r}"
-                )
+            stage = self._resolve_stage(stage_key)
+            contract = self._resolve_stage_contract(stage_key)
             previous = current
             interpreted_contract = contract.interpret(previous.plan)
             stage_result = stage.run(current)
@@ -145,102 +123,38 @@ class PreprocessingPipeline:
                     "dataset preprocessing stage returned an invalid result payload: "
                     f"{stage_key}"
                 )
-            intensity_transformation_event = _normalize_intensity_transformation_event(
+
+            intensity_transformation_event = event_validator.run(
                 stage_key=stage_key,
                 event=stage_result.intensity_transformation_event,
             )
-            if intensity_transformation_event is not None:
-                _validate_intensity_transformation_event_sequence(
-                    previous_stage=previous_intensity_transformation_stage,
-                    previous_event=previous_intensity_transformation_event,
-                    current_stage=stage_key,
-                    current_event=intensity_transformation_event,
-                )
-                previous_intensity_transformation_event = intensity_transformation_event
-                previous_intensity_transformation_stage = stage_key
             current = stage_result.state
             report_rows.extend(_normalize_report_rows(stage_result.report_rows))
-            phospho_input_hash = hash_table_tolerance(
-                previous.phospho,
-                name=f"{stage_key}.input.phospho",
-            )
-            phospho_output_hash = hash_table_tolerance(
-                current.phospho,
-                name=f"{stage_key}.output.phospho",
-            )
-            diagnostics = _normalize_stage_diagnostics(
+            diagnostics = diagnostics_normalizer.run(
                 stage_key=stage_key,
                 raw=stage_result.diagnostics,
-                previous=previous,
-                current=current,
-            )
-            consumed_input_tables = _collect_stage_table_fingerprints(
-                state=previous,
-                table_names=interpreted_contract.consumed_input_tables,
-            )
-            produced_output_tables = _collect_stage_table_fingerprints(
-                state=current,
-                table_names=interpreted_contract.produced_output_tables,
-            )
-            random_seed = _resolve_random_seed(
-                stage_key=stage_key,
-                value=contract.resolve_random_seed(
-                    diagnostics["diagnostics"], stage_key
+                defaults=diagnostics_defaults_resolver.run(
+                    previous=previous,
+                    current=current,
                 ),
             )
-            determinism = _resolve_stage_determinism(
+            fingerprints = fingerprint_service.run(
                 stage_key=stage_key,
-                determinism_kind=interpreted_contract.determinism_kind,
-                random_seed=random_seed,
-            )
-            reproducibility_caveats = _build_stage_reproducibility_caveats(
-                stage=interpreted_contract.stage,
-                operation=interpreted_contract.operation,
-                backend=interpreted_contract.backend,
-                determinism=determinism,
+                previous=previous,
+                current=current,
+                consumed_input_tables=interpreted_contract.consumed_input_tables,
+                produced_output_tables=interpreted_contract.produced_output_tables,
             )
             trace.append(
-                PreprocessingStageExecution(
-                    stage=interpreted_contract.stage,
-                    operation=interpreted_contract.operation,
-                    parameters=interpreted_contract.parameters,
-                    input_shape=(
-                        int(previous.phospho.shape[0]),
-                        int(previous.phospho.shape[1]),
-                    ),
-                    output_shape=(
-                        int(current.phospho.shape[0]),
-                        int(current.phospho.shape[1]),
-                    ),
-                    input_hash=_hash_stage_table_fingerprints(
-                        stage_key=stage_key,
-                        direction="input",
-                        table_fingerprints=consumed_input_tables,
-                    ),
-                    output_hash=_hash_stage_table_fingerprints(
-                        stage_key=stage_key,
-                        direction="output",
-                        table_fingerprints=produced_output_tables,
-                    ),
-                    phospho_input_hash=phospho_input_hash,
-                    phospho_output_hash=phospho_output_hash,
-                    dropped_row_ids=tuple(diagnostics["dropped_row_ids"]),
-                    dropped_row_count=int(diagnostics["dropped_row_count"]),
-                    schema_version=PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
-                    consumed_input_tables=consumed_input_tables,
-                    produced_output_tables=produced_output_tables,
-                    backend=interpreted_contract.backend,
-                    random_seed=random_seed,
-                    determinism=determinism,
-                    reproducibility_caveats=reproducibility_caveats,
-                    is_deterministic=determinism is DeterminismKind.DETERMINISTIC,
-                    imputed_cell_count=int(diagnostics["imputed_cell_count"]),
-                    imputed_row_ids=tuple(diagnostics["imputed_row_ids"]),
-                    notes=diagnostics["notes"],
-                    diagnostics=dict(diagnostics["diagnostics"]),
-                    batch_correction_provenance=(
-                        stage_result.batch_correction_provenance
-                    ),
+                trace_builder.run(
+                    stage_key=stage_key,
+                    contract=contract,
+                    interpreted_contract=interpreted_contract,
+                    previous=previous,
+                    current=current,
+                    stage_result=stage_result,
+                    diagnostics=diagnostics,
+                    fingerprints=fingerprints,
                     intensity_transformation_event=intensity_transformation_event,
                 )
             )
@@ -248,227 +162,42 @@ class PreprocessingPipeline:
             current = replace(current, report_rows=tuple(report_rows))
         return current, tuple(trace)
 
-
-def _normalize_stage_diagnostics(
-    *,
-    stage_key: str,
-    raw: Mapping[str, object],
-    previous: PreprocessingState,
-    current: PreprocessingState,
-) -> _NormalizedStageDiagnostics:
-    default_dropped_row_ids = _resolve_dropped_row_ids(
-        before=previous.phospho.index,
-        after=current.phospho.index,
-    )
-    dropped_row_ids = _coerce_string_tuple(
-        raw.get("dropped_row_ids", default_dropped_row_ids),
-        stage_key=stage_key,
-        field_name="dropped_row_ids",
-    )
-    dropped_row_count = _coerce_int(
-        raw.get("dropped_row_count"),
-        stage_key=stage_key,
-        field_name="dropped_row_count",
-        default=len(dropped_row_ids),
-    )
-
-    default_imputed_row_ids, default_imputed_cell_count = _resolve_imputation_summary(
-        before=previous.phospho,
-        after=current.phospho,
-    )
-    imputed_row_ids = _coerce_string_tuple(
-        raw.get("imputed_row_ids", default_imputed_row_ids),
-        stage_key=stage_key,
-        field_name="imputed_row_ids",
-    )
-    imputed_cell_count = _coerce_int(
-        raw.get("imputed_cell_count"),
-        stage_key=stage_key,
-        field_name="imputed_cell_count",
-        default=default_imputed_cell_count,
-    )
-
-    notes_raw = raw.get("notes", "stage executed")
-    if notes_raw is None:
-        notes = None
-    elif isinstance(notes_raw, str):
-        notes = notes_raw
-    else:
+    def _resolve_stage(self, stage_key: str) -> PreprocessingStage:
+        stage = self._stages_by_key.get(stage_key)
+        if stage is not None:
+            return stage
         raise DatasetBuildError(
-            "dataset preprocessing stage diagnostics parse error: "
-            f"stage={stage_key!r}, field='notes', expected string or null, got "
-            f"{notes_raw!r} ({type(notes_raw).__name__})"
+            f"dataset preprocessing plan references an unsupported stage: {stage_key}"
         )
 
-    nested_diagnostics = raw.get("diagnostics")
-    if isinstance(nested_diagnostics, Mapping):
-        diagnostics: dict[str, object] = {}
-        for key, value in nested_diagnostics.items():
-            if not isinstance(key, str):
-                raise DatasetBuildError(
-                    "dataset preprocessing stage diagnostics parse error: "
-                    f"stage={stage_key!r}, field='diagnostics.<key>', expected "
-                    f"string, got {key!r} ({type(key).__name__})"
-                )
-            diagnostics[key] = value
-    elif "diagnostics" in raw:
+    def _resolve_stage_contract(self, stage_key: str) -> PreprocessingStageMetadata:
+        contract = self._stage_contract_by_key.get(stage_key)
+        if contract is not None:
+            return contract
         raise DatasetBuildError(
-            "dataset preprocessing stage diagnostics parse error: "
-            f"stage={stage_key!r}, field='diagnostics', expected object, got "
-            f"{nested_diagnostics!r} ({type(nested_diagnostics).__name__})"
+            "dataset preprocessing stage metadata is not registered for "
+            f"stage {stage_key!r}"
         )
-    else:
-        diagnostics = {}
-        for key, value in raw.items():
-            if key in _RESERVED_DIAGNOSTIC_KEYS:
-                continue
-            if not isinstance(key, str):
-                raise DatasetBuildError(
-                    "dataset preprocessing stage diagnostics parse error: "
-                    f"stage={stage_key!r}, field='diagnostics.<key>', expected "
-                    f"string, got {key!r} ({type(key).__name__})"
-                )
-            diagnostics[key] = value
-
-    return {
-        "dropped_row_ids": dropped_row_ids,
-        "dropped_row_count": dropped_row_count,
-        "imputed_cell_count": imputed_cell_count,
-        "imputed_row_ids": imputed_row_ids,
-        "notes": notes,
-        "diagnostics": diagnostics,
-    }
 
 
-def _normalize_intensity_transformation_event(
+def _resolve_stage_contract_overrides(
     *,
-    stage_key: str,
-    event: object | None,
-) -> IntensityTransformationEvent | None:
-    if event is None:
-        return None
-    if not isinstance(event, IntensityTransformationEvent):
+    stage_contract_registry: tuple[PreprocessingStageMetadata, ...] | None,
+    stage_metadata_registry: tuple[PreprocessingStageMetadata, ...] | None,
+) -> tuple[PreprocessingStageMetadata, ...] | None:
+    if stage_contract_registry is not None and stage_metadata_registry is not None:
         raise DatasetBuildError(
-            "dataset preprocessing intensity transformation event parse error: "
-            f"stage={stage_key!r}, expected IntensityTransformationEvent or None, "
-            f"got {event!r} ({type(event).__name__})"
+            "dataset preprocessing registry arguments stage_contract_registry and "
+            "stage_metadata_registry are aliases; only one may be passed"
         )
-    return event
-
-
-def _validate_intensity_transformation_event_sequence(
-    *,
-    previous_stage: str | None,
-    previous_event: IntensityTransformationEvent | None,
-    current_stage: str,
-    current_event: IntensityTransformationEvent,
-) -> None:
-    if previous_event is None:
-        return
-    if _same_matrix_intensity_scale(
-        previous_event.output_scale,
-        current_event.input_scale,
-    ):
-        return
-    previous_label = "unknown" if previous_stage is None else previous_stage
-    raise DatasetBuildError(
-        "dataset preprocessing intensity transformation event conflict: "
-        f"stage {current_stage!r} declares input scale "
-        f"{_format_matrix_intensity_scale(current_event.input_scale)} but previous "
-        f"event from stage {previous_label!r} produced output scale "
-        f"{_format_matrix_intensity_scale(previous_event.output_scale)}"
-    )
-
-
-def _same_matrix_intensity_scale(
-    left: MatrixIntensityScaleState,
-    right: MatrixIntensityScaleState,
-) -> bool:
-    return left.kind is right.kind and left.transformed == right.transformed
-
-
-def _format_matrix_intensity_scale(state: MatrixIntensityScaleState) -> str:
-    transformed_label = "transformed" if state.transformed else "untransformed"
-    return f"{state.kind.value} ({transformed_label})"
-
-
-def _coerce_string_tuple(
-    value: object,
-    *,
-    stage_key: str,
-    field_name: str,
-) -> tuple[str, ...]:
-    if isinstance(value, tuple):
-        return _require_string_sequence(
-            value,
-            stage_key=stage_key,
-            field_name=field_name,
+    if stage_metadata_registry is not None:
+        warnings.warn(
+            _LEGACY_STAGE_METADATA_REGISTRY_DEPRECATION_MESSAGE,
+            DeprecationWarning,
+            stacklevel=3,
         )
-    if isinstance(value, list):
-        return _require_string_sequence(
-            value,
-            stage_key=stage_key,
-            field_name=field_name,
-        )
-    raise DatasetBuildError(
-        "dataset preprocessing stage diagnostics parse error: "
-        f"stage={stage_key!r}, field={field_name!r}, expected array of strings, "
-        f"got {value!r} ({type(value).__name__})"
-    )
-
-
-def _require_string_sequence(
-    value: tuple[object, ...] | list[object],
-    *,
-    stage_key: str,
-    field_name: str,
-) -> tuple[str, ...]:
-    resolved: list[str] = []
-    for index, item in enumerate(value):
-        if not isinstance(item, str):
-            raise DatasetBuildError(
-                "dataset preprocessing stage diagnostics parse error: "
-                f"stage={stage_key!r}, field={field_name!r}[{index}], expected "
-                f"string, got {item!r} ({type(item).__name__})"
-            )
-        resolved.append(item)
-    return tuple(resolved)
-
-
-def _coerce_int(
-    value: object,
-    *,
-    stage_key: str,
-    field_name: str,
-    default: int,
-) -> int:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        raise DatasetBuildError(
-            "dataset preprocessing stage diagnostics parse error: "
-            f"stage={stage_key!r}, field={field_name!r}, expected int (bool is not "
-            f"accepted), got {value!r} (bool)"
-        )
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        raise DatasetBuildError(
-            "dataset preprocessing stage diagnostics parse error: "
-            f"stage={stage_key!r}, field={field_name!r}, expected int (floats are "
-            f"not accepted), got {value!r} (float)"
-        )
-    if isinstance(value, str):
-        raise DatasetBuildError(
-            "dataset preprocessing stage diagnostics parse error: "
-            f"stage={stage_key!r}, field={field_name!r}, expected int, got "
-            f"{value!r} (str)"
-        )
-    raise DatasetBuildError(
-        "dataset preprocessing stage diagnostics parse error: "
-        f"stage={stage_key!r}, field={field_name!r}, expected int, got "
-        f"{value!r} ({type(value).__name__})"
-    )
+        return stage_metadata_registry
+    return stage_contract_registry
 
 
 def _normalize_report_rows(
@@ -480,182 +209,4 @@ def _normalize_report_rows(
     return tuple(normalized)
 
 
-def _resolve_dropped_row_ids(*, before: pd.Index, after: pd.Index) -> tuple[str, ...]:
-    after_values = {str(value) for value in after.tolist()}
-    return tuple(
-        str(value) for value in before.tolist() if str(value) not in after_values
-    )
-
-
-def _resolve_imputation_summary(
-    *,
-    before: pd.DataFrame,
-    after: pd.DataFrame,
-) -> tuple[tuple[str, ...], int]:
-    if before.empty or after.empty:
-        return (), 0
-    aligned_before = before.reindex(after.index)
-    imputed_mask = aligned_before.isna() & after.notna()
-    imputed_cell_count = int(imputed_mask.to_numpy().sum())
-    if imputed_cell_count == 0:
-        return (), 0
-    row_flags = imputed_mask.any(axis=1).to_numpy(dtype=bool, copy=False)
-    row_ids = tuple(
-        str(site_id)
-        for site_id, flagged in zip(after.index.tolist(), row_flags, strict=True)
-        if bool(flagged)
-    )
-    return row_ids, imputed_cell_count
-
-
-def _resolve_random_seed(
-    *,
-    stage_key: str,
-    value: object,
-) -> int | None:
-    if value is None:
-        return None
-    return _coerce_int(
-        value,
-        stage_key=stage_key,
-        field_name="diagnostics.random_seed",
-        default=0,
-    )
-
-
-def _resolve_stage_determinism(
-    *,
-    stage_key: str,
-    determinism_kind: DeterminismKind,
-    random_seed: int | None,
-) -> DeterminismKind:
-    if determinism_kind is DeterminismKind.SEEDED_STOCHASTIC and random_seed is None:
-        raise DatasetBuildError(
-            "dataset preprocessing stage declared seeded stochastic execution "
-            "but did not record an explicit random seed: "
-            f"stage={stage_key!r}, determinism_kind={determinism_kind.value!r}"
-        )
-    return determinism_kind
-
-
-def _build_stage_reproducibility_caveats(
-    *,
-    stage: str,
-    operation: str,
-    backend: str | None,
-    determinism: DeterminismKind,
-) -> tuple[ReproducibilityCaveat, ...]:
-    if determinism is not DeterminismKind.EXTERNALLY_NONDETERMINISTIC:
-        return ()
-    return (
-        ReproducibilityCaveat(
-            code=PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
-            severity="warning",
-            message=(
-                "Preprocessing stage declares externally nondeterministic "
-                "execution; exact reproduction requires the external system, "
-                "runtime state, and inputs used to produce the recorded output."
-            ),
-            details={
-                "stage": stage,
-                "operation": operation,
-                "backend": backend,
-                "determinism_kind": determinism.value,
-            },
-        ),
-    )
-
-
-def _hash_stage_table_fingerprints(
-    *,
-    stage_key: str,
-    direction: str,
-    table_fingerprints: tuple[TableFingerprint, ...],
-) -> str:
-    payload = {
-        "stage": stage_key,
-        "direction": direction,
-        "tables": [
-            {
-                "name": item.name,
-                "rows": int(item.rows),
-                "columns": int(item.columns),
-                "exact_hash_algorithm": item.exact_hash_algorithm,
-                "exact_hash_value": item.exact_hash_value,
-                "tolerance_hash_algorithm": item.tolerance_hash_algorithm,
-                "tolerance_hash_value": item.tolerance_hash_value,
-            }
-            for item in table_fingerprints
-        ],
-    }
-    encoded = json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=True,
-        allow_nan=False,
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _collect_stage_table_fingerprints(
-    *,
-    state: PreprocessingState,
-    table_names: tuple[PreprocessingStateTableKey, ...],
-) -> tuple[TableFingerprint, ...]:
-    fingerprints: list[TableFingerprint] = []
-    for table_name in table_names:
-        table = _resolve_state_table(state=state, table_name=table_name)
-        fingerprint = fingerprint_optional_table(table, name=table_name.value)
-        if fingerprint is None:
-            continue
-        fingerprints.append(fingerprint)
-    return tuple(fingerprints)
-
-
-def _resolve_state_table(
-    *,
-    state: PreprocessingState,
-    table_name: PreprocessingStateTableKey | str,
-) -> pd.DataFrame | None:
-    try:
-        key = (
-            table_name
-            if isinstance(table_name, PreprocessingStateTableKey)
-            else PreprocessingStateTableKey(str(table_name))
-        )
-    except ValueError as exc:
-        supported = ", ".join(item.value for item in PreprocessingStateTableKey)
-        raise DatasetBuildError(
-            "dataset preprocessing stage metadata contains unknown table key: "
-            f"{table_name!r}; supported tables: {supported}"
-        ) from exc
-    if key is PreprocessingStateTableKey.DATASET_PHOSPHO:
-        return state.phospho
-    if key is PreprocessingStateTableKey.DATASET_SITE_METADATA:
-        return state.site_metadata
-    if key is PreprocessingStateTableKey.DATASET_SAMPLE_METADATA:
-        return state.sample_metadata
-    if key is PreprocessingStateTableKey.DATASET_TOTAL:
-        return state.total
-    if key is PreprocessingStateTableKey.DATASET_COMPARISONS:
-        return state.comparisons
-    if key is PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK:
-        return state.imputation_observation_mask
-    if key is PreprocessingStateTableKey.REPORT_COMPARISON_GROUP_STATS:
-        return state.comparison_group_stats
-    if key is PreprocessingStateTableKey.REPORT_COMPARISON_PAIR_STATS:
-        return state.comparison_pair_stats
-    if key is PreprocessingStateTableKey.REPORT_DUPLICATE_SITE_RESOLUTION:
-        return state.duplicate_site_resolution
-    if key is PreprocessingStateTableKey.REPORT_METADATA_CONFLICTS:
-        return state.metadata_conflicts
-    if key is PreprocessingStateTableKey.REPORT_ROW_AUDIT:
-        return state.row_audit
-    raise DatasetBuildError(
-        "dataset preprocessing stage metadata references an unsupported table key: "
-        f"{key.value!r}"
-    )
-
-
-__all__ = ["PreprocessingPipeline"]
+__all__ = ["PreprocessingPipeline", "_resolve_state_table"]

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import ast
+import inspect
+from typing import Any, cast
+
 import pandas as pd
 import pytest
 
+import phospy.science.datasets.preprocessing.stage_registry as stage_registry_module
 from phospy.api.configs import (
     DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
     DatasetComparisonBuildingConfig,
@@ -33,13 +38,20 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.stage_contract import DeterminismKind
+from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
+    PreprocessingStageFactoryContext,
+)
 from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
+    build_registered_preprocessing_stage_instances,
     get_preprocessing_stage_metadata,
     list_registered_preprocessing_stages,
     resolve_builder_provenance_stage_order,
     resolve_registered_preprocessing_stages,
+)
+from phospy.science.datasets.preprocessing.stages.batch_correction import (
+    BATCH_CORRECTION_STAGE_CONTRACT,
 )
 from tests.support.site_keys import site_key_index_from_display_ids
 
@@ -234,7 +246,7 @@ def test_known_optional_missing_table_is_skipped_in_trace_fingerprints() -> None
 
     _, trace = PreprocessingPipeline(
         stage_registry=(_OptionalSampleMetadataStage(),),
-        stage_metadata_registry=(metadata,),
+        stage_contract_registry=(metadata,),
     ).run_with_trace(state)
 
     assert len(trace) == 1
@@ -332,12 +344,223 @@ def test_unknown_stage_metadata_fails_with_clear_error() -> None:
 
 
 def test_registered_stage_factories_expose_run_method() -> None:
+    context = PreprocessingStageFactoryContext()
     for metadata in list_registered_preprocessing_stages():
         if metadata.stage_factory is None:
             continue
-        stage = metadata.stage_factory()
+        stage = metadata.stage_factory(context)
         run_method = getattr(stage, "run", None)
         assert callable(run_method)
+
+
+def test_dependency_free_stage_factory_receives_uniform_context() -> None:
+    observed_contexts: list[PreprocessingStageFactoryContext] = []
+
+    class ContextFreeStage:
+        stage_key = "context_free_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    def _build_context_free_stage(
+        context: PreprocessingStageFactoryContext,
+    ) -> ContextFreeStage:
+        observed_contexts.append(context)
+        return ContextFreeStage()
+
+    contract = PreprocessingStageMetadata(
+        stage_key="context_free_stage",
+        display_label="context_free_stage",
+        operation_name=lambda _plan: "context_free",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=_build_context_free_stage,
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+    context = PreprocessingStageFactoryContext()
+
+    instances = build_registered_preprocessing_stage_instances(
+        (contract,),
+        context=context,
+    )
+
+    assert len(instances) == 1
+    assert observed_contexts == [context]
+    assert instances[0].stage_key == "context_free_stage"
+
+
+def test_dependency_bearing_stage_receives_collaborator_from_uniform_context() -> None:
+    class FakeCollaborator:
+        marker = "from_context"
+
+    class CollaboratorStage:
+        stage_key = "collaborator_stage"
+
+        def __init__(self, collaborator: object) -> None:
+            self.collaborator = collaborator
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    def _build_collaborator_stage(
+        context: PreprocessingStageFactoryContext,
+    ) -> CollaboratorStage:
+        return CollaboratorStage(context.batch_correction_runner)
+
+    contract = PreprocessingStageMetadata(
+        stage_key="collaborator_stage",
+        display_label="collaborator_stage",
+        operation_name=lambda _plan: "collaborator_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=_build_collaborator_stage,
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+    collaborator = FakeCollaborator()
+    context = PreprocessingStageFactoryContext(
+        batch_correction_runner=cast(Any, collaborator),
+    )
+
+    (stage,) = build_registered_preprocessing_stage_instances(
+        (contract,),
+        context=context,
+    )
+
+    assert cast(CollaboratorStage, stage).collaborator is collaborator
+
+
+def test_pipeline_builds_dependency_bearing_custom_stage_without_registry_branch() -> (
+    None
+):
+    class FakeCollaborator:
+        marker = "future_collaborator"
+
+    class CollaboratorStage:
+        stage_key = "future_dependency_stage"
+
+        def __init__(self, collaborator: FakeCollaborator) -> None:
+            self._collaborator = collaborator
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "diagnostics": {"collaborator": self._collaborator.marker}
+                },
+            )
+
+    def _build_collaborator_stage(
+        context: PreprocessingStageFactoryContext,
+    ) -> CollaboratorStage:
+        return CollaboratorStage(
+            cast(FakeCollaborator, context.batch_correction_runner)
+        )
+
+    contract = PreprocessingStageMetadata(
+        stage_key="future_dependency_stage",
+        display_label="future_dependency_stage",
+        operation_name=lambda _plan: "future_dependency_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=_build_collaborator_stage,
+        diagnostics_metadata={"known_diagnostics_fields": ("collaborator",)},
+    )
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(stage_order=("future_dependency_stage",)),
+    )
+
+    _, trace = PreprocessingPipeline(
+        stage_contract_registry=(contract,),
+        batch_correction_runner=cast(Any, FakeCollaborator()),
+    ).run_with_trace(state)
+
+    assert trace[0].diagnostics["collaborator"] == "future_collaborator"
+
+
+def test_batch_correction_constructs_and_runs_through_uniform_context_path() -> None:
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            stage_order=(DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,),
+        ),
+    )
+
+    _, trace = PreprocessingPipeline(
+        stage_contract_registry=(BATCH_CORRECTION_STAGE_CONTRACT,),
+    ).run_with_trace(state)
+
+    assert len(trace) == 1
+    assert trace[0].stage == DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION
+    assert trace[0].operation == "none"
+    assert trace[0].diagnostics["status"] == "disabled"
+
+
+def test_registry_instance_builder_contains_no_concrete_batch_special_case() -> None:
+    source = inspect.getsource(
+        stage_registry_module.build_registered_preprocessing_stage_instances
+    )
+    tree = ast.parse(source)
+
+    assert "BatchCorrectionStage" not in source
+    assert "BATCH_CORRECTION_STAGE_CONTRACT" not in source
+    assert "batch_correction" not in source
+    assert "factory is" not in source
+    assert "stage_key ==" not in source
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If):
+            assert "stage_key" not in ast.unparse(node.test)
+
+
+def test_pipeline_rejects_both_registry_aliases() -> None:
+    with pytest.raises(
+        DatasetBuildError,
+        match="stage_contract_registry.*stage_metadata_registry.*aliases.*only one",
+    ):
+        PreprocessingPipeline(
+            stage_contract_registry=(),
+            stage_metadata_registry=(),
+        )
+
+
+def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
+    class FakeStage:
+        stage_key = "legacy_alias_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    contract = PreprocessingStageMetadata(
+        stage_key="legacy_alias_stage",
+        display_label="legacy_alias_stage",
+        operation_name=lambda _plan: "legacy_alias_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+    state = _fake_stage_state("legacy_alias_stage")
+
+    with pytest.warns(DeprecationWarning, match="stage_metadata_registry"):
+        pipeline = PreprocessingPipeline(
+            stage_registry=(FakeStage(),),
+            stage_metadata_registry=(contract,),
+        )
+
+    _, trace = pipeline.run_with_trace(state)
+
+    assert trace[0].stage == "legacy_alias_stage"
 
 
 def test_custom_stage_registration_is_stage_owned() -> None:
@@ -353,6 +576,9 @@ def test_custom_stage_registration_is_stage_owned() -> None:
                 },
             )
 
+    def _build_fake_stage(_context: PreprocessingStageFactoryContext) -> FakeStage:
+        return FakeStage()
+
     fake_contract = PreprocessingStageMetadata(
         stage_key="fake_stage",
         display_label="fake_stage",
@@ -361,7 +587,7 @@ def test_custom_stage_registration_is_stage_owned() -> None:
         serialize_parameters=lambda _plan: {"mode": "test"},
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
-        stage_factory=FakeStage,
+        stage_factory=_build_fake_stage,
         diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
     )
     state = PreprocessingState(
@@ -421,7 +647,7 @@ def test_deterministic_stage_contract_runs_without_seed() -> None:
 
     _, trace = PreprocessingPipeline(
         stage_registry=(FakeDeterministicStage(),),
-        stage_metadata_registry=(
+        stage_contract_registry=(
             _fake_stage_contract(
                 stage_key="fake_deterministic",
                 determinism_kind=DeterminismKind.DETERMINISTIC,
@@ -446,7 +672,7 @@ def test_seeded_stochastic_stage_contract_runs_with_explicit_seed() -> None:
 
     _, trace = PreprocessingPipeline(
         stage_registry=(FakeSeededStage(),),
-        stage_metadata_registry=(
+        stage_contract_registry=(
             _fake_stage_contract(
                 stage_key="fake_seeded",
                 determinism_kind=DeterminismKind.SEEDED_STOCHASTIC,
@@ -471,7 +697,7 @@ def test_seeded_stochastic_stage_contract_without_seed_fails() -> None:
     ):
         PreprocessingPipeline(
             stage_registry=(FakeSeededStage(),),
-            stage_metadata_registry=(
+            stage_contract_registry=(
                 _fake_stage_contract(
                     stage_key="fake_seeded_without_seed",
                     determinism_kind=DeterminismKind.SEEDED_STOCHASTIC,
@@ -489,7 +715,7 @@ def test_externally_nondeterministic_stage_records_reproducibility_caveat() -> N
 
     _, trace = PreprocessingPipeline(
         stage_registry=(FakeExternalStage(),),
-        stage_metadata_registry=(
+        stage_contract_registry=(
             _fake_stage_contract(
                 stage_key="fake_external",
                 determinism_kind=DeterminismKind.EXTERNALLY_NONDETERMINISTIC,

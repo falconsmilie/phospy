@@ -32,6 +32,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 
 _COMPARISON_OUTPUT_PREFIX = "p_"
@@ -446,6 +447,12 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     }
 
 
+def _build_comparisons_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> ComparisonsStage:
+    return ComparisonsStage()
+
+
 COMPARISONS_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_COMPARISONS,
     display_label=DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -461,7 +468,7 @@ COMPARISONS_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.REPORT_COMPARISON_GROUP_STATS,
         PreprocessingStateTableKey.REPORT_COMPARISON_PAIR_STATS,
     ),
-    stage_factory=ComparisonsStage,
+    stage_factory=_build_comparisons_stage,
     backend="pandas",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={

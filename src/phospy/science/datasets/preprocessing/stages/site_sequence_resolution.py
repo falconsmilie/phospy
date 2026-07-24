@@ -24,6 +24,7 @@ from phospy.science.datasets.preprocessing.site_sequence import (
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 from phospy.science.sequences.resolver import (
     RESOLUTION_STATUS_RESOLVED,
@@ -206,6 +207,12 @@ def _include_when_enabled(plan: PreprocessingPlan) -> bool:
     return bool(plan.site_sequence_resolution_enabled)
 
 
+def _build_site_sequence_resolution_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> SiteSequenceResolutionStage:
+    return SiteSequenceResolutionStage()
+
+
 SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     display_label=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
@@ -214,7 +221,7 @@ SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT = PreprocessingStageContract(
     serialize_parameters=_resolve_parameters,
     consumed_input_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
     produced_output_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
-    stage_factory=SiteSequenceResolutionStage,
+    stage_factory=_build_site_sequence_resolution_stage,
     backend="phospy.science.sequences",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     include_when=_include_when_enabled,

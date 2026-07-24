@@ -28,6 +28,7 @@ from phospy.science.datasets.preprocessing.report_rows import (
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
@@ -526,6 +527,12 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     }
 
 
+def _build_site_matrix_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> SiteMatrixStage:
+    return SiteMatrixStage()
+
+
 SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     display_label=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
@@ -545,7 +552,7 @@ SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.REPORT_METADATA_CONFLICTS,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
     ),
-    stage_factory=SiteMatrixStage,
+    stage_factory=_build_site_matrix_stage,
     backend="pandas",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={

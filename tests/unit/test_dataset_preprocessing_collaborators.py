@@ -15,6 +15,10 @@ from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
 from phospy.science.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
+from phospy.science.datasets.preprocessing.diagnostics_normalization import (
+    _StageDiagnosticsDefaults,
+    _StageDiagnosticsNormalizer,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
@@ -414,6 +418,44 @@ def test_pipeline_rejects_malformed_stage_diagnostics_before_trace_is_recorded()
         match=f"stage={DATASET_PREPROCESSING_STAGE_MISSING_DATA!r}.*imputed_cell_count",
     ):
         pipeline.run_with_trace(state)
+
+
+def test_stage_diagnostics_normalizer_uses_supplied_defaults_without_dataframe_reads() -> (
+    None
+):
+    defaults = _StageDiagnosticsDefaults(
+        dropped_row_ids=("row_b",),
+        imputed_row_ids=("row_a",),
+        imputed_cell_count=2,
+    )
+
+    normalized = _StageDiagnosticsNormalizer().run(
+        stage_key="fake_stage",
+        raw={"notes": None, "custom_metric": 7},
+        defaults=defaults,
+    )
+
+    assert normalized.dropped_row_ids == ("row_b",)
+    assert normalized.dropped_row_count == 1
+    assert normalized.imputed_row_ids == ("row_a",)
+    assert normalized.imputed_cell_count == 2
+    assert normalized.notes is None
+    assert dict(normalized.diagnostics) == {"custom_metric": 7}
+
+
+def test_stage_diagnostics_normalizer_rejects_malformed_nested_payload() -> None:
+    defaults = _StageDiagnosticsDefaults(
+        dropped_row_ids=(),
+        imputed_row_ids=(),
+        imputed_cell_count=0,
+    )
+
+    with pytest.raises(DatasetBuildError, match="diagnostics.<key>"):
+        _StageDiagnosticsNormalizer().run(
+            stage_key="fake_stage",
+            raw={"diagnostics": {1: "not a string key"}},
+            defaults=defaults,
+        )
 
 
 def test_pipeline_table_resolution_rejects_unknown_table_key() -> None:

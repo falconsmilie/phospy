@@ -47,6 +47,7 @@ from phospy.science.datasets.preprocessing.models import (
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 
 
@@ -417,6 +418,16 @@ def _validation_failure_message(
     )
 
 
+def _build_batch_correction_stage(
+    context: PreprocessingStageFactoryContext,
+) -> BatchCorrectionStage:
+    return BatchCorrectionStage(
+        sps_ruv_runner=context.batch_correction_runner,
+        metadata_validator=context.batch_correction_metadata_validator,
+        adequacy_validator=context.batch_correction_adequacy_validator,
+    )
+
+
 BATCH_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     display_label=DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
@@ -428,7 +439,7 @@ BATCH_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
     ),
     produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
-    stage_factory=BatchCorrectionStage,
+    stage_factory=_build_batch_correction_stage,
     backend="numpy",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     include_when=_include_when,

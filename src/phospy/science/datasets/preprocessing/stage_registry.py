@@ -11,6 +11,7 @@ from phospy.science.datasets.preprocessing.models import (
 )
 from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 from phospy.science.datasets.preprocessing.stages import (
     BATCH_CORRECTION_STAGE_CONTRACT,
@@ -23,10 +24,6 @@ from phospy.science.datasets.preprocessing.stages import (
     SITE_MATRIX_STAGE_CONTRACT,
     SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT,
     TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT,
-    BatchCorrectionAdequacyValidatorProtocol,
-    BatchCorrectionStage,
-    BatchDesignMetadataValidatorProtocol,
-    SpsRuvStyleBatchCorrectionRunner,
 )
 
 # Backward-compatible alias for existing imports/tests.
@@ -160,34 +157,17 @@ def merge_preprocessing_stage_metadata(
 def build_registered_preprocessing_stage_instances(
     metadata_registry: Sequence[PreprocessingStageContract],
     *,
-    batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
-    batch_correction_metadata_validator: (
-        BatchDesignMetadataValidatorProtocol | None
-    ) = None,
-    batch_correction_adequacy_validator: (
-        BatchCorrectionAdequacyValidatorProtocol | None
-    ) = None,
+    context: PreprocessingStageFactoryContext | None = None,
 ) -> tuple[PreprocessingStage, ...]:
     """Construct stage instances from registry-owned stage factories."""
 
+    factory_context = context or PreprocessingStageFactoryContext()
     instances: list[PreprocessingStage] = []
     for metadata in metadata_registry:
         factory = metadata.stage_factory
-        if factory is None:
+        if not callable(factory):
             continue
-        if (
-            metadata.stage_key == BATCH_CORRECTION_STAGE_CONTRACT.stage_key
-            and factory is BatchCorrectionStage
-        ):
-            instances.append(
-                BatchCorrectionStage(
-                    sps_ruv_runner=batch_correction_runner,
-                    metadata_validator=batch_correction_metadata_validator,
-                    adequacy_validator=batch_correction_adequacy_validator,
-                )
-            )
-            continue
-        instances.append(factory())
+        instances.append(factory(factory_context))
     return tuple(instances)
 
 

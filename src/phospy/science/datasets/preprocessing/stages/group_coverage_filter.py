@@ -31,6 +31,7 @@ from phospy.science.datasets.preprocessing.report_schema import PreprocessingRow
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 
 _REMOVAL_REASON = "insufficient finite coverage within configured sample groups"
@@ -408,6 +409,12 @@ def _include_when(plan: PreprocessingPlan) -> bool:
     return bool(plan.group_coverage_filter_enabled)
 
 
+def _build_group_coverage_filter_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> GroupCoverageFilterStage:
+    return GroupCoverageFilterStage()
+
+
 GROUP_COVERAGE_FILTER_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
     display_label=DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
@@ -423,7 +430,7 @@ GROUP_COVERAGE_FILTER_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
     ),
-    stage_factory=GroupCoverageFilterStage,
+    stage_factory=_build_group_coverage_filter_stage,
     backend="numpy",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     include_when=_include_when,

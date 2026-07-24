@@ -6,6 +6,10 @@ All notable changes to this project are documented here.
 
 ### API
 
+- Deprecated the internal `PreprocessingPipeline(stage_metadata_registry=...)`
+  constructor alias. It still works with a `DeprecationWarning`, but callers
+  must use `stage_contract_registry=...`; passing both aliases now raises.
+  Planned removal: PhosPy 1.8.0.
 - Breaking: sealed ordinary direct construction of
   `AnalysisReadyPhosphoDataset`. The class remains importable as the public
   analysis-ready result/domain type, but `AnalysisReadyPhosphoDataset(...)`

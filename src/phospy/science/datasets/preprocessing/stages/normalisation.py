@@ -22,6 +22,7 @@ from phospy.science.datasets.preprocessing.policy_models import NormalisationPol
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 
 
@@ -351,6 +352,12 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return _resolve_method_parameters(plan.normalisation_policy)
 
 
+def _build_normalisation_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> NormalisationStage:
+    return NormalisationStage()
+
+
 NORMALISATION_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_NORMALISATION,
     display_label=DATASET_PREPROCESSING_STAGE_NORMALISATION,
@@ -359,7 +366,7 @@ NORMALISATION_STAGE_CONTRACT = PreprocessingStageContract(
     serialize_parameters=_resolve_parameters,
     consumed_input_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
     produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
-    stage_factory=NormalisationStage,
+    stage_factory=_build_normalisation_stage,
     backend="numpy",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={

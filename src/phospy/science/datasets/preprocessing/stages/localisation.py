@@ -26,6 +26,7 @@ from phospy.science.datasets.preprocessing.report_schema import PreprocessingRow
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
+    PreprocessingStageFactoryContext,
 )
 from phospy.science.evidence.localisation import (
     assess_localisation_probability_column,
@@ -309,6 +310,12 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     }
 
 
+def _build_localisation_confidence_stage(
+    _context: PreprocessingStageFactoryContext,
+) -> LocalisationConfidenceStage:
+    return LocalisationConfidenceStage()
+
+
 LOCALISATION_CONFIDENCE_STAGE_CONTRACT = PreprocessingStageContract(
     stage_key=DATASET_PREPROCESSING_STAGE_LOCALISATION,
     display_label=DATASET_PREPROCESSING_STAGE_LOCALISATION,
@@ -320,7 +327,7 @@ LOCALISATION_CONFIDENCE_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
     ),
-    stage_factory=LocalisationConfidenceStage,
+    stage_factory=_build_localisation_confidence_stage,
     backend="pandas",
     determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={
