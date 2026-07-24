@@ -34,19 +34,19 @@ SignalomeClusteringScoringMode = Literal["auto", "exact", "approximate"]
 SIGNALOME_TREE_ENGINE_EXACT = "exact"
 SignalomeTreeEngine = Literal["exact"]
 
-SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS = "column_median_imputation_with_zero_for_all_missing_columns"
+SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE = "drop_fully_missing_then_column_median_impute"
 SignalomeClusteringMissingValuePolicy = Literal[
-    "column_median_imputation_with_zero_for_all_missing_columns"
+    "drop_fully_missing_then_column_median_impute"
 ]
 # Signalome clustering-matrix preparation policy:
 # - non-finite values are normalised to missing before imputation
-# - partially missing columns are imputed with the column median
-# - fully missing columns are imputed with 0.0
-# - imputation is used for clustering distance/tree construction inputs only
+# - fully missing columns are dropped before distance/tree construction
+# - retained partially missing columns are imputed with the column median
+# - imputation is used for signalome clustering internals only
 #   (output tables remain the original workflow outputs and do not expose
 #   imputed clustering values)
 SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO = (
-    "clustering_distance_and_tree_construction_only"
+    "module_count_selection_and_tree_construction"
 )
 SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES = (
     False
@@ -159,7 +159,7 @@ __all__ = [
     "SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY",
     "SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT",
     "SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO",
-    "SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS",
+    "SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE",
     "SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES",
     "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",

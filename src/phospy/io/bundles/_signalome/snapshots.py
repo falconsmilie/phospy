@@ -6,12 +6,16 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from phospy.contracts.configs import SignalomeConfig
+from phospy.contracts.configs import (
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
+    SignalomeConfig,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_mapping
 from phospy.io.bundles._signalome.config import (
     signalome_config_from_payload,
 )
+from phospy.io.bundles._signalome.primitives import _parse_optional_int
 
 if TYPE_CHECKING:
     from phospy.contracts.requests import SignalomeWorkflowRequest
@@ -22,6 +26,19 @@ class SignalomeWorkflowConfigSnapshot:
     """Serializable snapshot of the signalome workflow configuration."""
 
     signalome_config: SignalomeConfig
+    network_min_paired_finite_observations_effective: int | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.signalome_config, SignalomeConfig):
+            raise PhosPyInputError(
+                "config snapshot signalome_config must be a SignalomeConfig"
+            )
+        if self.network_min_paired_finite_observations_effective is not None:
+            object.__setattr__(
+                self,
+                "network_min_paired_finite_observations_effective",
+                int(self.network_min_paired_finite_observations_effective),
+            )
 
     @classmethod
     def from_request(
@@ -35,7 +52,14 @@ class SignalomeWorkflowConfigSnapshot:
             raise PhosPyInputError(
                 "config snapshot request must be a SignalomeWorkflowRequest"
             )
-        return cls(signalome_config=request.config)
+        return cls(
+            signalome_config=request.config,
+            network_min_paired_finite_observations_effective=(
+                SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+                if request.config.output.network_min_paired_finite_observations is None
+                else int(request.config.output.network_min_paired_finite_observations)
+            ),
+        )
 
     def to_payload(self) -> dict[str, object]:
         """Return a manifest-safe JSON payload for this config snapshot."""
@@ -98,6 +122,11 @@ class SignalomeWorkflowConfigSnapshot:
                             self.signalome_config.output.network_min_paired_finite_observations
                         )
                     ),
+                    "network_min_paired_finite_observations_effective": (
+                        None
+                        if self.network_min_paired_finite_observations_effective is None
+                        else int(self.network_min_paired_finite_observations_effective)
+                    ),
                 },
                 "performance": {
                     "max_exact_tree_sites": int(
@@ -112,7 +141,10 @@ class SignalomeWorkflowConfigSnapshot:
 
     @classmethod
     def from_payload(
-        cls, payload: Mapping[str, object]
+        cls,
+        payload: Mapping[str, object],
+        *,
+        effective_network_min_paired_finite_observations: int | None = None,
     ) -> SignalomeWorkflowConfigSnapshot:
         """Create a config snapshot from a decoded JSON payload."""
 
@@ -121,9 +153,27 @@ class SignalomeWorkflowConfigSnapshot:
             payload.get("signalome_config"),
             field_name=f"{scope}.signalome_config",
         )
+        signalome_config = signalome_config_from_payload(
+            signalome_payload,
+            scope=scope,
+            allow_legacy_network_minimum=True,
+        )
+        output_payload = require_mapping(
+            signalome_payload.get("output"),
+            field_name=f"{scope}.signalome_config.output",
+        )
+        parsed_effective = _parse_optional_int(
+            output_payload.get("network_min_paired_finite_observations_effective"),
+            field_name=(
+                f"{scope}.signalome_config.output."
+                "network_min_paired_finite_observations_effective"
+            ),
+        )
         return cls(
-            signalome_config=signalome_config_from_payload(
-                signalome_payload,
-                scope=scope,
-            )
+            signalome_config=signalome_config,
+            network_min_paired_finite_observations_effective=(
+                effective_network_min_paired_finite_observations
+                if effective_network_min_paired_finite_observations is not None
+                else parsed_effective
+            ),
         )

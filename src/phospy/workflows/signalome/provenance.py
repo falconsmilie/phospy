@@ -19,6 +19,7 @@ from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )
+from phospy.provenance.serialization import table_fingerprint_to_payload
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.science.signalomes.clustering import ClusterSitesResult
@@ -35,11 +36,8 @@ from phospy.science.signalomes.clustering.scientific_policies import (
     SignalomeMissingValueClusteringPolicy,
     build_signalome_module_candidate_score_policy,
 )
-from phospy.science.signalomes.clustering.tree_building import (
-    SignalomeClusteringMissingValueDiagnostics,
-    summarize_clustering_missing_value_diagnostics,
-)
 from phospy.science.signalomes.models import (
+    SignalomeClusteringPreparationDiagnostics,
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
 )
@@ -98,17 +96,15 @@ class SignalomeProvenanceBuilder:
             protein_site_context=protein_site_context,
         )
         upstream_provenance = request.kinase_result.provenance
-        clustering_missing_value_diagnostics = (
-            summarize_clustering_missing_value_diagnostics(
-                request.downstream_score_matrix.to_numpy(dtype=float, copy=False)
-            )
+        clustering_preparation_diagnostics = (
+            clustering_result.clustering_preparation_diagnostics
         )
         scientific_policies = _build_scientific_policy_records(
             request=request,
             config=config,
             clustering_result=clustering_result,
             scale_guard_decision=scale_guard_decision,
-            clustering_missing_value_diagnostics=clustering_missing_value_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
         )
         workflow_parameters = _build_workflow_parameters(
             request=request,
@@ -117,7 +113,7 @@ class SignalomeProvenanceBuilder:
             final_site_ids=module_assignments.index,
             network_correlation_diagnostics=network_correlation_diagnostics,
             scale_guard_decision=scale_guard_decision,
-            clustering_missing_value_diagnostics=clustering_missing_value_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
             upstream_provenance=upstream_provenance,
         )
         return RunProvenance(
@@ -211,7 +207,7 @@ def _build_workflow_parameters(
     final_site_ids: pd.Index,
     network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
     scale_guard_decision: SignalomeScaleGuardDecision,
-    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics,
     upstream_provenance: RunProvenance | None,
 ) -> dict[str, object]:
     payload = input_intensity_scale_evidence_payload(request.dataset)
@@ -224,13 +220,16 @@ def _build_workflow_parameters(
             "site_token_validation": _build_site_token_validation_payload(request),
             "signalome_config": _build_signalome_config_payload(
                 config=config,
-                clustering_missing_value_diagnostics=(
-                    clustering_missing_value_diagnostics
-                ),
+                clustering_preparation_diagnostics=(clustering_preparation_diagnostics),
             ),
             "scale_guard": _build_scale_guard_payload(scale_guard_decision),
             "module_selection_diagnostics": _module_selection_diagnostics_payload(
                 clustering_result.module_selection_diagnostics
+            ),
+            "clustering_preparation_diagnostics": (
+                _clustering_preparation_diagnostics_payload(
+                    clustering_preparation_diagnostics
+                )
             ),
             "score_preconditioning_diagnostics": asdict(
                 request.score_preconditioning_diagnostics
@@ -243,9 +242,7 @@ def _build_workflow_parameters(
                 clustering_result=clustering_result,
                 network_correlation_diagnostics=network_correlation_diagnostics,
                 scale_guard_decision=scale_guard_decision,
-                clustering_missing_value_diagnostics=(
-                    clustering_missing_value_diagnostics
-                ),
+                clustering_preparation_diagnostics=(clustering_preparation_diagnostics),
             ),
             "upstream_kinase_provenance": (
                 None
@@ -281,10 +278,47 @@ def _module_selection_diagnostics_payload(
     return payload
 
 
+def _clustering_preparation_diagnostics_payload(
+    diagnostics: SignalomeClusteringPreparationDiagnostics,
+) -> dict[str, object]:
+    return {
+        "preparation_policy_id": str(diagnostics.preparation_policy_id),
+        "input_dimension_count": int(diagnostics.input_dimension_count),
+        "retained_dimension_count": int(diagnostics.retained_dimension_count),
+        "retained_dimension_labels": list(diagnostics.retained_dimension_labels),
+        "dropped_fully_missing_dimension_count": int(
+            diagnostics.dropped_fully_missing_dimension_count
+        ),
+        "dropped_fully_missing_dimension_labels": list(
+            diagnostics.dropped_fully_missing_dimension_labels
+        ),
+        "dropped_fully_missing_dimension_preview": list(
+            diagnostics.dropped_fully_missing_dimension_preview
+        ),
+        "dropped_fully_missing_value_count": int(
+            diagnostics.dropped_fully_missing_value_count
+        ),
+        "non_finite_input_value_count": int(diagnostics.non_finite_input_value_count),
+        "missing_after_non_finite_normalization_count": int(
+            diagnostics.missing_after_non_finite_normalization_count
+        ),
+        "imputed_value_count": int(diagnostics.imputed_value_count),
+        "imputed_value_counts_by_dimension": {
+            str(key): int(value)
+            for key, value in diagnostics.imputed_value_counts_by_dimension.items()
+        },
+        "prepared_matrix_fingerprint": (
+            None
+            if diagnostics.prepared_matrix_fingerprint is None
+            else table_fingerprint_to_payload(diagnostics.prepared_matrix_fingerprint)
+        ),
+    }
+
+
 def _build_signalome_config_payload(
     *,
     config: ResolvedSignalomeExecutionConfig,
-    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics,
 ) -> dict[str, object]:
     return {
         "scientific": {
@@ -300,7 +334,12 @@ def _build_signalome_config_payload(
             ),
             "module_selection_max_clusters": int(config.module_selection_max_clusters),
             "candidate_scoring_policy": str(config.candidate_scoring_policy),
-            "missing_value_policy": str(clustering_missing_value_diagnostics.policy),
+            "missing_value_policy": str(
+                clustering_preparation_diagnostics.preparation_policy_id
+            ),
+            "clustering_preparation_policy_id": str(
+                clustering_preparation_diagnostics.preparation_policy_id
+            ),
             "clustering_engine": str(config.clustering_engine),
             "module_count": (
                 None
@@ -322,8 +361,19 @@ def _build_signalome_config_payload(
                 config.network_correlation_threshold
             ),
             "network_policy": str(config.network_policy),
+            "network_min_paired_finite_observations_requested": (
+                None
+                if config.network_min_paired_finite_observations_requested is None
+                else int(config.network_min_paired_finite_observations_requested)
+            ),
             "network_min_paired_finite_observations": int(
                 config.network_min_paired_finite_observations
+            ),
+            "network_min_paired_finite_observations_effective": int(
+                config.network_min_paired_finite_observations
+            ),
+            "network_minimum_observation_policy_id": (
+                "signalome_network_min_paired_finite_observations_floor3_default5_v1"
             ),
         },
         "performance": {
@@ -433,7 +483,7 @@ def _build_scientific_policy_records(
     config: ResolvedSignalomeExecutionConfig,
     clustering_result: ClusterSitesResult,
     scale_guard_decision: SignalomeScaleGuardDecision,
-    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics,
 ) -> tuple[ScientificPolicyRecord, ...]:
     scientific_policies: list[ScientificPolicyRecord] = [
         build_signalome_module_candidate_score_policy(
@@ -467,7 +517,9 @@ def _build_scientific_policy_records(
             ),
         ),
         SignalomeMissingValueClusteringPolicy(
-            missing_value_policy=str(clustering_missing_value_diagnostics.policy),
+            missing_value_policy=str(
+                clustering_preparation_diagnostics.preparation_policy_id
+            ),
             applies_to=str(SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO),
             imputed_values_exposed_in_output_tables=bool(
                 SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
@@ -479,6 +531,9 @@ def _build_scientific_policy_records(
         _build_signalome_network_policy_record(
             network_policy=str(config.network_policy),
             network_correlation_threshold=float(config.network_correlation_threshold),
+            network_min_paired_finite_observations_requested=(
+                config.network_min_paired_finite_observations_requested
+            ),
             network_min_paired_finite_observations=int(
                 config.network_min_paired_finite_observations
             ),
@@ -511,7 +566,7 @@ def _build_signalome_score_semantics(
     clustering_result: ClusterSitesResult,
     network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
     scale_guard_decision: SignalomeScaleGuardDecision,
-    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics,
 ) -> dict[str, object]:
     downstream_score_source = request.downstream_score_source
     module_selection_diagnostics = clustering_result.module_selection_diagnostics
@@ -585,7 +640,8 @@ def _build_signalome_score_semantics(
         "network_correlation_meaning": (
             "network candidate and edge scores are score-profile associations: "
             "pairwise correlations between downstream kinase score profiles, "
-            "computed on finite paired observations"
+            "computed on finite paired observations. They are descriptive "
+            "associations, not inferential, directional, or causal evidence"
         ),
         "network_edge_semantics": {
             "nodes": (
@@ -612,6 +668,17 @@ def _build_signalome_score_semantics(
                 ),
                 "network_min_paired_finite_observations": int(
                     config.network_min_paired_finite_observations
+                ),
+                "network_min_paired_finite_observations_requested": (
+                    None
+                    if config.network_min_paired_finite_observations_requested is None
+                    else int(config.network_min_paired_finite_observations_requested)
+                ),
+                "network_min_paired_finite_observations_effective": int(
+                    config.network_min_paired_finite_observations
+                ),
+                "network_minimum_observation_policy_id": (
+                    "signalome_network_min_paired_finite_observations_floor3_default5_v1"
                 ),
             },
             "edge_diagnostics": {
@@ -652,28 +719,54 @@ def _build_signalome_score_semantics(
                 "retained_row_count": int(preconditioning.retained_row_count),
             },
             "clustering_distance_input": {
-                "policy": str(clustering_missing_value_diagnostics.policy),
+                "policy": str(clustering_preparation_diagnostics.preparation_policy_id),
+                "preparation_policy_id": str(
+                    clustering_preparation_diagnostics.preparation_policy_id
+                ),
                 "applies_to": SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
                 "non_finite_handling": (
                     "non-finite values are treated as missing before imputation"
                 ),
                 "partial_missingness_handling": (
-                    "missing entries are imputed with the median of the same column"
+                    "missing entries in retained columns are imputed with the "
+                    "median of the same column"
                 ),
                 "fully_missing_column_handling": (
-                    "columns with all values missing are imputed with 0.0"
+                    "columns with all values missing are dropped before median "
+                    "imputation and tree construction"
                 ),
                 "non_finite_input_value_count": int(
-                    clustering_missing_value_diagnostics.non_finite_input_value_count
+                    clustering_preparation_diagnostics.non_finite_input_value_count
                 ),
                 "missing_after_non_finite_normalization_count": int(
-                    clustering_missing_value_diagnostics.missing_after_non_finite_normalization_count
+                    clustering_preparation_diagnostics.missing_after_non_finite_normalization_count
                 ),
                 "imputed_value_count": int(
-                    clustering_missing_value_diagnostics.imputed_value_count
+                    clustering_preparation_diagnostics.imputed_value_count
                 ),
-                "fully_missing_column_count": int(
-                    clustering_missing_value_diagnostics.fully_missing_column_count
+                "dropped_fully_missing_dimension_count": int(
+                    clustering_preparation_diagnostics.dropped_fully_missing_dimension_count
+                ),
+                "dropped_fully_missing_dimension_labels": list(
+                    clustering_preparation_diagnostics.dropped_fully_missing_dimension_labels
+                ),
+                "dropped_fully_missing_dimension_preview": list(
+                    clustering_preparation_diagnostics.dropped_fully_missing_dimension_preview
+                ),
+                "dropped_fully_missing_value_count": int(
+                    clustering_preparation_diagnostics.dropped_fully_missing_value_count
+                ),
+                "imputed_value_counts_by_dimension": {
+                    str(key): int(value)
+                    for key, value in clustering_preparation_diagnostics.imputed_value_counts_by_dimension.items()
+                },
+                "prepared_matrix_fingerprint": (
+                    None
+                    if clustering_preparation_diagnostics.prepared_matrix_fingerprint
+                    is None
+                    else table_fingerprint_to_payload(
+                        clustering_preparation_diagnostics.prepared_matrix_fingerprint
+                    )
                 ),
                 "output_tables_include_imputed_values": bool(
                     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
@@ -725,6 +818,14 @@ def _build_signalome_score_semantics(
                 config.network_correlation_threshold
             ),
             "network_min_paired_finite_observations": int(
+                config.network_min_paired_finite_observations
+            ),
+            "network_min_paired_finite_observations_requested": (
+                None
+                if config.network_min_paired_finite_observations_requested is None
+                else int(config.network_min_paired_finite_observations_requested)
+            ),
+            "network_min_paired_finite_observations_effective": int(
                 config.network_min_paired_finite_observations
             ),
             "max_exact_tree_sites": int(config.max_exact_tree_sites),
@@ -825,6 +926,7 @@ def _build_signalome_network_policy_record(
     *,
     network_policy: str,
     network_correlation_threshold: float,
+    network_min_paired_finite_observations_requested: int | None,
     network_min_paired_finite_observations: int,
 ) -> ScientificPolicyRecord:
     return ScientificPolicyRecord(
@@ -838,13 +940,25 @@ def _build_signalome_network_policy_record(
         parameters={
             "network_policy": network_policy,
             "network_correlation_threshold": float(network_correlation_threshold),
+            "network_min_paired_finite_observations_requested": (
+                None
+                if network_min_paired_finite_observations_requested is None
+                else int(network_min_paired_finite_observations_requested)
+            ),
             "network_min_paired_finite_observations": int(
                 network_min_paired_finite_observations
+            ),
+            "network_min_paired_finite_observations_effective": int(
+                network_min_paired_finite_observations
+            ),
+            "minimum_observation_policy_id": (
+                "signalome_network_min_paired_finite_observations_floor3_default5_v1"
             ),
         },
         assumptions=(
             "Network policy defines how sign and magnitude thresholds are applied.",
-            "Edges represent score-profile associations, not inferred direction or causality.",
+            "Edges represent descriptive score-profile associations, not inferred "
+            "direction, inferential evidence, or causality.",
         ),
         output_scale="Signalome kinase score-profile association edge table.",
         quantitative_meaning="network_edge_eligibility_rule",

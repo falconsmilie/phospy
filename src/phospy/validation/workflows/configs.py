@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phospy.contracts.configs import (
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -72,6 +73,20 @@ class SignalomeConfigValidator:
         if not isinstance(config, SignalomeConfig):
             raise WorkflowValidationError(
                 "signalome workflow request config must be SignalomeConfig"
+            )
+        network_minimum = config.output.network_min_paired_finite_observations
+        if (
+            network_minimum is not None
+            and int(network_minimum)
+            < SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR
+        ):
+            raise WorkflowValidationError(
+                "signalome workflow request config.output."
+                "network_min_paired_finite_observations must be at least "
+                f"{SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR}; "
+                f"got {int(network_minimum)}. Historical signalome bundles with "
+                "threshold 2 remain readable, but replay/re-execution must migrate "
+                "to config.output.network_min_paired_finite_observations >= 3."
             )
         return config
 

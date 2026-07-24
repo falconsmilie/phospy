@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Literal
 
 import pandas as pd
@@ -14,6 +16,7 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
+from phospy.provenance.models import TableFingerprint
 from phospy.science.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
@@ -68,6 +71,46 @@ class SignalomeModuleSelectionDiagnostics:
     @property
     def used_automatic_selection(self) -> bool:
         return self.requested_module_count is None
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeClusteringPreparationDiagnostics:
+    """Structured diagnostics for signalome clustering matrix preparation."""
+
+    preparation_policy_id: str
+    input_dimension_count: int
+    retained_dimension_count: int
+    retained_dimension_labels: tuple[str, ...]
+    dropped_fully_missing_dimension_count: int
+    dropped_fully_missing_dimension_labels: tuple[str, ...]
+    dropped_fully_missing_dimension_preview: tuple[str, ...]
+    dropped_fully_missing_value_count: int
+    non_finite_input_value_count: int
+    missing_after_non_finite_normalization_count: int
+    imputed_value_count: int
+    imputed_value_counts_by_dimension: Mapping[str, int]
+    prepared_matrix_fingerprint: TableFingerprint | None = None
+
+    def __post_init__(self) -> None:
+        retained = tuple(str(value) for value in self.retained_dimension_labels)
+        dropped = tuple(
+            str(value) for value in self.dropped_fully_missing_dimension_labels
+        )
+        preview = tuple(
+            str(value) for value in self.dropped_fully_missing_dimension_preview
+        )
+        imputation_counts = {
+            str(key): int(value)
+            for key, value in self.imputed_value_counts_by_dimension.items()
+        }
+        object.__setattr__(self, "retained_dimension_labels", retained)
+        object.__setattr__(self, "dropped_fully_missing_dimension_labels", dropped)
+        object.__setattr__(self, "dropped_fully_missing_dimension_preview", preview)
+        object.__setattr__(
+            self,
+            "imputed_value_counts_by_dimension",
+            MappingProxyType(imputation_counts),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +180,28 @@ def default_signalome_module_selection_diagnostics() -> (
         max_clusters_evaluated=1,
         candidate_scores={},
         reason="module selection diagnostics were not captured",
+    )
+
+
+def default_signalome_clustering_preparation_diagnostics() -> (
+    SignalomeClusteringPreparationDiagnostics
+):
+    """Return a stable placeholder clustering-preparation diagnostics payload."""
+
+    return SignalomeClusteringPreparationDiagnostics(
+        preparation_policy_id="not_captured",
+        input_dimension_count=0,
+        retained_dimension_count=0,
+        retained_dimension_labels=(),
+        dropped_fully_missing_dimension_count=0,
+        dropped_fully_missing_dimension_labels=(),
+        dropped_fully_missing_dimension_preview=(),
+        dropped_fully_missing_value_count=0,
+        non_finite_input_value_count=0,
+        missing_after_non_finite_normalization_count=0,
+        imputed_value_count=0,
+        imputed_value_counts_by_dimension={},
+        prepared_matrix_fingerprint=None,
     )
 
 
@@ -389,6 +454,7 @@ __all__ = [
     "KinaseNetwork",
     "SignalomeAlignmentDiagnostics",
     "SignalomeAlignmentInputDiagnostics",
+    "SignalomeClusteringPreparationDiagnostics",
     "SIGNALOME_CORRELATION_STATUS_CONSTANT_PROFILE",
     "SIGNALOME_CORRELATION_STATUS_FINITE",
     "SIGNALOME_CORRELATION_STATUS_INSUFFICIENT_OBSERVATIONS",
@@ -407,6 +473,7 @@ __all__ = [
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
     "default_signalome_alignment_diagnostics",
+    "default_signalome_clustering_preparation_diagnostics",
     "default_signalome_score_preconditioning_diagnostics",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT",

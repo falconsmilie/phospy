@@ -633,7 +633,12 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         ),
         kinase_network=KinaseNetwork(
             edges=pd.DataFrame(
-                columns=["source_kinase", "target_kinase", "correlation"]
+                columns=[
+                    "source_kinase",
+                    "target_kinase",
+                    "correlation",
+                    "valid_observations",
+                ]
             ),
             nodes=pd.DataFrame(
                 {"degree": [0], "n_substrates": [1]},

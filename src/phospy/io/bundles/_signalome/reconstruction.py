@@ -38,6 +38,7 @@ from phospy.io.bundles._shared.trusted_dataset_assertions import (
 )
 from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_from_payload,
+    signalome_clustering_preparation_diagnostics_from_payload,
     signalome_module_selection_diagnostics_from_payload,
     signalome_network_correlation_diagnostics_from_payload,
     signalome_score_preconditioning_diagnostics_from_payload,
@@ -56,6 +57,7 @@ from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAlignmentDiagnostics,
     SignalomeAssignments,
+    SignalomeClusteringPreparationDiagnostics,
     SignalomeModules,
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
@@ -80,6 +82,7 @@ class _BundleProvenances:
 @dataclass(frozen=True, slots=True)
 class _SignalomeDiagnostics:
     module_selection: SignalomeModuleSelectionDiagnostics
+    clustering_preparation: SignalomeClusteringPreparationDiagnostics
     score_preconditioning: SignalomeScorePreconditioningDiagnostics
     alignment: SignalomeAlignmentDiagnostics
     network_correlation: SignalomeNetworkCorrelationDiagnostics
@@ -205,6 +208,7 @@ def reconstruct_signalome_result(
             correlation_diagnostics=diagnostics.network_correlation,
         ),
         module_selection_diagnostics=diagnostics.module_selection,
+        clustering_preparation_diagnostics=diagnostics.clustering_preparation,
         score_preconditioning_diagnostics=diagnostics.score_preconditioning,
         alignment_diagnostics=diagnostics.alignment,
         expanded_signalome=optional_tables.expanded_signalome,
@@ -677,6 +681,12 @@ def _reconstruct_signalome_diagnostics(
         sections.signalome_metadata.get("module_selection_diagnostics"),
         scope="bundle manifest.signalome_outputs.metadata",
     )
+    clustering_preparation_diagnostics = (
+        signalome_clustering_preparation_diagnostics_from_payload(
+            sections.signalome_metadata.get("clustering_preparation_diagnostics"),
+            scope="bundle manifest.signalome_outputs.metadata",
+        )
+    )
     score_preconditioning_diagnostics = (
         signalome_score_preconditioning_diagnostics_from_payload(
             sections.signalome_metadata.get("score_preconditioning_diagnostics"),
@@ -700,6 +710,7 @@ def _reconstruct_signalome_diagnostics(
     )
     return _SignalomeDiagnostics(
         module_selection=module_selection_diagnostics,
+        clustering_preparation=clustering_preparation_diagnostics,
         score_preconditioning=score_preconditioning_diagnostics,
         alignment=alignment_diagnostics,
         network_correlation=network_correlation_diagnostics,

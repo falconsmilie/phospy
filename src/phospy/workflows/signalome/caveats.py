@@ -5,6 +5,7 @@ from __future__ import annotations
 from phospy.contracts.configs import ReferenceContextCompatibilityPolicy
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.signalomes.models import SignalomeClusteringPreparationDiagnostics
 from phospy.validation.identity_contracts import (
     validate_reference_context_compatibility,
 )
@@ -36,11 +37,20 @@ SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE = (
 SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE = (
     "signalome_protein_id_grouping_assumption"
 )
+SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE = (
+    "signalome_descriptive_network_association_policy"
+)
+SIGNALOME_CLUSTERING_DROPPED_FULLY_MISSING_DIMENSIONS_CAVEAT_CODE = (
+    "signalome_clustering_dropped_fully_missing_dimensions"
+)
 
 
 def build_signalome_result_caveats(
     *,
     request: ResolvedSignalomeWorkflowRequest,
+    clustering_preparation_diagnostics: (
+        SignalomeClusteringPreparationDiagnostics | None
+    ) = None,
 ) -> tuple[ResultCaveat, ...]:
     """Build compact machine-readable caveats for signalome workflow results."""
 
@@ -61,6 +71,12 @@ def build_signalome_result_caveats(
     localisation = _permissive_localisation_caveat(request)
     if localisation is not None:
         caveats.append(localisation)
+    caveats.append(_descriptive_network_association_caveat(request))
+    dropped_dimensions = _dropped_fully_missing_dimensions_caveat(
+        clustering_preparation_diagnostics
+    )
+    if dropped_dimensions is not None:
+        caveats.append(dropped_dimensions)
     caveats.append(_protein_id_grouping_assumption_caveat(request))
     return deduplicate_caveats(caveats)
 
@@ -262,6 +278,68 @@ def _protein_id_grouping_assumption_caveat(
     )
 
 
+def _descriptive_network_association_caveat(
+    request: ResolvedSignalomeWorkflowRequest,
+) -> ResultCaveat:
+    config = request.execution_config
+    return ResultCaveat(
+        code=SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE,
+        severity="info",
+        message=(
+            "Signalome kinase-network correlations are descriptive score-profile "
+            "associations, not inferential, experimental, directional, or causal "
+            "evidence."
+        ),
+        details={
+            "network_policy": str(config.network_policy),
+            "network_correlation_threshold": float(
+                config.network_correlation_threshold
+            ),
+            "network_min_paired_finite_observations_requested": (
+                None
+                if config.network_min_paired_finite_observations_requested is None
+                else int(config.network_min_paired_finite_observations_requested)
+            ),
+            "network_min_paired_finite_observations_effective": int(
+                config.network_min_paired_finite_observations
+            ),
+            "policy_identifier": (
+                "signalome_network_min_paired_finite_observations_floor3_default5_v1"
+            ),
+        },
+    )
+
+
+def _dropped_fully_missing_dimensions_caveat(
+    diagnostics: SignalomeClusteringPreparationDiagnostics | None,
+) -> ResultCaveat | None:
+    if diagnostics is None:
+        return None
+    dropped_count = int(diagnostics.dropped_fully_missing_dimension_count)
+    if dropped_count <= 0:
+        return None
+    preview = tuple(diagnostics.dropped_fully_missing_dimension_preview[:5])
+    return ResultCaveat(
+        code=SIGNALOME_CLUSTERING_DROPPED_FULLY_MISSING_DIMENSIONS_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Signalome clustering dropped fully missing kinase/dimension columns "
+            "before median imputation and tree construction."
+        ),
+        details={
+            "preparation_policy_id": str(diagnostics.preparation_policy_id),
+            "dropped_fully_missing_dimension_count": dropped_count,
+            "dropped_fully_missing_dimension_preview": preview,
+            "preview_is_bounded": True,
+            "retained_dimension_count": int(diagnostics.retained_dimension_count),
+            "imputed_value_count": int(diagnostics.imputed_value_count),
+            "dropped_fully_missing_value_count": int(
+                diagnostics.dropped_fully_missing_value_count
+            ),
+        },
+    )
+
+
 def _optional_float(value: object) -> float | None:
     if isinstance(value, bool):
         return None
@@ -271,6 +349,8 @@ def _optional_float(value: object) -> float | None:
 
 
 __all__ = [
+    "SIGNALOME_CLUSTERING_DROPPED_FULLY_MISSING_DIMENSIONS_CAVEAT_CODE",
+    "SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE",
     "SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE",
     "SIGNALOME_PREDICTION_REFERENCE_LIMITATION_CAVEAT_CODE",
     "SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE",

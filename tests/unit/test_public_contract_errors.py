@@ -238,7 +238,12 @@ def _valid_signalome_modules_table() -> pd.DataFrame:
 
 def _valid_kinase_network_edges_table() -> pd.DataFrame:
     return pd.DataFrame(
-        {"source_kinase": ["MAP2K6"], "target_kinase": ["MAP2K6"], "correlation": [1.0]}
+        {
+            "source_kinase": ["MAP2K6"],
+            "target_kinase": ["MAP2K6"],
+            "correlation": [1.0],
+            "valid_observations": [3],
+        }
     )
 
 

@@ -39,6 +39,7 @@ _KINASE_NETWORK_EDGES_REQUIRED_COLUMNS = (
     SOURCE_KINASE_COLUMN,
     TARGET_KINASE_COLUMN,
     CORRELATION_COLUMN,
+    VALID_OBSERVATIONS_COLUMN,
 )
 _KINASE_NETWORK_NODES_REQUIRED_COLUMNS = (
     DEGREE_COLUMN,
@@ -124,6 +125,12 @@ class KinaseNetworkEdgesTable(TableSchema):
             minimum=-1.0,
             maximum=1.0,
             allow_missing=False,
+        )
+        _require_non_negative_integer_column(
+            frame,
+            field_name=self._field_name,
+            column_name=VALID_OBSERVATIONS_COLUMN,
+            error_type=self._error_type,
         )
         return frame
 

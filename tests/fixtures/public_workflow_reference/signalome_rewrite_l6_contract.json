@@ -1,6 +1,6 @@
 {
-  "fixture_set_id": "signalome_rewrite_l6_supported_lane_v2_full_outputs",
-  "generation_date": "2026-04-20",
+  "fixture_set_id": "signalome_rewrite_l6_supported_lane_v3_full_outputs",
+  "generation_date": "2026-07-23",
   "donor_source": "tests/fixtures/rewrite_parity/r_reference_l6/l6_phospho_matrix.csv + bundled ReferencePreset.AUTO (rat/l6_native)",
   "generation_path": "scripts/active/generate_signalome_public_workflow_reference.py",
   "supported_outputs": [
@@ -60,6 +60,7 @@
     "kinase_network.edges": [
       "cast source_kinase and target_kinase to strings",
       "cast correlation to float",
+      "cast valid_observations to int64",
       "sort rows by source_kinase,target_kinase"
     ],
     "expanded_signalome": [

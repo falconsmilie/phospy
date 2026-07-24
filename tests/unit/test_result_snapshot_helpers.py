@@ -329,7 +329,12 @@ def _signalome_result() -> SignalomeWorkflowResult:
         ),
         kinase_network=KinaseNetwork(
             edges=pd.DataFrame(
-                columns=[SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN, CORRELATION_COLUMN]
+                columns=[
+                    SOURCE_KINASE_COLUMN,
+                    TARGET_KINASE_COLUMN,
+                    CORRELATION_COLUMN,
+                    "valid_observations",
+                ]
             )
         ),
         expanded_signalome=pd.DataFrame(

@@ -140,13 +140,21 @@ class SignalomeResultAssembler:
                 correlation_diagnostics=network_correlation_diagnostics,
             ),
             module_selection_diagnostics=clustering_result.module_selection_diagnostics,
+            clustering_preparation_diagnostics=(
+                clustering_result.clustering_preparation_diagnostics
+            ),
             score_preconditioning_diagnostics=request.score_preconditioning_diagnostics,
             alignment_diagnostics=request.alignment_diagnostics,
             expanded_signalome=expanded_signalome,
             site_membership=site_membership,
             protein_site_context=protein_site_context,
             provenance=provenance,
-            caveats=build_signalome_result_caveats(request=request),
+            caveats=build_signalome_result_caveats(
+                request=request,
+                clustering_preparation_diagnostics=(
+                    clustering_result.clustering_preparation_diagnostics
+                ),
+            ),
         )
 
 

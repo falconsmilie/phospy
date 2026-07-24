@@ -43,6 +43,7 @@ from phospy.errors import (
     UnsupportedInputFormatError,
     WorkflowValidationError,
 )
+from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
@@ -1429,21 +1430,66 @@ def test_signalome_request_module_count_optional_positive_integer_boundary(
         SignalomeClusteringConfig(module_count=module_count)  # type: ignore[arg-type]
 
 
-def test_signalome_validator_accepts_network_minimum_paired_observation_setting() -> (
+def test_signalome_config_rejects_legacy_network_minimum_paired_observation_setting() -> (
     None
 ):
-    request = SignalomeWorkflowRequest(
-        kinase_result=_two_site_kinase_result(),
-        config=build_signalome_config(
+    with pytest.raises(
+        ContractValidationError,
+        match="network_min_paired_finite_observations",
+    ):
+        build_signalome_config(
             network_policy="absolute_threshold",
             network_min_paired_finite_observations=2,
             substrate_support_cutoff=0.5,
-        ),
+        )
+
+
+def test_signalome_validator_rejects_replay_of_historical_network_threshold_two() -> (
+    None
+):
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        {
+            "signalome_config": {
+                "scientific": {
+                    "substrate_support_cutoff": 0.5,
+                    "assignment_policy": "cutoff_binary",
+                },
+                "clustering": {
+                    "module_count": None,
+                    "module_selection_primary_correlation_threshold": 0.5,
+                    "module_selection_fallback_correlation_threshold": 0.1,
+                    "module_selection_max_clusters": 10,
+                    "candidate_scoring_policy": "full",
+                    "clustering_engine": "exact_python",
+                },
+                "validation": {
+                    "score_preconditioning_policy": "error_on_drop",
+                    "allow_mixed_total_protein_quantitative_meaning": False,
+                    "reference_context_compatibility_policy": "require_known_match",
+                },
+                "output": {
+                    "network_correlation_threshold": 0.5,
+                    "network_policy": "signed",
+                    "network_min_paired_finite_observations": 2,
+                    "network_min_paired_finite_observations_effective": 2,
+                },
+                "performance": {
+                    "max_exact_tree_sites": 2000,
+                    "max_full_candidate_scoring_sites": 2000,
+                },
+            }
+        }
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_two_site_kinase_result(),
+        config=snapshot.signalome_config,
     )
 
-    validated = SignalomeWorkflowValidator().run(request)
-
-    assert validated is request
+    with pytest.raises(
+        WorkflowValidationError,
+        match="Historical signalome bundles with threshold 2 remain readable",
+    ):
+        SignalomeWorkflowValidator().run(request)
 
 
 def test_signalome_validator_rejects_network_minimum_above_score_observations() -> None:

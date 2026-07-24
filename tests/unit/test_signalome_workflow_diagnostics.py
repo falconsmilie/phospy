@@ -27,9 +27,11 @@ from phospy.api.configs import (
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     ReferenceContextCompatibilityPolicy,
+    SignalomeValidationConfig,
 )
 from phospy.api.results import (
     KinasePredictionResult,
@@ -50,7 +52,7 @@ from phospy.science.signalomes.clustering import (
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
     SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT,
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
-    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS,
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE,
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
@@ -110,6 +112,7 @@ def build_signalome_config(**kwargs: object) -> SignalomeConfig:
         "reference_context_compatibility_policy",
         ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT,
     )
+    kwargs.setdefault("network_min_paired_finite_observations", 3)
     return _build_signalome_config(**kwargs)
 
 
@@ -311,6 +314,16 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
             None
             if config.clustering.module_count is None
             else int(config.clustering.module_count)
+        ),
+        network_min_paired_finite_observations_requested=(
+            None
+            if config.output.network_min_paired_finite_observations is None
+            else int(config.output.network_min_paired_finite_observations)
+        ),
+        network_min_paired_finite_observations=(
+            SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+            if config.output.network_min_paired_finite_observations is None
+            else int(config.output.network_min_paired_finite_observations)
         ),
         reference_context_compatibility_policy=(
             config.validation.reference_context_compatibility_policy
@@ -860,7 +873,13 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=build_signalome_config(),
+        config=SignalomeConfig(
+            validation=SignalomeValidationConfig(
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                )
+            )
+        ),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -870,6 +889,15 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         0.5
     )
     assert interpreted.execution_config.network_policy == "signed"
+    assert (
+        interpreted.execution_config.network_min_paired_finite_observations_requested
+        is None
+    )
+    assert (
+        interpreted.execution_config.network_min_paired_finite_observations
+        == SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+        == 5
+    )
     assert (
         interpreted.execution_config.assignment_policy
         == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
@@ -967,7 +995,10 @@ def test_executor_provenance_records_explicit_exact_python_backend() -> None:
     assert result.provenance is not None
     signalome_config = result.provenance.workflow_parameters["signalome_config"]
     assert signalome_config["clustering"]["missing_value_policy"] == (
-        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE
+    )
+    assert signalome_config["clustering"]["clustering_preparation_policy_id"] == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE
     )
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard["clustering_engine"] == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
@@ -1723,13 +1754,14 @@ def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_re
 
 
 def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> None:
-    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;", "P4;S4;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
             [0.2, 0.8],
             [0.7, 0.3],
+            [0.6, 0.4],
         ],
         site_ids=site_ids,
         kinases=["K1", "K2"],
@@ -1739,6 +1771,7 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
             [float("nan"), float("nan")],
             [1.0, 2.0],
             [2.0, 4.0],
+            [3.0, 6.0],
         ],
         site_ids=site_ids,
         kinases=["K1", "K2"],
@@ -1760,23 +1793,23 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     interpreted = SignalomeWorkflowInterpreter().run(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
     assert not result.kinase_network.edges.empty
-    assert result.score_preconditioning_diagnostics.input_row_count == 3
+    assert result.score_preconditioning_diagnostics.input_row_count == 4
     assert result.score_preconditioning_diagnostics.dropped_all_missing_row_count == 1
-    assert result.score_preconditioning_diagnostics.retained_row_count == 2
+    assert result.score_preconditioning_diagnostics.retained_row_count == 3
     assert result.score_preconditioning_diagnostics.policy == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
     assert result.provenance is not None
     workflow_parameters = result.provenance.workflow_parameters
     row_attrition_metrics = workflow_parameters["row_attrition_metrics"]
-    assert row_attrition_metrics["input_sites"] == 3
+    assert row_attrition_metrics["input_sites"] == 4
     assert row_attrition_metrics["sites_missing_sequence_context"] == 0
     assert row_attrition_metrics["sites_missing_protein_grouping_metadata"] == 0
     assert row_attrition_metrics["sites_removed_by_score_preconditioning"] == 1
-    assert row_attrition_metrics["sites_retained_for_signalome_scoring_clustering"] == 2
+    assert row_attrition_metrics["sites_retained_for_signalome_scoring_clustering"] == 3
     row_attrition = workflow_parameters["row_attrition"]
-    assert row_attrition["input_rows"] == 3
-    assert row_attrition["final_rows"] == 2
+    assert row_attrition["input_rows"] == 4
+    assert row_attrition["final_rows"] == 3
     assert row_attrition["records"][0]["stage"] == "signalome_score_preconditioning"
     assert row_attrition["records"][0]["reason"] == (
         "sites_removed_by_score_preconditioning"
@@ -1800,8 +1833,8 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         "final_module_assignment_backend",
         "scale_guard_passed",
     }.issubset(scale_guard)
-    assert scale_guard["site_count"] == 2
-    assert scale_guard["input_protein_count"] == 2
+    assert scale_guard["site_count"] == 3
+    assert scale_guard["input_protein_count"] == 3
     assert scale_guard["input_kinase_count"] == 2
     assert scale_guard["selected_module_count"] == 1
     assert scale_guard["clustering_engine"] == "scipy_hierarchical"
@@ -1811,7 +1844,7 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         expected_backend_name="scipy_hierarchical",
         expected_uses_scipy=True,
         expected_selected_module_count=1,
-        expected_input_site_count=2,
+        expected_input_site_count=3,
     )
     assert (
         scale_guard["tree_implementation"]
@@ -1878,7 +1911,10 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     )
     clustering_distance_input = missing_profile["clustering_distance_input"]
     assert clustering_distance_input["policy"] == (
-        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE
+    )
+    assert clustering_distance_input["preparation_policy_id"] == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE
     )
     assert clustering_distance_input["applies_to"] == (
         SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO
@@ -1889,7 +1925,8 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         >= 0
     )
     assert int(clustering_distance_input["imputed_value_count"]) >= 0
-    assert int(clustering_distance_input["fully_missing_column_count"]) >= 0
+    assert int(clustering_distance_input["dropped_fully_missing_dimension_count"]) >= 0
+    assert "prepared_matrix_fingerprint" in clustering_distance_input
     assert clustering_distance_input["output_tables_include_imputed_values"] == (
         SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
     )
@@ -2561,18 +2598,18 @@ def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_g
     None
 ):
     dataset = _dataset(
-        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
-        gene_symbols=["MAPK14", "MAPK14"],
-        protein_ids=["P28482-1", "P28482-2"],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;", "MAPK14;S3;"],
+        gene_symbols=["MAPK14", "MAPK14", "MAPK14"],
+        protein_ids=["P28482-1", "P28482-2", "P28482-3"],
     )
     prediction_matrix = _matrix(
-        values=[[0.9, 0.1], [0.1, 0.9]],
-        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        values=[[0.9, 0.1], [0.1, 0.9], [0.8, 0.2]],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;", "MAPK14;S3;"],
         kinases=["K1", "K2"],
     )
     score_matrix = _matrix(
-        values=[[1.0, 0.0], [0.0, 1.0]],
-        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        values=[[1.0, 3.0], [2.0, 2.0], [3.0, 1.0]],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;", "MAPK14;S3;"],
         kinases=["K1", "K2"],
     )
     request = SignalomeWorkflowRequest(
@@ -2588,7 +2625,7 @@ def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_g
     result = SignalomeWorkflowExecutor().run(resolved)
     assignments = result.module_assignments.table
     proteins = assignments.loc[:, "protein_id"].tolist()
-    assert proteins == ["P28482-1", "P28482-2"]
+    assert proteins == ["P28482-1", "P28482-2", "P28482-3"]
     assert assignments.loc[:, "module_id"].astype("int64").ge(0).all()
 
 
@@ -2706,15 +2743,22 @@ def test_boundary_error_reports_network_failure_modes() -> None:
         in str(missing_error)
     )
 
+    zero_variance_site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset_zero_variance = _dataset(site_ids=zero_variance_site_ids)
+    prediction_matrix_zero_variance = _matrix(
+        values=[[0.9, 0.1], [0.1, 0.9], [0.8, 0.2]],
+        site_ids=zero_variance_site_ids,
+        kinases=["K1", "K2"],
+    )
     score_matrix_zero_variance = _matrix(
-        values=[[1.0, 2.0], [1.0, 2.0]],
-        site_ids=["P1;S1;", "P2;S2;"],
+        values=[[1.0, 2.0], [1.0, 2.0], [1.0, 2.0]],
+        site_ids=zero_variance_site_ids,
         kinases=["K1", "K2"],
     )
     request = SignalomeWorkflowRequest(
         kinase_result=_kinase_result(
-            dataset=dataset,
-            prediction_matrix=prediction_matrix,
+            dataset=dataset_zero_variance,
+            prediction_matrix=prediction_matrix_zero_variance,
             score_matrix=score_matrix_zero_variance,
         ),
         config=build_signalome_config(substrate_support_cutoff=0.5),
@@ -2728,7 +2772,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     assert variance_error.seam == SIGNALOME_EXECUTOR_NETWORK_SEAM
     assert variance_error.details["shared_kinases"] == 2
     assert variance_error.details["supported_kinases"] == 2
-    assert variance_error.details["downstream_score_sites"] == 2
+    assert variance_error.details["downstream_score_sites"] == 3
     assert variance_error.details["score_variance_kinases"] == 0
     assert variance_error.details["network_correlation_threshold"] == pytest.approx(0.5)
 
@@ -2898,7 +2942,12 @@ def test_signalome_result_rejects_malformed_site_membership_immediately() -> Non
             ),
             kinase_network=KinaseNetwork(
                 edges=pd.DataFrame(
-                    columns=["source_kinase", "target_kinase", "correlation"]
+                    columns=[
+                        "source_kinase",
+                        "target_kinase",
+                        "correlation",
+                        "valid_observations",
+                    ]
                 )
             ),
             site_membership=pd.DataFrame({"site_id": ["P1;S1;"]}),
@@ -3188,6 +3237,7 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
                     "source_kinase": ["K1"],
                     "target_kinase": ["K2"],
                     "correlation": [0.95],
+                    "valid_observations": [3],
                 }
             ),
             pd.DataFrame(

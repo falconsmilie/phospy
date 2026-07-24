@@ -26,10 +26,12 @@ from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAlignmentDiagnostics,
     SignalomeAssignments,
+    SignalomeClusteringPreparationDiagnostics,
     SignalomeModules,
     SignalomeModuleSelectionDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_alignment_diagnostics,
+    default_signalome_clustering_preparation_diagnostics,
     default_signalome_module_selection_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
@@ -75,6 +77,9 @@ class SignalomeWorkflowResult:
     module_selection_diagnostics: SignalomeModuleSelectionDiagnostics = field(
         default_factory=default_signalome_module_selection_diagnostics
     )
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics = (
+        field(default_factory=default_signalome_clustering_preparation_diagnostics)
+    )
     score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
         default_factory=default_signalome_score_preconditioning_diagnostics
     )
@@ -99,6 +104,8 @@ class SignalomeWorkflowResult:
         signalome_modules: SignalomeModules,
         kinase_network: KinaseNetwork,
         module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
         score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
         | None = None,
         alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
@@ -115,6 +122,7 @@ class SignalomeWorkflowResult:
             signalome_modules=signalome_modules,
             kinase_network=kinase_network,
             module_selection_diagnostics=module_selection_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
             score_preconditioning_diagnostics=score_preconditioning_diagnostics,
             alignment_diagnostics=alignment_diagnostics,
             expanded_signalome=expanded_signalome,
@@ -134,6 +142,8 @@ class SignalomeWorkflowResult:
         signalome_modules: SignalomeModules,
         kinase_network: KinaseNetwork,
         module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
         score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
         | None = None,
         alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
@@ -156,6 +166,15 @@ class SignalomeWorkflowResult:
                 default_signalome_module_selection_diagnostics()
                 if module_selection_diagnostics is None
                 else module_selection_diagnostics
+            ),
+        )
+        object.__setattr__(
+            self,
+            "clustering_preparation_diagnostics",
+            (
+                default_signalome_clustering_preparation_diagnostics()
+                if clustering_preparation_diagnostics is None
+                else clustering_preparation_diagnostics
             ),
         )
         object.__setattr__(
@@ -287,6 +306,8 @@ class SignalomeWorkflowResult:
         signalome_modules: SignalomeModules,
         kinase_network: KinaseNetwork,
         module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
         score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
         | None = None,
         alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
@@ -305,6 +326,7 @@ class SignalomeWorkflowResult:
             signalome_modules=signalome_modules,
             kinase_network=kinase_network,
             module_selection_diagnostics=module_selection_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
             score_preconditioning_diagnostics=score_preconditioning_diagnostics,
             alignment_diagnostics=alignment_diagnostics,
             expanded_signalome=expanded_signalome,

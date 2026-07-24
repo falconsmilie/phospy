@@ -156,6 +156,76 @@ def _shape_overrides_from_observed(
     return overrides
 
 
+def _assert_signalome_clustering_preparation_diagnostics_matches_golden(
+    *,
+    observed: Mapping[str, object],
+    expected: Mapping[str, object],
+) -> None:
+    exact_keys = (
+        "preparation_policy_id",
+        "input_dimension_count",
+        "retained_dimension_count",
+        "retained_dimension_labels",
+        "dropped_fully_missing_dimension_count",
+        "dropped_fully_missing_dimension_labels",
+        "dropped_fully_missing_dimension_preview",
+        "dropped_fully_missing_value_count",
+        "non_finite_input_value_count",
+        "missing_after_non_finite_normalization_count",
+        "imputed_value_count",
+        "imputed_value_counts_by_dimension",
+    )
+    assert set(observed) == set(expected)
+    for key in exact_keys:
+        assert observed[key] == expected[key], (
+            "clustering preparation diagnostics mismatch for key="
+            f"{key}; observed={observed[key]!r}; expected={expected[key]!r}"
+        )
+    _assert_prepared_matrix_fingerprint_matches_golden(
+        observed=observed["prepared_matrix_fingerprint"],
+        expected=expected["prepared_matrix_fingerprint"],
+    )
+
+
+def _assert_prepared_matrix_fingerprint_matches_golden(
+    *,
+    observed: object,
+    expected: object,
+) -> None:
+    assert isinstance(observed, Mapping)
+    assert isinstance(expected, Mapping)
+    exact_keys = (
+        "name",
+        "rows",
+        "columns",
+        "index_name",
+        "column_names",
+        "dtypes",
+        "exact_hash_algorithm",
+        "tolerance_hash_algorithm",
+        "column_index_structure",
+    )
+    for key in exact_keys:
+        assert observed[key] == expected[key], (
+            "prepared-matrix fingerprint mismatch for key="
+            f"{key}; observed={observed[key]!r}; expected={expected[key]!r}"
+        )
+    assert str(observed["exact_hash_algorithm"]) == "sha256-stable-json-v1"
+    assert str(observed["tolerance_hash_algorithm"]) == "sha256-float-round-8dp-v1"
+    assert len(str(observed["exact_hash_value"])) == 64
+    assert len(str(observed["tolerance_hash_value"])) == 64
+    assert isinstance(observed["index_structure"], Mapping)
+    assert isinstance(expected["index_structure"], Mapping)
+    observed_index = observed["index_structure"]
+    expected_index = expected["index_structure"]
+    for key in ("type", "index_class", "name", "dtype"):
+        assert observed_index[key] == expected_index[key], (
+            "prepared-matrix index fingerprint mismatch for key="
+            f"{key}; observed={observed_index[key]!r}; expected={expected_index[key]!r}"
+        )
+    assert len(observed_index["values"]) == len(expected_index["values"])
+
+
 def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
@@ -237,12 +307,16 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
 
     network_edges = result.kinase_network.edges
     assert not network_edges.empty
-    assert {"source_kinase", "target_kinase", "correlation"} == set(
-        network_edges.columns
-    )
+    assert {
+        "source_kinase",
+        "target_kinase",
+        "correlation",
+        "valid_observations",
+    } == set(network_edges.columns)
     assert _is_text_dtype(network_edges.loc[:, "source_kinase"])
     assert _is_text_dtype(network_edges.loc[:, "target_kinase"])
     assert is_float_dtype(network_edges.loc[:, "correlation"])
+    assert is_integer_dtype(network_edges.loc[:, "valid_observations"])
     candidate_correlations = result.kinase_network.candidate_correlations
     assert candidate_correlations is not None
     assert not candidate_correlations.empty
@@ -727,6 +801,10 @@ def test_signalome_l6_provenance_matches_golden_contract() -> None:
     assert (
         provenance.workflow_parameters["score_preconditioning_diagnostics"]
         == (golden["workflow_parameters"]["score_preconditioning_diagnostics"])
+    )
+    _assert_signalome_clustering_preparation_diagnostics_matches_golden(
+        observed=provenance.workflow_parameters["clustering_preparation_diagnostics"],
+        expected=golden["workflow_parameters"]["clustering_preparation_diagnostics"],
     )
     upstream = provenance.workflow_parameters["upstream_kinase_provenance"]
     assert isinstance(upstream, dict)

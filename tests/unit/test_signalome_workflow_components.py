@@ -192,6 +192,7 @@ def _resolved_request():
         config=build_signalome_config(
             substrate_support_cutoff=0.5,
             network_correlation_threshold=0.3,
+            network_min_paired_finite_observations=3,
             module_count=2,
             score_preconditioning_policy="allow_and_report",
         ),
@@ -380,6 +381,9 @@ def test_signalome_network_builder_preserves_edge_schema() -> None:
             kinase_substrates=module_stage.support_summary.kinase_substrates,
             threshold=resolved.execution_config.network_correlation_threshold,
             network_policy=resolved.execution_config.network_policy,
+            min_paired_observations=(
+                resolved.execution_config.network_min_paired_finite_observations
+            ),
         )
     )
 
@@ -516,7 +520,10 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "tree_engine" not in signalome_config["clustering"]
     assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
     assert signalome_config["clustering"]["missing_value_policy"] == (
-        "column_median_imputation_with_zero_for_all_missing_columns"
+        "drop_fully_missing_then_column_median_impute"
+    )
+    assert signalome_config["clustering"]["clustering_preparation_policy_id"] == (
+        "drop_fully_missing_then_column_median_impute"
     )
     assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
     assert signalome_config["clustering"]["module_count"] == 2
@@ -549,6 +556,15 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
         ),
         "network_min_paired_finite_observations": (
             resolved.execution_config.network_min_paired_finite_observations
+        ),
+        "network_min_paired_finite_observations_requested": (
+            resolved.execution_config.network_min_paired_finite_observations_requested
+        ),
+        "network_min_paired_finite_observations_effective": (
+            resolved.execution_config.network_min_paired_finite_observations
+        ),
+        "network_minimum_observation_policy_id": (
+            "signalome_network_min_paired_finite_observations_floor3_default5_v1"
         ),
     }
     assert (

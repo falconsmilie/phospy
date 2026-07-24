@@ -122,6 +122,9 @@ class SignalomeClusteringRunner:
             clustering_result = ClusterSitesResult(
                 site_clusters=backend_result.site_clusters,
                 module_selection_diagnostics=backend_result.module_selection_diagnostics,
+                clustering_preparation_diagnostics=(
+                    backend_result.clustering_preparation_diagnostics
+                ),
                 tree_engine=backend_result.tree_implementation,
                 candidate_scoring_mode=_validated_candidate_scoring_mode(
                     backend_result.candidate_scoring_mode

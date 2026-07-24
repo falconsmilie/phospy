@@ -549,6 +549,7 @@ def load_signalome_rewrite_l6_network_edges() -> pd.DataFrame:
             "source_kinase": str,
             "target_kinase": str,
             "correlation": float,
+            "valid_observations": "int64",
         }
     )
 
@@ -750,13 +751,14 @@ def normalize_signalome_network_nodes_for_parity(frame: pd.DataFrame) -> pd.Data
 
 
 def normalize_signalome_network_edges_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
-    normalized = frame.copy(deep=True).astype(
-        {
-            "source_kinase": str,
-            "target_kinase": str,
-            "correlation": float,
-        }
-    )
+    dtype_map: dict[str, object] = {
+        "source_kinase": str,
+        "target_kinase": str,
+        "correlation": float,
+    }
+    if "valid_observations" in frame.columns:
+        dtype_map["valid_observations"] = "int64"
+    normalized = frame.copy(deep=True).astype(dtype_map)
     normalized.loc[:, "source_kinase"] = normalized.loc[:, "source_kinase"].map(
         _canonical_kinase_label
     )

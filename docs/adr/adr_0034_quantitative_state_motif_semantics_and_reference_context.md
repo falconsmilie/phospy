@@ -310,6 +310,20 @@ Current classification:
   site-retention filter are execution-stage filters and must emit typed records
   when they remove site rows.
 
+## Signalome Matrix and Network Provenance
+
+Signalome network provenance must preserve both the requested and effective
+paired finite observation threshold when the bundle schema distinguishes them.
+`None` in public config is caller intent, not an effective execution value; the
+interpreter resolves it and provenance records the resolved minimum plus the
+stable policy identifier that governed edge eligibility.
+
+Signalome clustering preparation is a workflow-specific matrix policy, not a
+generic dataset preprocessing operation. Provenance must record retained
+dimension labels, fully missing dimensions dropped before clustering, partial
+median-imputation counts, and the exact prepared-matrix fingerprint consumed by
+tree construction or module-count selection.
+
 ## Consequences
 
 Positive consequences:

@@ -132,7 +132,7 @@ Important fields:
 | `validation.score_preconditioning_policy` | `"error_on_drop"` | `"allow_and_report"` drops all-missing score rows and reports counts. |
 | `validation.localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. Use `SignalomeConfig.production()` for the 0.75 production threshold. |
 | `output.network_policy` | `"signed"` | Also supports `"positive_only"` and `"absolute_threshold"`. |
-| `output.network_min_paired_finite_observations` | `None` | Use `None` to keep the built-in minimum of two paired finite observations for network correlations. Set an integer to require more paired finite scores before a candidate edge can be retained. |
+| `output.network_min_paired_finite_observations` | `None` | `None` resolves at execution to the built-in default of five paired finite observations. Explicit values must be at least three. |
 | `performance.max_exact_tree_sites` | `2000` | Exact tree scale guardrail. |
 
 ## Running the Workflow
@@ -193,13 +193,24 @@ near-zero correlation was estimated.
 
 `output.network_min_paired_finite_observations` controls candidate edge
 eligibility. For each kinase pair, PhosPy counts rows where both downstream
-score profiles are finite. Pairs below the configured minimum are skipped before
-edge thresholding. Constant score profiles, missing scores, non-finite scores,
-and finite correlations below the configured network policy are also skipped and
-reported in `kinase_network.correlation_diagnostics` and workflow provenance.
+score profiles are finite. Pairs below the effective minimum are skipped before
+edge thresholding. The public floor is three and the built-in default is five;
+legacy bundle payloads that recorded threshold two remain readable as historical
+results, but new replay/re-execution must migrate to at least three. Constant
+score profiles, missing scores, non-finite scores, and finite correlations below
+the configured network policy are also skipped and reported in
+`kinase_network.correlation_diagnostics` and workflow provenance.
 The optional `kinase_network.candidate_correlations` table lists candidate
 pairs with `correlation_status`, `valid_observations`, and
 `correlation_reason`.
+
+Signalome clustering prepares its score matrix by dropping fully missing
+kinase/dimension columns first, then median-imputing only partially missing
+cells in the retained columns. Dropped all-missing labels, dropped-cell counts,
+per-column imputation counts, retained labels, and the prepared-matrix
+fingerprint are recorded in structured diagnostics and provenance. If no
+dimension remains after dropping fully missing columns, execution fails before
+tree construction.
 
 Key output meanings:
 
@@ -210,7 +221,7 @@ Key output meanings:
 | `module_assignments.module_top_kinase` | Top supported kinase candidate summarized across the candidate module. It is a label, not a causal mechanism claim. |
 | `signalome_modules` | Module-by-kinase percentages derived from the configured assignment policy. Values summarize support shares within modules. |
 | `kinase_network.nodes` | Kinases retained in the aligned prediction and downstream score matrices. `degree` counts retained correlation edges and `n_substrates` counts predicted substrates above the support cutoff. |
-| `kinase_network.edges` | Correlation edges between kinase score profiles. `source_kinase` and `target_kinase` are deterministic table labels, not inferred direction. |
+| `kinase_network.edges` | Correlation edges between kinase score profiles. `source_kinase` and `target_kinase` are deterministic table labels, not inferred direction. Each accepted edge includes `valid_observations`. |
 | `kinase_network.edges.correlation` | Edge weight derived from pairwise finite downstream score-profile correlations. `signed`, `positive_only`, and `absolute_threshold` policies control thresholding and whether sign is retained or stored as magnitude. |
 | `kinase_network.candidate_correlations` | Candidate pairwise correlations before edge filtering, with status and paired finite observation counts. |
 | `kinase_network.correlation_diagnostics` | Retained edge count plus skipped-edge counts for below-threshold, insufficient paired observations, constant profiles, missing scores, non-finite scores, and undefined correlations. |
@@ -227,10 +238,12 @@ diagnostics are recorded in provenance.
 ## Provenance and Reproducibility
 
 Workflow provenance records upstream kinase provenance, resolved config,
-alignment diagnostics, score-preconditioning diagnostics, scale-guard decisions,
-scientific policy records, table fingerprints, and signalome score semantics.
-The semantics include the network threshold, policy, correlation basis, edge
-directionality, skipped-edge diagnostics, and interpretation limits.
+alignment diagnostics, score-preconditioning diagnostics, clustering preparation
+diagnostics, scale-guard decisions, scientific policy records, table
+fingerprints, and signalome score semantics. The semantics include the network
+threshold, requested/effective paired-observation minimum, stable policy
+identifier, correlation basis, edge directionality, skipped-edge diagnostics,
+prepared clustering matrix fingerprint, and interpretation limits.
 
 Signalome provenance uses the same causal site-row attrition contract as other
 workflows. `row_attrition`, when present, records only stage-local site-row
@@ -248,6 +261,9 @@ as site-row removal.
 - Does not run kinase scoring or prediction itself.
 - Module and network-style outputs are derived summaries, not causal proof or
   experimental evidence of signalling relationships.
+- Signalome network output does not report p-values, confidence intervals, or
+  multiple-testing correction; adding inferential statistics requires a separate
+  statistical policy decision.
 - Mixed corrected/uncorrected total-protein quantitative meaning is rejected by
   default unless explicitly allowed.
 

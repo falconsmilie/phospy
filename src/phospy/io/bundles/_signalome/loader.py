@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 from phospy.io.bundles._shared.json_files import read_json
@@ -35,7 +36,10 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
         field_name="config snapshot",
     )
     config_snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
-        config_snapshot_payload
+        config_snapshot_payload,
+        effective_network_min_paired_finite_observations=(
+            _effective_network_minimum_from_result_provenance(result.provenance)
+        ),
     )
 
     return LoadedSignalomeWorkflowBundle(
@@ -43,3 +47,23 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
         config_snapshot=config_snapshot,
         manifest_version=sections.manifest_version,
     )
+
+
+def _effective_network_minimum_from_result_provenance(
+    provenance: object,
+) -> int | None:
+    workflow_parameters = getattr(provenance, "workflow_parameters", None)
+    if not isinstance(workflow_parameters, Mapping):
+        return None
+    signalome_config = workflow_parameters.get("signalome_config")
+    if not isinstance(signalome_config, Mapping):
+        return None
+    output = signalome_config.get("output")
+    if not isinstance(output, Mapping):
+        return None
+    value = output.get("network_min_paired_finite_observations")
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return int(value)
+    return None

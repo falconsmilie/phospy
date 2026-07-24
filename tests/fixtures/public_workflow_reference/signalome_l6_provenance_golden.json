@@ -11,7 +11,8 @@
         "module_selection_fallback_correlation_threshold": 0.1,
         "module_selection_max_clusters": 10,
         "candidate_scoring_policy": "full",
-        "missing_value_policy": "column_median_imputation_with_zero_for_all_missing_columns",
+        "missing_value_policy": "drop_fully_missing_then_column_median_impute",
+        "clustering_preparation_policy_id": "drop_fully_missing_then_column_median_impute",
         "clustering_engine": "scipy_hierarchical",
         "module_count": null
       },
@@ -22,8 +23,11 @@
       },
       "output": {
         "network_correlation_threshold": 0.5,
-        "network_min_paired_finite_observations": 2,
-        "network_policy": "signed"
+        "network_policy": "signed",
+        "network_min_paired_finite_observations_requested": null,
+        "network_min_paired_finite_observations": 5,
+        "network_min_paired_finite_observations_effective": 5,
+        "network_minimum_observation_policy_id": "signalome_network_min_paired_finite_observations_floor3_default5_v1"
       },
       "performance": {
         "max_exact_tree_sites": 2000,
@@ -31,10 +35,1198 @@
       }
     },
     "score_preconditioning_diagnostics": {
-      "policy": "error_on_drop",
       "input_row_count": 260,
       "dropped_all_missing_row_count": 0,
-      "retained_row_count": 260
+      "retained_row_count": 260,
+      "policy": "error_on_drop"
+    },
+    "clustering_preparation_diagnostics": {
+      "preparation_policy_id": "drop_fully_missing_then_column_median_impute",
+      "input_dimension_count": 12,
+      "retained_dimension_count": 12,
+      "retained_dimension_labels": [
+        "MAPK3",
+        "MAPK1",
+        "AKT2",
+        "HUMPHREY.MTOR",
+        "RPS6KA1",
+        "YANG.ERK1",
+        "YANG.MTOR",
+        "YANG.AKT",
+        "HUMPHREY.AKT",
+        "AKT1",
+        "RPS6KB1",
+        "PRKCH"
+      ],
+      "dropped_fully_missing_dimension_count": 0,
+      "dropped_fully_missing_dimension_labels": [],
+      "dropped_fully_missing_dimension_preview": [],
+      "dropped_fully_missing_value_count": 0,
+      "non_finite_input_value_count": 0,
+      "missing_after_non_finite_normalization_count": 0,
+      "imputed_value_count": 0,
+      "imputed_value_counts_by_dimension": {
+        "MAPK3": 0,
+        "MAPK1": 0,
+        "AKT2": 0,
+        "HUMPHREY.MTOR": 0,
+        "RPS6KA1": 0,
+        "YANG.ERK1": 0,
+        "YANG.MTOR": 0,
+        "YANG.AKT": 0,
+        "HUMPHREY.AKT": 0,
+        "AKT1": 0,
+        "RPS6KB1": 0,
+        "PRKCH": 0
+      },
+      "prepared_matrix_fingerprint": {
+        "name": "signalome.clustering.prepared_matrix",
+        "rows": 260,
+        "columns": 12,
+        "index_name": "site_key",
+        "column_names": [
+          "MAPK3",
+          "MAPK1",
+          "AKT2",
+          "HUMPHREY.MTOR",
+          "RPS6KA1",
+          "YANG.ERK1",
+          "YANG.MTOR",
+          "YANG.AKT",
+          "HUMPHREY.AKT",
+          "AKT1",
+          "RPS6KB1",
+          "PRKCH"
+        ],
+        "dtypes": [
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64",
+          "float64"
+        ],
+        "exact_hash_algorithm": "sha256-stable-json-v1",
+        "exact_hash_value": "06f4541f3960cfee14a9eefcc6bd23ed94820184c03a2e51e6e4257e355a59d6",
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "f29602e718ed50c8165de9f69eee8caaf3304e5bb0d17dd7507c7f5c2079a457",
+        "index_structure": {
+          "type": "index",
+          "index_class": "Index",
+          "name": {
+            "kind": "str",
+            "value": "site_key"
+          },
+          "dtype": "object",
+          "values": [
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AAK1|residue=S|position=677"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ABCC4|residue=S|position=604"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ABI2|residue=S|position=165"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ABI2|residue=S|position=168"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ABL2|residue=S|position=799"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ABLIM3|residue=S|position=566"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ABLIM3|residue=S|position=575"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ACACA|residue=S|position=79"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ACIN1|residue=S|position=711"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ADD1|residue=S|position=613"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ADD1|residue=T|position=614"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ADNP|residue=S|position=971"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AFF4|residue=S|position=823"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AGAP3|residue=S|position=107"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHCTF1|residue=S|position=1214"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=1191"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=177"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=2060"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=211"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=2117"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=222"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=3915"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=42"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=4597"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=S|position=5243"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK|residue=T|position=4049"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK2|residue=S|position=425"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AHNAK2|residue=T|position=438"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AIMP1|residue=S|position=110"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AJUBA|residue=S|position=129"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP1|residue=S|position=103"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP10|residue=S|position=278"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP11|residue=S|position=1090"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP11|residue=S|position=21"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP11|residue=S|position=23"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP11|residue=S|position=448"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP13|residue=S|position=2515"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP2|residue=S|position=152"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP2|residue=S|position=730"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP6|residue=S|position=562"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKAP9|residue=S|position=3669"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKT1S1|residue=S|position=184"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AKT1S1|residue=T|position=247"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ALKBH5|residue=S|position=362"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ALKBH5|residue=S|position=376"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AMOTL1|residue=S|position=580"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ANP32A|residue=S|position=15"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AP3D1|residue=S|position=755"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARFGAP2|residue=S|position=145"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARFGEF2|residue=S|position=214"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARFIP1|residue=S|position=39"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP17|residue=S|position=710"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP22|residue=S|position=200"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP22|residue=S|position=236"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP35|residue=S|position=1174"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP39|residue=S|position=284"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP5|residue=S|position=1195"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP5|residue=S|position=1202"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGAP5|residue=S|position=967"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGEF12|residue=S|position=337"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGEF12|residue=S|position=341"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGEF17|residue=S|position=995"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARHGEF5|residue=S|position=721"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ARPP21|residue=S|position=256"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATF7|residue=T|position=53"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATG14|residue=S|position=5"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATG2A|residue=S|position=1246"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATG2B|residue=S|position=240"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATG2B|residue=S|position=255"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATRX|residue=S|position=761"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATXN2|residue=S|position=622"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATXN2L|residue=S|position=109"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ATXN2L|residue=S|position=447"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AZI1|residue=S|position=114"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=AZI1|residue=S|position=304"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BAD|residue=S|position=171"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BAG3|residue=S|position=271"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BAG3|residue=S|position=387"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BAG3|residue=S|position=388"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BAIAP2L1|residue=S|position=218"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BAIAP2L1|residue=S|position=380"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BAZ2A|residue=S|position=1388"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BBX|residue=S|position=243"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BCL9L|residue=S|position=116"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BCL9L|residue=S|position=21"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BCL9L|residue=S|position=25"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BICD2|residue=S|position=611"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BICD2|residue=S|position=819"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BRAF|residue=S|position=134"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BRD8|residue=S|position=274"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BRD8|residue=T|position=270"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=BSDC1|residue=S|position=216"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=C2CD4C|residue=S|position=262"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CACNB1|residue=S|position=53"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CALD1|residue=S|position=527"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CAMK2D|residue=T|position=371"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CAMSAP1|residue=S|position=1154"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CAMSAP1|residue=S|position=517"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CAP2|residue=S|position=301"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CBX5|residue=S|position=93"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CCDC6|residue=S|position=143"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CCDC88A|residue=S|position=1638"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CCDC91|residue=S|position=71"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CDC42EP2|residue=S|position=137"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CDC42EP2|residue=S|position=141"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CDC42EP4|residue=S|position=140"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CDKN1A|residue=S|position=69"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CDKN1B|residue=S|position=12"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CDKN1B|residue=S|position=7"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CEP170B|residue=S|position=1166"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CEP68|residue=S|position=503"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CEP68|residue=S|position=510"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CHAMP1|residue=S|position=532"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CHD8|residue=S|position=549"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CHRND|residue=S|position=379"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CIC|residue=S|position=1394"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CIC|residue=S|position=1399"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CLASP2|residue=S|position=331"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CLIP1|residue=S|position=159"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=COBL|residue=S|position=31"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=COBL|residue=S|position=34"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=COG3|residue=S|position=536"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=CORO7|residue=S|position=298"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DAB2IP|residue=S|position=802"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DAP|residue=S|position=2"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DAP|residue=S|position=3"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DBNDD1|residue=S|position=123"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DCAF6|residue=S|position=336"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DCLK1|residue=S|position=30"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DDX19A|residue=S|position=86"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DDX3X|residue=S|position=261"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DENND4C|residue=S|position=1037"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DLG2|residue=S|position=323"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DLG2|residue=S|position=328"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DMXL1|residue=S|position=574"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DNAJC2|residue=T|position=48"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DNAJC25|residue=T|position=353"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DOCK6|residue=S|position=1339"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DOCK7|residue=S|position=1361"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DOCK7|residue=S|position=2107"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DOPEY1|residue=S|position=1261"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DTNA|residue=S|position=606"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DUSP27|residue=S|position=366"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DUSP27|residue=S|position=368"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DUSP27|residue=S|position=370"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DUSP27|residue=S|position=427"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DYNC1H1|residue=S|position=4365"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=DYNC1I2|residue=S|position=81"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EEF2|residue=T|position=57"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EEF2K|residue=S|position=365"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EHBP1L1|residue=S|position=1363"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EHD4|residue=S|position=459"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF3A|residue=S|position=584"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF4B|residue=S|position=422"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF4B|residue=S|position=424"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF4B|residue=S|position=425"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF4B|residue=T|position=420"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF4EBP1|residue=S|position=64"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF4EBP2|residue=S|position=2"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EIF5B|residue=S|position=183"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ELMSAN1|residue=S|position=456"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=EPS8|residue=S|position=659"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ETL4|residue=S|position=1844"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ETV3|residue=S|position=139"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FAM120C|residue=S|position=55"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FAM134C|residue=S|position=313"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FAM134C|residue=S|position=320"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FAM171A2|residue=S|position=423"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FAM65A|residue=S|position=752"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FBXO30|residue=S|position=379"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FHOD1|residue=S|position=489"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FHOD1|residue=S|position=501"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FHOD1|residue=S|position=504"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FHOD1|residue=S|position=513"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FHOD1|residue=S|position=523"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FLNC|residue=S|position=2147"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FLNC|residue=S|position=2234"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FMN1|residue=S|position=589"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FOSL2|residue=S|position=320"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FOSL2|residue=T|position=322"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FOXK1|residue=S|position=225"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FOXK2|residue=T|position=200"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FOXO3|residue=S|position=252"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FRMD8|residue=S|position=21"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=FRYL|residue=T|position=1959"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GAB1|residue=S|position=418"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GAB2|residue=S|position=142"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GAB2|residue=S|position=143"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GAB2|residue=S|position=211"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GAB2|residue=S|position=365"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GAB2|residue=T|position=388"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GATAD2A|residue=S|position=103"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GATAD2A|residue=S|position=96"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GATAD2B|residue=S|position=338"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GBF1|residue=S|position=1786"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GIGYF1|residue=S|position=28"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GIT2|residue=S|position=568"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GOLGA4|residue=S|position=116"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GSK3A|residue=S|position=21"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GSK3A|residue=S|position=41"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GSK3B|residue=S|position=9"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=GYS1|residue=S|position=728"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HBP1|residue=S|position=401"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HBS1L|residue=S|position=147"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HDAC6|residue=S|position=21"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HECTD1|residue=S|position=1392"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HECTD1|residue=S|position=1393"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HECTD1|residue=S|position=1573"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HELB|residue=S|position=944"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HERC1|residue=S|position=1163"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HERC1|residue=T|position=1154"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HIRIP3|residue=S|position=27"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HN1L|residue=S|position=97"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HOMER3|residue=S|position=158"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HUWE1|residue=S|position=1876"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HUWE1|residue=S|position=3639"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HUWE1|residue=S|position=3898"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=HUWE1|residue=T|position=3903"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=IREB2|residue=S|position=178"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=IRF2BPL|residue=S|position=69"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ITSN1|residue=S|position=1063"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=ITSN1|residue=S|position=315"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=JMY|residue=S|position=56"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=JSRP1|residue=S|position=47"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=KANK2|residue=S|position=358"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=KCTD3|residue=S|position=809"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=KDM2A|residue=S|position=718"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=KDM2A|residue=T|position=713"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=KDM5C|residue=S|position=316"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=KPNA1|residue=S|position=2"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=KPNA1|residue=T|position=3"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LAMTOR1|residue=S|position=98"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LARP1|residue=S|position=916"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LARP1|residue=T|position=932"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LARP4B|residue=S|position=498"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LDB3|residue=S|position=112"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LIMA1|residue=S|position=360"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LIMA1|residue=S|position=603"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LIMA1|residue=S|position=608"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LIMA1|residue=S|position=703"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LMNA|residue=S|position=404"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LMNA|residue=S|position=406"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LMNA|residue=S|position=407"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LMNA|residue=S|position=423"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LMNA|residue=S|position=424"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LMO7|residue=S|position=1541"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LMO7|residue=S|position=1543"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100360205|residue=S|position=239"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100365259|residue=S|position=393"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100910104|residue=S|position=475"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100910104|residue=S|position=532"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100910104|residue=S|position=719"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100910646|residue=S|position=166"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100911178|residue=S|position=1643"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100911302|residue=S|position=1721"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100911677|residue=S|position=490"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC100912115|residue=S|position=649"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC312502|residue=S|position=1164"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC312502|residue=S|position=138"
+            },
+            {
+              "kind": "str",
+              "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=LOC312502|residue=S|position=139"
+            }
+          ]
+        },
+        "column_index_structure": {
+          "type": "index",
+          "index_class": "Index",
+          "name": {
+            "kind": "str",
+            "value": "kinase"
+          },
+          "dtype": "object",
+          "values": [
+            {
+              "kind": "str",
+              "value": "MAPK3"
+            },
+            {
+              "kind": "str",
+              "value": "MAPK1"
+            },
+            {
+              "kind": "str",
+              "value": "AKT2"
+            },
+            {
+              "kind": "str",
+              "value": "HUMPHREY.MTOR"
+            },
+            {
+              "kind": "str",
+              "value": "RPS6KA1"
+            },
+            {
+              "kind": "str",
+              "value": "YANG.ERK1"
+            },
+            {
+              "kind": "str",
+              "value": "YANG.MTOR"
+            },
+            {
+              "kind": "str",
+              "value": "YANG.AKT"
+            },
+            {
+              "kind": "str",
+              "value": "HUMPHREY.AKT"
+            },
+            {
+              "kind": "str",
+              "value": "AKT1"
+            },
+            {
+              "kind": "str",
+              "value": "RPS6KB1"
+            },
+            {
+              "kind": "str",
+              "value": "PRKCH"
+            }
+          ]
+        }
+      }
     }
   },
   "random_state": null,
@@ -52,13 +1244,13 @@
         "rows": 117,
         "columns": 2,
         "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-        "tolerance_hash_value": "fef3045e964b11170edaffcb2b7b66363b5f424cdf2ddc4bb87d9772e3afe644"
+        "tolerance_hash_value": "c739f1796f6205fd623e87b65fbe89872fb9a3f5259de62898f59b8581198e5c"
       },
       "references.site_sequences": {
         "rows": 589,
         "columns": 1,
         "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-        "tolerance_hash_value": "2472c56d35c696ecf9a2b35face8b0bb3bb169949e625ada555333fd77986501"
+        "tolerance_hash_value": "cf56b62270f6e0c65f7c367a3a898717de9a129bd82239f8b95131d0c29aef3c"
       }
     }
   },
@@ -67,75 +1259,75 @@
       "rows": 260,
       "columns": 12,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "0d7109f399df906704bdd6f365c977bf03012119655dfe5ac42cadec08a55501"
+      "tolerance_hash_value": "53a9b0160b35e30cd29915a9b44b0022b1b270fb5b423ce80214f3729def8a16"
     },
     "dataset.site_metadata": {
       "rows": 260,
-      "columns": 5,
+      "columns": 8,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "a41816c53798c1588f7f846926af04184beded52b60d9c64f1d8e4a8483caa46"
+      "tolerance_hash_value": "111f6049118a08dba1025aae3518328fb200fd06c830e740fc7a10db4db0ea01"
     },
     "upstream.prediction.pred_mat": {
       "rows": 260,
       "columns": 12,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "b77bace6d06d8f89f7d6273946f113c148b92901ce2d18deeac0a8b2168db80c"
+      "tolerance_hash_value": "b055552101fa554dbdde81901fb64d3bd01ca3c3a4d825730bfa199add80a8ac"
     },
     "upstream.scoring.downstream_score_matrix": {
       "rows": 260,
       "columns": 12,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "ebace177c36d7830aee563b4b9290ef9825711cbd978167306726f11be7d3d5a"
+      "tolerance_hash_value": "3dfd1f37f42f9105e2182267905147686ed7676d560edc312e21daea360cfa64"
     }
   },
   "output_tables": {
     "outputs.signalome.module_assignments": {
       "rows": 260,
-      "columns": 14,
+      "columns": 20,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "be7c7b6df4a25d70add911a181c924394aa3b4e7cce21b1b16e843faafa3efde"
+      "tolerance_hash_value": "55c8c010c45b8770923730dc6aab13d554dd5e98cd961c5c9fd4c9eff10b2831"
     },
     "outputs.signalome.signalome_modules": {
-      "rows": 34,
+      "rows": 33,
       "columns": 12,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "d3b5acf50df6e6ca11aeaf65a71c910a7cea68716825899d5b5d1661e4425ad6"
+      "tolerance_hash_value": "d9579224e566173feacd139bb662b08ac41ecb3f8950455911549486a6a4c13f"
     },
     "outputs.signalome.kinase_network.edges": {
       "rows": 66,
-      "columns": 3,
+      "columns": 4,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "a2df0fd72d2d4263db6c4d87230dc0d41524dda1a5ddf945066a759801f52fbd"
+      "tolerance_hash_value": "a9a6d25277b8aa17985f03a1456c61e7f044667775cef24c651d6ef043996d2d"
     },
     "outputs.signalome.kinase_network.nodes": {
       "rows": 12,
       "columns": 2,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "0b2471a41976fb77d6423c36409394c0a7dc642599c760acbbf397702d9f201d"
+      "tolerance_hash_value": "48ec01a4ebe1199849e4eaf5385f60f5242f1105e7cbdd3eef9b9c54588b3703"
     },
     "outputs.signalome.kinase_network.candidate_correlations": {
       "rows": 66,
       "columns": 6,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "9e54b653fa8556e69f1d4ce1ffe82327ba14f577f15be65b9f31eafb4f824d86"
+      "tolerance_hash_value": "9fc82a6b905fae0f720701c6dcf09f3c3f5ba993c3ef0109c464ff3e9907d499"
     },
     "outputs.signalome.expanded_signalome": {
-      "rows": 124,
-      "columns": 13,
+      "rows": 150,
+      "columns": 19,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "7042e63cae3b840c38a0a13d25b046804d8fb89e6247eaade51bdcaf118e16fd"
+      "tolerance_hash_value": "f53a04c91b5c32cc1402be9755fc2f2a551539ba966b47df130e62b4d7a1c0e8"
     },
     "outputs.signalome.site_membership": {
       "rows": 260,
-      "columns": 11,
+      "columns": 16,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "240311cae851f641e5521174b7dd1a959d1de6276a0467815878b75560a74bcc"
+      "tolerance_hash_value": "a3446b74c357caf82c4d8692ab70689cd146c47506d023f46cf9970490f5b56f"
     },
     "outputs.signalome.protein_site_context": {
       "rows": 176,
-      "columns": 11,
+      "columns": 17,
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "880be0b894c792351da25072d280dec280b64ee1a89e58ae118f632adc7967ec"
+      "tolerance_hash_value": "0331dfea5d3e0decd8651ce02414a092f701844022dc73e1933170968bc55e40"
     }
   },
   "scientific_policies": [

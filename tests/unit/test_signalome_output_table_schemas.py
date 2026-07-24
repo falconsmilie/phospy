@@ -62,7 +62,12 @@ def _valid_modules() -> pd.DataFrame:
 
 def _valid_edges() -> pd.DataFrame:
     return pd.DataFrame(
-        {"source_kinase": ["K1"], "target_kinase": ["K2"], "correlation": [0.8]}
+        {
+            "source_kinase": ["K1"],
+            "target_kinase": ["K2"],
+            "correlation": [0.8],
+            "valid_observations": [4],
+        }
     )
 
 
@@ -224,6 +229,19 @@ def test_signalome_modules_reject_invalid_row_totals() -> None:
 def test_kinase_network_rejects_malformed_edges() -> None:
     edges = _valid_edges().rename(columns={"source_kinase": "source"})
     with pytest.raises(PhosPyValidationError, match="missing required columns"):
+        KinaseNetwork(edges=edges)
+
+
+def test_kinase_network_edges_require_valid_observation_counts() -> None:
+    edges = _valid_edges().drop(columns=["valid_observations"])
+    with pytest.raises(PhosPyValidationError, match="missing required columns"):
+        KinaseNetwork(edges=edges)
+
+
+def test_kinase_network_edges_reject_negative_valid_observation_counts() -> None:
+    edges = _valid_edges()
+    edges.loc[0, "valid_observations"] = -1
+    with pytest.raises(PhosPyValidationError, match="non-negative integer"):
         KinaseNetwork(edges=edges)
 
 

@@ -317,6 +317,7 @@ def test_signalome_network_policy_variants_match_fixed_matrix_expectations() -> 
         "kinase_order": ["K1", "K2", "K3"],
         "kinase_substrates": {"K1": (), "K2": (), "K3": ()},
         "threshold": 0.9,
+        "min_paired_observations": 3,
     }
 
     positive_only_edges, _ = build_kinase_network(
@@ -337,6 +338,7 @@ def test_signalome_network_policy_variants_match_fixed_matrix_expectations() -> 
             "source_kinase": "K1",
             "target_kinase": "K3",
             "correlation": pytest.approx(0.9486832980505138),
+            "valid_observations": 4,
         }
     ]
     assert absolute_threshold_edges.to_dict("records") == [
@@ -344,16 +346,19 @@ def test_signalome_network_policy_variants_match_fixed_matrix_expectations() -> 
             "source_kinase": "K1",
             "target_kinase": "K2",
             "correlation": pytest.approx(1.0),
+            "valid_observations": 4,
         },
         {
             "source_kinase": "K1",
             "target_kinase": "K3",
             "correlation": pytest.approx(0.9486832980505138),
+            "valid_observations": 4,
         },
         {
             "source_kinase": "K2",
             "target_kinase": "K3",
             "correlation": pytest.approx(0.9486832980505138),
+            "valid_observations": 4,
         },
     ]
     assert signed_edges.to_dict("records") == [
@@ -361,15 +366,18 @@ def test_signalome_network_policy_variants_match_fixed_matrix_expectations() -> 
             "source_kinase": "K1",
             "target_kinase": "K2",
             "correlation": pytest.approx(-1.0),
+            "valid_observations": 4,
         },
         {
             "source_kinase": "K1",
             "target_kinase": "K3",
             "correlation": pytest.approx(0.9486832980505138),
+            "valid_observations": 4,
         },
         {
             "source_kinase": "K2",
             "target_kinase": "K3",
             "correlation": pytest.approx(-0.9486832980505138),
+            "valid_observations": 4,
         },
     ]

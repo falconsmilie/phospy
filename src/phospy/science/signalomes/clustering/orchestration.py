@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -39,13 +39,16 @@ from phospy.science.signalomes.clustering.scoring import (
 from phospy.science.signalomes.clustering.tree_building import (
     ClusterTreeOperations,
     fit_cluster_labels,
+    prepare_signalome_clustering_matrix,
 )
 from phospy.science.signalomes.clustering.validation import (
     validate_cluster_count_for_site_count,
 )
 from phospy.science.signalomes.constants import SITE_CLUSTER_COLUMN
 from phospy.science.signalomes.models import (
+    SignalomeClusteringPreparationDiagnostics,
     SignalomeModuleSelectionDiagnostics,
+    default_signalome_clustering_preparation_diagnostics,
 )
 
 
@@ -55,6 +58,9 @@ class ClusterSitesResult:
 
     site_clusters: pd.Series
     module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics = (
+        field(default_factory=default_signalome_clustering_preparation_diagnostics)
+    )
     tree_engine: str = SIGNALOME_TREE_ENGINE_EXACT
     candidate_scoring_mode: _CandidateScoringMode = (
         SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
@@ -177,7 +183,9 @@ def cluster_sites_with_diagnostics(
 ) -> ClusterSitesResult:
     """Cluster phosphosites and capture module-selection diagnostics."""
 
-    scoring_values = np.asarray(scoring_matrix.to_numpy(dtype=float, copy=False))
+    prepared = prepare_signalome_clustering_matrix(scoring_matrix)
+    prepared_matrix = prepared.prepared_matrix
+    scoring_values = np.asarray(prepared.values)
     selection = _MODULE_SELECTOR.select(
         scoring_values=scoring_values,
         requested_module_count=requested_module_count,
@@ -213,11 +221,12 @@ def cluster_sites_with_diagnostics(
     return ClusterSitesResult(
         site_clusters=pd.Series(
             labels,
-            index=scoring_matrix.index.copy(),
+            index=prepared_matrix.index.copy(),
             dtype=int,
             name=SITE_CLUSTER_COLUMN,
         ),
         module_selection_diagnostics=selection.diagnostics,
+        clustering_preparation_diagnostics=prepared.to_diagnostics(),
         tree_engine=selection.tree_engine,
         candidate_scoring_mode=selection.candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
@@ -266,11 +275,7 @@ def select_module_count_with_diagnostics(
 ) -> SignalomeModuleSelectionDiagnostics:
     """Select a module count and return diagnostics."""
 
-    array = (
-        scoring_values.to_numpy(dtype=float, copy=False)
-        if isinstance(scoring_values, pd.DataFrame)
-        else np.asarray(scoring_values, dtype=float)
-    )
+    array = prepare_signalome_clustering_matrix(scoring_values).values
     return _MODULE_SELECTOR.select(
         scoring_values=array,
         requested_module_count=requested_module_count,

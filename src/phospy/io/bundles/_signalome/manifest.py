@@ -26,6 +26,7 @@ from phospy.io.bundles._signalome.constants import (
 )
 from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_to_payload,
+    signalome_clustering_preparation_diagnostics_to_payload,
     signalome_module_selection_diagnostics_to_payload,
     signalome_network_correlation_diagnostics_to_payload,
     signalome_score_preconditioning_diagnostics_to_payload,
@@ -135,6 +136,7 @@ _SIGNALOME_METADATA_ALLOWED_KEYS = frozenset(
         "kinase_network_nodes_present",
         "expanded_signalome_present",
         "module_selection_diagnostics",
+        "clustering_preparation_diagnostics",
         "score_preconditioning_diagnostics",
         "network_correlation_diagnostics",
         "alignment_diagnostics",
@@ -227,6 +229,9 @@ def build_manifest(
                 "expanded_signalome_present": result.expanded_signalome is not None,
                 "module_selection_diagnostics": signalome_module_selection_diagnostics_to_payload(
                     result.module_selection_diagnostics
+                ),
+                "clustering_preparation_diagnostics": signalome_clustering_preparation_diagnostics_to_payload(
+                    result.clustering_preparation_diagnostics
                 ),
                 "score_preconditioning_diagnostics": signalome_score_preconditioning_diagnostics_to_payload(
                     result.score_preconditioning_diagnostics

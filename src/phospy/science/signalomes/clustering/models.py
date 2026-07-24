@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
@@ -19,7 +19,11 @@ from phospy.science.signalomes.clustering.diagnostic_schemas import (
 from phospy.science.signalomes.clustering.policies import (
     SignalomeCandidateScoringPolicy,
 )
-from phospy.science.signalomes.models import SignalomeModuleSelectionDiagnostics
+from phospy.science.signalomes.models import (
+    SignalomeClusteringPreparationDiagnostics,
+    SignalomeModuleSelectionDiagnostics,
+    default_signalome_clustering_preparation_diagnostics,
+)
 
 SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON = "exact_python"
 SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION = "1"
@@ -62,6 +66,9 @@ class SignalomeClusteringEngineResult:
     backend_diagnostics: SignalomeBackendDiagnostics | None
     threshold_metadata: SignalomeClusteringThresholdMetadata
     limit_metadata: SignalomeClusteringLimitMetadata
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics = (
+        field(default_factory=default_signalome_clustering_preparation_diagnostics)
+    )
 
     def __post_init__(self) -> None:
         if self.candidate_scoring_sampling is not None:

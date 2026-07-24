@@ -15,15 +15,21 @@ from phospy.io.bundles._signalome.primitives import (
     _require_fields,
     _require_int,
 )
+from phospy.provenance.serialization import (
+    table_fingerprint_from_payload,
+    table_fingerprint_to_payload,
+)
 from phospy.science.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
     SignalomeAlignmentDiagnostics,
     SignalomeAlignmentInputDiagnostics,
     SignalomeClusterCandidateScore,
+    SignalomeClusteringPreparationDiagnostics,
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
+    default_signalome_clustering_preparation_diagnostics,
 )
 
 
@@ -187,6 +193,189 @@ def signalome_module_selection_diagnostics_from_payload(
             field_name=(
                 f"{scope}.module_selection_diagnostics.excluded_from_correlation_count"
             ),
+        ),
+    )
+
+
+def signalome_clustering_preparation_diagnostics_to_payload(
+    diagnostics: SignalomeClusteringPreparationDiagnostics,
+) -> dict[str, object]:
+    return {
+        "preparation_policy_id": str(diagnostics.preparation_policy_id),
+        "input_dimension_count": int(diagnostics.input_dimension_count),
+        "retained_dimension_count": int(diagnostics.retained_dimension_count),
+        "retained_dimension_labels": list(diagnostics.retained_dimension_labels),
+        "dropped_fully_missing_dimension_count": int(
+            diagnostics.dropped_fully_missing_dimension_count
+        ),
+        "dropped_fully_missing_dimension_labels": list(
+            diagnostics.dropped_fully_missing_dimension_labels
+        ),
+        "dropped_fully_missing_dimension_preview": list(
+            diagnostics.dropped_fully_missing_dimension_preview
+        ),
+        "dropped_fully_missing_value_count": int(
+            diagnostics.dropped_fully_missing_value_count
+        ),
+        "non_finite_input_value_count": int(diagnostics.non_finite_input_value_count),
+        "missing_after_non_finite_normalization_count": int(
+            diagnostics.missing_after_non_finite_normalization_count
+        ),
+        "imputed_value_count": int(diagnostics.imputed_value_count),
+        "imputed_value_counts_by_dimension": {
+            str(key): int(value)
+            for key, value in diagnostics.imputed_value_counts_by_dimension.items()
+        },
+        "prepared_matrix_fingerprint": (
+            None
+            if diagnostics.prepared_matrix_fingerprint is None
+            else table_fingerprint_to_payload(diagnostics.prepared_matrix_fingerprint)
+        ),
+    }
+
+
+def signalome_clustering_preparation_diagnostics_from_payload(
+    payload: object,
+    *,
+    scope: str,
+) -> SignalomeClusteringPreparationDiagnostics:
+    if payload is None:
+        return default_signalome_clustering_preparation_diagnostics()
+    diagnostics_payload = require_mapping(
+        payload,
+        field_name=f"{scope}.clustering_preparation_diagnostics",
+    )
+    diagnostics_field_name = f"{scope}.clustering_preparation_diagnostics"
+    allowed_fields = frozenset(
+        {
+            "preparation_policy_id",
+            "input_dimension_count",
+            "retained_dimension_count",
+            "retained_dimension_labels",
+            "dropped_fully_missing_dimension_count",
+            "dropped_fully_missing_dimension_labels",
+            "dropped_fully_missing_dimension_preview",
+            "dropped_fully_missing_value_count",
+            "non_finite_input_value_count",
+            "missing_after_non_finite_normalization_count",
+            "imputed_value_count",
+            "imputed_value_counts_by_dimension",
+            "prepared_matrix_fingerprint",
+        }
+    )
+    _reject_unsupported_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        allowed_fields=allowed_fields,
+    )
+    _require_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        required_fields=allowed_fields,
+    )
+    imputation_counts_payload = require_mapping(
+        diagnostics_payload.get("imputed_value_counts_by_dimension"),
+        field_name=(
+            f"{scope}.clustering_preparation_diagnostics."
+            "imputed_value_counts_by_dimension"
+        ),
+    )
+    fingerprint_payload = diagnostics_payload.get("prepared_matrix_fingerprint")
+    return SignalomeClusteringPreparationDiagnostics(
+        preparation_policy_id=require_str(
+            diagnostics_payload.get("preparation_policy_id"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics.preparation_policy_id"
+            ),
+        ),
+        input_dimension_count=_require_int(
+            diagnostics_payload.get("input_dimension_count"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics.input_dimension_count"
+            ),
+        ),
+        retained_dimension_count=_require_int(
+            diagnostics_payload.get("retained_dimension_count"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics.retained_dimension_count"
+            ),
+        ),
+        retained_dimension_labels=_require_string_tuple(
+            diagnostics_payload.get("retained_dimension_labels"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics.retained_dimension_labels"
+            ),
+        ),
+        dropped_fully_missing_dimension_count=_require_int(
+            diagnostics_payload.get("dropped_fully_missing_dimension_count"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics."
+                "dropped_fully_missing_dimension_count"
+            ),
+        ),
+        dropped_fully_missing_dimension_labels=_require_string_tuple(
+            diagnostics_payload.get("dropped_fully_missing_dimension_labels"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics."
+                "dropped_fully_missing_dimension_labels"
+            ),
+        ),
+        dropped_fully_missing_dimension_preview=_require_string_tuple(
+            diagnostics_payload.get("dropped_fully_missing_dimension_preview"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics."
+                "dropped_fully_missing_dimension_preview"
+            ),
+        ),
+        dropped_fully_missing_value_count=_require_int(
+            diagnostics_payload.get("dropped_fully_missing_value_count"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics."
+                "dropped_fully_missing_value_count"
+            ),
+        ),
+        non_finite_input_value_count=_require_int(
+            diagnostics_payload.get("non_finite_input_value_count"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics."
+                "non_finite_input_value_count"
+            ),
+        ),
+        missing_after_non_finite_normalization_count=_require_int(
+            diagnostics_payload.get("missing_after_non_finite_normalization_count"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics."
+                "missing_after_non_finite_normalization_count"
+            ),
+        ),
+        imputed_value_count=_require_int(
+            diagnostics_payload.get("imputed_value_count"),
+            field_name=(
+                f"{scope}.clustering_preparation_diagnostics.imputed_value_count"
+            ),
+        ),
+        imputed_value_counts_by_dimension={
+            str(key): _require_int(
+                value,
+                field_name=(
+                    f"{scope}.clustering_preparation_diagnostics."
+                    f"imputed_value_counts_by_dimension.{key}"
+                ),
+            )
+            for key, value in imputation_counts_payload.items()
+        },
+        prepared_matrix_fingerprint=(
+            None
+            if fingerprint_payload is None
+            else table_fingerprint_from_payload(
+                require_mapping(
+                    fingerprint_payload,
+                    field_name=(
+                        f"{scope}.clustering_preparation_diagnostics."
+                        "prepared_matrix_fingerprint"
+                    ),
+                )
+            )
         ),
     )
 
@@ -624,3 +813,9 @@ def _alignment_input_from_payload(
         dropped_count=dropped_count,
         dropped_reasons=dropped_reasons,
     )
+
+
+def _require_string_tuple(value: object, *, field_name: str) -> tuple[str, ...]:
+    if not isinstance(value, list | tuple):
+        raise PhosPyInputError(f"{field_name} must be an array")
+    return tuple(require_str(item, field_name=f"{field_name}[]") for item in value)

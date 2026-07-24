@@ -66,12 +66,12 @@ def _base_table() -> pd.DataFrame:
 
 
 def _dataset_for_workflows() -> AnalysisReadyPhosphoDataset:
-    display_ids = ["MAPK14;Y182;", "GSK3B;S9;"]
+    display_ids = ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;S473;"]
     site_index = site_key_index_from_display_ids(display_ids)
     phospho = pd.DataFrame(
         {
-            "sample_a": [1.0, 0.8],
-            "sample_b": [2.0, 1.2],
+            "sample_a": [1.0, 0.8, 1.4],
+            "sample_b": [2.0, 1.2, 1.9],
         },
         index=site_index,
     )
@@ -80,14 +80,15 @@ def _dataset_for_workflows() -> AnalysisReadyPhosphoDataset:
             "site_key": site_index.astype(str).tolist(),
             "display_id": display_ids,
             **site_key_context_columns(site_index),
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
+            "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
+            "site": ["Y182", "S9", "S473"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
-            "protein_id": ["P28482", "Q9Y243"],
-            "localisation_confidence": [0.95, 0.9],
+            "protein_id": ["P28482", "Q9Y243", "P31749"],
+            "localisation_confidence": [0.95, 0.9, 0.93],
         },
         index=site_index.copy(),
     )
@@ -107,12 +108,14 @@ def _reference_bundle() -> ReferenceBundle:
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
             {
-                "kinase": ["K1", "K1", "K2", "K2"],
+                "kinase": ["K1", "K1", "K1", "K2", "K2", "K2"],
                 "substrate_site": [
                     "MAPK14;Y182;",
                     "GSK3B;S9;",
+                    "AKT1;S473;",
                     "MAPK14;Y182;",
                     "GSK3B;S9;",
+                    "AKT1;S473;",
                 ],
             }
         ),
@@ -121,9 +124,13 @@ def _reference_bundle() -> ReferenceBundle:
                 "site_sequence": [
                     "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                     "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 ]
             },
-            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+            index=pd.Index(
+                ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;S473;"],
+                name="site_id",
+            ),
         ),
     )
 
@@ -138,6 +145,7 @@ def _kinase_scoring_config(**kwargs: object) -> KinaseScoringConfig:
 
 
 def _signalome_config(**kwargs: object):
+    kwargs.setdefault("network_min_paired_finite_observations", 3)
     return build_signalome_config(
         reference_context_compatibility_policy=(
             ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -473,17 +481,17 @@ def test_active_scientific_policy_ids_are_present_in_kinase_and_signalome_proven
         references=references,
         scoring_result=KinaseScoringResult(
             profile_scores=pd.DataFrame(
-                {"K1": [0.1, 0.9], "K2": [0.9, 0.1]},
+                {"K1": [0.1, 0.9, 0.5], "K2": [0.9, 0.1, 0.4]},
                 index=dataset.phospho.index.copy(),
             ),
             rank_weighted_fusion_scores=pd.DataFrame(
-                {"K1": [0.1, 0.9], "K2": [0.9, 0.1]},
+                {"K1": [0.1, 0.9, 0.5], "K2": [0.9, 0.1, 0.4]},
                 index=dataset.phospho.index.copy(),
             ),
         ),
         prediction_result=KinasePredictionResult(
             pred_mat=pd.DataFrame(
-                {"K1": [0.9, 0.8], "K2": [0.8, 0.9]},
+                {"K1": [0.9, 0.8, 0.7], "K2": [0.8, 0.9, 0.6]},
                 index=dataset.phospho.index.copy(),
             )
         ),
@@ -528,17 +536,17 @@ def test_provenance_policy_metadata_includes_stable_name_and_version() -> None:
         references=references,
         scoring_result=KinaseScoringResult(
             profile_scores=pd.DataFrame(
-                {"K1": [0.1, 0.9], "K2": [0.9, 0.1]},
+                {"K1": [0.1, 0.9, 0.5], "K2": [0.9, 0.1, 0.4]},
                 index=dataset.phospho.index.copy(),
             ),
             rank_weighted_fusion_scores=pd.DataFrame(
-                {"K1": [0.1, 0.9], "K2": [0.9, 0.1]},
+                {"K1": [0.1, 0.9, 0.5], "K2": [0.9, 0.1, 0.4]},
                 index=dataset.phospho.index.copy(),
             ),
         ),
         prediction_result=KinasePredictionResult(
             pred_mat=pd.DataFrame(
-                {"K1": [0.9, 0.8], "K2": [0.8, 0.9]},
+                {"K1": [0.9, 0.8, 0.7], "K2": [0.8, 0.9, 0.6]},
                 index=dataset.phospho.index.copy(),
             )
         ),

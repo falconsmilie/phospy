@@ -9,6 +9,7 @@ from phospy.contracts.configs import (
     SIGNALOME_CANDIDATE_SCORING_POLICIES,
     SIGNALOME_CLUSTERING_ENGINES,
     SIGNALOME_KINASE_NETWORK_POLICIES,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
     ReferenceContextCompatibilityPolicy,
     SignalomeClusteringConfig,
@@ -68,6 +69,7 @@ _OUTPUT_ALLOWED_FIELDS = frozenset(
         "network_correlation_threshold",
         "network_policy",
         "network_min_paired_finite_observations",
+        "network_min_paired_finite_observations_effective",
     }
 )
 _OUTPUT_REQUIRED_FIELDS = frozenset({"network_correlation_threshold", "network_policy"})
@@ -94,6 +96,7 @@ def signalome_config_from_payload(
     payload: Mapping[str, object],
     *,
     scope: str,
+    allow_legacy_network_minimum: bool = False,
 ) -> SignalomeConfig:
     """Parse signalome config payload."""
 
@@ -325,20 +328,66 @@ def signalome_config_from_payload(
                 reference_context_compatibility_policy
             ),
         ),
-        output=SignalomeOutputConfig(
+        output=_build_signalome_output_config(
             network_correlation_threshold=require_float(
                 output_payload.get("network_correlation_threshold"),
                 field_name=(
                     f"{scope}.signalome_config.output.network_correlation_threshold"
                 ),
             ),
-            network_policy=network_policy,  # type: ignore[arg-type]
+            network_policy=network_policy,
             network_min_paired_finite_observations=(
                 network_min_paired_finite_observations
             ),
+            field_name=(
+                f"{scope}.signalome_config.output."
+                "network_min_paired_finite_observations"
+            ),
+            allow_legacy_network_minimum=allow_legacy_network_minimum,
         ),
         performance=SignalomePerformanceConfig(
             max_exact_tree_sites=max_exact_tree_sites,
             max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
         ),
     )
+
+
+def _build_signalome_output_config(
+    *,
+    network_correlation_threshold: float,
+    network_policy: str,
+    network_min_paired_finite_observations: int | None,
+    field_name: str,
+    allow_legacy_network_minimum: bool,
+) -> SignalomeOutputConfig:
+    if (
+        network_min_paired_finite_observations is None
+        or network_min_paired_finite_observations
+        >= SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR
+    ):
+        return SignalomeOutputConfig(
+            network_correlation_threshold=network_correlation_threshold,
+            network_policy=network_policy,  # type: ignore[arg-type]
+            network_min_paired_finite_observations=(
+                network_min_paired_finite_observations
+            ),
+        )
+    if not allow_legacy_network_minimum:
+        raise PhosPyInputError(
+            f"{field_name} must be at least "
+            f"{SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR}; "
+            f"got {network_min_paired_finite_observations}"
+        )
+    output = object.__new__(SignalomeOutputConfig)
+    object.__setattr__(
+        output,
+        "network_correlation_threshold",
+        float(network_correlation_threshold),
+    )
+    object.__setattr__(output, "network_policy", network_policy)
+    object.__setattr__(
+        output,
+        "network_min_paired_finite_observations",
+        int(network_min_paired_finite_observations),
+    )
+    return output

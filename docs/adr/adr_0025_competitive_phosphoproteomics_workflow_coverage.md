@@ -140,6 +140,12 @@ from the native ORA enrichment workflow.
 Current bundled runtime reference data is rat-only. Human and mouse analyses
 can be run when the caller supplies an explicit `ReferenceBundle`.
 
+Current signalome support provides score-derived module assignments, module
+summaries, clustering diagnostics, and kinase score-profile association network
+tables. Signalome network correlations are descriptive associations only. They
+are not inferential tests, causal evidence, directionality evidence, activity
+claims, or experimentally validated signalling relationships.
+
 Current native enrichment support is offline ORA through `EnrichmentWorkflow`
 against caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous
 `EnrichmentSetCollection` inputs with explicit identifier semantics and an

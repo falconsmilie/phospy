@@ -263,6 +263,11 @@ class SignalomeWorkflowInterpreter:
                 request.config.output.network_correlation_threshold
             ),
             network_policy=request.config.output.network_policy,
+            network_min_paired_finite_observations_requested=(
+                None
+                if request.config.output.network_min_paired_finite_observations is None
+                else int(request.config.output.network_min_paired_finite_observations)
+            ),
             network_min_paired_finite_observations=(
                 SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
                 if (

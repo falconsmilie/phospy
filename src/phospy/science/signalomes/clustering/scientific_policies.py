@@ -40,21 +40,26 @@ def build_signalome_missing_value_clustering_policy(
         name="Signalome Missing-Value Clustering Policy",
         version="1",
         description=(
-            "Normalizes non-finite clustering inputs to missing values and imputes "
-            "missing clustering cells for distance/tree construction."
+            "Normalizes non-finite clustering inputs to missing values, drops "
+            "fully missing signalome clustering dimensions, and median-imputes "
+            "partially missing retained dimensions for clustering internals."
         ),
         parameters={
+            "preparation_policy_id": str(missing_value_policy),
             "missing_value_policy": str(missing_value_policy),
             "applies_to": str(applies_to),
             "imputed_values_exposed_in_output_tables": bool(
                 imputed_values_exposed_in_output_tables
             ),
             "partial_missingness_handling": "column_median_imputation",
-            "fully_missing_column_handling": "impute_zero",
+            "fully_missing_column_handling": "drop_fully_missing_columns",
         },
         assumptions=(
-            "Imputation is used for clustering internals and may influence module "
-            "selection and assignment outcomes.",
+            "Fully missing dimensions carry no observed clustering evidence and are "
+            "removed before tree construction.",
+            "Median imputation is used only for partially missing retained dimensions "
+            "in clustering internals and may influence module selection and "
+            "assignment outcomes.",
             "Output signalome tables do not expose the imputed clustering matrix.",
         ),
         output_scale=(

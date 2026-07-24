@@ -372,10 +372,8 @@ def test_signalome_missing_value_and_score_preconditioning_policies_are_serializ
     None
 ):
     missing_value_policy = SignalomeMissingValueClusteringPolicy(
-        missing_value_policy=(
-            "column_median_imputation_with_zero_for_all_missing_columns"
-        ),
-        applies_to="clustering_distance_and_tree_construction_only",
+        missing_value_policy=("drop_fully_missing_then_column_median_impute"),
+        applies_to="module_count_selection_and_tree_construction",
         imputed_values_exposed_in_output_tables=False,
     )
     preconditioning_policy = ScorePreconditioningPolicy(

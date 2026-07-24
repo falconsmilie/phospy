@@ -89,13 +89,25 @@ class SignalomeNetworkBuilder:
                 ),
                 stage_error=str(exc),
             )
-        if network_edges.empty:
+        if network_edges.empty and not _empty_network_allowed_by_observation_policy(
+            correlation_diagnostics
+        ):
+            next_action = (
+                "lower network_correlation_threshold or provide more variable "
+                "score profiles so kinase score-profile correlations can be estimated"
+            )
+            if correlation_diagnostics.edges_skipped_insufficient_paired_observations:
+                next_action = (
+                    "provide at least "
+                    f"{int(config.network_min_paired_finite_observations)} paired "
+                    "finite observations for candidate kinase score-profile "
+                    "correlations, or explicitly set "
+                    "config.output.network_min_paired_finite_observations to a "
+                    "scientifically justified value of at least 3"
+                )
             raise_boundary_error(
                 seam=SIGNALOME_EXECUTOR_NETWORK_SEAM,
-                next_action=(
-                    "lower network_correlation_threshold or provide more variable "
-                    "score profiles so kinase score-profile correlations can be estimated"
-                ),
+                next_action=next_action,
                 shared_kinases=execution_metadata.prediction_kinases,
                 **support_details(support_summary.support_counts),
                 downstream_score_sites=execution_metadata.downstream_score_sites,
@@ -150,6 +162,21 @@ class SignalomeNetworkBuilder:
             candidate_correlations=candidate_correlations,
             correlation_diagnostics=correlation_diagnostics,
         )
+
+
+def _empty_network_allowed_by_observation_policy(
+    diagnostics: SignalomeNetworkCorrelationDiagnostics,
+) -> bool:
+    """Allow zero accepted edges only when the minimum-observation policy owns it."""
+
+    total_candidates = int(diagnostics.total_candidate_correlations)
+    if total_candidates <= 0:
+        return False
+    return (
+        int(diagnostics.edges_created) == 0
+        and int(diagnostics.edges_skipped_insufficient_paired_observations)
+        == total_candidates
+    )
 
 
 __all__ = ["SignalomeNetworkBuilder"]

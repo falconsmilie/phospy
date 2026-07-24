@@ -192,6 +192,7 @@ def test_build_kinase_network_positive_only_excludes_negative_edges() -> None:
         kinase_substrates={"K1": ("S1", "S2"), "K2": ("S3",), "K3": ()},
         threshold=0.9,
         network_policy="positive_only",
+        min_paired_observations=3,
     )
 
     pdt.assert_frame_equal(
@@ -201,12 +202,14 @@ def test_build_kinase_network_positive_only_excludes_negative_edges() -> None:
                 "source_kinase": ["K1"],
                 "target_kinase": ["K3"],
                 "correlation": [0.9486832980505138],
+                "valid_observations": [4],
             }
         ).astype(
             {
                 "source_kinase": str,
                 "target_kinase": str,
                 "correlation": float,
+                "valid_observations": "int64",
             }
         ),
     )
@@ -240,6 +243,7 @@ def test_build_kinase_network_absolute_threshold_uses_unsigned_correlation_value
         kinase_substrates={"K1": (), "K2": (), "K3": ()},
         threshold=0.9,
         network_policy="absolute_threshold",
+        min_paired_observations=3,
     )
 
     expected = pd.DataFrame(
@@ -251,8 +255,16 @@ def test_build_kinase_network_absolute_threshold_uses_unsigned_correlation_value
                 0.9486832980505138,
                 0.9486832980505138,
             ],
+            "valid_observations": [4, 4, 4],
         }
-    ).astype({"source_kinase": str, "target_kinase": str, "correlation": float})
+    ).astype(
+        {
+            "source_kinase": str,
+            "target_kinase": str,
+            "correlation": float,
+            "valid_observations": "int64",
+        }
+    )
     pdt.assert_frame_equal(edges, expected)
 
 
@@ -272,6 +284,7 @@ def test_build_kinase_network_signed_policy_retains_negative_edges_with_sign() -
         kinase_substrates={"K1": (), "K2": (), "K3": ()},
         threshold=0.9,
         network_policy="signed",
+        min_paired_observations=3,
     )
 
     expected = pd.DataFrame(
@@ -283,8 +296,16 @@ def test_build_kinase_network_signed_policy_retains_negative_edges_with_sign() -
                 0.9486832980505138,
                 -0.9486832980505138,
             ],
+            "valid_observations": [4, 4, 4],
         }
-    ).astype({"source_kinase": str, "target_kinase": str, "correlation": float})
+    ).astype(
+        {
+            "source_kinase": str,
+            "target_kinase": str,
+            "correlation": float,
+            "valid_observations": "int64",
+        }
+    )
     pdt.assert_frame_equal(edges, expected)
 
 
@@ -325,6 +346,7 @@ def test_candidate_correlation_true_zero_is_finite_zero() -> None:
         kinase_substrates={"K1": (), "K2": ()},
         threshold=0.0,
         network_policy="signed",
+        min_paired_observations=3,
     )
 
     assert candidates.shape[0] == 1
@@ -349,6 +371,7 @@ def test_candidate_correlation_constant_profile_remains_nan_and_creates_no_edge(
         kinase_substrates={"K1": (), "K2": ()},
         threshold=0.0,
         network_policy="signed",
+        min_paired_observations=3,
     )
 
     assert edges.empty
@@ -381,6 +404,79 @@ def test_candidate_correlation_insufficient_observations_remains_nan() -> None:
     assert candidates.at[0, "correlation_status"] == "insufficient_observations"
 
 
+def test_candidate_correlation_two_paired_values_is_insufficient_for_new_edges() -> (
+    None
+):
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0],
+            "K2": [3.0, 4.0],
+        },
+        index=pd.Index(["S1", "S2"], name="site_id"),
+    )
+
+    edges, _, candidates, diagnostics = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+        min_paired_observations=3,
+    )
+
+    assert edges.empty
+    assert candidates.at[0, "valid_observations"] == 2
+    assert pd.isna(candidates.at[0, "correlation"])
+    assert candidates.at[0, "correlation_status"] == "insufficient_observations"
+    assert diagnostics.edges_skipped_insufficient_paired_observations == 1
+
+
+def test_candidate_correlation_rejects_legacy_two_observation_threshold() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0],
+            "K2": [3.0, 4.0],
+        },
+        index=pd.Index(["S1", "S2"], name="site_id"),
+    )
+
+    with pytest.raises(
+        WorkflowStageError,
+        match="Legacy threshold 2 cannot be used for new signalome network execution",
+    ):
+        build_kinase_network_with_diagnostics(
+            downstream_score_matrix=downstream_scores,
+            kinase_order=["K1", "K2"],
+            kinase_substrates={"K1": (), "K2": ()},
+            threshold=0.0,
+            network_policy="signed",
+            min_paired_observations=2,
+        )
+
+
+def test_candidate_correlation_default_minimum_requires_five_observations() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0, 4.0],
+            "K2": [1.0, 2.0, 3.0, 4.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _, candidates, diagnostics = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+    )
+
+    assert edges.empty
+    assert candidates.at[0, "valid_observations"] == 4
+    assert candidates.at[0, "correlation_status"] == "insufficient_observations"
+    assert diagnostics.edges_skipped_insufficient_paired_observations == 1
+
+
 def test_candidate_correlation_respects_minimum_paired_observations() -> None:
     downstream_scores = pd.DataFrame(
         {
@@ -404,6 +500,37 @@ def test_candidate_correlation_respects_minimum_paired_observations() -> None:
     assert candidates.at[0, "correlation_status"] == "insufficient_observations"
     assert diagnostics.insufficient_observation_correlations == 1
     assert diagnostics.edges_skipped_insufficient_paired_observations == 1
+
+
+def test_candidate_correlation_threshold_three_permits_three_observation_edge() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0],
+            "K2": [1.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3"], name="site_id"),
+    )
+
+    edges, _, candidates, diagnostics = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.9,
+        network_policy="signed",
+        min_paired_observations=3,
+    )
+
+    assert candidates.at[0, "correlation_status"] == "finite"
+    assert candidates.at[0, "valid_observations"] == 3
+    assert edges.to_dict("records") == [
+        {
+            "source_kinase": "K1",
+            "target_kinase": "K2",
+            "correlation": pytest.approx(1.0),
+            "valid_observations": 3,
+        }
+    ]
+    assert diagnostics.edges_created == 1
 
 
 def test_candidate_correlation_classifies_missing_and_non_finite_inputs() -> None:
@@ -467,6 +594,7 @@ def test_network_edge_creation_uses_only_finite_candidate_correlations() -> None
         kinase_substrates={"K1": (), "K2": (), "K3": (), "K4": (), "K5": ()},
         threshold=0.8,
         network_policy="signed",
+        min_paired_observations=3,
     )
 
     assert edges.to_dict("records") == [
@@ -474,6 +602,7 @@ def test_network_edge_creation_uses_only_finite_candidate_correlations() -> None
             "source_kinase": "K1",
             "target_kinase": "K3",
             "correlation": pytest.approx(1.0),
+            "valid_observations": 4,
         }
     ]
     assert "finite" in set(candidates.loc[:, "correlation_status"])
@@ -499,6 +628,7 @@ def test_network_correlation_diagnostics_count_statuses_and_skips() -> None:
         kinase_substrates={"K1": (), "K2": (), "K3": (), "K4": (), "K5": ()},
         threshold=0.8,
         network_policy="signed",
+        min_paired_observations=3,
     )
 
     assert diagnostics.total_candidate_correlations == 10
@@ -545,6 +675,7 @@ def test_network_edge_diagnostics_follow_network_policy(
         kinase_substrates={"K1": (), "K2": (), "K3": ()},
         threshold=0.9,
         network_policy=network_policy,
+        min_paired_observations=3,
     )
 
     assert int(edges.shape[0]) == expected_edges
@@ -569,6 +700,7 @@ def test_network_regression_undefined_correlations_are_not_zero_imputed() -> Non
         kinase_substrates={"K1": (), "K2": ()},
         threshold=0.0,
         network_policy="signed",
+        min_paired_observations=3,
     )
 
     assert edges.empty
@@ -608,6 +740,7 @@ def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> No
             "source_kinase": ["K1"],
             "target_kinase": ["K2"],
             "correlation": [0.95],
+            "valid_observations": [4],
         }
     )
     kinase_substrates = {
@@ -666,6 +799,7 @@ def test_build_expanded_signalome_table_weighted_top_uses_fractional_site_suppor
             "source_kinase": ["K1"],
             "target_kinase": ["K2"],
             "correlation": [0.91],
+            "valid_observations": [3],
         }
     )
 
@@ -712,7 +846,12 @@ def test_build_expanded_signalome_table_emits_expected_shape_for_site_and_summar
         index=pd.Index([1, 2, 3], name="module_id"),
     )
     kinase_network_edges = pd.DataFrame(
-        columns=["source_kinase", "target_kinase", "correlation"]
+        columns=[
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "valid_observations",
+        ]
     )
 
     expanded = build_expanded_signalome_table(

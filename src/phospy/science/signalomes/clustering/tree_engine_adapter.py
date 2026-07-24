@@ -77,6 +77,9 @@ def run_clustering_with_tree_engine(
         protein_modules=protein_modules,
         selected_module_count=selected_module_count,
         module_selection_diagnostics=clustering_result.module_selection_diagnostics,
+        clustering_preparation_diagnostics=(
+            clustering_result.clustering_preparation_diagnostics
+        ),
         backend_name=str(clustering_engine),
         backend_version=str(backend_version),
         approximation_used=bool(clustering_result.approximation_used),

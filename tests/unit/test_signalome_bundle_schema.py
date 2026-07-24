@@ -16,6 +16,8 @@ from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_from_payload,
     signalome_alignment_diagnostics_to_payload,
+    signalome_clustering_preparation_diagnostics_from_payload,
+    signalome_clustering_preparation_diagnostics_to_payload,
     signalome_module_selection_diagnostics_from_payload,
     signalome_module_selection_diagnostics_to_payload,
     signalome_network_correlation_diagnostics_from_payload,
@@ -25,12 +27,14 @@ from phospy.io.bundles._signalome.diagnostics import (
 )
 from phospy.io.bundles._signalome.tables import normalize_module_assignments_table
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
+from phospy.provenance.models import TableFingerprint
 from phospy.science.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     SignalomeAlignmentDiagnostics,
     SignalomeAlignmentInputDiagnostics,
+    SignalomeClusteringPreparationDiagnostics,
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
@@ -103,6 +107,7 @@ def _full_signalome_snapshot_payload(
             "network_correlation_threshold",
             "network_policy",
             "network_min_paired_finite_observations",
+            "network_min_paired_finite_observations_effective",
         }:
             output = signalome_config["output"]
             assert isinstance(output, dict)
@@ -158,10 +163,41 @@ def test_signalome_snapshot_supports_network_policy_payload() -> None:
 
 def test_signalome_snapshot_supports_network_minimum_observation_payload() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
-        _full_signalome_snapshot_payload(network_min_paired_finite_observations=3)
+        _full_signalome_snapshot_payload(
+            network_min_paired_finite_observations=3,
+            network_min_paired_finite_observations_effective=3,
+        )
     )
 
     assert snapshot.signalome_config.output.network_min_paired_finite_observations == 3
+    assert snapshot.network_min_paired_finite_observations_effective == 3
+
+
+def test_signalome_snapshot_writes_effective_network_default_when_recorded() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot(
+        signalome_config=SignalomeConfig(),
+        network_min_paired_finite_observations_effective=5,
+    )
+
+    payload = snapshot.to_payload()
+    signalome_config = payload["signalome_config"]
+    assert isinstance(signalome_config, dict)
+    output = signalome_config["output"]
+    assert isinstance(output, dict)
+    assert output["network_min_paired_finite_observations"] is None
+    assert output["network_min_paired_finite_observations_effective"] == 5
+
+
+def test_signalome_snapshot_reads_historical_network_threshold_two_payload() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        _full_signalome_snapshot_payload(
+            network_min_paired_finite_observations=2,
+            network_min_paired_finite_observations_effective=2,
+        )
+    )
+
+    assert snapshot.signalome_config.output.network_min_paired_finite_observations == 2
+    assert snapshot.network_min_paired_finite_observations_effective == 2
 
 
 def test_signalome_snapshot_defaults_missing_network_minimum_observation_payload() -> (
@@ -231,6 +267,7 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
                 "network_correlation_threshold": 0.73,
                 "network_policy": "absolute_threshold",
                 "network_min_paired_finite_observations": 4,
+                "network_min_paired_finite_observations_effective": 4,
             },
             "performance": {
                 "max_exact_tree_sites": 2500,
@@ -536,6 +573,43 @@ def test_network_correlation_diagnostics_defaults_new_skip_fields() -> None:
     assert restored.edges_skipped_missing_score == 0
     assert restored.edges_skipped_non_finite_score == 0
     assert restored.edges_skipped_undefined_correlation == 0
+
+
+def test_clustering_preparation_diagnostics_payload_round_trip() -> None:
+    diagnostics = SignalomeClusteringPreparationDiagnostics(
+        preparation_policy_id="drop_fully_missing_then_column_median_impute",
+        input_dimension_count=4,
+        retained_dimension_count=3,
+        retained_dimension_labels=("K1", "K2", "K4"),
+        dropped_fully_missing_dimension_count=1,
+        dropped_fully_missing_dimension_labels=("K3",),
+        dropped_fully_missing_dimension_preview=("K3",),
+        dropped_fully_missing_value_count=5,
+        non_finite_input_value_count=7,
+        missing_after_non_finite_normalization_count=7,
+        imputed_value_count=2,
+        imputed_value_counts_by_dimension={"K1": 0, "K2": 2, "K4": 0},
+        prepared_matrix_fingerprint=TableFingerprint(
+            name="signalome.clustering.prepared_matrix",
+            rows=5,
+            columns=3,
+            index_name="site_key",
+            column_names=("K1", "K2", "K4"),
+            dtypes=("float64", "float64", "float64"),
+            exact_hash_algorithm="sha256",
+            exact_hash_value="a" * 64,
+            tolerance_hash_algorithm="sha256",
+            tolerance_hash_value="b" * 64,
+        ),
+    )
+
+    payload = signalome_clustering_preparation_diagnostics_to_payload(diagnostics)
+    restored = signalome_clustering_preparation_diagnostics_from_payload(
+        payload,
+        scope="test",
+    )
+
+    assert restored == diagnostics
 
 
 def test_network_correlation_diagnostics_requires_payload_mapping() -> None:

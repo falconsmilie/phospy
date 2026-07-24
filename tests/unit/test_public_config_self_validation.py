@@ -767,6 +767,13 @@ def test_kinase_activity_config_self_validates(
             "signalome workflow request config.output.network_policy",
         ),
         (
+            lambda: SignalomeOutputConfig(network_min_paired_finite_observations=2),
+            (
+                "signalome workflow request config.output."
+                "network_min_paired_finite_observations"
+            ),
+        ),
+        (
             lambda: SignalomeOutputConfig(network_min_paired_finite_observations=1),
             (
                 "signalome workflow request config.output."
@@ -989,7 +996,7 @@ def test_signalome_config_presets_return_expected_values() -> None:
         == SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
     )
     assert default.output.network_min_paired_finite_observations is None
-    assert SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT == 2
+    assert SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT == 5
     assert (
         default.validation.reference_context_compatibility_policy
         == REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH

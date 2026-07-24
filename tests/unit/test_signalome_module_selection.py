@@ -8,7 +8,7 @@ import phospy.science.signalomes.clustering as clustering_module
 from phospy.errors import SignalomeModuleCountValidationError
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.science.signalomes.clustering import (
-    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS,
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE,
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
     select_module_count_with_diagnostics,
@@ -24,6 +24,7 @@ from phospy.science.signalomes.clustering.scientific_policies import (
 )
 from phospy.science.signalomes.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
+    prepare_signalome_clustering_matrix,
     summarize_clustering_missing_value_diagnostics,
 )
 
@@ -387,7 +388,7 @@ def test_prepare_scoring_values_imputes_partial_missing_with_column_median() -> 
     )
 
 
-def test_prepare_scoring_values_imputes_non_finite_and_fully_missing_columns() -> None:
+def test_prepare_scoring_values_drops_fully_missing_columns() -> None:
     values = np.asarray(
         [
             [1.0, np.nan, np.inf],
@@ -405,20 +406,139 @@ def test_prepare_scoring_values_imputes_non_finite_and_fully_missing_columns() -
         prepared,
         np.asarray(
             [
-                [1.0, 0.0, 0.0],
-                [2.0, 0.0, 0.0],
-                [3.0, 0.0, 0.0],
+                [1.0],
+                [2.0],
+                [3.0],
             ],
             dtype=float,
         ),
     )
-    assert diagnostics.policy == (
-        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+    assert diagnostics.preparation_policy_id == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE
     )
+    assert diagnostics.retained_dimension_labels == ("dimension_0",)
+    assert diagnostics.dropped_fully_missing_dimension_count == 2
+    assert diagnostics.dropped_fully_missing_dimension_labels == (
+        "dimension_1",
+        "dimension_2",
+    )
+    assert diagnostics.dropped_fully_missing_dimension_preview == (
+        "dimension_1",
+        "dimension_2",
+    )
+    assert diagnostics.dropped_fully_missing_value_count == 6
     assert diagnostics.non_finite_input_value_count == 6
     assert diagnostics.missing_after_non_finite_normalization_count == 6
-    assert diagnostics.imputed_value_count == 6
-    assert diagnostics.fully_missing_column_count == 2
+    assert diagnostics.imputed_value_count == 0
+    assert diagnostics.imputed_value_counts_by_dimension == {"dimension_0": 0}
+    assert diagnostics.prepared_matrix_fingerprint is not None
+
+
+def test_prepare_signalome_clustering_matrix_preserves_retained_column_order() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "K2": [np.nan, np.nan, np.nan],
+            "K1": [1.0, np.nan, 3.0],
+            "K3": [7.0, 8.0, 9.0],
+        },
+        index=["P1;S1;", "P2;S2;", "P3;S3;"],
+    )
+
+    prepared = prepare_signalome_clustering_matrix(scoring_matrix)
+
+    assert prepared.retained_column_labels == ("K1", "K3")
+    assert prepared.prepared_matrix.columns.tolist() == ["K1", "K3"]
+    assert prepared.dropped_fully_missing_column_labels == ("K2",)
+    np.testing.assert_allclose(
+        prepared.values,
+        np.asarray(
+            [
+                [1.0, 7.0],
+                [2.0, 8.0],
+                [3.0, 9.0],
+            ],
+            dtype=float,
+        ),
+    )
+
+
+def test_prepare_signalome_clustering_matrix_tracks_dropped_and_imputed_cells() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0],
+            "K2": [np.nan, np.nan, np.nan],
+            "K3": [4.0, np.nan, 8.0],
+        },
+        index=["P1;S1;", "P2;S2;", "P3;S3;"],
+    )
+
+    prepared = prepare_signalome_clustering_matrix(scoring_matrix)
+    diagnostics = prepared.to_diagnostics()
+
+    assert diagnostics.dropped_fully_missing_dimension_labels == ("K2",)
+    assert diagnostics.dropped_fully_missing_value_count == 3
+    assert diagnostics.imputed_value_count == 1
+    assert diagnostics.imputed_value_counts_by_dimension == {"K1": 0, "K3": 1}
+    np.testing.assert_allclose(
+        prepared.prepared_matrix.loc[:, "K3"].to_numpy(dtype=float),
+        np.asarray([4.0, 6.0, 8.0], dtype=float),
+    )
+
+
+def test_prepare_signalome_clustering_matrix_fingerprint_is_value_deterministic() -> (
+    None
+):
+    scoring_matrix = pd.DataFrame(
+        {
+            "K1": [1.0, np.nan, 3.0],
+            "K2": [4.0, 5.0, 6.0],
+        },
+        index=["P1;S1;", "P2;S2;", "P3;S3;"],
+    )
+    changed_matrix = scoring_matrix.copy(deep=True)
+    changed_matrix.loc["P3;S3;", "K2"] = 7.0
+
+    first = prepare_signalome_clustering_matrix(scoring_matrix)
+    second = prepare_signalome_clustering_matrix(scoring_matrix)
+    changed = prepare_signalome_clustering_matrix(changed_matrix)
+
+    assert first.prepared_matrix_fingerprint == second.prepared_matrix_fingerprint
+    assert first.prepared_matrix_fingerprint != changed.prepared_matrix_fingerprint
+
+
+def test_cluster_sites_rejects_all_missing_dimensions_before_backend() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "K1": [np.nan, np.nan, np.nan],
+            "K2": [np.nan, np.nan, np.nan],
+        },
+        index=["P1;S1;", "P2;S2;", "P3;S3;"],
+    )
+    backend_invoked = False
+
+    class _FailIfInvokedTreeOperations:
+        def build_cluster_tree(self, scoring_values: np.ndarray) -> object:
+            nonlocal backend_invoked
+            backend_invoked = True
+            return object()
+
+        def build_cluster_labels_from_tree(
+            self,
+            *,
+            cluster_tree: object,
+            cluster_counts: object,
+        ) -> dict[int, np.ndarray]:
+            del cluster_tree, cluster_counts
+            return {}
+
+    with pytest.raises(ValueError, match="retained no kinase/dimension columns"):
+        exact_clustering.cluster_sites_with_diagnostics(
+            scoring_matrix=scoring_matrix,
+            requested_module_count=2,
+            cluster_tree_operations=_FailIfInvokedTreeOperations(),  # type: ignore[arg-type]
+        )
+
+    assert backend_invoked is False
 
 
 def test_cluster_sites_uses_imputed_values_for_final_tree_input() -> None:
@@ -460,6 +580,7 @@ def test_cluster_sites_uses_imputed_values_for_final_tree_input() -> None:
 
     prepared_values = captured.get("scoring_values")
     assert prepared_values is not None
+    assert prepared_values.shape == (3, 2)
     assert np.array_equal(
         np.isfinite(prepared_values), np.ones_like(prepared_values, dtype=bool)
     )
@@ -467,12 +588,42 @@ def test_cluster_sites_uses_imputed_values_for_final_tree_input() -> None:
         prepared_values,
         np.asarray(
             [
-                [1.0, 3.0, 0.0],
-                [2.0, 2.0, 0.0],
-                [3.0, 4.0, 0.0],
+                [1.0, 3.0],
+                [2.0, 2.0],
+                [3.0, 4.0],
             ],
             dtype=float,
         ),
+    )
+
+
+def test_cluster_sites_is_invariant_to_adding_all_missing_dimension() -> None:
+    base_matrix = pd.DataFrame(
+        {
+            "K1": [1.0, 1.2, 0.9, -1.0, -1.2, -0.9],
+            "K2": [2.0, 2.2, 1.8, -2.0, -2.2, -1.8],
+        },
+        index=[f"P{index};S{index};" for index in range(1, 7)],
+    )
+    with_all_missing = base_matrix.assign(K3=np.nan)
+
+    baseline = cluster_sites_with_diagnostics(
+        scoring_matrix=base_matrix,
+        requested_module_count=2,
+    )
+    observed = cluster_sites_with_diagnostics(
+        scoring_matrix=with_all_missing,
+        requested_module_count=2,
+    )
+
+    pd.testing.assert_series_equal(observed.site_clusters, baseline.site_clusters)
+    assert (
+        observed.clustering_preparation_diagnostics.dropped_fully_missing_dimension_labels
+        == ("K3",)
+    )
+    assert (
+        baseline.clustering_preparation_diagnostics.dropped_fully_missing_dimension_labels
+        == ()
     )
 
 

@@ -14,6 +14,7 @@ from phospy.science.configs import (
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
     SignalomeKinaseNetworkPolicy,
 )
 from phospy.science.signalomes.constants import (
@@ -84,6 +85,7 @@ def build_kinase_network_with_diagnostics(
 ]:
     """Build exploratory network tables plus correlation traceability diagnostics."""
 
+    _validate_min_paired_observations(min_paired_observations)
     kinase_index = pd.Index(
         [str(kinase) for kinase in kinase_order], name=KINASE_COLUMN
     )
@@ -118,7 +120,12 @@ def build_kinase_network_with_diagnostics(
             SIGNALOME_CORRELATION_STATUS_FINITE
         )
         & candidate_correlations.loc[:, CORRELATION_COLUMN].notna(),
-        [SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN, CORRELATION_COLUMN],
+        [
+            SOURCE_KINASE_COLUMN,
+            TARGET_KINASE_COLUMN,
+            CORRELATION_COLUMN,
+            VALID_OBSERVATIONS_COLUMN,
+        ],
     ].reset_index(drop=True)
     pair_correlations = finite_candidates.loc[:, CORRELATION_COLUMN].to_numpy(
         dtype=float,
@@ -133,7 +140,13 @@ def build_kinase_network_with_diagnostics(
     selected.loc[:, CORRELATION_COLUMN] = edge_correlations[edge_mask]
     edges = (
         selected.loc[
-            :, [SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN, CORRELATION_COLUMN]
+            :,
+            [
+                SOURCE_KINASE_COLUMN,
+                TARGET_KINASE_COLUMN,
+                CORRELATION_COLUMN,
+                VALID_OBSERVATIONS_COLUMN,
+            ],
         ]
         if not selected.empty
         else _empty_edges_table()
@@ -143,6 +156,7 @@ def build_kinase_network_with_diagnostics(
             SOURCE_KINASE_COLUMN: str,
             TARGET_KINASE_COLUMN: str,
             CORRELATION_COLUMN: float,
+            VALID_OBSERVATIONS_COLUMN: "int64",
         }
     )
     edges = edges.sort_values(
@@ -326,6 +340,23 @@ def _classify_pair_correlation(
     )
 
 
+def _validate_min_paired_observations(min_paired_observations: int) -> None:
+    try:
+        resolved = int(min_paired_observations)
+    except (TypeError, ValueError) as exc:
+        raise WorkflowStageError(
+            "signalome network min_paired_observations must be an integer"
+        ) from exc
+    if resolved < SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR:
+        raise WorkflowStageError(
+            "signalome network min_paired_observations must be at least "
+            f"{SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR}; "
+            f"got {resolved}. Legacy threshold 2 cannot be used for new "
+            "signalome network execution; set "
+            "config.output.network_min_paired_finite_observations to at least 3."
+        )
+
+
 def _build_network_correlation_diagnostics(
     *,
     candidate_correlations: pd.DataFrame,
@@ -438,12 +469,18 @@ def _precondition_network_scores(
 
 def _empty_edges_table() -> pd.DataFrame:
     return pd.DataFrame(
-        columns=[SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN, CORRELATION_COLUMN]
+        columns=[
+            SOURCE_KINASE_COLUMN,
+            TARGET_KINASE_COLUMN,
+            CORRELATION_COLUMN,
+            VALID_OBSERVATIONS_COLUMN,
+        ]
     ).astype(
         {
             SOURCE_KINASE_COLUMN: str,
             TARGET_KINASE_COLUMN: str,
             CORRELATION_COLUMN: float,
+            VALID_OBSERVATIONS_COLUMN: "int64",
         }
     )
 

@@ -579,7 +579,12 @@ def _empty_signalome_assignments_table() -> pd.DataFrame:
 
 def _empty_kinase_network_edges() -> pd.DataFrame:
     return pd.DataFrame(
-        columns=(SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN, CORRELATION_COLUMN)
+        columns=(
+            SOURCE_KINASE_COLUMN,
+            TARGET_KINASE_COLUMN,
+            CORRELATION_COLUMN,
+            "valid_observations",
+        )
     )
 
 
@@ -2490,6 +2495,7 @@ def test_public_signalome_exports_isolated_from_mutation() -> None:
             kinase_result=_kinase_result(),
             config=build_signalome_config(
                 substrate_support_cutoff=0.5,
+                network_min_paired_finite_observations=3,
                 reference_context_compatibility_policy=(
                     _ALLOW_UNKNOWN_REFERENCE_CONTEXT
                 ),
@@ -2891,6 +2897,7 @@ def test_signalome_result_table_properties_are_defensive_snapshots() -> None:
             kinase_result=_kinase_result(),
             config=build_signalome_config(
                 substrate_support_cutoff=0.5,
+                network_min_paired_finite_observations=3,
                 reference_context_compatibility_policy=(
                     _ALLOW_UNKNOWN_REFERENCE_CONTEXT
                 ),

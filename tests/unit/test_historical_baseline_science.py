@@ -321,6 +321,7 @@ def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narro
         },
         threshold=0.9,
         network_policy="positive_only",
+        min_paired_observations=3,
     )
     absolute_threshold_edges, _ = build_kinase_network(
         downstream_score_matrix=downstream_scores,
@@ -332,6 +333,7 @@ def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narro
         },
         threshold=0.9,
         network_policy="absolute_threshold",
+        min_paired_observations=3,
     )
     signed_edges, _ = build_kinase_network(
         downstream_score_matrix=downstream_scores,
@@ -343,6 +345,7 @@ def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narro
         },
         threshold=0.9,
         network_policy="signed",
+        min_paired_observations=3,
     )
 
     assert positive_only_edges.empty
