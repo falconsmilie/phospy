@@ -116,7 +116,7 @@ Important `KinaseScoringConfig` fields:
 | Field | Default | Notes |
 | --- | --- | --- |
 | `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
-| `reliability_profile` | `"exploratory"` for unchanged defaults | Direct construction with old defaults is classified as exploratory; modified direct construction is custom unless an explicit profile is supplied and its invariants pass. |
+| `reliability_profile` | `"exploratory"` for unchanged defaults | A directly constructed `KinaseScoringConfig` with old defaults is classified as exploratory; modified config construction is custom unless an explicit profile is supplied and its invariants pass. |
 | `min_substrates` | `2` | Minimum unique usable substrates for kinase scoring support. The public floor is `2`. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
 | `include_substrate_contributions` | `False` | Assembles and adds an optional substrate-level contribution table to `KinaseWorkflowResult`. |

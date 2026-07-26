@@ -52,9 +52,10 @@ summaries. Downstream workflow results must keep this history discoverable.
 
 Update note (2026-05-27, row identity): ADR-0024 amends this boundary. The
 analysis-ready row identity is the protein-scoped `site_key`; `display_id` is a
-human-readable `GENE;SITE;` label and may repeat. Direct analysis-ready
-construction requires `site_key` indexes and required protein context metadata;
-display-indexed input is builder compatibility only.
+human-readable `GENE;SITE;` label and may repeat. Trusted analysis-ready
+reconstruction requires `site_key` indexes and required protein context
+metadata; display-indexed input is builder compatibility only. Direct
+`AnalysisReadyPhosphoDataset(...)` calls fail immediately.
 
 Update note (2026-06-29, supported construction boundary; amended 2026-07-22):
 The supported ordinary user path for constructing
@@ -102,10 +103,10 @@ Trusted construction assertions now require seven evidence dimensions:
 identity, intensity scale, quantitative meaning, aligned table structure,
 localisation, sequence, and reference context. Aligned-structure evidence is
 not waivable because table shape and alignment are mechanically checked.
-Supplied provenance on either trusted factory or compatibility-constructor
-construction must match strict fingerprints of every actual represented table,
-and false fingerprints are rejected. Direct public constructor calls now fail
-immediately; advanced callers must use `from_trusted_tables(...)`.
+Supplied provenance on trusted factory reconstruction must match strict
+fingerprints of every actual represented table, and false fingerprints are
+rejected. Direct public constructor calls now fail immediately; advanced
+callers must use `from_trusted_tables(...)`.
 
 ## Context and Problem Statement
 

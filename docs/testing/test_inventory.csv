@@ -74,7 +74,7 @@ tests/science/test_kinase_sparse_support_regression_fixtures.py,science,312,5,tr
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/science/test_signalome_safety_regression_fixtures.py,science,177,6,true,false,,,,,,
 tests/unit/api/test_api_stability_tiers.py,api,143,9,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
-tests/unit/api/test_public_api_dataset_construction.py,api,86,4,false,false,,,,,,
+tests/unit/api/test_public_api_dataset_construction.py,api,206,5,false,false,,,,,,
 tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
 tests/unit/references/test_reference_context.py,references,161,9,false,false,,,,,,

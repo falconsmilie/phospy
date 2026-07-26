@@ -31,7 +31,7 @@ collapse distinct key identities before stable serialization.
 Update note (2026-07-17, trusted construction assertion linkage): Trusted
 dataset construction assertions are immutable provenance values. Their nested
 evidence details are recursively frozen, serialized from fresh payloads, and
-linked into direct-construction provenance by a stable assertion fingerprint.
+linked into trusted-table reconstruction provenance by a stable assertion fingerprint.
 `from_trusted_tables(...)` also verifies supplied table fingerprints against
 the actual constructed tables; table hashes, shape, axis alignment, organism
 coherence, and `site_sequence` presence are mechanically checked facts rather

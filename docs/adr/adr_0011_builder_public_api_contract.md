@@ -119,7 +119,7 @@ The public story should be that PhosPy offers one supported route for ordinary
 users creating `AnalysisReadyPhosphoDataset` from real-world phosphoproteomics
 data.
 
-That route should be more prominent than direct manual dataset construction for
+That route should be more prominent than trusted-table reconstruction for
 typical messy industry inputs.
 
 Direct construction of `AnalysisReadyPhosphoDataset(...)` is not a supported
@@ -293,7 +293,7 @@ A healthy direction is:
 
 ### Neutral Consequences
 
-- Direct dataset construction remains available for already-prepared callers.
+- Trusted factory reconstruction remains available for already-prepared callers.
 - Internal builder collaborators may evolve as long as the public builder story remains consistent.
 
 ## Rejected Alternatives

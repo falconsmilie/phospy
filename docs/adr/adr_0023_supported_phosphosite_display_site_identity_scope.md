@@ -11,6 +11,16 @@
 Superseded by ADR-0024 for analysis-ready phosphosite row identity. This ADR is
 retained only as historical context for the pre-`site_key` boundary.
 
+Update note (2026-07-26, sealed runtime construction boundary): current runtime
+behavior further supersedes this ADR's older direct-construction wording.
+`AnalysisReadyPhosphoDataset(...)` raises immediately. Ordinary construction
+uses `AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`; advanced
+trusted reconstruction uses
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with complete
+`TrustedDatasetConstructionAssertions` and table-fingerprint verification.
+Trusted assertions are audit evidence supplied by the caller, not proof of
+biological correctness.
+
 ## Status
 
 Superseded.
@@ -31,9 +41,10 @@ The supported analysis-ready identity model is now:
 - `AnalysisReadyPhosphoDataset.phospho.index` is `site_key`.
 - `AnalysisReadyPhosphoDataset.site_metadata.index` is `site_key`.
 - `display_id` may repeat when `site_key` values differ.
-- Direct `AnalysisReadyPhosphoDataset` construction is advanced/trusted use,
-  requires `site_key`, and must not silently fall back to display labels.
-- Direct construction also requires auditable protein context metadata:
+- Trusted `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` reconstruction
+  is advanced/trusted use, requires `site_key`, and must not silently fall back
+  to display labels.
+- Trusted reconstruction also requires auditable protein context metadata:
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
   and `site_sequence`.
 - Builder ingestion may accept legacy display-indexed input only when enough

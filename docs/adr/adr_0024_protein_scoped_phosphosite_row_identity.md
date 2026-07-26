@@ -11,6 +11,16 @@
 Supersedes ADR-0023 for analysis-ready phosphosite row identity scope and
 amends ADR-0021 and ADR-0003 where they discuss analysis-ready row identity.
 
+Update note (2026-07-26, sealed runtime construction boundary): direct
+`AnalysisReadyPhosphoDataset(...)` construction now raises immediately. The
+successful construction paths are
+`AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))` for ordinary
+construction and `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` for
+advanced trusted reconstruction with complete
+`TrustedDatasetConstructionAssertions`. Supplied trusted provenance must match
+the actual represented-table fingerprints. Trusted assertions are audit
+evidence supplied by the caller, not proof of biological correctness.
+
 ## Status
 
 Accepted.
@@ -52,7 +62,7 @@ use a separate explicit type and contract.
 `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` must be present.
 
 Auditable protein context metadata is required to construct and validate
-`site_key`. At the advanced/trusted direct analysis-ready boundary,
+`site_key`. At the advanced/trusted factory reconstruction boundary,
 `site_metadata` must include non-empty:
 
 - `site_key`
@@ -69,7 +79,7 @@ identity. Ordinary user construction should use `AnalysisReadyDatasetBuilder`.
 
 Builder input may remain user-friendly and accept legacy display-indexed input
 only when enough protein context is available to deterministically derive
-`site_key`. Builder and direct/trusted construction paths normalize supported
+`site_key`. Builder and trusted-factory construction paths normalize supported
 organism aliases and case variants to the shared `Organism` enum before storing
 analysis-ready state; arbitrary organism strings are not valid internal
 organism state.
@@ -97,10 +107,11 @@ This decision applies to analysis-ready dataset identity boundaries and
 downstream workflow contracts that consume those datasets.
 
 Display-indexed input is a builder compatibility input only. It is not valid
-direct analysis-ready identity. Direct `AnalysisReadyPhosphoDataset`
-construction is advanced/trusted use and requires `phospho.index`,
-`site_metadata.index`, and `site_metadata["site_key"]` to all use the same
-unique encoded `site_key` values.
+analysis-ready identity. Direct `AnalysisReadyPhosphoDataset(...)`
+construction raises immediately. Advanced trusted reconstruction uses
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` and requires
+`phospho.index`, `site_metadata.index`, and `site_metadata["site_key"]` to all
+use the same unique encoded `site_key` values.
 
 Dataset construction owns organism coherence. Workflows must not repair,
 reinterpret, or independently normalize `dataset.organism`,
@@ -129,11 +140,10 @@ This migration does not include:
 Analysis-ready identity becomes protein-scoped and unambiguous, while
 human-readable display labels remain available for interpretation and reporting.
 
-Direct dataset constructors now require enough identity context to produce
-`site_key` and must fail explicitly when that context is missing. They also
-validate that `site_key` matches the metadata-derived protein-scoped key and
-that dataset, row, and decoded site-key organisms resolve to one
-`Organism`.
+Trusted dataset reconstruction now requires enough identity context to produce
+`site_key` and must fail explicitly when that context is missing. It also
+validates that `site_key` matches the metadata-derived protein-scoped key and
+that dataset, row, and decoded site-key organisms resolve to one `Organism`.
 
 Builder pathways can preserve backward-friendly ingestion shape only when they
 can derive the required `site_key` without ambiguity.

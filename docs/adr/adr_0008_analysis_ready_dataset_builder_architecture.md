@@ -30,9 +30,10 @@ the derive-or-fail transition before final dataset construction.
 Update note (2026-06-29): The builder is the documented supported construction
 path for ordinary users. Builder-created datasets record construction
 provenance that identifies the construction method, table identities, and
-processing-state establishment. Direct dataset construction remains
-advanced/trusted use for callers who already own fully prepared analysis-ready
-tables.
+processing-state establishment. Advanced trusted reconstruction for callers
+who already own fully prepared analysis-ready tables uses
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with complete trusted
+construction assertions.
 
 Update note (2026-07-15, workflow-derived quantitative ownership): The builder
 remains the ordinary public route for creating source analysis-ready datasets.
@@ -95,7 +96,7 @@ Each boundary must stay honest.
 
 The public direction should favour a builder path over forcing users to instantiate `AnalysisReadyPhosphoDataset` manually from raw industry inputs.
 
-Direct dataset construction may still exist and remain valid for callers who already have fully analysis-ready data, but the recommended public path should be the builder.
+Trusted factory reconstruction remains valid for callers who already have fully analysis-ready data, but the recommended public path should be the builder.
 
 The public story should remain consistent, but internally the builder layer should be implemented as a small family of specialised builders or builder collaborators rather than one oversized builder object. This supports single responsibility without fragmenting the public experience.
 
@@ -290,7 +291,7 @@ The builder public surface should therefore remain smaller than the total number
 
 ### Neutral Consequences
 
-- Direct dataset construction remains available for already-prepared data.
+- Trusted factory reconstruction remains available for already-prepared data.
 - Internal ingestion services may evolve without changing the workflow contract, provided they still converge on the same dataset boundary.
 
 ## Rejected Alternatives

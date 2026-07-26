@@ -298,19 +298,19 @@ from phospy import AnalysisReadyDatasetBuilder
 from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
 ```
 
-`AnalysisReadyPhosphoDataset` remains exported for advanced/trusted callers who
-already have fully prepared `site_key`-indexed tables. Advanced callers should
-prefer the explicit trusted factory
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`; it runs the same
-structural validation as direct construction, including required
-`site_sequence`, but cannot prove the biological correctness of user-asserted
-state or provenance. Supplied provenance must fingerprint the actual represented
-tables. Direct construction remains available for compatibility and always emits
-`DeprecationWarning`.
-Construction without supplied provenance receives a minimal direct-construction provenance marker;
-this records audit limitations and does not certify biological correctness.
-Ordinary user construction should go through
-`AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
+`AnalysisReadyPhosphoDataset` remains exported as a public result/domain type.
+The direct `AnalysisReadyPhosphoDataset(...)` constructor raises immediately; it
+does not provide a warning-based compatibility route and does not create
+provenance for direct calls. Ordinary user construction should go
+through `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
+Advanced callers who already own fully prepared `site_key`-indexed
+analysis-ready tables must use
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with complete
+`TrustedDatasetConstructionAssertions`. The trusted factory runs private dataset
+structural validation, including required `site_sequence`, but trusted
+assertions and provenance are caller claims and do not prove biological
+correctness. Supplied provenance must fingerprint the actual represented tables;
+mismatched fingerprints are rejected.
 
 Use `phospy.api` for the stable request, workflow, primary result, reference,
 enum, and common exception names documented in the API guide. The aggregate

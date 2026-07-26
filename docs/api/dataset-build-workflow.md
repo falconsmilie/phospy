@@ -255,9 +255,9 @@ from the gene-symbol prefix.
 
 Protein context is used to derive `site_key` when it is available and safe.
 `display_id` remains metadata and may repeat after `site_key` becomes the row
-identity. If the advanced/trusted direct-construction path is used instead of
-the builder, the caller must provide matching `site_key` indexes and all
-required identity metadata up front.
+identity. If the advanced/trusted `from_trusted_tables(...)` factory is used
+instead of the builder, the caller must provide matching `site_key` indexes and
+all required identity metadata up front.
 
 ## Preprocessing Configuration
 

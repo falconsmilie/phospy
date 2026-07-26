@@ -221,6 +221,6 @@ are installed.
 | `ReferencePreset.AUTO` cannot resolve references | Use `organism=Organism.RAT` with bundled references, or pass an explicit `ReferenceBundle`.                          |
 | Signalome fails on `protein_id`                  | Add a non-empty signalome grouping `protein_id` for every interpreted site. Keep core protein identity in `protein_namespace` and `protein_identifier`; do not use gene symbols or `display_id` labels as fallbacks. |
 | Missing-value error                              | Start with a complete matrix, or configure row-median imputation deliberately.                                       |
-| Site metadata does not align                     | For builder input, make `site_metadata.index` match `phospho.index`; for direct analysis-ready construction, use matching `site_key` indexes. |
+| Site metadata does not align                     | For builder input, make `site_metadata.index` match `phospho.index`; for trusted `from_trusted_tables(...)` reconstruction, use matching `site_key` indexes. |
 | File input fails                                 | Check that the first CSV/TSV column is the row index and that the suffix is supported.                               |
 | The tiny example fails after enabling activity   | Use more sites or lower the activity thresholds deliberately.                                                        |
