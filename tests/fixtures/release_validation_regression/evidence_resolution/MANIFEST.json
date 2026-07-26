@@ -1,0 +1,37 @@
+{
+  "manifest_schema_version": "fixture-manifest-v1",
+  "fixture_family": "evidence_resolution",
+  "classification": "regression",
+  "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
+  "generator_sha256": "ccb74c1d7fab89b23833db01c522770d839ef7b292973e366e8af46a131cb176",
+  "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
+  "seed": 20260724,
+  "generation_timestamp_utc": "2026-07-24T00:00:00Z",
+  "source_policy": "deterministic PhosPy regression contract fixture; not external parity",
+  "software_versions": {
+    "python": "3.12.10"
+  },
+  "notes": "Peptide-to-site resolution regression cases for equal and unequal multi-site fractions, multiple peptides per site, sequence conflict, mixed valid/invalid sequence contexts, and row-order permutation.",
+  "files": [
+    {
+      "relative_path": "peptide_evidence.csv",
+      "sha256": "ce8020ad6571a73b358e3a40ff367a2a13f87adc9c8cf8931cf5c0b6a2059b47"
+    },
+    {
+      "relative_path": "site_mapping.csv",
+      "sha256": "3ed7ac25c659996f64fe305d65221d16826d8b75d16858eb51b5751417117c02"
+    },
+    {
+      "relative_path": "expected_split_phospho.csv",
+      "sha256": "3b235879ef81b1e03d6c4322d413a7f953b67474741ad8cdd79b489855c3651a"
+    },
+    {
+      "relative_path": "sequence_conflict.csv",
+      "sha256": "0190950a9a76a9d9e30fbc809ea67c9faac751d189030bca82930ce169433626"
+    },
+    {
+      "relative_path": "mixed_sequence_contexts.csv",
+      "sha256": "67dbb61b30c988502681cff7c9eb66069c3726b6aa2bb6f08b174c717b419fc0"
+    }
+  ]
+}

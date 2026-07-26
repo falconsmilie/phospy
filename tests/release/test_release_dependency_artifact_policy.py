@@ -19,6 +19,17 @@ WORKFLOW_PATHS = (
     Path(".github/workflows/ci.yml"),
     Path(".github/workflows/publish.yml"),
 )
+MINIMUM_CONSTRAINT_LOWER_BOUND_PINS = {
+    "numpy": "1.24.0",
+    "pandas": "2.0.0",
+    "scipy": "1.10.0",
+    "scikit-learn": "1.6.0",
+    "tomli": "2.0.0",
+    "hypothesis": "6.0.0",
+    "pytest": "8.0.0",
+    "setuptools": "77.0.3",
+    "wheel": "0.45.1",
+}
 EXPLICITLY_JUSTIFIED_UNPINNED_DIRECT_INSTALLS = {
     "pip": "bootstrap installer upgraded before constraint-enforced installs",
 }
@@ -47,9 +58,11 @@ def _requirement_name(requirement: str) -> str:
     )
 
 
-def _pinned_constraint_names() -> set[str]:
+def _pinned_constraint_names(
+    constraint_path: str | Path = "constraints/ci.txt",
+) -> set[str]:
     names: set[str] = set()
-    for raw_line in _read("constraints/ci.txt").splitlines():
+    for raw_line in _read(constraint_path).splitlines():
         line = raw_line.split("#", maxsplit=1)[0].strip()
         if not line:
             continue
@@ -58,6 +71,22 @@ def _pinned_constraint_names() -> set[str]:
             continue
         names.add(_requirement_name(requirement))
     return names
+
+
+def _pinned_constraint_versions(
+    constraint_path: str | Path,
+) -> dict[str, str]:
+    versions: dict[str, str] = {}
+    for raw_line in _read(constraint_path).splitlines():
+        line = raw_line.split("#", maxsplit=1)[0].strip()
+        if not line:
+            continue
+        requirement = line.split(";", maxsplit=1)[0].strip()
+        if "==" not in requirement:
+            continue
+        name, version = requirement.split("==", maxsplit=1)
+        versions[_requirement_name(name)] = version.strip()
+    return versions
 
 
 def _pyproject_release_dependency_names() -> set[str]:
@@ -136,11 +165,18 @@ def test_ci_constraints_pin_every_direct_release_dependency() -> None:
 
     unpinned = sorted(
         direct_dependencies
-        - _pinned_constraint_names()
+        - _pinned_constraint_names("constraints/ci.txt")
         - set(EXPLICITLY_JUSTIFIED_UNPINNED_DIRECT_INSTALLS)
     )
 
     assert unpinned == []
+
+
+def test_minimum_constraints_pin_declared_runtime_and_test_lower_bounds() -> None:
+    assert (
+        _pinned_constraint_versions("constraints/minimum.txt")
+        == MINIMUM_CONSTRAINT_LOWER_BOUND_PINS
+    )
 
 
 def test_ci_and_publish_install_commands_share_the_ci_constraints() -> None:
@@ -184,8 +220,37 @@ def test_python_support_declaration_matches_source_test_matrices() -> None:
 
     workflow = _read(".github/workflows/ci.yml")
     matrix_literal = _expected_matrix_literal()
-    for job_name in ("clean-constrained-install", "default-suite"):
+    for job_name in (
+        "clean-constrained-install",
+        "default-suite",
+        "performance-contracts",
+        "activity-parity-gate",
+        "parity-tests",
+        "release-gates",
+    ):
         assert matrix_literal in _workflow_job_block(workflow, job_name)
+
+
+def test_minimum_dependency_ci_lane_uses_minimum_constraints_and_release_science_selectors() -> (
+    None
+):
+    job = _workflow_job_block(
+        _read(".github/workflows/ci.yml"), "minimum-dependency-suite"
+    )
+
+    assert "PIP_CONSTRAINT: ${{ github.workspace }}/constraints/minimum.txt" in job
+    assert (
+        "PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/constraints/minimum.txt" in job
+    )
+    assert "constraints/ci.txt" not in job
+    assert "python-version: '3.10'" in job
+    assert 'python -m pip install -c constraints/minimum.txt -e ".[test]"' in job
+    assert "python -m pip check" in job
+    assert 'pytest --durations=25 --durations-min=0.01 -m "not parity"' in job
+    assert (
+        "pytest -o addopts= tests/release tests/golden "
+        '-m "release_gate or golden or reproducibility"'
+    ) in job
 
 
 def test_ci_build_smoke_installs_one_wheel_outside_checkout() -> None:

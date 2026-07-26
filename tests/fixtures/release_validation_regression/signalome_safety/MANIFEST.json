@@ -1,0 +1,37 @@
+{
+  "manifest_schema_version": "fixture-manifest-v1",
+  "fixture_family": "signalome_safety",
+  "classification": "regression",
+  "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
+  "generator_sha256": "ccb74c1d7fab89b23833db01c522770d839ef7b292973e366e8af46a131cb176",
+  "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
+  "seed": 20260724,
+  "generation_timestamp_utc": "2026-07-24T00:00:00Z",
+  "source_policy": "deterministic PhosPy regression contract fixture; not external parity",
+  "software_versions": {
+    "python": "3.12.10"
+  },
+  "notes": "Signalome safety regression inputs covering paired-observation network thresholds, all-missing dimension dropping, partial-missing median imputation, clustering invariance after all-missing dimension addition, and historical threshold-2 bundle config reconstruction without allowing new threshold-2 execution.",
+  "files": [
+    {
+      "relative_path": "network_two_observations.csv",
+      "sha256": "2cd1a5da4366464e891a4ae5a543aff6394e38b22a894e85c9fc6db2afc60885"
+    },
+    {
+      "relative_path": "network_three_observations.csv",
+      "sha256": "174477b9f4301415a15d4670897876fa2ed58fd142c211ef485b4a1d83eb7abe"
+    },
+    {
+      "relative_path": "network_five_observations.csv",
+      "sha256": "476790a2899e95af7fb587bc47da02508ccef5e6405f31f166bfe21a8f6386c6"
+    },
+    {
+      "relative_path": "clustering_missing_dimensions.csv",
+      "sha256": "f4810b4f8b300bccff49ecb28256b0adf3a41050239c9b501626fa8f2e30bb4e"
+    },
+    {
+      "relative_path": "historical_threshold2_config.json",
+      "sha256": "60daecfa36cd7be0d6ef4810fadec3eb5e1eb16012935dc676d0205b2fd5f1b2"
+    }
+  ]
+}

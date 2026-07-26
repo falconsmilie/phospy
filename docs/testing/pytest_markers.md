@@ -38,6 +38,17 @@ selected by explicit Makefile targets. The release check blocks release on:
 | `parity_diagnostic` | Explicitly excluded from the blocking parity target unless intentionally promoted out of the exclusion. |
 | `slow` | Not selected solely by marker for release; it runs only when also collected by a blocking selector. |
 
+CI runs the default non-parity suite, threshold-bearing parity suite, release
+and golden gates, and performance contracts on each supported Python version:
+3.10, 3.11, and 3.12. Build and packaged-artifact validation remain a dedicated
+single-version release job.
+
+CI also has a Python 3.10 minimum-dependency lane using
+`constraints/minimum.txt`. That lane installs the project with test
+dependencies under declared lower-bound pins, runs `pip check`, then runs the
+non-parity suite plus release/golden/reproducibility selectors that do not
+require external tools.
+
 ## Local Command Conventions
 
 The current pytest defaults are configured in `pyproject.toml` with:

@@ -14,14 +14,14 @@ PACKAGE_ROOT = SRC_ROOT / "phospy"
 @dataclass(frozen=True, slots=True)
 class CompatibilityRoute:
     compat_module: str
-    canonical_module: str
+    stable_module: str
     symbols: tuple[str, ...]
 
 
 TABLE_COMPATIBILITY_ROUTES = (
     CompatibilityRoute(
         compat_module="phospy.tables",
-        canonical_module="phospy.science.tables",
+        stable_module="phospy.science.tables",
         symbols=(
             "ActivityCountSeries",
             "ActivityMatrix",
@@ -50,7 +50,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.base",
-        canonical_module="phospy.frames.table_schema",
+        stable_module="phospy.frames.table_schema",
         symbols=(
             "TableSchema",
             "ValidationErrorType",
@@ -59,7 +59,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.activity",
-        canonical_module="phospy.science.tables.activity",
+        stable_module="phospy.science.tables.activity",
         symbols=(
             "ActivityCountMatrix",
             "ActivityCountSeries",
@@ -71,7 +71,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.datasets",
-        canonical_module="phospy.science.tables.datasets",
+        stable_module="phospy.science.tables.datasets",
         symbols=(
             "PhosphoIntensityMatrix",
             "SampleMetadataTable",
@@ -81,7 +81,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.differential",
-        canonical_module="phospy.science.tables.differential",
+        stable_module="phospy.science.tables.differential",
         symbols=(
             "ADJUSTED_P_VALUE_COLUMN",
             "LOG_FOLD_CHANGE_COLUMN",
@@ -92,7 +92,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables._differential_validation",
-        canonical_module="phospy.science.tables._differential_validation",
+        stable_module="phospy.science.tables._differential_validation",
         symbols=(
             "require_boolean",
             "require_column_name",
@@ -105,7 +105,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.kinase",
-        canonical_module="phospy.science.tables.kinase",
+        stable_module="phospy.science.tables.kinase",
         symbols=(
             "KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS",
             "KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT",
@@ -127,7 +127,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.references",
-        canonical_module="phospy.science.tables.references",
+        stable_module="phospy.science.tables.references",
         symbols=(
             "KinaseSubstrateReference",
             "ProteinAccessionReference",
@@ -136,7 +136,7 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.signalome",
-        canonical_module="phospy.science.tables.signalome",
+        stable_module="phospy.science.tables.signalome",
         symbols=(
             "KinaseNetworkCandidateCorrelationsTable",
             "KinaseNetworkEdgesTable",
@@ -149,12 +149,12 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.signalome.assignments",
-        canonical_module="phospy.science.tables.signalome.assignments",
+        stable_module="phospy.science.tables.signalome.assignments",
         symbols=("SignalomeAssignmentsTable",),
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.signalome.context",
-        canonical_module="phospy.science.tables.signalome.context",
+        stable_module="phospy.science.tables.signalome.context",
         symbols=(
             "SignalomeProteinSiteContext",
             "SignalomeSiteContext",
@@ -162,12 +162,12 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.signalome.modules",
-        canonical_module="phospy.science.tables.signalome.modules",
+        stable_module="phospy.science.tables.signalome.modules",
         symbols=("SignalomeModulesTable",),
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.signalome.network",
-        canonical_module="phospy.science.tables.signalome.network",
+        stable_module="phospy.science.tables.signalome.network",
         symbols=(
             "KinaseNetworkCandidateCorrelationsTable",
             "KinaseNetworkEdgesTable",
@@ -176,20 +176,20 @@ TABLE_COMPATIBILITY_ROUTES = (
     ),
     CompatibilityRoute(
         compat_module="phospy.tables.signalome.common",
-        canonical_module="phospy.science.tables.signalome.common",
+        stable_module="phospy.science.tables.signalome.common",
         symbols=(),
     ),
 )
 
 
-def test_table_compatibility_modules_reexport_canonical_symbols_by_identity() -> None:
+def test_table_compatibility_modules_reexport_stable_symbols_by_identity() -> None:
     for route in TABLE_COMPATIBILITY_ROUTES:
         compat = importlib.import_module(route.compat_module)
-        canonical = importlib.import_module(route.canonical_module)
+        stable = importlib.import_module(route.stable_module)
 
-        assert tuple(compat.__all__) == _expected_symbols(route, canonical)
+        assert tuple(compat.__all__) == _expected_symbols(route, stable)
         for symbol_name in compat.__all__:
-            assert getattr(compat, symbol_name) is getattr(canonical, symbol_name)
+            assert getattr(compat, symbol_name) is getattr(stable, symbol_name)
 
 
 def test_public_table_import_routes_remain_available() -> None:
@@ -197,7 +197,7 @@ def test_public_table_import_routes_remain_available() -> None:
     for route in TABLE_COMPATIBILITY_ROUTES:
         for symbol_name in route.symbols:
             exec(f"from {route.compat_module} import {symbol_name}", namespace)
-            exec(f"from {route.canonical_module} import {symbol_name}", namespace)
+            exec(f"from {route.stable_module} import {symbol_name}", namespace)
             assert symbol_name in namespace
 
 
@@ -243,11 +243,11 @@ def test_generic_table_schema_infrastructure_is_defined_once_under_frames() -> N
 
 def _expected_symbols(
     route: CompatibilityRoute,
-    canonical: ModuleType,
+    stable: ModuleType,
 ) -> tuple[str, ...]:
-    canonical_all = getattr(canonical, "__all__", None)
-    if canonical_all is not None:
-        return tuple(canonical_all)
+    stable_all = getattr(stable, "__all__", None)
+    if stable_all is not None:
+        return tuple(stable_all)
     return route.symbols
 
 

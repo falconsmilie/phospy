@@ -23,6 +23,11 @@ FIXTURES_ROOT ?= tests/fixtures
 REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
+RELEASE_VALIDATION_OUTDIR ?= $(FIXTURES_ROOT)/release_validation_regression
+RELEASE_VALIDATION_SEED ?= 20260724
+RELEASE_VALIDATION_TIMESTAMP ?= 2026-07-24T00:00:00Z
+LARGE_DIFFERENTIAL_LIMMA_TREND_OUTDIR ?= $(REWRITE_PARITY_ROOT)/differential_limma_trend_large
+LARGE_DIFFERENTIAL_LIMMA_TREND_FEATURES ?= 1600
 ACTIVE_SCRIPTS_DIR ?= scripts/active
 PYTEST_DURATION_ARGS ?= --durations=25 --durations-min=0.01
 PYTEST_REPORT_DIR ?= build/reports
@@ -32,7 +37,7 @@ TWINE ?= $(PYTHON) -m twine
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance test-release-gates validate-reference-bundles release-check test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
-	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-all \
+	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
 help:
@@ -61,6 +66,8 @@ help:
 	@printf '%s\n' '  make traces-r                      Regenerate the committed R L6 prediction trace'
 	@printf '%s\n' '  make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures'
 	@printf '%s\n' '  make fixtures-provenance-goldens   Regenerate provenance golden hash fixtures'
+	@printf '%s\n' '  make fixtures-release-validation-regression Regenerate compact release-validation regression fixtures'
+	@printf '%s\n' '  make fixtures-large-differential-limma-trend Regenerate large R/limma trend parity fixture'
 	@printf '%s\n' '  make fixtures-all                  Bootstrap active maintainer fixture families from scratch'
 	@printf '%s\n' '  make fixtures                      Alias for fixtures-all'
 
@@ -142,13 +149,19 @@ fixtures-public-workflow-reference: check-tools fixtures-dirs
 fixtures-provenance-goldens: check-tools fixtures-dirs
 	$(PYTHON) $(ACTIVE_SCRIPTS_DIR)/generate_provenance_goldens.py
 
+fixtures-release-validation-regression: check-tools fixtures-dirs
+	$(PYTHON) $(ACTIVE_SCRIPTS_DIR)/generate_release_validation_regression_fixtures.py --outdir "$(RELEASE_VALIDATION_OUTDIR)" --timestamp "$(RELEASE_VALIDATION_TIMESTAMP)" --seed "$(RELEASE_VALIDATION_SEED)"
+
+fixtures-large-differential-limma-trend: check-r-tools fixtures-dirs
+	$(RSCRIPT) $(ACTIVE_SCRIPTS_DIR)/generate_large_differential_limma_trend_fixture.R --outdir "$(LARGE_DIFFERENTIAL_LIMMA_TREND_OUTDIR)" --seed "$(RELEASE_VALIDATION_SEED)" --timestamp "$(RELEASE_VALIDATION_TIMESTAMP)" --n_features "$(LARGE_DIFFERENTIAL_LIMMA_TREND_FEATURES)"
+
 test-seams: check-tools
 	$(PYTEST) -q \
 		tests/parity/test_prediction_science_parity.py \
 		tests/parity/test_adaptive_prediction_parity.py \
 		tests/parity/test_adaptive_replay_parity.py
 
-fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference
+fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference fixtures-release-validation-regression fixtures-large-differential-limma-trend
 
 build: check-tools
 	$(RM_RF) dist

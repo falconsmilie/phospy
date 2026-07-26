@@ -1,0 +1,22 @@
+{
+  "classification": "regression",
+  "minimum_scoring_substrates": 2,
+  "substrate_support_classes": {
+    "below_minimum": [
+      "K_BELOW",
+      "K_SPARSE"
+    ],
+    "at_minimum": [
+      "K_AT"
+    ],
+    "above_minimum": [
+      "K_ABOVE"
+    ]
+  },
+  "ssgsea_expected_support": {
+    "K_SSGSEA_HIGH": 2,
+    "K_SSGSEA_LOW": 2
+  },
+  "localisation_attrition_site": "KIN5;S5;",
+  "external_reference": null
+}

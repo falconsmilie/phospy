@@ -15,6 +15,16 @@ For CI-aligned dependency resolution:
 pip install -c constraints/ci.txt -e ".[dev,test]"
 ```
 
+For minimum supported dependency validation, use the dedicated lower-bound
+constraint file rather than the current pinned CI stack:
+
+```bash
+pip install -c constraints/minimum.txt -e ".[test]"
+python -m pip check
+pytest -m "not parity"
+pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"
+```
+
 For full release checks, install the release extras first. The maintainer
 release command is `make release-check`; it runs normal lint, type, unit,
 parity, performance, release/golden/reproducibility, checked-in reference,
@@ -136,6 +146,20 @@ Active fixture roots:
 Regeneration scripts should be deterministic and should say which fixture family
 they update. Generated benchmark reports belong in `benchmarks/reports/`, which
 is ignored by git.
+
+Release-validation fixtures added under `tests/fixtures/` must keep their
+classification explicit:
+
+- external parity fixtures must record the external implementation and version,
+  generation command, seed, timestamp/source policy, generator SHA-256, and
+  file SHA-256 hashes.
+- PhosPy regression/golden/performance fixtures must not be described as
+  external parity unless an external expected-output source is actually used and
+  documented.
+- The large differential trend parity fixture is regenerated with
+  `make fixtures-large-differential-limma-trend`.
+- Compact PhosPy release-validation regression fixtures are regenerated with
+  `make fixtures-release-validation-regression`.
 
 ## Source and Release Archive Hygiene
 

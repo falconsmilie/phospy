@@ -31,6 +31,12 @@ promoted into the release selector. `make test-release-gates` selects
 `tests/release` and `tests/golden` explicitly with
 `release_gate or golden or reproducibility`.
 
+CI runs the non-parity, threshold-bearing parity, release/golden, and
+performance release-science selectors on Python 3.10, 3.11, and 3.12. A
+separate Python 3.10 minimum-dependency lane uses `constraints/minimum.txt`,
+runs `pip check`, then runs the non-parity suite and release/golden selectors
+that do not require external scientific tools.
+
 ## Read This First
 
 1. [Test Audit Rubric](./test_audit_rubric.md): scoring and decision criteria used across the audit.

@@ -1,0 +1,52 @@
+{
+  "manifest_schema_version": "fixture-manifest-v1",
+  "fixture_family": "differential_limma_trend_large",
+  "classification": "external_parity",
+  "external_implementation": {
+    "name": "R limma",
+    "r_version": "R version 4.5.2 (2025-10-31 ucrt)",
+    "limma_version": "3.66.0"
+  },
+  "generator": "scripts/active/generate_large_differential_limma_trend_fixture.R",
+  "generator_sha256": "88c7926acccec4ea15ea8d1d04691b9f7d06b97b8f8e789c495a99201d2fe188",
+  "command": "Rscript scripts/active/generate_large_differential_limma_trend_fixture.R --outdir tests\\fixtures\\rewrite_parity\\differential_limma_trend_large --seed 20260724 --timestamp 2026-07-24T00:00:00Z --n_features 1600",
+  "seed": 20260724,
+  "generation_timestamp_utc": "2026-07-24T00:00:00Z",
+  "source_policy": "synthetic deterministic fixture generated locally; no network access; limma outputs are the external scientific authority for parity columns",
+  "design": {
+    "formula": "~0 + condition",
+    "contrast": "B_vs_A = B - A",
+    "condition_levels": ["A", "B"],
+    "sample_ids": ["A_01", "A_02", "A_03", "A_04", "A_05", "B_01", "B_02", "B_03", "B_04", "B_05", "B_06", "B_07"],
+    "sample_counts": {"A": 5, "B": 7},
+    "n_features": 1600,
+    "mean_variance_trend": "feature residual variance increases smoothly with mean intensity plus sinusoidal structure",
+    "truth_sets": {"positive_shift_every": 16, "negative_shift_every": 29, "negative_shift_offset": 8}
+  },
+  "files": [
+    {
+      "relative_path": "matrix.csv",
+      "sha256": "5b7f66c24d1e2e64d3ac283329406ee268ba8e13bfccc30df8c7510e5de79768"
+    },
+    {
+      "relative_path": "design.csv",
+      "sha256": "306022275b705d53c92d8756ef16179cf05d1628d803c51703725772e054708e"
+    },
+    {
+      "relative_path": "contrasts.csv",
+      "sha256": "04f14ace5306a611af23610f8233a61468a76907d1765a56955a25245aaf7d6f"
+    },
+    {
+      "relative_path": "limma_B_vs_A.csv",
+      "sha256": "adfc068b80c5c3a7d8e1bd1baa76c9fa7724b601e63b04a2a53137c0310625ed"
+    },
+    {
+      "relative_path": "simulation_diagnostics.csv",
+      "sha256": "663f091a6250511f7cac9c0252e3fee9eb04b35e1a3626d9632954d0b66b71ab"
+    },
+    {
+      "relative_path": "PROVENANCE.md",
+      "sha256": "7a2a60d3b0555afb4a5e72f31020374bb599f80002cfbfa33d9977fb050286cd"
+    }
+  ]
+}

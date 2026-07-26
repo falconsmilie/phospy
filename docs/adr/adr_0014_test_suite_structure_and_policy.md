@@ -58,6 +58,9 @@ PhosPy test categories remain:
 `parity`, `tests/release`, `tests/golden`, and `tests/performance` remain
 outside the default local pytest invocation and are selected by explicit release
 targets.
+PhosPy-owned release-validation science contracts that are not external parity
+may live under `tests/science` and carry `release_gate` when they protect
+adverse scientific cases.
 
 ### Public-Boundary Adversarial Governance
 
@@ -135,6 +138,13 @@ targets.
 6. A collection-only selector audit must compare actual pytest node IDs and
    effective markers against the authoritative release targets so
    release-blocking tests cannot be missed silently.
+7. CI must run the release-science selectors on every supported Python version
+   for the non-parity suite, threshold-bearing parity suite, release/golden
+   gates, and performance contracts unless a performance waiver is documented.
+8. CI must include a maintained minimum-dependency lane that uses a dedicated
+   lower-bound constraint file rather than the current pinned CI constraints,
+   runs `pip check`, and executes the non-parity plus release/golden selectors
+   that do not require external scientific tools.
 
 ### Why Release-Gate Is the Correct Policy
 
@@ -166,6 +176,11 @@ targets.
 - `tests/architecture/test_public_boundary_integrity.py`
 - `tests/unit/test_public_boundary_adversarial.py`
 - `tests/performance/test_performance_contracts.py`
+- `tests/performance/test_end_to_end_release_scale_contract.py`
+- `tests/science/test_differential_adverse_design_contracts.py`
+- `tests/science/test_evidence_resolution_regression_fixtures.py`
+- `tests/science/test_kinase_sparse_support_regression_fixtures.py`
+- `tests/science/test_signalome_safety_regression_fixtures.py`
 - `tests/support/performance_contracts.py`
 - `tools/testing/release_selector_coverage.py`
 - `docs/testing/public_boundary_invariant_checklist.md`
@@ -174,6 +189,9 @@ targets.
 - `docs/testing/pytest_markers.md`
 - `Makefile` (`release-check`, `test-release-gates`, `test-performance`)
 - `.github/workflows/publish.yml` (release-gate enforcement)
+- `.github/workflows/ci.yml` (supported-version release-science matrix and
+  minimum-dependency lane)
+- `constraints/minimum.txt`
 - `src/phospy/science/signalomes/clustering/scale_guards.py`
 - `pyproject.toml`
 
@@ -198,6 +216,8 @@ Future changes must satisfy all the following:
    adversarial probes?
 8. Does the selector coverage audit still prove that every release-blocking
    collected node is selected by at least one authoritative release target?
+9. Do supported Python and minimum-dependency CI lanes still reflect the
+   declared support policy?
 
 ## References
 

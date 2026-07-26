@@ -30,6 +30,16 @@ All notable changes to this project are documented here.
   through dataset properties, builder reports, workflow results, and provenance
   records.
 
+### Added
+
+- Added a large-feature R/limma differential trend parity fixture, PhosPy-owned
+  release-validation regression fixture families for evidence resolution,
+  sparse kinase support, and signalome safety, plus a 50,000-site by 48-sample
+  end-to-end builder/differential performance contract.
+- Added `constraints/minimum.txt` and a Python 3.10 CI lane that installs the
+  project with test dependencies under declared lower-bound pins, runs
+  `pip check`, and executes non-parity plus release/golden selectors.
+
 ### Fixed
 
 - Added the `test-release-gates` target to `make release-check` and a
@@ -60,6 +70,10 @@ All notable changes to this project are documented here.
   `phospy.science.tables`, with generic `TableSchema` infrastructure under
   `phospy.frames`. Supported `phospy.tables.*` imports are preserved as
   identity-preserving compatibility re-exports.
+- Expanded CI release-science coverage so the default non-parity suite,
+  threshold-bearing parity suite, release/golden gates, and performance
+  contracts run on Python 3.10, 3.11, and 3.12. Build and publication remain
+  single-artifact flows.
 
 ### Documentation
 

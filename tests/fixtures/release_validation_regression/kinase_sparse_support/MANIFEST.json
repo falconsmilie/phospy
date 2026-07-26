@@ -1,0 +1,41 @@
+{
+  "manifest_schema_version": "fixture-manifest-v1",
+  "fixture_family": "kinase_sparse_support",
+  "classification": "regression",
+  "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
+  "generator_sha256": "ccb74c1d7fab89b23833db01c522770d839ef7b292973e366e8af46a131cb176",
+  "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
+  "seed": 20260724,
+  "generation_timestamp_utc": "2026-07-24T00:00:00Z",
+  "source_policy": "deterministic PhosPy regression contract fixture; not external parity",
+  "software_versions": {
+    "python": "3.12.10"
+  },
+  "notes": "Kinase sparse-support regression inputs covering below/at/above substrate minima, sparse reference overlap, leave-one-out versus self-including profile policy, localisation attrition, production threshold failure, and ssGSEA activity with/without permutation significance.",
+  "files": [
+    {
+      "relative_path": "phospho.csv",
+      "sha256": "d892a31c731c6543a13654a2b99f5ef3ad6e816fd85e8dc133b06b5c41b8c214"
+    },
+    {
+      "relative_path": "site_metadata.csv",
+      "sha256": "7e1020c404eb3927fd42ff9da7a51d2c3595d86f67ee53d1386e219f74afff15"
+    },
+    {
+      "relative_path": "substrate_map.csv",
+      "sha256": "27cc112969b6bdfb8d54569ae9566c9fc8fa50dae4c6c9e5117de6d180ccaea6"
+    },
+    {
+      "relative_path": "site_sequences.csv",
+      "sha256": "fc9f60d19bb51557f4405054873ffc702aede583a8c0d89ec827b3a6da6075a8"
+    },
+    {
+      "relative_path": "ssgsea_effect_matrix.csv",
+      "sha256": "3873d4aba4db8133aa17a799a523160e5fb43ecdda0f9ea8ba4c6a097c05082e"
+    },
+    {
+      "relative_path": "expected_contracts.json",
+      "sha256": "7a750ffbd628399970c2759c1a3f24b898d0ae226450797c72fbed683e716b85"
+    }
+  ]
+}

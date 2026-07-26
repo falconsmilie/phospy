@@ -214,6 +214,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     workflow = _read(".github/workflows/ci.yml")
     clean_install = _workflow_job_block(workflow, "clean-constrained-install")
     default_suite = _workflow_job_block(workflow, "default-suite")
+    activity_parity = _workflow_job_block(workflow, "activity-parity-gate")
     hard_parity = _workflow_job_block(workflow, "parity-tests")
     diagnostics = _workflow_job_block(workflow, "parity-diagnostics")
     performance = _workflow_job_block(workflow, "performance-contracts")
@@ -223,9 +224,15 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
 
     _assert_supported_python_matrix(clean_install)
     _assert_supported_python_matrix(default_suite)
+    _assert_supported_python_matrix(activity_parity)
+    _assert_supported_python_matrix(hard_parity)
+    _assert_supported_python_matrix(performance)
+    _assert_supported_python_matrix(release_gates)
+    assert "python-version: '3.10'" in diagnostics
     assert "make test-performance" in performance
     assert "make validate-reference-bundles" in reference_bundles
     assert "make test-release-gates" in release_gates
+    assert '-m "parity and activity_parity"' in activity_parity
     assert '-m "parity and not parity_diagnostic"' in hard_parity
     assert "continue-on-error: true" not in hard_parity
     assert "continue-on-error: true" in diagnostics

@@ -22,7 +22,7 @@ MAINTAINER_PYTHON_SCRIPTS = ACTIVE_PYTHON_SCRIPTS + [
     REPO_ROOT / "scripts" / "run_pyright.py",
     SUPPORT_SCRIPT_DIR / "public_workflow_reference.py",
 ]
-ACTIVE_R_SCRIPT = ACTIVE_SCRIPT_DIR / "generate_r_l6_fixtures.R"
+ACTIVE_R_SCRIPTS = sorted(ACTIVE_SCRIPT_DIR.glob("*.R"))
 SCRIPTS_README = REPO_ROOT / "scripts" / "README.md"
 
 LOCAL_IMPORT_ROOTS = {"phospy", "tests", "scripts"}
@@ -47,6 +47,13 @@ GENERATOR_OUTPUT_TOKENS: dict[str, tuple[str, ...]] = {
         "signalome_rewrite_l6_contract.json",
         "signalome_rewrite_l6_module_assignments.csv",
     ),
+    "generate_release_validation_regression_fixtures.py": (
+        "tests/fixtures/release_validation_regression",
+        "evidence_resolution/peptide_evidence.csv",
+        "evidence_resolution/MANIFEST.json",
+        "kinase_sparse_support/substrate_map.csv",
+        "signalome_safety/clustering_missing_dimensions.csv",
+    ),
 }
 GENERATOR_SOURCE_MARKERS: dict[str, tuple[str, ...]] = {
     "generate_l6_prediction_parity_fixtures.py": (
@@ -68,6 +75,13 @@ GENERATOR_SOURCE_MARKERS: dict[str, tuple[str, ...]] = {
         "DEFAULT_OUTPUT_DIR",
         "contract_path",
         "signalome_rewrite_l6_contract.json",
+    ),
+    "generate_release_validation_regression_fixtures.py": (
+        "DEFAULT_OUTPUT_DIR",
+        "release_validation_regression",
+        "evidence_resolution",
+        "kinase_sparse_support",
+        "signalome_safety",
     ),
 }
 GENERATOR_OUTPUT_PATHS: dict[str, tuple[Path, ...]] = {
@@ -120,6 +134,44 @@ GENERATOR_OUTPUT_PATHS: dict[str, tuple[Path, ...]] = {
         / "fixtures"
         / "public_workflow_reference"
         / "signalome_rewrite_l6_module_assignments.csv",
+    ),
+    "generate_release_validation_regression_fixtures.py": (
+        REPO_ROOT
+        / "tests"
+        / "fixtures"
+        / "release_validation_regression"
+        / "evidence_resolution"
+        / "peptide_evidence.csv",
+        REPO_ROOT
+        / "tests"
+        / "fixtures"
+        / "release_validation_regression"
+        / "evidence_resolution"
+        / "MANIFEST.json",
+        REPO_ROOT
+        / "tests"
+        / "fixtures"
+        / "release_validation_regression"
+        / "kinase_sparse_support"
+        / "substrate_map.csv",
+        REPO_ROOT
+        / "tests"
+        / "fixtures"
+        / "release_validation_regression"
+        / "kinase_sparse_support"
+        / "MANIFEST.json",
+        REPO_ROOT
+        / "tests"
+        / "fixtures"
+        / "release_validation_regression"
+        / "signalome_safety"
+        / "clustering_missing_dimensions.csv",
+        REPO_ROOT
+        / "tests"
+        / "fixtures"
+        / "release_validation_regression"
+        / "signalome_safety"
+        / "MANIFEST.json",
     ),
 }
 
@@ -258,13 +310,22 @@ def test_active_generators_do_not_write_fixtures_on_import(script_path: Path) ->
     )
 
 
-def test_active_r_script_is_present_and_documented() -> None:
-    assert ACTIVE_R_SCRIPT.exists(), "expected active R maintainer script to exist"
-    source = _read_source(ACTIVE_R_SCRIPT)
+def test_active_r_script_inventory_is_non_empty() -> None:
+    assert ACTIVE_R_SCRIPTS, "expected active R maintainer scripts"
+
+
+@pytest.mark.parametrize(
+    "script_path",
+    ACTIVE_R_SCRIPTS,
+    ids=lambda path: path.relative_to(REPO_ROOT).as_posix(),
+)
+def test_active_r_scripts_are_present_and_documented(script_path: Path) -> None:
+    assert script_path.exists(), "expected active R maintainer script to exist"
+    source = _read_source(script_path)
     assert "required_pkgs" in source, "R script must declare required package contract"
     readme = _read_source(SCRIPTS_README)
-    assert ACTIVE_R_SCRIPT.name in readme, (
-        f"scripts/README.md must document {ACTIVE_R_SCRIPT.name}"
+    assert script_path.name in readme, (
+        f"scripts/README.md must document {script_path.name}"
     )
 
 

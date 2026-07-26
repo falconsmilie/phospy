@@ -1,0 +1,7 @@
+peptide_row_id,site_id,mapping_weight,mapping_uncertainty
+pep_equal,MAPK1;S10;,0.5,true
+pep_equal,MAPK1;T12;,0.5,true
+pep_unequal,MAPK1;S10;,0.25,true
+pep_unequal,MAPK1;T12;,0.75,true
+pep_single_low,MAPK1;S10;,1.0,false
+pep_single_high,MAPK1;S10;,1.0,false

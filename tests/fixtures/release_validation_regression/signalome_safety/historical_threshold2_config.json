@@ -1,0 +1,31 @@
+{
+  "signalome_config": {
+    "scientific": {
+      "substrate_support_cutoff": 0.5,
+      "assignment_policy": "cutoff_binary"
+    },
+    "clustering": {
+      "module_count": null,
+      "module_selection_primary_correlation_threshold": 0.5,
+      "module_selection_fallback_correlation_threshold": 0.1,
+      "module_selection_max_clusters": 10,
+      "candidate_scoring_policy": "full",
+      "clustering_engine": "exact_python"
+    },
+    "validation": {
+      "score_preconditioning_policy": "error_on_drop",
+      "allow_mixed_total_protein_quantitative_meaning": false,
+      "reference_context_compatibility_policy": "require_known_match"
+    },
+    "output": {
+      "network_correlation_threshold": 0.5,
+      "network_policy": "signed",
+      "network_min_paired_finite_observations": 2,
+      "network_min_paired_finite_observations_effective": 2
+    },
+    "performance": {
+      "max_exact_tree_sites": 2000,
+      "max_full_candidate_scoring_sites": 2000
+    }
+  }
+}

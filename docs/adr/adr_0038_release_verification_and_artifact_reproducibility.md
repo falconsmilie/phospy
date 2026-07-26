@@ -21,6 +21,10 @@ test, while no longer providing formal exact-source/exact-artifact attestation.
 The active release command is `make release-check`; release/golden tests are
 selected through `make test-release-gates`, not the superseded
 `make test-release-gate` command named in this historical decision.
+Current CI also keeps a supported-version release-science matrix and a
+dedicated Python 3.10 minimum-dependency lane under ADR-0039. Those current
+checks are active release confidence controls even though this ADR's former
+exact-source/exact-artifact attestation system remains superseded.
 
 ## Context
 
@@ -59,6 +63,10 @@ Release verification requires:
 The Pyright development requirement in `pyproject.toml` and the CI constraint
 in `constraints/ci.txt` must move together. CI type checking must install the
 constrained development environment instead of bypassing constraints.
+The current minimum-dependency lane is intentionally separate from
+`constraints/ci.txt`; it uses `constraints/minimum.txt` to test declared
+lower-bound runtime/test dependencies rather than the current reproducible CI
+stack.
 
 ## Consequences
 

@@ -38,6 +38,8 @@ Current active parity coverage includes:
 
 - differential phosphorylation (`tests/parity/test_differential_analysis_parity.py`)
 - differential parity envelope contracts (`tests/parity/test_differential_limma_parity.py`)
+- large-feature differential trend parity against R/limma
+  (`tests/parity/test_differential_limma_trend_large.py`)
 - kinase scoring and prediction surfaces:
   `tests/parity/test_kinase_workflow_parity.py`,
   `tests/parity/test_prediction_science_parity.py`,
@@ -76,6 +78,11 @@ validated PhosPy implementations:
   PhosR-equivalent SPS/RUV-III parity.
 - Differential fixed-effect batch covariates are ordinary model terms. They are
   not a data-cleaning batch-correction step.
+- Release-validation fixtures under
+  `tests/fixtures/release_validation_regression/` are PhosPy regression
+  contracts. They cover adverse differential designs, peptide evidence
+  resolution, sparse kinase support, and signalome safety behavior without
+  claiming external parity.
 - `ruv_readiness` is diagnostic/report-only metadata readiness reporting. It is
   not RUV/SPS/RUV-III correction support.
 
@@ -83,9 +90,10 @@ validated PhosPy implementations:
 
 | Lane | Main fixture/evidence scope |
 | --- | --- |
-| Differential | Two-condition unpaired simple contrasts and related limma-envelope checks (`tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`) |
-| Kinase scoring/prediction | L6 and public workflow reference lanes (`tests/fixtures/rewrite_parity/r_reference_l6/`, `tests/fixtures/public_workflow_reference/`) |
-| Signalome | Public workflow reference and backend parity lanes (`tests/fixtures/public_workflow_reference/`) |
+| Differential | Two-condition unpaired simple contrasts and related limma-envelope checks (`tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`), plus the large-feature trend fixture (`tests/fixtures/rewrite_parity/differential_limma_trend_large/`) |
+| Release-validation regression | PhosPy-owned regression fixtures for evidence resolution, sparse kinase support, and signalome safety (`tests/fixtures/release_validation_regression/`) |
+| Kinase scoring/prediction | L6 and public workflow reference lanes (`tests/fixtures/rewrite_parity/r_reference_l6/`, `tests/fixtures/public_workflow_reference/`) plus sparse-support regression fixtures under `tests/fixtures/release_validation_regression/kinase_sparse_support/` |
+| Signalome | Public workflow reference and backend parity lanes (`tests/fixtures/public_workflow_reference/`) plus safety regression fixtures under `tests/fixtures/release_validation_regression/signalome_safety/` |
 | Activity parity | Activity-stage parity fixtures and threshold-bearing checks in `tests/parity/test_activity_stage_parity.py` |
 
 Run the blocking parity suite with:
@@ -141,7 +149,8 @@ pytest tests/parity -m "parity_diagnostic" -s
 | Parity tests | `tests/parity/` |
 | Shared parity helpers | `tests/support/` |
 | Public workflow reference fixtures | `tests/fixtures/public_workflow_reference/` |
-| Differential limma parity fixtures | `tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/` |
+| Differential limma parity fixtures | `tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`, `tests/fixtures/rewrite_parity/differential_limma_trend_large/` |
+| PhosPy release-validation regression fixtures | `tests/fixtures/release_validation_regression/` |
 | Regeneration scripts | `scripts/active/` |
 
 ## Differential Parity Envelope Notes
@@ -156,6 +165,8 @@ pytest tests/parity -m "parity_diagnostic" -s
   - two-condition unpaired simple contrasts (`B_vs_A`, `A_vs_B`)
   - small-`n` moderated-statistics behavior
   - unequal-variance feature handling
+  - the >1,024-feature empirical-Bayes trend branch through a 1,600-feature
+    R/limma fixture with unbalanced 5/7 condition groups
   - Benjamini-Hochberg adjusted p-values for fixtures whose rows are all tested
     and contrast ordering/sign conventions
 - PhosPy withholds all-constant feature rows before differential model fitting.
@@ -169,11 +180,44 @@ pytest tests/parity -m "parity_diagnostic" -s
   rows document a PhosPy safety policy, not a limma parity surface.
 - This tested-row comparison scope does not claim that PhosPy reproduces all
   limma edge-case behavior for constant or otherwise untestable features.
-- Differential parity comparisons use explicit floating-point tolerances in
+- Small differential parity fixtures use explicit floating-point tolerances in
   parity tests (`rtol=1e-6`, `atol=1e-8`).
+- The large trend fixture compares exact condition coefficients at
+  `rtol=1e-10`, `atol=1e-10` because the fitted condition coefficients are
+  scientifically equivalent ordinary least-squares quantities. Moderated
+  quantities use drift-envelope checks because limma and PhosPy use different
+  trend smoothers: moderated-t correlation > 0.995, negative-log10-p
+  correlation > 0.98, standard-error correlation > 0.94,
+  log-prior-variance correlation > 0.90, median p-value absolute difference
+  < 0.015, p99 p-value absolute difference < 0.08, p99 adjusted-p-value
+  absolute difference < 0.15, and p99 standard-error absolute difference
+  < 0.035.
 - Missing-value handling is an intentional contract difference:
   `AnalysisReadyPhosphoDataset` requires complete matrices, so missing values
   are rejected before differential execution.
+
+### Large Differential Trend Fixture Provenance
+
+The checked-in large trend fixture was generated by:
+
+```bash
+Rscript scripts/active/generate_large_differential_limma_trend_fixture.R --outdir tests/fixtures/rewrite_parity/differential_limma_trend_large --seed 20260724 --timestamp 2026-07-24T00:00:00Z --n_features 1600
+```
+
+Its manifest records R version `4.5.2`, limma version `3.66.0`, seed
+`20260724`, output file SHA-256 hashes, generator SHA-256, the explicit
+`~0 + condition` design, and contrast `B_vs_A = B - A`. Only the exported
+limma scientific result columns are external-reference comparison targets;
+simulation diagnostics are sanity metadata.
+
+The PhosPy-owned regression fixtures were generated by:
+
+```bash
+python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724
+```
+
+Those fixtures are classified as `regression` in their manifests and are not
+external parity evidence.
 
 ## Open Gaps
 

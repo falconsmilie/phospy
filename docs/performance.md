@@ -6,13 +6,14 @@ identical runtime on every machine.
 
 ## Target Dataset Scale Contract
 
-PhosPy currently targets two practical execution scales for release-checked
+PhosPy currently targets three practical execution scales for release-checked
 scientific workflows:
 
 | Scale | Phosphosites | Samples | Conditions | Missingness in raw phospho input | Reference bundle workload | Kinase scoring workload | Signalome graph/network workload |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Smoke (CI sanity) | ~800 | ~8 | 2 | ~8% | up to ~60 eligible kinases plus off-lane background map | score/predict from ~800 x 60 site-kinase support matrix | module/network outputs from ~150-300 interpreted sites and up to ~40 retained kinases |
 | Medium (release contract) | ~3,000 | ~12 | 4 | ~18% | up to ~100 eligible kinases plus large off-lane background map (hundreds of extra kinases) | score/predict from ~2,000 to ~3,000 sites x ~100 candidate kinases | module/network outputs from a few hundred interpreted sites and up to ~100 retained kinases; dense edge tables can reach thousands of rows |
+| End-to-end release scale | 50,000 | 48 | 2 | ~3% | no bundled reference lookup; public dataset builder plus differential workflow | not exercised in this contract | not exercised in this contract |
 
 These targets are intentionally conservative for CI stability and are designed
 to catch major regressions without changing scientific semantics, validation
@@ -29,6 +30,7 @@ requirements, or provenance capture.
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
+| End-to-end release-scale builder plus differential | 50,000 sites x 48 samples with realistic site/sample metadata, log2 transform, median centering, row-median missing-data imputation, provenance/fingerprinting, and one two-condition differential contrast | Sum of builder preprocessing, provenance hashing, and differential fitting over all retained rows | 50,000 x 48 | < 1,200 seconds and < 4 GiB Python-tracked peak memory | Dense input/output matrices, metadata tables, preprocessing reports, provenance fingerprints, and one full differential result table | No hidden approximation; this contract intentionally uses public builder/workflow entrypoints | Fails if shape, provenance completeness, row status, runtime, or tracemalloc peak-memory contract is violated |
 | Motif scoring | dataset sites; eligible kinases; sequence window width | Approximately O(sites x eligible kinases) after reference filtering | 2,000 sites x 100 kinases | None | Motif-library and score matrices scale with kinase count | Kinases without valid motif support are naturally excluded | Validation errors for malformed sequence/reference inputs |
 | Profile scoring | sites x samples; kinase substrate supports | Dominated by correlation computations; typically O(sites x kinases x samples) | 2,000 to 5,000 sites; 8 to 12 samples | No hard scale guard in scoring stage | Dense downstream score matrices can be large | Profile-only fallback remains available when motif evidence is absent | Boundary errors when no eligible scoring/prediction candidates remain |
 | Adaptive prediction | prediction score matrix (sites x kinases); candidate substrates per kinase; ensemble runs | Roughly O(candidate kinases x ensemble runs x sites x kinases) | 2,000 x 100 with fixed seed | No explicit size guard; bounded by config (`adaptive_ensemble_runs`, `n_iterations`) | Repeated train/test allocations per ensemble run | Deterministic seeded sampling (`prediction_config.random_state`) | Raises workflow-stage/boundary errors for empty candidates, missing random seed, or dependency issues |
@@ -89,6 +91,10 @@ when its scientific semantics are acceptable.
 - Performance thresholds and representative fixture sizes are centralized in
   `tests/support/performance_contracts.py`.
 - CI performance tests live in `tests/performance/`.
+- The end-to-end release-scale contract lives in
+  `tests/performance/test_end_to_end_release_scale_contract.py` and emits
+  wall-clock, tracemalloc peak-memory, final-shape, and RSS-availability
+  diagnostics through pytest reporting.
 - Local benchmark scripts live in `benchmarks/` and report plain `key=value` or
   JSONL metrics without affecting production logic.
 - DataFrame ownership copy behavior is tracked by

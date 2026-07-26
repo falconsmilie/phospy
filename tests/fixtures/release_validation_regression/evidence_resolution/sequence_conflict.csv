@@ -1,0 +1,3 @@
+peptide_row_id,site_id,unique_feature_id,gene_symbol,protein_accession,site_string,sample_a,sample_b,peptide_sequence,modified_peptide_sequence,multi_site,provenance_source,site_sequence,localisation_confidence
+seq_1,AKT1;S473;,feat_seq_1,AKT1,P31749,S473,10.0,12.0,PEPTIDE1,PEP[+80]TIDE1,false,release-validation-regression,AAASAAA,0.91
+seq_2,AKT1;S473;,feat_seq_2,AKT1,P31749,S473,20.0,24.0,PEPTIDE2,PEP[+80]TIDE2,false,release-validation-regression,CCCSCCC,0.92

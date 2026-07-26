@@ -1,0 +1,5 @@
+site_id,condition_positive,condition_negative
+KIN1;S1;,4.0,1.0
+KIN2;S2;,3.0,2.0
+KIN3;S3;,2.0,3.0
+KIN4;S4;,1.0,4.0

@@ -23,6 +23,21 @@ DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM = "sha256-float-round-8dp-v1"
 _MISSING_SENTINEL = "<MISSING>"
 _FLOAT_HASH_DECIMAL_PLACES = 8
 _SITE_METADATA_PROVENANCE_IGNORED_COLUMNS = ("display_id", "site_key")
+_KIND_VALUE_PREFIX_BYTES = {
+    kind: b'{"kind":"' + kind.encode("ascii") + b'","value":'
+    for kind in (
+        "bool",
+        "bytes",
+        "datetime",
+        "datetime64",
+        "decimal",
+        "float",
+        "int",
+        "missing",
+        "str",
+        "timedelta64",
+    )
+}
 _PANDAS_MISSING_SCALAR_TYPES = (
     str,
     bytes,
@@ -80,7 +95,7 @@ def _hash_table(
     values = table.to_numpy(dtype=object, copy=False)
     for row in values:
         for value in row:
-            _update(hasher, _normalize_value(value, round_floats=round_floats))
+            _update_table_scalar(hasher, value, round_floats=round_floats)
     return hasher.hexdigest()
 
 
@@ -244,6 +259,171 @@ def _update(hasher: hashlib._Hash, payload: Any) -> None:  # type: ignore[attr-d
     ).encode("utf-8")
     hasher.update(encoded)
     hasher.update(b"\n")
+
+
+def _update_normalized_payload(
+    hasher: hashlib._Hash,  # type: ignore[attr-defined]
+    payload: JsonValue,
+) -> None:
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    hasher.update(encoded)
+    hasher.update(b"\n")
+
+
+def _update_table_scalar(
+    hasher: hashlib._Hash,  # type: ignore[attr-defined]
+    value: object,
+    *,
+    round_floats: bool,
+) -> None:
+    """Update a table hash for common scalar cells without changing bytes.
+
+    Table hashing normalizes each cell to a small `{"kind": ..., "value": ...}`
+    JSON object and appends a newline. The generic `_update()` path is retained
+    for uncommon nested/object values, but provenance-scale matrices are almost
+    entirely strings, numbers, booleans, and missing values. Encoding those
+    shapes directly preserves the existing stable-json wire format while
+    avoiding millions of recursive immutability checks and object-level JSON
+    serialisations in large release fixtures.
+    """
+
+    if value is None or value is pd.NaT:
+        _update_kind_value_string(hasher, "missing", _MISSING_SENTINEL)
+        return
+    if isinstance(value, bool):
+        _update_kind_value_literal(hasher, "bool", b"true" if value else b"false")
+        return
+    if isinstance(value, int):
+        _update_kind_value_literal(hasher, "int", str(int(value)).encode("ascii"))
+        return
+    if isinstance(value, np.integer):
+        _update_kind_value_literal(hasher, "int", str(int(value)).encode("ascii"))
+        return
+    if isinstance(value, float):
+        _update_float_scalar(hasher, float(value), round_floats=round_floats)
+        return
+    if isinstance(value, np.floating):
+        _update_float_scalar(hasher, float(value), round_floats=round_floats)
+        return
+    if isinstance(value, Decimal):
+        _update_kind_value_string(hasher, "decimal", format(value, "f"))
+        return
+    if isinstance(value, str):
+        _update_kind_value_string(hasher, "str", value)
+        return
+    if isinstance(value, bytes):
+        _update_kind_value_string(
+            hasher,
+            "bytes",
+            value.decode("utf-8", errors="replace"),
+        )
+        return
+    if isinstance(value, (datetime, date, time)):
+        _update_kind_value_string(hasher, "datetime", value.isoformat())
+        return
+    if isinstance(value, np.datetime64):
+        if bool(np.isnat(value)):
+            _update_kind_value_string(hasher, "missing", _MISSING_SENTINEL)
+            return
+        _update_kind_value_string(
+            hasher,
+            "datetime64",
+            pd.Timestamp(value).isoformat(),
+        )
+        return
+    if isinstance(value, np.timedelta64):
+        if bool(np.isnat(value)):
+            _update_kind_value_string(hasher, "missing", _MISSING_SENTINEL)
+            return
+        _update_kind_value_string(hasher, "timedelta64", str(pd.Timedelta(value)))
+        return
+    if _is_missing_scalar(value):
+        _update_kind_value_string(hasher, "missing", _MISSING_SENTINEL)
+        return
+    _update_normalized_payload(
+        hasher,
+        _normalize_value(value, round_floats=round_floats),
+    )
+
+
+def _update_float_scalar(
+    hasher: hashlib._Hash,  # type: ignore[attr-defined]
+    value: float,
+    *,
+    round_floats: bool,
+) -> None:
+    if math.isnan(value):
+        _update_kind_value_ascii_string_unchecked(hasher, "missing", _MISSING_SENTINEL)
+        return
+    if math.isinf(value):
+        _update_kind_value_ascii_string_unchecked(
+            hasher,
+            "float",
+            "Infinity" if value > 0.0 else "-Infinity",
+        )
+        return
+    _update_kind_value_ascii_string_unchecked(
+        hasher,
+        "float",
+        (
+            _normalize_float_string(value)
+            if round_floats
+            else _normalize_exact_float_string(value)
+        ),
+    )
+
+
+def _update_kind_value_string(
+    hasher: hashlib._Hash,  # type: ignore[attr-defined]
+    kind: str,
+    value: str,
+) -> None:
+    _update_kind_value_literal(hasher, kind, _json_scalar_bytes(value))
+
+
+def _update_kind_value_ascii_string_unchecked(
+    hasher: hashlib._Hash,  # type: ignore[attr-defined]
+    kind: str,
+    value: str,
+) -> None:
+    """Update a JSON string literal when the caller knows escaping is unnecessary."""
+
+    _update_kind_value_literal(hasher, kind, b'"' + value.encode("ascii") + b'"')
+
+
+def _update_kind_value_literal(
+    hasher: hashlib._Hash,  # type: ignore[attr-defined]
+    kind: str,
+    value_json: bytes,
+) -> None:
+    hasher.update(_KIND_VALUE_PREFIX_BYTES[kind])
+    hasher.update(value_json)
+    hasher.update(b"}\n")
+
+
+def _json_scalar_bytes(value: str) -> bytes:
+    if _is_json_safe_ascii(value):
+        return b'"' + value.encode("ascii") + b'"'
+    return json.dumps(
+        value,
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _is_json_safe_ascii(value: str) -> bool:
+    return (
+        value.isascii()
+        and value.isprintable()
+        and '"' not in value
+        and "\\" not in value
+    )
 
 
 def _normalize_value(value: object, *, round_floats: bool) -> JsonValue:

@@ -1,0 +1,5 @@
+peptide_row_id,site_id,unique_feature_id,gene_symbol,protein_accession,site_string,sample_a,sample_b,peptide_sequence,modified_peptide_sequence,multi_site,provenance_source,site_sequence,localisation_confidence
+pep_equal,MAPK1;S10;,feat_equal,MAPK1,P28482,"S10,T12",10.0,12.0,AAASTTAAAA,AAA[+80]STTAAAA,true,release-validation-regression,,0.9
+pep_unequal,MAPK1;S10;,feat_unequal,MAPK1,P28482,"S10,T12",20.0,24.0,CCCSATCCCC,CCC[+80]SATCCCC,true,release-validation-regression,,0.92
+pep_single_low,MAPK1;S10;,feat_single_low,MAPK1,P28482,S10,30.0,32.0,GGGSGGG,GGG[+80]SGGG,false,release-validation-regression,AAASAAA,0.95
+pep_single_high,MAPK1;S10;,feat_single_high,MAPK1,P28482,S10,50.0,52.0,HHHSHHH,HHH[+80]SHHH,false,release-validation-regression,AAASAAA,0.97
