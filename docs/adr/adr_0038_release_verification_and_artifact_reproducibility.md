@@ -25,6 +25,10 @@ Current CI also keeps a supported-version release-science matrix and a
 dedicated Python 3.10 minimum-dependency lane under ADR-0039. Those current
 checks are active release confidence controls even though this ADR's former
 exact-source/exact-artifact attestation system remains superseded.
+The active ADR-0039 performance policy also separates ordinary production
+runtime from tracemalloc-instrumented peak-memory measurement for the 50,000 x
+48 release-scale contract. Instrumented runtime is reported and timeout-bounded
+but is not compared with the ordinary runtime budget.
 
 ## Context
 

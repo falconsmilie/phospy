@@ -230,7 +230,9 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     _assert_supported_python_matrix(performance)
     _assert_supported_python_matrix(release_gates)
     assert "python-version: '3.10'" in diagnostics
+    assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance
+    assert "PHOSPY_RELEASE_SCALE_INSTRUMENTED_TIMEOUT_SECONDS: '1800'" in performance
     assert "make validate-reference-bundles" in reference_bundles
     assert "runs-on: ${{ matrix.os }}" in fixture_integrity
     assert "os: [ubuntu-latest, windows-latest]" in fixture_integrity

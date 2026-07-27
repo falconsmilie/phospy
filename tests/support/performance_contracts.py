@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import time
 import tracemalloc
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
@@ -19,6 +22,14 @@ class KnnImputationBenchmarkTier(NamedTuple):
     missing_target_rows: int
     missing_cells_per_target_row: int
     runtime_seconds_max: float
+
+
+class SubprocessResourceMeasurement(NamedTuple):
+    returncode: int
+    stdout: str
+    stderr: str
+    elapsed_seconds: float
+    peak_rss_mib: float | None
 
 
 # Representative performance fixture dimensions (CI-safe, scientifically realistic).
@@ -125,8 +136,12 @@ DIFFERENTIAL_WORKFLOW_MEDIUM_PEAK_MIB_MAX = 640.0
 END_TO_END_RELEASE_SCALE_N_SITES = 50_000
 END_TO_END_RELEASE_SCALE_N_SAMPLES = 48
 END_TO_END_RELEASE_SCALE_MISSING_FRACTION = 0.03
+# Ordinary production-runtime budget. The release-scale contract intentionally
+# does not compare tracemalloc-instrumented runtime against this threshold.
 END_TO_END_RELEASE_SCALE_RUNTIME_SECONDS_MAX = 1_200.0
 END_TO_END_RELEASE_SCALE_PEAK_MIB_MAX = 4_096.0
+END_TO_END_RELEASE_SCALE_INSTRUMENTED_TIMEOUT_SECONDS = 1_800.0
+END_TO_END_RELEASE_SCALE_RSS_POLL_INTERVAL_SECONDS = 0.5
 
 EMPIRICAL_BAYES_TREND_SMALL_N_FEATURES = 1_000
 EMPIRICAL_BAYES_TREND_MEDIUM_N_FEATURES = 10_000
@@ -586,6 +601,21 @@ def median_runtime_seconds(
     return float(np.median(np.asarray(durations, dtype=float)))
 
 
+def measure_wall_clock(
+    func: Callable[[], object],
+    *,
+    warmup: bool = True,
+) -> tuple[object, float]:
+    """Measure ordinary wall-clock runtime without allocation tracing."""
+
+    if warmup:
+        func()
+    started = time.perf_counter()
+    result = func()
+    elapsed = time.perf_counter() - started
+    return result, float(elapsed)
+
+
 def measure_runtime_and_peak_mib(
     func: Callable[[], object],
     *,
@@ -631,6 +661,148 @@ def median_runtime_and_peak_mib(
     )
 
 
+def run_subprocess_with_peak_rss(
+    command: Sequence[str],
+    *,
+    timeout_seconds: float,
+    cwd: str | Path | None = None,
+    env: Mapping[str, str] | None = None,
+    poll_interval_seconds: float = END_TO_END_RELEASE_SCALE_RSS_POLL_INTERVAL_SECONDS,
+) -> SubprocessResourceMeasurement:
+    """Run a helper process while sampling RSS when the platform exposes it."""
+
+    if timeout_seconds <= 0.0:
+        raise ValueError("timeout_seconds must be > 0")
+    if poll_interval_seconds <= 0.0:
+        raise ValueError("poll_interval_seconds must be > 0")
+
+    started = time.perf_counter()
+    process = subprocess.Popen(  # noqa: S603
+        list(command),
+        cwd=None if cwd is None else str(cwd),
+        env=None if env is None else dict(env),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    deadline = started + float(timeout_seconds)
+    peak_rss_bytes: int | None = None
+    timed_out = False
+
+    while process.poll() is None:
+        rss_bytes = _process_rss_bytes(process.pid)
+        if rss_bytes is not None:
+            peak_rss_bytes = (
+                rss_bytes if peak_rss_bytes is None else max(peak_rss_bytes, rss_bytes)
+            )
+        now = time.perf_counter()
+        if now >= deadline:
+            timed_out = True
+            process.terminate()
+            break
+        time.sleep(min(float(poll_interval_seconds), max(0.0, deadline - now)))
+
+    try:
+        stdout, stderr = process.communicate(timeout=10.0)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        stdout, stderr = process.communicate(timeout=10.0)
+
+    elapsed = time.perf_counter() - started
+    if timed_out:
+        raise TimeoutError(
+            "subprocess did not complete within "
+            f"{float(timeout_seconds):.1f} seconds; stdout={stdout!r}; "
+            f"stderr={stderr!r}"
+        )
+
+    final_rss_bytes = _process_rss_bytes(process.pid)
+    if final_rss_bytes is not None:
+        peak_rss_bytes = (
+            final_rss_bytes
+            if peak_rss_bytes is None
+            else max(peak_rss_bytes, final_rss_bytes)
+        )
+
+    return SubprocessResourceMeasurement(
+        returncode=int(process.returncode),
+        stdout=stdout,
+        stderr=stderr,
+        elapsed_seconds=float(elapsed),
+        peak_rss_mib=(
+            None
+            if peak_rss_bytes is None
+            else float(peak_rss_bytes) / (1024.0 * 1024.0)
+        ),
+    )
+
+
+def _process_rss_bytes(pid: int) -> int | None:
+    if os.name == "posix":
+        return _posix_process_rss_bytes(pid)
+    if os.name == "nt":
+        return _windows_process_rss_bytes(pid)
+    return None
+
+
+def _posix_process_rss_bytes(pid: int) -> int | None:
+    status_path = Path(f"/proc/{int(pid)}/status")
+    try:
+        for line in status_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("VmRSS:"):
+                parts = line.split()
+                if len(parts) >= 2:
+                    return int(parts[1]) * 1024
+    except OSError:
+        return None
+    return None
+
+
+def _windows_process_rss_bytes(pid: int) -> int | None:
+    try:
+        import ctypes
+        from ctypes import wintypes
+    except ImportError:
+        return None
+
+    class ProcessMemoryCounters(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("PageFaultCount", wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    process_query_limited_information = 0x1000
+    process_vm_read = 0x0010
+    handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[attr-defined]
+        process_query_limited_information | process_vm_read,
+        False,
+        int(pid),
+    )
+    if not handle:
+        return None
+    try:
+        counters = ProcessMemoryCounters()
+        counters.cb = ctypes.sizeof(ProcessMemoryCounters)
+        ok = ctypes.windll.psapi.GetProcessMemoryInfo(  # type: ignore[attr-defined]
+            handle,
+            ctypes.byref(counters),
+            counters.cb,
+        )
+        if not ok:
+            return None
+        return int(counters.WorkingSetSize)
+    finally:
+        ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[attr-defined]
+
+
 def _cyclic_take(values: np.ndarray, *, start: int, count: int) -> np.ndarray:
     if values.size == 0:
         return np.asarray([], dtype=object)
@@ -670,9 +842,11 @@ __all__ = [
     "DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS",
     "DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER",
     "END_TO_END_RELEASE_SCALE_MISSING_FRACTION",
+    "END_TO_END_RELEASE_SCALE_INSTRUMENTED_TIMEOUT_SECONDS",
     "END_TO_END_RELEASE_SCALE_N_SAMPLES",
     "END_TO_END_RELEASE_SCALE_N_SITES",
     "END_TO_END_RELEASE_SCALE_PEAK_MIB_MAX",
+    "END_TO_END_RELEASE_SCALE_RSS_POLL_INTERVAL_SECONDS",
     "END_TO_END_RELEASE_SCALE_RUNTIME_SECONDS_MAX",
     "EMPIRICAL_BAYES_TREND_LARGE_N_FEATURES",
     "EMPIRICAL_BAYES_TREND_LARGE_PEAK_MIB_MAX",
@@ -720,6 +894,7 @@ __all__ = [
     "SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX",
     "SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX",
     "SIGNALOME_WORKFLOW_RUNTIME_SECONDS_MAX",
+    "SubprocessResourceMeasurement",
     "WORKFLOW_VALIDATION_LARGE_SEQUENCE_RUNTIME_SECONDS_MAX",
     "deterministic_analysis_ready_dataset_tables",
     "deterministic_analysis_ready_site_keys",
@@ -734,7 +909,9 @@ __all__ = [
     "deterministic_site_sequence_series",
     "median_runtime_and_peak_mib",
     "median_runtime_seconds",
+    "measure_wall_clock",
     "measure_runtime_and_peak_mib",
+    "run_subprocess_with_peak_rss",
     "with_missing_fraction",
     "WORKFLOW_MEDIUM_CONTRACT_MISSING_FRACTION",
     "WORKFLOW_MEDIUM_CONTRACT_N_CONDITIONS",

@@ -107,8 +107,7 @@ test-unit: check-tools
 	$(PYTEST) -m "not parity"
 
 test-parity: check-tools
-	$(PYTEST) tests/parity -m "parity" -s
-# 	 and not parity_diagnostic
+	$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s
 
 test-performance: check-tools
 	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"

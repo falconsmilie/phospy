@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import replace
+from datetime import date, datetime, time
+from decimal import Decimal
 
 import numpy as np
 import pandas as pd
@@ -9,6 +13,9 @@ import pytest
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import (
     _fingerprint_optional_table_with_normalized_axes,
+    _index_structure,
+    _normalize_value,
+    _update,
     fingerprint_table,
     hash_table_exact,
     hash_table_tolerance,
@@ -426,6 +433,61 @@ def test_tolerance_hash_can_stay_stable_for_sub_8dp_float_differences() -> None:
         second,
         name="dataset.phospho",
     )
+
+
+def test_table_hash_fast_scalar_path_matches_stable_json_reference() -> None:
+    table = pd.DataFrame(
+        {
+            "float": [1.123456789, np.nan, np.inf, -np.inf],
+            "integer": np.asarray([1, 2, 3, 4], dtype=np.int64),
+            "text": ["plain", 'needs"escaping', "unicode-μ", "slash\\value"],
+            "object": [
+                Decimal("1.2300"),
+                datetime(2026, 7, 27, 12, 30, 15),
+                date(2026, 7, 27),
+                (time(12, 30), {"nested": [1.123456789, "value"]}),
+            ],
+        },
+        index=pd.Index(["A;S1;", "B;T2;", "C;Y3;", "D;S4;"], name="site_id"),
+    )
+
+    assert hash_table_exact(table, name="mixed") == _reference_table_hash(
+        table,
+        name="mixed",
+        round_floats=False,
+    )
+    assert hash_table_tolerance(table, name="mixed") == _reference_table_hash(
+        table,
+        name="mixed",
+        round_floats=True,
+    )
+
+
+def _reference_table_hash(
+    table: pd.DataFrame,
+    *,
+    name: str,
+    round_floats: bool,
+) -> str:
+    hasher = hashlib.sha256()
+    _update(hasher, name)
+    _update(hasher, [int(table.shape[0]), int(table.shape[1])])
+    _update(hasher, _index_structure(table.index, round_floats=round_floats))
+    _update(hasher, _index_structure(table.columns, round_floats=round_floats))
+    _update(hasher, [str(dtype) for dtype in table.dtypes.tolist()])
+    values = table.to_numpy(dtype=object, copy=False)
+    for row in values:
+        for value in row:
+            encoded = json.dumps(
+                _normalize_value(value, round_floats=round_floats),
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+                allow_nan=False,
+            ).encode("utf-8")
+            hasher.update(encoded)
+            hasher.update(b"\n")
+    return hasher.hexdigest()
 
 
 def test_exact_hash_changes_when_row_order_changes() -> None:

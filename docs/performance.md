@@ -30,7 +30,7 @@ requirements, or provenance capture.
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
-| End-to-end release-scale builder plus differential | 50,000 sites x 48 samples with realistic site/sample metadata, log2 transform, median centering, row-median missing-data imputation, provenance/fingerprinting, and one two-condition differential contrast | Sum of builder preprocessing, provenance hashing, and differential fitting over all retained rows | 50,000 x 48 | < 1,200 seconds and < 4 GiB Python-tracked peak memory | Dense input/output matrices, metadata tables, preprocessing reports, provenance fingerprints, and one full differential result table | No hidden approximation; this contract intentionally uses public builder/workflow entrypoints | Fails if shape, provenance completeness, row status, runtime, or tracemalloc peak-memory contract is violated |
+| End-to-end release-scale builder plus differential | 50,000 sites x 48 samples with realistic site/sample metadata, log2 transform, median centering, row-median missing-data imputation, provenance/fingerprinting, and one two-condition differential contrast | Sum of request preparation, public builder execution, preprocessing/provenance fingerprinting, differential fitting, and result-table export over all retained rows | 50,000 x 48 | Ordinary production runtime < 1,200 seconds; tracemalloc peak < 4 GiB; instrumented memory probe completion timeout 1,800 seconds | Dense input/output matrices, metadata tables, preprocessing reports, provenance fingerprints, and one full differential result table | No hidden approximation; this contract intentionally uses public builder/workflow entrypoints | Fails if shape, provenance completeness, row status, ordinary runtime, memory-probe completion, or tracemalloc peak-memory contract is violated |
 | Motif scoring | dataset sites; eligible kinases; sequence window width | Approximately O(sites x eligible kinases) after reference filtering | 2,000 sites x 100 kinases | None | Motif-library and score matrices scale with kinase count | Kinases without valid motif support are naturally excluded | Validation errors for malformed sequence/reference inputs |
 | Profile scoring | sites x samples; kinase substrate supports | Dominated by correlation computations; typically O(sites x kinases x samples) | 2,000 to 5,000 sites; 8 to 12 samples | No hard scale guard in scoring stage | Dense downstream score matrices can be large | Profile-only fallback remains available when motif evidence is absent | Boundary errors when no eligible scoring/prediction candidates remain |
 | Adaptive prediction | prediction score matrix (sites x kinases); candidate substrates per kinase; ensemble runs | Roughly O(candidate kinases x ensemble runs x sites x kinases) | 2,000 x 100 with fixed seed | No explicit size guard; bounded by config (`adaptive_ensemble_runs`, `n_iterations`) | Repeated train/test allocations per ensemble run | Deterministic seeded sampling (`prediction_config.random_state`) | Raises workflow-stage/boundary errors for empty candidates, missing random seed, or dependency issues |
@@ -93,14 +93,65 @@ when its scientific semantics are acceptable.
 - CI performance tests live in `tests/performance/`.
 - The end-to-end release-scale contract lives in
   `tests/performance/test_end_to_end_release_scale_contract.py` and emits
-  wall-clock, tracemalloc peak-memory, final-shape, and RSS-availability
-  diagnostics through pytest reporting.
+  ordinary production wall-clock, segmented phase timings, separately measured
+  tracemalloc peak-memory, final-shape, tested-feature-count, and RSS diagnostics
+  through pytest reporting and
+  `build/reports/release-scale-performance-contract.json`.
+- The release-scale runtime budget is applied only to the uninstrumented
+  production execution. The separately identified tracemalloc execution reports
+  its runtime for diagnosis and must complete within its explicit CI timeout,
+  but that tracing-instrumented runtime is not compared with the production
+  runtime threshold.
+- The release-scale memory probe runs in a subprocess so the parent test can
+  sample process RSS where the platform exposes it (`/proc` on Linux CI and
+  Windows process counters locally). RSS is reported for capacity review; the
+  required memory gate remains Python-tracked tracemalloc peak memory.
 - Local benchmark scripts live in `benchmarks/` and report plain `key=value` or
   JSONL metrics without affecting production logic.
 - DataFrame ownership copy behavior is tracked by
   `benchmarks/measure_dataframe_ownership_copy_policy.py`, which reports
   shallow/deep copy counts and owner-mutation leak counts for representative
   borrowed-frame operations.
+
+## End-to-End Release-Scale Baseline Policy
+
+The release-scale gate preserves 50,000 sites, 48 samples, approximately 3%
+missingness, public builder construction, log2 transformation, median centering,
+row-median missing-data handling, provenance/fingerprinting, and one differential
+contrast.
+
+Current enforced budgets:
+
+| Metric | Budget | Applies to |
+| --- | --- | --- |
+| Production runtime | < 1,200 seconds | Uninstrumented request preparation + builder + differential + result-table export |
+| Python-tracked peak memory | < 4,096 MiB | Separate subprocess run with `tracemalloc` enabled |
+| Instrumented completion timeout | 1,800 seconds | Tracemalloc subprocess completion only; not a production-runtime budget |
+| Process RSS peak | Reported when available | Parent-side subprocess RSS sampling; no release threshold until a stable cross-platform baseline is established |
+
+The release-scale report records these phase timings:
+
+- `dataset_request_preparation_seconds`
+- `builder_execution_seconds`
+- `preprocessing_execution_seconds`
+- `preprocessing_report_assembly_seconds`
+- `provenance_fingerprinting_seconds`
+- `differential_execution_seconds`
+- `serialization_report_assembly_seconds`
+
+Latest local supported-version sanity observation, not a replacement for the
+required supported-CI artifact set: on 2026-07-27, Windows Python 3.12.10 passed
+the split contract with ordinary production runtime 299.484 seconds,
+tracemalloc peak 427.406 MiB, and sampled process RSS peak 1,288.086 MiB.
+
+Budget changes require retained reports from Python 3.10, 3.11, and 3.12 on the
+supported CI job, with two consecutive successful CI executions after the change.
+The budget must include a documented margin over the slowest supported-version
+ordinary production runtime and the highest supported-version tracemalloc peak.
+The per-version observations are the retained
+`performance-contracts-py3.10`, `performance-contracts-py3.11`, and
+`performance-contracts-py3.12` CI artifacts; unsupported-interpreter local
+measurements may explain investigation work but must not set release budgets.
 
 ## Execution and Release Policy
 

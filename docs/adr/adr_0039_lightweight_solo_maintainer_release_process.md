@@ -37,6 +37,21 @@ performance contracts, and release/golden gates on Python 3.10, 3.11, and 3.12.
 Build and packaged-artifact validation remain a dedicated single-version job so
 wheel publication is not duplicated.
 
+The performance-contract CI job is a release blocker and has an explicit job
+timeout. The 50,000-site x 48-sample end-to-end release-scale contract measures
+ordinary production wall-clock separately from a tracemalloc-instrumented memory
+probe. Only ordinary uninstrumented runtime is compared with the runtime budget.
+The instrumented run must still complete inside its explicit timeout and reports
+both Python-tracked peak memory and process RSS where the platform exposes RSS.
+Runtime and memory budget changes require retained Python 3.10, 3.11, and 3.12
+performance artifacts from two consecutive successful CI executions. Unsupported
+local interpreter measurements can guide profiling but do not establish release
+budgets.
+The 2026-07-27 local Windows Python 3.12.10 sanity run of the split release-scale
+contract completed with 299.484 seconds ordinary production runtime, 427.406 MiB
+tracemalloc peak, and 1,288.086 MiB sampled RSS peak; it is supporting evidence
+only and does not replace the required supported-CI artifact set.
+
 CI also includes a Python 3.10 minimum-dependency lane. That lane uses
 `constraints/minimum.txt`, not `constraints/ci.txt`, installs the project with
 test dependencies under declared lower-bound pins, runs `pip check`, and then

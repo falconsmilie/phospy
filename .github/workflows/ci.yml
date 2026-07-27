@@ -263,6 +263,7 @@ jobs:
   performance-contracts:
     needs: repo-hygiene
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -283,6 +284,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
       - name: Run performance contract tests
+        env:
+          PHOSPY_RELEASE_SCALE_INSTRUMENTED_TIMEOUT_SECONDS: '1800'
         run: make test-performance
       - name: Retain performance budget reports
         if: always()
