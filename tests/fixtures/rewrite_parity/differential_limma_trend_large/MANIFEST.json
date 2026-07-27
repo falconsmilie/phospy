@@ -8,11 +8,12 @@
     "limma_version": "3.66.0"
   },
   "generator": "scripts/active/generate_large_differential_limma_trend_fixture.R",
-  "generator_sha256": "88c7926acccec4ea15ea8d1d04691b9f7d06b97b8f8e789c495a99201d2fe188",
-  "command": "Rscript scripts/active/generate_large_differential_limma_trend_fixture.R --outdir tests\\fixtures\\rewrite_parity\\differential_limma_trend_large --seed 20260724 --timestamp 2026-07-24T00:00:00Z --n_features 1600",
+  "generator_sha256": "17eb99447b2b7cc33e8b76df3e2481031f795c96a7628ae68af824310e35a0e2",
+  "command": "Rscript scripts/active/generate_large_differential_limma_trend_fixture.R --outdir tests/fixtures/rewrite_parity/differential_limma_trend_large --seed 20260724 --timestamp 2026-07-24T00:00:00Z --n_features 1600",
   "seed": 20260724,
   "generation_timestamp_utc": "2026-07-24T00:00:00Z",
   "source_policy": "synthetic deterministic fixture generated locally; no network access; limma outputs are the external scientific authority for parity columns",
+  "byte_policy": "utf-8 LF with final newline",
   "design": {
     "formula": "~0 + condition",
     "contrast": "B_vs_A = B - A",
@@ -26,27 +27,27 @@
   "files": [
     {
       "relative_path": "matrix.csv",
-      "sha256": "5b7f66c24d1e2e64d3ac283329406ee268ba8e13bfccc30df8c7510e5de79768"
+      "sha256": "612a8d6d4920177e0c4eb818be9493b46e303c57ac229b30e7aeefd0860af5b2"
     },
     {
       "relative_path": "design.csv",
-      "sha256": "306022275b705d53c92d8756ef16179cf05d1628d803c51703725772e054708e"
+      "sha256": "3fe28d675ad2c29a15c2745e0ec8eb60ceb19ecca1a400a8cec5231610bd98e3"
     },
     {
       "relative_path": "contrasts.csv",
-      "sha256": "04f14ace5306a611af23610f8233a61468a76907d1765a56955a25245aaf7d6f"
+      "sha256": "11799905c056a7189e4c65f81c9c1b8ccecc33498c302081a6190cdab5981ebe"
     },
     {
       "relative_path": "limma_B_vs_A.csv",
-      "sha256": "adfc068b80c5c3a7d8e1bd1baa76c9fa7724b601e63b04a2a53137c0310625ed"
+      "sha256": "7579ef7a9fca9d30c353dc724ed0e5c1de81222a91b0b9caa1e4f23e883d7f44"
     },
     {
       "relative_path": "simulation_diagnostics.csv",
-      "sha256": "663f091a6250511f7cac9c0252e3fee9eb04b35e1a3626d9632954d0b66b71ab"
+      "sha256": "732c5f84e5d536cd8a721e8c2efa255ffa47b649ac1a15a2da676dcb1835504d"
     },
     {
       "relative_path": "PROVENANCE.md",
-      "sha256": "7a2a60d3b0555afb4a5e72f31020374bb599f80002cfbfa33d9977fb050286cd"
+      "sha256": "075aad56d25dc6ca024c91ebac0d1b2785f9d59747bdbef07d1e4555ac702a5d"
     }
   ]
 }

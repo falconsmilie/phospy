@@ -35,7 +35,9 @@ CI runs the non-parity, threshold-bearing parity, release/golden, and
 performance release-science selectors on Python 3.10, 3.11, and 3.12. A
 separate Python 3.10 minimum-dependency lane uses `constraints/minimum.txt`,
 runs `pip check`, then runs the non-parity suite and release/golden selectors
-that do not require external scientific tools.
+that do not require external scientific tools. Manifest-governed fixture byte
+integrity runs on both Ubuntu and Windows so release fixtures keep LF bytes
+across checkout platforms.
 
 ## Read This First
 

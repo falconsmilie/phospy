@@ -219,6 +219,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     diagnostics = _workflow_job_block(workflow, "parity-diagnostics")
     performance = _workflow_job_block(workflow, "performance-contracts")
     reference_bundles = _workflow_job_block(workflow, "reference-bundles")
+    fixture_integrity = _workflow_job_block(workflow, "fixture-integrity")
     release_gates = _workflow_job_block(workflow, "release-gates")
     build = _workflow_job_block(workflow, "build-distributions")
 
@@ -231,6 +232,17 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "python-version: '3.10'" in diagnostics
     assert "make test-performance" in performance
     assert "make validate-reference-bundles" in reference_bundles
+    assert "runs-on: ${{ matrix.os }}" in fixture_integrity
+    assert "os: [ubuntu-latest, windows-latest]" in fixture_integrity
+    assert "python-version: '3.12'" in fixture_integrity
+    assert (
+        "test_manifest_fixture_byte_reproducibility.py::"
+        "test_manifest_governed_fixtures_use_canonical_lf_bytes_and_valid_hashes"
+    ) in fixture_integrity
+    assert (
+        "test_large_limma_trend_fixture_manifest_hashes_match_checked_in_files"
+        in fixture_integrity
+    )
     assert "make test-release-gates" in release_gates
     assert '-m "parity and activity_parity"' in activity_parity
     assert '-m "parity and not parity_diagnostic"' in hard_parity

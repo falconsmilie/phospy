@@ -285,6 +285,16 @@ Current release-validation fixture families include:
 Each family carries a `MANIFEST.json` with file SHA-256 hashes. These files are
 test assets and must not be included as runtime package data.
 
+Manifest-governed text fixtures have one project-standard byte representation:
+UTF-8 text, LF line endings, and a final newline. This applies to CSV, JSON,
+Markdown, and fixture manifests in the release-validation fixture families.
+Generators must write those bytes explicitly and must hash the final bytes that
+were written. Integrity tests must hash checked-in bytes directly and must not
+normalize line endings at test time. Repository attributes pin the
+manifest-governed fixture directories, and the generator scripts whose source
+hashes are recorded in manifests, to LF checkouts so Windows and Linux produce
+the same fixture bytes.
+
 ## Non-Interchangeability Rules
 
 The three categories are intentionally non-interchangeable:

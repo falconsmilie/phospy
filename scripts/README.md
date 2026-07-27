@@ -24,6 +24,10 @@ provenance, and public-workflow reference generation.
 | `scripts/active/generate_r_l6_fixtures.R` | Regenerate R/PhosR-side L6 parity fixtures and prediction trace artefacts. | `tests/fixtures/rewrite_parity/r_reference_l6/` and `tests/fixtures/rewrite_parity/r_reference_l6/prediction_trace/` |
 | `scripts/run_pyright.py` | Resolve a suitable interpreter and run repository pyright checks. | No fixture output; forwards diagnostics to stdout/stderr. |
 
+Generators that write manifest-governed text fixtures must emit UTF-8 bytes
+with LF line endings and a final newline. They must hash the exact bytes they
+write, not platform-translated text-mode output.
+
 ## Support Modules
 
 - `scripts/support/public_workflow_reference.py`: shared helper for building

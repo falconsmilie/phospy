@@ -41,7 +41,8 @@ selected by explicit Makefile targets. The release check blocks release on:
 CI runs the default non-parity suite, threshold-bearing parity suite, release
 and golden gates, and performance contracts on each supported Python version:
 3.10, 3.11, and 3.12. Build and packaged-artifact validation remain a dedicated
-single-version release job.
+single-version release job. Manifest-governed fixture byte integrity also runs
+on both Ubuntu and Windows to catch checkout newline conversion regressions.
 
 CI also has a Python 3.10 minimum-dependency lane using
 `constraints/minimum.txt`. That lane installs the project with test

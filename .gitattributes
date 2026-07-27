@@ -2,3 +2,13 @@
 # Their manifest digests, rather than an EOL convention, define their bytes.
 src/phospy/data/reference_bundles/** -text
 src/phospy/data/reference_bundles/** -diff
+
+# Manifest-governed text fixtures use one canonical byte policy:
+# UTF-8 text with LF line endings and a final newline.
+tests/fixtures/release_validation_regression/** text eol=lf
+tests/fixtures/rewrite_parity/differential_limma_trend_large/** text eol=lf
+
+# These generators record their source SHA-256 in fixture manifests, so their
+# checked-out bytes must also be stable across platforms.
+scripts/active/generate_release_validation_regression_fixtures.py text eol=lf
+scripts/active/generate_large_differential_limma_trend_fixture.R text eol=lf

@@ -312,6 +312,31 @@ jobs:
       - name: Validate checked-in reference bundle manifests and files
         run: make validate-reference-bundles
 
+  fixture-integrity:
+    needs: repo-hygiene
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Run manifest-governed fixture integrity checks
+        run: python -m pytest -o addopts= tests/release/test_manifest_fixture_byte_reproducibility.py::test_manifest_governed_fixtures_use_canonical_lf_bytes_and_valid_hashes tests/science/test_evidence_resolution_regression_fixtures.py::test_evidence_resolution_fixture_manifest_hashes_match_files tests/science/test_kinase_sparse_support_regression_fixtures.py::test_kinase_sparse_support_fixture_manifest_hashes_match_files tests/science/test_signalome_safety_regression_fixtures.py::test_signalome_safety_fixture_manifest_hashes_match_files tests/parity/test_differential_limma_trend_large.py::test_large_limma_trend_fixture_manifest_hashes_match_checked_in_files
+
   release-gates:
     needs: repo-hygiene
     runs-on: ubuntu-latest

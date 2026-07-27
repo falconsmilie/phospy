@@ -6,8 +6,8 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import io
 import json
-import platform
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_DIR = ROOT / "tests" / "fixtures" / "release_validation_regression"
 DEFAULT_TIMESTAMP = "2026-07-24T00:00:00Z"
 DEFAULT_SEED = 20260724
+CANONICAL_TEXT_ENCODING = "utf-8"
+CANONICAL_TEXT_NEWLINE = "\n"
+CANONICAL_TEXT_BYTE_POLICY = "utf-8 LF with final newline"
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,17 +40,49 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_SEED,
         help="Recorded deterministic seed for fixture governance.",
     )
+    parser.add_argument(
+        "--manifest-outdir-label",
+        default=None,
+        help=argparse.SUPPRESS,
+    )
     return parser.parse_args()
+
+
+def _canonical_text_bytes(text: str) -> bytes:
+    normalized = text.replace("\r\n", CANONICAL_TEXT_NEWLINE).replace(
+        "\r", CANONICAL_TEXT_NEWLINE
+    )
+    if not normalized.endswith(CANONICAL_TEXT_NEWLINE):
+        normalized += CANONICAL_TEXT_NEWLINE
+    return normalized.encode(CANONICAL_TEXT_ENCODING)
+
+
+def _write_canonical_text(path: Path, text: str) -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = _canonical_text_bytes(text)
+    path.write_bytes(payload)
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _write_csv(
     path: Path, rows: list[dict[str, object]], columns: tuple[str, ...]
-) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(columns), lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
+) -> str:
+    handle = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        handle,
+        fieldnames=list(columns),
+        lineterminator=CANONICAL_TEXT_NEWLINE,
+    )
+    writer.writeheader()
+    writer.writerows(rows)
+    return _write_canonical_text(path, handle.getvalue())
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> str:
+    return _write_canonical_text(
+        path,
+        json.dumps(payload, indent=2, sort_keys=False),
+    )
 
 
 def _sha256(path: Path) -> str:
@@ -81,9 +116,8 @@ def _write_manifest(
         "source_policy": (
             "deterministic PhosPy regression contract fixture; not external parity"
         ),
-        "software_versions": {
-            "python": platform.python_version(),
-        },
+        "byte_policy": CANONICAL_TEXT_BYTE_POLICY,
+        "software_versions": {"python": "runtime-independent"},
         "notes": notes,
         "files": [
             {
@@ -93,10 +127,7 @@ def _write_manifest(
             for path in files
         ],
     }
-    (directory / "MANIFEST.json").write_text(
-        json.dumps(payload, indent=2, sort_keys=False) + "\n",
-        encoding="utf-8",
-    )
+    _write_json(directory / "MANIFEST.json", payload)
 
 
 def _evidence_rows() -> tuple[list[dict[str, object]], tuple[str, ...]]:
@@ -471,10 +502,7 @@ def generate_kinase_sparse_support_fixtures(
     effect_path = family_dir / "ssgsea_effect_matrix.csv"
     _write_csv(effect_path, rows, columns)
     expected_path = family_dir / "expected_contracts.json"
-    expected_path.write_text(
-        json.dumps(_kinase_expected_contracts(), indent=2, sort_keys=False) + "\n",
-        encoding="utf-8",
-    )
+    _write_json(expected_path, _kinase_expected_contracts())
 
     _write_manifest(
         directory=family_dir,
@@ -617,10 +645,7 @@ def generate_signalome_safety_fixtures(
     clustering_path = family_dir / "clustering_missing_dimensions.csv"
     _write_csv(clustering_path, rows, columns)
     snapshot_path = family_dir / "historical_threshold2_config.json"
-    snapshot_path.write_text(
-        json.dumps(_historical_threshold2_snapshot(), indent=2, sort_keys=False) + "\n",
-        encoding="utf-8",
-    )
+    _write_json(snapshot_path, _historical_threshold2_snapshot())
 
     _write_manifest(
         directory=family_dir,
@@ -649,9 +674,10 @@ def generate_signalome_safety_fixtures(
 def main() -> None:
     args = parse_args()
     outdir = Path(args.outdir)
+    manifest_outdir_label = args.manifest_outdir_label or Path(args.outdir).as_posix()
     command = (
         "python scripts/active/generate_release_validation_regression_fixtures.py "
-        f"--outdir {Path(args.outdir).as_posix()} "
+        f"--outdir {manifest_outdir_label} "
         f"--timestamp {args.timestamp} --seed {args.seed}"
     )
     generate_evidence_resolution_fixtures(

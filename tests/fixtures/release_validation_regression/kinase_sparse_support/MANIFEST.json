@@ -3,13 +3,14 @@
   "fixture_family": "kinase_sparse_support",
   "classification": "regression",
   "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
-  "generator_sha256": "ccb74c1d7fab89b23833db01c522770d839ef7b292973e366e8af46a131cb176",
+  "generator_sha256": "94e66e38e887bb677145a5b1016ed64dcf5a88d0da2f761b76ecef4c6c99c49b",
   "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
   "seed": 20260724,
   "generation_timestamp_utc": "2026-07-24T00:00:00Z",
   "source_policy": "deterministic PhosPy regression contract fixture; not external parity",
+  "byte_policy": "utf-8 LF with final newline",
   "software_versions": {
-    "python": "3.12.10"
+    "python": "runtime-independent"
   },
   "notes": "Kinase sparse-support regression inputs covering below/at/above substrate minima, sparse reference overlap, leave-one-out versus self-including profile policy, localisation attrition, production threshold failure, and ssGSEA activity with/without permutation significance.",
   "files": [
@@ -35,7 +36,7 @@
     },
     {
       "relative_path": "expected_contracts.json",
-      "sha256": "7a750ffbd628399970c2759c1a3f24b898d0ae226450797c72fbed683e716b85"
+      "sha256": "7627aa22c280b6e3c95b567e8e7c98849ed585ac4d833da5047fc654d2b4d636"
     }
   ]
 }

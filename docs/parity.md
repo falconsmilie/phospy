@@ -219,6 +219,13 @@ python scripts/active/generate_release_validation_regression_fixtures.py --outdi
 Those fixtures are classified as `regression` in their manifests and are not
 external parity evidence.
 
+The manifest-governed fixture families use project-standard text bytes: UTF-8, LF
+line endings, and a final newline. Manifest hashes are raw byte hashes of the
+checked-in files; parity and regression tests must not repair or normalize
+line endings before hashing. Use
+`tests/release/test_manifest_fixture_byte_reproducibility.py` to verify that
+regeneration into a temporary directory reproduces the checked-in bytes.
+
 ## Open Gaps
 
 Open gaps should be described as open gaps, not as partial equivalence. Common

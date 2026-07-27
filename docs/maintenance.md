@@ -161,6 +161,25 @@ classification explicit:
 - Compact PhosPy release-validation regression fixtures are regenerated with
   `make fixtures-release-validation-regression`.
 
+Manifest-governed text fixtures are exact-byte assets. Their project-standard byte
+policy is UTF-8 with LF line endings and a final newline for CSV, JSON,
+Markdown, and `MANIFEST.json` files. Generators must write bytes explicitly
+rather than relying on platform text-mode newline translation, and manifests
+must hash the final bytes written. Tests must validate raw checked-in bytes; do
+not normalize line endings before hashing. The repository pins
+`tests/fixtures/release_validation_regression/**`,
+`tests/fixtures/rewrite_parity/differential_limma_trend_large/**`, and the
+active generators that record source hashes to LF via `.gitattributes`.
+
+After changing a manifest-governed fixture generator, run the relevant
+regeneration target and the release fixture reproducibility gate:
+
+```bash
+make fixtures-release-validation-regression
+make fixtures-large-differential-limma-trend
+pytest -o addopts= tests/release/test_manifest_fixture_byte_reproducibility.py
+```
+
 ## Source and Release Archive Hygiene
 
 Source and release archives should be built from the tagged source state. Use a

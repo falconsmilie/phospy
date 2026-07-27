@@ -42,6 +42,10 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- Corrected manifest-governed release-validation fixture transport bytes to a
+  cross-platform UTF-8/LF/final-newline policy, regenerated affected fixture
+  manifests, and added Windows/Linux fixture-integrity coverage so
+  `make release-check` no longer depends on checkout newline conversion.
 - Added the `test-release-gates` target to `make release-check` and a
   collection-only selector audit so release-blocking `tests/release`,
   `tests/golden`, parity, and performance nodes cannot be omitted silently from

@@ -3,13 +3,14 @@
   "fixture_family": "signalome_safety",
   "classification": "regression",
   "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
-  "generator_sha256": "ccb74c1d7fab89b23833db01c522770d839ef7b292973e366e8af46a131cb176",
+  "generator_sha256": "94e66e38e887bb677145a5b1016ed64dcf5a88d0da2f761b76ecef4c6c99c49b",
   "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
   "seed": 20260724,
   "generation_timestamp_utc": "2026-07-24T00:00:00Z",
   "source_policy": "deterministic PhosPy regression contract fixture; not external parity",
+  "byte_policy": "utf-8 LF with final newline",
   "software_versions": {
-    "python": "3.12.10"
+    "python": "runtime-independent"
   },
   "notes": "Signalome safety regression inputs covering paired-observation network thresholds, all-missing dimension dropping, partial-missing median imputation, clustering invariance after all-missing dimension addition, and historical threshold-2 bundle config reconstruction without allowing new threshold-2 execution.",
   "files": [
@@ -31,7 +32,7 @@
     },
     {
       "relative_path": "historical_threshold2_config.json",
-      "sha256": "60daecfa36cd7be0d6ef4810fadec3eb5e1eb16012935dc676d0205b2fd5f1b2"
+      "sha256": "894151727dfa389fc26af8fbeba41665a8ccc0f97cce3a004368b71fbb707309"
     }
   ]
 }

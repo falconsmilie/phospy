@@ -20,7 +20,8 @@ read_args <- function() {
     outdir = "tests/fixtures/rewrite_parity/differential_limma_trend_large",
     seed = "20260724",
     timestamp = "2026-07-24T00:00:00Z",
-    n_features = "1600"
+    n_features = "1600",
+    "manifest-outdir-label" = NA_character_
   )
 
   if (length(args) == 0) {
@@ -50,6 +51,35 @@ script_path <- function() {
     return(NA_character_)
   }
   normalizePath(sub("^--file=", "", file_arg[[1]]), winslash = "/", mustWork = TRUE)
+}
+
+CANONICAL_TEXT_BYTE_POLICY <- "utf-8 LF with final newline"
+
+canonical_text <- function(text) {
+  normalized <- gsub("\r\n", "\n", text, fixed = TRUE)
+  normalized <- gsub("\r", "\n", normalized, fixed = TRUE)
+  if (!endsWith(normalized, "\n")) {
+    normalized <- paste0(normalized, "\n")
+  }
+  enc2utf8(normalized)
+}
+
+write_canonical_text <- function(text, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  con <- file(path, open = "wb")
+  on.exit(close(con), add = TRUE)
+  writeBin(charToRaw(canonical_text(text)), con, useBytes = TRUE)
+}
+
+write_canonical_lines <- function(lines, path) {
+  write_canonical_text(paste(lines, collapse = "\n"), path)
+}
+
+write_canonical_csv <- function(data, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  con <- file(path, open = "wb")
+  on.exit(close(con), add = TRUE)
+  write.csv(data, con, row.names = FALSE, eol = "\n")
 }
 
 json_escape <- function(value) {
@@ -117,6 +147,7 @@ write_manifest <- function(
     paste0("  \"seed\": ", json_scalar(seed), ","),
     paste0("  \"generation_timestamp_utc\": ", json_escape(timestamp), ","),
     "  \"source_policy\": \"synthetic deterministic fixture generated locally; no network access; limma outputs are the external scientific authority for parity columns\",",
+    paste0("  \"byte_policy\": ", json_escape(CANONICAL_TEXT_BYTE_POLICY), ","),
     "  \"design\": {",
     "    \"formula\": \"~0 + condition\",",
     "    \"contrast\": \"B_vs_A = B - A\",",
@@ -132,7 +163,7 @@ write_manifest <- function(
     "  ]",
     "}"
   )
-  writeLines(manifest, file.path(outdir, "MANIFEST.json"), useBytes = TRUE)
+  write_canonical_lines(manifest, file.path(outdir, "MANIFEST.json"))
 }
 
 recycle_to_features <- function(value, n_features) {
@@ -226,23 +257,20 @@ main <- function() {
     check.names = FALSE
   )
 
-  write.csv(
+  write_canonical_csv(
     data.frame(site_id = rownames(mat), mat, check.names = FALSE),
-    file.path(outdir, "matrix.csv"),
-    row.names = FALSE
+    file.path(outdir, "matrix.csv")
   )
-  write.csv(
+  write_canonical_csv(
     data.frame(sample = rownames(design), design, check.names = FALSE),
-    file.path(outdir, "design.csv"),
-    row.names = FALSE
+    file.path(outdir, "design.csv")
   )
-  write.csv(
+  write_canonical_csv(
     data.frame(coefficient = rownames(contrast_mat), contrast_mat, check.names = FALSE),
-    file.path(outdir, "contrasts.csv"),
-    row.names = FALSE
+    file.path(outdir, "contrasts.csv")
   )
-  write.csv(expected, file.path(outdir, "limma_B_vs_A.csv"), row.names = FALSE)
-  write.csv(diagnostics, file.path(outdir, "simulation_diagnostics.csv"), row.names = FALSE)
+  write_canonical_csv(expected, file.path(outdir, "limma_B_vs_A.csv"))
+  write_canonical_csv(diagnostics, file.path(outdir, "simulation_diagnostics.csv"))
 
   out_files <- c(
     "matrix.csv",
@@ -257,9 +285,13 @@ main <- function() {
   limma_version <- as.character(packageVersion("limma"))
   script <- script_path()
   script_sha256 <- ifelse(is.na(script), NA_character_, unname(tools::sha256sum(script)))
+  manifest_outdir_label <- args[["manifest-outdir-label"]]
+  if (is.na(manifest_outdir_label) || !nzchar(manifest_outdir_label)) {
+    manifest_outdir_label <- outdir
+  }
   command <- paste(
     "Rscript scripts/active/generate_large_differential_limma_trend_fixture.R",
-    "--outdir", outdir,
+    "--outdir", manifest_outdir_label,
     "--seed", seed,
     "--timestamp", timestamp,
     "--n_features", n_features
@@ -284,7 +316,7 @@ main <- function() {
     "",
     "Output files are listed with SHA-256 digests in `MANIFEST.json`."
   )
-  writeLines(provenance, con = file.path(outdir, "PROVENANCE.md"), useBytes = TRUE)
+  write_canonical_lines(provenance, file.path(outdir, "PROVENANCE.md"))
 
   write_manifest(
     outdir = outdir,
