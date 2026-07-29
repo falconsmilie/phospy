@@ -56,7 +56,7 @@ VALIDATION_RULE_OWNERS: tuple[ValidationRuleOwner, ...] = (
     ),
     ValidationRuleOwner(
         rule="sequence-aware workflow centred site-sequence context",
-        owner="enforce_centred_site_sequence_context",
+        owner="phospy.science.sites.sequence_context.enforce_site_sequence_context_contract",
     ),
     ValidationRuleOwner(
         rule="signalome result expanded_signalome field type/ownership",

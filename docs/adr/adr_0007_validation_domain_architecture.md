@@ -28,6 +28,16 @@ remains private and independently owned. Science and table modules no longer
 import concrete `phospy.validation` implementations; they either own local
 domain invariants or consume protocols wired by API/workflow adapters.
 
+Update note (2026-07-29, phosphosite identity and sequence-context ownership):
+Phosphosite identity contracts and workflow sequence-context semantics are
+science-owned. `phospy.science.sites.identity_contracts` owns the concrete
+`PhosphositeIdentityContract` class and shared identity enforcement.
+`phospy.science.sites.sequence_context` owns the concrete
+`SequenceContextContract` class, centered sequence-context enforcement,
+residue/window policy, and known sequence-source checks. Validation-package
+routes may compose or identity-preservingly re-export those objects, but must
+not define copies.
+
 ## Decision
 
 Validation ownership is explicit and enforced by module boundaries:
@@ -121,8 +131,15 @@ not optional commentary.
 - Shared structural primitives: `src/phospy/frames/validation.py`; legacy
   validation routes under `src/phospy/validation/common/` are compatibility
   wrappers.
-- Phosphosite-specific identifier/coherence validation owner:
-  `src/phospy/science/sites/validation.py`.
+- Phosphosite-specific identifier/coherence validation owners:
+  `src/phospy/science/sites/validation.py`,
+  `src/phospy/science/sites/metadata_validation.py`,
+  `src/phospy/science/sites/identity_contracts.py`, and
+  `src/phospy/science/sites/sequence_context.py`.
+  `src/phospy/validation/identity_contracts.py` and selected
+  `src/phospy/validation/datasets/site_metadata.py` names are compatibility
+  routes and must preserve object identity with those science-owned
+  implementations.
 - Differential design/contrast validation ownership:
   `src/phospy/validation/workflows/differential.py` plus
   `src/phospy/workflows/differential/validator.py`.

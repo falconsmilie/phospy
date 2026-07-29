@@ -199,6 +199,6 @@ def test_major_validation_rules_have_documented_owners() -> None:
     assert documented["dataset/intensity-scale-state coherence"]
     assert (
         documented["sequence-aware workflow centred site-sequence context"]
-        == "enforce_centred_site_sequence_context"
+        == "phospy.science.sites.sequence_context.enforce_site_sequence_context_contract"
     )
     assert documented["signalome result expanded_signalome field type/ownership"]

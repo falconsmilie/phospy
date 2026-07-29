@@ -380,8 +380,12 @@ Neutral consequences:
   `src/phospy/science/sites/site_keys.py`
 - Reference context and reference bundle models:
   `src/phospy/science/references/models.py`
-- Shared identity and reference-context validation:
-  `src/phospy/validation/identity_contracts.py`
+- Shared phosphosite identity and reference-context contract implementation:
+  `src/phospy/science/sites/identity_contracts.py`; the validation-package
+  route `src/phospy/validation/identity_contracts.py` is a compatibility
+  re-export.
+- Workflow phosphosite sequence-context contract implementation:
+  `src/phospy/science/sites/sequence_context.py`
 - Kinase and signalome workflow validators:
   `src/phospy/workflows/kinase/validator.py` and
   `src/phospy/workflows/signalome/validator.py`

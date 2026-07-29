@@ -27,6 +27,12 @@ from phospy.science.sites.identifiers import (
     canonicalize_site_series,
     try_parse_site_token,
 )
+from phospy.science.sites.sequence_context import (
+    WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
+    SequenceContextContract,
+    enforce_centred_site_sequence_context,
+    enforce_site_sequence_context_contract,
+)
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     decode_site_key,
@@ -42,8 +48,6 @@ ErrorType = TypeVar("ErrorType", bound=Exception)
 REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE = "reference_context_unknown"
 _SITE_POSITION_CANDIDATE_COLUMNS = ("position", "site_position")
 _SITE_KEY_INDEX_NAME = "site_key"
-_PHOSPHORYLATABLE_RESIDUES = frozenset({"S", "T", "Y"})
-_SUPPORTED_GAP_SEQUENCE_CHARACTERS = frozenset({"_", "-"})
 SITE_KEY_COLUMN = "site_key"
 DISPLAY_ID_COLUMN = "display_id"
 SITE_SEQUENCE_COLUMN = "site_sequence"
@@ -81,49 +85,6 @@ RESULT_IDENTITY_COLUMNS = (
     "protein_identifier",
     "gene_symbol",
     "site",
-)
-
-
-@dataclass(frozen=True, slots=True)
-class SequenceContextContract:
-    """Workflow-specific site-sequence context requirements."""
-
-    requires_site_sequence: bool
-    requires_centered_site: bool
-    required_window_length: int | None
-    center_index: int | None
-    allowed_residues: frozenset[str]
-    allow_terminal_padding: bool
-    allow_lowercase: bool
-    allow_modified_residue_symbols: bool
-    required_center_residues: frozenset[str]
-    requires_known_sequence_source: bool = False
-    contract_id: str = "sequence_context"
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "allowed_residues",
-            frozenset(str(item).upper() for item in self.allowed_residues),
-        )
-        object.__setattr__(
-            self,
-            "required_center_residues",
-            frozenset(str(item).upper() for item in self.required_center_residues),
-        )
-
-
-WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT = SequenceContextContract(
-    requires_site_sequence=True,
-    requires_centered_site=True,
-    required_window_length=None,
-    center_index=None,
-    allowed_residues=frozenset("ACDEFGHIKLMNPQRSTVWYX_-"),
-    allow_terminal_padding=True,
-    allow_lowercase=True,
-    allow_modified_residue_symbols=False,
-    required_center_residues=frozenset({"S", "T", "Y"}),
-    contract_id="workflow_centered_phosphosite_sequence_context",
 )
 
 
@@ -1163,208 +1124,6 @@ def _identity_incoherence_message(
     return (
         f"{context_label} is inconsistent with site_key "
         f"at row {row_position} ({row_label!r}) in {field_name}: {detail}"
-    )
-
-
-def enforce_site_sequence_context_contract(
-    *,
-    site_metadata: pd.DataFrame,
-    field_name: str,
-    workflow_name: str,
-    contract: SequenceContextContract,
-    error_type: type[ErrorType],
-    scoring_mode: str | None = None,
-    site_column: str = "site",
-    site_sequence_column: str = "site_sequence",
-    residue_column: str = "residue",
-    sequence_source_column: str = "site_sequence_source",
-    sequence_source_by_site: Mapping[Any, object] | None = None,
-    allow_unknown_site_residue: bool = False,
-) -> None:
-    """Enforce workflow/method-specific sequence context requirements."""
-
-    del sequence_source_column, sequence_source_by_site
-    if (
-        not contract.requires_site_sequence
-        and site_sequence_column not in site_metadata.columns
-    ):
-        return
-    if site_sequence_column not in site_metadata.columns:
-        raise error_type(
-            _sequence_contract_error_prefix(
-                field_name=field_name,
-                workflow_name=workflow_name,
-                scoring_mode=scoring_mode,
-                contract=contract,
-                site_sequence_column=site_sequence_column,
-            )
-            + f"missing required column={field_name}.{site_sequence_column}; "
-            f"affected_rows={int(site_metadata.shape[0])}; "
-            f"example_site_ids={_site_id_examples(site_metadata.index)}"
-        )
-    if contract.requires_centered_site:
-        enforce_centred_site_sequence_context(
-            site_metadata=site_metadata,
-            field_name=field_name,
-            workflow_name=workflow_name,
-            error_type=error_type,
-            site_column=site_column,
-            site_sequence_column=site_sequence_column,
-            residue_column=residue_column,
-            allow_gapped_sequence_context=contract.allow_terminal_padding,
-            allow_unknown_site_residue=allow_unknown_site_residue,
-        )
-    if contract.required_window_length is not None:
-        invalid_lengths = [
-            f"{site_id!r}:{site_metadata.at[site_id, site_sequence_column]!r}"
-            for site_id in site_metadata.index.tolist()
-            if (
-                sequence := _resolve_optional_sequence(
-                    site_metadata.at[site_id, site_sequence_column]
-                )
-            )
-            is None
-            or len(sequence) != contract.required_window_length
-        ]
-        if invalid_lengths:
-            raise error_type(
-                _sequence_contract_error_prefix(
-                    field_name=field_name,
-                    workflow_name=workflow_name,
-                    scoring_mode=scoring_mode,
-                    contract=contract,
-                    site_sequence_column=site_sequence_column,
-                )
-                + "sequence window length is unsupported; "
-                + _summarise_examples(invalid_lengths)
-            )
-
-
-def enforce_centred_site_sequence_context(
-    *,
-    site_metadata: pd.DataFrame,
-    field_name: str,
-    workflow_name: str,
-    error_type: type[ErrorType],
-    site_column: str = "site",
-    site_sequence_column: str = "site_sequence",
-    residue_column: str = "residue",
-    allow_gapped_sequence_context: bool = False,
-    allow_unknown_site_residue: bool = False,
-) -> None:
-    """Require centred residue context for sequence-aware execution."""
-
-    if site_sequence_column not in site_metadata.columns:
-        raise error_type(
-            f"{workflow_name} requires centred sequence context in "
-            f"{field_name}.{site_sequence_column}; "
-            f"missing required column={field_name}.{site_sequence_column}; "
-            f"affected_rows={int(site_metadata.shape[0])}; "
-            f"example_site_ids={_site_id_examples(site_metadata.index)}"
-        )
-
-    failures: list[str] = []
-    for site_id in site_metadata.index.tolist():
-        sequence = _resolve_optional_sequence(
-            site_metadata.at[site_id, site_sequence_column]
-        )
-        if sequence is None:
-            failures.append(f"{site_id!r}:missing_sequence")
-            continue
-        if len(sequence) % 2 == 0:
-            failures.append(f"{site_id!r}:{sequence!r}:even_length")
-            continue
-        unsupported = sorted(
-            {
-                character
-                for character in sequence
-                if not character.isalpha()
-                and not (
-                    allow_gapped_sequence_context
-                    and character in _SUPPORTED_GAP_SEQUENCE_CHARACTERS
-                )
-            }
-        )
-        if unsupported:
-            failures.append(
-                f"{site_id!r}:{sequence!r}:unsupported={''.join(unsupported)!r}"
-            )
-            continue
-        centre = sequence[len(sequence) // 2].upper()
-        if centre not in _PHOSPHORYLATABLE_RESIDUES:
-            failures.append(f"{site_id!r}:{sequence!r}:centre={centre!r}")
-            continue
-        expected = _expected_site_residue(
-            site_metadata=site_metadata,
-            site_id=site_id,
-            site_column=site_column,
-            residue_column=residue_column,
-        )
-        if expected is None:
-            if allow_unknown_site_residue:
-                continue
-            failures.append(f"{site_id!r}:unknown_expected_residue")
-            continue
-        if centre != expected:
-            failures.append(
-                f"{site_id!r}:expected={expected!r}:observed={centre!r}:"
-                f"sequence={sequence!r}"
-            )
-    if failures:
-        raise error_type(
-            f"{workflow_name} requires centred sequence context in "
-            f"{field_name}.{site_sequence_column}; " + _summarise_examples(failures)
-        )
-
-
-def _resolve_optional_sequence(value: object) -> str | None:
-    if _is_missing(value):
-        return None
-    sequence = str(value).strip()
-    return sequence.upper() if sequence else None
-
-
-def _expected_site_residue(
-    *,
-    site_metadata: pd.DataFrame,
-    site_id: object,
-    site_column: str,
-    residue_column: str,
-) -> str | None:
-    if residue_column in site_metadata.columns:
-        residue = str(site_metadata.at[site_id, residue_column]).strip().upper()
-        if residue:
-            return residue[0]
-    if site_column in site_metadata.columns:
-        parsed = try_parse_site_token(site_metadata.at[site_id, site_column])
-        if parsed is not None:
-            return parsed.residue.upper()
-    return None
-
-
-def _site_id_examples(index: pd.Index, *, limit: int = 5) -> str:
-    labels = [repr(value) for value in index.tolist()[:limit]]
-    suffix = "" if len(index) <= limit else " ..."
-    return "[" + ", ".join(labels) + suffix + "]"
-
-
-def _summarise_examples(values: list[str], *, limit: int = 5) -> str:
-    suffix = "" if len(values) <= limit else " ..."
-    return "examples=[" + ", ".join(values[:limit]) + suffix + "]"
-
-
-def _sequence_contract_error_prefix(
-    *,
-    field_name: str,
-    workflow_name: str,
-    scoring_mode: str | None,
-    contract: SequenceContextContract,
-    site_sequence_column: str,
-) -> str:
-    mode_text = "" if scoring_mode is None else f" scoring_mode={scoring_mode!r}"
-    return (
-        f"{workflow_name}{mode_text} requires sequence context "
-        f"{contract.contract_id!r} in {field_name}.{site_sequence_column}; "
     )
 
 

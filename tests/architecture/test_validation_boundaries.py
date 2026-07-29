@@ -55,6 +55,7 @@ from tests.support.site_keys import protein_site_key_index, site_key_context_col
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
+PACKAGE_ROOT = SRC_ROOT / "phospy"
 API_ROOT = SRC_ROOT / "phospy" / "api"
 CONTRACTS_ROOT = SRC_ROOT / "phospy" / "contracts"
 DOCS_ROOT = PROJECT_ROOT / "docs"
@@ -67,6 +68,14 @@ REQUEST_DTO_CONTRACT_PATHS = (REQUEST_CONTRACTS_PATH, DATASET_BUILD_CONTRACTS_PA
 DATASET_VALIDATION_PREFIX = "phospy.validation.datasets"
 VALIDATION_PREFIX = "phospy.validation"
 PRIVATE_IMPLEMENTATION_CLASS_SUFFIXES = ("Validator", "Interpreter", "Executor")
+IDENTITY_CONTRACT_CLASS_DEFINITION_OWNERS = {
+    "PhosphositeIdentityContract": (
+        SRC_ROOT / "phospy" / "science" / "sites" / "identity_contracts.py"
+    ),
+    "SequenceContextContract": (
+        SRC_ROOT / "phospy" / "science" / "sites" / "sequence_context.py"
+    ),
+}
 
 PUBLIC_BOUNDARY_MODULES = (
     ("phospy", phospy),
@@ -292,6 +301,18 @@ def _validation_owned_symbol_path(symbol: object) -> Path:
     return Path(inspect.getfile(symbol)).resolve()
 
 
+def _class_definition_paths(class_name: str) -> set[Path]:
+    paths: set[Path] = set()
+    for path in PACKAGE_ROOT.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        if any(
+            isinstance(node, ast.ClassDef) and node.name == class_name
+            for node in tree.body
+        ):
+            paths.add(path.resolve())
+    return paths
+
+
 def _minimal_analysis_ready_payload() -> dict[str, object]:
     site_index = protein_site_key_index(
         protein_identifiers=["MAPK14"],
@@ -486,9 +507,8 @@ def test_signalome_result_identity_validation_is_science_owned_and_workflow_comp
     assert "phospy.workflows" not in validation_source
 
 
-def test_reference_context_and_quantitative_validators_are_validation_owned() -> None:
+def test_quantitative_validators_are_validation_owned() -> None:
     validation_owned_symbols = (
-        validate_reference_context_compatibility,
         WorkflowQuantitativeInputContract,
         WorkflowQuantitativeInputValidator,
         kinase_profile_scoring_workflow_input_contract,
@@ -501,6 +521,34 @@ def test_reference_context_and_quantitative_validators_are_validation_owned() ->
             f"{VALIDATION_PREFIX}."
         )
         assert validation_root in _validation_owned_symbol_path(symbol).parents
+
+
+def test_phosphosite_identity_contracts_are_science_owned_and_validation_reexported() -> (
+    None
+):
+    import phospy.science.sites.identity_contracts as science_identity_contracts
+
+    assert (
+        identity_contracts.validate_reference_context_compatibility
+        is science_identity_contracts.validate_reference_context_compatibility
+    )
+    assert (
+        validate_reference_context_compatibility.__module__
+        == "phospy.science.sites.identity_contracts"
+    )
+
+
+def test_identity_contract_classes_have_single_concrete_owner() -> None:
+    observed = {
+        class_name: _class_definition_paths(class_name)
+        for class_name in IDENTITY_CONTRACT_CLASS_DEFINITION_OWNERS
+    }
+
+    expected = {
+        class_name: {owner.resolve()}
+        for class_name, owner in IDENTITY_CONTRACT_CLASS_DEFINITION_OWNERS.items()
+    }
+    assert observed == expected
 
 
 def test_reference_context_policy_is_not_exported_from_private_validation_api() -> None:

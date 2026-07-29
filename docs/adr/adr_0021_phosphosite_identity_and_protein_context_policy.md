@@ -98,6 +98,21 @@ Base validation deliberately does **not** guarantee odd-length windows,
 phosphorylatable centre residue, or centre/site token agreement. Those stricter
 rules remain owned by sequence-aware workflow identity contracts.
 
+The concrete science-owned implementations are:
+
+- `phospy.science.sites.metadata_validation.validate_site_sequence_column` for
+  base analysis-ready sequence plausibility.
+- `phospy.science.sites.identity_contracts.PhosphositeIdentityContract` for
+  reusable dataset/workflow/result phosphosite identity contracts.
+- `phospy.science.sites.sequence_context.SequenceContextContract` and
+  `phospy.science.sites.sequence_context.enforce_site_sequence_context_contract`
+  for workflow-specific centered context, residue/window policy, terminal
+  padding policy, site-token/centre agreement, and known sequence-source
+  requirements.
+
+Validation-package import routes are compatibility/composition routes only and
+must resolve to the same concrete contract objects.
+
 ### Compatibility
 
 Standardized `GENE;SITE;` parsing remains supported for display labels.
@@ -117,7 +132,9 @@ has a unique `site_key`.
 ## Workflow Requirements
 
 Workflow validators must compose shared identity validation through
-`src/phospy/validation/workflows/identity.py` and declare one explicit contract.
+`src/phospy/validation/workflows/identity.py`, which delegates to the
+science-owned identity and sequence-context contracts, and declare one explicit
+contract.
 
 | Workflow | Contract ID | Identity minimum | Required additions | Explicitly not required |
 | --- | --- | --- | --- | --- |
