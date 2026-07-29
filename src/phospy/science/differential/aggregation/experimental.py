@@ -1,45 +1,37 @@
-"""Experimental compatibility route for peptide-to-site differential aggregation.
+"""Backward-compatible import route for peptide-to-site estimate combination.
 
-This module is internal/experimental. It is intentionally not re-exported from
-``phospy.api``, ``phospy.science.differential``, or the
-``phospy.science.differential.aggregation`` package root.
-
-The retained implementation performs post-hoc aggregation of peptide-level
-differential statistics from the same experiment. It is not a supported
-production inferential lane while the statistical model is being corrected.
+The implementation is no longer the old experimental raw-table combiner. It
+delegates to the supported typed estimate model exposed from
+``phospy.science.differential.aggregation``.
 """
 
 from __future__ import annotations
 
 import pandas as pd
 
+from phospy.errors.input import PhosPyInputError
 from phospy.science.differential.aggregation.executor import (
     PeptideToSiteAggregationExecutor,
 )
 from phospy.science.differential.aggregation.models import (
     PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS,
-    PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
-    PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
-    PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED,
-    PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META,
-    PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z,
+    PeptideDifferentialEstimateTable,
     PeptideToSiteAggregationConfig,
     PeptideToSiteAggregationResult,
 )
-from phospy.science.differential.models import DifferentialAnalysisResult
-from phospy.science.evidence.models import PeptideEvidenceTable
 
-EXPERIMENTAL_INTERNAL_API = True
+EXPERIMENTAL_INTERNAL_API = False
 EXPERIMENTAL_INTERNAL_REASON = (
-    "Post-hoc same-experiment peptide meta-analysis is not a supported "
-    "site-level inferential lane while the statistical model is being corrected."
+    "The old raw-table post-hoc combiner was replaced by a supported typed "
+    "estimate-combination contract. Use phospy.science.differential.aggregation "
+    "or phospy.api imports for supported code."
 )
 
 
 class PeptideToSiteAggregator:
-    """Experimental/internal compatibility shell for post-hoc site summaries."""
+    """Supported shell for typed post-hoc peptide-to-site estimate combination."""
 
-    experimental_internal_api: bool = True
+    experimental_internal_api: bool = False
     scientific_support_status: str = PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS
 
     def __init__(
@@ -49,46 +41,82 @@ class PeptideToSiteAggregator:
     ) -> None:
         self._executor = executor or PeptideToSiteAggregationExecutor()
 
-    def run_table(
+    def run(
         self,
+        estimates: PeptideDifferentialEstimateTable | pd.DataFrame,
         *,
-        peptide_differential_table: pd.DataFrame,
-        evidence: PeptideEvidenceTable,
         config: PeptideToSiteAggregationConfig | None = None,
         contrast_name: str = "aggregated",
     ) -> PeptideToSiteAggregationResult:
+        resolved_estimates = _coerce_estimates(estimates)
         resolved_config = config or PeptideToSiteAggregationConfig()
-        return self._executor.run_table(
-            peptide_differential_table=peptide_differential_table,
-            evidence=evidence,
+        return self._executor.run_estimates(
+            estimates=resolved_estimates,
             config=resolved_config,
             contrast_name=contrast_name,
         )
 
-    def run_differential_result(
+    def run_estimates(
         self,
         *,
-        differential_result: DifferentialAnalysisResult,
-        evidence: PeptideEvidenceTable,
+        estimates: PeptideDifferentialEstimateTable | pd.DataFrame,
         config: PeptideToSiteAggregationConfig | None = None,
-    ) -> dict[str, PeptideToSiteAggregationResult]:
-        resolved_config = config or PeptideToSiteAggregationConfig()
-        return self._executor.run_differential_result(
-            differential_result=differential_result,
-            evidence=evidence,
-            config=resolved_config,
+        contrast_name: str = "aggregated",
+    ) -> PeptideToSiteAggregationResult:
+        return self.run(
+            estimates,
+            config=config,
+            contrast_name=contrast_name,
         )
+
+    def run_table(
+        self,
+        *,
+        estimate_table: PeptideDifferentialEstimateTable | pd.DataFrame | None = None,
+        estimates: PeptideDifferentialEstimateTable | pd.DataFrame | None = None,
+        peptide_differential_table: pd.DataFrame | None = None,
+        evidence: object | None = None,
+        config: PeptideToSiteAggregationConfig | None = None,
+        contrast_name: str = "aggregated",
+    ) -> PeptideToSiteAggregationResult:
+        if peptide_differential_table is not None or evidence is not None:
+            raise PhosPyInputError(
+                "raw peptide_differential_table + evidence aggregation is no "
+                "longer supported because it would infer uncertainty from "
+                "logFC/t. Build a PeptideDifferentialEstimateTable with typed "
+                "standard_error, degrees of freedom, source_experiment_id, "
+                "dependence_policy, and peptide_to_site_mapping_policy."
+            )
+        resolved = estimate_table if estimate_table is not None else estimates
+        if resolved is None:
+            raise PhosPyInputError(
+                "peptide-to-site aggregation requires estimate_table or estimates"
+            )
+        return self.run(
+            resolved,
+            config=config,
+            contrast_name=contrast_name,
+        )
+
+
+def _coerce_estimates(
+    value: PeptideDifferentialEstimateTable | pd.DataFrame,
+) -> PeptideDifferentialEstimateTable:
+    if isinstance(value, PeptideDifferentialEstimateTable):
+        return value
+    if isinstance(value, pd.DataFrame):
+        return PeptideDifferentialEstimateTable(value)
+    raise PhosPyInputError(
+        "peptide-to-site aggregation estimates must be a "
+        "PeptideDifferentialEstimateTable or pandas DataFrame"
+    )
 
 
 __all__ = [
     "EXPERIMENTAL_INTERNAL_API",
     "EXPERIMENTAL_INTERNAL_REASON",
     "PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS",
-    "PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE",
-    "PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META",
-    "PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED",
-    "PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META",
-    "PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z",
+    "PeptideDifferentialEstimateTable",
     "PeptideToSiteAggregationConfig",
     "PeptideToSiteAggregationResult",
     "PeptideToSiteAggregator",

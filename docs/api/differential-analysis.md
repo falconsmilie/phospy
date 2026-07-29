@@ -28,10 +28,13 @@ Good fits:
 This workflow is not a dataset builder, peptide-to-site resolver, imputation
 engine, broad batch-correction method, `duplicateCorrelation` implementation, or
 mixed-effects model.
-It also does not provide supported post-hoc peptide-to-site differential
-aggregation. Run supported differential analysis on validated analysis-ready
-site-level rows rather than treating peptide-level differential statistics as
-production site-level inference.
+For PhosPy-origin peptide evidence, the supported peptide-to-site route is still
+to resolve peptide intensities into analysis-ready site rows during dataset
+building, then run this workflow. A narrow advanced post-hoc estimate-combination
+route exists only for typed peptide-level differential estimates with explicit
+standard errors, finite degrees of freedom, source run identifiers, dependence
+policy, and peptide-to-site mapping policy. Same-experiment peptide estimates are
+rejected by that route because same-sample peptide dependence is not modelled.
 
 ## Inputs
 
@@ -140,6 +143,76 @@ contrast.
 indicate stronger evidence after accounting for the number of tested features in
 that contrast, but the adjusted value is not an effect size. Report the method
 and thresholds used in your analysis.
+
+## Peptide-to-Site Differential Evidence
+
+Preferred PhosPy-origin lane:
+
+1. Build the dataset with `site_resolution_mode="peptide_evidence"`,
+   `peptide_evidence_sample_intensity_columns=...`, and an explicit
+   `multi_site_policy`.
+2. Let dataset building resolve peptide evidence into site-level sample
+   intensities with provenance.
+3. Run `DifferentialAnalysisWorkflow` on the resulting
+   `AnalysisReadyPhosphoDataset`.
+
+The advanced post-hoc lane is for already-fitted peptide-level estimates from
+independent source experiments or runs:
+
+```python
+import pandas as pd
+
+from phospy.science.differential.aggregation import (
+    PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
+    PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
+    PeptideDifferentialEstimateTable,
+    PeptideToSiteAggregationConfig,
+    PeptideToSiteAggregator,
+)
+
+estimates = PeptideDifferentialEstimateTable(
+    pd.DataFrame(
+        {
+            "site_id": ["MAPK1;S10;", "MAPK1;S10;"],
+            "peptide_id": ["pep_run_1", "pep_run_2"],
+            "effect": [0.8, 0.9],
+            "standard_error": [0.3, 0.35],
+            "statistic": [2.67, 2.57],
+            "p_value": [0.055, 0.062],
+            "residual_degrees_of_freedom": [3.0, 3.0],
+            "moderated_degrees_of_freedom": [4.0, 4.0],
+            "source_experiment_id": ["run_1", "run_2"],
+            "dependence_policy": [
+                PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
+                PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
+            ],
+            "peptide_to_site_mapping_policy": [
+                PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
+                PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
+            ],
+        }
+    )
+)
+
+site_result = PeptideToSiteAggregator().run(
+    estimates,
+    config=PeptideToSiteAggregationConfig(
+        multiple_testing_method="benjamini_yekutieli"
+    ),
+    contrast_name="B_vs_A",
+)
+```
+
+Single-estimate sites are pass-through rows: the original effect, statistic, and
+finite-df t-distribution p-value are preserved. Multi-estimate Stouffer
+combination converts finite-df t evidence to z only through signed two-sided
+p-values; it does not use `z = t`. Multiple-testing correction uses the
+configured shared correction method, not a hardcoded BH adjustment.
+
+Do not use this route for multiple peptides from the same experiment unless a
+future dependence-aware method is explicitly added. It is also not a substitute
+for sample-level peptide evidence resolution followed by the core differential
+model.
 
 ## Contrast Helpers
 

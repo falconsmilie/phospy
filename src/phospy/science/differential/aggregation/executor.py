@@ -1,6 +1,9 @@
-"""Experimental/internal peptide-to-site differential aggregation execution."""
+"""Science-owned peptide-to-site differential estimate-combination execution."""
 
 from __future__ import annotations
+
+import math
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -8,142 +11,153 @@ from scipy import stats
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.differential.aggregation.models import (
-    PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
-    PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
-    PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED,
-    PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META,
-    PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z,
-    STOUFFER_WEIGHTING_INVERSE_VARIANCE,
+    PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC,
+    PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE,
+    PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
+    PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE,
+    PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_SINGLE_ESTIMATE_PASSTHROUGH,
+    PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P,
+    PeptideDifferentialEstimateTable,
     PeptideToSiteAggregationConfig,
     PeptideToSiteAggregationResult,
 )
 from phospy.science.differential.aggregation.scientific_policies import (
     build_peptide_to_site_aggregation_policy,
 )
-from phospy.science.differential.models import DifferentialAnalysisResult
-from phospy.science.differential.multiple_testing import benjamini_hochberg
-from phospy.science.evidence.models import PeptideEvidenceTable
+from phospy.science.statistics.multiple_testing import adjust_p_values
 
-_COMPATIBILITY_WARNING = (
-    "compat_best_p_value selects the minimum peptide p-value per site and is "
-    "provided for compatibility only; this strategy is statistically biased. "
-    "All retained peptide-to-site differential aggregation strategies are "
-    "experimental/internal and are not supported for production site-level "
-    "inference."
+_SINGLE_ESTIMATE_DEPENDENCE_ASSUMPTION = (
+    "not_applicable_single_estimate_no_cross_peptide_combination"
 )
+_INDEPENDENT_SOURCE_DEPENDENCE_ASSUMPTION = (
+    "independent_source_experiments_or_runs_no_same_sample_peptide_dependence"
+)
+_SINGLE_ESTIMATE_P_VALUE_METHOD = "original_two_sided_t_distribution_p_value"
+_STOUFFER_P_VALUE_METHOD = "stouffer_weighted_z_from_signed_two_sided_input_p_values"
+_FIXED_EFFECT_P_VALUE_METHOD = (
+    "asymptotic_normal_fixed_effect_inverse_variance_estimate_combination"
+)
+_T_DISTRIBUTION = "moderated_t"
+_Z_DISTRIBUTION = "standard_normal_z"
 
 
 class PeptideToSiteAggregationExecutor:
-    """Execute unsupported experimental post-hoc site summaries."""
+    """Execute typed peptide-level estimate combination into site-level rows."""
 
-    def run_differential_result(
+    def run_estimates(
         self,
         *,
-        differential_result: DifferentialAnalysisResult,
-        evidence: PeptideEvidenceTable,
-        config: PeptideToSiteAggregationConfig,
-    ) -> dict[str, PeptideToSiteAggregationResult]:
-        if not isinstance(differential_result, DifferentialAnalysisResult):
-            raise PhosPyInputError(
-                "peptide-to-site aggregation requires a DifferentialAnalysisResult"
-            )
-        results: dict[str, PeptideToSiteAggregationResult] = {}
-        for contrast_name, table in differential_result.contrast_tables.items():
-            results[contrast_name] = self.run_table(
-                peptide_differential_table=table,
-                evidence=evidence,
-                config=config,
-                contrast_name=contrast_name,
-            )
-        return results
-
-    def run_table(
-        self,
-        *,
-        peptide_differential_table: pd.DataFrame,
-        evidence: PeptideEvidenceTable,
+        estimates: PeptideDifferentialEstimateTable,
         config: PeptideToSiteAggregationConfig,
         contrast_name: str,
     ) -> PeptideToSiteAggregationResult:
-        if not isinstance(evidence, PeptideEvidenceTable):
+        if not isinstance(estimates, PeptideDifferentialEstimateTable):
             raise PhosPyInputError(
-                "peptide-to-site aggregation requires a PeptideEvidenceTable"
+                "peptide-to-site aggregation requires a "
+                "PeptideDifferentialEstimateTable"
             )
         if not isinstance(config, PeptideToSiteAggregationConfig):
             raise PhosPyInputError(
                 "peptide-to-site aggregation config must be a "
                 "PeptideToSiteAggregationConfig"
             )
-        table = _validate_peptide_differential_table(peptide_differential_table)
-        feature_mapping = _build_feature_site_mapping(evidence=evidence)
-        merged = _merge_peptide_table_with_site_mapping(
-            peptide_differential_table=table,
-            feature_site_mapping=feature_mapping,
-        )
-        if merged.empty:
-            raise PhosPyInputError(
-                "peptide-to-site aggregation found no overlapping peptide features "
-                "between differential table index and evidence mapping"
-            )
 
-        rows: list[dict[str, float | int | str]] = []
-        dropped_missing_variance = 0
-        for site_id, site_rows in merged.groupby("site_id", sort=False):
-            aggregated, dropped = _aggregate_site_rows(
+        estimate_frame = estimates.to_dataframe()
+        rows: list[dict[str, object]] = []
+        withheld_below_minimum_count = 0
+        for site_id, site_rows in estimate_frame.groupby("site_id", sort=True):
+            combined = _combine_site_estimates(
+                site_id=str(site_id),
                 site_rows=site_rows,
-                strategy=config.strategy,
                 config=config,
             )
-            dropped_missing_variance += dropped
-            rows.append(
-                {
-                    "site_id": str(site_id),
-                    "logFC": aggregated["logFC"],
-                    "uncertainty_statistic": aggregated["uncertainty_statistic"],
-                    "P.Value": aggregated["P.Value"],
-                    "n_peptide_observations": int(site_rows.shape[0]),
-                    "n_peptides_used": int(aggregated["n_peptides_used"]),
-                }
-            )
+            if cast(int, combined["n_peptides_used"]) < int(
+                config.min_estimates_per_site
+            ):
+                withheld_below_minimum_count += 1
+            rows.append({"site_id": str(site_id), **combined})
+
         site_table = pd.DataFrame(rows).set_index("site_id", drop=True)
-        site_table.loc[:, "adj.P.Val"] = benjamini_hochberg(
-            site_table.loc[:, "P.Value"].to_numpy(dtype=float)
+        site_table.index = pd.Index(site_table.index.astype(str), name="site_id")
+        site_table.loc[:, "adj.P.Val"] = adjust_p_values(
+            site_table.loc[:, "P.Value"].to_numpy(dtype=float),
+            method=config.multiple_testing_method,
         )
+        site_table.loc[:, "correction_method"] = str(config.multiple_testing_method)
         site_table = site_table.loc[
             :,
             [
                 "logFC",
+                "standard_error",
                 "uncertainty_statistic",
                 "P.Value",
                 "adj.P.Val",
+                "residual_degrees_of_freedom",
+                "moderated_degrees_of_freedom",
                 "n_peptide_observations",
                 "n_peptides_used",
+                "source_experiment_ids",
+                "peptide_to_site_mapping_policy",
+                "multi_site_estimate_count",
+                "aggregation_level",
+                "dependence_assumption",
+                "uncertainty_method",
+                "correction_method",
+                "p_value_method",
+                "statistic_distribution",
             ],
         ]
         warnings: list[str] = []
-        compatibility_warning = (
-            config.strategy == PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
+        if withheld_below_minimum_count:
+            warnings.append(
+                "Some peptide-to-site estimate groups did not satisfy "
+                "min_estimates_per_site and were emitted with missing statistics."
+            )
+
+        mapping_policies = tuple(
+            sorted(
+                {
+                    str(value)
+                    for value in estimate_frame.loc[
+                        :,
+                        "peptide_to_site_mapping_policy",
+                    ].tolist()
+                }
+            )
         )
-        if compatibility_warning:
-            warnings.append(_COMPATIBILITY_WARNING)
         policy = build_peptide_to_site_aggregation_policy(
-            strategy=config.strategy,
-            min_peptides_per_site=config.min_peptides_per_site,
-            missing_variance_policy=config.missing_variance_policy,
-            stouffer_weighting=config.stouffer_weighting,
-            random_effect_tau2_floor=config.random_effect_tau2_floor,
-            compatibility_mode_warning=compatibility_warning,
+            uncertainty_method=config.uncertainty_method,
+            min_estimates_per_site=config.min_estimates_per_site,
+            dependence_policy=config.dependence_policy,
+            multiple_testing_method=config.multiple_testing_method,
+            input_mapping_policies=mapping_policies,
         )
         provenance = {
-            "aggregation_strategy": config.strategy,
-            "min_peptides_per_site": int(config.min_peptides_per_site),
-            "missing_variance_policy": config.missing_variance_policy,
-            "stouffer_weighting": config.stouffer_weighting,
-            "random_effect_tau2_floor": float(config.random_effect_tau2_floor),
-            "multi_site_handling": evidence.multi_site_policy_provenance(),
-            "input_peptide_rows": int(merged.shape[0]),
+            "aggregation_level": PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC,
+            "single_estimate_level": PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE,
+            "preferred_phospy_lane": (
+                "resolve peptide evidence at sample-intensity level before "
+                "differential model fitting"
+            ),
+            "uncertainty_method": config.uncertainty_method,
+            "dependence_policy": config.dependence_policy,
+            "dependence_assumptions": (_INDEPENDENT_SOURCE_DEPENDENCE_ASSUMPTION,),
+            "multiple_testing_method": config.multiple_testing_method,
+            "input_peptide_estimates": int(estimate_frame.shape[0]),
             "output_site_rows": int(site_table.shape[0]),
-            "dropped_missing_variance_rows": int(dropped_missing_variance),
+            "min_estimates_per_site": int(config.min_estimates_per_site),
+            "withheld_below_minimum_site_count": int(withheld_below_minimum_count),
+            "peptide_to_site_mapping_policies": mapping_policies,
+            "multi_site_estimate_count": int(
+                _multi_site_estimate_count(estimate_frame)
+            ),
+            "same_source_duplicate_policy": (
+                "reject_same_site_estimates_with_duplicate_source_experiment_id"
+            ),
+            "t_to_z_policy": (
+                "finite_df_t_evidence_is_converted_to_z_only_through_signed_"
+                "two_sided_p_values"
+            ),
         }
         return PeptideToSiteAggregationResult(
             contrast_name=contrast_name,
@@ -151,298 +165,411 @@ class PeptideToSiteAggregationExecutor:
             warnings=tuple(warnings),
             provenance=provenance,
             scientific_policies=(policy,),
-            _assume_owned=True,
         )
 
-
-def _validate_peptide_differential_table(table: object) -> pd.DataFrame:
-    if not isinstance(table, pd.DataFrame):
-        raise PhosPyInputError("peptide differential input must be a pandas DataFrame")
-    if table.empty:
-        raise PhosPyInputError("peptide differential input must be non-empty")
-    required_columns = ("logFC", "t", "P.Value")
-    missing = [column for column in required_columns if column not in table.columns]
-    if missing:
-        joined = ", ".join(missing)
-        raise PhosPyInputError(
-            f"peptide differential input is missing required columns: {joined}"
-        )
-    if not table.index.is_unique:
-        raise PhosPyInputError(
-            "peptide differential input index must be unique peptide feature IDs"
-        )
-    for column_name in required_columns:
-        if not pd.api.types.is_numeric_dtype(table[column_name]):
+    def run_table(
+        self,
+        *,
+        estimate_table: PeptideDifferentialEstimateTable | pd.DataFrame | None = None,
+        estimates: PeptideDifferentialEstimateTable | pd.DataFrame | None = None,
+        config: PeptideToSiteAggregationConfig,
+        contrast_name: str,
+    ) -> PeptideToSiteAggregationResult:
+        resolved = estimate_table if estimate_table is not None else estimates
+        if resolved is None:
             raise PhosPyInputError(
-                f"peptide differential column {column_name!r} must be numeric"
+                "peptide-to-site aggregation requires estimate_table or estimates"
             )
-    return table.copy(deep=True)
+        typed_estimates = (
+            resolved
+            if isinstance(resolved, PeptideDifferentialEstimateTable)
+            else PeptideDifferentialEstimateTable(cast(pd.DataFrame, resolved))
+        )
+        return self.run_estimates(
+            estimates=typed_estimates,
+            config=config,
+            contrast_name=contrast_name,
+        )
 
 
-def _build_feature_site_mapping(*, evidence: PeptideEvidenceTable) -> pd.DataFrame:
-    evidence_frame = evidence.to_dataframe()
-    if evidence_frame.loc[:, "unique_feature_id"].duplicated().any():
-        raise PhosPyInputError(
-            "peptide evidence unique_feature_id values must be unique for "
-            "peptide-to-site aggregation"
-        )
-    feature_rows = evidence_frame.loc[:, ["peptide_row_id", "unique_feature_id"]].copy(
-        deep=True
+def signed_z_from_t_statistic(
+    t_statistic: float,
+    degrees_of_freedom: float,
+) -> float:
+    """Convert a finite-df t statistic to signed z through its two-sided p-value."""
+
+    statistic = _finite_float(
+        t_statistic,
+        field_name="t_statistic",
     )
-    mapping = evidence.site_mapping.to_dataframe()
-    if mapping.empty:
-        raise PhosPyInputError(
-            "peptide evidence does not provide any peptide-to-site mappings"
-        )
-    merged = mapping.merge(
-        feature_rows,
-        how="left",
-        on="peptide_row_id",
-        indicator=True,
+    df = _positive_finite_float(
+        degrees_of_freedom,
+        field_name="degrees_of_freedom",
     )
-    unresolved = merged.loc[
-        merged.loc[:, "_merge"] != "both", "peptide_row_id"
-    ].tolist()
-    if unresolved:
-        preview = ", ".join(repr(value) for value in unresolved[:5])
-        suffix = "" if len(unresolved) <= 5 else " ..."
+    if statistic == 0.0:
+        return 0.0
+    p_value = float(2.0 * stats.t.sf(abs(statistic), df=df))
+    return signed_z_from_two_sided_p_value(
+        p_value,
+        sign_source=statistic,
+    )
+
+
+def signed_z_from_two_sided_p_value(
+    p_value: float,
+    *,
+    sign_source: float,
+) -> float:
+    """Return signed standard-normal z from a two-sided p-value and sign source."""
+
+    p = _p_value(p_value, field_name="p_value")
+    sign = _sign(sign_source)
+    if sign == 0.0:
+        if p == 1.0:
+            return 0.0
         raise PhosPyInputError(
-            "site mapping references peptide_row_id values absent from evidence rows: "
-            f"{preview}{suffix}"
+            "cannot derive a signed z value from a non-null two-sided p-value "
+            "when both effect and statistic signs are zero"
         )
-    resolved = merged.loc[:, ["unique_feature_id", "site_id"]].drop_duplicates()
+    if p == 1.0:
+        return 0.0
+    return float(sign * stats.norm.isf(p / 2.0))
+
+
+def _combine_site_estimates(
+    *,
+    site_id: str,
+    site_rows: pd.DataFrame,
+    config: PeptideToSiteAggregationConfig,
+) -> dict[str, object]:
+    n_observed = int(site_rows.shape[0])
+    if n_observed > 1:
+        _enforce_independent_source_estimates(site_id=site_id, site_rows=site_rows)
+    if n_observed < int(config.min_estimates_per_site):
+        return _missing_site_result(
+            site_rows=site_rows,
+            n_observed=n_observed,
+            n_used=n_observed,
+            reason_uncertainty_method=config.uncertainty_method,
+            correction_method=config.multiple_testing_method,
+        )
+    if n_observed == 1:
+        return _single_estimate_result(
+            site_rows=site_rows,
+            correction_method=config.multiple_testing_method,
+        )
+    if (
+        config.uncertainty_method
+        == PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_SINGLE_ESTIMATE_PASSTHROUGH
+    ):
+        raise PhosPyInputError(
+            "single_estimate_passthrough cannot combine multiple peptide "
+            f"estimates for site_id={site_id!r}; choose a supported "
+            "multi-estimate method with independent source estimates"
+        )
+
+    if (
+        config.uncertainty_method
+        == PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P
+    ):
+        return _stouffer_signed_p_result(
+            site_rows=site_rows,
+            correction_method=config.multiple_testing_method,
+        )
+    if (
+        config.uncertainty_method
+        == PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE
+    ):
+        return _fixed_effect_inverse_variance_result(
+            site_rows=site_rows,
+            correction_method=config.multiple_testing_method,
+        )
+    raise PhosPyInputError(
+        f"unsupported peptide-to-site uncertainty_method: {config.uncertainty_method!r}"
+    )
+
+
+def _single_estimate_result(
+    *,
+    site_rows: pd.DataFrame,
+    correction_method: str,
+) -> dict[str, object]:
+    row = site_rows.iloc[0]
+    return {
+        "logFC": float(row["effect"]),
+        "standard_error": float(row["standard_error"]),
+        "uncertainty_statistic": float(row["statistic"]),
+        "P.Value": float(row["p_value"]),
+        "residual_degrees_of_freedom": float(row["residual_degrees_of_freedom"]),
+        "moderated_degrees_of_freedom": float(row["moderated_degrees_of_freedom"]),
+        "n_peptide_observations": int(site_rows.shape[0]),
+        "n_peptides_used": 1,
+        "source_experiment_ids": str(row["source_experiment_id"]),
+        "peptide_to_site_mapping_policy": str(row["peptide_to_site_mapping_policy"]),
+        "multi_site_estimate_count": _multi_site_estimate_count(site_rows),
+        "aggregation_level": PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE,
+        "dependence_assumption": _SINGLE_ESTIMATE_DEPENDENCE_ASSUMPTION,
+        "uncertainty_method": PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_SINGLE_ESTIMATE_PASSTHROUGH,
+        "correction_method": str(correction_method),
+        "p_value_method": _SINGLE_ESTIMATE_P_VALUE_METHOD,
+        "statistic_distribution": _T_DISTRIBUTION,
+    }
+
+
+def _stouffer_signed_p_result(
+    *,
+    site_rows: pd.DataFrame,
+    correction_method: str,
+) -> dict[str, object]:
+    p_values = site_rows.loc[:, "p_value"].to_numpy(dtype=float)
+    statistics = site_rows.loc[:, "statistic"].to_numpy(dtype=float)
+    effects = site_rows.loc[:, "effect"].to_numpy(dtype=float)
+    standard_errors = site_rows.loc[:, "standard_error"].to_numpy(dtype=float)
+    sign_sources = np.asarray(
+        [
+            _sign_source(effect=float(effect), statistic=float(statistic))
+            for effect, statistic in zip(effects, statistics, strict=True)
+        ],
+        dtype=float,
+    )
+    z_values = np.asarray(
+        [
+            signed_z_from_two_sided_p_value(
+                float(p_value),
+                sign_source=float(sign_source),
+            )
+            for p_value, sign_source in zip(p_values, sign_sources, strict=True)
+        ],
+        dtype=float,
+    )
+    weights_for_z = 1.0 / standard_errors
+    denominator = math.sqrt(float(np.sum(weights_for_z**2)))
+    if denominator <= 0.0 or not math.isfinite(denominator):
+        raise PhosPyInputError(
+            "peptide-to-site Stouffer combination requires finite positive "
+            "standard-error weights"
+        )
+    combined_z = float(np.sum(weights_for_z * z_values) / denominator)
+    p_value = float(2.0 * stats.norm.sf(abs(combined_z)))
+    effect, standard_error = _inverse_variance_effect_summary(site_rows)
+    return {
+        "logFC": effect,
+        "standard_error": standard_error,
+        "uncertainty_statistic": combined_z,
+        "P.Value": p_value,
+        "residual_degrees_of_freedom": _minimum_column(
+            site_rows, "residual_degrees_of_freedom"
+        ),
+        "moderated_degrees_of_freedom": _minimum_column(
+            site_rows,
+            "moderated_degrees_of_freedom",
+        ),
+        "n_peptide_observations": int(site_rows.shape[0]),
+        "n_peptides_used": int(site_rows.shape[0]),
+        "source_experiment_ids": _joined_unique_sorted(
+            site_rows, "source_experiment_id"
+        ),
+        "peptide_to_site_mapping_policy": _joined_unique_sorted(
+            site_rows,
+            "peptide_to_site_mapping_policy",
+        ),
+        "multi_site_estimate_count": _multi_site_estimate_count(site_rows),
+        "aggregation_level": PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC,
+        "dependence_assumption": _INDEPENDENT_SOURCE_DEPENDENCE_ASSUMPTION,
+        "uncertainty_method": PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P,
+        "correction_method": str(correction_method),
+        "p_value_method": _STOUFFER_P_VALUE_METHOD,
+        "statistic_distribution": _Z_DISTRIBUTION,
+    }
+
+
+def _fixed_effect_inverse_variance_result(
+    *,
+    site_rows: pd.DataFrame,
+    correction_method: str,
+) -> dict[str, object]:
+    effect, standard_error = _inverse_variance_effect_summary(site_rows)
+    z_value = effect / standard_error
+    p_value = float(2.0 * stats.norm.sf(abs(z_value)))
+    return {
+        "logFC": effect,
+        "standard_error": standard_error,
+        "uncertainty_statistic": z_value,
+        "P.Value": p_value,
+        "residual_degrees_of_freedom": _minimum_column(
+            site_rows, "residual_degrees_of_freedom"
+        ),
+        "moderated_degrees_of_freedom": _minimum_column(
+            site_rows,
+            "moderated_degrees_of_freedom",
+        ),
+        "n_peptide_observations": int(site_rows.shape[0]),
+        "n_peptides_used": int(site_rows.shape[0]),
+        "source_experiment_ids": _joined_unique_sorted(
+            site_rows, "source_experiment_id"
+        ),
+        "peptide_to_site_mapping_policy": _joined_unique_sorted(
+            site_rows,
+            "peptide_to_site_mapping_policy",
+        ),
+        "multi_site_estimate_count": _multi_site_estimate_count(site_rows),
+        "aggregation_level": PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC,
+        "dependence_assumption": _INDEPENDENT_SOURCE_DEPENDENCE_ASSUMPTION,
+        "uncertainty_method": (
+            PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE
+        ),
+        "correction_method": str(correction_method),
+        "p_value_method": _FIXED_EFFECT_P_VALUE_METHOD,
+        "statistic_distribution": _Z_DISTRIBUTION,
+    }
+
+
+def _inverse_variance_effect_summary(site_rows: pd.DataFrame) -> tuple[float, float]:
+    effect = site_rows.loc[:, "effect"].to_numpy(dtype=float)
+    standard_error = site_rows.loc[:, "standard_error"].to_numpy(dtype=float)
+    weights = 1.0 / (standard_error**2)
+    denominator = float(np.sum(weights))
+    if denominator <= 0.0 or not math.isfinite(denominator):
+        raise PhosPyInputError(
+            "peptide-to-site estimate combination requires finite positive "
+            "inverse-variance weights"
+        )
+    weighted_effect = float(np.sum(weights * effect) / denominator)
+    combined_standard_error = float(math.sqrt(1.0 / denominator))
+    return weighted_effect, combined_standard_error
+
+
+def _missing_site_result(
+    *,
+    site_rows: pd.DataFrame,
+    n_observed: int,
+    n_used: int,
+    reason_uncertainty_method: str,
+    correction_method: str,
+) -> dict[str, object]:
+    return {
+        "logFC": float("nan"),
+        "standard_error": float("nan"),
+        "uncertainty_statistic": float("nan"),
+        "P.Value": float("nan"),
+        "residual_degrees_of_freedom": float("nan"),
+        "moderated_degrees_of_freedom": float("nan"),
+        "n_peptide_observations": int(n_observed),
+        "n_peptides_used": int(n_used),
+        "source_experiment_ids": _joined_unique_sorted(
+            site_rows, "source_experiment_id"
+        ),
+        "peptide_to_site_mapping_policy": _joined_unique_sorted(
+            site_rows,
+            "peptide_to_site_mapping_policy",
+        ),
+        "multi_site_estimate_count": _multi_site_estimate_count(site_rows),
+        "aggregation_level": PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC,
+        "dependence_assumption": _INDEPENDENT_SOURCE_DEPENDENCE_ASSUMPTION,
+        "uncertainty_method": str(reason_uncertainty_method),
+        "correction_method": str(correction_method),
+        "p_value_method": "not_computed_minimum_evidence_not_met",
+        "statistic_distribution": "not_computed",
+    }
+
+
+def _enforce_independent_source_estimates(
+    *,
+    site_id: str,
+    site_rows: pd.DataFrame,
+) -> None:
+    dependence_values = tuple(
+        str(value) for value in site_rows.loc[:, "dependence_policy"].tolist()
+    )
+    unsupported = tuple(
+        value
+        for value in dependence_values
+        if value != PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES
+    )
+    if unsupported:
+        raise PhosPyInputError(
+            "same-sample or otherwise correlated peptide estimates cannot be "
+            "combined by the supported post-hoc peptide-to-site lane; "
+            f"site_id={site_id!r}, dependence_policy_values={sorted(set(unsupported))}. "
+            "Resolve peptide evidence at sample-intensity level before fitting "
+            "the differential model, or add a supported dependence-aware method."
+        )
+    source_ids = site_rows.loc[:, "source_experiment_id"].astype(str)
+    duplicated_sources = sorted(
+        set(source_ids.loc[source_ids.duplicated(keep=False)].tolist())
+    )
+    if duplicated_sources:
+        raise PhosPyInputError(
+            "same-experiment peptide estimates for one site are rejected by the "
+            "supported post-hoc peptide-to-site lane because same-sample peptide "
+            "dependence is not modelled; "
+            f"site_id={site_id!r}, duplicated_source_experiment_id_values="
+            f"{duplicated_sources}"
+        )
+
+
+def _sign_source(*, effect: float, statistic: float) -> float:
+    if statistic != 0.0:
+        return statistic
+    if effect != 0.0:
+        return effect
+    return 0.0
+
+
+def _joined_unique_sorted(frame: pd.DataFrame, column_name: str) -> str:
+    values = sorted({str(value) for value in frame.loc[:, column_name].tolist()})
+    return "|".join(values)
+
+
+def _minimum_column(frame: pd.DataFrame, column_name: str) -> float:
+    return float(np.min(frame.loc[:, column_name].to_numpy(dtype=float)))
+
+
+def _multi_site_estimate_count(frame: pd.DataFrame) -> int:
+    if "mapping_uncertainty" in frame.columns:
+        return int(frame.loc[:, "mapping_uncertainty"].astype(bool).sum())
+    return int(
+        sum(
+            1
+            for site_id in frame.loc[:, "site_id"].astype(str).tolist()
+            if "," in site_id
+        )
+    )
+
+
+def _finite_float(value: object, *, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise PhosPyInputError(f"{field_name} must be numeric")
+    resolved = float(value)
+    if not math.isfinite(resolved):
+        raise PhosPyInputError(f"{field_name} must be finite")
     return resolved
 
 
-def _merge_peptide_table_with_site_mapping(
-    *,
-    peptide_differential_table: pd.DataFrame,
-    feature_site_mapping: pd.DataFrame,
-) -> pd.DataFrame:
-    feature_series = pd.Series(
-        peptide_differential_table.index.astype("object"),
-        index=peptide_differential_table.index.copy(),
-        name="unique_feature_id",
-    )
-    joined = peptide_differential_table.copy(deep=True)
-    joined.loc[:, "unique_feature_id"] = feature_series
-    merged = feature_site_mapping.merge(
-        joined,
-        how="inner",
-        on="unique_feature_id",
-    )
-    return merged
+def _positive_finite_float(value: object, *, field_name: str) -> float:
+    resolved = _finite_float(value, field_name=field_name)
+    if resolved <= 0.0:
+        raise PhosPyInputError(f"{field_name} must be > 0.0")
+    return resolved
 
 
-def _aggregate_site_rows(
-    *,
-    site_rows: pd.DataFrame,
-    strategy: str,
-    config: PeptideToSiteAggregationConfig,
-) -> tuple[dict[str, float | int], int]:
-    if strategy == PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE:
-        result = _aggregate_compat_best_p(site_rows=site_rows)
-        return result, 0
-    if strategy in (
-        PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED,
-        PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
-    ):
-        result, dropped = _aggregate_fixed_effect(
-            site_rows=site_rows,
-            min_peptides_per_site=config.min_peptides_per_site,
-        )
-        return result, dropped
-    if strategy == PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META:
-        result, dropped = _aggregate_random_effect(
-            site_rows=site_rows,
-            min_peptides_per_site=config.min_peptides_per_site,
-            tau2_floor=config.random_effect_tau2_floor,
-        )
-        return result, dropped
-    if strategy == PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z:
-        result, dropped = _aggregate_stouffer(
-            site_rows=site_rows,
-            min_peptides_per_site=config.min_peptides_per_site,
-            weighting=config.stouffer_weighting,
-        )
-        return result, dropped
-    raise PhosPyInputError(
-        f"unsupported peptide-to-site aggregation strategy: {strategy!r}"
-    )
+def _p_value(value: object, *, field_name: str) -> float:
+    resolved = _finite_float(value, field_name=field_name)
+    if resolved < 0.0 or resolved > 1.0:
+        raise PhosPyInputError(f"{field_name} must be within [0.0, 1.0]")
+    return resolved
 
 
-def _aggregate_compat_best_p(*, site_rows: pd.DataFrame) -> dict[str, float | int]:
-    p_values = site_rows.loc[:, "P.Value"].to_numpy(dtype=float)
-    finite = np.isfinite(p_values)
-    if np.any(finite):
-        finite_indices = np.flatnonzero(finite)
-        min_pos = finite_indices[int(np.argmin(p_values[finite]))]
-    else:
-        min_pos = 0
-    row = site_rows.iloc[int(min_pos)]
-    return {
-        "logFC": float(row["logFC"]),
-        "uncertainty_statistic": float(row["t"]),
-        "P.Value": float(row["P.Value"]),
-        "n_peptides_used": 1,
-    }
+def _sign(value: float) -> float:
+    if value > 0.0:
+        return 1.0
+    if value < 0.0:
+        return -1.0
+    return 0.0
 
 
-def _aggregate_fixed_effect(
-    *,
-    site_rows: pd.DataFrame,
-    min_peptides_per_site: int,
-) -> tuple[dict[str, float | int], int]:
-    effect = site_rows.loc[:, "logFC"].to_numpy(dtype=float)
-    variance, valid_mask = _derive_variance(site_rows=site_rows)
-    dropped = int((~valid_mask).sum())
-    if int(valid_mask.sum()) < min_peptides_per_site:
-        return _nan_aggregate_result(n_used=int(valid_mask.sum())), dropped
-    effect_used = effect[valid_mask]
-    variance_used = variance[valid_mask]
-    weights = 1.0 / variance_used
-    weighted_effect = float(np.sum(weights * effect_used) / np.sum(weights))
-    standard_error = float(np.sqrt(1.0 / np.sum(weights)))
-    z_value = weighted_effect / standard_error
-    p_value = float(2.0 * stats.norm.sf(abs(z_value)))
-    return {
-        "logFC": weighted_effect,
-        "uncertainty_statistic": float(z_value),
-        "P.Value": p_value,
-        "n_peptides_used": int(valid_mask.sum()),
-    }, dropped
-
-
-def _aggregate_random_effect(
-    *,
-    site_rows: pd.DataFrame,
-    min_peptides_per_site: int,
-    tau2_floor: float,
-) -> tuple[dict[str, float | int], int]:
-    effect = site_rows.loc[:, "logFC"].to_numpy(dtype=float)
-    variance, valid_mask = _derive_variance(site_rows=site_rows)
-    dropped = int((~valid_mask).sum())
-    n_used = int(valid_mask.sum())
-    if n_used < min_peptides_per_site:
-        return _nan_aggregate_result(n_used=n_used), dropped
-    effect_used = effect[valid_mask]
-    variance_used = variance[valid_mask]
-    if n_used == 1:
-        return _aggregate_fixed_effect(
-            site_rows=site_rows.loc[valid_mask, :],
-            min_peptides_per_site=1,
-        )
-
-    weights_fixed = 1.0 / variance_used
-    mu_fixed = float(np.sum(weights_fixed * effect_used) / np.sum(weights_fixed))
-    q_stat = float(np.sum(weights_fixed * (effect_used - mu_fixed) ** 2))
-    c_value = float(
-        np.sum(weights_fixed) - (np.sum(weights_fixed**2) / np.sum(weights_fixed))
-    )
-    if c_value <= 0.0:
-        tau2 = float(tau2_floor)
-    else:
-        tau2 = max(float((q_stat - (n_used - 1)) / c_value), float(tau2_floor))
-    weights_random = 1.0 / (variance_used + tau2)
-    mu_random = float(np.sum(weights_random * effect_used) / np.sum(weights_random))
-    standard_error = float(np.sqrt(1.0 / np.sum(weights_random)))
-    z_value = mu_random / standard_error
-    p_value = float(2.0 * stats.norm.sf(abs(z_value)))
-    return {
-        "logFC": mu_random,
-        "uncertainty_statistic": float(z_value),
-        "P.Value": p_value,
-        "n_peptides_used": n_used,
-    }, dropped
-
-
-def _aggregate_stouffer(
-    *,
-    site_rows: pd.DataFrame,
-    min_peptides_per_site: int,
-    weighting: str,
-) -> tuple[dict[str, float | int], int]:
-    z_values = _derive_z_values(site_rows=site_rows)
-    finite_mask = np.isfinite(z_values)
-    if weighting == STOUFFER_WEIGHTING_INVERSE_VARIANCE:
-        variance, valid_variance = _derive_variance(site_rows=site_rows)
-        finite_mask = finite_mask & valid_variance
-        weights = (
-            np.sqrt(1.0 / variance[finite_mask])
-            if np.any(finite_mask)
-            else np.array([])
-        )
-        dropped = int((~(np.isfinite(z_values) & valid_variance)).sum())
-    else:
-        weights = np.ones(int(finite_mask.sum()), dtype=float)
-        dropped = int((~finite_mask).sum())
-
-    n_used = int(finite_mask.sum())
-    if n_used < min_peptides_per_site or n_used == 0:
-        return _nan_aggregate_result(n_used=n_used), dropped
-    z_used = z_values[finite_mask]
-    if weights.size != z_used.size:
-        raise PhosPyInputError(
-            "internal aggregation error: stouffer weight vector size mismatch"
-        )
-    denominator = float(np.sqrt(np.sum(weights**2)))
-    if not np.isfinite(denominator) or denominator <= 0.0:
-        return _nan_aggregate_result(n_used=n_used), dropped
-    combined_z = float(np.sum(weights * z_used) / denominator)
-    p_value = float(2.0 * stats.norm.sf(abs(combined_z)))
-    log_fc_values = site_rows.loc[:, "logFC"].to_numpy(dtype=float)
-    log_fc_used = log_fc_values[finite_mask]
-    log_fc = float(np.mean(log_fc_used))
-    return {
-        "logFC": log_fc,
-        "uncertainty_statistic": combined_z,
-        "P.Value": p_value,
-        "n_peptides_used": n_used,
-    }, dropped
-
-
-def _derive_variance(*, site_rows: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    log_fc = site_rows.loc[:, "logFC"].to_numpy(dtype=float)
-    t_stat = site_rows.loc[:, "t"].to_numpy(dtype=float)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        standard_error = np.abs(log_fc / t_stat)
-        variance = standard_error**2
-    valid_mask = (
-        np.isfinite(variance)
-        & (variance > 0.0)
-        & np.isfinite(log_fc)
-        & np.isfinite(t_stat)
-    )
-    return variance, valid_mask
-
-
-def _derive_z_values(*, site_rows: pd.DataFrame) -> np.ndarray:
-    t_stat = site_rows.loc[:, "t"].to_numpy(dtype=float)
-    p_values = site_rows.loc[:, "P.Value"].to_numpy(dtype=float)
-    log_fc = site_rows.loc[:, "logFC"].to_numpy(dtype=float)
-    z = np.full(t_stat.shape, np.nan, dtype=float)
-    finite_t = np.isfinite(t_stat)
-    z[finite_t] = t_stat[finite_t]
-    unresolved = ~finite_t
-    if np.any(unresolved):
-        p_unresolved = p_values[unresolved]
-        sign_unresolved = np.sign(log_fc[unresolved])
-        finite_p = (
-            np.isfinite(p_unresolved) & (p_unresolved > 0.0) & (p_unresolved <= 1.0)
-        )
-        if np.any(finite_p):
-            z_unresolved = np.full(p_unresolved.shape, np.nan, dtype=float)
-            z_unresolved[finite_p] = sign_unresolved[finite_p] * stats.norm.isf(
-                p_unresolved[finite_p] / 2.0
-            )
-            z[unresolved] = z_unresolved
-    return z
-
-
-def _nan_aggregate_result(*, n_used: int) -> dict[str, float | int]:
-    return {
-        "logFC": float("nan"),
-        "uncertainty_statistic": float("nan"),
-        "P.Value": float("nan"),
-        "n_peptides_used": int(n_used),
-    }
+__all__ = [
+    "PeptideToSiteAggregationExecutor",
+    "signed_z_from_t_statistic",
+    "signed_z_from_two_sided_p_value",
+]

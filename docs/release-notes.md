@@ -79,11 +79,10 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   refreshed.
 - Strict typing, Pyright formatting, CI performance contracts, and
   unsupported-support-claim tests were expanded.
-- Peptide-to-site differential aggregation was removed from supported public
-  differential facades. The retained direct route is internal/experimental
-  compatibility code only because post-hoc same-experiment peptide
-  meta-analysis does not provide a corrected supported model for production
-  site-level inference.
+- Peptide-to-site differential evidence now has a supported narrow typed
+  post-hoc route for independent source estimates, while the preferred lane
+  remains peptide evidence resolution at sample-intensity level before
+  `DifferentialAnalysisWorkflow`.
 
 ## Deprecations
 
@@ -97,10 +96,10 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   `build_motif_library_from_sequences(...)` now emit `DeprecationWarning`.
   Use `ExplicitMotifSequence` values or structured mapping entries with stable
   `reference_id`, optional `site_id`, `kinase`, and `sequence` fields.
-- `PeptideToSiteAggregationConfig(strategy="compat_best_p_value")` now emits
-  `DeprecationWarning` only inside the retained internal experimental
-  compatibility route. The other retained post-hoc strategies are not
-  supported replacements for production site-level inference.
+- Old raw-table peptide-to-site aggregation strategies were superseded by the
+  typed `PeptideDifferentialEstimateTable` contract. Raw
+  `peptide_differential_table` + `evidence` aggregation is rejected because it
+  would infer uncertainty from `logFC/t`.
 - `TechnicalReplicateResolver` now emits `DeprecationWarning` when constructed
   or run. Normal callers should use `DifferentialAnalysisWorkflow`; low-level
   callers should use `TechnicalReplicateAggregationPlanner` plus
@@ -114,11 +113,9 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   need to be regenerated.
 - Internal constructed-site-ID fallbacks, site-matrix compatibility wrappers,
   and unused signalome compatibility primitive helpers were removed.
-- The supported public peptide-to-site differential aggregation shell was
-  removed. `PeptideToSiteAggregator`, `PeptideToSiteAggregationConfig`,
-  `PeptideToSiteAggregationResult`, and the current strategy constants are not
-  exported from `phospy.science.differential` or
-  `phospy.science.differential.aggregation`.
+- The old untyped peptide-to-site differential aggregation shell was removed.
+  Supported public exports now require `PeptideDifferentialEstimateTable` and
+  explicit uncertainty/dependence metadata.
 
 ## Fixes and Hardening
 

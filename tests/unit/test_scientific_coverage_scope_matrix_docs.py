@@ -41,6 +41,12 @@ ADR_0027_DOC = (
     / "adr"
     / "adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md"
 )
+ADR_0041_DOC = (
+    ROOT
+    / "docs"
+    / "adr"
+    / "adr_0041_peptide_to_site_differential_uncertainty_policy.md"
+)
 
 
 def _read(path: Path) -> str:
@@ -93,6 +99,10 @@ def _adr_0025_text() -> str:
 
 def _adr_0027_text() -> str:
     return _read(ADR_0027_DOC)
+
+
+def _adr_0041_text() -> str:
+    return _read(ADR_0041_DOC)
 
 
 def _package_description() -> str:
@@ -150,7 +160,7 @@ def test_scope_matrix_columns_and_required_rows_are_present() -> None:
 
     for row_name in (
         "differential analysis",
-        "post-hoc peptide-to-site differential aggregation",
+        "peptide-to-site differential evidence",
         "kinase scoring",
         "kinase activity scoring",
         "kinase prediction",
@@ -510,29 +520,37 @@ def test_multiple_testing_finite_denominator_and_differential_validation_are_doc
     assert "are excluded from the benjamini-hochberg denominator" in normalized
 
 
-def test_posthoc_peptide_to_site_differential_aggregation_is_not_supported() -> None:
+def test_peptide_to_site_differential_uncertainty_scope_is_documented() -> None:
     docs_text = (
-        _scientific_coverage_text() + "\n" + _api_guide_text() + "\n" + _adr_0020_text()
+        _scientific_coverage_text()
+        + "\n"
+        + _api_guide_text()
+        + "\n"
+        + _adr_0020_text()
+        + "\n"
+        + _adr_0041_text()
     )
     normalized = " ".join(docs_text.lower().split())
 
     assert (
-        "| post-hoc peptide-to-site differential aggregation | `open gap` |"
+        "| peptide-to-site differential evidence | `validated phospy implementation` |"
         in normalized
     )
-    assert "no supported public workflow/api lane" in normalized
-    assert "phospy.science.differential.aggregation.experimental" in normalized
-    assert "internal experimental compatibility code" in normalized
-    assert "same-experiment peptide meta-analysis" in normalized
-    assert "not currently a supported site-level inferential lane" in normalized
-    assert "while the statistical model is being corrected" in normalized
-    assert "fixed_effect_meta" in normalized
-    assert "random_effect_meta" in normalized
-    assert "inverse_variance_weighted" in normalized
-    assert "stouffer_z" in normalized
-    assert "compat_best_p_value" in normalized
-    assert "migrate new analyses to `fixed_effect_meta`" not in normalized
-    assert "chosen for the available peptide-level uncertainty" not in normalized
+    assert "sample-intensity level before differential model fitting" in normalized
+    assert "peptidedifferentialestimatetable" in normalized
+    assert "standard error" in normalized
+    assert "residual degrees of freedom" in normalized
+    assert "moderated degrees of freedom" in normalized
+    assert "source experiment/run identifier" in normalized
+    assert "same-experiment peptide estimates are rejected" in normalized
+    assert "same-sample peptide dependence is not modelled" in normalized
+    assert "single-estimate outputs are pass-through" in normalized
+    assert "not called meta-analysis" in normalized
+    assert "signed two-sided p-value conversion" in normalized
+    assert "not `z=t`" in normalized
+    assert "configured shared correction method" in normalized
+    assert "fixed_effect_meta" not in normalized
+    assert "compat_best_p_value" not in normalized
 
 
 def test_differential_provenance_docs_name_fixed_block_limitations() -> None:

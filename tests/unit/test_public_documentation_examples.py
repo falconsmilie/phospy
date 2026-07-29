@@ -45,15 +45,19 @@ API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
 )
 """
 
-AGGREGATION_PUBLIC_IMPORT_NAMES = (
+SUPPORTED_AGGREGATION_PUBLIC_IMPORT_NAMES = (
+    "PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES",
+    "PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID",
+    "PeptideDifferentialEstimateTable",
+    "PeptideToSiteAggregationConfig",
+    "PeptideToSiteAggregator",
+)
+LEGACY_AGGREGATION_IMPORT_NAMES = (
     "PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE",
     "PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META",
     "PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED",
     "PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META",
     "PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z",
-    "PeptideToSiteAggregationConfig",
-    "PeptideToSiteAggregationResult",
-    "PeptideToSiteAggregator",
 )
 
 
@@ -450,9 +454,18 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
     )
 
 
-def test_docs_do_not_import_peptide_to_site_aggregation_from_supported_facades() -> (
-    None
-):
+def test_docs_import_supported_typed_peptide_to_site_aggregation_route() -> None:
+    source = _read(DIFFERENTIAL_WORKFLOW_DOC)
+
+    _assert_python_imports(
+        source,
+        "phospy.science.differential.aggregation",
+        SUPPORTED_AGGREGATION_PUBLIC_IMPORT_NAMES,
+        context="typed peptide-to-site aggregation public route",
+    )
+
+
+def test_docs_do_not_import_legacy_peptide_to_site_aggregation_strategies() -> None:
     source = "\n".join(
         _read(path)
         for path in (
@@ -472,8 +485,8 @@ def test_docs_do_not_import_peptide_to_site_aggregation_from_supported_facades()
         _assert_python_imports_absent(
             source,
             module_name,
-            AGGREGATION_PUBLIC_IMPORT_NAMES,
-            context="peptide-to-site aggregation public import removal",
+            LEGACY_AGGREGATION_IMPORT_NAMES,
+            context="legacy peptide-to-site aggregation strategy removal",
         )
 
 

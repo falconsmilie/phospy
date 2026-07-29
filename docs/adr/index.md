@@ -57,3 +57,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0038 | Release Verification and Artifact Reproducibility | Superseded | 2026-07-16 | [adr_0038_release_verification_and_artifact_reproducibility.md](adr_0038_release_verification_and_artifact_reproducibility.md) |
 | ADR-0039 | Lightweight Solo-Maintainer Release Process | Accepted | 2026-07-20 | [adr_0039_lightweight_solo_maintainer_release_process.md](adr_0039_lightweight_solo_maintainer_release_process.md) |
 | ADR-0040 | Signalome Statistical Evidence Policy | Accepted | 2026-07-23 | [adr_0040_signalome_statistical_evidence_policy.md](adr_0040_signalome_statistical_evidence_policy.md) |
+| ADR-0041 | Peptide-to-Site Differential Uncertainty Policy | Accepted | 2026-07-29 | [adr_0041_peptide_to_site_differential_uncertainty_policy.md](adr_0041_peptide_to_site_differential_uncertainty_policy.md) |

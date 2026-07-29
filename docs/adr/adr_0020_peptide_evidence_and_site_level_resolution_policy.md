@@ -35,36 +35,33 @@ Policy mapping reuses the existing `phospy.science.evidence` models and multi-si
 resolution logic (`PeptideEvidenceTable`, `MultiSiteHandlingConfig`,
 `SiteEvidenceMapping`) instead of introducing parallel ambiguity models.
 
-## Amendment: Differential Post-Hoc Aggregation Removed From Supported Surface
+## Amendment: Differential Uncertainty Scope
 
 **Date:** 2026-07-29
 
 ADR-0020 covers dataset-construction resolution from peptide evidence to
-analysis-ready site-level intensity rows. It does not authorize a separate
-post-hoc inferential lane that combines peptide-level differential statistics
-from the same experiment into production site-level uncertainty.
+analysis-ready site-level intensity rows. It remains the preferred
+PhosPy-origin lane for peptide-to-site differential analysis: resolve peptide
+evidence at the sample-intensity level first, then fit the core site-level
+differential model.
 
-PhosPy previously retained a lower-level peptide-to-site differential
-aggregation shell with fixed-effect, random-effect, inverse-variance, Stouffer,
-and minimum-p compatibility strategies. That shell is now removed from
-supported differential public facades. The only retained direct route is
-`phospy.science.differential.aggregation.experimental`, which is explicitly
-internal/experimental compatibility code.
+Post-hoc peptide-level differential estimate combination is governed separately
+by [ADR-0041: Peptide-to-Site Differential Uncertainty Policy](adr_0041_peptide_to_site_differential_uncertainty_policy.md).
+The supported post-hoc route requires typed standard errors, original
+finite-degree-of-freedom uncertainty, source experiment/run identifiers,
+dependence policy, and mapping policy. Same-experiment peptide estimates are
+rejected unless a future dependence-aware method is explicitly added.
 
 Scientific rationale:
 
 - same-experiment peptide-level differential statistics are not independent
-  external studies and cannot be treated as a production meta-analysis lane
-  without a corrected statistical model;
-- the retained fixed-effect, random-effect, inverse-variance, and Stouffer
-  strategies are not made safe merely because minimum-p compatibility mode is
-  deprecated;
-- a warning or caveat is insufficient for public support because users could
-  otherwise treat post-hoc summaries as supported site-level inference.
-
-Future support for peptide-to-site differential inference requires a new or
-amended ADR, corrected model specification, public result contract,
-documentation, provenance semantics, and tests before any public facade export.
+  external studies and cannot be treated as independent production
+  meta-analysis input;
+- finite-degree-of-freedom t statistics must not be used directly as z
+  statistics;
+- a single-estimate pass-through is not meta-analysis;
+- multi-site allocation remains explicit provenance, not hidden statistical
+  repair.
 
 ### Explicit Aggregation Semantics
 
