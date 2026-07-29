@@ -28,6 +28,10 @@ Good fits:
 This workflow is not a dataset builder, peptide-to-site resolver, imputation
 engine, broad batch-correction method, `duplicateCorrelation` implementation, or
 mixed-effects model.
+It also does not provide supported post-hoc peptide-to-site differential
+aggregation. Run supported differential analysis on validated analysis-ready
+site-level rows rather than treating peptide-level differential statistics as
+production site-level inference.
 
 ## Inputs
 

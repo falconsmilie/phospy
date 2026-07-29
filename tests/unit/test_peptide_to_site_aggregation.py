@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import importlib
+
 import pandas as pd
 import pytest
 
-from phospy.science.differential.aggregation import (
+import phospy
+import phospy.api as public_api
+import phospy.science.differential as differential_public
+import phospy.science.differential.aggregation as aggregation_public
+from phospy.science.differential.aggregation.experimental import (
+    EXPERIMENTAL_INTERNAL_API,
+    EXPERIMENTAL_INTERNAL_REASON,
+    PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS,
     PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
     PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
     PeptideToSiteAggregationConfig,
@@ -13,6 +22,17 @@ from phospy.science.differential.aggregation.scientific_policies import (
     build_peptide_to_site_aggregation_policy,
 )
 from phospy.science.evidence import PeptideEvidenceTable
+
+AGGREGATION_PUBLIC_SYMBOLS = {
+    "PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE",
+    "PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META",
+    "PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED",
+    "PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META",
+    "PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z",
+    "PeptideToSiteAggregationConfig",
+    "PeptideToSiteAggregationResult",
+    "PeptideToSiteAggregator",
+}
 
 
 def _evidence_frame() -> pd.DataFrame:
@@ -46,7 +66,78 @@ def _differential_table() -> pd.DataFrame:
     )
 
 
-def test_default_strategy_is_not_minimum_p_value() -> None:
+@pytest.mark.parametrize(
+    "module",
+    (phospy, public_api, differential_public, aggregation_public),
+)
+def test_peptide_to_site_aggregation_absent_from_supported_public_facades(
+    module: object,
+) -> None:
+    exported = set(getattr(module, "__all__", ()))
+    for symbol_name in AGGREGATION_PUBLIC_SYMBOLS:
+        assert symbol_name not in exported
+        assert not hasattr(module, symbol_name)
+
+
+@pytest.mark.parametrize(
+    "module_name",
+    (
+        "phospy",
+        "phospy.api",
+        "phospy.science.differential",
+        "phospy.science.differential.aggregation",
+    ),
+)
+@pytest.mark.parametrize("symbol_name", sorted(AGGREGATION_PUBLIC_SYMBOLS))
+def test_peptide_to_site_aggregation_from_import_fails_on_supported_facades(
+    module_name: str,
+    symbol_name: str,
+) -> None:
+    with pytest.raises(ImportError):
+        exec(f"from {module_name} import {symbol_name}", {})
+
+
+def test_old_public_aggregation_shell_route_is_removed() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("phospy.science.differential.aggregation.public")
+
+
+def test_experimental_compatibility_route_is_explicitly_internal() -> None:
+    assert EXPERIMENTAL_INTERNAL_API is True
+    assert PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS == (
+        "experimental_internal_compatibility_only"
+    )
+    assert "not a supported site-level inferential lane" in EXPERIMENTAL_INTERNAL_REASON
+    assert PeptideToSiteAggregator.experimental_internal_api is True
+    assert (
+        PeptideToSiteAggregator.scientific_support_status
+        == PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS
+    )
+    assert (
+        PeptideToSiteAggregator.__module__
+        == "phospy.science.differential.aggregation.experimental"
+    )
+    assert "Experimental/internal" in str(PeptideToSiteAggregationConfig.__doc__)
+
+
+def test_core_differential_exports_remain_available_after_aggregation_removal() -> None:
+    expected_core_exports = {
+        "ContrastMatrix",
+        "DesignMatrix",
+        "DifferentialAnalysisRequest",
+        "DifferentialAnalysisResult",
+        "EmpiricalBayesConfig",
+        "TechnicalReplicatePolicy",
+    }
+
+    assert expected_core_exports <= set(differential_public.__all__)
+    for symbol_name in expected_core_exports:
+        assert hasattr(differential_public, symbol_name)
+        assert hasattr(public_api, symbol_name)
+    assert hasattr(phospy, "DifferentialAnalysisWorkflow")
+
+
+def test_experimental_default_strategy_is_not_minimum_p_value() -> None:
     assert (
         PeptideToSiteAggregationConfig().strategy
         == PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META
@@ -166,6 +257,16 @@ def test_scientific_policy_metadata_warns_for_compatibility_min_p_mode() -> None
     assert result.warnings
     assert policy.parameters["compatibility_mode_warning"] is True
     assert policy.parameters["strategy"] == PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
+    assert (
+        policy.parameters["support_status"]
+        == "experimental_internal_compatibility_only"
+    )
+    assert (
+        policy.quantitative_meaning == "experimental_internal_posthoc_peptide_summary"
+    )
+    assert "not supported site-level uncertainty aggregation" in str(
+        policy.output_scale
+    )
     assert "multi_site_handling" in result.provenance
     handling = result.provenance["multi_site_handling"]
     assert isinstance(handling, dict)

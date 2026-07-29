@@ -1,23 +1,9 @@
-"""Peptide-to-site aggregation exports for differential workflows."""
+"""Internal experimental peptide-to-site differential aggregation package.
 
-from phospy.science.differential.aggregation.models import (
-    PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
-    PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
-    PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED,
-    PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META,
-    PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z,
-    PeptideToSiteAggregationConfig,
-    PeptideToSiteAggregationResult,
-)
-from phospy.science.differential.aggregation.public import PeptideToSiteAggregator
+This package intentionally has no supported public aggregation facade. Retained
+compatibility code lives under
+``phospy.science.differential.aggregation.experimental`` and is not re-exported
+from ``phospy.api``, ``phospy.science.differential``, or this package root.
+"""
 
-__all__ = [
-    "PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE",
-    "PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META",
-    "PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED",
-    "PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META",
-    "PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z",
-    "PeptideToSiteAggregationConfig",
-    "PeptideToSiteAggregationResult",
-    "PeptideToSiteAggregator",
-]
+__all__: list[str] = []

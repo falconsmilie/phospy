@@ -1,4 +1,4 @@
-"""Peptide-to-site differential aggregation execution."""
+"""Experimental/internal peptide-to-site differential aggregation execution."""
 
 from __future__ import annotations
 
@@ -26,12 +26,15 @@ from phospy.science.evidence.models import PeptideEvidenceTable
 
 _COMPATIBILITY_WARNING = (
     "compat_best_p_value selects the minimum peptide p-value per site and is "
-    "provided for compatibility only; this strategy is statistically biased."
+    "provided for compatibility only; this strategy is statistically biased. "
+    "All retained peptide-to-site differential aggregation strategies are "
+    "experimental/internal and are not supported for production site-level "
+    "inference."
 )
 
 
 class PeptideToSiteAggregationExecutor:
-    """Aggregate peptide-level differential tables to site-level summaries."""
+    """Execute unsupported experimental post-hoc site summaries."""
 
     def run_differential_result(
         self,

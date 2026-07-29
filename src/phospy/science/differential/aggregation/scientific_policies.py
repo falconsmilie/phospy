@@ -1,4 +1,4 @@
-"""Scientific policy records for peptide-to-site differential aggregation."""
+"""Experimental policy records for unsupported peptide-to-site aggregation."""
 
 from __future__ import annotations
 
@@ -18,11 +18,15 @@ def build_peptide_to_site_aggregation_policy(
     compatibility_mode_warning: bool,
 ) -> ScientificPolicyRecord:
     assumptions = [
-        "Aggregation consumes peptide-level differential model outputs without "
-        "refitting the upstream differential model.",
-        "Site-level uncertainty is derived from peptide-level uncertainty statistics.",
-        "Minimum-p compatibility mode is intended only for historical reproducibility "
-        "and can bias significance.",
+        "This record is emitted only by an internal/experimental compatibility "
+        "route, not by a supported PhosPy public differential API.",
+        "Aggregation consumes same-experiment peptide-level differential model "
+        "outputs without refitting a site-level statistical model.",
+        "The current fixed-effect, random-effect, inverse-variance, Stouffer, "
+        "and minimum-p strategies are not supported for production site-level "
+        "inference while the statistical model is being corrected.",
+        "Minimum-p compatibility mode is intended only for historical "
+        "reproducibility and can bias significance.",
     ]
     if compatibility_mode_warning:
         assumptions.append(
@@ -31,13 +35,15 @@ def build_peptide_to_site_aggregation_policy(
         )
     return ScientificPolicyRecord(
         id=ScientificPolicyId.PEPTIDE_TO_SITE_AGGREGATION,
-        name=f"peptide_to_site_aggregation_{strategy}_v1",
+        name=f"peptide_to_site_aggregation_{strategy}_experimental_internal_v1",
         version="1",
         description=(
-            "Aggregates peptide-level differential statistics into site-level "
-            "summaries with an explicit strategy."
+            "Records an internal experimental post-hoc peptide-to-site "
+            "differential aggregation run. This is not a supported site-level "
+            "inferential lane."
         ),
         parameters={
+            "support_status": "experimental_internal_compatibility_only",
             "strategy": str(strategy),
             "min_peptides_per_site": int(min_peptides_per_site),
             "missing_variance_policy": str(missing_variance_policy),
@@ -46,8 +52,11 @@ def build_peptide_to_site_aggregation_policy(
             "compatibility_mode_warning": bool(compatibility_mode_warning),
         },
         assumptions=tuple(assumptions),
-        output_scale="Site-level log fold-change and uncertainty summaries.",
-        quantitative_meaning="site_level_differential_summary",
+        output_scale=(
+            "Experimental post-hoc site summary generated from peptide-level "
+            "statistics; not supported site-level uncertainty aggregation."
+        ),
+        quantitative_meaning="experimental_internal_posthoc_peptide_summary",
     )
 
 

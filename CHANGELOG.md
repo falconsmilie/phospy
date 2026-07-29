@@ -29,6 +29,16 @@ All notable changes to this project are documented here.
   classes from `phospy.api.datasets`. Stable users should inspect diagnostics
   through dataset properties, builder reports, workflow results, and provenance
   records.
+- Breaking: removed peptide-to-site differential aggregation from supported
+  public differential facades. `PeptideToSiteAggregator`,
+  `PeptideToSiteAggregationConfig`, `PeptideToSiteAggregationResult`, and the
+  current fixed-effect, random-effect, inverse-variance, Stouffer, and
+  minimum-p strategy constants are no longer exported from
+  `phospy.science.differential` or
+  `phospy.science.differential.aggregation`. The retained compatibility route
+  is `phospy.science.differential.aggregation.experimental` and is explicitly
+  internal/experimental because post-hoc same-experiment peptide
+  meta-analysis is not currently a supported site-level inferential lane.
 
 ### Added
 
@@ -173,8 +183,9 @@ All notable changes to this project are documented here.
   `ExplicitMotifSequence` values or structured mapping entries with stable `reference_id`, optional `site_id`,
   `kinase`, and `sequence` fields.
 - `PeptideToSiteAggregationConfig(strategy="compat_best_p_value")` now emits `DeprecationWarning`; keep it only for
-  historical minimum-p-value reproduction and migrate new analyses to `fixed_effect_meta`, `random_effect_meta`, or
-  `stouffer_z` based on the intended uncertainty model.
+  historical minimum-p-value reproduction inside the internal experimental compatibility route. Do not migrate new
+  analyses to the retained fixed-effect, random-effect, inverse-variance, or Stouffer post-hoc aggregation strategies as
+  production site-level inference.
 - `TechnicalReplicateResolver` now emits `DeprecationWarning` when constructed or run; migrate low-level callers to
   `TechnicalReplicateAggregationPlanner` plus `TechnicalReplicateAggregator`, or use `DifferentialAnalysisWorkflow` for
   normal workflow execution.

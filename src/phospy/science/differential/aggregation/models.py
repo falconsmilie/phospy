@@ -1,4 +1,9 @@
-"""Models for peptide-to-site differential aggregation."""
+"""Experimental/internal models for peptide-to-site differential aggregation.
+
+These models support a retained compatibility implementation only. They are not
+part of the supported public differential API and must not be interpreted as a
+production site-level inferential contract.
+"""
 
 from __future__ import annotations
 
@@ -14,12 +19,13 @@ from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
+PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS = "experimental_internal_compatibility_only"
 PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE = "compat_best_p_value"
 PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED = "inverse_variance_weighted"
 PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META = "fixed_effect_meta"
 PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z = "stouffer_z"
 PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META = "random_effect_meta"
-SUPPORTED_PEPTIDE_TO_SITE_STRATEGIES: tuple[str, ...] = (
+EXPERIMENTAL_PEPTIDE_TO_SITE_STRATEGIES: tuple[str, ...] = (
     PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
     PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED,
     PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
@@ -35,17 +41,19 @@ SUPPORTED_STOUFFER_WEIGHTING: tuple[str, ...] = (
 MISSING_VARIANCE_POLICY_DROP = "drop"
 SUPPORTED_MISSING_VARIANCE_POLICIES: tuple[str, ...] = (MISSING_VARIANCE_POLICY_DROP,)
 _COMPAT_BEST_P_VALUE_DEPRECATION_MESSAGE = (
-    "compat_best_p_value is deprecated and will be removed in a future release. "
-    "It selects the minimum peptide p-value per site for historical "
-    "reproduction only and can bias site-level significance. Use "
-    "fixed_effect_meta, random_effect_meta, or stouffer_z according to the "
-    "peptide-level uncertainty available for the analysis."
+    "compat_best_p_value is deprecated and retained only inside the "
+    "experimental/internal peptide-to-site aggregation compatibility route. It "
+    "selects the minimum peptide p-value per site and can bias significance. "
+    "The entire post-hoc same-experiment aggregation implementation, including "
+    "fixed_effect_meta, random_effect_meta, inverse_variance_weighted, and "
+    "stouffer_z, is not supported for production site-level inference while the "
+    "statistical model is being corrected."
 )
 
 
 @dataclass(frozen=True, slots=True)
 class PeptideToSiteAggregationConfig:
-    """Configuration for peptide-to-site differential aggregation."""
+    """Experimental/internal config for unsupported post-hoc aggregation."""
 
     strategy: str = PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META
     min_peptides_per_site: int = 1
@@ -54,12 +62,13 @@ class PeptideToSiteAggregationConfig:
     random_effect_tau2_floor: float = 0.0
 
     def __post_init__(self) -> None:
-        if self.strategy not in SUPPORTED_PEPTIDE_TO_SITE_STRATEGIES:
+        if self.strategy not in EXPERIMENTAL_PEPTIDE_TO_SITE_STRATEGIES:
             supported = ", ".join(
-                repr(value) for value in SUPPORTED_PEPTIDE_TO_SITE_STRATEGIES
+                repr(value) for value in EXPERIMENTAL_PEPTIDE_TO_SITE_STRATEGIES
             )
             raise PhosPyInputError(
-                f"peptide_to_site_aggregation.strategy must be one of: {supported}"
+                "experimental peptide_to_site_aggregation.strategy must be one of: "
+                f"{supported}"
             )
         if self.strategy == PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE:
             warnings.warn(
@@ -102,7 +111,7 @@ class PeptideToSiteAggregationConfig:
 
 @dataclass(frozen=True, slots=True, init=False)
 class PeptideToSiteAggregationResult:
-    """Site-level differential result from peptide-level aggregation."""
+    """Experimental/internal result from unsupported post-hoc aggregation."""
 
     contrast_name: str
     table: pd.DataFrame

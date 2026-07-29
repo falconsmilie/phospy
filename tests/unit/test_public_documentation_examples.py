@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_GUIDE = ROOT / "docs" / "api" / "guide.md"
 DATASET_WORKFLOW_DOC = ROOT / "docs" / "api" / "dataset-build-workflow.md"
+SCIENTIFIC_COVERAGE_DOC = ROOT / "docs" / "scientific-coverage.md"
 WORKFLOW_DOCS_DIR = ROOT / "docs" / "api"
 DIFFERENTIAL_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "differential-analysis.md"
 ENRICHMENT_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
@@ -43,6 +44,17 @@ API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
     WorkflowValidationError,
 )
 """
+
+AGGREGATION_PUBLIC_IMPORT_NAMES = (
+    "PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE",
+    "PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META",
+    "PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED",
+    "PEPTIDE_TO_SITE_STRATEGY_RANDOM_EFFECT_META",
+    "PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z",
+    "PeptideToSiteAggregationConfig",
+    "PeptideToSiteAggregationResult",
+    "PeptideToSiteAggregator",
+)
 
 
 def _read(path: Path) -> str:
@@ -436,6 +448,33 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
         ("DifferentialAnalysis",),
         context="API guide differential workflow route",
     )
+
+
+def test_docs_do_not_import_peptide_to_site_aggregation_from_supported_facades() -> (
+    None
+):
+    source = "\n".join(
+        _read(path)
+        for path in (
+            README,
+            API_GUIDE,
+            DIFFERENTIAL_WORKFLOW_DOC,
+            SCIENTIFIC_COVERAGE_DOC,
+        )
+    )
+
+    for module_name in (
+        "phospy",
+        "phospy.api",
+        "phospy.science.differential",
+        "phospy.science.differential.aggregation",
+    ):
+        _assert_python_imports_absent(
+            source,
+            module_name,
+            AGGREGATION_PUBLIC_IMPORT_NAMES,
+            context="peptide-to-site aggregation public import removal",
+        )
 
 
 def test_api_guide_small_working_example_includes_localisation_policy() -> None:

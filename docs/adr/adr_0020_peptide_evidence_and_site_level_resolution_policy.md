@@ -35,7 +35,42 @@ Policy mapping reuses the existing `phospy.science.evidence` models and multi-si
 resolution logic (`PeptideEvidenceTable`, `MultiSiteHandlingConfig`,
 `SiteEvidenceMapping`) instead of introducing parallel ambiguity models.
 
+## Amendment: Differential Post-Hoc Aggregation Removed From Supported Surface
+
+**Date:** 2026-07-29
+
+ADR-0020 covers dataset-construction resolution from peptide evidence to
+analysis-ready site-level intensity rows. It does not authorize a separate
+post-hoc inferential lane that combines peptide-level differential statistics
+from the same experiment into production site-level uncertainty.
+
+PhosPy previously retained a lower-level peptide-to-site differential
+aggregation shell with fixed-effect, random-effect, inverse-variance, Stouffer,
+and minimum-p compatibility strategies. That shell is now removed from
+supported differential public facades. The only retained direct route is
+`phospy.science.differential.aggregation.experimental`, which is explicitly
+internal/experimental compatibility code.
+
+Scientific rationale:
+
+- same-experiment peptide-level differential statistics are not independent
+  external studies and cannot be treated as a production meta-analysis lane
+  without a corrected statistical model;
+- the retained fixed-effect, random-effect, inverse-variance, and Stouffer
+  strategies are not made safe merely because minimum-p compatibility mode is
+  deprecated;
+- a warning or caveat is insufficient for public support because users could
+  otherwise treat post-hoc summaries as supported site-level inference.
+
+Future support for peptide-to-site differential inference requires a new or
+amended ADR, corrected model specification, public result contract,
+documentation, provenance semantics, and tests before any public facade export.
+
 ### Explicit Aggregation Semantics
+
+The semantics in this section are dataset-construction signal-allocation and
+site-resolution semantics. They are not post-hoc differential statistic
+meta-analysis semantics.
 
 Peptide-to-site aggregation is scientifically explicit and owned by
 `phospy.science.evidence.dataset_resolution`:

@@ -189,7 +189,7 @@ tests/unit/test_maxquant_phosphosite_importer.py,unit,315,10,false,false,,,,,,
 tests/unit/test_missing_data_split_modules.py,unit,822,26,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_multiple_testing_correction.py,unit,159,7,true,true,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,162,6,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
-tests/unit/test_peptide_to_site_aggregation.py,unit,215,8,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for peptide-to-site aggregation, increasing risk of incorrect site-level evidence summarisation.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_peptide_to_site_aggregation.py,unit,316,13,true,true,scientific invariant,keep,Loss of this file would remove export-boundary and internal-compatibility protection for unsupported experimental peptide-to-site differential aggregation.,codex-audit,,Updated after public aggregation facade removal.
 tests/unit/test_performance_contract_helpers.py,unit,19,1,false,false,,,,,,
 tests/unit/test_phosphosite_identity.py,unit,348,20,true,true,,,,,,
 tests/unit/test_phosphosite_importer_foundation.py,unit,197,6,false,false,,,,,,
@@ -227,7 +227,7 @@ tests/unit/test_public_contract_errors.py,unit,775,25,true,true,public API contr
 tests/unit/test_public_contract_import_routes.py,unit,280,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_results.py,unit,405,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_workflows.py,unit,196,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_documentation_examples.py,unit,484,7,false,false,,,,,,
+tests/unit/test_public_documentation_examples.py,unit,523,8,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,45,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_reader_enrichment_sets.py,unit,151,6,true,true,,,,,,
 tests/unit/test_reader_table_parsing_helpers.py,unit,186,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -245,7 +245,7 @@ tests/unit/test_result_snapshot_helpers.py,unit,544,9,false,false,,,,,,
 tests/unit/test_row_attrition_provenance.py,unit,266,13,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_runtime_contract_guards.py,unit,213,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,759,28,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,795,29,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_scientific_invariants.py,unit,714,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,484,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_reconstruction_identity.py,unit,33,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

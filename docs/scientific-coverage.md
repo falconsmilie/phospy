@@ -329,6 +329,7 @@ claimed.
 | Area | Scope category | Current executable support | Evidence and release checks | Limits and non-claims |
 | --- | --- | --- | --- | --- |
 | Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates. Upstream-imputed datasets remain rejected by default; `imputed_value_policy="withhold_imputed_features"` is an explicit validated PhosPy policy when imputation observation metadata is present. | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, `tests/parity/test_differential_limma_trend_large.py`, `tests/science/test_differential_adverse_design_contracts.py`, plus unit/integration design, fixed-effect provenance, result-contract tests, and `tests/unit/test_differential_imputation_policy.py` | Limma parity is fixture-scoped, including the 1,600-feature trend fixture; adverse fixed-effect/design cases without external expected values are PhosPy regression contracts, not parity. Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. Imputed cells are not treated as fully observed by default. `withhold_imputed_features` withholds high-imputation or insufficient-observation rows, reports status, and excludes withheld rows from model fitting and the Benjamini-Hochberg denominator. It is not observed-only fitting. |
+| Post-hoc peptide-to-site differential aggregation | `open gap` | No supported public workflow/API lane. Retained code is available only through `phospy.science.differential.aggregation.experimental` as internal experimental compatibility code. | Public export absence tests, documentation scope tests, and internal compatibility regression tests in `tests/unit/test_peptide_to_site_aggregation.py` | Post-hoc same-experiment peptide meta-analysis is not currently a supported site-level inferential lane. Do not interpret `fixed_effect_meta`, `random_effect_meta`, `inverse_variance_weighted`, `stouffer_z`, or `compat_best_p_value` as production-supported site-level uncertainty aggregation while the statistical model is being corrected. This gap does not weaken the core `DifferentialAnalysisWorkflow`. |
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` PhosR-inspired profile/motif scoring and rank-weighted fusion implemented by PhosPy | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py`, and sparse-support regression contracts in `tests/science/test_kinase_sparse_support_regression_fixtures.py` | Relative support scoring only; not calibrated causal inference. The mode is not an exact PhosR implementation and is not intended to provide numerical parity with PhosR. Sparse-support, leave-one-out, localisation attrition, production-threshold, and ssGSEA-permutation cases are PhosPy regression/science contracts unless an external expected output is documented. Kinase Library scoring is not the default parity lane. |
 | Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/unit/test_kinase_library_workflow_requirements.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Workflow mode still requires resolved `ReferenceBundle` context with `kinase_substrate_map` overlap, eligible kinases at `min_substrates`, and resolved site sequences. It also requires an explicit compatible local `KinaseLibraryResource`. Missing matching residue-class lanes fail validation; they do not fall back to PhosR-inspired motif scoring. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. No official Kinase Library parity claim is made. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
@@ -524,7 +525,8 @@ Ownership of scientific policy modules is domain-scoped:
 - preprocessing: `phospy.science.datasets.preprocessing.scientific_policies`
 - signalome workflow: `phospy.workflows.signalome.scientific_policies`
 - signalome clustering: `phospy.science.signalomes.clustering.scientific_policies`
-- differential aggregation: `phospy.science.differential.aggregation.scientific_policies`
+- differential aggregation internal experimental compatibility only:
+  `phospy.science.differential.aggregation.scientific_policies`
 
 Differential outputs now expose structured policy provenance through
 `DifferentialAnalysisResult.policy_provenance`, including:
@@ -785,16 +787,18 @@ table-hash semantics are unchanged.
 ### `peptide_to_site_aggregation_v1`
 
 - What it does:
-  records how peptide-level differential statistics are aggregated to site-level
-  summaries.
+  records execution of the retained internal experimental compatibility route
+  for post-hoc peptide-level differential statistic aggregation.
 - Assumptions:
-  aggregation strategy and variance rules change site-level uncertainty and
-  significance behavior.
+  same-experiment peptide-level differential outputs are consumed without
+  fitting a corrected site-level statistical model; this is not a supported
+  inferential lane.
 - Parameters:
-  aggregation strategy, minimum peptides per site, missing-variance policy, and
-  weighting mode.
+  experimental/internal support status, aggregation strategy, minimum peptides
+  per site, missing-variance policy, and weighting mode.
 - Output meaning:
-  explicit provenance for site-level differential summary construction.
+  explicit provenance for an unsupported experimental post-hoc summary. It is
+  not a production site-level uncertainty aggregation claim.
 
 ## Where Details Live
 

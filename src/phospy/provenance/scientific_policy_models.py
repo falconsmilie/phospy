@@ -13,7 +13,11 @@ ScientificPolicyParameter = str | int | float | bool | None
 
 
 class ScientificPolicyId(str, Enum):
-    """Stable identifiers for scientific scoring and derivation behavior."""
+    """Stable identifiers for emitted scientific-policy records.
+
+    Enum membership preserves payload readability; it is not by itself a public
+    support claim for the producing route.
+    """
 
     PROFILE_CORRELATION_SHIFTED_UNIT = "profile_correlation_shifted_unit_v1"
     KINASE_PROFILE_SCORING = "kinase_profile_scoring_v1"
