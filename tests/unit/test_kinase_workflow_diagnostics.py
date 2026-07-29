@@ -10,6 +10,7 @@ from phospy import (
 )
 from phospy.api import (
     DatasetBuildRequest,
+    KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
@@ -109,7 +110,9 @@ def _bundle(kinase_substrate_map: pd.DataFrame) -> ReferenceBundle:
 
 
 def _scoring_config(**kwargs: object) -> KinaseScoringConfig:
+    reliability_profile = kwargs.pop("reliability_profile", "custom")
     return KinaseScoringConfig(
+        reliability_profile=reliability_profile,
         reference_context_compatibility_policy=(
             ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
         ),
@@ -237,6 +240,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
             )
         ),
         scoring_config=_scoring_config(),
+        activity_config=KinaseActivityConfig(),
     )
 
     interpreted = KinaseWorkflowInterpreter().run(request)

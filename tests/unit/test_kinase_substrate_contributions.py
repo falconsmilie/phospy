@@ -176,6 +176,7 @@ def test_scoring_runner_skips_contribution_builder_when_collection_disabled(
             dataset=_dataset(),
             references=_references(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -208,6 +209,7 @@ def test_scoring_runner_collects_internal_contributions_when_requested() -> None
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
             include_substrate_contributions=True,
@@ -421,6 +423,7 @@ def _contribution_request(
         dataset=_ambiguous_dataset(),
         references=_ambiguous_references(),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_substrate_contributions=include_substrate_contributions,
             reference_context_compatibility_policy=(

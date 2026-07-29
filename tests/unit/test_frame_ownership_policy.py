@@ -1074,6 +1074,7 @@ def _kinase_result():
             ),
             references=references,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     _ALLOW_UNKNOWN_REFERENCE_CONTEXT

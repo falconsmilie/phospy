@@ -171,7 +171,9 @@ def test_resolved_kinase_validator_rejects_invalid_overlap_summary_state() -> No
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            reliability_profile="custom", min_substrates=2
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,
@@ -179,6 +181,8 @@ def test_resolved_kinase_validator_rejects_invalid_overlap_summary_state() -> No
         ),
         activity_config=None,
     )
+    scoring_config = request.scoring_config
+    assert scoring_config is not None
     with pytest.raises(
         PhosPyWorkflowError,
         match="overlap_counts\\['per_kinase_quantified'\\] to be a pandas Series",
@@ -206,7 +210,8 @@ def test_resolved_kinase_validator_rejects_invalid_overlap_summary_state() -> No
                 scoring_site_index=pd.Index([], name=dataset.phospho.index.name),
                 activity_phospho_matrix=dataset.phospho.iloc[0:0],
                 execution_config=KinaseWorkflowInterpreter._resolve_execution_config(
-                    request
+                    request,
+                    scoring_config=scoring_config,
                 ),
                 reference_site_count=0,
             ),

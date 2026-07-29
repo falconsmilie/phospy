@@ -58,6 +58,7 @@ def _run_signalome_l6_supported_slice():
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

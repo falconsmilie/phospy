@@ -84,6 +84,7 @@ def test_kinase_workflow_runs_ssgsea_substrate_enrichment_activity() -> None:
             dataset=_dataset(),
             references=_references(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

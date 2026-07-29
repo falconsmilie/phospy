@@ -536,6 +536,7 @@ def _run_l6_workflow(adaptive_policy: str):
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
                 reference_context_compatibility_policy=(

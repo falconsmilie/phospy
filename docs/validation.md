@@ -234,8 +234,12 @@ References must be compatible with the dataset organism when organism informatio
 is present. Kinase scoring and prediction operate on `site_key`; display IDs are
 used only through the explicit reference-mapping layer described above.
 
-`KinaseScoringConfig.min_substrates` must be at least `2`. The activity stage can
-be disabled with `activity_config=None`, which is useful for tiny examples.
+`KinaseWorkflowRequest.scoring_config` must be explicit: use
+`KinaseScoringConfig.exploratory()`, `KinaseScoringConfig.production(...)`, or
+direct custom construction with `reliability_profile="custom"`.
+`KinaseScoringConfig.min_substrates` must be at least `2`. The activity stage is
+disabled by default with `activity_config=None`, which is useful for tiny
+examples.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 `scoring_config.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 

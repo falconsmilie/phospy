@@ -202,9 +202,10 @@ print(
 `candidate_scoring_policy="sampled"` only approximates candidate module-count
 scoring. It does not make tree generation approximate.
 
-Why `activity_config=None`? The example has only two sites. The activity stage is
-more useful on larger data and defaults to a higher substrate-support threshold.
-For real datasets, you can remove that line or configure `KinaseActivityConfig`.
+Why `activity_config=None`? Activity execution is opt-in and this example has
+only two sites. The activity stage is more useful on larger data and defaults
+to a higher substrate-support threshold. For real datasets, provide an explicit
+`KinaseActivityConfig` when you want activity-like score outputs.
 
 Why no `input_intensity_scale` declaration in this example? The
 `from_raw_phosphosite_table()` preset applies a log2 transform, so the builder

@@ -7,6 +7,7 @@ from typing import NoReturn
 import pandas as pd
 
 from phospy.contracts.configs import ReferenceContextCompatibilityPolicy
+from phospy.contracts.configs.kinase import KinaseScoringConfig
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -78,6 +79,7 @@ class KinaseWorkflowInterpreter:
         )
 
     def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
+        scoring_config = self._require_scoring_config(request)
         dataset_view = DatasetInternalView(request.dataset)
         dataset_phospho = dataset_view.phospho
         dataset_site_metadata = dataset_view.site_metadata
@@ -101,13 +103,14 @@ class KinaseWorkflowInterpreter:
             else references.provenance.reference_context,
             operation="kinase workflow resolved dataset/reference bundle",
             allow_unknown=(
-                request.scoring_config.reference_context_compatibility_policy
+                scoring_config.reference_context_compatibility_policy
                 is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
             ),
             error_type=WorkflowBoundaryError,
         )
         kinase_library_resource = self._resolve_kinase_library_resource(
             request=request,
+            scoring_config=scoring_config,
         )
         reference_site_count = len(
             frozenset(
@@ -176,7 +179,10 @@ class KinaseWorkflowInterpreter:
             dataset_phospho,
             rows=scoring_site_index,
         )
-        execution_config = self._resolve_execution_config(request)
+        execution_config = self._resolve_execution_config(
+            request,
+            scoring_config=scoring_config,
+        )
         resolved_inputs = ResolvedKinaseInputs(
             dataset=request.dataset,
             dataset_phospho=dataset_phospho,
@@ -302,6 +308,8 @@ class KinaseWorkflowInterpreter:
     @staticmethod
     def _resolve_execution_config(
         request: KinaseWorkflowRequest,
+        *,
+        scoring_config: KinaseScoringConfig,
     ) -> ResolvedKinaseExecutionConfig:
         prediction_sampling_policy = resolve_prediction_sampling_policy(
             request.prediction_config.adaptive_policy
@@ -340,17 +348,17 @@ class KinaseWorkflowInterpreter:
             )
         )
         return ResolvedKinaseExecutionConfig(
-            scoring_min_substrates=int(request.scoring_config.min_substrates),
-            scoring_mode=request.scoring_config.scoring_mode,
+            scoring_min_substrates=int(scoring_config.min_substrates),
+            scoring_mode=scoring_config.scoring_mode,
             include_diagnostic_scoring_tables=bool(
-                request.scoring_config.include_diagnostic_scoring_tables
+                scoring_config.include_diagnostic_scoring_tables
             ),
             include_substrate_contributions=bool(
-                request.scoring_config.include_substrate_contributions
+                scoring_config.include_substrate_contributions
             ),
-            profile_missing_value_strategy=request.scoring_config.profile_missing_value_strategy,
+            profile_missing_value_strategy=scoring_config.profile_missing_value_strategy,
             profile_self_inclusion_policy=(
-                request.scoring_config.profile_self_inclusion_policy
+                scoring_config.profile_self_inclusion_policy
             ),
             prediction_top_k=int(request.prediction_config.top_k),
             prediction_deterministic_max_selected_kinases=int(
@@ -368,17 +376,17 @@ class KinaseWorkflowInterpreter:
                 if request.prediction_config.random_state is None
                 else int(request.prediction_config.random_state)
             ),
-            attrition_policy=request.scoring_config.attrition_policy,
+            attrition_policy=scoring_config.attrition_policy,
             activity=activity,
             requested_reliability_profile=(
-                request.scoring_config.requested_reliability_profile
+                scoring_config.requested_reliability_profile
             ),
             effective_reliability_profile=(
-                request.scoring_config.effective_reliability_profile
+                scoring_config.effective_reliability_profile
             ),
-            localisation_requirement=request.scoring_config.localisation_requirement,
+            localisation_requirement=scoring_config.localisation_requirement,
             reference_context_compatibility_policy=(
-                request.scoring_config.reference_context_compatibility_policy
+                scoring_config.reference_context_compatibility_policy
             ),
         )
 
@@ -422,8 +430,9 @@ class KinaseWorkflowInterpreter:
         self,
         *,
         request: KinaseWorkflowRequest,
+        scoring_config: KinaseScoringConfig,
     ) -> KinaseLibraryResource | None:
-        scoring_mode = request.scoring_config.scoring_mode
+        scoring_mode = scoring_config.scoring_mode
         mode_contract = kinase_scoring_mode_input_contract(scoring_mode)
         if not mode_contract.requires_kinase_library_resource:
             return None
@@ -463,6 +472,24 @@ class KinaseWorkflowInterpreter:
                 sequence_window=resource.sequence_window.to_payload(),
             )
         return resource
+
+    @staticmethod
+    def _require_scoring_config(
+        request: KinaseWorkflowRequest,
+    ) -> KinaseScoringConfig:
+        scoring_config = request.scoring_config
+        if isinstance(scoring_config, KinaseScoringConfig):
+            return scoring_config
+        raise WorkflowBoundaryError(
+            seam="kinase.interpreter.scoring_config",
+            next_action=(
+                "provide scoring_config=KinaseScoringConfig.exploratory(), "
+                "KinaseScoringConfig.production(...), or "
+                "KinaseScoringConfig(..., reliability_profile='custom')"
+            ),
+            details={"observed_type": type(scoring_config).__name__},
+            message_prefix="kinase workflow boundary validation failed",
+        )
 
     @staticmethod
     def _resolve_scoring_site_index(

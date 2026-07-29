@@ -538,6 +538,7 @@ def _request(
         dataset=dataset or _dataset(),
         references=references or _references(),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             scoring_mode=scoring_mode,
             include_diagnostic_scoring_tables=True,

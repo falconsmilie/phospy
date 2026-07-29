@@ -197,7 +197,8 @@ references = ReferenceBundleBuilder().run(
 ```
 
 The result is a normal validated `ReferenceBundle` and can be passed directly
-to `KinaseWorkflowRequest(references=references)`.
+to `KinaseWorkflowRequest(references=references, scoring_config=...)` with an
+explicit exploratory, production, or custom `KinaseScoringConfig`.
 
 `ReferenceBundleBuildRequest.source_version` identifies the upstream package,
 database, or caller-source version. `reference_version` identifies the local

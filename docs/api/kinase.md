@@ -91,9 +91,9 @@ Important fields:
 | --- | --- |
 | `dataset` | The `AnalysisReadyPhosphoDataset` to score. |
 | `references` | `ReferencePreset` or explicit `ReferenceBundle`. |
-| `scoring_config` | `KinaseScoringConfig` for scoring mode, substrate floors, diagnostics, localisation, and mixed total-protein guardrails. |
+| `scoring_config` | Explicit `KinaseScoringConfig` for exploratory, production, or custom scoring intent plus scoring mode, substrate floors, diagnostics, localisation, and mixed total-protein guardrails. |
 | `prediction_config` | `KinasePredictionConfig` for deterministic or adaptive prediction. |
-| `activity_config` | `KinaseActivityConfig`, `None`, or disabled config for optional activity score output. |
+| `activity_config` | `KinaseActivityConfig`, `None`, or disabled config for optional activity score output. The request default is `None`; activity execution is opt-in. |
 | `site_sequence_conflict_policy` | Handles dataset/reference sequence conflicts: `"prefer_reference"`, `"prefer_dataset"`, or `"error"`. |
 | `reference_display_ambiguity_policy` | Handles one-display-to-many-`site_key` reference projection: `"error"` or `"allow_with_diagnostics"`. |
 | `kinase_library_resource` | Required only for Kinase Library-style workflow scoring modes. |
@@ -104,19 +104,24 @@ before interpretation and execution.
 
 ## Request Configuration
 
-Use these config objects:
+Use these config objects. `scoring_config` is required at workflow validation:
 
 - `KinaseScoringConfig`
 - `KinasePredictionConfig`
 - `KinaseActivityConfig`
 - `LocalisationRequirement`
 
+Choose scoring intent explicitly with `KinaseScoringConfig.exploratory()`,
+`KinaseScoringConfig.production(...)`, or direct
+`KinaseScoringConfig(..., reliability_profile=KinaseReliabilityProfile.CUSTOM)`
+for custom values. Bare `KinaseScoringConfig()` is rejected.
+
 Important `KinaseScoringConfig` fields:
 
 | Field | Default | Notes |
 | --- | --- | --- |
 | `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
-| `reliability_profile` | `"exploratory"` for unchanged defaults | A directly constructed `KinaseScoringConfig` with old defaults is classified as exploratory; modified config construction is custom unless an explicit profile is supplied and its invariants pass. |
+| `reliability_profile` | Required for direct construction | Use `exploratory()`, `production(...)`, or explicit `CUSTOM`; profiles are caller-selected, not inferred from old defaults. |
 | `min_substrates` | `2` | Minimum unique usable substrates for kinase scoring support. The public floor is `2`. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
 | `include_substrate_contributions` | `False` | Assembles and adds an optional substrate-level contribution table to `KinaseWorkflowResult`. |
@@ -189,7 +194,8 @@ Important `KinaseActivityConfig` fields:
 
 | Field | Default | Notes |
 | --- | --- | --- |
-| `enabled` | `True` | Set `activity_config=None` or `enabled=False` to skip activity. |
+| request `activity_config` | `None` | Activity execution is opt-in on `KinaseWorkflowRequest`. |
+| `enabled` | `True` on `KinaseActivityConfig` | Set `activity_config=None` or `enabled=False` to skip activity. |
 | `method` | `"simplified_weighted_substrate_activity"` | Supported methods: `"simplified_weighted_substrate_activity"`, `"ksea_zscore"`, `"ssgsea_substrate_enrichment"`. |
 | `threshold` | `0.6` | Prediction support threshold. |
 | `min_substrates` | `3` | Weighted activity-like score substrate floor. |
@@ -212,13 +218,13 @@ supported.
 
 ```python
 from phospy import KinaseWorkflow
-from phospy.api import KinaseWorkflowRequest, ReferencePreset
+from phospy.api import KinaseScoringConfig, KinaseWorkflowRequest, ReferencePreset
 
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        activity_config=None,
+        scoring_config=KinaseScoringConfig.exploratory(),
     )
 )
 ```

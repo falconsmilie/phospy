@@ -171,6 +171,7 @@ def _request(
         dataset=_dataset() if dataset is None else dataset,
         references=_references() if references is None else references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
             reference_context_compatibility_policy=(

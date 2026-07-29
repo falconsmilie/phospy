@@ -604,6 +604,7 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -702,6 +703,7 @@ def _build_request_with_subtract_log_total_and_uncorrected_rows(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             allow_mixed_total_protein_quantitative_meaning=True,
             reference_context_compatibility_policy=(
@@ -798,6 +800,7 @@ def _build_request_with_subtract_log_total(*, activity: bool) -> KinaseWorkflowR
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

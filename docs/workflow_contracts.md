@@ -246,6 +246,9 @@ Important user-facing assumptions:
   through dataset `display_id` metadata.
 - `reference_display_ambiguity_policy="error"` rejects one-display-to-many
   `site_key` projection by default.
+- Scoring reliability intent is explicit. Callers must provide exploratory,
+  production, or custom `KinaseScoringConfig`; the workflow does not infer a
+  historical no-argument scoring profile.
 - Site sequences are required evidence for scoring rows, and every current
   kinase scoring mode requires workflow-specific centered phosphosite sequence
   context.
@@ -261,7 +264,8 @@ Important user-facing assumptions:
 - Kinase Library-style workflow modes require a compatible caller-supplied
   local `KinaseLibraryResource`. PhosPy does not bundle official Kinase Library
   data and does not claim validated Kinase Library parity.
-- Activity score output is optional and method-specific.
+- Activity score output is opt-in and method-specific; request
+  `activity_config` defaults to `None`.
   `activity_result.activity_matrix` is the preferred method-neutral kinase
   activity score matrix.
 - Activity scores depend on substrate coverage and reference evidence; sparse

@@ -265,6 +265,7 @@ def test_kinase_interpreter_delegates_resolved_validation() -> None:
         dataset=dataset,
         references=_references(),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

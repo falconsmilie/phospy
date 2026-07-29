@@ -37,6 +37,7 @@ def _run_workflow(*, dataset, references, mode: str):
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
                 reference_context_compatibility_policy=(

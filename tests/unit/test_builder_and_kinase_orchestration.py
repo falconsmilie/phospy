@@ -166,6 +166,9 @@ def _site_identity_map() -> pd.DataFrame:
 def _resolved_kinase_execution_config(
     request: KinaseWorkflowRequest,
 ) -> ResolvedKinaseExecutionConfig:
+    scoring_config = request.scoring_config
+    if not isinstance(scoring_config, KinaseScoringConfig):
+        raise AssertionError("test request must include explicit scoring_config")
     activity = (
         None
         if request.activity_config is None or not request.activity_config.enabled
@@ -185,11 +188,11 @@ def _resolved_kinase_execution_config(
         )
     )
     return ResolvedKinaseExecutionConfig(
-        scoring_min_substrates=int(request.scoring_config.min_substrates),
+        scoring_min_substrates=int(scoring_config.min_substrates),
         include_diagnostic_scoring_tables=bool(
-            request.scoring_config.include_diagnostic_scoring_tables
+            scoring_config.include_diagnostic_scoring_tables
         ),
-        profile_missing_value_strategy=request.scoring_config.profile_missing_value_strategy,
+        profile_missing_value_strategy=scoring_config.profile_missing_value_strategy,
         prediction_top_k=int(request.prediction_config.top_k),
         prediction_deterministic_max_selected_kinases=int(
             request.prediction_config.deterministic_max_selected_kinases
@@ -206,7 +209,7 @@ def _resolved_kinase_execution_config(
         ),
         activity=activity,
         reference_context_compatibility_policy=(
-            request.scoring_config.reference_context_compatibility_policy
+            scoring_config.reference_context_compatibility_policy
         ),
     )
 
@@ -261,7 +264,9 @@ def test_request_config_and_result_models_construct() -> None:
     workflow_request = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            reliability_profile="custom", min_substrates=2
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=10,
             deterministic_max_selected_kinases=3,
@@ -422,6 +427,7 @@ def test_workflow_run_contract_returns_nested_results() -> None:
             dataset=_dataset(),
             references=_bundle(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -478,6 +484,7 @@ def test_kinase_workflow_result_provenance_copies_input_dataset_reference_contex
             dataset=dataset,
             references=_bundle(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -495,7 +502,11 @@ def test_kinase_workflow_result_provenance_copies_input_dataset_reference_contex
 
 def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     calls: list[str] = []
-    request = KinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.AUTO)
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig.exploratory(),
+    )
     bundle = _bundle()
     interpreted = ResolvedKinaseWorkflowRequest(
         dataset=request.dataset,
@@ -559,6 +570,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
             dataset=_dataset(),
             references=_bundle(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

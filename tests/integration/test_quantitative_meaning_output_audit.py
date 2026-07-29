@@ -111,6 +111,7 @@ def _build_kinase_request(
         dataset=dataset,
         references=_build_reference_bundle(dataset),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

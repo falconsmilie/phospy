@@ -167,6 +167,11 @@ class KinaseWorkflowConfigSnapshot:
             raise PhosPyInputError(
                 "config snapshot request must be a KinaseWorkflowRequest"
             )
+        if not isinstance(request.scoring_config, KinaseScoringConfig):
+            raise PhosPyInputError(
+                "config snapshot request.scoring_config must be an explicit "
+                "KinaseScoringConfig"
+            )
         return cls(
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,
@@ -413,13 +418,11 @@ class KinaseWorkflowConfigSnapshot:
             scoring_payload.get("requested_reliability_profile"),
             field_name=f"{scope}.scoring_config.requested_reliability_profile",
         )
-        scoring_kwargs: dict[str, object] = {}
-        if requested_reliability_profile is not None:
-            scoring_kwargs["reliability_profile"] = requested_reliability_profile
-        elif (
-            reliability_profile is not None and str(reliability_profile) == "production"
-        ):
-            scoring_kwargs["reliability_profile"] = reliability_profile
+        selected_reliability_profile = (
+            requested_reliability_profile
+            if requested_reliability_profile is not None
+            else reliability_profile
+        )
         localisation_requirement = _parse_localisation_requirement(
             scoring_payload.get("localisation_requirement"),
             field_name=f"{scope}.scoring_config.localisation_requirement",
@@ -428,88 +431,100 @@ class KinaseWorkflowConfigSnapshot:
             scoring_payload.get("attrition_policy"),
             field_name=(f"{scope}.scoring_config.attrition_policy"),
         )
-        scoring_config = KinaseScoringConfig(
-            min_substrates=require_int(
-                scoring_payload.get("min_substrates"),
-                field_name=f"{scope}.scoring_config.min_substrates",
-            ),
-            scoring_mode=_parse_scoring_mode(
-                require_str(
-                    scoring_payload.get(
-                        "scoring_mode",
-                        KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
-                    ),
-                    field_name=f"{scope}.scoring_config.scoring_mode",
+        min_substrates = require_int(
+            scoring_payload.get("min_substrates"),
+            field_name=f"{scope}.scoring_config.min_substrates",
+        )
+        scoring_mode = _parse_scoring_mode(
+            require_str(
+                scoring_payload.get(
+                    "scoring_mode",
+                    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
                 ),
                 field_name=f"{scope}.scoring_config.scoring_mode",
             ),
-            include_diagnostic_scoring_tables=require_bool(
-                scoring_payload.get("include_diagnostic_scoring_tables"),
-                field_name=(
-                    f"{scope}.scoring_config.include_diagnostic_scoring_tables"
-                ),
-            ),
-            include_substrate_contributions=require_bool(
-                scoring_payload.get("include_substrate_contributions", False),
-                field_name=(f"{scope}.scoring_config.include_substrate_contributions"),
-            ),
-            profile_missing_value_strategy=(
-                _parse_profile_missing_value_strategy(
-                    require_str(
-                        scoring_payload.get("profile_missing_value_strategy"),
-                        field_name=(
-                            f"{scope}.scoring_config.profile_missing_value_strategy"
-                        ),
-                    ),
-                    field_name=(
-                        f"{scope}.scoring_config.profile_missing_value_strategy"
-                    ),
-                )
-            ),
-            profile_self_inclusion_policy=_parse_profile_self_inclusion_policy(
-                require_str(
-                    scoring_payload.get(
-                        "profile_self_inclusion_policy",
-                        str(KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW),
-                    ),
-                    field_name=(
-                        f"{scope}.scoring_config.profile_self_inclusion_policy"
-                    ),
-                ),
-                field_name=(f"{scope}.scoring_config.profile_self_inclusion_policy"),
-            ),
-            allow_mixed_total_protein_quantitative_meaning=require_bool(
-                scoring_payload.get(
-                    "allow_mixed_total_protein_quantitative_meaning", False
-                ),
-                field_name=(
-                    f"{scope}.scoring_config."
-                    "allow_mixed_total_protein_quantitative_meaning"
-                ),
-            ),
-            reference_context_compatibility_policy=(
-                _parse_reference_context_compatibility_policy(
-                    require_str(
-                        scoring_payload.get(
-                            "reference_context_compatibility_policy",
-                            str(
-                                ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
-                            ),
-                        ),
-                        field_name=(
-                            f"{scope}.scoring_config."
-                            "reference_context_compatibility_policy"
-                        ),
-                    ),
-                    field_name=(
-                        f"{scope}.scoring_config.reference_context_compatibility_policy"
-                    ),
-                )
-            ),
-            attrition_policy=attrition_policy,
-            localisation_requirement=localisation_requirement,
-            **scoring_kwargs,
+            field_name=f"{scope}.scoring_config.scoring_mode",
         )
+        include_diagnostic_scoring_tables = require_bool(
+            scoring_payload.get("include_diagnostic_scoring_tables"),
+            field_name=(f"{scope}.scoring_config.include_diagnostic_scoring_tables"),
+        )
+        include_substrate_contributions = require_bool(
+            scoring_payload.get("include_substrate_contributions", False),
+            field_name=f"{scope}.scoring_config.include_substrate_contributions",
+        )
+        profile_missing_value_strategy = _parse_profile_missing_value_strategy(
+            require_str(
+                scoring_payload.get("profile_missing_value_strategy"),
+                field_name=f"{scope}.scoring_config.profile_missing_value_strategy",
+            ),
+            field_name=f"{scope}.scoring_config.profile_missing_value_strategy",
+        )
+        profile_self_inclusion_policy = _parse_profile_self_inclusion_policy(
+            require_str(
+                scoring_payload.get(
+                    "profile_self_inclusion_policy",
+                    str(KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW),
+                ),
+                field_name=f"{scope}.scoring_config.profile_self_inclusion_policy",
+            ),
+            field_name=f"{scope}.scoring_config.profile_self_inclusion_policy",
+        )
+        allow_mixed_total_protein_quantitative_meaning = require_bool(
+            scoring_payload.get(
+                "allow_mixed_total_protein_quantitative_meaning", False
+            ),
+            field_name=(
+                f"{scope}.scoring_config.allow_mixed_total_protein_quantitative_meaning"
+            ),
+        )
+        reference_context_compatibility_policy = _parse_reference_context_compatibility_policy(
+            require_str(
+                scoring_payload.get(
+                    "reference_context_compatibility_policy",
+                    str(ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH),
+                ),
+                field_name=(
+                    f"{scope}.scoring_config.reference_context_compatibility_policy"
+                ),
+            ),
+            field_name=f"{scope}.scoring_config.reference_context_compatibility_policy",
+        )
+        if selected_reliability_profile is not None:
+            scoring_config = KinaseScoringConfig(
+                min_substrates=min_substrates,
+                scoring_mode=scoring_mode,
+                include_diagnostic_scoring_tables=(include_diagnostic_scoring_tables),
+                include_substrate_contributions=include_substrate_contributions,
+                profile_missing_value_strategy=profile_missing_value_strategy,
+                profile_self_inclusion_policy=profile_self_inclusion_policy,
+                attrition_policy=attrition_policy,
+                localisation_requirement=localisation_requirement,
+                reference_context_compatibility_policy=(
+                    reference_context_compatibility_policy
+                ),
+                allow_mixed_total_protein_quantitative_meaning=(
+                    allow_mixed_total_protein_quantitative_meaning
+                ),
+                reliability_profile=selected_reliability_profile,
+            )
+        else:
+            scoring_config = KinaseScoringConfig._from_legacy_inferred_profile(
+                min_substrates=min_substrates,
+                scoring_mode=scoring_mode,
+                include_diagnostic_scoring_tables=(include_diagnostic_scoring_tables),
+                include_substrate_contributions=include_substrate_contributions,
+                profile_missing_value_strategy=profile_missing_value_strategy,
+                profile_self_inclusion_policy=profile_self_inclusion_policy,
+                attrition_policy=attrition_policy,
+                localisation_requirement=localisation_requirement,
+                reference_context_compatibility_policy=(
+                    reference_context_compatibility_policy
+                ),
+                allow_mixed_total_protein_quantitative_meaning=(
+                    allow_mixed_total_protein_quantitative_meaning
+                ),
+            )
         if reliability_profile is not None and (
             scoring_config.effective_reliability_profile is not reliability_profile
         ):

@@ -50,7 +50,7 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0031 | Public API Stability Tiers | Accepted | 2026-06-30 | [adr_0031_public_api_stability_tiers.md](adr_0031_public_api_stability_tiers.md) |
 | ADR-0032 | Differential Declared Scale Eligibility Override | Accepted | 2026-07-01 | [adr_0032_differential_declared_scale_eligibility_override.md](adr_0032_differential_declared_scale_eligibility_override.md) |
 | ADR-0033 | Result Caveats and Scientific Warning Ownership | Accepted | 2026-07-06 | [adr_0033_result_caveats.md](adr_0033_result_caveats.md) |
-| ADR-0034 | Quantitative State, Motif Scoring Semantics, and Reference Context | Accepted | 2026-07-09 | [adr_0034_quantitative_state_motif_semantics_and_reference_context.md](adr_0034_quantitative_state_motif_semantics_and_reference_context.md) |
+| ADR-0034 | Quantitative State, Motif Scoring Semantics, and Reference Context | Amended | 2026-07-09 | [adr_0034_quantitative_state_motif_semantics_and_reference_context.md](adr_0034_quantitative_state_motif_semantics_and_reference_context.md) |
 | ADR-0035 | Provenance Immutability and Stable Serialization | Accepted | 2026-07-15 | [adr_0035_provenance_immutability_and_stable_serialization.md](adr_0035_provenance_immutability_and_stable_serialization.md) |
 | ADR-0036 | Enrichment Universe and Attrition Policy | Accepted | 2026-07-16 | [adr_0036_enrichment_universe_and_attrition_policy.md](adr_0036_enrichment_universe_and_attrition_policy.md) |
 | ADR-0037 | Deterministic KNN Missing-Data Imputation | Accepted | 2026-07-16 | [adr_0037_deterministic_knn_missing_data_imputation.md](adr_0037_deterministic_knn_missing_data_imputation.md) |

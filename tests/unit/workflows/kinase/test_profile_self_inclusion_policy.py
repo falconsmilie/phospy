@@ -147,6 +147,7 @@ def _request(
         references=references or _references(),
         scoring_config=scoring_config
         or KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -228,6 +229,7 @@ def test_leave_one_out_changes_known_substrate_profile_score() -> None:
     leave_one_out_result = KinaseWorkflow().run(
         _request(
             KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 profile_self_inclusion_policy=(
                     ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
@@ -260,6 +262,7 @@ def test_leave_one_out_insufficient_substrates_are_explicitly_diagnosed() -> Non
     result = KinaseWorkflow().run(
         _request(
             KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 profile_self_inclusion_policy=(
                     ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
@@ -305,6 +308,7 @@ def test_leave_one_out_result_records_caveat_and_provenance() -> None:
     result = KinaseWorkflow().run(
         _request(
             KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 profile_self_inclusion_policy=(
                     ProfileSelfInclusionPolicy.LEAVE_ONE_OUT

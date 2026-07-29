@@ -123,6 +123,7 @@ def _build_kinase_request(
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -288,6 +289,7 @@ def test_signalome_still_requires_explicit_protein_identity() -> None:
             dataset=dataset_without_protein,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

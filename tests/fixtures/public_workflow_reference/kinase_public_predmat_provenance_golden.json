@@ -2,7 +2,7 @@
   "workflow_name": "kinase_workflow",
   "workflow_parameters": {
     "scoring_config": {
-      "requested_reliability_profile": null,
+      "requested_reliability_profile": "custom",
       "effective_reliability_profile": "custom",
       "min_substrates": 2,
       "include_diagnostic_scoring_tables": false,

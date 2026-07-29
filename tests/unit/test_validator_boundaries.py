@@ -95,15 +95,14 @@ def _dataset_state_kwargs(*, has_total_matrix: bool) -> dict[str, object]:
 
 
 def test_kinase_scoring_default_sets_two_substrate_support_floor() -> None:
-    assert KinaseScoringConfig().min_substrates == 2
-    assert KinaseScoringConfig().include_diagnostic_scoring_tables is False
-    assert KinaseScoringConfig().include_substrate_contributions is False
-    assert KinaseScoringConfig().profile_missing_value_strategy == "strict"
-    assert (
-        KinaseScoringConfig().profile_self_inclusion_policy
-        is ProfileSelfInclusionPolicy.ALLOW
-    )
-    assert KinaseScoringConfig().attrition_policy == KinaseAttritionPolicy()
+    config = KinaseScoringConfig.exploratory()
+
+    assert config.min_substrates == 2
+    assert config.include_diagnostic_scoring_tables is False
+    assert config.include_substrate_contributions is False
+    assert config.profile_missing_value_strategy == "strict"
+    assert config.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.ALLOW
+    assert config.attrition_policy == KinaseAttritionPolicy()
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -165,12 +164,66 @@ def _references() -> ReferenceBundle:
 
 
 def _kinase_scoring_config(**kwargs: object) -> KinaseScoringConfig:
+    reliability_profile = kwargs.pop("reliability_profile", "custom")
     return KinaseScoringConfig(
+        reliability_profile=reliability_profile,
         reference_context_compatibility_policy=(
             ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
         ),
         **kwargs,
     )
+
+
+def test_kinase_request_defaults_disable_activity_and_require_scoring_intent() -> None:
+    request = KinaseWorkflowRequest(dataset=_dataset(), references=_references())
+
+    assert request.scoring_config is None
+    assert request.activity_config is None
+
+
+def test_kinase_validator_rejects_missing_scoring_intent() -> None:
+    request = KinaseWorkflowRequest(dataset=_dataset(), references=_references())
+
+    with pytest.raises(WorkflowValidationError, match="scoring_config is required"):
+        KinaseWorkflowValidator().run(request)
+
+
+def test_kinase_validator_accepts_explicit_exploratory_scoring_intent() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.RAT,
+        scoring_config=KinaseScoringConfig.exploratory(),
+    )
+
+    assert KinaseWorkflowValidator().run(request) is request
+
+
+def test_kinase_validator_accepts_explicit_production_scoring_intent() -> None:
+    source = _dataset()
+    site_metadata = source.site_metadata
+    site_metadata.loc[:, "localisation_probability"] = [0.95]
+    dataset = _rebuild_dataset_with_site_metadata(source, site_metadata)
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=ReferencePreset.RAT,
+        scoring_config=KinaseScoringConfig.production(
+            minimum_reference_overlap_fraction=0.1,
+            minimum_sequence_supported_fraction=0.1,
+            minimum_scored_fraction=0.1,
+        ),
+    )
+
+    assert KinaseWorkflowValidator().run(request) is request
+
+
+def test_kinase_validator_accepts_explicit_custom_scoring_intent() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.RAT,
+        scoring_config=_kinase_scoring_config(min_substrates=2),
+    )
+
+    assert KinaseWorkflowValidator().run(request) is request
 
 
 def build_signalome_config(**kwargs: object) -> SignalomeConfig:
@@ -882,7 +935,7 @@ def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
         ContractValidationError,
         match="scoring_config.min_substrates must be greater than or equal to 2",
     ):
-        KinaseScoringConfig(min_substrates=1)
+        KinaseScoringConfig(reliability_profile="custom", min_substrates=1)
 
 
 def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
@@ -891,6 +944,7 @@ def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
         match="scoring_config.include_diagnostic_scoring_tables must be a bool",
     ):
         KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_diagnostic_scoring_tables="yes",  # type: ignore[arg-type]
         )
@@ -902,6 +956,7 @@ def test_kinase_request_rejects_non_bool_substrate_contribution_policy() -> None
         match="scoring_config.include_substrate_contributions must be a bool",
     ):
         KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_substrate_contributions="yes",  # type: ignore[arg-type]
         )
@@ -938,6 +993,7 @@ def test_kinase_request_default_reference_display_ambiguity_policy_is_error() ->
     [
         pytest.param(
             lambda: KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 profile_missing_value_strategy="unsupported",  # type: ignore[arg-type]
             ),

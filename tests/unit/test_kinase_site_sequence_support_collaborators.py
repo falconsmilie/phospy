@@ -196,6 +196,7 @@ def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -253,6 +254,7 @@ def test_interpreter_default_prefer_reference_records_conflict_diagnostics_in_pr
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -305,6 +307,7 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

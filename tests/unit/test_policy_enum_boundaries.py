@@ -333,6 +333,7 @@ def test_localisation_requirement_rejects_invalid_threshold(
 
 def test_kinase_scoring_config_accepts_localisation_requirement() -> None:
     config = KinaseScoringConfig(
+        reliability_profile="custom",
         min_substrates=2,
         localisation_requirement=LocalisationRequirement(require_present=True),
     )
@@ -340,7 +341,9 @@ def test_kinase_scoring_config_accepts_localisation_requirement() -> None:
 
 
 def test_kinase_scoring_config_converts_profile_self_inclusion_policy_to_enum() -> None:
-    config = KinaseScoringConfig(profile_self_inclusion_policy="leave_one_out")
+    config = KinaseScoringConfig(
+        reliability_profile="custom", profile_self_inclusion_policy="leave_one_out"
+    )
 
     assert (
         config.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
@@ -349,7 +352,8 @@ def test_kinase_scoring_config_converts_profile_self_inclusion_policy_to_enum() 
 
 def test_kinase_scoring_config_converts_reference_context_policy_to_enum() -> None:
     config = KinaseScoringConfig(
-        reference_context_compatibility_policy="allow_unknown_with_caveat"
+        reliability_profile="custom",
+        reference_context_compatibility_policy="allow_unknown_with_caveat",
     )
 
     assert (

@@ -134,6 +134,7 @@ def _kinase_request(dataset: AnalysisReadyPhosphoDataset) -> KinaseWorkflowReque
         dataset=dataset,
         references=_reference_bundle(),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

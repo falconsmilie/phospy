@@ -472,6 +472,7 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
             reference_context_compatibility_policy=(
@@ -633,6 +634,7 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -709,6 +711,7 @@ def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
                 reference_context_compatibility_policy=(

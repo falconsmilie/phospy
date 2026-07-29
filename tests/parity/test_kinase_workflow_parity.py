@@ -39,7 +39,9 @@ pytestmark = pytest.mark.parity
 
 
 def _scoring_config(**kwargs: Any) -> KinaseScoringConfig:
+    reliability_profile = kwargs.pop("reliability_profile", "custom")
     return KinaseScoringConfig(
+        reliability_profile=reliability_profile,
         reference_context_compatibility_policy=(
             ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
         ),

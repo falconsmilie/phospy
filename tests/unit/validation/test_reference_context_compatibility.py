@@ -176,7 +176,9 @@ def test_kinase_workflow_validator_rejects_mismatched_reference_context() -> Non
     request = KinaseWorkflowRequest(
         dataset=_dataset(_context(source_version="dataset-v1")),
         references=_references(_context(source_version="reference-v2")),
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            reliability_profile="custom", min_substrates=2
+        ),
         activity_config=None,
     )
 

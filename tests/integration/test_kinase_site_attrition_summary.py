@@ -156,6 +156,7 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
             dataset=dataset,
             references=_build_references(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -246,6 +247,7 @@ def test_published_kinase_manifest_includes_site_attrition_summary(
             dataset=dataset,
             references=_build_references(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

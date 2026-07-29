@@ -186,7 +186,7 @@ def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
 
 def test_workflow_configs_self_validate_local_policy_constraints() -> None:
     with pytest.raises(ContractValidationError, match="scoring_config.min_substrates"):
-        KinaseScoringConfig(min_substrates=1)
+        KinaseScoringConfig(reliability_profile="custom", min_substrates=1)
     with pytest.raises(
         ContractValidationError,
         match="signalome workflow request config.output.network_policy",

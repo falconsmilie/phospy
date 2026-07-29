@@ -138,12 +138,13 @@ class KinaseAttritionPolicy:
 class KinaseScoringConfig:
     """Public scoring-stage configuration.
 
-    ``reliability_profile`` exposes whether scoring is using the explicit
-    exploratory preset, the stricter production preset, or custom caller values.
-    Direct construction without ``reliability_profile`` keeps historical
-    numerical defaults and is classified from the supplied values: exact old
-    defaults resolve to ``EXPLORATORY`` and modified values resolve to
-    ``CUSTOM``. ``PRODUCTION`` is never inferred from values alone.
+    ``reliability_profile`` is required for direct construction and exposes
+    whether scoring is using the explicit exploratory preset, the stricter
+    production preset, or custom caller values. Use
+    ``KinaseScoringConfig.exploratory()`` for the historical permissive preset,
+    ``KinaseScoringConfig.production(...)`` for production reliability with
+    caller-supplied coverage thresholds, or direct construction with
+    ``reliability_profile="custom"`` for caller-defined settings.
 
     `min_substrates` is constrained to the public scoring support floor used by
     the supported rewrite contract. The default and minimum public value is `2`.
@@ -448,7 +449,8 @@ class KinaseScoringConfig:
         return cls(
             profile_missing_value_strategy=(
                 KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
-            )
+            ),
+            reliability_profile=KINASE_RELIABILITY_PROFILE_EXPLORATORY,
         )
 
     @classmethod
@@ -475,6 +477,68 @@ class KinaseScoringConfig:
                 on_violation=KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
             ),
             reliability_profile=KINASE_RELIABILITY_PROFILE_PRODUCTION,
+        )
+
+    @classmethod
+    def _from_legacy_inferred_profile(
+        cls,
+        *,
+        min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+        scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        include_diagnostic_scoring_tables: bool = False,
+        include_substrate_contributions: bool = False,
+        profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
+            KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+        ),
+        profile_self_inclusion_policy: ProfileSelfInclusionPolicy = (
+            ProfileSelfInclusionPolicy.ALLOW
+        ),
+        attrition_policy: KinaseAttritionPolicy | object = _UNSET,
+        localisation_requirement: LocalisationRequirement | object = _UNSET,
+        reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
+            REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH
+        ),
+        allow_mixed_total_protein_quantitative_meaning: bool = (
+            KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
+        ),
+    ) -> KinaseScoringConfig:
+        """Restore historical payloads that predate explicit profile selection."""
+
+        custom_config = cls(
+            min_substrates=min_substrates,
+            scoring_mode=scoring_mode,
+            include_diagnostic_scoring_tables=include_diagnostic_scoring_tables,
+            include_substrate_contributions=include_substrate_contributions,
+            profile_missing_value_strategy=profile_missing_value_strategy,
+            profile_self_inclusion_policy=profile_self_inclusion_policy,
+            attrition_policy=attrition_policy,
+            localisation_requirement=localisation_requirement,
+            reference_context_compatibility_policy=(
+                reference_context_compatibility_policy
+            ),
+            allow_mixed_total_protein_quantitative_meaning=(
+                allow_mixed_total_protein_quantitative_meaning
+            ),
+            reliability_profile=KINASE_RELIABILITY_PROFILE_CUSTOM,
+        )
+        if not _matches_exploratory_scoring_preset(custom_config):
+            return custom_config
+        return cls(
+            min_substrates=min_substrates,
+            scoring_mode=scoring_mode,
+            include_diagnostic_scoring_tables=include_diagnostic_scoring_tables,
+            include_substrate_contributions=include_substrate_contributions,
+            profile_missing_value_strategy=profile_missing_value_strategy,
+            profile_self_inclusion_policy=profile_self_inclusion_policy,
+            attrition_policy=attrition_policy,
+            localisation_requirement=localisation_requirement,
+            reference_context_compatibility_policy=(
+                reference_context_compatibility_policy
+            ),
+            allow_mixed_total_protein_quantitative_meaning=(
+                allow_mixed_total_protein_quantitative_meaning
+            ),
+            reliability_profile=KINASE_RELIABILITY_PROFILE_EXPLORATORY,
         )
 
 
@@ -533,9 +597,14 @@ def _parse_requested_reliability_profile(
     value: KinaseReliabilityProfile | str | None | object,
     *,
     field_name: str,
-) -> KinaseReliabilityProfile | None:
+) -> KinaseReliabilityProfile:
     if value is _UNSET or value is None:
-        return None
+        raise ContractValidationError(
+            "scoring_config.reliability_profile is required; choose "
+            "KinaseScoringConfig.exploratory(), "
+            "KinaseScoringConfig.production(...), or direct construction with "
+            "reliability_profile='custom'"
+        )
     return coerce_policy_enum(
         KinaseReliabilityProfile,
         value,
@@ -549,10 +618,6 @@ def _resolve_reliability_profile(
     config: KinaseScoringConfig,
     requested_profile: KinaseReliabilityProfile | None,
 ) -> KinaseReliabilityProfile:
-    if requested_profile is None:
-        if _matches_exploratory_scoring_preset(config):
-            return KINASE_RELIABILITY_PROFILE_EXPLORATORY
-        return KINASE_RELIABILITY_PROFILE_CUSTOM
     if requested_profile is KINASE_RELIABILITY_PROFILE_CUSTOM:
         return KINASE_RELIABILITY_PROFILE_CUSTOM
     if requested_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY:

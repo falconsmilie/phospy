@@ -159,6 +159,7 @@ def build_duplicate_display_kinase_request(
         ),
         references=build_duplicate_display_reference_bundle(),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

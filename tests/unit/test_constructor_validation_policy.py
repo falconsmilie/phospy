@@ -19,7 +19,7 @@ from phospy.api.results import ResultCaveat
 
 def test_contract_value_object_constructor_failures_use_contract_error() -> None:
     with pytest.raises(ContractValidationError, match="scoring_config.min_substrates"):
-        KinaseScoringConfig(min_substrates=1)
+        KinaseScoringConfig(reliability_profile="custom", min_substrates=1)
 
     with pytest.raises(ContractValidationError, match="result_caveat.severity"):
         ResultCaveat(code="low_support", severity="bad", message="Low support.")

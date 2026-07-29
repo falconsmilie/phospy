@@ -115,6 +115,7 @@ def _request(policy: KinaseAttritionPolicy) -> KinaseWorkflowRequest:
         dataset=_dataset(display_ids),
         references=_references(display_ids[:2]),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             attrition_policy=policy,
             reference_context_compatibility_policy=(
@@ -535,7 +536,7 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
     assert policy_violations[0]["scored_sites"] == caveat.details["scored_sites"]
     scoring_config = result.provenance.workflow_parameters["scoring_config"]
     assert isinstance(scoring_config, Mapping)
-    assert scoring_config["requested_reliability_profile"] is None
+    assert scoring_config["requested_reliability_profile"] == "custom"
     assert scoring_config["effective_reliability_profile"] == "custom"
     assert scoring_config["min_substrates"] == 2
     assert scoring_config["profile_self_inclusion_policy"] == "allow"

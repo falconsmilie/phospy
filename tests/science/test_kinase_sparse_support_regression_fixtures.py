@@ -157,6 +157,7 @@ def _request(
         references=_references(with_reference_context=with_reference_context),
         scoring_config=scoring_config
         or KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=(
                 ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -230,6 +231,7 @@ def test_kinase_leave_one_out_changes_scores_and_reports_minimum_support_loss() 
     leave_one_out = KinaseWorkflow().run(
         _request(
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 profile_self_inclusion_policy=ProfileSelfInclusionPolicy.LEAVE_ONE_OUT,
                 reference_context_compatibility_policy=(

@@ -132,6 +132,7 @@ def _request(
         dataset=_dataset(dataset_context),
         references=_references(reference_context),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             reference_context_compatibility_policy=policy,
         ),

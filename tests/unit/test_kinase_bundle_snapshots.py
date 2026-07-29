@@ -69,7 +69,11 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
         minimum_scored_fraction=0.6,
         on_violation="error",
     )
-    assert snapshot.to_payload() == payload
+    normalized_payload = dict(payload)
+    normalized_scoring = dict(payload["scoring_config"])
+    normalized_scoring["requested_reliability_profile"] = "custom"
+    normalized_payload["scoring_config"] = normalized_scoring
+    assert snapshot.to_payload() == normalized_payload
 
 
 def test_historical_kinase_snapshot_without_profile_maps_old_defaults_to_exploratory() -> (
@@ -99,7 +103,10 @@ def test_historical_kinase_snapshot_without_profile_maps_old_defaults_to_explora
         snapshot.scoring_config.reliability_profile
         is KinaseReliabilityProfile.EXPLORATORY
     )
-    assert snapshot.scoring_config.requested_reliability_profile is None
+    assert (
+        snapshot.scoring_config.requested_reliability_profile
+        is KinaseReliabilityProfile.EXPLORATORY
+    )
 
 
 def test_historical_kinase_snapshot_strict_localisation_without_profile_is_custom() -> (
@@ -136,7 +143,10 @@ def test_historical_kinase_snapshot_strict_localisation_without_profile_is_custo
     assert (
         snapshot.scoring_config.reliability_profile is KinaseReliabilityProfile.CUSTOM
     )
-    assert snapshot.scoring_config.requested_reliability_profile is None
+    assert (
+        snapshot.scoring_config.requested_reliability_profile
+        is KinaseReliabilityProfile.CUSTOM
+    )
 
 
 def test_kinase_snapshot_requires_scoring_config_object() -> None:

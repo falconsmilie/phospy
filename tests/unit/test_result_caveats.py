@@ -313,6 +313,7 @@ def test_kinase_result_caveat_is_info_for_complete_trusted_assertions() -> None:
             dataset=_trusted_dataset_with_complete_assertion_metadata(),
             references=_kinase_references(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

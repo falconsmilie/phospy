@@ -410,6 +410,7 @@ def _build_kinase_result_for_signalome_performance(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
             reference_context_compatibility_policy=(
@@ -1168,6 +1169,7 @@ def test_large_reference_map_contract_keeps_filtered_scoring_bounded() -> None:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
             reference_context_compatibility_policy=(
@@ -1212,6 +1214,7 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
             reference_context_compatibility_policy=(
@@ -1229,6 +1232,7 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
             reference_context_compatibility_policy=(

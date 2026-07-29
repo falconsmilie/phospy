@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError
 
 import pytest
 
@@ -409,7 +409,7 @@ def test_kinase_scoring_config_self_validates(
     kwargs: dict[str, object], pattern: str
 ) -> None:
     with pytest.raises(ContractValidationError, match=pattern):
-        KinaseScoringConfig(**kwargs)  # type: ignore[arg-type]
+        KinaseScoringConfig(reliability_profile="custom", **kwargs)  # type: ignore[arg-type]
 
 
 def test_kinase_attrition_policy_accepts_valid_thresholds() -> None:
@@ -460,7 +460,7 @@ def test_kinase_attrition_policy_rejects_invalid_violation_mode() -> None:
 
 
 def test_kinase_config_uses_default_attrition_policy() -> None:
-    config = KinaseScoringConfig()
+    config = KinaseScoringConfig.exploratory()
 
     assert config.attrition_policy == KinaseAttritionPolicy(
         minimum_reference_overlap_fraction=0.0,
@@ -477,7 +477,16 @@ def test_kinase_config_uses_default_attrition_policy() -> None:
     assert (
         config.effective_reliability_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY
     )
-    assert config.requested_reliability_profile is None
+    assert (
+        config.requested_reliability_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY
+    )
+
+
+def test_kinase_scoring_config_requires_explicit_reliability_profile() -> None:
+    with pytest.raises(
+        ContractValidationError, match="reliability_profile is required"
+    ):
+        KinaseScoringConfig()  # type: ignore[call-arg]
 
 
 def test_kinase_scoring_config_accepts_attrition_policy() -> None:
@@ -488,7 +497,7 @@ def test_kinase_scoring_config_accepts_attrition_policy() -> None:
         on_violation="error",
     )
 
-    config = KinaseScoringConfig(attrition_policy=policy)
+    config = KinaseScoringConfig(reliability_profile="custom", attrition_policy=policy)
 
     assert config.attrition_policy is policy
 
@@ -507,7 +516,7 @@ def test_localisation_requirement_production_requires_probability_threshold() ->
 
 
 def test_kinase_scoring_exploratory_matches_historical_default() -> None:
-    direct = KinaseScoringConfig()
+    direct = KinaseScoringConfig.exploratory()
     exploratory = KinaseScoringConfig.exploratory()
 
     assert exploratory == direct
@@ -629,11 +638,14 @@ def test_kinase_production_label_rejects_weakened_invariants(
         )
 
 
-def test_kinase_modified_exploratory_preset_resolves_to_custom() -> None:
-    modified = replace(KinaseScoringConfig.exploratory(), min_substrates=3)
+def test_kinase_custom_profile_accepts_modified_exploratory_values() -> None:
+    modified = KinaseScoringConfig(
+        min_substrates=3,
+        reliability_profile=KinaseReliabilityProfile.CUSTOM,
+    )
 
     assert modified.reliability_profile is KINASE_RELIABILITY_PROFILE_CUSTOM
-    assert modified.requested_reliability_profile is None
+    assert modified.requested_reliability_profile is KINASE_RELIABILITY_PROFILE_CUSTOM
 
 
 def test_kinase_explicit_exploratory_rejects_modified_values() -> None:

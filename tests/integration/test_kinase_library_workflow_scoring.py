@@ -163,6 +163,7 @@ def _request(
         dataset=_dataset(),
         references=_references(),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             scoring_mode=scoring_mode,
             include_diagnostic_scoring_tables=True,
@@ -184,7 +185,10 @@ def _request(
 def test_existing_default_scoring_mode_is_unchanged() -> None:
     result = KinaseWorkflow().run(_request())
 
-    assert KinaseScoringConfig().scoring_mode == KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
+    assert (
+        KinaseScoringConfig.exploratory().scoring_mode
+        == KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
+    )
     assert result.scoring_result.scoring_mode == KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
     assert result.scoring_result.score_source == "rank_weighted_fusion_scores"
     assert result.scoring_result.kinase_library_motif_scores is None

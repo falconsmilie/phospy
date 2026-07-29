@@ -164,13 +164,11 @@ class KinaseWorkflowRequest:
 
     dataset: AnalysisReadyPhosphoDataset
     references: ReferencePreset | ReferenceBundle = ReferencePreset.AUTO
-    scoring_config: KinaseScoringConfig = field(default_factory=KinaseScoringConfig)
+    scoring_config: KinaseScoringConfig | None = None
     prediction_config: KinasePredictionConfig = field(
         default_factory=KinasePredictionConfig
     )
-    activity_config: KinaseActivityConfig | None = field(
-        default_factory=KinaseActivityConfig
-    )
+    activity_config: KinaseActivityConfig | None = None
     site_sequence_conflict_policy: KinaseSiteSequenceConflictPolicy = (
         KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE
     )

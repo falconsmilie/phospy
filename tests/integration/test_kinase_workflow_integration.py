@@ -51,7 +51,9 @@ _LEGACY_PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*([A-Za-z][A-Za-z0-9]*)_(\d+)\s
 
 
 def _workflow_scoring_config(**kwargs: Any) -> KinaseScoringConfig:
+    reliability_profile = kwargs.pop("reliability_profile", "custom")
     return KinaseScoringConfig(
+        reliability_profile=reliability_profile,
         reference_context_compatibility_policy=(
             ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
         ),

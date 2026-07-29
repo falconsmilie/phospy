@@ -148,9 +148,10 @@ def test_profile_policy_historical_baseline_locks_strict_median_behavior_and_con
     assert "profile_missing_value_strategy" in {
         field.name for field in fields(KinaseScoringConfig)
     }
-    assert KinaseScoringConfig().profile_missing_value_strategy == "strict"
+    assert KinaseScoringConfig.exploratory().profile_missing_value_strategy == "strict"
     with pytest.raises(TypeError, match="profile_policy"):
-        KinaseScoringConfig(  # type: ignore[call-arg]
+        KinaseScoringConfig(
+            reliability_profile="custom",  # type: ignore[call-arg]
             min_substrates=2,
             profile_policy={"missing_value_strategy": "median_skipna"},
         )
@@ -379,6 +380,7 @@ def test_expanded_signalome_historical_baseline_locks_supported_lane_to_material
             dataset=_dataset(),
             references=_references(),
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

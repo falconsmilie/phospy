@@ -282,6 +282,7 @@ def _mixed_case_references() -> ReferenceBundle:
 
 def _allow_unknown_reference_context_scoring_config() -> KinaseScoringConfig:
     return KinaseScoringConfig(
+        reliability_profile="custom",
         min_substrates=2,
         reference_context_compatibility_policy=(
             ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
@@ -413,7 +414,11 @@ def test_kinase_validator_preserves_reference_preset_until_interpretation(
 
     monkeypatch.setattr(ReferenceResolver, "run", fail_if_called)
 
-    request = KinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.RAT)
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.RAT,
+        scoring_config=KinaseScoringConfig.exploratory(),
+    )
     validated = KinaseWorkflowValidator().run(request)
 
     assert validated is request
@@ -736,6 +741,23 @@ def test_workflow_execution_with_valid_reference_bundle_still_succeeds() -> None
 
     assert not scoring.scoring_result.profile_scores.empty
     assert scoring.downstream_score_source == "rank_weighted_fusion_scores"
+
+
+def test_kinase_workflow_request_default_activity_config_does_not_emit_activity() -> (
+    None
+):
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=_references(),
+        scoring_config=_allow_unknown_reference_context_scoring_config(),
+    )
+
+    result = KinaseWorkflow().run(request)
+
+    assert request.activity_config is None
+    assert result.activity_result is None
+    assert result.provenance is not None
+    assert result.provenance.workflow_parameters["activity_config"] is None
 
 
 def test_interpreter_preserves_reference_bundle_validation_report() -> None:

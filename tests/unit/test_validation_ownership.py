@@ -101,7 +101,9 @@ def test_reference_compatibility_is_enforced_at_workflow_runtime_boundary() -> N
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=ReferencePreset.HUMAN,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            reliability_profile="custom", min_substrates=2
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=5,
             deterministic_max_selected_kinases=5,

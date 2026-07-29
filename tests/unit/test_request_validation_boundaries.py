@@ -18,6 +18,7 @@ from phospy.api import (
     DifferentialAnalysisRequest,
     EnrichmentWorkflowRequest,
     ExperimentalDesign,
+    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
@@ -263,6 +264,7 @@ def test_invalid_kinase_request_fails_at_workflow_validation_stage() -> None:
     executor = _UnexpectedStage("kinase executor")
     request = KinaseWorkflowRequest(
         dataset=_analysis_ready_dataset(log2_scale=False),
+        scoring_config=KinaseScoringConfig.exploratory(),
         reference_display_ambiguity_policy="not-a-policy",  # type: ignore[arg-type]
     )
 

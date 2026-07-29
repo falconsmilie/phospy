@@ -88,6 +88,7 @@ def test_local_mouse_reference_bundle_builder_output_runs_in_kinase_workflow(
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
                 min_substrates=2,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT

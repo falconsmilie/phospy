@@ -4,9 +4,12 @@
 
 - **ADR ID:** ADR-0034
 - **Title:** Quantitative State, Motif Scoring Semantics, and Reference Context
-- **Status:** Accepted
+- **Status:** Amended
 - **Date:** 2026-07-09
 - **Decision Type:** Scientific Architecture and Workflow Contract
+
+Amended 2026-07-29 to require explicit kinase reliability intent and make
+kinase activity execution opt-in.
 
 ## Context
 
@@ -34,6 +37,7 @@ The primary models are:
 - `InputIntensityScaleEvidence`
 - `ReferenceContext`
 - `KinaseScoringModeInputContract`
+- `KinaseReliabilityProfile`
 - `ProfileSelfInclusionPolicy`
 
 Workflow validators must continue to compose shared validation with
@@ -113,13 +117,30 @@ scores for known substrates. The `leave_one_out` policy recomputes applicable
 profile scores after excluding the scored site from its own kinase profile and
 records diagnostics for cells that cannot be scored after exclusion.
 
-Kinase scoring reliability profiles are public policy labels. Direct
-construction with historical defaults is `exploratory`; modified direct
-construction is `custom` unless the caller explicitly selects a profile and its
-invariants pass. `production` requires at least five substrates,
-leave-one-out profile scoring, production site-level localisation, and
-caller-selected non-zero attrition thresholds with error-on-violation behavior.
-Production is never inferred from strict localisation alone.
+Kinase scoring reliability profiles are public policy labels and caller intent.
+Public kinase workflow requests must not manufacture an implicit scoring
+profile. Callers choose one of:
+
+- `KinaseScoringConfig.exploratory()` for the historical permissive scoring
+  preset.
+- `KinaseScoringConfig.production(...)` for production reliability; callers
+  must supply study-specific non-zero reference-overlap, sequence-support, and
+  scored-site attrition floors.
+- direct `KinaseScoringConfig(..., reliability_profile="custom")` construction
+  for caller-defined settings.
+
+Direct `KinaseScoringConfig()` construction without a reliability profile is
+invalid. Modified direct construction is not inferred as custom unless the
+caller explicitly selects `custom`. `production` requires at least five
+substrates, leave-one-out profile scoring, production site-level localisation,
+and caller-selected non-zero attrition thresholds with error-on-violation
+behavior. Production is never inferred from strict localisation alone.
+
+`KinaseWorkflowRequest.activity_config` defaults to `None`. Activity-like
+execution is opt-in by providing a `KinaseActivityConfig`; omitting the field
+must not run the historical simplified weighted activity stage. Provenance must
+record the selected scoring reliability profile and `activity_config=None`
+when the caller did not request activity.
 
 ## Intensity-Scale Evidence
 

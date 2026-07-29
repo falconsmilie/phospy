@@ -41,6 +41,13 @@ class KinaseWorkflowConfigValidator:
 
     @staticmethod
     def _validate_scoring(config: object) -> KinaseScoringConfig:
+        if config is None:
+            raise WorkflowValidationError(
+                "kinase workflow request scoring_config is required; choose "
+                "KinaseScoringConfig.exploratory(), "
+                "KinaseScoringConfig.production(...), or direct construction with "
+                "reliability_profile='custom'"
+            )
         if not isinstance(config, KinaseScoringConfig):
             raise WorkflowValidationError(
                 "kinase workflow request scoring_config must be KinaseScoringConfig"

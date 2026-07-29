@@ -151,6 +151,7 @@ def test_invalid_fixed_window_sequence_is_rejected_before_scoring() -> None:
         dataset=_dataset(),
         references=_references_with_invalid_window(),
         scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
             min_substrates=2,
             scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
             reference_context_compatibility_policy=(
