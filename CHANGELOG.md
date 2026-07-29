@@ -34,14 +34,22 @@ All notable changes to this project are documented here.
 
 - Added a large-feature R/limma differential trend parity fixture, PhosPy-owned
   release-validation regression fixture families for evidence resolution,
-  sparse kinase support, and signalome safety, plus a 50,000-site by 48-sample
-  end-to-end builder/differential performance contract.
+  sparse kinase support, and signalome safety.
+- Added `benchmarks/measure_release_scale_builder_differential.py` and
+  `make benchmark-release-scale` for the opt-in local 50,000-site by 48-sample
+  builder/preprocessing/provenance/fingerprinting/differential scale benchmark.
 - Added `constraints/minimum.txt` and a Python 3.10 CI lane that installs the
   project with test dependencies under declared lower-bound pins, runs
   `pip check`, and executes non-parity plus release/golden selectors.
 
 ### Fixed
 
+- Converted the 50,000-site by 48-sample release-scale workload from a
+  release-blocking pytest/CI performance contract into an explicitly invoked
+  local benchmark. The benchmark runs the full workflow once, reports runtime,
+  output, missingness, fingerprint/provenance, and process-RSS observations,
+  and no longer performs a duplicate tracemalloc subprocess run or enforces
+  machine-specific release thresholds.
 - Corrected manifest-governed release-validation fixture transport bytes to a
   cross-platform UTF-8/LF/final-newline policy, regenerated affected fixture
   manifests, and added Windows/Linux fixture-integrity coverage so

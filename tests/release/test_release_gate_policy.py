@@ -7,9 +7,9 @@ from typing import Any
 import pytest
 
 try:
-    import tomllib
+    import tomllib  # pyright: ignore[reportMissingImports]
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    import tomli as tomllib
+    import tomli as tomllib  # pyright: ignore[reportMissingImports]
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +34,20 @@ RELEASE_CHECK_DEPENDENCIES = (
     "validate-reference-bundles",
     "test-release-gates",
     "build",
+)
+RELEASE_SCALE_BENCHMARK_PATH = Path(
+    "benchmarks/measure_release_scale_builder_differential.py"
+)
+RELEASE_SCALE_REMOVED_PYTEST_PATH = Path(
+    "tests/performance/test_end_to_end_release_scale_contract.py"
+)
+RELEASE_SCALE_BENCHMARK_TARGET = "benchmark-release-scale"
+RELEASE_SCALE_BENCHMARK_TOKENS = (
+    RELEASE_SCALE_BENCHMARK_TARGET,
+    RELEASE_SCALE_BENCHMARK_PATH.as_posix(),
+    str(RELEASE_SCALE_BENCHMARK_PATH).replace("/", "\\"),
+    RELEASE_SCALE_REMOVED_PYTEST_PATH.as_posix(),
+    str(RELEASE_SCALE_REMOVED_PYTEST_PATH).replace("/", "\\"),
 )
 
 
@@ -175,6 +189,57 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
     )
 
 
+def test_release_scale_benchmark_is_local_optional_and_outside_pytest() -> None:
+    benchmark_path = ROOT / RELEASE_SCALE_BENCHMARK_PATH
+
+    assert benchmark_path.exists()
+    assert benchmark_path.is_file()
+    assert benchmark_path.relative_to(ROOT).parts[0] == "benchmarks"
+    assert "tests" not in benchmark_path.relative_to(ROOT).parts
+    assert not (ROOT / RELEASE_SCALE_REMOVED_PYTEST_PATH).exists()
+
+
+def test_release_commands_do_not_invoke_release_scale_benchmark() -> None:
+    makefile = _read("Makefile")
+    release_check_line = _make_target_line("release-check")
+    release_check_body = _make_target_body("release-check")
+    test_performance_body = _make_target_body("test-performance")
+    benchmark_body = _make_target_body(RELEASE_SCALE_BENCHMARK_TARGET)
+
+    assert RELEASE_SCALE_BENCHMARK_TARGET in makefile
+    assert "benchmarks/measure_release_scale_builder_differential.py" in benchmark_body
+    assert RELEASE_SCALE_BENCHMARK_TARGET not in release_check_line
+    assert release_check_body == ""
+    for token in RELEASE_SCALE_BENCHMARK_TOKENS:
+        assert token not in test_performance_body
+
+
+def test_github_actions_do_not_invoke_release_scale_benchmark() -> None:
+    workflow_paths = sorted((ROOT / ".github/workflows").glob("*.yml"))
+    assert workflow_paths
+
+    for workflow_path in workflow_paths:
+        workflow = workflow_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        for token in RELEASE_SCALE_BENCHMARK_TOKENS:
+            assert token not in workflow
+
+
+def test_release_scale_policy_docs_are_local_optional_not_release_blocking() -> None:
+    performance_doc = _read("docs/performance.md")
+    normalized = performance_doc.lower()
+    compact = re.sub(r"\s+", " ", performance_doc.lower())
+
+    assert "optional local release-scale benchmark" in normalized
+    assert "excluded from `make test-performance`" in normalized
+    assert "excluded from `make test-performance`, `make release-check`" in compact
+    assert "tests/performance/test_end_to_end_release_scale_contract.py" not in (
+        performance_doc
+    )
+    assert "release-scale gate" not in normalized
+    assert "tracemalloc peak < 4" not in normalized
+    assert "two consecutive successful" not in normalized
+
+
 def test_make_build_is_conventional_and_git_independent() -> None:
     build = _make_target_body("build")
 
@@ -232,7 +297,6 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "python-version: '3.10'" in diagnostics
     assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance
-    assert "PHOSPY_RELEASE_SCALE_INSTRUMENTED_TIMEOUT_SECONDS: '1800'" in performance
     assert "make validate-reference-bundles" in reference_bundles
     assert "runs-on: ${{ matrix.os }}" in fixture_integrity
     assert "os: [ubuntu-latest, windows-latest]" in fixture_integrity

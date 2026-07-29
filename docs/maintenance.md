@@ -60,6 +60,17 @@ paths change:
 pytest tests/performance -m "performance or release_gate"
 ```
 
+Run the optional local release-scale benchmark only when you need same-machine
+scale profiling:
+
+```bash
+make benchmark-release-scale
+```
+
+This 50,000 x 48 builder+differential benchmark is informational,
+machine-dependent, and excluded from `make test-performance`,
+`make release-check`, and GitHub Actions.
+
 Run release/golden checks when changing release policy, provenance fixtures,
 reference manifests, or reproducibility contracts:
 
@@ -101,6 +112,10 @@ Release-blocking coverage in `make release-check` is:
 | Checked-in reference bundles | `python scripts/validate_reference_bundle_index.py --repo-root .` |
 | Release/golden/reproducibility gates | `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"` |
 | Distribution build and packaged-reference checks | `make build` |
+
+The optional `benchmark-release-scale` target is deliberately absent from this
+table. Its runtime and memory observations are local benchmark data, not
+release-blocking evidence.
 
 `parity_diagnostic` checks are intentionally excluded from the blocking parity
 target unless a maintainer deliberately promotes them into the release selector

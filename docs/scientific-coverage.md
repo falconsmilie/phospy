@@ -381,6 +381,10 @@ packaged-reference validation. The maintained commands/workflows are:
   release/golden/reproducibility selectors that do not require external tools.
 - This process provides normal CI/build confidence, not formal
   exact-source/exact-artifact attestation.
+- The optional 50,000 x 48 release-scale builder+differential benchmark is
+  invoked only through `make benchmark-release-scale`. It is machine-dependent,
+  informational, and excluded from `make release-check`, `make
+  test-performance`, and CI.
 - CI parity workflows:
   - `.github/workflows/ci.yml` job `activity-parity-gate` runs `pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -s`
   - `.github/workflows/ci.yml` job `parity-tests` runs `pytest tests/parity -m "parity and not parity_diagnostic" -s`

@@ -74,6 +74,10 @@ checks but are insufficient for publishing. Default pytest `testpaths` omit
 metadata checks, and validates the packaged reference manifests and declared
 file hashes in both archives.
 
+For local scale profiling only, `make benchmark-release-scale` runs the
+optional 50,000 x 48 builder+differential benchmark. It is informational,
+machine-dependent, and intentionally excluded from `make release-check` and CI.
+
 ## Quick Start
 
 1. Build an analysis-ready phosphoproteomics dataset.

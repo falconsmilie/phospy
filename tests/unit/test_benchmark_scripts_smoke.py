@@ -4,6 +4,7 @@ import ast
 import importlib.util
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -35,6 +36,9 @@ WRITE_CALL_TOKENS = (
     "open(",
 )
 REPORTS_DIRECTORY_TOKEN = "benchmarks/reports"
+RELEASE_SCALE_BENCHMARK_SCRIPT = (
+    BENCHMARK_DIR / "measure_release_scale_builder_differential.py"
+)
 
 
 def _read_source(path: Path) -> str:
@@ -43,6 +47,19 @@ def _read_source(path: Path) -> str:
 
 def _parse(path: Path) -> ast.Module:
     return ast.parse(_read_source(path), filename=str(path))
+
+
+def _load_script_module(script_path: Path) -> ModuleType:
+    module_name = f"benchmark_smoke_{script_path.stem}"
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop(module_name, None)
+    return module
 
 
 def _iter_local_import_modules(tree: ast.Module) -> list[str]:
@@ -106,15 +123,7 @@ def test_benchmark_scripts_have_module_header(script_path: Path) -> None:
 
 @pytest.mark.parametrize("script_path", BENCHMARK_SCRIPTS, ids=lambda path: path.name)
 def test_benchmark_scripts_import_smoke(script_path: Path) -> None:
-    module_name = f"benchmark_smoke_{script_path.stem}"
-    spec = importlib.util.spec_from_file_location(module_name, script_path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    try:
-        spec.loader.exec_module(module)
-    finally:
-        sys.modules.pop(module_name, None)
+    _load_script_module(script_path)
 
 
 @pytest.mark.parametrize("script_path", BENCHMARK_SCRIPTS, ids=lambda path: path.name)
@@ -149,3 +158,48 @@ def test_benchmark_scripts_write_only_to_reports_directory(script_path: Path) ->
             f"{script_path.name} may only write report artefacts under "
             f"'{REPORTS_DIRECTORY_TOKEN}/'"
         )
+
+
+def test_release_scale_benchmark_defaults_are_declared_without_dataset_build() -> None:
+    module = _load_script_module(RELEASE_SCALE_BENCHMARK_SCRIPT)
+    config = module.default_config()
+
+    assert config.n_sites == 50_000
+    assert config.n_samples == 48
+    assert config.missing_fraction == 0.03
+
+
+def test_release_scale_benchmark_documents_main_key_value_metrics() -> None:
+    module = _load_script_module(RELEASE_SCALE_BENCHMARK_SCRIPT)
+
+    assert {
+        "total_runtime_seconds",
+        "request_preparation_seconds",
+        "builder_execution_seconds",
+        "preprocessing_execution_seconds",
+        "provenance_fingerprinting_seconds",
+        "differential_analysis_seconds",
+        "result_table_assembly_seconds",
+        "tested_feature_count",
+        "process_rss_peak_mib",
+    }.issubset(set(module.DOCUMENTED_MAIN_METRIC_KEYS))
+
+
+def test_release_scale_benchmark_metric_formatter_emits_key_value_pairs() -> None:
+    module = _load_script_module(RELEASE_SCALE_BENCHMARK_SCRIPT)
+    metrics = {key: "value" for key in module.DOCUMENTED_MAIN_METRIC_KEYS}
+
+    formatted = module.format_metric_values(metrics)
+
+    for key in module.DOCUMENTED_MAIN_METRIC_KEYS:
+        assert f"{key}=" in formatted
+
+
+def test_release_scale_benchmark_report_path_is_under_benchmarks_reports() -> None:
+    module = _load_script_module(RELEASE_SCALE_BENCHMARK_SCRIPT)
+    report_path = module.default_report_path()
+
+    assert report_path == BENCHMARK_DIR / "reports" / (
+        "release-scale-builder-differential.json"
+    )
+    assert "tests" not in report_path.relative_to(REPO_ROOT).parts

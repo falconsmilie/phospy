@@ -32,25 +32,17 @@ contracts, release/golden/reproducibility tests, checked-in reference-bundle
 validation, and a fresh distribution build.
 
 CI expands the release-science evidence beyond the single local aggregate
-command by running the non-parity suite, threshold-bearing parity suite,
+command by running the non-parity suite, threshold-bearing parity suite, bounded
 performance contracts, and release/golden gates on Python 3.10, 3.11, and 3.12.
 Build and packaged-artifact validation remain a dedicated single-version job so
 wheel publication is not duplicated.
 
-The performance-contract CI job is a release blocker and has an explicit job
-timeout. The 50,000-site x 48-sample end-to-end release-scale contract measures
-ordinary production wall-clock separately from a tracemalloc-instrumented memory
-probe. Only ordinary uninstrumented runtime is compared with the runtime budget.
-The instrumented run must still complete inside its explicit timeout and reports
-both Python-tracked peak memory and process RSS where the platform exposes RSS.
-Runtime and memory budget changes require retained Python 3.10, 3.11, and 3.12
-performance artifacts from two consecutive successful CI executions. Unsupported
-local interpreter measurements can guide profiling but do not establish release
-budgets.
-The 2026-07-27 local Windows Python 3.12.10 sanity run of the split release-scale
-contract completed with 299.484 seconds ordinary production runtime, 427.406 MiB
-tracemalloc peak, and 1,288.086 MiB sampled RSS peak; it is supporting evidence
-only and does not replace the required supported-CI artifact set.
+The performance-contract CI job is a release blocker for bounded tests under
+`tests/performance/`. The 50,000-site x 48-sample end-to-end workload is no
+longer part of that job, `make test-performance`, or `make release-check`.
+It is retained as an opt-in local benchmark under `benchmarks/` and is invoked
+explicitly with `make benchmark-release-scale`. Its runtime and process-memory
+observations are informational and do not establish release budgets.
 
 CI also includes a Python 3.10 minimum-dependency lane. That lane uses
 `constraints/minimum.txt`, not `constraints/ci.txt`, installs the project with
@@ -97,5 +89,50 @@ release-science matrix, selector coverage, and packaged-reference build checks.
 The selector coverage audit uses collection-only pytest subprocesses to compare
 actual node IDs and effective markers against the authoritative release targets.
 Scientific runtime invariants remain protected by focused unit, integration,
-parity, golden, release, validation, workflow, architecture, and performance
-tests.
+parity, golden, release, validation, workflow, architecture, and bounded
+performance tests. Machine-dependent scale observations are collected through
+explicit local benchmark scripts.
+
+## Amendment: Release-Scale Scientific Summary Equality (2026-07-27)
+
+Superseded by the 2026-07-29 amendment below. Historically, the 50,000-site x
+48-sample release-scale performance contract treated
+ordinary and tracemalloc-instrumented executions as equivalent only when their
+compact scientific summaries match exactly. The summary records exact
+dimensions, exact original/final missing-cell counts, the accepted
+preprocessing stage sequence, compact stable input/output table fingerprint
+records, preprocessing stage hash traces, processing-state completeness flags,
+contrast names, tested-feature count, a stable differential result-table digest,
+and relevant policy/workflow provenance digests. It uses PhosPy stable
+hashing/serialization helpers and never Python's process-randomized `hash()`.
+
+After the ordinary production run is asserted and summarized, the parent keeps
+only timings and the summary before launching the traced child subprocess. The
+full ordinary dataset, differential result, and result table are not retained
+across the child workload. No new attestation or approval subsystem is added.
+Runtime, tracemalloc memory, subprocess timeout, and RSS-reporting policies
+remain separate; traced runtime remains diagnostic and is not compared with the
+ordinary runtime budget.
+
+The subprocess resource sampler spools child stdout/stderr to temporary files
+while sampling RSS so the child can return JSON metrics, including the summary,
+without blocking on platform pipe-buffer limits.
+
+## Amendment: Release-Scale Workload Moved to Local Benchmark (2026-07-29)
+
+The 50,000-site x 48-sample end-to-end workload is no longer a release gate or
+CI responsibility. It is retained as an opt-in local benchmark because its
+runtime and memory cost are disproportionate for routine hosted CI.
+
+The benchmark lives at
+`benchmarks/measure_release_scale_builder_differential.py` and is invoked
+through `make benchmark-release-scale`. It preserves the full 50,000 x 48
+builder, preprocessing, provenance/fingerprinting, and one-contrast
+differential workload, but it runs the workload once and reports runtime,
+capacity, dimension, missingness, and tested-feature metrics as informational
+observations. There is no duplicate tracemalloc subprocess run and no
+release-blocking runtime, memory, or child-timeout threshold.
+
+`make release-check`, `make test-performance`, GitHub Actions workflows,
+release workflows, tag workflows, scheduled workflows, and publication targets
+must not invoke this benchmark.

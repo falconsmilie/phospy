@@ -107,18 +107,20 @@ adverse scientific cases.
 
 ### Performance Contract Governance
 
-1. tests/performance are release-gate checks.
+1. Bounded tests/performance contracts are release-gate checks.
 2. tests/performance remain excluded from the default local
    unit/integration run.
-3. tests/performance are not manual-only checks.
+3. Bounded tests/performance contracts are not manual-only checks.
 4. `tests/performance` run in a dedicated CI/release job or explicit
    release-validation target (`make test-performance`).
-5. Failures in `tests/performance` block release until fixed, waived, or the
-   contract is intentionally updated.
+5. Failures in bounded `tests/performance` contracts block release until fixed,
+   waived, or the contract is intentionally updated.
 6. Contract updates require updating both `docs/performance.md` and related
    test expectations.
 7. Scale guardrails are part of supported-behavior governance, not incidental
    implementation limits.
+8. Large machine-dependent workloads that are disproportionate for routine CI
+   belong under `benchmarks/` as opt-in local benchmarks, not under `tests/`.
 
 ### Release Validation Command Policy
 
@@ -140,11 +142,14 @@ adverse scientific cases.
    release-blocking tests cannot be missed silently.
 7. CI must run the release-science selectors on every supported Python version
    for the non-parity suite, threshold-bearing parity suite, release/golden
-   gates, and performance contracts unless a performance waiver is documented.
+   gates, and bounded performance contracts unless a performance waiver is
+   documented.
 8. CI must include a maintained minimum-dependency lane that uses a dedicated
    lower-bound constraint file rather than the current pinned CI constraints,
    runs `pip check`, and executes the non-parity plus release/golden selectors
    that do not require external scientific tools.
+9. CI must not run opt-in local benchmarks that are explicitly documented as
+   machine-dependent and non-release-blocking.
 
 ### Why Release-Gate Is the Correct Policy
 
@@ -157,13 +162,15 @@ adverse scientific cases.
 ### Positive Consequences
 
 - Golden/provenance fixtures become explicit contract assets.
-- Performance regressions cannot silently ship.
+- Bounded performance regressions cannot silently ship.
 - Property-based tests stay focused on real scientific invariants.
 - Review criteria for fixture/contract updates become explicit.
+- Machine-dependent scale observations remain available locally without
+  blocking releases on hosted-runner variability.
 
 ### Negative Consequences
 
-- Release pipelines must run dedicated performance contract jobs.
+- Release pipelines must run dedicated bounded performance contract jobs.
 - Fixture updates require explicit scientific review discipline.
 
 ## Affected Modules
@@ -176,7 +183,7 @@ adverse scientific cases.
 - `tests/architecture/test_public_boundary_integrity.py`
 - `tests/unit/test_public_boundary_adversarial.py`
 - `tests/performance/test_performance_contracts.py`
-- `tests/performance/test_end_to_end_release_scale_contract.py`
+- `benchmarks/measure_release_scale_builder_differential.py`
 - `tests/science/test_differential_adverse_design_contracts.py`
 - `tests/science/test_evidence_resolution_regression_fixtures.py`
 - `tests/science/test_kinase_sparse_support_regression_fixtures.py`
@@ -208,7 +215,8 @@ Future changes must satisfy all the following:
 1. Is this test in the correct category for its purpose?
 2. Does the change preserve golden vs parity separation?
 3. Are provenance golden fields still reproducibility/audit critical?
-4. If performance contracts changed, were both docs and thresholds updated?
+4. If bounded performance contracts changed, were both docs and thresholds
+   updated?
 5. Is release-gate semantics preserved (not default local, not manual-only)?
 6. For stochastic preprocessing methods, are seed and imputation provenance
    fields explicitly tested?
@@ -218,6 +226,21 @@ Future changes must satisfy all the following:
    collected node is selected by at least one authoritative release target?
 9. Do supported Python and minimum-dependency CI lanes still reflect the
    declared support policy?
+10. Are opt-in local benchmarks kept outside pytest collection, release-check,
+    and CI?
+
+## Amendment: Optional Release-Scale Benchmark Ownership (2026-07-29)
+
+The 50,000-site x 48-sample end-to-end workload is no longer a release gate or
+CI responsibility. It is retained as an opt-in local benchmark because its
+runtime and memory cost are disproportionate for routine hosted CI.
+
+The workload now belongs under `benchmarks/` and is invoked explicitly through
+`make benchmark-release-scale`. It must not live under `tests/`, must not be
+selected by `make test-performance`, must not be included in `make
+release-check`, and must not be run by GitHub Actions. Its runtime and process
+memory observations are informational local capacity data rather than release
+budgets.
 
 ## References
 

@@ -1,23 +1,31 @@
-# Performance Contracts
+# Performance Contracts and Local Benchmarks
 
-This page defines explicit, CI-tested performance contracts for realistic
-phosphoproteomics workloads. These are operational guardrails, not guarantees of
-identical runtime on every machine.
+PhosPy uses two different performance mechanisms:
 
-## Target Dataset Scale Contract
+- Bounded pytest performance contracts under `tests/performance/`, which are
+  suitable for routine automation and remain part of `make test-performance`
+  and `make release-check`.
+- Optional local benchmark scripts under `benchmarks/`, which report
+  machine-dependent runtime and capacity observations but do not block releases.
 
-PhosPy currently targets three practical execution scales for release-checked
-scientific workflows:
+Performance results are operational guardrails and profiling evidence. They are
+not guarantees of identical runtime on every machine.
+
+## Target Dataset Scales
+
+PhosPy currently targets these practical execution scales:
 
 | Scale | Phosphosites | Samples | Conditions | Missingness in raw phospho input | Reference bundle workload | Kinase scoring workload | Signalome graph/network workload |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Smoke (CI sanity) | ~800 | ~8 | 2 | ~8% | up to ~60 eligible kinases plus off-lane background map | score/predict from ~800 x 60 site-kinase support matrix | module/network outputs from ~150-300 interpreted sites and up to ~40 retained kinases |
-| Medium (release contract) | ~3,000 | ~12 | 4 | ~18% | up to ~100 eligible kinases plus large off-lane background map (hundreds of extra kinases) | score/predict from ~2,000 to ~3,000 sites x ~100 candidate kinases | module/network outputs from a few hundred interpreted sites and up to ~100 retained kinases; dense edge tables can reach thousands of rows |
-| End-to-end release scale | 50,000 | 48 | 2 | ~3% | no bundled reference lookup; public dataset builder plus differential workflow | not exercised in this contract | not exercised in this contract |
+| Smoke performance contracts | ~800 | ~8 | 2 | ~8% | up to ~60 eligible kinases plus off-lane background map | score/predict from ~800 x 60 site-kinase support matrix | module/network outputs from ~150-300 interpreted sites and up to ~40 retained kinases |
+| Medium performance contracts | ~3,000 | ~12 | 4 | ~18% | up to ~100 eligible kinases plus large off-lane background map | score/predict from ~2,000 to ~3,000 sites x ~100 candidate kinases | module/network outputs from a few hundred interpreted sites and up to ~100 retained kinases |
+| Optional local release-scale benchmark | 50,000 | 48 | 2 | ~3% | no bundled reference lookup; public dataset builder plus differential workflow | not exercised | not exercised |
 
-These targets are intentionally conservative for CI stability and are designed
-to catch major regressions without changing scientific semantics, validation
-requirements, or provenance capture.
+The first two scales are designed to catch major regressions in CI without
+changing scientific semantics, validation requirements, or provenance capture.
+The 50,000 x 48 scale is intentionally opt-in because it is too sensitive to
+machine capacity, operating system, Python build, dependency versions, and
+runner contention to serve as a release gate.
 
 ## Contract Table
 
@@ -30,14 +38,14 @@ requirements, or provenance capture.
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
-| End-to-end release-scale builder plus differential | 50,000 sites x 48 samples with realistic site/sample metadata, log2 transform, median centering, row-median missing-data imputation, provenance/fingerprinting, and one two-condition differential contrast | Sum of request preparation, public builder execution, preprocessing/provenance fingerprinting, differential fitting, and result-table export over all retained rows | 50,000 x 48 | Ordinary production runtime < 1,200 seconds; tracemalloc peak < 4 GiB; instrumented memory probe completion timeout 1,800 seconds | Dense input/output matrices, metadata tables, preprocessing reports, provenance fingerprints, and one full differential result table | No hidden approximation; this contract intentionally uses public builder/workflow entrypoints | Fails if shape, provenance completeness, row status, ordinary runtime, memory-probe completion, or tracemalloc peak-memory contract is violated |
+| Optional release-scale builder plus differential benchmark | 50,000 sites x 48 samples with realistic site/sample metadata, required `site_sequence`, log2 transform, median centering, row-median imputation, preprocessing provenance, table fingerprints, and one two-condition differential contrast | Sum of request preparation, public builder execution, preprocessing/provenance fingerprinting, differential fitting, result-table export, and benchmark summary generation | 50,000 x 48 | None; runtime and RSS are informational local observations | Dense input/output matrices, metadata tables, preprocessing reports, provenance fingerprints, and one full 50,000-row differential result table | No hidden approximation; this benchmark uses public builder/workflow entrypoints | Fails only when the scientific workflow errors, required invariants are violated, output dimensions are wrong, expected preprocessing/differential outputs are absent, or a requested report cannot be produced |
 | Motif scoring | dataset sites; eligible kinases; sequence window width | Approximately O(sites x eligible kinases) after reference filtering | 2,000 sites x 100 kinases | None | Motif-library and score matrices scale with kinase count | Kinases without valid motif support are naturally excluded | Validation errors for malformed sequence/reference inputs |
 | Profile scoring | sites x samples; kinase substrate supports | Dominated by correlation computations; typically O(sites x kinases x samples) | 2,000 to 5,000 sites; 8 to 12 samples | No hard scale guard in scoring stage | Dense downstream score matrices can be large | Profile-only fallback remains available when motif evidence is absent | Boundary errors when no eligible scoring/prediction candidates remain |
 | Adaptive prediction | prediction score matrix (sites x kinases); candidate substrates per kinase; ensemble runs | Roughly O(candidate kinases x ensemble runs x sites x kinases) | 2,000 x 100 with fixed seed | No explicit size guard; bounded by config (`adaptive_ensemble_runs`, `n_iterations`) | Repeated train/test allocations per ensemble run | Deterministic seeded sampling (`prediction_config.random_state`) | Raises workflow-stage/boundary errors for empty candidates, missing random seed, or dependency issues |
 | Signalome clustering (exact tree path) | interpreted sites x kinases | Exact-tree cost grows superlinearly; practical behavior near O(sites^2) memory/time | <= 2,000 sites by default | `performance.max_exact_tree_sites` (default `2000`) | Exact tree and correlation paths can allocate O(sites^2) structures | None for tree construction; still exact when candidate scoring is sampled | Raises `SignalomeScaleError` when `n_sites > max_exact_tree_sites` |
-| Signalome candidate scoring | candidate cluster range; sites x kinases | `full`: O(sites^2); `sampled`: reduced by deterministic per-cluster subsampling | `full` at/below 2,000 sites; sampled above that | `performance.max_full_candidate_scoring_sites` (default `2000`) for `full` policy | Full mode can materialize full site-by-site correlation matrix | `candidate_scoring_policy='sampled'` uses seeded, order-invariant subsampling for candidate-count evaluation only | `SignalomeScaleError` for `full` policy above `max_full_candidate_scoring_sites` (when exact-tree guard allows entry) |
+| Signalome candidate scoring | candidate cluster range; sites x kinases | `full`: O(sites^2); `sampled`: reduced by deterministic per-cluster subsampling | `full` at/below 2,000 sites; sampled above that | `performance.max_full_candidate_scoring_sites` (default `2000`) for `full` policy | Full mode can materialize full site-by-site correlation matrix | `candidate_scoring_policy='sampled'` uses seeded, order-invariant subsampling for candidate-count evaluation only | `SignalomeScaleError` for `full` policy above `max_full_candidate_scoring_sites` |
 | Protein module derivation | clustered sites; site->protein mapping; proteins | Crosstab/grouping cost roughly O(sites x proteins_nonzero) | Same scale as clustering input | None | Crosstab expands to cluster-by-protein membership matrix | No approximation path | Raises `ValueError` when site->protein mappings are missing for clustered sites |
-| Bundle writing | number/size of workflow output tables | O(total cells written) + serialization overhead | Representative signalome outputs from ~200-site workflows | None | File IO across many tables; manifest/config JSON serialization | None | IO/validation errors propagate (invalid path, write failure) |
+| Bundle writing | number/size of workflow output tables | O(total cells written) + serialization overhead | Representative signalome outputs from ~200-site workflows | None | File IO across many tables; manifest/config JSON serialization | None | IO/validation errors propagate |
 | Provenance hashing | table rows x columns; dtype/structure complexity | O(total cells) for value normalization + hashing | 5,000 x 12 numeric plus large metadata tables | None | Converts table cells to object normalization payloads before digest updates | None | Hashing/serialization errors propagate for unsupported payload values |
 
 ## Signalome Guardrails
@@ -86,84 +94,87 @@ retained missing rows, lower `missing_data.max_missing_fraction_per_row`,
 pre-filter low-value features, or use `missing_data.policy="impute_row_median"`
 when its scientific semantics are acceptable.
 
-## CI Benchmark Ownership
+## CI Performance Contract Ownership
 
 - Performance thresholds and representative fixture sizes are centralized in
   `tests/support/performance_contracts.py`.
 - CI performance tests live in `tests/performance/`.
-- The end-to-end release-scale contract lives in
-  `tests/performance/test_end_to_end_release_scale_contract.py` and emits
-  ordinary production wall-clock, segmented phase timings, separately measured
-  tracemalloc peak-memory, final-shape, tested-feature-count, and RSS diagnostics
-  through pytest reporting and
-  `build/reports/release-scale-performance-contract.json`.
-- The release-scale runtime budget is applied only to the uninstrumented
-  production execution. The separately identified tracemalloc execution reports
-  its runtime for diagnosis and must complete within its explicit CI timeout,
-  but that tracing-instrumented runtime is not compared with the production
-  runtime threshold.
-- The release-scale memory probe runs in a subprocess so the parent test can
-  sample process RSS where the platform exposes it (`/proc` on Linux CI and
-  Windows process counters locally). RSS is reported for capacity review; the
-  required memory gate remains Python-tracked tracemalloc peak memory.
-- Local benchmark scripts live in `benchmarks/` and report plain `key=value` or
-  JSONL metrics without affecting production logic.
-- DataFrame ownership copy behavior is tracked by
-  `benchmarks/measure_dataframe_ownership_copy_policy.py`, which reports
-  shallow/deep copy counts and owner-mutation leak counts for representative
-  borrowed-frame operations.
+- `make test-performance` selects
+  `pytest tests/performance -m "performance or release_gate"`.
+- `make release-check` includes `make test-performance`.
+- Performance CI jobs retain JUnit/duration reports from `build/reports/`, so
+  current runtimes can be reviewed with the budget constants in
+  `tests/support/performance_contracts.py`.
+- Failing bounded performance contracts block release until fixed, waived, or
+  intentionally updated with matching test and documentation changes.
 
-## End-to-End Release-Scale Baseline Policy
+The 50,000 x 48 end-to-end workload is not owned by pytest, CI, or release
+checks. It is owned by the benchmark script described below.
 
-The release-scale gate preserves 50,000 sites, 48 samples, approximately 3%
-missingness, public builder construction, log2 transformation, median centering,
-row-median missing-data handling, provenance/fingerprinting, and one differential
-contrast.
+## Optional Release-Scale Local Benchmark
 
-Current enforced budgets:
+The explicit local command is:
 
-| Metric | Budget | Applies to |
-| --- | --- | --- |
-| Production runtime | < 1,200 seconds | Uninstrumented request preparation + builder + differential + result-table export |
-| Python-tracked peak memory | < 4,096 MiB | Separate subprocess run with `tracemalloc` enabled |
-| Instrumented completion timeout | 1,800 seconds | Tracemalloc subprocess completion only; not a production-runtime budget |
-| Process RSS peak | Reported when available | Parent-side subprocess RSS sampling; no release threshold until a stable cross-platform baseline is established |
+```bash
+make benchmark-release-scale
+```
 
-The release-scale report records these phase timings:
+It invokes:
 
-- `dataset_request_preparation_seconds`
-- `builder_execution_seconds`
-- `preprocessing_execution_seconds`
-- `preprocessing_report_assembly_seconds`
-- `provenance_fingerprinting_seconds`
-- `differential_execution_seconds`
-- `serialization_report_assembly_seconds`
+```bash
+python benchmarks/measure_release_scale_builder_differential.py
+```
 
-Latest local supported-version sanity observation, not a replacement for the
-required supported-CI artifact set: on 2026-07-27, Windows Python 3.12.10 passed
-the split contract with ordinary production runtime 299.484 seconds,
-tracemalloc peak 427.406 MiB, and sampled process RSS peak 1,288.086 MiB.
+The benchmark preserves the representative release-scale workload:
 
-Budget changes require retained reports from Python 3.10, 3.11, and 3.12 on the
-supported CI job, with two consecutive successful CI executions after the change.
-The budget must include a documented margin over the slowest supported-version
-ordinary production runtime and the highest supported-version tracemalloc peak.
-The per-version observations are the retained
-`performance-contracts-py3.10`, `performance-contracts-py3.11`, and
-`performance-contracts-py3.12` CI artifacts; unsupported-interpreter local
-measurements may explain investigation work but must not set release budgets.
+- 50,000 phosphosites
+- 48 samples
+- deterministic approximately 3% missingness
+- realistic phosphosite metadata with required `site_sequence`
+- realistic sample metadata
+- public `AnalysisReadyDatasetBuilder`
+- log2 transformation
+- median centering
+- row-median imputation
+- preprocessing provenance
+- table fingerprint generation
+- one two-condition differential contrast
+- all 50,000 differential result rows
+
+The normal invocation runs the workload once. It does not launch a second
+tracemalloc subprocess. It reports `key=value` metrics including total runtime,
+request preparation, builder execution, preprocessing, preprocessing report
+assembly, provenance/fingerprinting, differential analysis, result-table
+assembly, result-table fingerprinting, output dimensions, tested feature count,
+original/final missing-cell counts, scientific-summary digest, and process RSS
+peak when the platform exposes a truthful current-process peak. If process RSS
+is unavailable, it reports `process_rss_peak_mib=unavailable`.
+
+To also write a JSON report:
+
+```bash
+python benchmarks/measure_release_scale_builder_differential.py --write-report
+```
+
+Reports are written only under `benchmarks/reports/`.
+
+Benchmark observations are informational. A slow result is evidence for local
+profiling or same-machine comparison; it is not a release failure and is not
+evidence that all supported machines meet a fixed runtime or memory envelope.
+The benchmark fails only if the scientific workflow raises an error, required
+output invariants are violated, expected preprocessing or differential outputs
+are absent, output dimensions are wrong, or a requested report cannot be
+produced.
 
 ## Execution and Release Policy
 
-- `tests/performance/` are release-check confidence checks.
+- `tests/performance/` are release-check confidence checks for bounded
+  performance contracts.
 - They are excluded from default local unit/integration pytest runs.
-- They are not manual-only checks.
-- They should run in dedicated CI/release validation jobs or the explicit
-  release command (`make release-check`).
-- The release-check selector is
-  `pytest tests/performance -m "performance or release_gate"`.
-- Performance CI jobs publish pytest duration summaries and retain JUnit reports
-  from `build/reports/`, so current runtimes can be reviewed with the budget
-  constants in `tests/support/performance_contracts.py`.
-- Failing performance contracts block release until fixed, formally waived, or
-  intentionally updated with matching test and documentation changes.
+- They are selected by `make test-performance` and included in
+  `make release-check`.
+- The optional 50,000 x 48 benchmark is excluded from `make test-performance`,
+  `make release-check`, GitHub Actions workflows, release workflows, and
+  publication targets.
+- Do not move the optional benchmark into nightly, scheduled, manual,
+  tag-only, release, or non-blocking GitHub Actions jobs.

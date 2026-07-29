@@ -25,10 +25,8 @@ Current CI also keeps a supported-version release-science matrix and a
 dedicated Python 3.10 minimum-dependency lane under ADR-0039. Those current
 checks are active release confidence controls even though this ADR's former
 exact-source/exact-artifact attestation system remains superseded.
-The active ADR-0039 performance policy also separates ordinary production
-runtime from tracemalloc-instrumented peak-memory measurement for the 50,000 x
-48 release-scale contract. Instrumented runtime is reported and timeout-bounded
-but is not compared with the ordinary runtime budget.
+ADR-0039 now treats the 50,000 x 48 end-to-end workload as an opt-in local
+benchmark, not an active release gate or CI responsibility.
 
 ## Context
 
@@ -86,9 +84,10 @@ when equivalent deterministic source identity evidence is present.
 
 Maintainers must update `Makefile`, `.github/workflows/ci.yml`,
 `.github/workflows/publish.yml`, `constraints/ci.txt`, and contributor docs
-together when release verification changes. Performance budget changes must also
-update `docs/performance.md` and the constants in
-`tests/support/performance_contracts.py`.
+together when release verification changes. Bounded performance-contract budget
+changes must also update `docs/performance.md` and the constants in
+`tests/support/performance_contracts.py`; optional local benchmark observations
+do not define release budgets.
 
 ## Validation
 
@@ -100,3 +99,14 @@ integrity attestation details.
 This ADR amends ADR-0014's release-gate policy and ADR-0015's reference-data
 release rules by making clean supported-version verification and artifact
 reproduction mandatory release evidence.
+
+## Amendment: Release-Scale Benchmark No Longer Release Evidence (2026-07-29)
+
+The 50,000-site x 48-sample end-to-end workload is no longer a release gate or
+CI responsibility. It is retained as an opt-in local benchmark because its
+runtime and memory cost are disproportionate for routine hosted CI.
+
+Historical references in this superseded ADR to retained performance-budget
+reports do not require Python 3.10-3.12 CI execution, two consecutive CI
+matrices, tracemalloc subprocess measurements, or release-blocking thresholds
+for that workload.

@@ -35,7 +35,7 @@ TWINE ?= $(PYTHON) -m twine
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance test-release-gates validate-reference-bundles release-check test-seams build clean \
+	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance test-release-gates validate-reference-bundles release-check benchmark-release-scale test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
@@ -57,6 +57,7 @@ help:
 	@printf '%s\n' '  make test                          Run unit and parity tests'
 	@printf '%s\n' '  make tests-all                     Alias for all-tests'
 	@printf '%s\n' '  make test-seams                    Run seam-focused rewrite parity tests'
+	@printf '%s\n' '  make benchmark-release-scale       Optional local 50,000x48 builder+differential benchmark'
 	@printf '%s\n' '  make dataset-builder-demo          Run examples.dataset_builder_demo.main()'
 	@printf '%s\n' '  make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()'
 	@printf '%s\n' '  make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()'
@@ -123,6 +124,9 @@ validate-reference-bundles: check-tools
 	$(PYTHON) scripts/validate_reference_bundle_index.py --repo-root .
 
 release-check: lint type-check test-unit test-parity test-performance validate-reference-bundles test-release-gates build
+
+benchmark-release-scale: check-tools
+	$(PYTHON) benchmarks/measure_release_scale_builder_differential.py
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"

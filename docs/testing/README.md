@@ -39,6 +39,11 @@ that do not require external scientific tools. Manifest-governed fixture byte
 integrity runs on both Ubuntu and Windows so release fixtures keep LF bytes
 across checkout platforms.
 
+The optional 50,000 x 48 release-scale builder+differential benchmark lives
+under `benchmarks/` and is invoked with `make benchmark-release-scale`. It is
+not collected by pytest, not selected by `make test-performance`, and not part
+of `make release-check` or CI.
+
 ## Read This First
 
 1. [Test Audit Rubric](./test_audit_rubric.md): scoring and decision criteria used across the audit.

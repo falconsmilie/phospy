@@ -17,7 +17,7 @@ Use this file before proposing rewrites, consolidations, or deletions.
 | Test path/group | Protected risk/contract | Consolidation allowed? | What must remain true after rewrite |
 | --- | --- | --- | --- |
 | `tests/parity/**` | Python outputs must remain aligned with accepted R/PhosR reference behavior on declared parity seams. | Limited, with explicit parity sign-off. | Reference-backed parity drift detection still covers all release-bearing seams and declared tolerances. |
-| `tests/performance/**` | Runtime/memory envelopes for critical scientific workflows must not regress silently. | Limited, threshold tuning only with evidence. | Performance contracts still guard key hot paths, with representative workload coverage and deterministic thresholds. |
+| `tests/performance/**` | Bounded runtime/memory envelopes for critical scientific workflows must not regress silently. | Limited, threshold tuning only with evidence. | Performance contracts still guard key hot paths, with representative workload coverage and deterministic thresholds. The optional 50,000 x 48 local benchmark belongs under `benchmarks/`, not this pytest group. |
 | Provenance/golden contract tests (for example `*provenance*`, `*bundle*`, `*snapshot*`, `*baseline*`, `test_quantitative_meaning_output_audit.py`) | Reproducibility-critical payloads/manifests/provenance fields must remain stable and machine-auditable. | Yes, if goldens/contracts are preserved or intentionally versioned. | Contract-critical fields, schema, and fingerprint/provenance semantics remain enforced end-to-end. |
 | `tests/unit/test_frame_ownership_policy.py` (DataFrame ownership/copy-policy) | Public exports must be mutation-safe; owned/borrowed frame semantics and copy budgets must not regress. | Yes, but high-risk checks must remain targeted. | No caller-mutation leaks; public accessor snapshots remain defensive; borrow/owned alias guarantees stay explicit. |
 | Workflow diagnostic boundary tests (for example `tests/unit/test_kinase_workflow_diagnostics.py`, `tests/unit/test_signalome_workflow_diagnostics.py`, `tests/unit/test_workflow_boundary_error.py`) | Public diagnostics/error payload contracts and provenance-bearing boundary context must remain stable enough for downstream consumers. | Yes, if public contract fields remain covered. | Required diagnostic/error fields, structured boundary context, and provenance/summary contract surfaces remain validated. |
@@ -47,7 +47,10 @@ and provenance-safe export behavior) rather than incidental duplication.
 ## Release Sensitivity
 
 - `tests/parity/**`: release-sensitive, required for parity sign-off.
-- `tests/performance/**`: release-sensitive, required for performance sign-off.
+- `tests/performance/**`: release-sensitive bounded performance contracts,
+  required for performance sign-off.
+- `benchmarks/measure_release_scale_builder_differential.py`: optional local
+  scale benchmark, not release-sensitive and not CI-owned.
 
 ## Domain Ownership Boundary Guardrail
 

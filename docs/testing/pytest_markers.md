@@ -38,6 +38,11 @@ selected by explicit Makefile targets. The release check blocks release on:
 | `parity_diagnostic` | Explicitly excluded from the blocking parity target unless intentionally promoted out of the exclusion. |
 | `slow` | Not selected solely by marker for release; it runs only when also collected by a blocking selector. |
 
+The optional 50,000 x 48 release-scale benchmark lives under `benchmarks/`, not
+`tests/`, and is invoked only with `make benchmark-release-scale`. It is not a
+pytest marker category, is not collected by pytest, and is excluded from
+`make test-performance`, `make release-check`, and CI.
+
 CI runs the default non-parity suite, threshold-bearing parity suite, release
 and golden gates, and performance contracts on each supported Python version:
 3.10, 3.11, and 3.12. Build and packaged-artifact validation remain a dedicated
@@ -63,6 +68,7 @@ Based on that configuration:
 - Blocking parity validation: `pytest tests/parity -m "parity and not parity_diagnostic" -s`
 - Exclude slow tests in local loops: `pytest -m "not parity and not slow"`
 - Performance-only validation: `pytest tests/performance -m "performance or release_gate"`
+- Optional local release-scale benchmark: `make benchmark-release-scale`
 - Release/golden validation: `make test-release-gates`
 - Full release-check command: `make release-check`
 

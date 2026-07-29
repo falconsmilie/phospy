@@ -67,6 +67,10 @@ pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 make release-check
 ```
 
+For local scale profiling, use `make benchmark-release-scale`. That optional
+50,000 x 48 benchmark is machine-dependent and informational; it is not part of
+`make release-check` or CI.
+
 Before publishing distributions, use `make build`. It starts from an empty
 `dist/`, builds one wheel and one sdist, runs metadata checks, and validates the
 packaged reference manifests and declared file hashes in both archives.
