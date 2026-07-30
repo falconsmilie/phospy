@@ -15,6 +15,8 @@ from phospy.science.signalomes.clustering.orchestration import (
     select_module_count_with_diagnostics as _select_module_count_with_diagnostics,
 )
 from phospy.science.signalomes.clustering.policies import (
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES,
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS,
     SignalomeClusteringScoringMode,
 )
 from phospy.science.signalomes.models import (
@@ -31,6 +33,13 @@ def select_module_count(
     max_clusters: int = 10,
     scoring_mode: SignalomeClusteringScoringMode = "auto",
     max_exact_tree_sites: int | None = 2000,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> int:
     """Select a module count from a scoring matrix."""
 
@@ -42,6 +51,11 @@ def select_module_count(
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
         max_exact_tree_sites=max_exact_tree_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     )
 
 
@@ -54,6 +68,13 @@ def select_module_count_with_diagnostics(
     max_clusters: int = 10,
     scoring_mode: SignalomeClusteringScoringMode = "auto",
     max_exact_tree_sites: int | None = 2000,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> SignalomeModuleSelectionDiagnostics:
     """Select a module count and return diagnostics."""
 
@@ -65,6 +86,11 @@ def select_module_count_with_diagnostics(
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
         max_exact_tree_sites=max_exact_tree_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     )
 
 

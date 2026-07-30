@@ -19,6 +19,7 @@ from phospy.science.signalomes.clustering.diagnostic_schemas import (
 from phospy.science.signalomes.models import (
     SignalomeClusterCandidateScore,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeModuleSelectionStabilityReport,
     SignalomeModuleSelectionStrategy,
 )
 
@@ -45,6 +46,7 @@ def build_module_selection_diagnostics(
     zero_variance_profile_count: int,
     near_constant_profile_count: int,
     excluded_from_correlation_count: int,
+    stability_report: SignalomeModuleSelectionStabilityReport | None = None,
 ) -> SignalomeModuleSelectionDiagnostics:
     """Build a normalized module-selection diagnostics payload."""
 
@@ -61,6 +63,7 @@ def build_module_selection_diagnostics(
         zero_variance_profile_count=int(zero_variance_profile_count),
         near_constant_profile_count=int(near_constant_profile_count),
         excluded_from_correlation_count=int(excluded_from_correlation_count),
+        **({} if stability_report is None else {"stability_report": stability_report}),
     )
 
 

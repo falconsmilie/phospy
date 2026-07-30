@@ -29,6 +29,18 @@ SignalomeModuleSelectionStrategy = Literal[
     "correlation_thresholds",
     "explicit_module_count",
 ]
+SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_STABLE = "stable"
+SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_UNSTABLE = "unstable"
+SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_NOT_COMPUTABLE = "not_computable"
+SignalomeModuleSelectionStabilityStatus = Literal[
+    "stable",
+    "unstable",
+    "not_computable",
+]
+SIGNALOME_MODULE_SELECTION_STABILITY_METHOD = (
+    "seeded_score_perturbation_and_threshold_grid"
+)
+SIGNALOME_MODULE_SELECTION_STABILITY_VERSION = "1"
 SIGNALOME_CORRELATION_STATUS_FINITE = "finite"
 SIGNALOME_CORRELATION_STATUS_CONSTANT_PROFILE = "constant_profile"
 SIGNALOME_CORRELATION_STATUS_INSUFFICIENT_OBSERVATIONS = "insufficient_observations"
@@ -54,6 +66,117 @@ class SignalomeClusterCandidateScore:
 
 
 @dataclass(frozen=True, slots=True)
+class SignalomeModuleSelectionThresholdSensitivityRecord:
+    """Selected count for one threshold-grid sensitivity point."""
+
+    primary_threshold: float
+    fallback_threshold: float
+    selected_module_count: int
+    threshold_used: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeModuleSelectionThresholdSensitivity:
+    """Structured threshold-sensitivity summary for automatic module selection."""
+
+    method: str
+    version: str
+    records: tuple[SignalomeModuleSelectionThresholdSensitivityRecord, ...]
+    selected_count_frequency: dict[int, int]
+    disagrees_with_selected_count: bool
+
+    def __post_init__(self) -> None:
+        records = tuple(self.records)
+        frequencies = {
+            int(key): int(value) for key, value in self.selected_count_frequency.items()
+        }
+        object.__setattr__(self, "records", records)
+        object.__setattr__(self, "selected_count_frequency", frequencies)
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeModuleSelectionAssignmentSimilaritySummary:
+    """Summary of partition agreement across seeded perturbations."""
+
+    metric: str
+    evaluated_perturbations: int
+    minimum: float | None
+    median: float | None
+    mean: float | None
+    maximum: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeModuleSelectionStabilityReport:
+    """Descriptive stability/sensitivity report for module-count selection."""
+
+    evaluation_method: str
+    evaluation_version: str
+    seed_policy: str
+    random_seed: int | None
+    perturbation_count: int
+    selected_count_frequency: dict[int, int]
+    assignment_similarity_metric: str
+    assignment_similarity: SignalomeModuleSelectionAssignmentSimilaritySummary
+    threshold_sensitivity: SignalomeModuleSelectionThresholdSensitivity
+    status: SignalomeModuleSelectionStabilityStatus
+    limitations: tuple[str, ...]
+    not_computable_reason: str | None = None
+    base_selected_module_count: int = 1
+    input_site_count: int = 0
+    input_dimension_count: int = 0
+
+    def __post_init__(self) -> None:
+        frequencies = {
+            int(key): int(value) for key, value in self.selected_count_frequency.items()
+        }
+        limitations = tuple(str(value) for value in self.limitations)
+        object.__setattr__(self, "selected_count_frequency", frequencies)
+        object.__setattr__(self, "limitations", limitations)
+
+
+def default_signalome_module_selection_stability_report() -> (
+    SignalomeModuleSelectionStabilityReport
+):
+    """Return a stable placeholder module-selection stability report."""
+
+    threshold_sensitivity = SignalomeModuleSelectionThresholdSensitivity(
+        method="not_captured",
+        version="0",
+        records=(),
+        selected_count_frequency={},
+        disagrees_with_selected_count=False,
+    )
+    assignment_similarity = SignalomeModuleSelectionAssignmentSimilaritySummary(
+        metric="not_captured",
+        evaluated_perturbations=0,
+        minimum=None,
+        median=None,
+        mean=None,
+        maximum=None,
+    )
+    return SignalomeModuleSelectionStabilityReport(
+        evaluation_method="not_captured",
+        evaluation_version="0",
+        seed_policy="not_captured",
+        random_seed=None,
+        perturbation_count=0,
+        selected_count_frequency={},
+        assignment_similarity_metric="not_captured",
+        assignment_similarity=assignment_similarity,
+        threshold_sensitivity=threshold_sensitivity,
+        status=SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_NOT_COMPUTABLE,
+        limitations=(
+            "Module-selection stability diagnostics were not captured for this result.",
+        ),
+        not_computable_reason="module selection stability diagnostics were not captured",
+        base_selected_module_count=1,
+        input_site_count=0,
+        input_dimension_count=0,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class SignalomeModuleSelectionDiagnostics:
     """Structured module-selection diagnostics."""
 
@@ -67,6 +190,9 @@ class SignalomeModuleSelectionDiagnostics:
     zero_variance_profile_count: int = 0
     near_constant_profile_count: int = 0
     excluded_from_correlation_count: int = 0
+    stability_report: SignalomeModuleSelectionStabilityReport = field(
+        default_factory=default_signalome_module_selection_stability_report
+    )
 
     @property
     def used_automatic_selection(self) -> bool:
@@ -462,10 +588,15 @@ __all__ = [
     "SIGNALOME_CORRELATION_STATUS_NON_FINITE_VALUES",
     "SIGNALOME_CORRELATION_STATUS_UNDEFINED",
     "SignalomeAssignments",
+    "SignalomeModuleSelectionAssignmentSimilaritySummary",
     "SignalomeClusterCandidateScore",
     "SignalomeCorrelationStatus",
     "SignalomeModuleSelectionDiagnostics",
+    "SignalomeModuleSelectionStabilityReport",
+    "SignalomeModuleSelectionStabilityStatus",
     "SignalomeModuleSelectionStrategy",
+    "SignalomeModuleSelectionThresholdSensitivity",
+    "SignalomeModuleSelectionThresholdSensitivityRecord",
     "SignalomeNetworkCorrelationDiagnostics",
     "SignalomeScorePreconditioningDiagnostics",
     "SignalomeScorePreconditioningPolicy",
@@ -477,6 +608,12 @@ __all__ = [
     "default_signalome_score_preconditioning_diagnostics",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_METHOD",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_NOT_COMPUTABLE",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_STABLE",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_UNSTABLE",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_VERSION",
     "default_signalome_network_correlation_diagnostics",
     "default_signalome_module_selection_diagnostics",
+    "default_signalome_module_selection_stability_report",
 ]

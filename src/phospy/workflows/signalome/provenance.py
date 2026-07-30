@@ -38,7 +38,11 @@ from phospy.science.signalomes.clustering.scientific_policies import (
 )
 from phospy.science.signalomes.models import (
     SignalomeClusteringPreparationDiagnostics,
+    SignalomeModuleSelectionAssignmentSimilaritySummary,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeModuleSelectionStabilityReport,
+    SignalomeModuleSelectionThresholdSensitivity,
+    SignalomeModuleSelectionThresholdSensitivityRecord,
     SignalomeNetworkCorrelationDiagnostics,
 )
 from phospy.workflows.intensity_scale_evidence import (
@@ -270,12 +274,109 @@ def _build_site_token_validation_payload(
 def _module_selection_diagnostics_payload(
     diagnostics: SignalomeModuleSelectionDiagnostics,
 ) -> dict[str, object]:
-    payload = asdict(diagnostics)
-    payload["candidate_scores"] = {
-        str(cluster_count): asdict(score)
-        for cluster_count, score in diagnostics.candidate_scores.items()
+    return {
+        "strategy": str(diagnostics.strategy),
+        "selected_module_count": int(diagnostics.selected_module_count),
+        "requested_module_count": (
+            None
+            if diagnostics.requested_module_count is None
+            else int(diagnostics.requested_module_count)
+        ),
+        "threshold_used": (
+            None
+            if diagnostics.threshold_used is None
+            else float(diagnostics.threshold_used)
+        ),
+        "max_clusters_evaluated": int(diagnostics.max_clusters_evaluated),
+        "candidate_scores": {
+            str(cluster_count): asdict(score)
+            for cluster_count, score in diagnostics.candidate_scores.items()
+        },
+        "reason": str(diagnostics.reason),
+        "zero_variance_profile_count": int(diagnostics.zero_variance_profile_count),
+        "near_constant_profile_count": int(diagnostics.near_constant_profile_count),
+        "excluded_from_correlation_count": int(
+            diagnostics.excluded_from_correlation_count
+        ),
+        "stability_report": _module_selection_stability_report_payload(
+            diagnostics.stability_report
+        ),
     }
-    return payload
+
+
+def _module_selection_stability_report_payload(
+    report: SignalomeModuleSelectionStabilityReport,
+) -> dict[str, object]:
+    return {
+        "evaluation_method": str(report.evaluation_method),
+        "evaluation_version": str(report.evaluation_version),
+        "seed_policy": str(report.seed_policy),
+        "random_seed": None if report.random_seed is None else int(report.random_seed),
+        "perturbation_count": int(report.perturbation_count),
+        "selected_count_frequency": {
+            str(count): int(frequency)
+            for count, frequency in report.selected_count_frequency.items()
+        },
+        "assignment_similarity_metric": str(report.assignment_similarity_metric),
+        "assignment_similarity": _assignment_similarity_payload(
+            report.assignment_similarity
+        ),
+        "threshold_sensitivity": _threshold_sensitivity_payload(
+            report.threshold_sensitivity
+        ),
+        "status": str(report.status),
+        "limitations": list(report.limitations),
+        "not_computable_reason": report.not_computable_reason,
+        "base_selected_module_count": int(report.base_selected_module_count),
+        "input_site_count": int(report.input_site_count),
+        "input_dimension_count": int(report.input_dimension_count),
+    }
+
+
+def _assignment_similarity_payload(
+    summary: SignalomeModuleSelectionAssignmentSimilaritySummary,
+) -> dict[str, object]:
+    return {
+        "metric": str(summary.metric),
+        "evaluated_perturbations": int(summary.evaluated_perturbations),
+        "minimum": None if summary.minimum is None else float(summary.minimum),
+        "median": None if summary.median is None else float(summary.median),
+        "mean": None if summary.mean is None else float(summary.mean),
+        "maximum": None if summary.maximum is None else float(summary.maximum),
+    }
+
+
+def _threshold_sensitivity_payload(
+    sensitivity: SignalomeModuleSelectionThresholdSensitivity,
+) -> dict[str, object]:
+    return {
+        "method": str(sensitivity.method),
+        "version": str(sensitivity.version),
+        "records": [
+            _threshold_sensitivity_record_payload(record)
+            for record in sensitivity.records
+        ],
+        "selected_count_frequency": {
+            str(count): int(frequency)
+            for count, frequency in sensitivity.selected_count_frequency.items()
+        },
+        "disagrees_with_selected_count": bool(
+            sensitivity.disagrees_with_selected_count
+        ),
+    }
+
+
+def _threshold_sensitivity_record_payload(
+    record: SignalomeModuleSelectionThresholdSensitivityRecord,
+) -> dict[str, object]:
+    return {
+        "primary_threshold": float(record.primary_threshold),
+        "fallback_threshold": float(record.fallback_threshold),
+        "selected_module_count": int(record.selected_module_count),
+        "threshold_used": (
+            None if record.threshold_used is None else float(record.threshold_used)
+        ),
+    }
 
 
 def _clustering_preparation_diagnostics_payload(
@@ -579,6 +680,15 @@ def _build_signalome_score_semantics(
         "module_selection_score_meaning": (
             "module-count selection uses within-cluster correlation summaries over "
             "downstream score profiles across candidate module counts"
+        ),
+        "module_selection_stability": _module_selection_stability_report_payload(
+            module_selection_diagnostics.stability_report
+        ),
+        "module_selection_stability_meaning": (
+            "stability status is a descriptive seeded sensitivity diagnostic for "
+            "automatic module-count selection; it is not an inferential p-value, "
+            "confidence interval, calibrated probability, or validation of "
+            "signalling biology"
         ),
         "assignment_semantics": {
             "top_kinase": (

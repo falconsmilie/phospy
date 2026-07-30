@@ -5,6 +5,7 @@ from __future__ import annotations
 from phospy.contracts.configs import SIGNALOME_SCORE_PRECONDITIONING_POLICIES
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
+    require_bool,
     require_float,
     require_mapping,
     require_str,
@@ -20,16 +21,24 @@ from phospy.provenance.serialization import (
     table_fingerprint_to_payload,
 )
 from phospy.science.signalomes.models import (
+    SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_NOT_COMPUTABLE,
+    SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_STABLE,
+    SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_UNSTABLE,
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
     SignalomeAlignmentDiagnostics,
     SignalomeAlignmentInputDiagnostics,
     SignalomeClusterCandidateScore,
     SignalomeClusteringPreparationDiagnostics,
+    SignalomeModuleSelectionAssignmentSimilaritySummary,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeModuleSelectionStabilityReport,
+    SignalomeModuleSelectionThresholdSensitivity,
+    SignalomeModuleSelectionThresholdSensitivityRecord,
     SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_clustering_preparation_diagnostics,
+    default_signalome_module_selection_stability_report,
 )
 
 
@@ -63,6 +72,9 @@ def signalome_module_selection_diagnostics_to_payload(
         "excluded_from_correlation_count": int(
             diagnostics.excluded_from_correlation_count
         ),
+        "stability_report": signalome_module_selection_stability_report_to_payload(
+            diagnostics.stability_report
+        ),
     }
 
 
@@ -88,6 +100,7 @@ def signalome_module_selection_diagnostics_from_payload(
             "zero_variance_profile_count",
             "near_constant_profile_count",
             "excluded_from_correlation_count",
+            "stability_report",
         }
     )
     _reject_unsupported_fields(
@@ -95,10 +108,11 @@ def signalome_module_selection_diagnostics_from_payload(
         field_name=diagnostics_field_name,
         allowed_fields=allowed_fields,
     )
+    required_fields = allowed_fields - {"stability_report"}
     _require_fields(
         diagnostics_payload,
         field_name=diagnostics_field_name,
-        required_fields=allowed_fields,
+        required_fields=required_fields,
     )
     strategy = require_str(
         diagnostics_payload.get("strategy"),
@@ -194,6 +208,336 @@ def signalome_module_selection_diagnostics_from_payload(
                 f"{scope}.module_selection_diagnostics.excluded_from_correlation_count"
             ),
         ),
+        stability_report=signalome_module_selection_stability_report_from_payload(
+            diagnostics_payload.get("stability_report"),
+            scope=scope,
+        ),
+    )
+
+
+def signalome_module_selection_stability_report_to_payload(
+    report: SignalomeModuleSelectionStabilityReport,
+) -> dict[str, object]:
+    return {
+        "evaluation_method": str(report.evaluation_method),
+        "evaluation_version": str(report.evaluation_version),
+        "seed_policy": str(report.seed_policy),
+        "random_seed": None if report.random_seed is None else int(report.random_seed),
+        "perturbation_count": int(report.perturbation_count),
+        "selected_count_frequency": {
+            str(count): int(frequency)
+            for count, frequency in report.selected_count_frequency.items()
+        },
+        "assignment_similarity_metric": str(report.assignment_similarity_metric),
+        "assignment_similarity": _assignment_similarity_to_payload(
+            report.assignment_similarity
+        ),
+        "threshold_sensitivity": _threshold_sensitivity_to_payload(
+            report.threshold_sensitivity
+        ),
+        "status": str(report.status),
+        "limitations": list(report.limitations),
+        "not_computable_reason": report.not_computable_reason,
+        "base_selected_module_count": int(report.base_selected_module_count),
+        "input_site_count": int(report.input_site_count),
+        "input_dimension_count": int(report.input_dimension_count),
+    }
+
+
+def signalome_module_selection_stability_report_from_payload(
+    payload: object,
+    *,
+    scope: str,
+) -> SignalomeModuleSelectionStabilityReport:
+    if payload is None:
+        return default_signalome_module_selection_stability_report()
+    field_name = f"{scope}.module_selection_diagnostics.stability_report"
+    report_payload = require_mapping(payload, field_name=field_name)
+    allowed_fields = frozenset(
+        {
+            "evaluation_method",
+            "evaluation_version",
+            "seed_policy",
+            "random_seed",
+            "perturbation_count",
+            "selected_count_frequency",
+            "assignment_similarity_metric",
+            "assignment_similarity",
+            "threshold_sensitivity",
+            "status",
+            "limitations",
+            "not_computable_reason",
+            "base_selected_module_count",
+            "input_site_count",
+            "input_dimension_count",
+        }
+    )
+    _reject_unsupported_fields(
+        report_payload,
+        field_name=field_name,
+        allowed_fields=allowed_fields,
+    )
+    _require_fields(
+        report_payload,
+        field_name=field_name,
+        required_fields=allowed_fields,
+    )
+    status = require_str(
+        report_payload.get("status"), field_name=f"{field_name}.status"
+    )
+    if status not in {
+        SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_STABLE,
+        SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_UNSTABLE,
+        SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_NOT_COMPUTABLE,
+    }:
+        raise PhosPyInputError(
+            f"{field_name}.status must be one of: stable, unstable, not_computable"
+        )
+    return SignalomeModuleSelectionStabilityReport(
+        evaluation_method=require_str(
+            report_payload.get("evaluation_method"),
+            field_name=f"{field_name}.evaluation_method",
+        ),
+        evaluation_version=require_str(
+            report_payload.get("evaluation_version"),
+            field_name=f"{field_name}.evaluation_version",
+        ),
+        seed_policy=require_str(
+            report_payload.get("seed_policy"),
+            field_name=f"{field_name}.seed_policy",
+        ),
+        random_seed=_parse_optional_int(
+            report_payload.get("random_seed"),
+            field_name=f"{field_name}.random_seed",
+        ),
+        perturbation_count=_require_int(
+            report_payload.get("perturbation_count"),
+            field_name=f"{field_name}.perturbation_count",
+        ),
+        selected_count_frequency=_frequency_from_payload(
+            report_payload.get("selected_count_frequency"),
+            field_name=f"{field_name}.selected_count_frequency",
+        ),
+        assignment_similarity_metric=require_str(
+            report_payload.get("assignment_similarity_metric"),
+            field_name=f"{field_name}.assignment_similarity_metric",
+        ),
+        assignment_similarity=_assignment_similarity_from_payload(
+            report_payload.get("assignment_similarity"),
+            field_name=f"{field_name}.assignment_similarity",
+        ),
+        threshold_sensitivity=_threshold_sensitivity_from_payload(
+            report_payload.get("threshold_sensitivity"),
+            field_name=f"{field_name}.threshold_sensitivity",
+        ),
+        status=status,  # type: ignore[arg-type]
+        limitations=_string_tuple_from_payload(
+            report_payload.get("limitations"),
+            field_name=f"{field_name}.limitations",
+        ),
+        not_computable_reason=_optional_str(
+            report_payload.get("not_computable_reason"),
+            field_name=f"{field_name}.not_computable_reason",
+        ),
+        base_selected_module_count=_require_int(
+            report_payload.get("base_selected_module_count"),
+            field_name=f"{field_name}.base_selected_module_count",
+        ),
+        input_site_count=_require_int(
+            report_payload.get("input_site_count"),
+            field_name=f"{field_name}.input_site_count",
+        ),
+        input_dimension_count=_require_int(
+            report_payload.get("input_dimension_count"),
+            field_name=f"{field_name}.input_dimension_count",
+        ),
+    )
+
+
+def _assignment_similarity_to_payload(
+    summary: SignalomeModuleSelectionAssignmentSimilaritySummary,
+) -> dict[str, object]:
+    return {
+        "metric": str(summary.metric),
+        "evaluated_perturbations": int(summary.evaluated_perturbations),
+        "minimum": None if summary.minimum is None else float(summary.minimum),
+        "median": None if summary.median is None else float(summary.median),
+        "mean": None if summary.mean is None else float(summary.mean),
+        "maximum": None if summary.maximum is None else float(summary.maximum),
+    }
+
+
+def _assignment_similarity_from_payload(
+    payload: object,
+    *,
+    field_name: str,
+) -> SignalomeModuleSelectionAssignmentSimilaritySummary:
+    mapping = require_mapping(payload, field_name=field_name)
+    allowed_fields = frozenset(
+        {"metric", "evaluated_perturbations", "minimum", "median", "mean", "maximum"}
+    )
+    _reject_unsupported_fields(
+        mapping, field_name=field_name, allowed_fields=allowed_fields
+    )
+    _require_fields(mapping, field_name=field_name, required_fields=allowed_fields)
+    return SignalomeModuleSelectionAssignmentSimilaritySummary(
+        metric=require_str(mapping.get("metric"), field_name=f"{field_name}.metric"),
+        evaluated_perturbations=_require_int(
+            mapping.get("evaluated_perturbations"),
+            field_name=f"{field_name}.evaluated_perturbations",
+        ),
+        minimum=_optional_float(
+            mapping.get("minimum"), field_name=f"{field_name}.minimum"
+        ),
+        median=_optional_float(
+            mapping.get("median"), field_name=f"{field_name}.median"
+        ),
+        mean=_optional_float(mapping.get("mean"), field_name=f"{field_name}.mean"),
+        maximum=_optional_float(
+            mapping.get("maximum"), field_name=f"{field_name}.maximum"
+        ),
+    )
+
+
+def _threshold_sensitivity_to_payload(
+    sensitivity: SignalomeModuleSelectionThresholdSensitivity,
+) -> dict[str, object]:
+    return {
+        "method": str(sensitivity.method),
+        "version": str(sensitivity.version),
+        "records": [
+            {
+                "primary_threshold": float(record.primary_threshold),
+                "fallback_threshold": float(record.fallback_threshold),
+                "selected_module_count": int(record.selected_module_count),
+                "threshold_used": (
+                    None
+                    if record.threshold_used is None
+                    else float(record.threshold_used)
+                ),
+            }
+            for record in sensitivity.records
+        ],
+        "selected_count_frequency": {
+            str(count): int(frequency)
+            for count, frequency in sensitivity.selected_count_frequency.items()
+        },
+        "disagrees_with_selected_count": bool(
+            sensitivity.disagrees_with_selected_count
+        ),
+    }
+
+
+def _threshold_sensitivity_from_payload(
+    payload: object,
+    *,
+    field_name: str,
+) -> SignalomeModuleSelectionThresholdSensitivity:
+    mapping = require_mapping(payload, field_name=field_name)
+    allowed_fields = frozenset(
+        {
+            "method",
+            "version",
+            "records",
+            "selected_count_frequency",
+            "disagrees_with_selected_count",
+        }
+    )
+    _reject_unsupported_fields(
+        mapping, field_name=field_name, allowed_fields=allowed_fields
+    )
+    _require_fields(mapping, field_name=field_name, required_fields=allowed_fields)
+    records_raw = mapping.get("records")
+    if not isinstance(records_raw, list | tuple):
+        raise PhosPyInputError(f"{field_name}.records must be an array")
+    return SignalomeModuleSelectionThresholdSensitivity(
+        method=require_str(mapping.get("method"), field_name=f"{field_name}.method"),
+        version=require_str(
+            mapping.get("version"),
+            field_name=f"{field_name}.version",
+        ),
+        records=tuple(
+            _threshold_sensitivity_record_from_payload(
+                item,
+                field_name=f"{field_name}.records[{position}]",
+            )
+            for position, item in enumerate(records_raw)
+        ),
+        selected_count_frequency=_frequency_from_payload(
+            mapping.get("selected_count_frequency"),
+            field_name=f"{field_name}.selected_count_frequency",
+        ),
+        disagrees_with_selected_count=require_bool(
+            mapping.get("disagrees_with_selected_count"),
+            field_name=f"{field_name}.disagrees_with_selected_count",
+        ),
+    )
+
+
+def _threshold_sensitivity_record_from_payload(
+    payload: object,
+    *,
+    field_name: str,
+) -> SignalomeModuleSelectionThresholdSensitivityRecord:
+    mapping = require_mapping(payload, field_name=field_name)
+    allowed_fields = frozenset(
+        {
+            "primary_threshold",
+            "fallback_threshold",
+            "selected_module_count",
+            "threshold_used",
+        }
+    )
+    _reject_unsupported_fields(
+        mapping, field_name=field_name, allowed_fields=allowed_fields
+    )
+    _require_fields(mapping, field_name=field_name, required_fields=allowed_fields)
+    return SignalomeModuleSelectionThresholdSensitivityRecord(
+        primary_threshold=require_float(
+            mapping.get("primary_threshold"),
+            field_name=f"{field_name}.primary_threshold",
+        ),
+        fallback_threshold=require_float(
+            mapping.get("fallback_threshold"),
+            field_name=f"{field_name}.fallback_threshold",
+        ),
+        selected_module_count=_require_int(
+            mapping.get("selected_module_count"),
+            field_name=f"{field_name}.selected_module_count",
+        ),
+        threshold_used=_optional_float(
+            mapping.get("threshold_used"),
+            field_name=f"{field_name}.threshold_used",
+        ),
+    )
+
+
+def _frequency_from_payload(payload: object, *, field_name: str) -> dict[int, int]:
+    mapping = require_mapping(payload, field_name=field_name)
+    return {
+        int(key): _require_int(value, field_name=f"{field_name}.{key}")
+        for key, value in mapping.items()
+    }
+
+
+def _optional_float(value: object, *, field_name: str) -> float | None:
+    if value is None:
+        return None
+    return require_float(value, field_name=field_name)
+
+
+def _optional_str(value: object, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    return require_str(value, field_name=field_name)
+
+
+def _string_tuple_from_payload(value: object, *, field_name: str) -> tuple[str, ...]:
+    if not isinstance(value, list | tuple):
+        raise PhosPyInputError(f"{field_name} must be an array")
+    return tuple(
+        require_str(item, field_name=f"{field_name}[{position}]")
+        for position, item in enumerate(value)
     )
 
 

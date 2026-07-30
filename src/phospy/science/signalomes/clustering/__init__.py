@@ -46,6 +46,14 @@ from phospy.science.signalomes.clustering.policies import (
     SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE,
     SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
     SIGNALOME_CLUSTERING_SCORING_MODE_EXACT,
+    SIGNALOME_MODULE_SELECTION_STABILITY_ASSIGNMENT_METRIC,
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES,
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS,
+    SIGNALOME_MODULE_SELECTION_STABILITY_PERTURBATION_SCALE,
+    SIGNALOME_MODULE_SELECTION_STABILITY_SEED_POLICY_CALLER_FIXED,
+    SIGNALOME_MODULE_SELECTION_STABILITY_SEED_POLICY_INPUT_DERIVED,
+    SIGNALOME_MODULE_SELECTION_STABILITY_SEED_POLICY_NOT_APPLICABLE,
+    SIGNALOME_MODULE_SELECTION_STABILITY_THRESHOLD_DELTA,
     SIGNALOME_TREE_ENGINE_EXACT,
     SignalomeClusteringMissingValuePolicy,
 )
@@ -70,6 +78,13 @@ def run_signalome_clustering_engine(
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
     clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> SignalomeClusteringEngineResult:
     """Run configured signalome clustering backend."""
 
@@ -84,6 +99,11 @@ def run_signalome_clustering_engine(
             candidate_scoring_policy=candidate_scoring_policy,
             max_exact_tree_sites=max_exact_tree_sites,
             max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
+            module_selection_stability_perturbations=(
+                module_selection_stability_perturbations
+            ),
+            module_selection_stability_seed=module_selection_stability_seed,
+            module_selection_stability_max_sites=(module_selection_stability_max_sites),
         ),
         clustering_engine=clustering_engine,
     )
@@ -101,6 +121,13 @@ def cluster_sites(
     candidate_scoring_policy: SignalomeCandidateScoringPolicy | None = None,
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> pd.Series:
     return _exact.cluster_sites(
         scoring_matrix=scoring_matrix,
@@ -113,6 +140,11 @@ def cluster_sites(
         candidate_scoring_policy=candidate_scoring_policy,
         max_exact_tree_sites=max_exact_tree_sites,
         max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     )
 
 
@@ -128,6 +160,13 @@ def cluster_sites_with_diagnostics(
     candidate_scoring_policy: SignalomeCandidateScoringPolicy | None = None,
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> ClusterSitesResult:
     return _exact.cluster_sites_with_diagnostics(
         scoring_matrix=scoring_matrix,
@@ -140,6 +179,11 @@ def cluster_sites_with_diagnostics(
         candidate_scoring_policy=candidate_scoring_policy,
         max_exact_tree_sites=max_exact_tree_sites,
         max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     )
 
 
@@ -152,6 +196,13 @@ def select_module_count(
     max_clusters: int = 10,
     scoring_mode: SignalomeClusteringScoringMode = "auto",
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> int:
     return _selection.select_module_count(
         scoring_values=scoring_values,
@@ -161,6 +212,11 @@ def select_module_count(
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
         max_exact_tree_sites=max_exact_tree_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     )
 
 
@@ -173,6 +229,13 @@ def select_module_count_with_diagnostics(
     max_clusters: int = 10,
     scoring_mode: SignalomeClusteringScoringMode = "auto",
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ):
     return _selection.select_module_count_with_diagnostics(
         scoring_values=scoring_values,
@@ -182,6 +245,11 @@ def select_module_count_with_diagnostics(
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
         max_exact_tree_sites=max_exact_tree_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     )
 
 
@@ -220,6 +288,14 @@ __all__ = [
     "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
     "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_ASSIGNMENT_METRIC",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_PERTURBATION_SCALE",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_SEED_POLICY_CALLER_FIXED",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_SEED_POLICY_INPUT_DERIVED",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_SEED_POLICY_NOT_APPLICABLE",
+    "SIGNALOME_MODULE_SELECTION_STABILITY_THRESHOLD_DELTA",
     "SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON",
     "SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION",
     "SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL",

@@ -49,6 +49,15 @@ def test_module_count_selection_accepts_explicit_request_equal_to_site_count() -
     assert diagnostics.requested_module_count == 3
     assert diagnostics.reason == "module_count was provided explicitly by the caller"
     assert diagnostics.candidate_scores == {}
+    assert diagnostics.stability_report.status == "not_computable"
+    assert (
+        diagnostics.stability_report.seed_policy
+        == "not_applicable_no_resampling_performed"
+    )
+    assert diagnostics.stability_report.not_computable_reason == (
+        "module_count was provided explicitly; automatic module-count stability "
+        "was not evaluated"
+    )
 
 
 def test_module_count_selection_accepts_explicit_request_less_than_site_count() -> None:
@@ -184,6 +193,170 @@ def test_module_count_automatic_selection_surfaces_stable_diagnostics() -> None:
     assert diagnostics.max_clusters_evaluated >= 2
     assert diagnostics.reason
     assert 2 in diagnostics.candidate_scores
+
+
+def test_module_selection_stability_report_marks_stable_synthetic_clusters() -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 1.1, 1.2],
+            [1.1, 1.0, 1.2],
+            [0.9, 1.2, 1.0],
+            [-1.0, -1.1, -1.2],
+            [-1.1, -1.0, -1.2],
+            [-0.9, -1.2, -1.0],
+        ],
+        dtype=float,
+    )
+
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        module_selection_stability_seed=17,
+        module_selection_stability_perturbations=4,
+    )
+
+    report = diagnostics.stability_report
+    assert diagnostics.selected_module_count == 2
+    assert report.evaluation_method == "seeded_score_perturbation_and_threshold_grid"
+    assert report.evaluation_version == "1"
+    assert report.seed_policy == "caller_supplied_fixed_seed"
+    assert report.random_seed == 17
+    assert report.perturbation_count == 4
+    assert report.selected_count_frequency == {2: 4}
+    assert report.assignment_similarity_metric == "pairwise_coassignment_agreement"
+    assert report.assignment_similarity.minimum == pytest.approx(1.0)
+    assert report.threshold_sensitivity.selected_count_frequency == {2: 9}
+    assert report.threshold_sensitivity.disagrees_with_selected_count is False
+    assert report.status == "stable"
+    assert report.not_computable_reason is None
+    assert report.limitations
+
+
+def test_module_selection_stability_report_marks_unstable_boundary_case() -> None:
+    scoring_values = np.asarray(
+        [
+            [-2.104189335288666, 1.4263441455628871, -1.5360373292295497],
+            [-2.1075141394612467, 0.6644065769633847, 0.506942562289195],
+            [1.194306099359353, 0.7167795557673138, -0.08088287860039405],
+            [0.6727266535834475, -1.100749224284884, 0.15098996598149328],
+            [-0.46293956688440885, 0.23189491925591632, 0.16299788350861275],
+        ],
+        dtype=float,
+    )
+
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        primary_threshold=0.45,
+        fallback_threshold=0.1,
+        max_clusters=5,
+        module_selection_stability_seed=23,
+        module_selection_stability_perturbations=4,
+    )
+
+    report = diagnostics.stability_report
+    assert diagnostics.selected_module_count == 2
+    assert report.status == "unstable"
+    assert report.selected_count_frequency == {1: 2, 2: 2}
+    assert report.assignment_similarity.minimum == pytest.approx(0.4)
+    assert report.threshold_sensitivity.disagrees_with_selected_count is True
+    assert report.threshold_sensitivity.selected_count_frequency == {2: 6, 1: 3}
+
+
+def test_module_selection_stability_report_not_computable_for_insufficient_samples() -> (
+    None
+):
+    scoring_values = np.asarray(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+        ],
+        dtype=float,
+    )
+
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        module_selection_stability_seed=17,
+        module_selection_stability_perturbations=4,
+    )
+
+    report = diagnostics.stability_report
+    assert report.status == "not_computable"
+    assert report.seed_policy == "not_applicable_no_resampling_performed"
+    assert report.selected_count_frequency == {}
+    assert report.assignment_similarity.evaluated_perturbations == 0
+    assert report.assignment_similarity.minimum is None
+    assert report.threshold_sensitivity.records == ()
+    assert report.not_computable_reason == (
+        "fewer than three phosphosite profiles are available"
+    )
+
+
+def test_module_selection_stability_report_is_deterministic_under_fixed_seed() -> None:
+    scoring_values = np.asarray(
+        [
+            [-2.104189335288666, 1.4263441455628871, -1.5360373292295497],
+            [-2.1075141394612467, 0.6644065769633847, 0.506942562289195],
+            [1.194306099359353, 0.7167795557673138, -0.08088287860039405],
+            [0.6727266535834475, -1.100749224284884, 0.15098996598149328],
+            [-0.46293956688440885, 0.23189491925591632, 0.16299788350861275],
+        ],
+        dtype=float,
+    )
+
+    first = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        primary_threshold=0.45,
+        fallback_threshold=0.1,
+        max_clusters=5,
+        module_selection_stability_seed=23,
+        module_selection_stability_perturbations=4,
+    )
+    second = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        primary_threshold=0.45,
+        fallback_threshold=0.1,
+        max_clusters=5,
+        module_selection_stability_seed=23,
+        module_selection_stability_perturbations=4,
+    )
+
+    assert first.stability_report == second.stability_report
+
+
+def test_module_selection_stability_report_tracks_threshold_sensitivity() -> None:
+    scoring_values = np.asarray(
+        [
+            [-2.104189335288666, 1.4263441455628871, -1.5360373292295497],
+            [-2.1075141394612467, 0.6644065769633847, 0.506942562289195],
+            [1.194306099359353, 0.7167795557673138, -0.08088287860039405],
+            [0.6727266535834475, -1.100749224284884, 0.15098996598149328],
+            [-0.46293956688440885, 0.23189491925591632, 0.16299788350861275],
+        ],
+        dtype=float,
+    )
+
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        primary_threshold=0.45,
+        fallback_threshold=0.1,
+        max_clusters=5,
+        module_selection_stability_seed=23,
+        module_selection_stability_perturbations=4,
+    )
+
+    sensitivity = diagnostics.stability_report.threshold_sensitivity
+    assert sensitivity.method == "primary_fallback_threshold_grid"
+    assert len(sensitivity.records) == 9
+    assert {record.primary_threshold for record in sensitivity.records} == {
+        0.4,
+        0.45,
+        0.5,
+    }
+    assert {record.fallback_threshold for record in sensitivity.records} == {
+        0.05,
+        0.1,
+        0.15,
+    }
+    assert sensitivity.disagrees_with_selected_count is True
 
 
 def test_cluster_sites_matches_two_pass_partition_for_selected_module_count() -> None:

@@ -18,6 +18,7 @@ from phospy.api.results import (
 )
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.provenance.serialization import from_payload, to_payload
 from phospy.science.signalomes.clustering import (
     ClusterSitesResult,
 )
@@ -41,6 +42,7 @@ from phospy.workflows.intensity_scale_evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
 )
 from phospy.workflows.signalome.caveats import (
+    SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE,
     SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
     SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE,
 )
@@ -159,7 +161,7 @@ def _kinase_result(
     )
 
 
-def _resolved_request():
+def _resolved_request(*, module_count: int | None = 2):
     dataset = _dataset()
     site_ids = dataset.phospho.index.astype(str).tolist()
     kinases = ["K1", "K2"]
@@ -193,7 +195,7 @@ def _resolved_request():
             substrate_support_cutoff=0.5,
             network_correlation_threshold=0.3,
             network_min_paired_finite_observations=3,
-            module_count=2,
+            module_count=module_count,
             score_preconditioning_policy="allow_and_report",
         ),
     )
@@ -685,6 +687,57 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
     assert result.provenance.workflow_name == "signalome_workflow"
 
 
+def test_signalome_auto_module_selection_stability_reaches_result_and_provenance() -> (
+    None
+):
+    result = SignalomeWorkflowExecutor().run(_resolved_request(module_count=None))
+
+    report = result.module_selection_diagnostics.stability_report
+    assert report.evaluation_method == "seeded_score_perturbation_and_threshold_grid"
+    assert report.seed_policy in {
+        "deterministic_seed_from_scoring_values_and_method_version",
+        "caller_supplied_fixed_seed",
+    }
+    assert report.perturbation_count == 8
+    assert report.status in {"stable", "unstable", "not_computable"}
+    assert report.base_selected_module_count == (
+        result.module_selection_diagnostics.selected_module_count
+    )
+
+    provenance_payload = result.provenance.workflow_parameters[
+        "module_selection_diagnostics"
+    ]["stability_report"]
+    assert provenance_payload["status"] == report.status
+    assert provenance_payload["base_selected_module_count"] == (
+        report.base_selected_module_count
+    )
+    assert provenance_payload["selected_count_frequency"] == {
+        str(count): frequency
+        for count, frequency in report.selected_count_frequency.items()
+    }
+
+
+def test_signalome_module_selection_stability_provenance_serializes_and_replays() -> (
+    None
+):
+    result = SignalomeWorkflowExecutor().run(_resolved_request(module_count=None))
+
+    restored = from_payload(to_payload(result.provenance))
+
+    original_report = result.provenance.workflow_parameters[
+        "module_selection_diagnostics"
+    ]["stability_report"]
+    replayed_report = restored.workflow_parameters["module_selection_diagnostics"][
+        "stability_report"
+    ]
+    assert replayed_report == original_report
+    assert replayed_report["evaluation_version"] == "1"
+    assert replayed_report["assignment_similarity_metric"] == (
+        "pairwise_coassignment_agreement"
+    )
+    assert "p_value" not in replayed_report
+
+
 def test_signalome_executor_rejects_contextual_site_identity_mismatch_before_return() -> (
     None
 ):
@@ -751,6 +804,21 @@ def test_signalome_result_caveats_include_declared_input_scale_evidence() -> Non
     )
     assert caveat.details["input_intensity_scale_source"] == "declared_by_user"
     assert caveat.details["workflow_scope"] == "signalome"
+
+
+def test_signalome_result_caveats_state_modules_and_networks_are_descriptive() -> None:
+    result = SignalomeWorkflowExecutor().run(_resolved_request())
+
+    caveat = _caveat_by_code(
+        result,
+        SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE,
+    )
+
+    assert caveat.severity == "info"
+    assert "modules and kinase-network correlations are descriptive" in (caveat.message)
+    assert caveat.details["modules_are_descriptive"] is True
+    assert caveat.details["networks_are_descriptive"] is True
+    assert caveat.details["not_inferential_evidence"] is True
 
 
 def test_signalome_duplicate_display_ids_remain_separate_by_site_key() -> None:

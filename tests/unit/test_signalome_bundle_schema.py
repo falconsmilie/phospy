@@ -20,6 +20,8 @@ from phospy.io.bundles._signalome.diagnostics import (
     signalome_clustering_preparation_diagnostics_to_payload,
     signalome_module_selection_diagnostics_from_payload,
     signalome_module_selection_diagnostics_to_payload,
+    signalome_module_selection_stability_report_from_payload,
+    signalome_module_selection_stability_report_to_payload,
     signalome_network_correlation_diagnostics_from_payload,
     signalome_network_correlation_diagnostics_to_payload,
     signalome_score_preconditioning_diagnostics_from_payload,
@@ -28,6 +30,7 @@ from phospy.io.bundles._signalome.diagnostics import (
 from phospy.io.bundles._signalome.tables import normalize_module_assignments_table
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.provenance.models import TableFingerprint
+from phospy.science.signalomes.clustering import select_module_count_with_diagnostics
 from phospy.science.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
@@ -35,7 +38,6 @@ from phospy.science.signalomes.models import (
     SignalomeAlignmentDiagnostics,
     SignalomeAlignmentInputDiagnostics,
     SignalomeClusteringPreparationDiagnostics,
-    SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
 )
@@ -457,17 +459,19 @@ def test_module_assignment_normalization_does_not_repair_legacy_identity_columns
 
 
 def test_module_selection_diagnostics_payload_round_trip() -> None:
-    diagnostics = SignalomeModuleSelectionDiagnostics(
-        strategy=SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
-        selected_module_count=3,
-        requested_module_count=None,
-        threshold_used=0.5,
-        max_clusters_evaluated=10,
-        candidate_scores={},
-        reason="selected primary threshold candidate",
-        zero_variance_profile_count=1,
-        near_constant_profile_count=2,
-        excluded_from_correlation_count=3,
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=pd.DataFrame(
+            [
+                [1.0, 1.1, 1.2],
+                [1.1, 1.0, 1.2],
+                [0.9, 1.2, 1.0],
+                [-1.0, -1.1, -1.2],
+                [-1.1, -1.0, -1.2],
+                [-0.9, -1.2, -1.0],
+            ]
+        ),
+        module_selection_stability_seed=17,
+        module_selection_stability_perturbations=4,
     )
 
     payload = signalome_module_selection_diagnostics_to_payload(diagnostics)
@@ -477,6 +481,43 @@ def test_module_selection_diagnostics_payload_round_trip() -> None:
     )
 
     assert restored == diagnostics
+    assert payload["stability_report"]["status"] == "stable"
+    assert restored.stability_report.selected_count_frequency == {2: 4}
+
+
+def test_module_selection_stability_report_payload_round_trip() -> None:
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=pd.DataFrame(
+            [
+                [-2.104189335288666, 1.4263441455628871, -1.5360373292295497],
+                [-2.1075141394612467, 0.6644065769633847, 0.506942562289195],
+                [1.194306099359353, 0.7167795557673138, -0.08088287860039405],
+                [0.6727266535834475, -1.100749224284884, 0.15098996598149328],
+                [-0.46293956688440885, 0.23189491925591632, 0.16299788350861275],
+            ]
+        ),
+        primary_threshold=0.45,
+        fallback_threshold=0.1,
+        max_clusters=5,
+        module_selection_stability_seed=23,
+        module_selection_stability_perturbations=4,
+    )
+
+    payload = signalome_module_selection_stability_report_to_payload(
+        diagnostics.stability_report
+    )
+    restored = signalome_module_selection_stability_report_from_payload(
+        payload,
+        scope="test",
+    )
+
+    assert restored == diagnostics.stability_report
+    assert payload["status"] == "unstable"
+    assert payload["selected_count_frequency"] == {"1": 2, "2": 2}
+    assert payload["threshold_sensitivity"]["selected_count_frequency"] == {
+        "1": 3,
+        "2": 6,
+    }
 
 
 def test_score_preconditioning_diagnostics_payload_round_trip() -> None:

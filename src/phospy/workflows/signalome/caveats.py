@@ -286,11 +286,14 @@ def _descriptive_network_association_caveat(
         code=SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE,
         severity="info",
         message=(
-            "Signalome kinase-network correlations are descriptive score-profile "
-            "associations, not inferential, experimental, directional, or causal "
-            "evidence."
+            "Signalome modules and kinase-network correlations are descriptive "
+            "score-derived summaries, not inferential, experimental, directional, "
+            "or causal evidence."
         ),
         details={
+            "modules_are_descriptive": True,
+            "networks_are_descriptive": True,
+            "not_inferential_evidence": True,
             "network_policy": str(config.network_policy),
             "network_correlation_threshold": float(
                 config.network_correlation_threshold

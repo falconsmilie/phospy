@@ -170,7 +170,7 @@ Important fields and helpers:
 | `module_assignments` | `SignalomeAssignments`; use `.table` or `.to_pandas()`. |
 | `signalome_modules` | `SignalomeModules`; use `.table` or `.to_pandas()`. |
 | `kinase_network` | `KinaseNetwork`; use `.edges`, `.nodes`, `.correlation_diagnostics`, and optional `.candidate_correlations`. |
-| `module_selection_diagnostics` | Module-count selection diagnostics. |
+| `module_selection_diagnostics` | Module-count selection diagnostics, including the automatic-selection `stability_report`. |
 | `score_preconditioning_diagnostics` | Score-row preconditioning diagnostics. |
 | `alignment_diagnostics` | Dataset/score/prediction alignment diagnostics. |
 | `expanded_signalome` / `to_dataframe()` | Optional flattened signalome table. |
@@ -211,6 +211,17 @@ per-column imputation counts, retained labels, and the prepared-matrix
 fingerprint are recorded in structured diagnostics and provenance. If no
 dimension remains after dropping fully missing columns, execution fails before
 tree construction.
+
+When `clustering.module_count` is `None`, automatic module-count selection also
+returns `module_selection_diagnostics.stability_report`. This typed report
+separates deterministic reproducibility from descriptive stability. It records
+the seeded perturbation policy, perturbation count, selected-count frequency,
+pairwise coassignment similarity, threshold-grid sensitivity, status
+(`stable`, `unstable`, or `not_computable`), and limitations. Frequencies and
+similarity scores are descriptive diagnostics; they are not p-values,
+confidence probabilities, or biological validation. Inputs with insufficient
+sample structure report `not_computable` rather than a fabricated stability
+score.
 
 Key output meanings:
 

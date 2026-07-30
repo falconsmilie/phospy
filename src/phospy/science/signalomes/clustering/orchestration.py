@@ -26,6 +26,8 @@ from phospy.science.signalomes.clustering.policies import (
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES,
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS,
     SIGNALOME_TREE_ENGINE_EXACT,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringScoringMode,
@@ -149,6 +151,13 @@ def cluster_sites(
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
     cluster_tree_operations: ClusterTreeOperations | None = None,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> pd.Series:
     """Cluster phosphosites into site clusters."""
 
@@ -164,6 +173,11 @@ def cluster_sites(
         max_exact_tree_sites=max_exact_tree_sites,
         max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
         cluster_tree_operations=cluster_tree_operations,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     ).site_clusters
 
 
@@ -180,6 +194,13 @@ def cluster_sites_with_diagnostics(
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
     cluster_tree_operations: ClusterTreeOperations | None = None,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> ClusterSitesResult:
     """Cluster phosphosites and capture module-selection diagnostics."""
 
@@ -198,6 +219,11 @@ def cluster_sites_with_diagnostics(
         max_exact_tree_sites=max_exact_tree_sites,
         max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
         cluster_tree_operations=cluster_tree_operations,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     )
 
     module_count = validate_cluster_count_for_site_count(
@@ -249,6 +275,13 @@ def select_module_count(
     max_clusters: int = 10,
     scoring_mode: SignalomeClusteringScoringMode = SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> int:
     """Select a module count from a scoring matrix."""
 
@@ -260,6 +293,11 @@ def select_module_count(
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
         max_exact_tree_sites=max_exact_tree_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     ).selected_module_count
 
 
@@ -272,6 +310,13 @@ def select_module_count_with_diagnostics(
     max_clusters: int = 10,
     scoring_mode: SignalomeClusteringScoringMode = SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    ),
+    module_selection_stability_seed: int | None = None,
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    ),
 ) -> SignalomeModuleSelectionDiagnostics:
     """Select a module count and return diagnostics."""
 
@@ -284,6 +329,11 @@ def select_module_count_with_diagnostics(
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
         max_exact_tree_sites=max_exact_tree_sites,
+        module_selection_stability_perturbations=(
+            module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=module_selection_stability_seed,
+        module_selection_stability_max_sites=module_selection_stability_max_sites,
     ).diagnostics
 
 

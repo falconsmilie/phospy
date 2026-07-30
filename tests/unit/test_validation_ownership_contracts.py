@@ -9,6 +9,7 @@ from phospy.validation.datasets import site_metadata as site_metadata_validation
 from phospy.validation.workflows import identity as workflow_identity_validation
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 
 
@@ -70,3 +71,24 @@ def test_sequence_aware_workflow_validators_compose_shared_centred_context_valid
     assert "enforce_centred_site_sequence_context(" in workflow_shared_source
     assert "enforce_centred_site_sequence_context(" not in kinase_source
     assert "enforce_centred_site_sequence_context(" not in signalome_source
+
+
+def test_signalome_module_selection_stability_computation_stays_in_clustering_science() -> (
+    None
+):
+    from phospy.science.signalomes.clustering import stability as clustering_stability
+
+    stability_source = inspect.getsource(
+        clustering_stability.evaluate_module_selection_stability
+    )
+    signalome_validator_source = inspect.getsource(SignalomeWorkflowValidator)
+    result_assembler_source = inspect.getsource(SignalomeResultAssembler.run)
+
+    assert "seeded perturbation" in stability_source
+    assert "evaluate_module_selection_stability" not in signalome_validator_source
+    assert "module_selection_stability" not in signalome_validator_source
+    assert "evaluate_module_selection_stability" not in result_assembler_source
+    assert (
+        "module_selection_diagnostics=clustering_result.module_selection_diagnostics"
+        in result_assembler_source
+    )

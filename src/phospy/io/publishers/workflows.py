@@ -10,6 +10,9 @@ import pandas as pd
 from phospy.contracts.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
+from phospy.io.bundles._signalome.diagnostics import (
+    signalome_module_selection_stability_report_to_payload,
+)
 from phospy.io.readers.tables import table_suffix_for_format, write_table
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -532,6 +535,9 @@ def _signalome_manifest_payload(
         ),
         "used_automatic_module_selection": bool(
             result.module_selection_diagnostics.used_automatic_selection
+        ),
+        "module_selection_stability_report": signalome_module_selection_stability_report_to_payload(
+            result.module_selection_diagnostics.stability_report
         ),
         "score_preconditioning_diagnostics": _score_preconditioning_payload(result),
         "alignment_diagnostics": _alignment_diagnostics_payload(result),

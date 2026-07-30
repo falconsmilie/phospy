@@ -45,6 +45,13 @@ def run_clustering_with_tree_engine(
         candidate_scoring_policy=request.candidate_scoring_policy,
         max_exact_tree_sites=request.max_exact_tree_sites,
         max_full_candidate_scoring_sites=request.max_full_candidate_scoring_sites,
+        module_selection_stability_perturbations=(
+            request.module_selection_stability_perturbations
+        ),
+        module_selection_stability_seed=request.module_selection_stability_seed,
+        module_selection_stability_max_sites=(
+            request.module_selection_stability_max_sites
+        ),
         cluster_tree_operations=ClusterTreeOperationsAdapter(engine=tree_engine),
     )
     protein_modules = derive_protein_modules(

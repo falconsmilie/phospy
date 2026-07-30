@@ -17,6 +17,8 @@ from phospy.science.signalomes.clustering.diagnostic_schemas import (
     validate_threshold_metadata,
 )
 from phospy.science.signalomes.clustering.policies import (
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES,
+    SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS,
     SignalomeCandidateScoringPolicy,
 )
 from phospy.science.signalomes.models import (
@@ -44,6 +46,13 @@ class SignalomeClusteringEngineRequest:
     candidate_scoring_policy: SignalomeCandidateScoringPolicy | None
     max_exact_tree_sites: int | None
     max_full_candidate_scoring_sites: int
+    module_selection_stability_perturbations: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_PERTURBATIONS
+    )
+    module_selection_stability_seed: int | None = None
+    module_selection_stability_max_sites: int = (
+        SIGNALOME_MODULE_SELECTION_STABILITY_DEFAULT_MAX_SITES
+    )
 
 
 @dataclass(frozen=True, slots=True)
