@@ -7,6 +7,10 @@ from phospy.errors.input import (
     PhosPyInputError,
     UnsupportedInputFormatError,
 )
+from phospy.errors.provenance import (
+    PhosPyProvenanceError,
+    ProvenanceFingerprintError,
+)
 from phospy.errors.references import (
     PhosPyReferenceError,
     ReferenceCompatibilityError,
@@ -45,10 +49,12 @@ __all__ = [
     "PhosPyBuildError",
     "PhosPyError",
     "PhosPyInputError",
+    "PhosPyProvenanceError",
     "PhosPyReferenceError",
     "PhosPyTransformationError",
     "PhosPyValidationError",
     "PhosPyWorkflowError",
+    "ProvenanceFingerprintError",
     "ReferenceCompatibilityError",
     "ReferenceIdentifierNormalisationValidationError",
     "ReferenceResolutionError",

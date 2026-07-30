@@ -8,7 +8,7 @@ from dataclasses import asdict
 import pandas as pd
 
 from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import _fingerprint_optional_table_with_normalized_axes
+from phospy.provenance.hashing import fingerprint_optional_table_normalized_axes
 from phospy.provenance.models import (
     EnvironmentProvenance,
     PreprocessingStageProvenance,
@@ -192,7 +192,7 @@ def _collect_fingerprints(
 ) -> tuple[TableFingerprint, ...]:
     fingerprints: list[TableFingerprint] = []
     for name, table in entries:
-        fingerprint = _fingerprint_optional_table_with_normalized_axes(table, name=name)
+        fingerprint = fingerprint_optional_table_normalized_axes(table, name=name)
         if fingerprint is None:
             continue
         fingerprints.append(fingerprint)

@@ -11,11 +11,12 @@ import pandas as pd
 import pytest
 
 from phospy.errors.input import PhosPyInputError
+from phospy.errors.provenance import ProvenanceFingerprintError
 from phospy.provenance.hashing import (
-    _fingerprint_optional_table_with_normalized_axes,
     _index_structure,
     _normalize_value,
     _update,
+    fingerprint_optional_table_normalized_axes,
     fingerprint_table,
     hash_table_exact,
     hash_table_tolerance,
@@ -137,11 +138,11 @@ def test_normalized_axis_fingerprint_is_stable_for_row_and_column_order() -> Non
     )
     reordered = table.loc[["A;S1;", "B;S2;"], ["sample_a", "sample_b"]]
 
-    first = _fingerprint_optional_table_with_normalized_axes(
+    first = fingerprint_optional_table_normalized_axes(
         table,
         name="dataset.phospho",
     )
-    second = _fingerprint_optional_table_with_normalized_axes(
+    second = fingerprint_optional_table_normalized_axes(
         reordered,
         name="dataset.phospho",
     )
@@ -152,6 +153,137 @@ def test_normalized_axis_fingerprint_is_stable_for_row_and_column_order() -> Non
     assert first.tolerance_hash_value == second.tolerance_hash_value
     assert first.column_names == ("sample_a", "sample_b")
     assert second.column_names == ("sample_a", "sample_b")
+
+
+def test_normalized_axis_fingerprint_sorts_integer_labels_numerically() -> None:
+    table = pd.DataFrame(
+        [[40.0, 30.0], [20.0, 10.0]],
+        index=pd.Index([10, 2], name="row_id"),
+        columns=pd.Index([10, 2], name="sample_id"),
+    )
+    reordered = table.iloc[[1, 0], [1, 0]]
+
+    first = fingerprint_optional_table_normalized_axes(table, name="integer_labels")
+    second = fingerprint_optional_table_normalized_axes(
+        reordered, name="integer_labels"
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first.exact_hash_value == second.exact_hash_value
+    assert first.tolerance_hash_value == second.tolerance_hash_value
+    assert first.column_names == ("2", "10")
+
+
+def test_normalized_axis_fingerprint_distinguishes_mixed_int_string_labels() -> None:
+    table = pd.DataFrame(
+        [[4.0, 3.0], [2.0, 1.0]],
+        index=pd.Index(["1", 1], dtype=object, name="row_id"),
+        columns=pd.Index(["2", 2], dtype=object, name="sample_id"),
+    )
+    reordered = table.iloc[[1, 0], [1, 0]]
+
+    first = fingerprint_optional_table_normalized_axes(table, name="mixed_labels")
+    second = fingerprint_optional_table_normalized_axes(reordered, name="mixed_labels")
+
+    assert first is not None
+    assert second is not None
+    assert first.exact_hash_value == second.exact_hash_value
+    assert first.tolerance_hash_value == second.tolerance_hash_value
+    assert first.index_structure is not None
+    assert first.index_structure["values"] == (
+        {"kind": "int", "value": 1},
+        {"kind": "str", "value": "1"},
+    )
+    assert first.column_index_structure is not None
+    assert first.column_index_structure["values"] == (
+        {"kind": "int", "value": 2},
+        {"kind": "str", "value": "2"},
+    )
+
+
+def test_normalized_axis_fingerprint_supports_tuple_labels_and_multiindex() -> None:
+    tuple_index = pd.MultiIndex.from_tuples(
+        [("B", 2), ("A", 1)],
+        names=["group", "replicate"],
+    )
+    tuple_columns = pd.MultiIndex.from_tuples(
+        [("sample", 2), ("sample", 1)],
+        names=["kind", "replicate"],
+    )
+    table = pd.DataFrame(
+        [[4.0, 3.0], [2.0, 1.0]],
+        index=tuple_index,
+        columns=tuple_columns,
+    )
+    reordered = table.iloc[[1, 0], [1, 0]]
+
+    first = fingerprint_optional_table_normalized_axes(table, name="tuple_labels")
+    second = fingerprint_optional_table_normalized_axes(reordered, name="tuple_labels")
+
+    assert first is not None
+    assert second is not None
+    assert first.exact_hash_value == second.exact_hash_value
+    assert first.tolerance_hash_value == second.tolerance_hash_value
+    assert first.index_structure is not None
+    assert first.index_structure["type"] == "multi_index"
+    assert first.column_index_structure is not None
+    assert first.column_index_structure["type"] == "multi_index"
+
+
+def test_normalized_axis_fingerprint_uses_same_order_for_exact_and_tolerance() -> None:
+    table = pd.DataFrame(
+        {"b": [1.123456781, 2.0], "a": [3.0, 4.0]},
+        index=pd.Index(["row_b", "row_a"], name="row_id"),
+    )
+    expected_order = table.loc[["row_a", "row_b"], ["a", "b"]]
+
+    fingerprint = fingerprint_optional_table_normalized_axes(
+        table,
+        name="same_axis_order",
+    )
+
+    assert fingerprint is not None
+    assert fingerprint.exact_hash_value == hash_table_exact(
+        expected_order,
+        name="same_axis_order",
+    )
+    assert fingerprint.tolerance_hash_value == hash_table_tolerance(
+        expected_order,
+        name="same_axis_order",
+    )
+
+
+def test_normalized_axis_fingerprint_rejects_unsupported_label_type() -> None:
+    table = pd.DataFrame(
+        {"x": [1.0]},
+        index=pd.Index([object()], dtype=object, name="row_id"),
+    )
+
+    with pytest.raises(ProvenanceFingerprintError) as exc_info:
+        fingerprint_optional_table_normalized_axes(table, name="unsupported")
+
+    assert str(exc_info.value) == (
+        "normalized provenance fingerprint for table 'unsupported' cannot sort "
+        "row axis label at position 0: unsupported axis label type object. "
+        "Supported labels under policy typed-axis-label-sort-v1 are non-missing "
+        "strings, integers, and tuple/MultiIndex labels composed only of supported "
+        "labels. Convert labels to a supported, collision-safe representation "
+        "before fingerprinting."
+    )
+
+
+def test_normalized_axis_fingerprint_rejects_duplicate_canonical_labels() -> None:
+    table = pd.DataFrame(
+        {"x": [1.0, 2.0]},
+        index=pd.Index(["row", "row"], name="row_id"),
+    )
+
+    with pytest.raises(
+        ProvenanceFingerprintError,
+        match="positions 0 and 1 share the same canonical typed key",
+    ):
+        fingerprint_optional_table_normalized_axes(table, name="duplicate_labels")
 
 
 def test_hash_changes_when_value_changes() -> None:

@@ -54,6 +54,16 @@ Historical payloads that lack the field may be loaded only through the explicit
 legacy migration path, which labels the evidence as `legacy_unverified` and must
 not claim that a derived operation occurred.
 
+Update note (2026-07-30, normalized fingerprint axis semantics): provenance
+fingerprints that intentionally normalize row and column order use one central
+axis-label policy in `phospy.provenance.hashing`. Labels are sorted by the
+collision-safe typed sort key `typed-axis-label-sort-v1`. Supported labels are
+non-missing strings, integers, and tuple/MultiIndex labels composed only of
+supported labels. Integer labels are ordered numerically and remain distinct from
+string labels with the same display form, such as `1` and `"1"`. Duplicate typed
+axis labels and unsupported labels fail with `ProvenanceFingerprintError` before
+hashing; normalized provenance never falls back to caller-supplied order.
+
 ## Decision
 
 All JSON-like provenance values must be normalized through the
@@ -92,6 +102,15 @@ JSON-compatible value space. Hashing therefore validates and serializes fresh
 payloads with sorted string keys and no non-finite number support. It rejects
 unsupported objects and invalid JSON object keys instead of normalizing them by
 representation or stringification.
+
+Order-normalized table fingerprints must normalize both axes before computing
+the exact and tolerance hashes, and both hashes must use that same normalized
+view. Axis normalization belongs to `phospy.provenance.hashing`; workflows such
+as kinase and signalome provenance assembly must call the shared normalized-axis
+fingerprinting helper rather than sorting tables locally or catching pandas sort
+failures. If the provenance layer cannot prove deterministic axis semantics, it
+must fail closed with an actionable provenance exception instead of producing an
+apparently normalized, order-sensitive fingerprint.
 
 ## Consequences
 

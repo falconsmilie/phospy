@@ -8,11 +8,12 @@ import math
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
 import numpy as np
 import pandas as pd
 
+from phospy.errors.provenance import ProvenanceFingerprintError
 from phospy.provenance.immutability import thaw_json_value
 from phospy.provenance.models import JsonValue, TableFingerprint
 
@@ -23,6 +24,16 @@ DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM = "sha256-float-round-8dp-v1"
 _MISSING_SENTINEL = "<MISSING>"
 _FLOAT_HASH_DECIMAL_PLACES = 8
 _SITE_METADATA_PROVENANCE_IGNORED_COLUMNS = ("display_id", "site_key")
+_NORMALIZED_AXIS_LABEL_POLICY = "typed-axis-label-sort-v1"
+_SUPPORTED_AXIS_LABEL_TYPES_MESSAGE = (
+    "non-missing strings, integers, and tuple/MultiIndex labels composed only "
+    "of supported labels"
+)
+_AXIS_LABEL_KIND_RANK = {
+    "int": 0,
+    "str": 1,
+    "tuple": 2,
+}
 _KIND_VALUE_PREFIX_BYTES = {
     kind: b'{"kind":"' + kind.encode("ascii") + b'","value":'
     for kind in (
@@ -53,6 +64,7 @@ _PANDAS_MISSING_SCALAR_TYPES = (
     np.datetime64,
     np.timedelta64,
 )
+_AxisLabelSortKey = tuple[int, object]
 
 
 def hash_table_exact(
@@ -209,6 +221,37 @@ def fingerprint_optional_table_strict(
     return fingerprint_table_strict(table, name=name, algorithm=algorithm)
 
 
+def fingerprint_table_normalized_axes(
+    table: pd.DataFrame,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> TableFingerprint:
+    """Build a table fingerprint after deterministic typed axis sorting.
+
+    Normalized provenance fingerprints sort row and column labels with the
+    shared provenance axis-label policy. Unsupported or duplicate canonical
+    labels raise :class:`ProvenanceFingerprintError` instead of falling back to
+    the caller's original table order.
+    """
+
+    normalized_table = _normalize_table_axes_for_fingerprint(table, name=name)
+    return fingerprint_table(normalized_table, name=name, algorithm=algorithm)
+
+
+def fingerprint_optional_table_normalized_axes(
+    table: pd.DataFrame | None,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> TableFingerprint | None:
+    """Build an optional table fingerprint after deterministic typed axis sorting."""
+
+    if table is None:
+        return None
+    return fingerprint_table_normalized_axes(table, name=name, algorithm=algorithm)
+
+
 def fingerprint_optional_matrix(
     matrix: pd.DataFrame | None,
     *,
@@ -232,20 +275,6 @@ def hash_json_payload(
     hasher = hashlib.new(algorithm)
     _update(hasher, payload)
     return hasher.hexdigest()
-
-
-def _fingerprint_optional_table_with_normalized_axes(
-    table: pd.DataFrame | None,
-    *,
-    name: str,
-    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
-) -> TableFingerprint | None:
-    """Build an optional table fingerprint after deterministic axis sorting."""
-
-    if table is None:
-        return None
-    normalized_table = _normalize_table_axes_for_fingerprint(table)
-    return fingerprint_table(normalized_table, name=name, algorithm=algorithm)
 
 
 def _update(hasher: hashlib._Hash, payload: Any) -> None:  # type: ignore[attr-defined]
@@ -623,17 +652,142 @@ def _normalize_provenance_table_view(
     return table.drop(columns=removable)
 
 
-def _normalize_table_axes_for_fingerprint(table: pd.DataFrame) -> pd.DataFrame:
-    normalized = table
-    try:
-        normalized = normalized.sort_index(axis=0, kind="mergesort")
-    except Exception:
-        pass
-    try:
-        normalized = normalized.sort_index(axis=1, kind="mergesort")
-    except Exception:
-        pass
-    return normalized
+def _normalize_table_axes_for_fingerprint(
+    table: pd.DataFrame,
+    *,
+    name: str,
+) -> pd.DataFrame:
+    row_positions = _sorted_axis_positions(
+        table.index,
+        table_name=name,
+        axis_name="row",
+    )
+    column_positions = _sorted_axis_positions(
+        table.columns,
+        table_name=name,
+        axis_name="column",
+    )
+    return table.iloc[list(row_positions), list(column_positions)]
+
+
+def _sorted_axis_positions(
+    index: pd.Index,
+    *,
+    table_name: str,
+    axis_name: str,
+) -> tuple[int, ...]:
+    labels = index.tolist()
+    keyed_positions: list[tuple[_AxisLabelSortKey, int]] = []
+    first_position_by_key: dict[_AxisLabelSortKey, int] = {}
+    for position, label in enumerate(labels):
+        key = _axis_label_sort_key(
+            label,
+            table_name=table_name,
+            axis_name=axis_name,
+            label_path=f"position {position}",
+        )
+        first_position = first_position_by_key.get(key)
+        if first_position is not None:
+            raise ProvenanceFingerprintError(
+                "normalized provenance fingerprint for table "
+                f"{table_name!r} cannot sort {axis_name} axis: labels at "
+                f"positions {first_position} and {position} share the same "
+                f"canonical typed key under policy {_NORMALIZED_AXIS_LABEL_POLICY}. "
+                "Normalized provenance fingerprints require unique "
+                f"{axis_name} labels so reordering cannot change the hash within "
+                "duplicate-label groups."
+            )
+        first_position_by_key[key] = position
+        keyed_positions.append((key, position))
+    return tuple(
+        position for _, position in sorted(keyed_positions, key=lambda item: item[0])
+    )
+
+
+def _axis_label_sort_key(
+    label: object,
+    *,
+    table_name: str,
+    axis_name: str,
+    label_path: str,
+) -> _AxisLabelSortKey:
+    if _is_missing_axis_label(label):
+        raise ProvenanceFingerprintError(
+            "normalized provenance fingerprint for table "
+            f"{table_name!r} cannot sort {axis_name} axis label at {label_path}: "
+            "missing axis labels are unsupported. Assign stable non-missing "
+            "row and column labels before fingerprinting."
+        )
+    if isinstance(label, bool) or isinstance(label, np.bool_):
+        _raise_unsupported_axis_label(
+            label,
+            table_name=table_name,
+            axis_name=axis_name,
+            label_path=label_path,
+        )
+    if isinstance(label, int):
+        return (_AXIS_LABEL_KIND_RANK["int"], int(label))
+    if isinstance(label, np.integer):
+        return (_AXIS_LABEL_KIND_RANK["int"], int(cast(int, label)))
+    if isinstance(label, str):
+        return (_AXIS_LABEL_KIND_RANK["str"], label)
+    if isinstance(label, tuple):
+        return (
+            _AXIS_LABEL_KIND_RANK["tuple"],
+            tuple(
+                _axis_label_sort_key(
+                    component,
+                    table_name=table_name,
+                    axis_name=axis_name,
+                    label_path=f"{label_path} component {component_position}",
+                )
+                for component_position, component in enumerate(label)
+            ),
+        )
+    _raise_unsupported_axis_label(
+        label,
+        table_name=table_name,
+        axis_name=axis_name,
+        label_path=label_path,
+    )
+
+
+def _raise_unsupported_axis_label(
+    label: object,
+    *,
+    table_name: str,
+    axis_name: str,
+    label_path: str,
+) -> NoReturn:
+    raise ProvenanceFingerprintError(
+        "normalized provenance fingerprint for table "
+        f"{table_name!r} cannot sort {axis_name} axis label at {label_path}: "
+        f"unsupported axis label type {_qualified_type_name(label)}. Supported "
+        f"labels under policy {_NORMALIZED_AXIS_LABEL_POLICY} are "
+        f"{_SUPPORTED_AXIS_LABEL_TYPES_MESSAGE}. Convert labels to a supported, "
+        "collision-safe representation before fingerprinting."
+    )
+
+
+def _qualified_type_name(value: object) -> str:
+    value_type = type(value)
+    module = value_type.__module__
+    qualname = value_type.__qualname__
+    if module == "builtins":
+        return qualname
+    return f"{module}.{qualname}"
+
+
+def _is_missing_axis_label(value: object) -> bool:
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        return bool(np.isnan(value))
+    if isinstance(value, np.datetime64 | np.timedelta64):
+        return bool(np.isnat(value))
+    return False
 
 
 __all__ = [
@@ -644,8 +798,10 @@ __all__ = [
     "fingerprint_matrix",
     "fingerprint_optional_matrix",
     "fingerprint_optional_table",
+    "fingerprint_optional_table_normalized_axes",
     "fingerprint_optional_table_strict",
     "fingerprint_table",
+    "fingerprint_table_normalized_axes",
     "fingerprint_table_strict",
     "hash_json_payload",
     "hash_table_exact",
