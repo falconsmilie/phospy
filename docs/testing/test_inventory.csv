@@ -3,10 +3,11 @@ tests/architecture/test_analysis_ready_construction_paths.py,architecture,53,2,f
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
 tests/architecture/test_config_ownership.py,architecture,279,6,false,false,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,574,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/architecture/test_package_dependency_dag.py,architecture,601,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/architecture/test_validation_boundaries.py,architecture,692,24,false,false,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
+tests/architecture/test_validation_ownership_governance.py,architecture,537,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,369,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,120,4,true,false,,,,,,

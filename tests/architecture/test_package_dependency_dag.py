@@ -302,7 +302,10 @@ def _local_imports():
     importlib.import_module("phospy.io.bundles.signalome")
 """
     path = PACKAGE_ROOT / "__init__.py"
-    imports = tuple(_imported_modules("phospy", path, ast.parse(source)))
+    imports = tuple(
+        imported
+        for imported, _line in _imported_modules("phospy", path, ast.parse(source))
+    )
 
     assert "phospy.science.datasets.models" in imports
     assert "phospy.validation.datasets" in imports
@@ -317,6 +320,25 @@ def _local_imports():
     assert "phospy.io.bundles" in imports
     assert "phospy.io.bundles.signalome" in imports
     assert "phospy.workflows.kinase" in imports
+
+
+def test_import_extractor_records_ast_line_numbers() -> None:
+    source = """
+import phospy.science.datasets.models
+from phospy.validation.datasets import preprocessing
+import importlib
+importlib.import_module("phospy.io.bundles")
+"""
+    path = PACKAGE_ROOT / "__init__.py"
+    imports = tuple(_imported_modules("phospy", path, ast.parse(source)))
+
+    assert imports == (
+        ("phospy.science.datasets.models", 2),
+        ("phospy.validation.datasets", 3),
+        ("phospy.validation.datasets.preprocessing", 3),
+        ("importlib", 4),
+        ("phospy.io.bundles", 5),
+    )
 
 
 def test_public_import_routes_load_in_clean_interpreters() -> None:
@@ -368,7 +390,7 @@ def _build_import_graph() -> ImportGraph:
     for module_name, path in paths.items():
         resolved_edges: set[str] = set()
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
-        for imported in _imported_modules(module_name, path, tree):
+        for imported, line_number in _imported_modules(module_name, path, tree):
             if not imported.startswith("phospy"):
                 continue
             resolved = _resolve_module(imported, modules)
@@ -380,7 +402,7 @@ def _build_import_graph() -> ImportGraph:
                     source_module=module_name,
                     source_path=path,
                     target=resolved,
-                    line=1,
+                    line=line_number,
                 )
             )
         module_edges[module_name] = frozenset(resolved_edges)
@@ -405,22 +427,25 @@ def _imported_modules(
     module_name: str,
     path: Path,
     tree: ast.AST,
-) -> Iterable[str]:
+) -> Iterable[tuple[str, int]]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                yield alias.name
+                yield alias.name, node.lineno
         elif isinstance(node, ast.ImportFrom):
             imported = _resolve_import_from(module_name, path, node)
             if imported is None:
                 continue
-            yield imported
+            yield imported, node.lineno
             for alias in node.names:
-                yield f"{imported}.{alias.name}" if imported else alias.name
+                yield (
+                    f"{imported}.{alias.name}" if imported else alias.name,
+                    node.lineno,
+                )
         elif isinstance(node, ast.Call):
             imported = _static_dynamic_import_target(node)
             if imported is not None:
-                yield imported
+                yield imported, node.lineno
 
 
 def _resolve_import_from(
@@ -570,5 +595,7 @@ def _format_package_edges(
             and _package_name(record.target) == target
         ][:8]
         for record in examples:
-            lines.append(f"  {record.source_path.relative_to(PROJECT_ROOT)}")
+            lines.append(
+                f"  {record.source_path.relative_to(PROJECT_ROOT)}:{record.line}"
+            )
     return "\n".join(lines)

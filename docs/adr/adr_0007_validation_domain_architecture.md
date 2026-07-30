@@ -38,6 +38,12 @@ residue/window policy, and known sequence-source checks. Validation-package
 routes may compose or identity-preservingly re-export those objects, but must
 not define copies.
 
+Update note (2026-07-30, executable ownership governance): The ownership map is
+now checked by architecture tests for current module paths, concrete
+symbol-level duplicate definitions across owner trees, identity-preserving
+compatibility re-exports, workflow-validator composition wording, and
+import-graph diagnostics that report the AST line of the import.
+
 ## Decision
 
 Validation ownership is explicit and enforced by module boundaries:
@@ -91,7 +97,8 @@ Validation ownership is explicit and enforced by module boundaries:
     layers, but duplicated helper implementations are not allowed.
 
 The ownership map in `docs/validation-ownership.md` is part of ADR governance,
-not optional commentary.
+not optional commentary. Updates to ADR-0007 and that map must be kept in sync
+when ownership or compatibility routes change.
 
 ## Consequences
 
@@ -127,10 +134,11 @@ not optional commentary.
 
 ## Implementation Notes
 
-- Ownership registry: `docs/validation-ownership.md`.
+- Ownership registry: `docs/validation-ownership.md`, enforced by
+  `tests/architecture/test_validation_ownership_governance.py`.
 - Shared structural primitives: `src/phospy/frames/validation.py`; legacy
-  validation routes under `src/phospy/validation/common/` are compatibility
-  wrappers.
+  validation routes under `src/phospy/validation/common/` are
+  identity-preserving compatibility wrappers.
 - Phosphosite-specific identifier/coherence validation owners:
   `src/phospy/science/sites/validation.py`,
   `src/phospy/science/sites/metadata_validation.py`,
@@ -160,6 +168,12 @@ not optional commentary.
   `tests/architecture/test_validation_boundaries.py`.
 - Package dependency checks live in
   `tests/architecture/test_package_dependency_dag.py`.
+- Import-graph records must retain AST line numbers for diagnostics; package
+  dependency failures should not collapse all imports to line 1.
+- Duplicate-definition checks for validation/scientific ownership use concrete
+  symbols and expected owner files, not package-name-only ownership claims.
+- Compatibility import routes are allowed only when they preserve object
+  identity with the owner symbol.
 - Config ownership and duplicate-definition checks live in
   `tests/architecture/test_config_ownership.py`.
 - Adapter wiring checks live in `tests/unit/test_protocol_adapter_wiring.py`.
