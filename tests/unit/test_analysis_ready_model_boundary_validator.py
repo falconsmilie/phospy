@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.models as dataset_models
+import phospy.science.datasets.construction.validation as dataset_construction_validation
 from phospy.errors.validation import (
     DatasetValidationError,
     TransformationValidationError,
@@ -804,7 +804,7 @@ def test_analysis_ready_numeric_matrix_missing_values_use_fast_path(
         raise AssertionError(f"unexpected scalar missing-value scan for {value!r}")
 
     monkeypatch.setattr(
-        dataset_models,
+        dataset_construction_validation,
         "_is_missing_value",
         fail_if_scalar_fallback_runs,
     )
@@ -823,13 +823,17 @@ def test_analysis_ready_object_matrix_missing_values_use_fallback(
     phospho.iloc[0, 0] = None
     payload["phospho"] = phospho
     observed_values: list[object] = []
-    original_is_missing_value = dataset_models._is_missing_value
+    original_is_missing_value = dataset_construction_validation._is_missing_value
 
     def spy_is_missing_value(value: object) -> bool:
         observed_values.append(value)
         return original_is_missing_value(value)
 
-    monkeypatch.setattr(dataset_models, "_is_missing_value", spy_is_missing_value)
+    monkeypatch.setattr(
+        dataset_construction_validation,
+        "_is_missing_value",
+        spy_is_missing_value,
+    )
 
     with pytest.raises(DatasetValidationError) as exc_info:
         trusted_analysis_ready_dataset_from_tables(**payload)

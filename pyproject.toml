@@ -155,7 +155,7 @@ strict = [
   "src/phospy/science/datasets/builders/normalizer.py",
   "src/phospy/validation/common/dataframes.py",
   "src/phospy/validation/datasets",
-  "src/phospy/provenance/serialization.py",
+  "src/phospy/provenance/serialization",
   "src/phospy/science/transformations/models.py",
   "src/phospy/science/transformations/contracts.py",
   "src/phospy/science/transformations/transformers/identity.py",

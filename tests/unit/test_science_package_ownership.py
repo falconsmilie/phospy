@@ -102,7 +102,10 @@ def test_representative_moved_object_ownership() -> None:
     from phospy.science.sites.identifiers import canonicalize_site_identifier
     from phospy.science.transformations.models import IntensityScaleState
 
-    assert AnalysisReadyPhosphoDataset.__module__ == "phospy.science.datasets.models"
+    assert (
+        AnalysisReadyPhosphoDataset.__module__
+        == "phospy.science.datasets.construction.analysis_ready"
+    )
     assert ReferenceBundle.__module__ == "phospy.science.references.models"
     assert (
         TechnicalReplicatePolicy.__module__

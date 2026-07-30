@@ -153,9 +153,20 @@ when ownership or compatibility routes change.
   `src/phospy/workflows/differential/validator.py`.
 - Technical-replicate policy owner:
   `src/phospy/workflows/differential/replicates.py`.
-- Intensity-scale establishment and dataset coherence owners:
-  `src/phospy/validation/transformations/state.py` and
-  `src/phospy/science/datasets/models.py`.
+- Intensity-scale establishment and dataset construction coherence owners:
+  `src/phospy/validation/transformations/state.py`,
+  `src/phospy/science/datasets/construction/analysis_ready.py`,
+  `src/phospy/science/datasets/construction/validation.py`,
+  `src/phospy/science/datasets/construction/trusted_assertions.py`, and
+  `src/phospy/science/datasets/construction/fingerprints.py`.
+- Reference manifest parsing, bundled resource integrity, redistribution
+  release-gate policy, and bundle semantics owners:
+  `src/phospy/science/references/validation/manifest_schema.py`,
+  `src/phospy/science/references/validation/resource_integrity.py`,
+  `src/phospy/science/references/validation/redistribution_policy.py`, and
+  `src/phospy/science/references/validation/bundle_semantics.py`. The
+  `src/phospy/science/references/validation/__init__.py` route is a
+  compatibility facade only.
 - Reference bundle and Kinase Library resource construction invariants:
   `src/phospy/science/references/models.py` and
   `src/phospy/science/references/kinase_library.py`; validation-package routes

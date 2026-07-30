@@ -386,7 +386,7 @@ Neutral consequences:
 - Workflow-visible intensity-scale evidence and declared-scale caveats:
   `src/phospy/workflows/intensity_scale_evidence.py`
 - Provenance payload model:
-  `src/phospy/provenance/models.py`
+  `src/phospy/provenance/models/workflows.py`
 - Kinase scoring config and public scoring-mode strings:
   `src/phospy/contracts/configs/kinase.py`
 - Internal kinase scoring-mode input contracts:
@@ -411,7 +411,7 @@ Neutral consequences:
   `src/phospy/workflows/kinase/validator.py` and
   `src/phospy/workflows/signalome/validator.py`
 - Analysis-ready dataset boundary:
-  `src/phospy/science/datasets/models.py`
+  `src/phospy/science/datasets/construction/analysis_ready.py`
 
 ## Related Records
 

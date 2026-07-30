@@ -88,7 +88,7 @@ tests/unit/science/differential/test_differential_diagnostics.py,differential,11
 tests/unit/test_activity_science.py,unit,1424,39,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_analysis_ready_model_boundary_validator.py,unit,880,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
+tests/unit/test_analysis_ready_model_boundary_validator.py,unit,884,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,59,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1138,14,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
@@ -124,6 +124,7 @@ tests/unit/test_dataset_site_sequence_deriver.py,unit,96,4,false,false,,,,,,
 tests/unit/test_dataset_site_sequence_resolution.py,unit,510,13,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset site sequence resolution, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_dataset_site_sequence_resolution_collaborators.py,unit,86,3,true,true,,,,,,
 tests/unit/test_dataset_transformation_state_establishment.py,unit,1349,39,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_decomposed_ownership_facades.py,unit,101,2,false,false,,,,,,
 tests/unit/test_derived_quantitative_state_certification.py,unit,707,16,true,true,,,,,,
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
 tests/unit/test_differential_analysis.py,unit,1135,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
@@ -245,7 +246,7 @@ tests/unit/test_result_caveats.py,unit,349,7,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,544,9,false,false,,,,,,
 tests/unit/test_row_attrition_provenance.py,unit,266,13,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_runtime_contract_guards.py,unit,218,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
+tests/unit/test_science_package_ownership.py,unit,116,6,true,true,,,,,,
 tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,813,29,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_scientific_invariants.py,unit,714,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,484,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,

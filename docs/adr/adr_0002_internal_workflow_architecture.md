@@ -32,6 +32,14 @@ preprocessors, and resolvers through consumer-owned protocols. Science
 collaborators must not import concrete `phospy.validation` implementations;
 public API adapters and workflow orchestration own concrete validator wiring.
 
+Update note (2026-07-30, preprocessing ownership decomposition): Dataset
+preprocessing planning, state trace, and stage-result DTOs are owned by
+`phospy.science.datasets.preprocessing.plan`,
+`phospy.science.datasets.preprocessing.trace`, and
+`phospy.science.datasets.preprocessing.results`. The legacy
+`phospy.science.datasets.preprocessing.models` route is a compatibility facade
+only.
+
 ## Context and Problem Statement
 
 PhosPy has accumulated orchestration patterns that are more complex than necessary for the product it is intended to be. The current direction has shown signs of wrapper-heavy execution paths, repeated validation across multiple layers, duplicated accessors, loose helper composition, and abstractions that are more "smart" than useful.

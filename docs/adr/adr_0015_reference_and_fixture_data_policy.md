@@ -118,7 +118,7 @@ Each runtime manifest should declare organism scope, identifier namespace, sourc
 Every bundled runtime lane must include a machine-readable manifest (reference
 data card) that is treated as runtime governance metadata, not optional notes.
 Every bundled reference manifest must contain the schema fields required by
-`src/phospy/science/references/validation.py`:
+`src/phospy/science/references/validation/manifest_schema.py`:
 
 - identity and scope: `reference_id`, `display_name`, `organism`,
   `taxonomy_id`, `protein_namespace`, and `reference_version`
