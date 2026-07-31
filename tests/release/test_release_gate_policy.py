@@ -111,6 +111,7 @@ SAMPLE_DIMENSION_KEYS = frozenset(
 )
 SHAPE_DIMENSION_KEYS = frozenset({"matrix_shape", "shape", "size"})
 AUDITABLE_LOCAL_IMPORT_ROOTS = frozenset({"benchmarks", "scripts", "tests"})
+COMMAND_PATH_TOKEN_ROOTS = AUDITABLE_LOCAL_IMPORT_ROOTS | frozenset({"src"})
 PYTHON_SOURCE_EXCLUDED_PARTS = frozenset(
     {
         ".git",
@@ -383,7 +384,7 @@ def _python_sources_from_command_text(command_text: str, *, root: Path) -> set[P
     paths: set[Path] = set()
     for token in _command_tokens(command_text):
         cleaned = _clean_command_path_token(token)
-        if not cleaned:
+        if not _is_command_path_candidate(cleaned):
             continue
         paths.update(_resolve_command_path_sources(cleaned, root=root))
     for match in re.finditer(
@@ -402,10 +403,50 @@ def _command_tokens(command_text: str) -> tuple[str, ...]:
         if not stripped or stripped.startswith("#"):
             continue
         try:
-            tokens.extend(shlex.split(stripped, posix=True))
+            line_tokens = shlex.split(stripped, posix=True)
         except ValueError:
-            tokens.extend(stripped.split())
+            line_tokens = stripped.split()
+        tokens.extend(_without_inline_python_command_arguments(line_tokens))
     return tuple(tokens)
+
+
+def _without_inline_python_command_arguments(tokens: Iterable[str]) -> tuple[str, ...]:
+    filtered: list[str] = []
+    token_list = tuple(tokens)
+    index = 0
+    python_command_seen = False
+    while index < len(token_list):
+        token = token_list[index]
+        if token in {"&&", "||", ";", "|", "|&"}:
+            filtered.append(token)
+            python_command_seen = False
+            index += 1
+            continue
+        if python_command_seen and token in {"-c", "--command"}:
+            filtered.append(token)
+            index += 2
+            while index < len(token_list) and token_list[index] not in {
+                "&&",
+                "||",
+                ";",
+                "|",
+                "|&",
+            }:
+                index += 1
+            python_command_seen = False
+            continue
+        filtered.append(token)
+        if _is_python_command_token(token):
+            python_command_seen = True
+        index += 1
+    return tuple(filtered)
+
+
+def _is_python_command_token(token: str) -> bool:
+    cleaned = token.strip().strip("'\"").replace("\\", "/")
+    if cleaned in {"$PYTHON", "${PYTHON}", "$(PYTHON)", "python", "python.exe", "py"}:
+        return True
+    return re.search(r"(?:^|/)python(?:\d+(?:\.\d+)?)?(?:\.exe)?$", cleaned) is not None
 
 
 def _clean_command_path_token(token: str) -> str:
@@ -417,23 +458,54 @@ def _clean_command_path_token(token: str) -> str:
     return cleaned
 
 
+def _is_command_path_candidate(token: str) -> bool:
+    if not token or token in {".", "./"} or token.startswith("-"):
+        return False
+    if "\x00" in token or re.search(r"[\r\n;&|`$<>{}()[\]*?]", token):
+        return False
+    if token.startswith(("http://", "https://", "git@")):
+        return False
+    if token.startswith("../"):
+        return True
+    if token.endswith(".py"):
+        return True
+    first_part = token.split("/", maxsplit=1)[0]
+    return first_part in COMMAND_PATH_TOKEN_ROOTS
+
+
 def _resolve_command_path_sources(token: str, *, root: Path) -> set[Path]:
     if not token or token in {".", "./"} or token.startswith("-"):
         return set()
     path = root / token
     try:
+        resolved_root = root.resolve()
         resolved_path = path.resolve()
-        resolved_path.relative_to(root.resolve())
-    except ValueError:
+        resolved_path.relative_to(resolved_root)
+    except (OSError, ValueError):
         return set()
-    if path.is_file() and path.suffix == ".py":
+    try:
+        path_is_file = path.is_file()
+    except OSError:
+        return set()
+    if path_is_file and path.suffix == ".py":
         return {resolved_path}
-    if path.is_dir():
-        return {
-            item.resolve()
-            for item in path.rglob("*.py")
-            if item.is_file() and _is_source_path_under_root(item, root)
-        }
+    try:
+        path_is_dir = path.is_dir()
+    except OSError:
+        return set()
+    if path_is_dir:
+        sources: set[Path] = set()
+        try:
+            candidate_paths = tuple(path.rglob("*.py"))
+        except OSError:
+            return set()
+        for item in candidate_paths:
+            try:
+                if item.is_file() and _is_source_path_under_root(item, root):
+                    sources.add(item.resolve())
+            except OSError:
+                continue
+        return sources
     return set()
 
 
@@ -1513,6 +1585,17 @@ def _write_minimal_release_makefile(root: Path, body: str) -> None:
     )
 
 
+def _inline_python_environment_report_command() -> str:
+    long_report_label = "release_policy_inline_python_environment_report_" + ("x" * 320)
+    return (
+        'python -c "import sys, importlib.metadata as md; '
+        "print('python', sys.version); "
+        "print('executable', sys.executable); "
+        "print('pyright', md.version('pyright')); "
+        f"print('label', '{long_report_label}')\""
+    )
+
+
 def test_default_pytest_keeps_parity_out_of_fast_local_loop() -> None:
     assert _pytest_config()["addopts"] == '-m "not parity"'
 
@@ -1874,6 +1957,68 @@ def test_workflow_reachability_audit_detects_direct_required_script(
     issues = _release_reachable_workload_issues(tmp_path)
 
     assert any("scripts/workflow_scale.py" in issue for issue in issues)
+
+
+def test_workflow_reachability_ignores_inline_python_c_command_tokens(
+    tmp_path: Path,
+) -> None:
+    inline_report = _inline_python_environment_report_command()
+    _write_policy_fixture_file(
+        tmp_path,
+        ".github/workflows/ci.yml",
+        f"""
+        name: CI
+        on: [push]
+        jobs:
+          type-check:
+            runs-on: ubuntu-latest
+            steps:
+              - name: Show type-check environment
+                run: |
+                  source .venv/bin/activate
+                  {inline_report}
+        """,
+    )
+
+    issues = _release_reachable_workload_issues(tmp_path)
+
+    assert issues == []
+
+
+def test_workflow_reachability_still_detects_script_path_near_inline_python_command(
+    tmp_path: Path,
+) -> None:
+    inline_report = _inline_python_environment_report_command()
+    _write_policy_fixture_file(
+        tmp_path,
+        "scripts/workflow_scale_near_inline_python.py",
+        """
+        def main():
+            build_matrix(n_sites=50000, n_samples=48)
+        """,
+    )
+    _write_policy_fixture_file(
+        tmp_path,
+        ".github/workflows/ci.yml",
+        f"""
+        name: CI
+        on: [push]
+        jobs:
+          performance:
+            runs-on: ubuntu-latest
+            steps:
+              - name: Run scale check
+                run: |
+                  {inline_report}
+                  python scripts/workflow_scale_near_inline_python.py
+        """,
+    )
+
+    issues = _release_reachable_workload_issues(tmp_path)
+
+    assert any(
+        "scripts/workflow_scale_near_inline_python.py" in issue for issue in issues
+    )
 
 
 def test_workflow_reachability_audit_detects_make_target_invoked_from_workflow(
