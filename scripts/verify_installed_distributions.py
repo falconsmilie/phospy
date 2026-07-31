@@ -78,7 +78,7 @@ def main() -> None:
     _require_inside(package_file, environment_root, "phospy.__file__")
     _require_outside(package_file, repo_root, "phospy.__file__")
 
-    _verify_public_surface()
+    public_surface_report = _verify_public_surface()
     resource_report = _verify_bundled_rat_reference_resources()
     scientific_report = _exercise_public_scientific_contracts()
 
@@ -90,6 +90,7 @@ def main() -> None:
                 "python": sys.version.split()[0],
                 "executable": str(pathlib.Path(sys.executable).resolve()),
                 "phospy_file": str(package_file),
+                "public_surface_report": public_surface_report,
                 "resource_report": resource_report,
                 "scientific_report": scientific_report,
             },
@@ -98,7 +99,7 @@ def main() -> None:
     )
 
 
-def _verify_public_surface() -> None:
+def _verify_public_surface() -> dict[str, object]:
     for name in REQUIRED_API_NAMES:
         if name not in api.__all__:
             raise AssertionError(f"phospy.api.__all__ is missing {name!r}")
@@ -109,10 +110,14 @@ def _verify_public_surface() -> None:
         raise AssertionError("root DifferentialAnalysisWorkflow is not api export")
     if phospy.KinaseWorkflow is not api.KinaseWorkflow:
         raise AssertionError("root KinaseWorkflow is not api export")
-    _verify_withdrawn_peptide_to_site_boundary()
+    ticket_1_report = _verify_withdrawn_peptide_to_site_boundary()
+    return {
+        "required_api_names": list(REQUIRED_API_NAMES),
+        "ticket_1_posthoc_peptide_to_site_boundary": ticket_1_report,
+    }
 
 
-def _verify_withdrawn_peptide_to_site_boundary() -> None:
+def _verify_withdrawn_peptide_to_site_boundary() -> dict[str, object]:
     import phospy.science.differential as differential_public
     import phospy.science.differential.aggregation as aggregation_public
     from phospy.errors import PhosPyInputError
@@ -163,6 +168,15 @@ def _verify_withdrawn_peptide_to_site_boundary() -> None:
                 "withdrawn peptide-to-site compatibility error is missing "
                 f"{required!r}: {message}"
             )
+    return {
+        "status": "withdrawn_asserted",
+        "support_status": aggregation_public.PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS,
+        "checked_error_tokens": [
+            "withdrawn from public support",
+            "coherent combined effect/inference",
+            "executable peptide-to-site mapping semantics",
+        ],
+    }
 
 
 def _verify_bundled_rat_reference_resources() -> dict[str, object]:
@@ -429,6 +443,7 @@ class InstalledDistributionReport:
     phospy_file: Path
     python_version: str
     resource_count: int
+    ticket_1_boundary_status: str
 
 
 def find_distribution_artifacts(dist_dir: str | Path) -> DistributionArtifacts:
@@ -454,6 +469,11 @@ def verify_installed_distributions(
     repo_root: str | Path,
     python_executable: str | Path = sys.executable,
     constraint: str | Path | None = None,
+    use_system_site_packages: bool = False,
+    install_dependencies: bool = True,
+    build_isolation: bool = True,
+    install_packaging_tools: bool = True,
+    ignore_requires_python: bool = False,
 ) -> tuple[InstalledDistributionReport, ...]:
     """Install and execute the built wheel and sdist in isolated environments."""
 
@@ -480,6 +500,11 @@ def verify_installed_distributions(
                     repo_root=resolved_repo_root,
                     python_executable=resolved_python,
                     constraint=resolved_constraint,
+                    use_system_site_packages=use_system_site_packages,
+                    install_dependencies=install_dependencies,
+                    build_isolation=build_isolation,
+                    install_packaging_tools=install_packaging_tools,
+                    ignore_requires_python=ignore_requires_python,
                 )
             )
     return tuple(reports)
@@ -493,13 +518,22 @@ def _verify_one_artifact(
     repo_root: Path,
     python_executable: str,
     constraint: Path | None,
+    use_system_site_packages: bool = False,
+    install_dependencies: bool = True,
+    build_isolation: bool = True,
+    install_packaging_tools: bool = True,
+    ignore_requires_python: bool = False,
 ) -> InstalledDistributionReport:
     environment_root = work_root / f"{artifact_kind}-venv"
     run_directory = work_root / f"{artifact_kind}-run"
     run_directory.mkdir()
 
+    venv_command = [python_executable, "-m", "venv"]
+    if use_system_site_packages:
+        venv_command.append("--system-site-packages")
+    venv_command.append(str(environment_root))
     _run(
-        [python_executable, "-m", "venv", str(environment_root)],
+        venv_command,
         cwd=work_root,
         repo_root=repo_root,
         context=f"create {artifact_kind} verification environment",
@@ -510,21 +544,28 @@ def _verify_one_artifact(
             f"virtual environment Python is missing: {environment_python}"
         )
 
-    _run_pip(
-        environment_python,
-        "install packaging tools",
-        repo_root=repo_root,
-        cwd=work_root,
-        constraint=constraint,
-        arguments=["install", "--upgrade", "pip", "setuptools", "wheel"],
-    )
+    if install_packaging_tools:
+        _run_pip(
+            environment_python,
+            "install packaging tools",
+            repo_root=repo_root,
+            cwd=work_root,
+            constraint=constraint,
+            arguments=["install", "--upgrade", "pip", "setuptools", "wheel"],
+        )
     _run_pip(
         environment_python,
         f"install {artifact_kind}",
         repo_root=repo_root,
         cwd=work_root,
         constraint=constraint,
-        arguments=["install", str(artifact_path)],
+        arguments=[
+            "install",
+            *(("--no-deps",) if not install_dependencies else ()),
+            *(("--no-build-isolation",) if not build_isolation else ()),
+            *(("--ignore-requires-python",) if ignore_requires_python else ()),
+            str(artifact_path),
+        ],
     )
     _run_pip(
         environment_python,
@@ -564,6 +605,10 @@ def _verify_one_artifact(
         raise InstalledDistributionVerificationError(
             f"installed {artifact_kind} probe verified no resources"
         )
+    ticket_1_boundary_status = _ticket_1_boundary_status(
+        payload,
+        artifact_kind=artifact_kind,
+    )
     return InstalledDistributionReport(
         artifact_kind=artifact_kind,
         artifact_path=artifact_path,
@@ -572,7 +617,34 @@ def _verify_one_artifact(
         phospy_file=phospy_file,
         python_version=_required_string(payload, "python"),
         resource_count=int(resource_count),
+        ticket_1_boundary_status=ticket_1_boundary_status,
     )
+
+
+def _ticket_1_boundary_status(
+    payload: dict[str, Any],
+    *,
+    artifact_kind: str,
+) -> str:
+    public_surface_report = payload.get("public_surface_report")
+    if not isinstance(public_surface_report, dict):
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe did not report public-surface results"
+        )
+    ticket_1_report = public_surface_report.get(
+        "ticket_1_posthoc_peptide_to_site_boundary"
+    )
+    if not isinstance(ticket_1_report, dict):
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe did not report Ticket 1 boundary results"
+        )
+    status = ticket_1_report.get("status")
+    if status != "withdrawn_asserted":
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe reported unsupported Ticket 1 "
+            f"boundary status: {ticket_1_report!r}"
+        )
+    return str(status)
 
 
 def _run_pip(
@@ -750,6 +822,7 @@ def main(argv: list[str] | None = None) -> int:
                         "python": report.python_version,
                         "phospy_file": str(report.phospy_file),
                         "resource_count": report.resource_count,
+                        "ticket_1_boundary_status": report.ticket_1_boundary_status,
                     }
                     for report in reports
                 ],

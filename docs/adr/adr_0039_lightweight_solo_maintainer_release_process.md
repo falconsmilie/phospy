@@ -72,8 +72,8 @@ checkout. Its installed probe runs Python with isolation enabled, asserts
 source tree, imports the supported public package surface, loads the bundled
 rat `l6_native` reference manifest, verifies every manifest-declared bundled
 resource and SHA-256 digest, and exercises representative dataset,
-differential, and kinase public workflow contracts. The verifier must not
-import repository tests, fixtures, or `conftest.py`.
+differential, kinase, and resolved public-boundary contracts. The verifier must
+not import repository tests, fixtures, or `conftest.py`.
 
 Publishing uses GitHub trusted publishing. The publish workflow builds once on
 the checked-out tag, uploads the freshly built `dist/` directory, waits for the
@@ -102,14 +102,19 @@ Release policy tests check the Makefile command flow, CI and publish workflow
 shape, dependency constraints, minimum-dependency lane, supported Python
 release-science and installed-distribution matrices, selector coverage,
 archive-level packaged-reference build checks, and installed-distribution
-verifier source constraints.
+verifier source constraints. They also audit release-reachable Make/workflow
+command and local-helper import closure for effective 50,000 x 48 workload
+dimensions, including renamed scripts/targets, simple arithmetic, positional
+and keyword aliases, dictionaries, and configuration objects.
 The selector coverage audit uses collection-only pytest subprocesses to compare
 actual node IDs and effective markers against the authoritative release targets.
 Scientific runtime invariants remain protected by focused unit, integration,
 parity, golden, release, validation, workflow, architecture, and bounded
 performance tests. Installed artifact behavior is checked by standalone release
-tooling rather than pytest source-tree behavior. Machine-dependent scale
-observations are collected through explicit local benchmark scripts.
+tooling rather than pytest source-tree behavior, with regression tests that
+damage manifest-declared resources in both wheel and sdist artifacts and assert
+clear installed-probe failures. Machine-dependent scale observations are
+collected through explicit local benchmark scripts.
 
 ## Amendment: Release-Scale Scientific Summary Equality (2026-07-27)
 
@@ -154,3 +159,6 @@ release-blocking runtime, memory, or child-timeout threshold.
 `make release-check`, `make test-performance`, GitHub Actions workflows,
 release workflows, tag workflows, scheduled workflows, and publication targets
 must not invoke this benchmark.
+The release-policy audit detects equivalent 50,000 x 48 dimensions through
+required helper modules and transitive Make/workflow reachability; current
+bounded 50,000 x 12 and 50,000 x 24 contracts remain permitted.

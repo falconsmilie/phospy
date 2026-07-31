@@ -54,6 +54,15 @@ All notable changes to this project are documented here.
   `make verify-installed-distributions` to install and execute the built wheel
   and sdist in isolated environments outside the checkout, including bundled
   reference resource hash checks and representative public workflow contracts.
+- Hardened release-scale policy tests to detect effective 50,000-site by
+  48-sample workloads through renamed targets/scripts, simple arithmetic,
+  aliases, dictionaries/config objects, local helper imports, required markers,
+  Make dependency closure, and CI/publication workflow command reachability.
+- Added installed-artifact regressions that build real wheel/sdist artifacts,
+  damage a manifest-declared bundled resource in each format, install the
+  damaged artifact outside the checkout, and assert standalone verifier
+  failures. The installed probe now reports the resolved Ticket 1 withdrawn
+  post-hoc peptide-to-site public boundary.
 
 ### Fixed
 

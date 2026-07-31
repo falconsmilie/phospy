@@ -59,13 +59,13 @@ tests/performance/test_performance_contracts.py,performance,1363,17,true,true,pe
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
-tests/release/test_installed_distribution_verifier.py,release,171,6,true,false,,,,,,
+tests/release/test_installed_distribution_verifier.py,release,416,10,true,false,,,,,,
 tests/release/test_manifest_fixture_byte_reproducibility.py,release,256,3,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
 tests/release/test_release_dependency_artifact_policy.py,release,331,9,true,false,,,,,,
-tests/release/test_release_gate_policy.py,release,606,15,true,true,,,,,,
+tests/release/test_release_gate_policy.py,release,2089,33,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,172,6,true,false,,,,,,
 tests/science/test_differential_adverse_design_contracts.py,science,361,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

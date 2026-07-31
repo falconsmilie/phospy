@@ -75,8 +75,8 @@ adverse scientific cases.
    sdist in isolated environments outside the checkout, imports from the
    installed package location, verifies bundled reference resources and
    SHA-256 values, and exercises representative public dataset, differential,
-   and kinase workflow contracts without importing repository tests or
-   fixtures.
+   kinase, and supported public-boundary contracts without importing
+   repository tests or fixtures.
 4. Installed public-boundary and resource failures block release.
 
 ### Golden and Provenance Regression Governance
@@ -159,6 +159,10 @@ adverse scientific cases.
    machine-dependent and non-release-blocking.
 10. CI and publication workflows must run installed wheel/sdist verification
     against the single built artifact set on Python 3.10, 3.11, and 3.12.
+11. Release-policy tests must audit the effective command and import closure of
+    release Make targets and CI/publication workflow commands so the prohibited
+    50,000 x 48 workload cannot become release-reachable through renaming,
+    simple arithmetic, helper modules, configuration objects, or marker changes.
 
 ### Why Release-Gate Is the Correct Policy
 
@@ -238,10 +242,12 @@ Future changes must satisfy all the following:
 9. Do supported Python and minimum-dependency CI lanes still reflect the
    declared support policy?
 10. Are opt-in local benchmarks kept outside pytest collection, release-check,
-    and CI?
+    and CI by effective command/source reachability rather than only by file or
+    target names?
 11. Does installed wheel/sdist verification still install both artifacts
     outside the checkout, use isolated Python execution, verify bundled
-    resources, and avoid repository test helpers?
+    resources, exercise the supported public boundary, and avoid repository
+    test helpers?
 
 ## Amendment: Optional Release-Scale Benchmark Ownership (2026-07-29)
 
@@ -255,6 +261,13 @@ selected by `make test-performance`, must not be included in `make
 release-check`, and must not be run by GitHub Actions. Its runtime and process
 memory observations are informational local capacity data rather than release
 budgets.
+
+Release-policy validation audits effective 50,000 x 48 dimensions and command
+reachability rather than only the historical benchmark target or filename. The
+audit covers simple constant arithmetic, generic aliases, positional and keyword
+dimensions, dictionary/config objects, local helper imports, Make target
+closures, and CI/publication workflow command reachability. Bounded 50,000 x 12
+and 50,000 x 24 contracts remain allowed.
 
 ## References
 
