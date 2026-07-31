@@ -89,6 +89,21 @@ def _pinned_constraint_versions(
     return versions
 
 
+def _raw_constraint_lines_by_name(
+    name: str,
+    constraint_path: str | Path = "constraints/ci.txt",
+) -> list[str]:
+    expected_name = _normalise_distribution_name(name)
+    lines: list[str] = []
+    for raw_line in _read(constraint_path).splitlines():
+        line = raw_line.split("#", maxsplit=1)[0].strip()
+        if not line:
+            continue
+        if _requirement_name(line) == expected_name:
+            lines.append(line)
+    return lines
+
+
 def _pyproject_release_dependency_names() -> set[str]:
     pyproject = _load_pyproject()
     project = pyproject["project"]
@@ -170,6 +185,22 @@ def test_ci_constraints_pin_every_direct_release_dependency() -> None:
     )
 
     assert unpinned == []
+
+
+def test_ci_dev_type_stub_markers_preserve_python_310_clean_installs() -> None:
+    dev_requirements = _load_pyproject()["project"]["optional-dependencies"]["dev"]
+    scipy_stub_requirements = [
+        requirement
+        for requirement in dev_requirements
+        if _requirement_name(requirement) == "scipy-stubs"
+    ]
+
+    assert scipy_stub_requirements == [
+        "scipy-stubs>=1.17.1.0; python_version >= '3.11'"
+    ]
+    assert _raw_constraint_lines_by_name("scipy-stubs") == [
+        'scipy-stubs==1.17.1.4 ; python_version >= "3.11"'
+    ]
 
 
 def test_minimum_constraints_pin_declared_runtime_and_test_lower_bounds() -> None:

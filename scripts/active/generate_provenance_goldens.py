@@ -11,12 +11,9 @@ Run it in the same environment used by CI to avoid cross-environment drift.
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any
-
-import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -29,20 +26,6 @@ KINASE_GOLDEN_PATH = (
 SIGNALOME_GOLDEN_PATH = (
     PUBLIC_WORKFLOW_REFERENCE / "signalome_l6_provenance_golden.json"
 )
-_PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*[^;]+\s*;\s*[^;]+\s*;\s*$")
-
-
-def _canonical_public_site_components(site_id: object) -> tuple[str, str, str]:
-    raw_site = str(site_id).strip()
-    if _PUBLIC_SITE_ID_PATTERN.fullmatch(raw_site):
-        parts = raw_site.split(";")
-        gene_symbol = parts[0].strip()
-        site = parts[1].strip()
-        return f"{gene_symbol};{site};", gene_symbol, site
-
-    gene_symbol = raw_site.split("_", 1)[0].strip()
-    site = raw_site
-    return f"{gene_symbol};{site};", gene_symbol, site
 
 
 def _fingerprints_by_name(
@@ -52,8 +35,10 @@ def _fingerprints_by_name(
         str(item.name): {
             "rows": int(item.rows),
             "columns": int(item.columns),
-            "hash_algorithm": str(item.hash_algorithm),
-            "hash_value": str(item.hash_value),
+            "exact_hash_algorithm": str(item.exact_hash_algorithm),
+            "exact_hash_value": str(item.exact_hash_value),
+            "tolerance_hash_algorithm": str(item.tolerance_hash_algorithm),
+            "tolerance_hash_value": str(item.tolerance_hash_value),
         }
         for item in fingerprints
     }
@@ -68,82 +53,29 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _refresh_kinase_golden() -> None:
-    from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
+    from phospy import KinaseWorkflow
     from phospy.api import (
-        DatasetBuildRequest,
         KinasePredictionConfig,
         KinaseScoringConfig,
         KinaseWorkflowRequest,
-        Organism,
-        ReferenceBundle,
+        ReferenceContextCompatibilityPolicy,
     )
-    from tests.support.rewrite_fixture_data import (
-        load_public_predmat_input_phospho,
-        load_public_predmat_input_site_sequences,
-        load_public_predmat_input_substrate_map,
+    from tests.support.public_predmat_parity_metrics import (
+        _build_public_predmat_dataset,
+        _build_public_predmat_references,
     )
 
-    input_phospho = load_public_predmat_input_phospho()
-    site_sequences = load_public_predmat_input_site_sequences()
-    canonical_components = [
-        _canonical_public_site_components(site_id) for site_id in input_phospho.index
-    ]
-    phospho = input_phospho.copy(deep=True)
-    phospho.index = pd.Index(
-        [site_id for site_id, _, _ in canonical_components],
-        name=input_phospho.index.name,
-    )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": [gene_symbol for _, gene_symbol, _ in canonical_components],
-            "site": [site for _, _, site in canonical_components],
-            "site_sequence": [
-                str(site_sequences[str(site_id).strip()])
-                for site_id in input_phospho.index.astype(str)
-            ],
-        },
-        index=phospho.index.copy(),
-    )
-    substrate_map = load_public_predmat_input_substrate_map()
-    dataset = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            organism=Organism.RAT,
-        )
-    )
-    references = ReferenceBundle(
-        organism=Organism.RAT,
-        kinase_substrate_map=pd.DataFrame(
-            [
-                {
-                    "kinase": str(kinase),
-                    "substrate_site": _canonical_public_site_components(site_id)[0],
-                }
-                for kinase, site_ids in substrate_map.items()
-                for site_id in site_ids
-            ]
-        ),
-        site_sequences=pd.DataFrame(
-            {
-                "site_sequence": [
-                    str(sequence) for _, sequence in site_sequences.items()
-                ]
-            },
-            index=pd.Index(
-                [
-                    _canonical_public_site_components(site_id)[0]
-                    for site_id, _ in site_sequences.items()
-                ],
-                name="site_id",
-            ),
-        ),
-    )
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
-            dataset=dataset,
-            references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            dataset=_build_public_predmat_dataset(),
+            references=_build_public_predmat_references(reverse_order=False),
+            scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=4,
                 deterministic_max_selected_kinases=3,
@@ -177,6 +109,7 @@ def _refresh_signalome_golden() -> None:
         KinasePredictionConfig,
         KinaseScoringConfig,
         KinaseWorkflowRequest,
+        ReferenceContextCompatibilityPolicy,
         ReferencePreset,
         SignalomeWorkflowRequest,
     )
@@ -188,7 +121,13 @@ def _refresh_signalome_golden() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,

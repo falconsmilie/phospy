@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 import pytest
@@ -32,6 +34,17 @@ def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> st
     ].astype(str)
     assert len(matches) == 1
     return str(matches[0])
+
+
+def _dataframe_value_map(
+    frame: pd.DataFrame,
+    func: Callable[[object], object],
+) -> pd.DataFrame:
+    dataframe_like: Any = frame
+    dataframe_map = getattr(dataframe_like, "map", None)
+    if callable(dataframe_map):
+        return cast(pd.DataFrame, dataframe_map(func))
+    return cast(pd.DataFrame, dataframe_like.applymap(func))
 
 
 @pytest.mark.parametrize("suffix", (".csv", ".tsv"))
@@ -108,7 +121,11 @@ def test_sample_metadata_reader_preserves_numeric_looking_identifiers(
     assert list(read_back.index) == ["01", "02", "03"]
     assert read_back.loc["01", "comparison_group"] == "01"
     assert read_back.loc["01", "batch"] == "1E10"
-    assert read_back.map(lambda value: isinstance(value, str)).all().all()
+    assert (
+        _dataframe_value_map(read_back, lambda value: isinstance(value, str))
+        .all()
+        .all()
+    )
 
 
 @pytest.mark.parametrize("suffix", (".csv", ".tsv"))

@@ -23,7 +23,7 @@ pre-commit==4.1.0
 pyright==1.1.410
 pandas-stubs==2.2.3.250527 ; python_version < "3.11"
 pandas-stubs==3.0.0.260204 ; python_version >= "3.11"
-scipy-stubs==1.17.1.4
+scipy-stubs==1.17.1.4 ; python_version >= "3.11"
 ruff==0.15.7
 
 build==1.2.2.post1

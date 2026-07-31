@@ -63,7 +63,7 @@ tests/release/test_manifest_fixture_byte_reproducibility.py,release,256,3,true,f
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
-tests/release/test_release_dependency_artifact_policy.py,release,286,8,true,false,,,,,,
+tests/release/test_release_dependency_artifact_policy.py,release,317,9,true,false,,,,,,
 tests/release/test_release_gate_policy.py,release,321,11,true,true,,,,,,
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,172,6,true,false,,,,,,
@@ -173,7 +173,7 @@ tests/unit/test_imputation_observation_metadata.py,unit,394,17,false,false,,,,,,
 tests/unit/test_intensity_scale_establishment.py,unit,306,11,false,false,,,,,,
 tests/unit/test_intensity_transformation_event.py,unit,107,6,true,true,,,,,,
 tests/unit/test_internal_batch_correction_request_contract.py,unit,321,11,false,false,,,,,,
-tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,keep,Loss of this file would weaken table-reader input contract coverage and increase risk of invalid external data being accepted or parsed inconsistently.,codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_io_table_readers.py,unit,292,9,true,true,public API contract,keep,Loss of this file would weaken table-reader input contract coverage and increase risk of invalid external data being accepted or parsed inconsistently.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_kinase_bundle_snapshots.py,unit,204,6,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_kinase_library_motif_scoring.py,unit,232,7,false,false,,,,,,
 tests/unit/test_kinase_library_references.py,unit,175,6,false,false,,,,,,

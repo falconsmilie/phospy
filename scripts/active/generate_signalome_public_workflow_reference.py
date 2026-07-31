@@ -45,19 +45,26 @@ def main() -> None:
         KinaseScoringConfig,
         KinaseWorkflow,
         KinaseWorkflowRequest,
+        ReferenceContextCompatibilityPolicy,
         ReferencePreset,
-        SignalomeConfig,
         SignalomeWorkflow,
         SignalomeWorkflowRequest,
     )
     from scripts.support.public_workflow_reference import build_rat_l6_dataset
+    from tests.support.signalome_config import build_signalome_config
 
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -69,7 +76,7 @@ def main() -> None:
     signalome = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
 
@@ -95,7 +102,7 @@ def main() -> None:
     contract.setdefault("generation_date", "2026-04-20")
     contract.update(
         {
-            "fixture_set_id": "signalome_rewrite_l6_supported_lane_v2_full_outputs",
+            "fixture_set_id": "signalome_rewrite_l6_supported_lane_v3_full_outputs",
             "donor_source": "tests/fixtures/rewrite_parity/r_reference_l6/l6_phospho_matrix.csv + bundled ReferencePreset.AUTO (rat/l6_native)",
             "generation_path": "scripts/active/generate_signalome_public_workflow_reference.py",
             "supported_outputs": [
@@ -182,6 +189,7 @@ def main() -> None:
                 "kinase_network.edges": [
                     "cast source_kinase and target_kinase to strings",
                     "cast correlation to float",
+                    "cast valid_observations to int64",
                     "sort rows by source_kinase,target_kinase",
                 ],
                 "expanded_signalome": [

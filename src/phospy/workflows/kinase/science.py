@@ -351,7 +351,7 @@ def rank_kinases_for_prediction(
             continue
         ranking[kinase] = float(values.mean(skipna=False))
     ranking_series = pd.Series(ranking, dtype=float, name="prediction_rank_score")
-    return ranking_series.sort_values(ascending=False)
+    return ranking_series.sort_values(ascending=False, kind="mergesort")
 
 
 def build_prediction_outputs(

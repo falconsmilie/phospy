@@ -56,7 +56,7 @@
         "HUMPHREY.AKT",
         "AKT1",
         "RPS6KB1",
-        "PRKCH"
+        "PRKCA"
       ],
       "dropped_fully_missing_dimension_count": 0,
       "dropped_fully_missing_dimension_labels": [],
@@ -77,7 +77,7 @@
         "HUMPHREY.AKT": 0,
         "AKT1": 0,
         "RPS6KB1": 0,
-        "PRKCH": 0
+        "PRKCA": 0
       },
       "prepared_matrix_fingerprint": {
         "name": "signalome.clustering.prepared_matrix",
@@ -96,7 +96,7 @@
           "HUMPHREY.AKT",
           "AKT1",
           "RPS6KB1",
-          "PRKCH"
+          "PRKCA"
         ],
         "dtypes": [
           "float64",
@@ -113,9 +113,9 @@
           "float64"
         ],
         "exact_hash_algorithm": "sha256-stable-json-v1",
-        "exact_hash_value": "06f4541f3960cfee14a9eefcc6bd23ed94820184c03a2e51e6e4257e355a59d6",
+        "exact_hash_value": "a6b370854da3bf057a4bcc24f138761e9845a4bef45a60f305e5320ccd463af6",
         "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-        "tolerance_hash_value": "f29602e718ed50c8165de9f69eee8caaf3304e5bb0d17dd7507c7f5c2079a457",
+        "tolerance_hash_value": "84abc09081cd899604c487cbeb77a146a4e55c294c187815a889149aa10cc77c",
         "index_structure": {
           "type": "index",
           "index_class": "Index",
@@ -1222,7 +1222,7 @@
             },
             {
               "kind": "str",
-              "value": "PRKCH"
+              "value": "PRKCA"
             }
           ]
         }
@@ -1243,12 +1243,16 @@
       "references.kinase_substrate_map": {
         "rows": 117,
         "columns": 2,
+        "exact_hash_algorithm": "sha256-stable-json-v1",
+        "exact_hash_value": "c739f1796f6205fd623e87b65fbe89872fb9a3f5259de62898f59b8581198e5c",
         "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
         "tolerance_hash_value": "c739f1796f6205fd623e87b65fbe89872fb9a3f5259de62898f59b8581198e5c"
       },
       "references.site_sequences": {
         "rows": 589,
         "columns": 1,
+        "exact_hash_algorithm": "sha256-stable-json-v1",
+        "exact_hash_value": "cf56b62270f6e0c65f7c367a3a898717de9a129bd82239f8b95131d0c29aef3c",
         "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
         "tolerance_hash_value": "cf56b62270f6e0c65f7c367a3a898717de9a129bd82239f8b95131d0c29aef3c"
       }
@@ -1258,76 +1262,100 @@
     "dataset.phospho": {
       "rows": 260,
       "columns": 12,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "cbf6118087ede94f54633c20708ec76bf346132b30a0dedcc874b6d4d4775a9b",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
       "tolerance_hash_value": "53a9b0160b35e30cd29915a9b44b0022b1b270fb5b423ce80214f3729def8a16"
     },
     "dataset.site_metadata": {
       "rows": 260,
       "columns": 8,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "9f9a748acc16fe3075d761558ccfde27b9ca4d5b2e88611924759a17982a082f",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
       "tolerance_hash_value": "111f6049118a08dba1025aae3518328fb200fd06c830e740fc7a10db4db0ea01"
     },
     "upstream.prediction.pred_mat": {
       "rows": 260,
       "columns": 12,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "1f890ef53578eba7f3147b9fd9265cc69de44d9a2ed0bf960f0ea76b45778b43",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "b055552101fa554dbdde81901fb64d3bd01ca3c3a4d825730bfa199add80a8ac"
+      "tolerance_hash_value": "219d714fb6365aa6223468b4fb12ffdeec3cf7f7807f698197ca1a66bf0f5862"
     },
     "upstream.scoring.downstream_score_matrix": {
       "rows": 260,
       "columns": 12,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "c2abe4b51deb512fa6ba47cf0bcb355e8081dd3380307a3c16e17c3e6e34b169",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "3dfd1f37f42f9105e2182267905147686ed7676d560edc312e21daea360cfa64"
+      "tolerance_hash_value": "000759a8d5747a1ee607e062fe0d4e99280d5075c09346229829d56a84ff8ff8"
     }
   },
   "output_tables": {
     "outputs.signalome.module_assignments": {
       "rows": 260,
       "columns": 20,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "77c4eb76a16522e4334ba6d72fad36fce97adefc02c3e9cdf571ce060732ca7b",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "55c8c010c45b8770923730dc6aab13d554dd5e98cd961c5c9fd4c9eff10b2831"
+      "tolerance_hash_value": "0473e159f855c9acd0093e301d0b16570a0073f5b4493248fface929450df294"
     },
     "outputs.signalome.signalome_modules": {
       "rows": 33,
       "columns": 12,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "ddb2a77bc5f94fe5e9b993c1676fb1b41226570a8d0a5c786d8ac1f8e5a7e1c6",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "d9579224e566173feacd139bb662b08ac41ecb3f8950455911549486a6a4c13f"
+      "tolerance_hash_value": "4e023466ee93f80acbd616fadaebaf66883e60f7190287d229239469b2d00863"
     },
     "outputs.signalome.kinase_network.edges": {
       "rows": 66,
       "columns": 4,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "8ee2adda9b96f9d91684e85e2d05bb082d822d28348b34a6c92d1b02f7575fb0",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "a9a6d25277b8aa17985f03a1456c61e7f044667775cef24c651d6ef043996d2d"
+      "tolerance_hash_value": "dc987aabf82b5cef1631642a1275b849ea1edc9e8b5a3f9a62feba05c3cafc2b"
     },
     "outputs.signalome.kinase_network.nodes": {
       "rows": 12,
       "columns": 2,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "74663d07d07fb0548be82aeb4c35dd048aeafe92a6f30466ae627780ead3cf58",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "48ec01a4ebe1199849e4eaf5385f60f5242f1105e7cbdd3eef9b9c54588b3703"
+      "tolerance_hash_value": "74663d07d07fb0548be82aeb4c35dd048aeafe92a6f30466ae627780ead3cf58"
     },
     "outputs.signalome.kinase_network.candidate_correlations": {
       "rows": 66,
       "columns": 6,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "ac540e7e166a9ccd2d51fad4d22215fd1d9294d9913ff07ede481ef5ac73ff2e",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "9fc82a6b905fae0f720701c6dcf09f3c3f5ba993c3ef0109c464ff3e9907d499"
+      "tolerance_hash_value": "b8dc2df4bafa01fad4891faa7473bb19e6ead2470bfe9ec4398f6dd04e3b9ca9"
     },
     "outputs.signalome.expanded_signalome": {
       "rows": 150,
       "columns": 19,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "37148d9210d46134b73c80b70935b1e5c30bfd65e3cf44e86d50b4b872d9e421",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "f53a04c91b5c32cc1402be9755fc2f2a551539ba966b47df130e62b4d7a1c0e8"
+      "tolerance_hash_value": "34e58ade190725f823baa56f316d3aad053415bf77554054fefc18338fe20b55"
     },
     "outputs.signalome.site_membership": {
       "rows": 260,
       "columns": 16,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "a9c35bf3df8df4f93d4583e05804d8fb08011582e266327d286c63ddc43a5e1f",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "a3446b74c357caf82c4d8692ab70689cd146c47506d023f46cf9970490f5b56f"
+      "tolerance_hash_value": "8a9dc1b6162dc3fb0db27f5e173d13e3c38301307849a1b5298dbac78f027e19"
     },
     "outputs.signalome.protein_site_context": {
       "rows": 176,
       "columns": 17,
+      "exact_hash_algorithm": "sha256-stable-json-v1",
+      "exact_hash_value": "f47ff68e3d23c086cc8b3714ef27186b92ad9cb3614307fd06c3a4ea48cd14df",
       "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
-      "tolerance_hash_value": "0331dfea5d3e0decd8651ce02414a092f701844022dc73e1933170968bc55e40"
+      "tolerance_hash_value": "f47ff68e3d23c086cc8b3714ef27186b92ad9cb3614307fd06c3a4ea48cd14df"
     }
   },
   "scientific_policies": [

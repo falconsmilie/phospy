@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -81,7 +81,11 @@ class ReferenceSourceTableReader:
         normalized.columns = pd.Index(
             [cls._stringify_value(column) for column in normalized.columns]
         )
-        return normalized.map(cls._stringify_value)
+        dataframe_like: Any = normalized
+        dataframe_map = getattr(dataframe_like, "map", None)
+        if callable(dataframe_map):
+            return cast(pd.DataFrame, dataframe_map(cls._stringify_value))
+        return cast(pd.DataFrame, dataframe_like.applymap(cls._stringify_value))
 
     @staticmethod
     def _stringify_value(value: Any) -> str:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 
 import pandas as pd
 
@@ -296,7 +296,18 @@ def _read_delimited_table_with_policy(
 
 def _stringify_dataframe(frame: pd.DataFrame) -> pd.DataFrame:
     normalized = _stringify_index_and_columns(frame)
-    return normalized.map(_stringify_value)
+    return _map_dataframe_values(normalized, _stringify_value)
+
+
+def _map_dataframe_values(
+    frame: pd.DataFrame,
+    func: Any,
+) -> pd.DataFrame:
+    dataframe_like: Any = frame
+    dataframe_map = getattr(dataframe_like, "map", None)
+    if callable(dataframe_map):
+        return cast(pd.DataFrame, dataframe_map(func))
+    return cast(pd.DataFrame, dataframe_like.applymap(func))
 
 
 def _stringify_index_and_columns(frame: pd.DataFrame) -> pd.DataFrame:

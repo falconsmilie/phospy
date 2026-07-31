@@ -95,9 +95,10 @@ PYTHONPATH=src .venv/Scripts/python scripts/active/generate_signalome_public_wor
 Generation settings are fixed in the script and parity tests:
 
 - `build_rat_l6_dataset(n_sites=260)`
-- `KinaseScoringConfig(min_substrates=2)`
+- `KinaseScoringConfig(reliability_profile="custom", min_substrates=2,
+  reference_context_compatibility_policy="allow_unknown_with_caveat")`
 - `KinasePredictionConfig(top_k=6, deterministic_max_selected_kinases=12, adaptive_ensemble_runs=12)`
-- `SignalomeConfig(scientific=SignalomeScientificConfig(substrate_support_cutoff=0.5))`
+- `build_signalome_config(substrate_support_cutoff=0.5)`
 
 Generation date for full-output fixture promotion: 2026-04-20.
 
@@ -127,6 +128,12 @@ Rules include:
 This fixture family is considered stable because it is generated from a fixed
 supported workflow configuration and fixed fixture input, and parity now asserts
 all supported downstream signalome outputs as full tables.
+
+The 2026-07 release-verification refresh intentionally updates the selected
+PKC-family tie at the top-12 signalome boundary from `PRKCH` to `PRKCA`. The
+change follows the public deterministic kinase-ranking policy: equal ranking
+scores preserve the candidate/input order instead of relying on pandas'
+unstable default sort tie order.
 
 ## Provenance Golden Contracts
 
