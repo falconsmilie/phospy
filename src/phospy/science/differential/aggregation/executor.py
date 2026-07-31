@@ -11,9 +11,18 @@ from scipy import stats
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.differential.aggregation.models import (
+    PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY,
+    PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION,
+    PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT,
+    PEPTIDE_DIFFERENTIAL_P_VALUE_ABS_TOLERANCE,
+    PEPTIDE_DIFFERENTIAL_P_VALUE_REL_TOLERANCE,
+    PEPTIDE_DIFFERENTIAL_STATISTIC_ABS_TOLERANCE,
+    PEPTIDE_DIFFERENTIAL_STATISTIC_REL_TOLERANCE,
     PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC,
     PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE,
     PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
+    PEPTIDE_TO_SITE_FIXED_EFFECT_APPROXIMATION_POLICY,
+    PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF,
     PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE,
     PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_SINGLE_ESTIMATE_PASSTHROUGH,
     PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P,
@@ -35,7 +44,7 @@ _INDEPENDENT_SOURCE_DEPENDENCE_ASSUMPTION = (
 _SINGLE_ESTIMATE_P_VALUE_METHOD = "original_two_sided_t_distribution_p_value"
 _STOUFFER_P_VALUE_METHOD = "stouffer_weighted_z_from_signed_two_sided_input_p_values"
 _FIXED_EFFECT_P_VALUE_METHOD = (
-    "asymptotic_normal_fixed_effect_inverse_variance_estimate_combination"
+    "asymptotic_normal_fixed_effect_inverse_variance_df_ge_1000"
 )
 _T_DISTRIBUTION = "moderated_t"
 _Z_DISTRIBUTION = "standard_normal_z"
@@ -63,6 +72,20 @@ class PeptideToSiteAggregationExecutor:
             )
 
         estimate_frame = estimates.to_dataframe()
+        estimate_identity = _estimate_identity(estimate_frame)
+        requested_contrast_name = str(contrast_name).strip()
+        resolved_contrast_name = (
+            estimate_identity["contrast_id"]
+            if requested_contrast_name == "aggregated"
+            else contrast_name
+        )
+        if str(resolved_contrast_name).strip() != estimate_identity["contrast_id"]:
+            raise PhosPyInputError(
+                "peptide-to-site aggregation contrast_name must match the input "
+                "PeptideDifferentialEstimateTable contrast_id; "
+                f"contrast_name={contrast_name!r}, "
+                f"contrast_id={estimate_identity['contrast_id']!r}"
+            )
         rows: list[dict[str, object]] = []
         withheld_below_minimum_count = 0
         for site_id, site_rows in estimate_frame.groupby("site_id", sort=True):
@@ -87,6 +110,13 @@ class PeptideToSiteAggregationExecutor:
         site_table = site_table.loc[
             :,
             [
+                "contrast_id",
+                "contrast_orientation",
+                "effect_scale",
+                "effect_unit",
+                "model_estimator_id",
+                "input_statistic_distribution",
+                "input_uncertainty_method_version",
                 "logFC",
                 "standard_error",
                 "uncertainty_statistic",
@@ -131,6 +161,23 @@ class PeptideToSiteAggregationExecutor:
             dependence_policy=config.dependence_policy,
             multiple_testing_method=config.multiple_testing_method,
             input_mapping_policies=mapping_policies,
+            input_contrast_id=estimate_identity["contrast_id"],
+            input_contrast_orientation=estimate_identity["contrast_orientation"],
+            input_effect_scale=estimate_identity["effect_scale"],
+            input_effect_unit=estimate_identity["effect_unit"],
+            input_model_estimator_id=estimate_identity["model_estimator_id"],
+            input_statistic_distribution=estimate_identity[
+                "input_statistic_distribution"
+            ],
+            input_uncertainty_method_version=estimate_identity[
+                "input_uncertainty_method_version"
+            ],
+            consistency_policy=PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY,
+            consistency_tolerance_version=(
+                PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION
+            ),
+            approximation_policy=_approximation_policy(config.uncertainty_method),
+            mapping_weight_policy=PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT,
         )
         provenance = {
             "aggregation_level": PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC,
@@ -143,6 +190,35 @@ class PeptideToSiteAggregationExecutor:
             "dependence_policy": config.dependence_policy,
             "dependence_assumptions": (_INDEPENDENT_SOURCE_DEPENDENCE_ASSUMPTION,),
             "multiple_testing_method": config.multiple_testing_method,
+            "input_contrast_id": estimate_identity["contrast_id"],
+            "input_contrast_orientation": estimate_identity["contrast_orientation"],
+            "input_effect_scale": estimate_identity["effect_scale"],
+            "input_effect_unit": estimate_identity["effect_unit"],
+            "input_model_estimator_id": estimate_identity["model_estimator_id"],
+            "input_statistic_distribution": estimate_identity[
+                "input_statistic_distribution"
+            ],
+            "input_uncertainty_method_version": estimate_identity[
+                "input_uncertainty_method_version"
+            ],
+            "consistency_policy": PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY,
+            "consistency_tolerance_version": (
+                PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION
+            ),
+            "statistic_consistency_abs_tolerance": (
+                PEPTIDE_DIFFERENTIAL_STATISTIC_ABS_TOLERANCE
+            ),
+            "statistic_consistency_rel_tolerance": (
+                PEPTIDE_DIFFERENTIAL_STATISTIC_REL_TOLERANCE
+            ),
+            "p_value_consistency_abs_tolerance": (
+                PEPTIDE_DIFFERENTIAL_P_VALUE_ABS_TOLERANCE
+            ),
+            "p_value_consistency_rel_tolerance": (
+                PEPTIDE_DIFFERENTIAL_P_VALUE_REL_TOLERANCE
+            ),
+            "approximation_policy": _approximation_policy(config.uncertainty_method),
+            "mapping_weight_policy": PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT,
             "input_peptide_estimates": int(estimate_frame.shape[0]),
             "output_site_rows": int(site_table.shape[0]),
             "min_estimates_per_site": int(config.min_estimates_per_site),
@@ -160,7 +236,7 @@ class PeptideToSiteAggregationExecutor:
             ),
         }
         return PeptideToSiteAggregationResult(
-            contrast_name=contrast_name,
+            contrast_name=str(resolved_contrast_name),
             table=site_table,
             warnings=tuple(warnings),
             provenance=provenance,
@@ -236,6 +312,60 @@ def signed_z_from_two_sided_p_value(
     return float(sign * stats.norm.isf(p / 2.0))
 
 
+def _estimate_identity(frame: pd.DataFrame) -> dict[str, str]:
+    return {
+        "contrast_id": _first_column_value(frame, "contrast_id"),
+        "contrast_orientation": _first_column_value(frame, "contrast_orientation"),
+        "effect_scale": _first_column_value(frame, "effect_scale"),
+        "effect_unit": _first_column_value(frame, "effect_unit"),
+        "model_estimator_id": _first_column_value(frame, "model_estimator_id"),
+        "input_statistic_distribution": _first_column_value(
+            frame,
+            "statistic_distribution",
+        ),
+        "input_uncertainty_method_version": _first_column_value(
+            frame,
+            "uncertainty_method_version",
+        ),
+    }
+
+
+def _identity_result_columns(site_rows: pd.DataFrame) -> dict[str, object]:
+    identity = _estimate_identity(site_rows)
+    return {
+        "contrast_id": identity["contrast_id"],
+        "contrast_orientation": identity["contrast_orientation"],
+        "effect_scale": identity["effect_scale"],
+        "effect_unit": identity["effect_unit"],
+        "model_estimator_id": identity["model_estimator_id"],
+        "input_statistic_distribution": identity["input_statistic_distribution"],
+        "input_uncertainty_method_version": identity[
+            "input_uncertainty_method_version"
+        ],
+    }
+
+
+def _first_column_value(frame: pd.DataFrame, column_name: str) -> str:
+    column: pd.Series = frame.loc[:, column_name]  # pyright: ignore[reportUnknownMemberType, reportArgumentType, reportCallIssue] - pandas-stubs cannot express scalar-column DataFrame.loc selection.
+    return str(column.iloc[0])
+
+
+def _approximation_policy(uncertainty_method: str) -> str:
+    if (
+        uncertainty_method
+        == PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE
+    ):
+        return PEPTIDE_TO_SITE_FIXED_EFFECT_APPROXIMATION_POLICY
+    if uncertainty_method == PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P:
+        return "finite_df_t_preserved_by_signed_two_sided_p_to_z_stouffer_v1"
+    if (
+        uncertainty_method
+        == PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_SINGLE_ESTIMATE_PASSTHROUGH
+    ):
+        return "none_single_estimate_passthrough_original_finite_df_t_v1"
+    return "unsupported_uncertainty_method"
+
+
 def _combine_site_estimates(
     *,
     site_id: str,
@@ -296,6 +426,7 @@ def _single_estimate_result(
 ) -> dict[str, object]:
     row = site_rows.iloc[0]
     return {
+        **_identity_result_columns(site_rows),
         "logFC": float(row["effect"]),
         "standard_error": float(row["standard_error"]),
         "uncertainty_statistic": float(row["statistic"]),
@@ -353,6 +484,7 @@ def _stouffer_signed_p_result(
     p_value = float(2.0 * stats.norm.sf(abs(combined_z)))
     effect, standard_error = _inverse_variance_effect_summary(site_rows)
     return {
+        **_identity_result_columns(site_rows),
         "logFC": effect,
         "standard_error": standard_error,
         "uncertainty_statistic": combined_z,
@@ -388,10 +520,12 @@ def _fixed_effect_inverse_variance_result(
     site_rows: pd.DataFrame,
     correction_method: str,
 ) -> dict[str, object]:
+    _enforce_fixed_effect_asymptotic_eligibility(site_rows)
     effect, standard_error = _inverse_variance_effect_summary(site_rows)
     z_value = effect / standard_error
     p_value = float(2.0 * stats.norm.sf(abs(z_value)))
     return {
+        **_identity_result_columns(site_rows),
         "logFC": effect,
         "standard_error": standard_error,
         "uncertainty_statistic": z_value,
@@ -439,6 +573,18 @@ def _inverse_variance_effect_summary(site_rows: pd.DataFrame) -> tuple[float, fl
     return weighted_effect, combined_standard_error
 
 
+def _enforce_fixed_effect_asymptotic_eligibility(site_rows: pd.DataFrame) -> None:
+    minimum_moderated_df = _minimum_column(site_rows, "moderated_degrees_of_freedom")
+    if minimum_moderated_df < PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF:
+        raise PhosPyInputError(
+            "fixed_effect_inverse_variance_independent requires the documented "
+            "asymptotic-normal input envelope; all moderated_degrees_of_freedom "
+            "values must be >= "
+            f"{PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF:g}. "
+            f"Observed minimum moderated_degrees_of_freedom={minimum_moderated_df!r}."
+        )
+
+
 def _missing_site_result(
     *,
     site_rows: pd.DataFrame,
@@ -448,6 +594,7 @@ def _missing_site_result(
     correction_method: str,
 ) -> dict[str, object]:
     return {
+        **_identity_result_columns(site_rows),
         "logFC": float("nan"),
         "standard_error": float("nan"),
         "uncertainty_statistic": float("nan"),

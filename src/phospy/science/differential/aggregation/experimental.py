@@ -23,8 +23,9 @@ from phospy.science.differential.aggregation.models import (
 EXPERIMENTAL_INTERNAL_API = False
 EXPERIMENTAL_INTERNAL_REASON = (
     "The old raw-table post-hoc combiner was replaced by a supported typed "
-    "estimate-combination contract. Use phospy.science.differential.aggregation "
-    "or phospy.api imports for supported code."
+    "estimate-combination contract with estimate identity and moderated-t "
+    "row-consistency validation. Use phospy.science.differential.aggregation "
+    "for supported advanced code."
 )
 
 

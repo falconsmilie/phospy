@@ -32,9 +32,11 @@ For PhosPy-origin peptide evidence, the supported peptide-to-site route is still
 to resolve peptide intensities into analysis-ready site rows during dataset
 building, then run this workflow. A narrow advanced post-hoc estimate-combination
 route exists only for typed peptide-level differential estimates with explicit
-standard errors, finite degrees of freedom, source run identifiers, dependence
-policy, and peptide-to-site mapping policy. Same-experiment peptide estimates are
-rejected by that route because same-sample peptide dependence is not modelled.
+contrast identity, contrast orientation, effect scale/unit, model or estimator
+identity, statistic distribution, uncertainty-method version, standard errors,
+finite degrees of freedom, source run identifiers, dependence policy, and
+peptide-to-site mapping policy. Same-experiment peptide estimates are rejected by
+that route because same-sample peptide dependence is not modelled.
 
 ## Inputs
 
@@ -157,12 +159,16 @@ Preferred PhosPy-origin lane:
    `AnalysisReadyPhosphoDataset`.
 
 The advanced post-hoc lane is for already-fitted peptide-level estimates from
-independent source experiments or runs:
+independent source experiments or runs. It is a fail-closed v2 contract: every
+row must be a coherent moderated-t result, and every row in one aggregation run
+must share the same contrast, orientation, scale/unit, model/estimator,
+statistic distribution, and uncertainty-method version.
 
 ```python
 import pandas as pd
 
 from phospy.science.differential.aggregation import (
+    PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T,
     PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
     PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
     PeptideDifferentialEstimateTable,
@@ -175,10 +181,23 @@ estimates = PeptideDifferentialEstimateTable(
         {
             "site_id": ["MAPK1;S10;", "MAPK1;S10;"],
             "peptide_id": ["pep_run_1", "pep_run_2"],
+            "contrast_id": ["B_vs_A", "B_vs_A"],
+            "contrast_orientation": ["B_minus_A", "B_minus_A"],
+            "effect_scale": ["log2_fold_change", "log2_fold_change"],
+            "effect_unit": ["log2_ratio", "log2_ratio"],
+            "model_estimator_id": ["limma_moderated_ols", "limma_moderated_ols"],
+            "statistic_distribution": [
+                PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T,
+                PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T,
+            ],
+            "uncertainty_method_version": [
+                "limma_ebayes_moderated_t_v1",
+                "limma_ebayes_moderated_t_v1",
+            ],
             "effect": [0.8, 0.9],
-            "standard_error": [0.3, 0.35],
-            "statistic": [2.67, 2.57],
-            "p_value": [0.055, 0.062],
+            "standard_error": [0.4, 0.45],
+            "statistic": [2.0, 2.0],
+            "p_value": [0.11611652351681556, 0.11611652351681556],
             "residual_degrees_of_freedom": [3.0, 3.0],
             "moderated_degrees_of_freedom": [4.0, 4.0],
             "source_experiment_id": ["run_1", "run_2"],
@@ -208,6 +227,16 @@ finite-df t-distribution p-value are preserved. Multi-estimate Stouffer
 combination converts finite-df t evidence to z only through signed two-sided
 p-values; it does not use `z = t`. Multiple-testing correction uses the
 configured shared correction method, not a hardcoded BH adjustment.
+
+Moderated-t input rows are rejected unless the effect/statistic signs agree,
+`statistic` matches `effect / standard_error` within relative tolerance `1e-6`
+and absolute tolerance `1e-8`, and `p_value` matches the two-sided moderated-t
+probability within relative tolerance `1e-6` and absolute tolerance `1e-12`.
+Zero-effect rows must use `effect=0`, `statistic=0`, and `p_value=1.0`.
+`fixed_effect_inverse_variance_independent` is retained only for coherent inputs
+with `moderated_degrees_of_freedom >= 1000.0` for every row; smaller finite-DF
+inputs are rejected for that method. `mapping_weight` is rejected in this
+post-hoc lane because no allocation model consumes it here.
 
 Do not use this route for multiple peptides from the same experiment unless a
 future dependence-aware method is explicitly added. It is also not a substitute

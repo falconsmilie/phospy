@@ -16,6 +16,7 @@ from types import MappingProxyType
 from typing import cast
 
 import pandas as pd
+from scipy import stats
 
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_dataframe, own_dataframe
@@ -32,7 +33,30 @@ from phospy.science.configs.differential import (
     MultipleTestingMethod,
 )
 
-PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS = "supported_typed_estimate_combination_v1"
+PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS = "supported_typed_estimate_combination_v2"
+
+PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY = (
+    "moderated_t_effect_se_statistic_p_value_consistency_v1"
+)
+PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION = (
+    "moderated_t_row_consistency_tolerances_v1"
+)
+PEPTIDE_DIFFERENTIAL_STATISTIC_ABS_TOLERANCE = 1e-8
+PEPTIDE_DIFFERENTIAL_STATISTIC_REL_TOLERANCE = 1e-6
+PEPTIDE_DIFFERENTIAL_P_VALUE_ABS_TOLERANCE = 1e-12
+PEPTIDE_DIFFERENTIAL_P_VALUE_REL_TOLERANCE = 1e-6
+
+PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T = "moderated_t"
+SUPPORTED_PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTIONS: tuple[str, ...] = (
+    PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T,
+)
+PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT = (
+    "mapping_weight_rejected_not_consumed_posthoc_v1"
+)
+PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF = 1000.0
+PEPTIDE_TO_SITE_FIXED_EFFECT_APPROXIMATION_POLICY = (
+    "fixed_effect_inverse_variance_requires_moderated_df_ge_1000_v1"
+)
 
 PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SAMPLE_INTENSITY = (
     "sample_intensity_resolution_before_differential_model"
@@ -81,6 +105,13 @@ SUPPORTED_PEPTIDE_TO_SITE_MAPPING_POLICIES: tuple[str, ...] = (
 PEPTIDE_DIFFERENTIAL_ESTIMATE_REQUIRED_COLUMNS: tuple[str, ...] = (
     "site_id",
     "peptide_id",
+    "contrast_id",
+    "contrast_orientation",
+    "effect_scale",
+    "effect_unit",
+    "model_estimator_id",
+    "statistic_distribution",
+    "uncertainty_method_version",
     "effect",
     "standard_error",
     "statistic",
@@ -92,11 +123,17 @@ PEPTIDE_DIFFERENTIAL_ESTIMATE_REQUIRED_COLUMNS: tuple[str, ...] = (
     "peptide_to_site_mapping_policy",
 )
 PEPTIDE_DIFFERENTIAL_ESTIMATE_OPTIONAL_COLUMNS: tuple[str, ...] = (
-    "mapping_weight",
     "mapping_uncertainty",
 )
 
 PEPTIDE_TO_SITE_AGGREGATION_RESULT_REQUIRED_COLUMNS: tuple[str, ...] = (
+    "contrast_id",
+    "contrast_orientation",
+    "effect_scale",
+    "effect_unit",
+    "model_estimator_id",
+    "input_statistic_distribution",
+    "input_uncertainty_method_version",
     "logFC",
     "standard_error",
     "uncertainty_statistic",
@@ -161,6 +198,13 @@ class PeptideDifferentialEstimateTable:
             required_columns=PEPTIDE_DIFFERENTIAL_ESTIMATE_REQUIRED_COLUMNS,
             error_type=PhosPyInputError,
         )
+        if "mapping_weight" in frame.columns:
+            raise PhosPyInputError(
+                "peptide_differential_estimate_table.mapping_weight is not "
+                "supported in the post-hoc differential estimate lane because "
+                "no allocation model consumes it; omit the column or resolve "
+                "peptide evidence at sample-intensity level before fitting."
+            )
 
         selected_columns = [
             *PEPTIDE_DIFFERENTIAL_ESTIMATE_REQUIRED_COLUMNS,
@@ -174,6 +218,12 @@ class PeptideDifferentialEstimateTable:
         for column_name in (
             "site_id",
             "peptide_id",
+            "contrast_id",
+            "contrast_orientation",
+            "effect_scale",
+            "effect_unit",
+            "model_estimator_id",
+            "uncertainty_method_version",
             "source_experiment_id",
         ):
             _set_column_values(
@@ -189,6 +239,14 @@ class PeptideDifferentialEstimateTable:
                     for value in _column_values(canonical, column_name)
                 ),
             )
+        _set_column_values(
+            canonical,
+            "statistic_distribution",
+            tuple(
+                _canonical_statistic_distribution(value)
+                for value in _column_values(canonical, "statistic_distribution")
+            ),
+        )
         _set_column_values(
             canonical,
             "peptide_to_site_mapping_policy",
@@ -261,20 +319,6 @@ class PeptideDifferentialEstimateTable:
                     for value in _column_values(canonical, column_name)
                 ),
             )
-        if "mapping_weight" in canonical.columns:
-            _set_column_values(
-                canonical,
-                "mapping_weight",
-                tuple(
-                    _canonical_positive_finite_float(
-                        value,
-                        field_name=(
-                            "peptide_differential_estimate_table.mapping_weight"
-                        ),
-                    )
-                    for value in _column_values(canonical, "mapping_weight")
-                ),
-            )
         if "mapping_uncertainty" in canonical.columns:
             _set_column_values(
                 canonical,
@@ -289,6 +333,8 @@ class PeptideDifferentialEstimateTable:
                     for value in _column_values(canonical, "mapping_uncertainty")
                 ),
             )
+        _validate_estimate_row_consistency(canonical)
+        _validate_table_identity_coherence(canonical)
         object.__setattr__(self, "_frame", canonical)
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -493,6 +539,146 @@ def _canonical_mapping_policy(value: object) -> str:
     return text
 
 
+def _canonical_statistic_distribution(value: object) -> str:
+    text = _canonical_non_empty_string(
+        value,
+        field_name="peptide_differential_estimate_table.statistic_distribution",
+    )
+    if text not in SUPPORTED_PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTIONS:
+        supported = ", ".join(
+            repr(distribution)
+            for distribution in SUPPORTED_PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTIONS
+        )
+        raise PhosPyInputError(
+            "peptide_differential_estimate_table.statistic_distribution must be "
+            f"one of: {supported}"
+        )
+    return text
+
+
+def _validate_estimate_row_consistency(frame: pd.DataFrame) -> None:
+    for row_index, (
+        effect,
+        standard_error,
+        statistic,
+        p_value,
+        moderated_degrees_of_freedom,
+        statistic_distribution,
+    ) in enumerate(
+        zip(
+            _column_values(frame, "effect"),
+            _column_values(frame, "standard_error"),
+            _column_values(frame, "statistic"),
+            _column_values(frame, "p_value"),
+            _column_values(frame, "moderated_degrees_of_freedom"),
+            _column_values(frame, "statistic_distribution"),
+            strict=True,
+        )
+    ):
+        if (
+            str(statistic_distribution)
+            == PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T
+        ):
+            _validate_moderated_t_row_consistency(
+                row_index=row_index,
+                effect=float(effect),
+                standard_error=float(standard_error),
+                statistic=float(statistic),
+                p_value=float(p_value),
+                moderated_degrees_of_freedom=float(moderated_degrees_of_freedom),
+            )
+
+
+def _validate_moderated_t_row_consistency(
+    *,
+    row_index: int,
+    effect: float,
+    standard_error: float,
+    statistic: float,
+    p_value: float,
+    moderated_degrees_of_freedom: float,
+) -> None:
+    effect_sign = _sign(effect)
+    statistic_sign = _sign(statistic)
+    if effect_sign != 0.0 and statistic_sign != 0.0 and effect_sign != statistic_sign:
+        raise PhosPyInputError(
+            "peptide_differential_estimate_table effect/statistic signs must "
+            "agree for moderated_t rows; "
+            f"row_index={row_index}, effect={effect!r}, statistic={statistic!r}"
+        )
+
+    expected_statistic = effect / standard_error
+    if not math.isclose(
+        statistic,
+        expected_statistic,
+        rel_tol=PEPTIDE_DIFFERENTIAL_STATISTIC_REL_TOLERANCE,
+        abs_tol=PEPTIDE_DIFFERENTIAL_STATISTIC_ABS_TOLERANCE,
+    ):
+        raise PhosPyInputError(
+            "peptide_differential_estimate_table.statistic must match "
+            "effect / standard_error for moderated_t rows within "
+            f"{PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION}; "
+            f"row_index={row_index}, observed={statistic!r}, "
+            f"expected={expected_statistic!r}"
+        )
+
+    if statistic == 0.0 and effect == 0.0:
+        if not math.isclose(
+            p_value,
+            1.0,
+            rel_tol=PEPTIDE_DIFFERENTIAL_P_VALUE_REL_TOLERANCE,
+            abs_tol=PEPTIDE_DIFFERENTIAL_P_VALUE_ABS_TOLERANCE,
+        ):
+            raise PhosPyInputError(
+                "peptide_differential_estimate_table zero-effect moderated_t "
+                "rows must use zero statistic and two-sided p_value=1.0; "
+                f"row_index={row_index}, p_value={p_value!r}"
+            )
+        return
+
+    expected_p_value = float(
+        2.0
+        * stats.t.sf(
+            abs(statistic),
+            df=moderated_degrees_of_freedom,
+        )
+    )
+    if not math.isclose(
+        p_value,
+        expected_p_value,
+        rel_tol=PEPTIDE_DIFFERENTIAL_P_VALUE_REL_TOLERANCE,
+        abs_tol=PEPTIDE_DIFFERENTIAL_P_VALUE_ABS_TOLERANCE,
+    ):
+        raise PhosPyInputError(
+            "peptide_differential_estimate_table.p_value must match the "
+            "two-sided moderated_t probability for statistic and "
+            "moderated_degrees_of_freedom within "
+            f"{PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION}; "
+            f"row_index={row_index}, observed={p_value!r}, "
+            f"expected={expected_p_value!r}"
+        )
+
+
+def _validate_table_identity_coherence(frame: pd.DataFrame) -> None:
+    for column_name in (
+        "contrast_id",
+        "contrast_orientation",
+        "effect_scale",
+        "effect_unit",
+        "model_estimator_id",
+        "statistic_distribution",
+        "uncertainty_method_version",
+    ):
+        values = tuple(str(value) for value in _column_values(frame, column_name))
+        unique_values = tuple(sorted(set(values)))
+        if len(unique_values) > 1:
+            raise PhosPyInputError(
+                "peptide_differential_estimate_table rows must share one "
+                "comparable estimate identity per aggregation run; "
+                f"{column_name} values={unique_values!r}"
+            )
+
+
 def _canonical_non_empty_string(value: object, *, field_name: str) -> str:
     if _is_missing(value):
         raise PhosPyInputError(f"{field_name} must not contain missing values")
@@ -535,6 +721,14 @@ def _canonical_p_value(value: object, *, field_name: str) -> float:
     return resolved
 
 
+def _sign(value: float) -> float:
+    if value > 0.0:
+        return 1.0
+    if value < 0.0:
+        return -1.0
+    return 0.0
+
+
 def _is_missing(value: object) -> bool:
     try:
         return bool(pd.Series([value], dtype="object").isna().iloc[0])
@@ -561,8 +755,16 @@ def _validate_result_p_values(table: pd.DataFrame) -> None:
 
 
 __all__ = [
+    "PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY",
+    "PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION",
     "PEPTIDE_DIFFERENTIAL_ESTIMATE_OPTIONAL_COLUMNS",
     "PEPTIDE_DIFFERENTIAL_ESTIMATE_REQUIRED_COLUMNS",
+    "PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT",
+    "PEPTIDE_DIFFERENTIAL_P_VALUE_ABS_TOLERANCE",
+    "PEPTIDE_DIFFERENTIAL_P_VALUE_REL_TOLERANCE",
+    "PEPTIDE_DIFFERENTIAL_STATISTIC_ABS_TOLERANCE",
+    "PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T",
+    "PEPTIDE_DIFFERENTIAL_STATISTIC_REL_TOLERANCE",
     "PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC",
     "PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SAMPLE_INTENSITY",
     "PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE",
@@ -570,6 +772,8 @@ __all__ = [
     "PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS",
     "PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES",
     "PEPTIDE_TO_SITE_DEPENDENCE_POLICY_SAME_EXPERIMENT_CORRELATED",
+    "PEPTIDE_TO_SITE_FIXED_EFFECT_APPROXIMATION_POLICY",
+    "PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF",
     "PEPTIDE_TO_SITE_MAPPING_POLICY_EXCLUDE_FROM_STATISTICAL_MODEL",
     "PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID",
     "PEPTIDE_TO_SITE_MAPPING_POLICY_KEEP_JOINT",
@@ -578,6 +782,7 @@ __all__ = [
     "PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_SINGLE_ESTIMATE_PASSTHROUGH",
     "PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P",
     "SUPPORTED_PEPTIDE_TO_SITE_CONFIG_DEPENDENCE_POLICIES",
+    "SUPPORTED_PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTIONS",
     "SUPPORTED_PEPTIDE_TO_SITE_ESTIMATE_DEPENDENCE_POLICIES",
     "SUPPORTED_PEPTIDE_TO_SITE_MAPPING_POLICIES",
     "SUPPORTED_PEPTIDE_TO_SITE_UNCERTAINTY_METHODS",

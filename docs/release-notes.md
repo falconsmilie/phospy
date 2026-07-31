@@ -80,7 +80,10 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - Strict typing, Pyright formatting, CI performance contracts, and
   unsupported-support-claim tests were expanded.
 - Peptide-to-site differential evidence now has a supported narrow typed
-  post-hoc route for independent source estimates, while the preferred lane
+  post-hoc route for independent source estimates under
+  `supported_typed_estimate_combination_v2`. It requires coherent moderated-t
+  rows plus shared contrast/orientation, effect scale/unit, model/estimator,
+  statistic distribution, and uncertainty-method version; the preferred lane
   remains peptide evidence resolution at sample-intensity level before
   `DifferentialAnalysisWorkflow`.
 
@@ -99,7 +102,8 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - Old raw-table peptide-to-site aggregation strategies were superseded by the
   typed `PeptideDifferentialEstimateTable` contract. Raw
   `peptide_differential_table` + `evidence` aggregation is rejected because it
-  would infer uncertainty from `logFC/t`.
+  would infer uncertainty from `logFC/t`; post-hoc `mapping_weight` is also
+  rejected because no allocation model consumes it in that lane.
 - `TechnicalReplicateResolver` now emits `DeprecationWarning` when constructed
   or run. Normal callers should use `DifferentialAnalysisWorkflow`; low-level
   callers should use `TechnicalReplicateAggregationPlanner` plus
@@ -132,6 +136,11 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - Differential result invariants and numerical edge cases were hardened,
   including public result identity coherence, finite-p-value BH adjustment
   semantics, and explicit infinite-value coverage.
+- Peptide-to-site post-hoc differential estimate combination now rejects
+  contradictory effect/statistic signs, effect/SE/statistic mismatches,
+  p/statistic/DF mismatches, mixed contrast/model/scale identities,
+  same-experiment or declared-correlated estimates, small-DF fixed-effect
+  inverse-variance inputs, and unsupported post-hoc mapping weights.
 - Public API `__all__` compatibility exports and request validation boundaries
   were corrected.
 - MaxQuant and FragPipe/PTMProphet importers were hardened with realistic

@@ -31,12 +31,16 @@ All notable changes to this project are documented here.
   records.
 - Reintroduced a supported narrow peptide-to-site differential
   estimate-combination route through `PeptideDifferentialEstimateTable` and
-  `PeptideToSiteAggregator`. The route requires typed standard errors,
-  original finite-df uncertainty, source experiment/run identifiers,
-  dependence policy, and mapping policy; same-experiment peptide estimates are
-  rejected unless a future dependence-aware method is added. The preferred
-  PhosPy-origin lane remains peptide evidence resolution at sample-intensity
-  level before `DifferentialAnalysisWorkflow`.
+  `PeptideToSiteAggregator` under
+  `supported_typed_estimate_combination_v2`. The route requires typed
+  contrast/orientation, effect scale/unit, model/estimator, statistic
+  distribution, uncertainty-method version, coherent moderated-t
+  effect/SE/statistic/p/DF rows, source experiment/run identifiers, dependence
+  policy, and mapping policy; same-experiment peptide estimates are rejected
+  unless a future dependence-aware method is added. Post-hoc `mapping_weight`
+  is rejected because no allocation model consumes it in this lane. The
+  preferred PhosPy-origin lane remains peptide evidence resolution at
+  sample-intensity level before `DifferentialAnalysisWorkflow`.
 
 ### Added
 

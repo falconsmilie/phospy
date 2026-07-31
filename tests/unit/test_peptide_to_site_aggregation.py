@@ -27,11 +27,15 @@ from phospy.api.requests import (
 )
 from phospy.errors import PhosPyInputError
 from phospy.science.differential.aggregation import (
+    PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY,
+    PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT,
+    PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T,
     PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SAMPLE_INTENSITY,
     PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE,
     PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS,
     PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
     PEPTIDE_TO_SITE_DEPENDENCE_POLICY_SAME_EXPERIMENT_CORRELATED,
+    PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF,
     PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
     PEPTIDE_TO_SITE_MAPPING_POLICY_KEEP_JOINT,
     PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE,
@@ -78,6 +82,15 @@ def _estimate_row(
     statistic: float,
     moderated_degrees_of_freedom: float,
     source_experiment_id: str,
+    p_value: float | None = None,
+    residual_degrees_of_freedom: float = 3.0,
+    contrast_id: str = "B_vs_A",
+    contrast_orientation: str = "B_minus_A",
+    effect_scale: str = "log2_fold_change",
+    effect_unit: str = "log2_ratio",
+    model_estimator_id: str = "limma_moderated_ols",
+    statistic_distribution: str = PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T,
+    uncertainty_method_version: str = "limma_ebayes_moderated_t_v1",
     dependence_policy: str = PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
     mapping_policy: str = PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
     mapping_uncertainty: bool = False,
@@ -85,17 +98,28 @@ def _estimate_row(
     return {
         "site_id": site_id,
         "peptide_id": peptide_id,
+        "contrast_id": contrast_id,
+        "contrast_orientation": contrast_orientation,
+        "effect_scale": effect_scale,
+        "effect_unit": effect_unit,
+        "model_estimator_id": model_estimator_id,
+        "statistic_distribution": statistic_distribution,
+        "uncertainty_method_version": uncertainty_method_version,
         "effect": effect,
         "standard_error": standard_error,
         "statistic": statistic,
-        "p_value": float(
-            2.0
-            * stats.t.sf(
-                abs(statistic),
-                df=moderated_degrees_of_freedom,
+        "p_value": (
+            float(p_value)
+            if p_value is not None
+            else float(
+                2.0
+                * stats.t.sf(
+                    abs(statistic),
+                    df=moderated_degrees_of_freedom,
+                )
             )
         ),
-        "residual_degrees_of_freedom": 3.0,
+        "residual_degrees_of_freedom": residual_degrees_of_freedom,
         "moderated_degrees_of_freedom": moderated_degrees_of_freedom,
         "source_experiment_id": source_experiment_id,
         "dependence_policy": dependence_policy,
@@ -122,6 +146,9 @@ def test_peptide_to_site_typed_route_is_supported_public_api() -> None:
         "PeptideToSiteAggregationConfig",
         "PeptideToSiteAggregationResult",
         "PeptideToSiteAggregator",
+        "PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY",
+        "PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT",
+        "PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T",
         "PEPTIDE_TO_SITE_MAPPING_POLICY_EXCLUDE_FROM_STATISTICAL_MODEL",
         "SUPPORTED_PEPTIDE_TO_SITE_MAPPING_POLICIES",
         "PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P",
@@ -131,7 +158,7 @@ def test_peptide_to_site_typed_route_is_supported_public_api() -> None:
     assert expected <= set(aggregation_public.__all__)
     assert expected <= set(differential_public.__all__)
     assert PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS == (
-        "supported_typed_estimate_combination_v1"
+        "supported_typed_estimate_combination_v2"
     )
     assert EXPERIMENTAL_INTERNAL_API is False
     assert "replaced by a supported typed estimate-combination contract" in (
@@ -145,6 +172,136 @@ def test_typed_estimate_model_rejects_unknown_mapping_policy() -> None:
 
     with pytest.raises(PhosPyInputError, match="peptide_to_site_mapping_policy"):
         PeptideDifferentialEstimateTable(frame)
+
+
+def test_typed_estimate_model_rejects_effect_statistic_sign_mismatch() -> None:
+    frame = _estimate_frame(
+        (
+            _estimate_row(
+                peptide_id="pep_bad",
+                site_id="MAPK1;S10;",
+                effect=2.0,
+                standard_error=0.5,
+                statistic=-4.0,
+                moderated_degrees_of_freedom=4.0,
+                source_experiment_id="run_1",
+            ),
+        )
+    )
+
+    with pytest.raises(PhosPyInputError, match="effect/statistic signs"):
+        PeptideDifferentialEstimateTable(frame)
+
+
+def test_typed_estimate_model_rejects_effect_se_statistic_mismatch() -> None:
+    frame = _estimate_frame(
+        (
+            _estimate_row(
+                peptide_id="pep_bad",
+                site_id="MAPK1;S10;",
+                effect=2.0,
+                standard_error=0.5,
+                statistic=3.0,
+                moderated_degrees_of_freedom=4.0,
+                source_experiment_id="run_1",
+            ),
+        )
+    )
+
+    with pytest.raises(PhosPyInputError, match="effect / standard_error"):
+        PeptideDifferentialEstimateTable(frame)
+
+
+def test_typed_estimate_model_rejects_p_value_statistic_df_mismatch() -> None:
+    frame = _estimate_frame(
+        (
+            _estimate_row(
+                peptide_id="pep_bad",
+                site_id="MAPK1;S10;",
+                effect=2.0,
+                standard_error=0.5,
+                statistic=4.0,
+                p_value=0.9,
+                moderated_degrees_of_freedom=4.0,
+                source_experiment_id="run_1",
+            ),
+        )
+    )
+
+    with pytest.raises(PhosPyInputError, match="two-sided moderated_t"):
+        PeptideDifferentialEstimateTable(frame)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "replacement", "match"),
+    (
+        ("contrast_id", "A_vs_B", "contrast_id"),
+        ("contrast_orientation", "A_minus_B", "contrast_orientation"),
+        ("effect_scale", "natural_log_fold_change", "effect_scale"),
+        ("effect_unit", "natural_log_ratio", "effect_unit"),
+        ("model_estimator_id", "wald_glm", "model_estimator_id"),
+        ("statistic_distribution", "wald_z", "statistic_distribution"),
+        ("uncertainty_method_version", "other_moderation_v2", "uncertainty"),
+    ),
+)
+def test_typed_estimate_model_rejects_mixed_estimate_identity(
+    field_name: str,
+    replacement: str,
+    match: str,
+) -> None:
+    first = _estimate_row(
+        peptide_id="pep_1",
+        site_id="MAPK1;S10;",
+        effect=1.0,
+        standard_error=0.5,
+        statistic=2.0,
+        moderated_degrees_of_freedom=4.0,
+        source_experiment_id="run_1",
+    )
+    second = _estimate_row(
+        peptide_id="pep_2",
+        site_id="MAPK1;S10;",
+        effect=1.0,
+        standard_error=0.5,
+        statistic=2.0,
+        moderated_degrees_of_freedom=4.0,
+        source_experiment_id="run_2",
+    )
+    second[field_name] = replacement
+    frame = _estimate_frame((first, second))
+
+    with pytest.raises(PhosPyInputError, match=match):
+        PeptideDifferentialEstimateTable(frame)
+
+
+def test_mapping_weight_is_rejected_in_posthoc_estimate_lane() -> None:
+    frame = _estimate_frame()
+    frame.loc[:, "mapping_weight"] = 0.5
+
+    with pytest.raises(PhosPyInputError, match="mapping_weight"):
+        PeptideDifferentialEstimateTable(frame)
+
+
+def test_aggregation_contrast_name_must_match_input_contrast_identity() -> None:
+    estimates = PeptideDifferentialEstimateTable(_estimate_frame())
+
+    with pytest.raises(PhosPyInputError, match="contrast_name"):
+        PeptideToSiteAggregator().run(
+            estimates,
+            config=PeptideToSiteAggregationConfig(),
+            contrast_name="A_vs_B",
+        )
+
+
+def test_aggregation_default_contrast_name_uses_input_contrast_identity() -> None:
+    estimates = PeptideDifferentialEstimateTable(_estimate_frame())
+
+    result = PeptideToSiteAggregator().run(
+        estimates,
+        config=PeptideToSiteAggregationConfig(),
+    )
+
+    assert result.contrast_name == "B_vs_A"
 
 
 @pytest.mark.parametrize("degrees_of_freedom", (2.0, 3.0, 4.0, 10.0))
@@ -189,6 +346,13 @@ def test_single_estimate_reproduces_original_effect_statistic_and_p_value() -> N
     assert float(row["P.Value"]) == float(input_row["p_value"])
     assert float(row["P.Value"]) != pytest.approx(normal_p)
     assert float(row["adj.P.Val"]) == float(input_row["p_value"])
+    assert row["contrast_id"] == "B_vs_A"
+    assert row["contrast_orientation"] == "B_minus_A"
+    assert row["effect_scale"] == "log2_fold_change"
+    assert row["effect_unit"] == "log2_ratio"
+    assert row["model_estimator_id"] == "limma_moderated_ols"
+    assert row["input_statistic_distribution"] == "moderated_t"
+    assert row["input_uncertainty_method_version"] == "limma_ebayes_moderated_t_v1"
     assert row["aggregation_level"] == PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE
     assert (
         row["uncertainty_method"]
@@ -217,6 +381,26 @@ def test_zero_effect_and_zero_statistic_pass_through_explicitly() -> None:
     assert float(row["logFC"]) == 0.0
     assert float(row["uncertainty_statistic"]) == 0.0
     assert float(row["P.Value"]) == 1.0
+
+
+def test_zero_effect_and_zero_statistic_require_unit_p_value() -> None:
+    frame = _estimate_frame(
+        (
+            _estimate_row(
+                peptide_id="pep_zero_bad",
+                site_id="MAPK1;S10;",
+                effect=0.0,
+                standard_error=0.5,
+                statistic=0.0,
+                p_value=0.9,
+                moderated_degrees_of_freedom=3.0,
+                source_experiment_id="run_1",
+            ),
+        )
+    )
+
+    with pytest.raises(PhosPyInputError, match="zero-effect moderated_t"):
+        PeptideDifferentialEstimateTable(frame)
 
 
 def test_zero_effect_and_zero_statistic_combine_to_unit_p_value() -> None:
@@ -397,7 +581,9 @@ def test_independent_estimates_can_be_combined_with_signed_p_stouffer() -> None:
             ),
         )
     )
-    expected_z = np.sqrt(2.0) * signed_z_from_t_statistic(2.0, 4.0)
+    input_p = float(2.0 * stats.t.sf(abs(2.0), df=4.0))
+    expected_single_z = float(stats.norm.isf(input_p / 2.0))
+    expected_z = np.sqrt(2.0) * expected_single_z
 
     result = _aggregate(frame)
     row = result.to_dataframe().loc["MAPK1;S10;"]
@@ -412,7 +598,8 @@ def test_independent_estimates_can_be_combined_with_signed_p_stouffer() -> None:
     assert "run_1|run_2" == row["source_experiment_ids"]
 
 
-def test_fixed_effect_combination_consumes_typed_standard_error() -> None:
+def test_fixed_effect_combination_consumes_typed_standard_error_for_large_df() -> None:
+    large_df = PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF * 10.0
     frame = _estimate_frame(
         (
             _estimate_row(
@@ -420,8 +607,9 @@ def test_fixed_effect_combination_consumes_typed_standard_error() -> None:
                 site_id="MAPK1;S10;",
                 effect=1.0,
                 standard_error=0.5,
-                statistic=99.0,
-                moderated_degrees_of_freedom=4.0,
+                statistic=2.0,
+                residual_degrees_of_freedom=large_df,
+                moderated_degrees_of_freedom=large_df,
                 source_experiment_id="run_1",
             ),
             _estimate_row(
@@ -429,8 +617,9 @@ def test_fixed_effect_combination_consumes_typed_standard_error() -> None:
                 site_id="MAPK1;S10;",
                 effect=3.0,
                 standard_error=1.0,
-                statistic=99.0,
-                moderated_degrees_of_freedom=4.0,
+                statistic=3.0,
+                residual_degrees_of_freedom=large_df,
+                moderated_degrees_of_freedom=large_df,
                 source_experiment_id="run_2",
             ),
         )
@@ -444,10 +633,49 @@ def test_fixed_effect_combination_consumes_typed_standard_error() -> None:
         ),
     )
     row = result.to_dataframe().loc["MAPK1;S10;"]
+    expected_effect = (4.0 * 1.0 + 1.0 * 3.0) / 5.0
+    expected_standard_error = np.sqrt(1.0 / 5.0)
+    expected_z = expected_effect / expected_standard_error
 
-    assert float(row["logFC"]) == pytest.approx((4.0 * 1.0 + 1.0 * 3.0) / 5.0)
-    assert float(row["standard_error"]) == pytest.approx(np.sqrt(1.0 / 5.0))
-    assert float(row["uncertainty_statistic"]) != pytest.approx(99.0)
+    assert float(row["logFC"]) == pytest.approx(expected_effect)
+    assert float(row["standard_error"]) == pytest.approx(expected_standard_error)
+    assert float(row["uncertainty_statistic"]) == pytest.approx(expected_z)
+    assert float(row["P.Value"]) == pytest.approx(2.0 * stats.norm.sf(abs(expected_z)))
+
+
+def test_fixed_effect_combination_rejects_small_finite_df_inputs() -> None:
+    frame = _estimate_frame(
+        (
+            _estimate_row(
+                peptide_id="pep_1",
+                site_id="MAPK1;S10;",
+                effect=1.0,
+                standard_error=0.5,
+                statistic=2.0,
+                moderated_degrees_of_freedom=4.0,
+                source_experiment_id="run_1",
+            ),
+            _estimate_row(
+                peptide_id="pep_2",
+                site_id="MAPK1;S10;",
+                effect=1.0,
+                standard_error=0.5,
+                statistic=2.0,
+                moderated_degrees_of_freedom=4.0,
+                source_experiment_id="run_2",
+            ),
+        )
+    )
+
+    with pytest.raises(PhosPyInputError, match="asymptotic-normal input envelope"):
+        _aggregate(
+            frame,
+            config=PeptideToSiteAggregationConfig(
+                uncertainty_method=(
+                    PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE
+                )
+            ),
+        )
 
 
 @pytest.mark.parametrize("method", ("none", "bonferroni", "holm"))
@@ -548,8 +776,51 @@ def test_result_records_aggregation_dependence_uncertainty_and_correction_method
         result.provenance["preferred_phospy_lane"]
         == "resolve peptide evidence at sample-intensity level before differential model fitting"
     )
+    assert result.provenance["input_contrast_id"] == "B_vs_A"
+    assert result.provenance["input_contrast_orientation"] == "B_minus_A"
+    assert result.provenance["input_effect_scale"] == "log2_fold_change"
+    assert result.provenance["input_effect_unit"] == "log2_ratio"
+    assert result.provenance["input_model_estimator_id"] == "limma_moderated_ols"
+    assert result.provenance["input_statistic_distribution"] == "moderated_t"
+    assert (
+        result.provenance["input_uncertainty_method_version"]
+        == "limma_ebayes_moderated_t_v1"
+    )
+    assert result.provenance["consistency_policy"] == (
+        PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY
+    )
+    assert result.provenance["mapping_weight_policy"] == (
+        PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT
+    )
     assert result.scientific_policies[0].parameters["multiple_testing_method"] == (
         "benjamini_hochberg"
+    )
+
+
+def test_provenance_serializes_new_estimate_identity_fields() -> None:
+    result = _aggregate(_estimate_frame())
+    policy_payload = result.scientific_policies[0].to_payload()
+    policy_parameters = policy_payload["parameters"]
+
+    assert isinstance(policy_parameters, dict)
+    assert policy_parameters["support_status"] == (
+        "supported_typed_estimate_combination_v2"
+    )
+    assert policy_parameters["input_contrast_id"] == "B_vs_A"
+    assert policy_parameters["input_contrast_orientation"] == "B_minus_A"
+    assert policy_parameters["input_effect_scale"] == "log2_fold_change"
+    assert policy_parameters["input_effect_unit"] == "log2_ratio"
+    assert policy_parameters["input_model_estimator_id"] == "limma_moderated_ols"
+    assert policy_parameters["input_statistic_distribution"] == "moderated_t"
+    assert (
+        policy_parameters["input_uncertainty_method_version"]
+        == "limma_ebayes_moderated_t_v1"
+    )
+    assert policy_parameters["consistency_policy"] == (
+        PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY
+    )
+    assert policy_parameters["mapping_weight_policy"] == (
+        PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT
     )
 
 

@@ -34,9 +34,20 @@ differential model fitting:
 
 PhosPy also supports a narrow advanced post-hoc estimate-combination lane through
 `PeptideDifferentialEstimateTable` and `PeptideToSiteAggregator`. This lane is
-not used for PhosPy-origin peptide evidence by default. It requires a typed input
-model with:
+not used for PhosPy-origin peptide evidence by default. Its public support status
+is `supported_typed_estimate_combination_v2` and depends on the executable
+contract below. If these fields or checks are removed, the post-hoc lane must be
+withdrawn from supported public exports and documentation before release.
 
+The authoritative estimate representation is one coherent row with:
+
+- contrast or coefficient identifier;
+- contrast orientation;
+- effect scale;
+- effect unit;
+- model or estimator identifier;
+- statistic distribution;
+- uncertainty-method/version identifier;
 - effect estimate;
 - standard error;
 - original statistic;
@@ -47,9 +58,29 @@ model with:
 - dependence policy;
 - peptide-to-site mapping policy.
 
+Every aggregation run must contain one comparable contrast identity, orientation,
+effect scale/unit, model/estimator, statistic distribution, and uncertainty
+method/version. Mixed identities are rejected rather than adapted implicitly.
 The supported multi-estimate post-hoc methods require independent source
 experiments or runs. Same-experiment peptide estimates are rejected because
 same-sample peptide dependence is not modelled by the current lane.
+
+## Within-Row Consistency Contract
+
+The only supported input statistic distribution in this lane is `moderated_t`.
+For each row:
+
+- non-zero effect and statistic signs must agree;
+- `statistic` must equal `effect / standard_error` within relative tolerance
+  `1e-6` and absolute tolerance `1e-8`;
+- `p_value` must equal the two-sided moderated-t probability from
+  `abs(statistic)` and `moderated_degrees_of_freedom` within relative tolerance
+  `1e-6` and absolute tolerance `1e-12`;
+- zero-effect rows must use `effect=0`, `statistic=0`, and `p_value=1.0`.
+
+The tolerance/version identifier recorded in provenance is
+`moderated_t_row_consistency_tolerances_v1`, and the policy identifier is
+`moderated_t_effect_se_statistic_p_value_consistency_v1`.
 
 ## Supported Statistical Methods
 
@@ -61,13 +92,20 @@ Supported methods are:
   freedom.
 - `stouffer_signed_p_independent`: combines independent source estimates by
   converting each original two-sided p-value to a signed z value and combining
-  weighted z values. The sign comes from the original statistic, falling back to
-  the effect sign only when the statistic is exactly zero.
+  weighted z values. The sign comes from the coherent original statistic/effect
+  row. Zero-statistic rows with zero effect contribute zero signed z.
 - `fixed_effect_inverse_variance_independent`: combines independent source
-  estimates using the typed standard error as inverse-variance weight.
+  estimates using the typed standard error as inverse-variance weight only when
+  all moderated degrees of freedom are at least `1000.0`. This is the documented
+  large-DF asymptotic-normal eligibility policy
+  `fixed_effect_inverse_variance_requires_moderated_df_ge_1000_v1`; smaller
+  finite-DF inputs are rejected for this method.
 
 Finite-degree-of-freedom t evidence must not be treated as `z = t`. When a
-z-scale input is needed, conversion is through signed two-sided p-values.
+z-scale input is needed for Stouffer combination, conversion is through signed
+two-sided p-values. Fixed-effect inverse-variance output reports an
+asymptotic-normal z statistic only inside the large-DF eligibility envelope
+above.
 
 ## Supported Dependence Assumptions
 
@@ -100,10 +138,21 @@ The typed estimate table records `peptide_to_site_mapping_policy` per estimate
 and optional mapping uncertainty. Output tables and run provenance report the
 observed mapping policies and multi-site estimate counts.
 
+`mapping_weight` is not consumed in the post-hoc differential estimate lane.
+If a `mapping_weight` column is supplied, `PeptideDifferentialEstimateTable`
+rejects it under the recorded policy
+`mapping_weight_rejected_not_consumed_posthoc_v1`. Mapping weights are supported
+only in the sample-intensity peptide-evidence resolution lane governed by
+ADR-0020, where there is an explicit signal-allocation model.
+
 ## Output Interpretation
 
 Output tables record:
 
+- contrast identity and orientation;
+- effect scale and unit;
+- model/estimator identity;
+- input statistic distribution and uncertainty-method/version;
 - aggregation level;
 - dependence assumption;
 - uncertainty method;
@@ -118,6 +167,11 @@ uncertainty and dependence assumptions. It is not evidence that same-experiment
 peptides were independent, and it is not a replacement for sample-level
 peptide-to-site resolution followed by the core differential model.
 
+Run provenance and the `peptide_to_site_aggregation_v1` scientific-policy record
+also record input contrast identity, effect scale, model/estimator, statistic
+distribution, consistency policy, tolerance version, approximation policy, and
+mapping-weight policy.
+
 ## Unsupported Claims
 
 This ADR does not claim:
@@ -128,6 +182,9 @@ This ADR does not claim:
 - no broad upstream statistical result import lane;
 - equivalence between single-estimate pass-through and meta-analysis;
 - that finite-df t statistics can be used directly as z statistics.
+- that mixed contrasts, opposite orientations, mixed scales/units, or different
+  estimator/model/statistic families can be combined without an explicit
+  supported adapter.
 
 ## Responsibility Audit
 
