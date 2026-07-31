@@ -6,6 +6,7 @@
 - **Title:** Peptide-to-Site Differential Uncertainty Policy
 - **Status:** Accepted
 - **Date:** 2026-07-29
+- **Amended:** 2026-07-31
 - **Decision Type:** Architecture Decision Record
 
 ## Context
@@ -20,10 +21,22 @@ PhosPy already has a safer peptide-evidence lane: resolve peptide evidence into
 site-level sample intensities during dataset building, then fit the core
 site-level differential model.
 
+After the original ADR text, implementation review found that the post-hoc
+peptide differential estimate-combination lane accepted mapping policies that it
+did not execute coherently:
+
+- `exclude_from_statistical_model` could be accepted while included in the
+  calculation;
+- `split_equal_weight` could be accepted without splitting or weighting;
+- a typed input could produce a concrete combined estimate and p-value despite
+  unresolved combined-effect, inference, and mapping semantics.
+
+Withdrawal is the smallest scientifically safe correction. Completing a new
+combination model requires a separate scientific design decision.
+
 ## Decision
 
-The preferred PhosPy-origin lane aggregates or resolves peptide evidence before
-differential model fitting:
+The preferred and supported PhosPy-origin lane remains:
 
 1. `phospy.science.evidence` and dataset-building preprocessing resolve
    peptide evidence into site-level sample-intensity rows.
@@ -32,169 +45,74 @@ differential model fitting:
 3. Provenance records peptide mapping, multi-site handling, attrition, and the
    downstream differential model policy separately.
 
-PhosPy also supports a narrow advanced post-hoc estimate-combination lane through
-`PeptideDifferentialEstimateTable` and `PeptideToSiteAggregator`. This lane is
-not used for PhosPy-origin peptide evidence by default. Its public support status
-is `supported_typed_estimate_combination_v2` and depends on the executable
-contract below. If these fields or checks are removed, the post-hoc lane must be
-withdrawn from supported public exports and documentation before release.
+The post-hoc peptide differential estimate-combination lane is withdrawn from
+public support. It must not be exported as production functionality from
+supported public facades, documented as supported, or silently executed through a
+compatibility path. Its retained compatibility shell is internal/experimental and
+fails closed with an error explaining that coherent combined effect/inference
+semantics and executable peptide-to-site mapping semantics are not implemented.
 
-The authoritative estimate representation is one coherent row with:
+The withdrawal status is
+`unsupported_withdrawn_posthoc_estimate_combination_v1`.
 
-- contrast or coefficient identifier;
-- contrast orientation;
-- effect scale;
-- effect unit;
-- model or estimator identifier;
-- statistic distribution;
-- uncertainty-method/version identifier;
-- effect estimate;
-- standard error;
-- original statistic;
-- original p-value;
-- residual degrees of freedom;
-- moderated degrees of freedom;
-- source experiment/run identifier;
-- dependence policy;
-- peptide-to-site mapping policy.
+## Required Future Conditions Before Reintroduction
 
-Every aggregation run must contain one comparable contrast identity, orientation,
-effect scale/unit, model/estimator, statistic distribution, and uncertainty
-method/version. Mixed identities are rejected rather than adapted implicitly.
-The supported multi-estimate post-hoc methods require independent source
-experiments or runs. Same-experiment peptide estimates are rejected because
-same-sample peptide dependence is not modelled by the current lane.
+Future public support requires a new ADR-backed scientific model and executable
+implementation that defines:
 
-## Within-Row Consistency Contract
+- peptide-to-site mapping semantics, including ambiguous evidence, equal
+  splitting, statistical-model exclusion, and weighted allocation;
+- the site-level combined estimand and effect interpretation;
+- the inferential result, uncertainty statistic, p-value meaning, and degrees of
+  freedom or asymptotic approximation policy;
+- dependence handling for same-experiment peptide estimates and any
+  independent-source assumptions;
+- multiple-testing semantics and correction domain;
+- provenance semantics that make the mapping, dependence, estimand, inference,
+  and attrition policies auditable;
+- public API, documentation, and tests proving unsupported mapping or dependence
+  states fail closed.
 
-The only supported input statistic distribution in this lane is `moderated_t`.
-For each row:
+Until those conditions are met, mapping policies must not be labelled
+experimental while executing silently as ordinary evidence.
 
-- non-zero effect and statistic signs must agree;
-- `statistic` must equal `effect / standard_error` within relative tolerance
-  `1e-6` and absolute tolerance `1e-8`;
-- `p_value` must equal the two-sided moderated-t probability from
-  `abs(statistic)` and `moderated_degrees_of_freedom` within relative tolerance
-  `1e-6` and absolute tolerance `1e-12`;
-- zero-effect rows must use `effect=0`, `statistic=0`, and `p_value=1.0`.
+## Retained Internal Source
 
-The tolerance/version identifier recorded in provenance is
-`moderated_t_row_consistency_tolerances_v1`, and the policy identifier is
-`moderated_t_effect_se_statistic_p_value_consistency_v1`.
-
-## Supported Statistical Methods
-
-Supported methods are:
-
-- `single_estimate_passthrough`: used for sites with one estimate. This is not a
-  meta-analysis. It preserves the original effect, standard error, statistic,
-  finite-df p-value, residual degrees of freedom, and moderated degrees of
-  freedom.
-- `stouffer_signed_p_independent`: combines independent source estimates by
-  converting each original two-sided p-value to a signed z value and combining
-  weighted z values. The sign comes from the coherent original statistic/effect
-  row. Zero-statistic rows with zero effect contribute zero signed z.
-- `fixed_effect_inverse_variance_independent`: combines independent source
-  estimates using the typed standard error as inverse-variance weight only when
-  all moderated degrees of freedom are at least `1000.0`. This is the documented
-  large-DF asymptotic-normal eligibility policy
-  `fixed_effect_inverse_variance_requires_moderated_df_ge_1000_v1`; smaller
-  finite-DF inputs are rejected for this method.
-
-Finite-degree-of-freedom t evidence must not be treated as `z = t`. When a
-z-scale input is needed for Stouffer combination, conversion is through signed
-two-sided p-values. Fixed-effect inverse-variance output reports an
-asymptotic-normal z statistic only inside the large-DF eligibility envelope
-above.
-
-## Supported Dependence Assumptions
-
-The current supported post-hoc dependence policy is:
-
-- `independent_sources`: estimates for the same site must come from distinct
-  source experiment/run identifiers and must be declared independent.
-
-The current lane does not implement generalized least squares, known covariance
-matrices, robust clustered covariance, mixed effects, duplicate-correlation
-style methods, or any same-sample peptide dependence model.
-
-## Minimum Evidence
-
-`min_estimates_per_site` defaults to `1`. Sites below the configured minimum are
-emitted with missing statistics and explicit attrition/provenance. The default
-therefore lets a single estimate pass through exactly, but callers can require
-more independent source estimates when appropriate.
-
-## Multiple Testing
-
-Post-hoc site p-values are adjusted with the shared configurable multiple-testing
-correction domain. The post-hoc lane must not hardcode Benjamini-Hochberg outside
-the configured correction policy.
-
-## Multi-Site Mapping
-
-Multi-site peptide allocation or retention remains explicit input provenance.
-The typed estimate table records `peptide_to_site_mapping_policy` per estimate
-and optional mapping uncertainty. Output tables and run provenance report the
-observed mapping policies and multi-site estimate counts.
-
-`mapping_weight` is not consumed in the post-hoc differential estimate lane.
-If a `mapping_weight` column is supplied, `PeptideDifferentialEstimateTable`
-rejects it under the recorded policy
-`mapping_weight_rejected_not_consumed_posthoc_v1`. Mapping weights are supported
-only in the sample-intensity peptide-evidence resolution lane governed by
-ADR-0020, where there is an explicit signal-allocation model.
-
-## Output Interpretation
-
-Output tables record:
-
-- contrast identity and orientation;
-- effect scale and unit;
-- model/estimator identity;
-- input statistic distribution and uncertainty-method/version;
-- aggregation level;
-- dependence assumption;
-- uncertainty method;
-- p-value method;
-- statistic distribution;
-- correction method;
-- source experiment/run identifiers;
-- peptide-to-site mapping policy.
-
-A post-hoc combined site row is a site-level summary under the recorded typed
-uncertainty and dependence assumptions. It is not evidence that same-experiment
-peptides were independent, and it is not a replacement for sample-level
-peptide-to-site resolution followed by the core differential model.
-
-Run provenance and the `peptide_to_site_aggregation_v1` scientific-policy record
-also record input contrast identity, effect scale, model/estimator, statistic
-distribution, consistency policy, tolerance version, approximation policy, and
-mapping-weight policy.
-
-## Unsupported Claims
-
-This ADR does not claim:
-
-- no post-hoc same-experiment peptide meta-analysis;
-- independence of peptide estimates from the same samples;
-- no limma `duplicateCorrelation`, mixed-effects, or clustered-covariance modelling;
-- no broad upstream statistical result import lane;
-- equivalence between single-estimate pass-through and meta-analysis;
-- that finite-df t statistics can be used directly as z statistics.
-- that mixed contrasts, opposite orientations, mixed scales/units, or different
-  estimator/model/statistic families can be combined without an explicit
-  supported adapter.
+Science-owned source under `phospy.science.differential.aggregation` may be
+retained only as internal future-work material. Retention is not public support.
+If retained internal source is exercised in experiments, its provenance must
+record the unsupported/withdrawn status and must not be presented as production
+PhosPy functionality.
 
 ## Responsibility Audit
 
 Ownership boundaries are:
 
 - validators validate eligibility and request shape only;
+- public request DTOs remain passive and do not execute combination semantics;
 - interpreters resolve user policy and routing only;
 - result assemblers attach already-computed outputs and provenance only;
-- numerical uncertainty handling lives in
-  `phospy.science.differential.aggregation` or the core
-  `phospy.science.differential` implementation;
+- withdrawal enforcement belongs at the public compatibility/export boundary;
+- numerical combination source, if retained for future work, remains
+  science-owned and must not move into workflow orchestration, validation, or
+  request DTOs;
 - peptide evidence sample-intensity resolution remains owned by
-  `phospy.science.evidence` and dataset preprocessing/builder logic.
+  `phospy.science.evidence` and dataset preprocessing/builder logic;
+- the core `DifferentialAnalysisWorkflow` remains independent of the withdrawn
+  feature.
+
+## Non-Claims
+
+This ADR does not authorize or provide:
+
+- a public post-hoc peptide-to-site differential estimate-combination route;
+- coherent post-hoc combined site-level effects or inferential results;
+- executable mapping semantics for split, exclude, keep-joint, or weighted
+  post-hoc policies;
+- independence of peptide estimates from the same samples;
+- no limma `duplicateCorrelation`, no mixed-effects modelling,
+  no clustered-covariance modelling, and no covariance-aware peptide
+  combination modelling;
+- equivalence between single-estimate pass-through and meta-analysis;
+- that finite-degree-of-freedom t statistics can be used directly as z
+  statistics.

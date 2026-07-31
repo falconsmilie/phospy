@@ -79,13 +79,13 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   refreshed.
 - Strict typing, Pyright formatting, CI performance contracts, and
   unsupported-support-claim tests were expanded.
-- Peptide-to-site differential evidence now has a supported narrow typed
-  post-hoc route for independent source estimates under
-  `supported_typed_estimate_combination_v2`. It requires coherent moderated-t
-  rows plus shared contrast/orientation, effect scale/unit, model/estimator,
-  statistic distribution, and uncertainty-method version; the preferred lane
-  remains peptide evidence resolution at sample-intensity level before
-  `DifferentialAnalysisWorkflow`.
+- Peptide-to-site differential evidence keeps the preferred supported lane:
+  peptide evidence resolution at sample-intensity level before
+  `DifferentialAnalysisWorkflow`. The post-hoc peptide differential
+  estimate-combination lane is withdrawn from public support under
+  `unsupported_withdrawn_posthoc_estimate_combination_v1`; its retained
+  compatibility shell fails closed because coherent combined effect/inference
+  and executable mapping semantics are not implemented.
 
 ## Deprecations
 
@@ -99,11 +99,11 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   `build_motif_library_from_sequences(...)` now emit `DeprecationWarning`.
   Use `ExplicitMotifSequence` values or structured mapping entries with stable
   `reference_id`, optional `site_id`, `kinase`, and `sequence` fields.
-- Old raw-table peptide-to-site aggregation strategies were superseded by the
-  typed `PeptideDifferentialEstimateTable` contract. Raw
-  `peptide_differential_table` + `evidence` aggregation is rejected because it
-  would infer uncertainty from `logFC/t`; post-hoc `mapping_weight` is also
-  rejected because no allocation model consumes it in that lane.
+- Post-hoc peptide-to-site differential estimate combination is withdrawn
+  rather than retained as a supported typed route. Future public support
+  requires executable mapping semantics, a coherent combined estimand, an
+  inferential result, dependence handling, multiple-testing semantics,
+  provenance semantics, docs, and tests.
 - `TechnicalReplicateResolver` now emits `DeprecationWarning` when constructed
   or run. Normal callers should use `DifferentialAnalysisWorkflow`; low-level
   callers should use `TechnicalReplicateAggregationPlanner` plus
@@ -117,9 +117,9 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   need to be regenerated.
 - Internal constructed-site-ID fallbacks, site-matrix compatibility wrappers,
   and unused signalome compatibility primitive helpers were removed.
-- The old untyped peptide-to-site differential aggregation shell was removed.
-  Supported public exports now require `PeptideDifferentialEstimateTable` and
-  explicit uncertainty/dependence metadata.
+- The old public peptide-to-site differential aggregation shell is no longer a
+  supported production route. Compatibility access is internal/experimental and
+  fails closed before calculation.
 
 ## Fixes and Hardening
 
@@ -136,11 +136,9 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - Differential result invariants and numerical edge cases were hardened,
   including public result identity coherence, finite-p-value BH adjustment
   semantics, and explicit infinite-value coverage.
-- Peptide-to-site post-hoc differential estimate combination now rejects
-  contradictory effect/statistic signs, effect/SE/statistic mismatches,
-  p/statistic/DF mismatches, mixed contrast/model/scale identities,
-  same-experiment or declared-correlated estimates, small-DF fixed-effect
-  inverse-variance inputs, and unsupported post-hoc mapping weights.
+- Post-hoc peptide-to-site differential estimate combination no longer executes
+  through public compatibility access. Mapping policies such as equal splitting
+  or statistical-model exclusion must not silently execute as ordinary evidence.
 - Public API `__all__` compatibility exports and request validation boundaries
   were corrected.
 - MaxQuant and FragPipe/PTMProphet importers were hardened with realistic

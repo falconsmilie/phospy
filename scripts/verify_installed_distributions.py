@@ -109,6 +109,60 @@ def _verify_public_surface() -> None:
         raise AssertionError("root DifferentialAnalysisWorkflow is not api export")
     if phospy.KinaseWorkflow is not api.KinaseWorkflow:
         raise AssertionError("root KinaseWorkflow is not api export")
+    _verify_withdrawn_peptide_to_site_boundary()
+
+
+def _verify_withdrawn_peptide_to_site_boundary() -> None:
+    import phospy.science.differential as differential_public
+    import phospy.science.differential.aggregation as aggregation_public
+    from phospy.errors import PhosPyInputError
+    from phospy.science.differential.aggregation.experimental import (
+        PeptideToSiteAggregator,
+    )
+
+    withdrawn_public_exports = {
+        "PeptideDifferentialEstimateTable",
+        "PeptideToSiteAggregationConfig",
+        "PeptideToSiteAggregationExecutor",
+        "PeptideToSiteAggregationResult",
+        "PeptideToSiteAggregator",
+        "PEPTIDE_TO_SITE_MAPPING_POLICY_EXCLUDE_FROM_STATISTICAL_MODEL",
+        "PEPTIDE_TO_SITE_MAPPING_POLICY_SPLIT_EQUAL_WEIGHT",
+        "SUPPORTED_PEPTIDE_TO_SITE_MAPPING_POLICIES",
+    }
+    for module_name, module in (
+        ("phospy.science.differential", differential_public),
+        ("phospy.science.differential.aggregation", aggregation_public),
+    ):
+        leaked = withdrawn_public_exports & set(module.__all__)
+        if leaked:
+            raise AssertionError(
+                f"{module_name} still exports withdrawn post-hoc symbols: "
+                f"{sorted(leaked)}"
+            )
+
+    if aggregation_public.PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS != (
+        "unsupported_withdrawn_posthoc_estimate_combination_v1"
+    ):
+        raise AssertionError("peptide-to-site aggregation support status is not withdrawn")
+
+    try:
+        PeptideToSiteAggregator().run({"logFC": [-9.75]})
+    except PhosPyInputError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("withdrawn peptide-to-site compatibility shell executed")
+
+    for required in (
+        "withdrawn from public support",
+        "coherent combined effect/inference",
+        "executable peptide-to-site mapping semantics",
+    ):
+        if required not in message:
+            raise AssertionError(
+                "withdrawn peptide-to-site compatibility error is missing "
+                f"{required!r}: {message}"
+            )
 
 
 def _verify_bundled_rat_reference_resources() -> dict[str, object]:

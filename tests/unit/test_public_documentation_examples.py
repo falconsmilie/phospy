@@ -45,7 +45,7 @@ API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
 )
 """
 
-SUPPORTED_AGGREGATION_PUBLIC_IMPORT_NAMES = (
+WITHDRAWN_AGGREGATION_PUBLIC_IMPORT_NAMES = (
     "PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T",
     "PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES",
     "PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID",
@@ -455,14 +455,24 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
     )
 
 
-def test_docs_import_supported_typed_peptide_to_site_aggregation_route() -> None:
+def test_docs_do_not_import_withdrawn_peptide_to_site_aggregation_route() -> None:
     source = _read(DIFFERENTIAL_WORKFLOW_DOC)
 
-    _assert_python_imports(
+    _assert_python_imports_absent(
         source,
         "phospy.science.differential.aggregation",
-        SUPPORTED_AGGREGATION_PUBLIC_IMPORT_NAMES,
-        context="typed peptide-to-site aggregation public route",
+        WITHDRAWN_AGGREGATION_PUBLIC_IMPORT_NAMES,
+        context="withdrawn peptide-to-site aggregation public route",
+    )
+    _assert_statement_contains_all(
+        source,
+        ("withdrawn", "fails closed"),
+        context="withdrawn peptide-to-site aggregation documentation",
+    )
+    _assert_statement_contains_all(
+        source,
+        ("future public support", "executable", "mapping"),
+        context="withdrawn peptide-to-site aggregation reintroduction conditions",
     )
 
 
@@ -486,7 +496,10 @@ def test_docs_do_not_import_legacy_peptide_to_site_aggregation_strategies() -> N
         _assert_python_imports_absent(
             source,
             module_name,
-            LEGACY_AGGREGATION_IMPORT_NAMES,
+            (
+                *LEGACY_AGGREGATION_IMPORT_NAMES,
+                *WITHDRAWN_AGGREGATION_PUBLIC_IMPORT_NAMES,
+            ),
             context="legacy peptide-to-site aggregation strategy removal",
         )
 

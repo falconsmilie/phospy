@@ -1,4 +1,8 @@
-"""Science-owned peptide-to-site differential estimate-combination execution."""
+"""Internal peptide-to-site differential estimate-combination execution.
+
+The public post-hoc lane is withdrawn. This source is retained only for future
+scientific design work and is not exported through supported facades.
+"""
 
 from __future__ import annotations
 
@@ -51,7 +55,7 @@ _Z_DISTRIBUTION = "standard_normal_z"
 
 
 class PeptideToSiteAggregationExecutor:
-    """Execute typed peptide-level estimate combination into site-level rows."""
+    """Execute internal peptide-level estimate-combination experiments."""
 
     def run_estimates(
         self,
@@ -636,7 +640,7 @@ def _enforce_independent_source_estimates(
     if unsupported:
         raise PhosPyInputError(
             "same-sample or otherwise correlated peptide estimates cannot be "
-            "combined by the supported post-hoc peptide-to-site lane; "
+            "combined by the withdrawn post-hoc peptide-to-site lane; "
             f"site_id={site_id!r}, dependence_policy_values={sorted(set(unsupported))}. "
             "Resolve peptide evidence at sample-intensity level before fitting "
             "the differential model, or add a supported dependence-aware method."
@@ -648,7 +652,7 @@ def _enforce_independent_source_estimates(
     if duplicated_sources:
         raise PhosPyInputError(
             "same-experiment peptide estimates for one site are rejected by the "
-            "supported post-hoc peptide-to-site lane because same-sample peptide "
+            "withdrawn post-hoc peptide-to-site lane because same-sample peptide "
             "dependence is not modelled; "
             f"site_id={site_id!r}, duplicated_source_experiment_id_values="
             f"{duplicated_sources}"
@@ -715,8 +719,4 @@ def _sign(value: float) -> float:
     return 0.0
 
 
-__all__ = [
-    "PeptideToSiteAggregationExecutor",
-    "signed_z_from_t_statistic",
-    "signed_z_from_two_sided_p_value",
-]
+__all__: list[str] = []

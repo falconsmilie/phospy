@@ -29,16 +29,13 @@ All notable changes to this project are documented here.
   classes from `phospy.api.datasets`. Stable users should inspect diagnostics
   through dataset properties, builder reports, workflow results, and provenance
   records.
-- Reintroduced a supported narrow peptide-to-site differential
-  estimate-combination route through `PeptideDifferentialEstimateTable` and
-  `PeptideToSiteAggregator` under
-  `supported_typed_estimate_combination_v2`. The route requires typed
-  contrast/orientation, effect scale/unit, model/estimator, statistic
-  distribution, uncertainty-method version, coherent moderated-t
-  effect/SE/statistic/p/DF rows, source experiment/run identifiers, dependence
-  policy, and mapping policy; same-experiment peptide estimates are rejected
-  unless a future dependence-aware method is added. Post-hoc `mapping_weight`
-  is rejected because no allocation model consumes it in this lane. The
+- Withdrew the post-hoc peptide-to-site differential estimate-combination route
+  from public support under
+  `unsupported_withdrawn_posthoc_estimate_combination_v1`. Supported public
+  science facades no longer export `PeptideToSiteAggregator` or the typed
+  post-hoc config/result as production functionality. The retained
+  compatibility shell fails closed because coherent combined effect/inference
+  and executable peptide-to-site mapping semantics are not implemented. The
   preferred PhosPy-origin lane remains peptide evidence resolution at
   sample-intensity level before `DifferentialAnalysisWorkflow`.
 
@@ -191,9 +188,9 @@ All notable changes to this project are documented here.
 - bare motif sequence strings passed to `build_motif_library_from_sequences` now emit `DeprecationWarning`; migrate to
   `ExplicitMotifSequence` values or structured mapping entries with stable `reference_id`, optional `site_id`,
   `kinase`, and `sequence` fields.
-- Old raw-table peptide-to-site differential aggregation strategies are superseded by the typed
-  `PeptideDifferentialEstimateTable` contract. Raw `peptide_differential_table` plus evidence aggregation is rejected
-  because it would infer uncertainty from `logFC/t`.
+- Post-hoc peptide-to-site differential aggregation is not a supported production route. Resolve peptide evidence at
+  sample-intensity level before `DifferentialAnalysisWorkflow`; any future public post-hoc support requires a separate
+  scientific design with executable mapping semantics and coherent combined inference.
 - `TechnicalReplicateResolver` now emits `DeprecationWarning` when constructed or run; migrate low-level callers to
   `TechnicalReplicateAggregationPlanner` plus `TechnicalReplicateAggregator`, or use `DifferentialAnalysisWorkflow` for
   normal workflow execution.

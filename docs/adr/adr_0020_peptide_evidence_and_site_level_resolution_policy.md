@@ -47,15 +47,13 @@ differential model.
 
 Post-hoc peptide-level differential estimate combination is governed separately
 by [ADR-0041: Peptide-to-Site Differential Uncertainty Policy](adr_0041_peptide_to_site_differential_uncertainty_policy.md).
-The supported post-hoc route requires typed standard errors, original
-finite-degree-of-freedom uncertainty, contrast/orientation identity, effect
-scale/unit, model or estimator identity, statistic distribution,
-uncertainty-method version, source experiment/run identifiers, dependence
-policy, and mapping policy. Same-experiment peptide estimates are rejected
-unless a future dependence-aware method is explicitly added. Post-hoc
-`mapping_weight` is rejected there because ADR-0020's sample-intensity
-resolution lane is the only current lane with an explicit mapping-weight signal
-allocation model.
+That route is withdrawn from public support and its compatibility shell fails
+closed because coherent combined effect/inference semantics and executable
+peptide-to-site mapping semantics are not implemented. ADR-0020's
+sample-intensity resolution lane is the only current lane with an explicit
+mapping-weight signal allocation model. Future public support for post-hoc
+combination requires executable mapping semantics, a coherent combined
+estimand, and an inferential result.
 
 Scientific rationale:
 

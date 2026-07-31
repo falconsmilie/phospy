@@ -535,32 +535,22 @@ def test_peptide_to_site_differential_uncertainty_scope_is_documented() -> None:
     assert (
         "| peptide-to-site differential evidence | `validated phospy implementation` |"
         in normalized
+        or "| peptide-to-site differential evidence | `validated phospy implementation` for the sample-intensity route; `withdrawn` for post-hoc estimate combination |"
+        in normalized
     )
     assert "sample-intensity level before differential model fitting" in normalized
-    assert "peptidedifferentialestimatetable" in normalized
-    assert "contrast identity" in normalized
-    assert "contrast orientation" in normalized
-    assert "effect scale/unit" in normalized
-    assert "model/estimator" in normalized
-    assert "statistic distribution" in normalized
-    assert "uncertainty-method version" in normalized
-    assert "standard error" in normalized
-    assert "residual degrees of freedom" in normalized
-    assert "moderated degrees of freedom" in normalized
-    assert "source experiment/run identifier" in normalized
-    assert "effect/statistic sign" in normalized
-    assert "effect/standard-error/statistic" in normalized
-    assert "p/statistic/df consistency" in normalized
-    assert "moderated_t_row_consistency_tolerances_v1" in normalized
-    assert "same-experiment peptide estimates are rejected" in normalized
-    assert "same-sample peptide dependence is not modelled" in normalized
-    assert "single-estimate outputs are pass-through" in normalized
-    assert "not called meta-analysis" in normalized
-    assert "signed two-sided p-value conversion" in normalized
-    assert "not `z=t`" in normalized
-    assert "large-df asymptotic-normal eligibility policy" in normalized
-    assert "mapping_weight` is rejected in the post-hoc lane" in normalized
-    assert "configured shared correction method" in normalized
+    assert "withdrawn from public support" in normalized
+    assert "fails closed" in normalized
+    assert "coherent combined effect/inference" in normalized
+    assert "coherent combined estimand" in normalized
+    assert "inferential result" in normalized
+    assert "executable mapping semantics" in normalized
+    assert "same-experiment peptide estimates" in normalized
+    assert "multiple-testing semantics" in normalized
+    assert "provenance semantics" in normalized
+    assert "must not silently execute as ordinary evidence" in normalized
+    assert "peptidetositeaggregator" not in normalized
+    assert "peptidedifferentialestimatetable" not in normalized
     assert "fixed_effect_meta" not in normalized
     assert "compat_best_p_value" not in normalized
 

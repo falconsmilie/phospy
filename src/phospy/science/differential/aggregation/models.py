@@ -1,10 +1,11 @@
-"""Typed peptide-to-site differential estimate-combination models.
+"""Internal peptide-to-site differential estimate-combination models.
 
 The preferred PhosPy peptide-to-site lane resolves peptide evidence to a
 site-level sample-intensity matrix before running the core differential model.
-The models in this module cover the narrower post-hoc lane for caller-supplied
-peptide-level differential estimates. That lane is supported only when the
-input uncertainty is typed and dependence assumptions are explicit.
+The post-hoc lane for caller-supplied peptide-level differential estimates has
+been withdrawn from public support. This module is retained as internal
+future-work source only; the public compatibility shell fails closed before
+execution.
 """
 
 from __future__ import annotations
@@ -33,7 +34,9 @@ from phospy.science.configs.differential import (
     MultipleTestingMethod,
 )
 
-PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS = "supported_typed_estimate_combination_v2"
+PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS = (
+    "unsupported_withdrawn_posthoc_estimate_combination_v1"
+)
 
 PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY = (
     "moderated_t_effect_se_statistic_p_value_consistency_v1"
@@ -97,9 +100,6 @@ PEPTIDE_TO_SITE_MAPPING_POLICY_EXCLUDE_FROM_STATISTICAL_MODEL = (
 )
 SUPPORTED_PEPTIDE_TO_SITE_MAPPING_POLICIES: tuple[str, ...] = (
     PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
-    PEPTIDE_TO_SITE_MAPPING_POLICY_KEEP_JOINT,
-    PEPTIDE_TO_SITE_MAPPING_POLICY_SPLIT_EQUAL_WEIGHT,
-    PEPTIDE_TO_SITE_MAPPING_POLICY_EXCLUDE_FROM_STATISTICAL_MODEL,
 )
 
 PEPTIDE_DIFFERENTIAL_ESTIMATE_REQUIRED_COLUMNS: tuple[str, ...] = (
@@ -157,7 +157,7 @@ PEPTIDE_TO_SITE_AGGREGATION_RESULT_REQUIRED_COLUMNS: tuple[str, ...] = (
 
 @dataclass(frozen=True, slots=True, init=False)
 class PeptideDifferentialEstimateTable:
-    """Typed peptide-level differential estimates for post-hoc site combination.
+    """Internal typed peptide-level differential estimates for future work.
 
     Required columns record the original finite-degree-of-freedom uncertainty.
     ``p_value`` is the original two-sided p-value from the peptide-level model;
@@ -201,7 +201,8 @@ class PeptideDifferentialEstimateTable:
         if "mapping_weight" in frame.columns:
             raise PhosPyInputError(
                 "peptide_differential_estimate_table.mapping_weight is not "
-                "supported in the post-hoc differential estimate lane because "
+                "accepted in the withdrawn post-hoc differential estimate lane "
+                "because "
                 "no allocation model consumes it; omit the column or resolve "
                 "peptide evidence at sample-intensity level before fitting."
             )
@@ -351,7 +352,7 @@ class PeptideDifferentialEstimateTable:
 
 @dataclass(frozen=True, slots=True)
 class PeptideToSiteAggregationConfig:
-    """Configuration for typed peptide-to-site estimate combination."""
+    """Internal configuration for withdrawn peptide-to-site estimate combination."""
 
     uncertainty_method: str = PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P
     min_estimates_per_site: int = 1
@@ -408,7 +409,7 @@ class PeptideToSiteAggregationConfig:
 
 @dataclass(frozen=True, slots=True, init=False)
 class PeptideToSiteAggregationResult:
-    """Site-level result from typed peptide estimate combination."""
+    """Internal result from withdrawn peptide estimate combination."""
 
     contrast_name: str
     table: pd.DataFrame
@@ -755,38 +756,6 @@ def _validate_result_p_values(table: pd.DataFrame) -> None:
 
 
 __all__ = [
-    "PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY",
-    "PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION",
-    "PEPTIDE_DIFFERENTIAL_ESTIMATE_OPTIONAL_COLUMNS",
-    "PEPTIDE_DIFFERENTIAL_ESTIMATE_REQUIRED_COLUMNS",
-    "PEPTIDE_DIFFERENTIAL_MAPPING_WEIGHT_POLICY_REJECT",
-    "PEPTIDE_DIFFERENTIAL_P_VALUE_ABS_TOLERANCE",
-    "PEPTIDE_DIFFERENTIAL_P_VALUE_REL_TOLERANCE",
-    "PEPTIDE_DIFFERENTIAL_STATISTIC_ABS_TOLERANCE",
-    "PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T",
-    "PEPTIDE_DIFFERENTIAL_STATISTIC_REL_TOLERANCE",
-    "PEPTIDE_TO_SITE_AGGREGATION_LEVEL_POSTHOC",
     "PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SAMPLE_INTENSITY",
-    "PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SINGLE_ESTIMATE",
-    "PEPTIDE_TO_SITE_AGGREGATION_RESULT_REQUIRED_COLUMNS",
     "PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS",
-    "PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES",
-    "PEPTIDE_TO_SITE_DEPENDENCE_POLICY_SAME_EXPERIMENT_CORRELATED",
-    "PEPTIDE_TO_SITE_FIXED_EFFECT_APPROXIMATION_POLICY",
-    "PEPTIDE_TO_SITE_FIXED_EFFECT_MIN_ASYMPTOTIC_MODERATED_DF",
-    "PEPTIDE_TO_SITE_MAPPING_POLICY_EXCLUDE_FROM_STATISTICAL_MODEL",
-    "PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID",
-    "PEPTIDE_TO_SITE_MAPPING_POLICY_KEEP_JOINT",
-    "PEPTIDE_TO_SITE_MAPPING_POLICY_SPLIT_EQUAL_WEIGHT",
-    "PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_FIXED_EFFECT_INVERSE_VARIANCE",
-    "PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_SINGLE_ESTIMATE_PASSTHROUGH",
-    "PEPTIDE_TO_SITE_UNCERTAINTY_METHOD_STOUFFER_SIGNED_P",
-    "SUPPORTED_PEPTIDE_TO_SITE_CONFIG_DEPENDENCE_POLICIES",
-    "SUPPORTED_PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTIONS",
-    "SUPPORTED_PEPTIDE_TO_SITE_ESTIMATE_DEPENDENCE_POLICIES",
-    "SUPPORTED_PEPTIDE_TO_SITE_MAPPING_POLICIES",
-    "SUPPORTED_PEPTIDE_TO_SITE_UNCERTAINTY_METHODS",
-    "PeptideDifferentialEstimateTable",
-    "PeptideToSiteAggregationConfig",
-    "PeptideToSiteAggregationResult",
 ]

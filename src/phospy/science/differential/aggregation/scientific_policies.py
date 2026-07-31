@@ -1,4 +1,4 @@
-"""Scientific policy records for typed peptide-to-site estimate combination."""
+"""Internal policy records for withdrawn peptide-to-site estimate combination."""
 
 from __future__ import annotations
 
@@ -27,20 +27,21 @@ def build_peptide_to_site_aggregation_policy(
     approximation_policy: str,
     mapping_weight_policy: str,
 ) -> ScientificPolicyRecord:
-    """Build deterministic provenance for peptide-to-site estimate combination."""
+    """Build deterministic provenance for internal future-work experiments."""
 
     return ScientificPolicyRecord(
         id=ScientificPolicyId.PEPTIDE_TO_SITE_AGGREGATION,
         name=f"peptide_to_site_{uncertainty_method}_v1",
         version="1",
         description=(
-            "Records a typed peptide-to-site post-hoc differential estimate "
-            "combination run. The preferred PhosPy-origin lane remains "
+            "Records an internal withdrawn peptide-to-site post-hoc "
+            "differential estimate-combination experiment. This is not a "
+            "supported public route. The preferred PhosPy-origin lane remains "
             "sample-intensity peptide evidence resolution before differential "
             "model fitting."
         ),
         parameters={
-            "support_status": "supported_typed_estimate_combination_v2",
+            "support_status": ("unsupported_withdrawn_posthoc_estimate_combination_v1"),
             "uncertainty_method": str(uncertainty_method),
             "min_estimates_per_site": int(min_estimates_per_site),
             "dependence_policy": str(dependence_policy),
@@ -66,7 +67,11 @@ def build_peptide_to_site_aggregation_policy(
         assumptions=(
             "Single-estimate site outputs are pass-through summaries and are "
             "not labelled as meta-analysis.",
-            "Multi-estimate post-hoc combination is supported only for estimates "
+            "Multi-estimate post-hoc combination was withdrawn pending a "
+            "coherent combined estimand/inference model and executable mapping "
+            "semantics. Internal experiments must not be presented as public "
+            "support.",
+            "Historical multi-estimate experiments were limited to estimates "
             "from independent source experiments or runs.",
             "Same-experiment peptide estimates from the same samples are rejected "
             "because their dependence is not modelled by this lane.",
@@ -80,18 +85,19 @@ def build_peptide_to_site_aggregation_policy(
             "t evidence through signed two-sided p-values rather than z=t.",
             "Fixed-effect inverse-variance combination is restricted to the "
             "recorded large-DF asymptotic-normal eligibility policy.",
-            "Post-hoc mapping weights are rejected rather than silently ignored.",
+            "Post-hoc mapping semantics are not implemented for public support; "
+            "mapping weights are rejected rather than silently ignored.",
             "Multiple-testing correction is delegated to the configured shared "
             "correction method.",
         ),
         output_scale=(
-            "Site-level post-hoc differential estimate summary with explicit "
-            "uncertainty and dependence provenance."
+            "Internal site-level post-hoc differential estimate experiment with "
+            "explicit unsupported/withdrawn provenance."
         ),
         quantitative_meaning=(
-            "typed_posthoc_peptide_differential_estimate_combination"
+            "withdrawn_internal_posthoc_peptide_differential_estimate_experiment"
         ),
     )
 
 
-__all__ = ["build_peptide_to_site_aggregation_policy"]
+__all__: list[str] = []
