@@ -31,6 +31,7 @@ selected by explicit Makefile targets. The release check blocks release on:
 | Default non-parity suite | Blocking through `pytest -m "not parity"` over configured `testpaths`. |
 | Checked-in reference bundles | Blocking through `python scripts/validate_reference_bundle_index.py --repo-root .`. |
 | Built distributions | Blocking through `make build`, metadata checks, and packaged-reference validation. |
+| Installed distributions | Blocking through `make verify-installed-distributions`, which installs and executes the built wheel and sdist outside the checkout. |
 | `release_gate`, `golden`, `reproducibility` in `tests/release` or `tests/golden` | Blocking through `make test-release-gates`, which runs `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"`. |
 | `parity` | Blocking through `pytest tests/parity -m "parity and not parity_diagnostic" -s`. |
 | `activity_parity` | Blocking because the activity parity file is also marked `parity` and is not marked `parity_diagnostic`; CI also has a dedicated activity parity gate. |
@@ -45,9 +46,11 @@ pytest marker category, is not collected by pytest, and is excluded from
 
 CI runs the default non-parity suite, threshold-bearing parity suite, release
 and golden gates, and performance contracts on each supported Python version:
-3.10, 3.11, and 3.12. Build and packaged-artifact validation remain a dedicated
-single-version release job. Manifest-governed fixture byte integrity also runs
-on both Ubuntu and Windows to catch checkout newline conversion regressions.
+3.10, 3.11, and 3.12. Build and archive-level packaged-reference validation
+remain a dedicated single-build artifact job; the uploaded wheel and sdist are
+then installed and executed by a separate Python 3.10, 3.11, and 3.12 verifier
+matrix. Manifest-governed fixture byte integrity also runs on both Ubuntu and
+Windows to catch checkout newline conversion regressions.
 
 CI also has a Python 3.10 minimum-dependency lane using
 `constraints/minimum.txt`. That lane installs the project with test
@@ -70,6 +73,7 @@ Based on that configuration:
 - Performance-only validation: `pytest tests/performance -m "performance or release_gate"`
 - Optional local release-scale benchmark: `make benchmark-release-scale`
 - Release/golden validation: `make test-release-gates`
+- Installed wheel/sdist validation: `make verify-installed-distributions`
 - Full release-check command: `make release-check`
 
 The default local run deliberately omits release tests, golden tests,

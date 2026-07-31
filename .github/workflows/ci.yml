@@ -486,30 +486,35 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -c constraints/ci.txt build twine setuptools wheel
           make build
-      - name: Smoke-test installed wheel outside checkout
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          wheels=(dist/*.whl)
-          sdists=(dist/*.tar.gz)
-          if (( ${#wheels[@]} != 1 )); then
-            echo "Expected exactly one wheel in dist/, found ${#wheels[@]}" >&2
-            exit 1
-          fi
-          if (( ${#sdists[@]} != 1 )); then
-            echo "Expected exactly one sdist in dist/, found ${#sdists[@]}" >&2
-            exit 1
-          fi
-          smoke_dir="$(mktemp -d)"
-          python -m venv "$smoke_dir/venv"
-          "$smoke_dir/venv/bin/python" -m pip install --upgrade pip
-          "$smoke_dir/venv/bin/python" -m pip install -c "$GITHUB_WORKSPACE/constraints/ci.txt" "${wheels[0]}"
-          "$smoke_dir/venv/bin/python" -m pip check
-          cd "$smoke_dir"
-          "$smoke_dir/venv/bin/python" -I -c "import pathlib, phospy; print(pathlib.Path(phospy.__file__).resolve())"
       - name: Store distribution artifacts
         uses: actions/upload-artifact@v5
         with:
           name: python-package-distributions
           path: dist/
+
+  installed-distribution-verification:
+    needs: build-distributions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Verify installed wheel and sdist outside checkout
+        run: |
+          python scripts/verify_installed_distributions.py --dist-dir dist --repo-root "$GITHUB_WORKSPACE" --constraint constraints/ci.txt

@@ -21,7 +21,10 @@ for publishing. Public releases must run the maintainer command,
 non-parity suite, threshold-bearing parity tests excluding
 `parity_diagnostic`, performance contracts, release/golden/reproducibility
 gates, checked-in reference validation, a fresh build, metadata checks, and
-packaged-reference checks.
+packaged-reference checks. `make release-check` also runs the standalone
+installed-distribution verifier, which installs the built wheel and sdist in
+temporary environments outside the checkout and executes public/scientific
+contracts from the installed package.
 
 This provides normal CI/build confidence, not formal exact-source/exact-artifact
 attestation.
@@ -37,7 +40,9 @@ separate Python 3.10 minimum-dependency lane uses `constraints/minimum.txt`,
 runs `pip check`, then runs the non-parity suite and release/golden selectors
 that do not require external scientific tools. Manifest-governed fixture byte
 integrity runs on both Ubuntu and Windows so release fixtures keep LF bytes
-across checkout platforms.
+across checkout platforms. The installed-distribution verifier also runs on
+Python 3.10, 3.11, and 3.12 against the single uploaded wheel/sdist artifact
+set.
 
 The optional 50,000 x 48 release-scale builder+differential benchmark lives
 under `benchmarks/` and is invoked with `make benchmark-release-scale`. It is

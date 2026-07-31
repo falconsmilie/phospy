@@ -41,9 +41,38 @@ jobs:
           name: python-package-distributions
           path: dist/
 
+  installed-distribution-verification:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Verify installed wheel and sdist outside checkout
+        run: |
+          python scripts/verify_installed_distributions.py --dist-dir dist --repo-root "$GITHUB_WORKSPACE" --constraint constraints/ci.txt
+
   publish-to-testpypi:
     if: startsWith(github.ref, 'refs/tags/tv')
-    needs: build
+    needs:
+      - build
+      - installed-distribution-verification
     runs-on: ubuntu-latest
     environment:
       name: testpypi
@@ -65,7 +94,9 @@ jobs:
 
   publish-to-pypi:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs:
+      - build
+      - installed-distribution-verification
     runs-on: ubuntu-latest
     environment:
       name: pypi

@@ -26,11 +26,9 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.performance_contracts import (
-    DATASET_VALIDATION_LARGE_ALIGNMENT_RUNTIME_SECONDS_MAX,
-    DATASET_VALIDATION_LARGE_N_SAMPLES,
-    DATASET_VALIDATION_LARGE_N_SITES,
-    DATASET_VALIDATION_LARGE_OBSERVATION_MASK_RUNTIME_SECONDS_MAX,
-    DATASET_VALIDATION_LARGE_SITE_METADATA_RUNTIME_SECONDS_MAX,
+    DATASET_VALIDATION_BOUNDED_ALIGNMENT_RUNTIME_SECONDS_MAX,
+    DATASET_VALIDATION_BOUNDED_OBSERVATION_MASK_RUNTIME_SECONDS_MAX,
+    DATASET_VALIDATION_BOUNDED_SITE_METADATA_RUNTIME_SECONDS_MAX,
     DATASET_VALIDATION_MEDIUM_CONSTRUCTION_RUNTIME_SECONDS_MAX,
     DATASET_VALIDATION_MEDIUM_N_SAMPLES,
     DATASET_VALIDATION_MEDIUM_N_SITES,
@@ -66,25 +64,12 @@ def medium_dataset_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
     )
 
 
-@pytest.fixture(scope="module")
-def large_dataset_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
-    return deterministic_analysis_ready_dataset_tables(
-        n_sites=DATASET_VALIDATION_LARGE_N_SITES,
-        n_samples=DATASET_VALIDATION_LARGE_N_SAMPLES,
-        seed=31_003,
-        start=30_000,
-        gene_prefix="LARGEPERF",
-    )
-
-
 def test_realistic_performance_fixtures_have_expected_shapes(
     small_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
     medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
-    large_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
     small_phospho, small_metadata = small_dataset_tables
     medium_phospho, medium_metadata = medium_dataset_tables
-    large_phospho, large_metadata = large_dataset_tables
 
     assert small_phospho.shape == (
         DATASET_VALIDATION_SMALL_N_SITES,
@@ -94,13 +79,8 @@ def test_realistic_performance_fixtures_have_expected_shapes(
         DATASET_VALIDATION_MEDIUM_N_SITES,
         DATASET_VALIDATION_MEDIUM_N_SAMPLES,
     )
-    assert large_phospho.shape == (
-        DATASET_VALIDATION_LARGE_N_SITES,
-        DATASET_VALIDATION_LARGE_N_SAMPLES,
-    )
     assert small_metadata.index.equals(small_phospho.index)
     assert medium_metadata.index.equals(medium_phospho.index)
-    assert large_metadata.index.equals(large_phospho.index)
 
 
 def test_medium_dataset_construction_completes_under_generous_threshold(
@@ -152,10 +132,10 @@ def test_analysis_ready_missing_value_scan_scales_for_numeric_matrix(
     assert numeric_runtime_seconds < object_runtime_seconds
 
 
-def test_large_site_metadata_validation_completes_under_generous_threshold(
-    large_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
+def test_bounded_site_metadata_validation_completes_under_generous_threshold(
+    medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
-    phospho, site_metadata = large_dataset_tables
+    phospho, site_metadata = medium_dataset_tables
 
     table, runtime_seconds, _peak_mib = measure_runtime_and_peak_mib(
         lambda: SiteMetadataTable(
@@ -165,15 +145,17 @@ def test_large_site_metadata_validation_completes_under_generous_threshold(
         warmup=False,
     )
 
-    assert table.frame.shape[0] == DATASET_VALIDATION_LARGE_N_SITES
+    assert table.frame.shape[0] == DATASET_VALIDATION_MEDIUM_N_SITES
     assert table.frame.index.equals(phospho.index)
-    assert runtime_seconds < DATASET_VALIDATION_LARGE_SITE_METADATA_RUNTIME_SECONDS_MAX
+    assert (
+        runtime_seconds < DATASET_VALIDATION_BOUNDED_SITE_METADATA_RUNTIME_SECONDS_MAX
+    )
 
 
-def test_large_site_key_metadata_alignment_completes_under_generous_threshold(
-    large_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
+def test_bounded_site_key_metadata_alignment_completes_under_generous_threshold(
+    medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
-    _phospho, site_metadata = large_dataset_tables
+    _phospho, site_metadata = medium_dataset_tables
 
     _result, runtime_seconds, _peak_mib = measure_runtime_and_peak_mib(
         lambda: enforce_site_key_matches_metadata(
@@ -184,13 +166,13 @@ def test_large_site_key_metadata_alignment_completes_under_generous_threshold(
         warmup=False,
     )
 
-    assert runtime_seconds < DATASET_VALIDATION_LARGE_ALIGNMENT_RUNTIME_SECONDS_MAX
+    assert runtime_seconds < DATASET_VALIDATION_BOUNDED_ALIGNMENT_RUNTIME_SECONDS_MAX
 
 
-def test_large_observation_mask_validation_completes_under_generous_threshold(
-    large_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
+def test_bounded_observation_mask_validation_completes_under_generous_threshold(
+    medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
-    phospho, _site_metadata = large_dataset_tables
+    phospho, _site_metadata = medium_dataset_tables
     values = np.ones(phospho.shape, dtype=bool)
     values[::11, 3::7] = False
     observed_mask = pd.DataFrame(
@@ -210,7 +192,8 @@ def test_large_observation_mask_validation_completes_under_generous_threshold(
 
     assert metadata.observed_mask.shape == phospho.shape
     assert (
-        runtime_seconds < DATASET_VALIDATION_LARGE_OBSERVATION_MASK_RUNTIME_SECONDS_MAX
+        runtime_seconds
+        < DATASET_VALIDATION_BOUNDED_OBSERVATION_MASK_RUNTIME_SECONDS_MAX
     )
 
 

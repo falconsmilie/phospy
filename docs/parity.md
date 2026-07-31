@@ -105,11 +105,14 @@ pytest tests/parity -m "parity and not parity_diagnostic" -s
 Release decisions should run the maintainer release checks (`make release-check`).
 Parity failures in that check are release-blocking, and
 performance, release/golden/reproducibility, checked-in reference,
-packaged-reference, metadata, and threshold-bearing parity checks must all pass
-before a public scientific release. Packaged reference validation blocks release
-when a bundled reference is missing file hashes, fails hash verification, lacks
-license/organism/namespace metadata, or declares a non-release-eligible
-`redistribution_status`.
+packaged-reference, installed wheel/sdist verification, metadata, and
+threshold-bearing parity checks must all pass before a public scientific
+release. Packaged reference validation blocks release when a bundled reference
+is missing file hashes, fails hash verification, lacks license/organism/namespace
+metadata, or declares a non-release-eligible `redistribution_status`. Installed
+verification separately installs both built artifacts outside the checkout,
+checks installed import origins, verifies bundled resources, and exercises
+representative public workflow contracts.
 `unresolved` bundled references block release, and `external_only` references
 must not be shipped as bundled data. `approved` requires verified evidence in
 the manifest for the exact packaged files; developers and Codex agents must not

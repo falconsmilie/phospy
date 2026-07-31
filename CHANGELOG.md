@@ -53,6 +53,10 @@ All notable changes to this project are documented here.
 - Added `constraints/minimum.txt` and a Python 3.10 CI lane that installs the
   project with test dependencies under declared lower-bound pins, runs
   `pip check`, and executes non-parity plus release/golden selectors.
+- Added `scripts/verify_installed_distributions.py` and
+  `make verify-installed-distributions` to install and execute the built wheel
+  and sdist in isolated environments outside the checkout, including bundled
+  reference resource hash checks and representative public workflow contracts.
 
 ### Fixed
 
@@ -70,6 +74,9 @@ All notable changes to this project are documented here.
   collection-only selector audit so release-blocking `tests/release`,
   `tests/golden`, parity, and performance nodes cannot be omitted silently from
   authoritative release targets.
+- Replaced the former wheel-only CI smoke with substantive installed wheel and
+  sdist verification on Python 3.10, 3.11, and 3.12. Publish jobs now
+  wait for that verifier matrix before trusted publishing.
 - Rejected conflicting supplied peptide-evidence `site_sequence` contexts for
   the same resolved phosphosite deterministically instead of selecting whichever
   sequence appeared first in input row order.
@@ -114,9 +121,9 @@ All notable changes to this project are documented here.
 - Superseded the retained-evidence release process with ADR-0039's lightweight
   solo-maintainer release path. The planned final attestation run is cancelled:
   releases now rely on normal CI/build confidence, fresh wheel/sdist builds,
-  metadata checks, packaged-reference validation, one installed-wheel smoke
-  test, and trusted publishing rather than formal exact-source/exact-artifact
-  attestation.
+  metadata checks, archive-level packaged-reference validation, installed
+  wheel/sdist execution verification, and trusted publishing rather than formal
+  exact-source/exact-artifact attestation.
 
 ## [1.6.0] - 2026-06-18
 

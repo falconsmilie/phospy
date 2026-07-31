@@ -155,6 +155,11 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   non-Boolean or JSON null raw `redistribution_allowed` values, requires an
   explicit `verified_at` date for approved bundled evidence, and treats file
   hashes as integrity checks rather than redistribution approval.
+- Release artifact verification now installs both the built wheel and sdist in
+  isolated temporary environments outside the checkout, verifies installed
+  import origins, checks bundled rat reference resources against manifest
+  SHA-256 values, and executes representative public dataset, differential,
+  and kinase workflow contracts.
 
 ## Scientific Scope
 

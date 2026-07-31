@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 from typing import Any
@@ -34,7 +35,26 @@ RELEASE_CHECK_DEPENDENCIES = (
     "validate-reference-bundles",
     "test-release-gates",
     "build",
+    "verify-installed-distributions",
 )
+PROHIBITED_RELEASE_SCALE_ROWS = 50_000
+PROHIBITED_RELEASE_SCALE_SAMPLES = 48
+REQUIRED_TEST_SOURCE_ROOTS = (
+    Path("tests/unit"),
+    Path("tests/integration"),
+    Path("tests/parity"),
+    Path("tests/workflows"),
+    Path("tests/validation"),
+    Path("tests/science"),
+    Path("tests/architecture"),
+    Path("tests/performance"),
+    Path("tests/release"),
+    Path("tests/golden"),
+    Path("tests/support"),
+)
+STATIC_RELEASE_SCALE_POLICY_EXCLUSIONS = {
+    Path("tests/release/test_release_gate_policy.py"),
+}
 RELEASE_SCALE_BENCHMARK_PATH = Path(
     "benchmarks/measure_release_scale_builder_differential.py"
 )
@@ -118,8 +138,196 @@ def _has_needs(job_block: str, dependency: str) -> bool:
     )
 
 
+def _make_target_dependencies(target_name: str) -> tuple[str, ...]:
+    target_line = _make_target_line(target_name)
+    return tuple(target_line.split(":", maxsplit=1)[1].split())
+
+
+def _make_dependency_closure(target_name: str) -> set[str]:
+    seen: set[str] = set()
+    pending = list(_make_target_dependencies(target_name))
+    while pending:
+        dependency = pending.pop()
+        if dependency in seen:
+            continue
+        seen.add(dependency)
+        try:
+            pending.extend(_make_target_dependencies(dependency))
+        except StopIteration:
+            continue
+    return seen
+
+
 def _assert_supported_python_matrix(job_block: str) -> None:
     assert "python-version: ['3.10', '3.11', '3.12']" in job_block
+
+
+def _iter_required_test_python_sources() -> tuple[Path, ...]:
+    paths: set[Path] = set()
+    for relative_root in REQUIRED_TEST_SOURCE_ROOTS:
+        root = ROOT / relative_root
+        if root.is_file() and root.suffix == ".py":
+            if root.relative_to(ROOT) not in STATIC_RELEASE_SCALE_POLICY_EXCLUSIONS:
+                paths.add(root)
+            continue
+        if root.is_dir():
+            paths.update(
+                path
+                for path in root.rglob("*.py")
+                if path.is_file()
+                and path.relative_to(ROOT) not in STATIC_RELEASE_SCALE_POLICY_EXCLUSIONS
+            )
+    return tuple(sorted(paths))
+
+
+def _parse_python_source(path: Path) -> ast.Module:
+    return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
+
+def _assigned_int_constants(tree: ast.Module) -> dict[str, int]:
+    constants: dict[str, int] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            value = _literal_int(node.value)
+            if value is None:
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    constants[target.id] = value
+        elif isinstance(node, ast.AnnAssign):
+            value = _literal_int(node.value)
+            if value is not None and isinstance(node.target, ast.Name):
+                constants[node.target.id] = value
+    return constants
+
+
+def _literal_int(node: ast.AST | None) -> int | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, int):
+        return int(node.value)
+    if (
+        isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, ast.USub)
+        and isinstance(node.operand, ast.Constant)
+        and isinstance(node.operand.value, int)
+    ):
+        return -int(node.operand.value)
+    return None
+
+
+def _resolved_int(node: ast.AST | None, constants: dict[str, int]) -> int | None:
+    value = _literal_int(node)
+    if value is not None:
+        return value
+    if isinstance(node, ast.Name):
+        return constants.get(node.id)
+    return None
+
+
+def _dimension_prefix(name: str, suffixes: tuple[str, ...]) -> str | None:
+    for suffix in suffixes:
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return None
+
+
+def _fixture_constant_dimension_issues(path: Path, tree: ast.Module) -> list[str]:
+    constants = _assigned_int_constants(tree)
+    row_suffixes = (
+        "_N_SITES",
+        "_N_ROWS",
+        "_SITE_COUNT",
+        "_ROW_COUNT",
+        "_FEATURE_COUNT",
+        "_N_FEATURES",
+    )
+    sample_suffixes = (
+        "_N_SAMPLES",
+        "_SAMPLE_COUNT",
+        "_COLUMN_COUNT",
+        "_N_COLUMNS",
+    )
+    row_prefixes = {
+        prefix
+        for name, value in constants.items()
+        if value == PROHIBITED_RELEASE_SCALE_ROWS
+        for prefix in (_dimension_prefix(name, row_suffixes),)
+        if prefix is not None
+    }
+    sample_prefixes = {
+        prefix
+        for name, value in constants.items()
+        if value == PROHIBITED_RELEASE_SCALE_SAMPLES
+        for prefix in (_dimension_prefix(name, sample_suffixes),)
+        if prefix is not None
+    }
+    return [
+        f"{path.relative_to(ROOT).as_posix()} defines prohibited 50,000x48 "
+        f"fixture constants with prefix {prefix!r}"
+        for prefix in sorted(row_prefixes & sample_prefixes)
+    ]
+
+
+def _fixture_construction_dimension_issues(path: Path, tree: ast.Module) -> list[str]:
+    constants = _assigned_int_constants(tree)
+    issues: list[str] = []
+    row_keywords = {
+        "n_sites",
+        "site_count",
+        "n_rows",
+        "row_count",
+        "n_features",
+        "feature_count",
+        "rows",
+    }
+    sample_keywords = {
+        "n_samples",
+        "sample_count",
+        "n_columns",
+        "column_count",
+        "columns",
+    }
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        keyword_values = {
+            str(keyword.arg): _resolved_int(keyword.value, constants)
+            for keyword in node.keywords
+            if keyword.arg is not None
+        }
+        has_prohibited_rows = any(
+            keyword_values.get(name) == PROHIBITED_RELEASE_SCALE_ROWS
+            for name in row_keywords
+        )
+        has_prohibited_samples = any(
+            keyword_values.get(name) == PROHIBITED_RELEASE_SCALE_SAMPLES
+            for name in sample_keywords
+        )
+        has_prohibited_shape = any(
+            _tuple_ints(argument, constants)
+            == (PROHIBITED_RELEASE_SCALE_ROWS, PROHIBITED_RELEASE_SCALE_SAMPLES)
+            for argument in (*node.args, *(keyword.value for keyword in node.keywords))
+        )
+        if has_prohibited_rows and has_prohibited_samples or has_prohibited_shape:
+            issues.append(
+                f"{path.relative_to(ROOT).as_posix()}:{node.lineno} constructs a "
+                "prohibited required 50,000x48 fixture"
+            )
+    return issues
+
+
+def _tuple_ints(
+    node: ast.AST,
+    constants: dict[str, int],
+) -> tuple[int, ...] | None:
+    if not isinstance(node, ast.Tuple | ast.List):
+        return None
+    values: list[int] = []
+    for element in node.elts:
+        value = _resolved_int(element, constants)
+        if value is None:
+            return None
+        values.append(value)
+    return tuple(values)
 
 
 def test_default_pytest_keeps_parity_out_of_fast_local_loop() -> None:
@@ -187,6 +395,10 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         "$(PYTHON) scripts/validate_reference_bundle_index.py --repo-root ."
         in _make_target_body("validate-reference-bundles")
     )
+    assert (
+        "$(PYTHON) scripts/verify_installed_distributions.py --dist-dir dist "
+        "--repo-root . --constraint constraints/ci.txt"
+    ) in _make_target_body("verify-installed-distributions")
 
 
 def test_release_scale_benchmark_is_local_optional_and_outside_pytest() -> None:
@@ -212,6 +424,32 @@ def test_release_commands_do_not_invoke_release_scale_benchmark() -> None:
     assert release_check_body == ""
     for token in RELEASE_SCALE_BENCHMARK_TOKENS:
         assert token not in test_performance_body
+
+
+def test_required_make_targets_do_not_depend_on_release_scale_benchmark() -> None:
+    for target_name in ("test-performance", "test-release-gates", "release-check"):
+        closure = _make_dependency_closure(target_name)
+        assert RELEASE_SCALE_BENCHMARK_TARGET not in closure
+
+
+def test_required_test_sources_do_not_define_50k_by_48_fixture_constants() -> None:
+    issues: list[str] = []
+    for path in _iter_required_test_python_sources():
+        issues.extend(
+            _fixture_constant_dimension_issues(path, _parse_python_source(path))
+        )
+
+    assert issues == []
+
+
+def test_required_test_sources_do_not_construct_50k_by_48_fixtures() -> None:
+    issues: list[str] = []
+    for path in _iter_required_test_python_sources():
+        issues.extend(
+            _fixture_construction_dimension_issues(path, _parse_python_source(path))
+        )
+
+    assert issues == []
 
 
 def test_github_actions_do_not_invoke_release_scale_benchmark() -> None:
@@ -242,7 +480,9 @@ def test_release_scale_policy_docs_are_local_optional_not_release_blocking() -> 
 
 def test_make_build_is_conventional_and_git_independent() -> None:
     build = _make_target_body("build")
+    verifier = _make_target_body("verify-installed-distributions")
 
+    assert "build" in _make_target_dependencies("verify-installed-distributions")
     assert "$(RM_RF) dist" in build
     assert "$(BUILD)" in build
     assert "dist/*.whl" in build
@@ -257,18 +497,57 @@ def test_make_build_is_conventional_and_git_independent() -> None:
     assert build.index("$(TWINE) check dist/*") < build.index(
         "scripts/validate_reference_bundle_distribution.py"
     )
+    assert "scripts/verify_installed_distributions.py" not in build
+    assert "scripts/validate_reference_bundle_distribution.py" not in verifier
+    assert "scripts/verify_installed_distributions.py" in verifier
+    assert "--dist-dir dist" in verifier
+    assert "--repo-root ." in verifier
+    assert "--constraint constraints/ci.txt" in verifier
+
+
+def test_installed_distribution_verifier_is_standalone_release_tooling() -> None:
+    verifier_path = ROOT / "scripts/verify_installed_distributions.py"
+    source = verifier_path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(verifier_path))
+    imported_modules: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported_modules.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            imported_modules.add(node.module)
+
+    assert not any(
+        module == "tests" or module.startswith("tests.") for module in imported_modules
+    )
+    assert "conftest" not in imported_modules
+    assert "PYTHONPATH=src" not in source
+    assert 'env.pop("PYTHONPATH", None)' in source
+    assert '"-I"' in source
+    assert "TemporaryDirectory" in source
+    assert "phospy.__file__" in source
+    assert "load_bundled_reference_manifest" in source
+    assert "hashlib.sha256" in source
+    assert "DifferentialAnalysisWorkflow" in source
+    assert "KinaseWorkflow" in source
 
 
 def test_publish_workflow_builds_once_and_publishes_uploaded_dist() -> None:
     workflow = _read(".github/workflows/publish.yml")
     build = _workflow_job_block(workflow, "build")
+    verifier = _workflow_job_block(workflow, "installed-distribution-verification")
     testpypi = _workflow_job_block(workflow, "publish-to-testpypi")
     pypi = _workflow_job_block(workflow, "publish-to-pypi")
 
     assert "run: make release-check" in build
     assert "name: python-package-distributions" in build
+    assert _has_needs(verifier, "build")
+    _assert_supported_python_matrix(verifier)
+    assert "python scripts/verify_installed_distributions.py" in verifier
+    assert "--dist-dir dist" in verifier
     assert _has_needs(testpypi, "build")
+    assert _has_needs(testpypi, "installed-distribution-verification")
     assert _has_needs(pypi, "build")
+    assert _has_needs(pypi, "installed-distribution-verification")
     assert "packages-dir: dist/" in testpypi
     assert "packages-dir: dist/" in pypi
     assert "id-token: write" in testpypi
@@ -287,6 +566,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     fixture_integrity = _workflow_job_block(workflow, "fixture-integrity")
     release_gates = _workflow_job_block(workflow, "release-gates")
     build = _workflow_job_block(workflow, "build-distributions")
+    installed = _workflow_job_block(workflow, "installed-distribution-verification")
 
     _assert_supported_python_matrix(clean_install)
     _assert_supported_python_matrix(default_suite)
@@ -294,6 +574,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     _assert_supported_python_matrix(hard_parity)
     _assert_supported_python_matrix(performance)
     _assert_supported_python_matrix(release_gates)
+    _assert_supported_python_matrix(installed)
     assert "python-version: '3.10'" in diagnostics
     assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance
@@ -316,6 +597,10 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "continue-on-error: true" in diagnostics
     assert '-m "parity_diagnostic"' in diagnostics
     assert "make build" in build
-    assert "python -m venv" in build
-    assert "-m pip check" in build
-    assert "import pathlib, phospy" in build
+    assert "Smoke-test installed wheel outside checkout" not in build
+    assert _has_needs(installed, "build-distributions")
+    assert "uses: actions/download-artifact@v6" in installed
+    assert "python scripts/verify_installed_distributions.py" in installed
+    assert "--dist-dir dist" in installed
+    assert '--repo-root "$GITHUB_WORKSPACE"' in installed
+    assert "--constraint constraints/ci.txt" in installed

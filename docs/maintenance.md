@@ -28,7 +28,8 @@ pytest -o addopts= tests/release tests/golden -m "release_gate or golden or repr
 For full release checks, install the release extras first. The maintainer
 release command is `make release-check`; it runs normal lint, type, unit,
 parity, performance, release/golden/reproducibility, checked-in reference,
-metadata, packaged-reference, and build checks:
+metadata, archive-level packaged-reference, build, and installed wheel/sdist
+verification checks:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
@@ -88,12 +89,14 @@ Default `pytest` or `pytest -m "not parity"` is a fast local development check,
 not sufficient for publishing. The configured default pytest `testpaths` omit
 `tests/release`, `tests/golden`, and `tests/performance`. Blocking parity tests,
 performance contracts, release/golden/reproducibility tests, reference
-validation, metadata checks, packaged-reference checks, and the wheel smoke test
-are not optional for public release decisions.
+validation, metadata checks, archive-level packaged-reference checks, and the
+installed wheel/sdist verifier are not optional for public release decisions.
 
 The publish pipeline (`.github/workflows/publish.yml`) runs
 `make release-check` once on the checked-out tag, uploads the fresh `dist/`
-directory, and publishes those artifacts through trusted publishing.
+directory, verifies the uploaded wheel and sdist on Python 3.10, 3.11, and
+3.12, and publishes those artifacts through trusted publishing only after that
+matrix passes.
 
 This process provides normal CI/build confidence, not formal
 exact-source/exact-artifact attestation. Do not treat a partial local pass, a
@@ -112,6 +115,7 @@ Release-blocking coverage in `make release-check` is:
 | Checked-in reference bundles | `python scripts/validate_reference_bundle_index.py --repo-root .` |
 | Release/golden/reproducibility gates | `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"` |
 | Distribution build and packaged-reference checks | `make build` |
+| Installed wheel/sdist verification | `make verify-installed-distributions` |
 
 The optional `benchmark-release-scale` target is deliberately absent from this
 table. Its runtime and memory observations are local benchmark data, not
@@ -208,7 +212,23 @@ make build
 `make build` clears stale wheel/sdist files, builds one wheel and one sdist,
 runs metadata checks, and validates both built archives against their packaged
 reference manifests and declared file hashes. It does not require Git metadata
-and can run from a copied source tree.
+and can run from a copied source tree. This is an archive-level check; it is
+complementary to installed execution.
+
+Run the installed-distribution verifier through `make release-check`, or invoke
+the verifier target directly to rebuild the artifacts and execute the installed
+checks:
+
+```bash
+make verify-installed-distributions
+```
+
+The verifier creates separate temporary environments outside the checkout,
+installs the wheel and sdist, runs Python with isolation enabled, checks that
+`phospy.__file__` resolves inside the installed environment, verifies bundled
+rat reference manifest files and SHA-256 values, and runs representative
+dataset, differential, and kinase public workflow contracts without importing
+repository tests, fixtures, or `conftest.py`.
 
 Do not broaden a release claim from one artifact to another. If the tagged
 source tree, source archive, wheel, dependency constraints, or bundled fixture

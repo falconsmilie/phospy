@@ -70,9 +70,14 @@ adverse scientific cases.
 2. `tests/unit/test_public_boundary_adversarial.py` runs compact runtime probes
    for public signatures, dataset provenance binding, DataFrame ownership, and
    JSON immutability.
-3. The installed-artifact verifier repeats the same invariant categories through
-   `public-boundary-integrity` without importing repository tests or fixtures.
-4. Public-boundary failures block release attestation.
+3. The installed-distribution verifier
+   (`scripts/verify_installed_distributions.py`) installs the built wheel and
+   sdist in isolated environments outside the checkout, imports from the
+   installed package location, verifies bundled reference resources and
+   SHA-256 values, and exercises representative public dataset, differential,
+   and kinase workflow contracts without importing repository tests or
+   fixtures.
+4. Installed public-boundary and resource failures block release.
 
 ### Golden and Provenance Regression Governance
 
@@ -131,6 +136,8 @@ adverse scientific cases.
    - threshold-bearing parity tests through
      `pytest tests/parity -m "parity and not parity_diagnostic" -s`
    - performance contract tests
+   - archive-level wheel/sdist metadata and packaged-reference checks
+   - installed wheel/sdist verification outside the checkout
 2. Fast local defaults may keep parity, release/golden, and performance suites
    out of the default marker selection.
 3. Scientific parity failures are release-blocking.
@@ -150,6 +157,8 @@ adverse scientific cases.
    that do not require external scientific tools.
 9. CI must not run opt-in local benchmarks that are explicitly documented as
    machine-dependent and non-release-blocking.
+10. CI and publication workflows must run installed wheel/sdist verification
+    against the single built artifact set on Python 3.10, 3.11, and 3.12.
 
 ### Why Release-Gate Is the Correct Policy
 
@@ -184,6 +193,7 @@ adverse scientific cases.
 - `tests/unit/test_public_boundary_adversarial.py`
 - `tests/performance/test_performance_contracts.py`
 - `benchmarks/measure_release_scale_builder_differential.py`
+- `scripts/verify_installed_distributions.py`
 - `tests/science/test_differential_adverse_design_contracts.py`
 - `tests/science/test_evidence_resolution_regression_fixtures.py`
 - `tests/science/test_kinase_sparse_support_regression_fixtures.py`
@@ -194,7 +204,8 @@ adverse scientific cases.
 - `docs/performance.md`
 - `docs/maintenance.md`
 - `docs/testing/pytest_markers.md`
-- `Makefile` (`release-check`, `test-release-gates`, `test-performance`)
+- `Makefile` (`release-check`, `test-release-gates`, `test-performance`,
+  `verify-installed-distributions`)
 - `.github/workflows/publish.yml` (release-gate enforcement)
 - `.github/workflows/ci.yml` (supported-version release-science matrix and
   minimum-dependency lane)
@@ -228,6 +239,9 @@ Future changes must satisfy all the following:
    declared support policy?
 10. Are opt-in local benchmarks kept outside pytest collection, release-check,
     and CI?
+11. Does installed wheel/sdist verification still install both artifacts
+    outside the checkout, use isolated Python execution, verify bundled
+    resources, and avoid repository test helpers?
 
 ## Amendment: Optional Release-Scale Benchmark Ownership (2026-07-29)
 

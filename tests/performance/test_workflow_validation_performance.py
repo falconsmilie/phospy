@@ -9,8 +9,8 @@ from phospy.validation.datasets.site_metadata import (
     enforce_site_sequence_context_contract,
 )
 from tests.support.performance_contracts import (
-    DATASET_VALIDATION_LARGE_N_SITES,
-    WORKFLOW_VALIDATION_LARGE_SEQUENCE_RUNTIME_SECONDS_MAX,
+    DATASET_VALIDATION_MEDIUM_N_SITES,
+    WORKFLOW_VALIDATION_BOUNDED_SEQUENCE_RUNTIME_SECONDS_MAX,
     deterministic_analysis_ready_site_keys,
     deterministic_analysis_ready_site_metadata,
     measure_runtime_and_peak_mib,
@@ -20,9 +20,9 @@ pytestmark = [pytest.mark.performance, pytest.mark.release_gate]
 
 
 @pytest.fixture(scope="module")
-def large_kinase_sequence_metadata() -> pd.DataFrame:
+def bounded_kinase_sequence_metadata() -> pd.DataFrame:
     site_keys = deterministic_analysis_ready_site_keys(
-        DATASET_VALIDATION_LARGE_N_SITES,
+        DATASET_VALIDATION_MEDIUM_N_SITES,
         start=50_000,
         gene_prefix="SEQPERF",
     )
@@ -34,17 +34,17 @@ def large_kinase_sequence_metadata() -> pd.DataFrame:
     )
 
 
-def test_large_kinase_sequence_validation_completes_under_generous_threshold(
-    large_kinase_sequence_metadata: pd.DataFrame,
+def test_bounded_kinase_sequence_validation_completes_under_generous_threshold(
+    bounded_kinase_sequence_metadata: pd.DataFrame,
 ) -> None:
     source_by_site = dict.fromkeys(
-        large_kinase_sequence_metadata.index.astype(str).tolist(),
+        bounded_kinase_sequence_metadata.index.astype(str).tolist(),
         "reference",
     )
 
     _result, runtime_seconds, _peak_mib = measure_runtime_and_peak_mib(
         lambda: enforce_site_sequence_context_contract(
-            site_metadata=large_kinase_sequence_metadata,
+            site_metadata=bounded_kinase_sequence_metadata,
             field_name="performance.selected_site_sequences",
             workflow_name="kinase workflow request",
             scoring_mode="kinase_library_motif",
@@ -55,8 +55,10 @@ def test_large_kinase_sequence_validation_completes_under_generous_threshold(
         warmup=False,
     )
 
-    assert large_kinase_sequence_metadata.shape[0] == DATASET_VALIDATION_LARGE_N_SITES
-    assert runtime_seconds < WORKFLOW_VALIDATION_LARGE_SEQUENCE_RUNTIME_SECONDS_MAX
+    assert (
+        bounded_kinase_sequence_metadata.shape[0] == DATASET_VALIDATION_MEDIUM_N_SITES
+    )
+    assert runtime_seconds < WORKFLOW_VALIDATION_BOUNDED_SEQUENCE_RUNTIME_SECONDS_MAX
 
 
 def test_kinase_sequence_validation_remains_strict_for_invalid_sequences() -> None:

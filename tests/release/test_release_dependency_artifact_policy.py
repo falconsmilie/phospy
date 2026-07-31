@@ -255,6 +255,7 @@ def test_python_support_declaration_matches_source_test_matrices() -> None:
         "clean-constrained-install",
         "default-suite",
         "performance-contracts",
+        "installed-distribution-verification",
         "activity-parity-gate",
         "parity-tests",
         "release-gates",
@@ -284,33 +285,46 @@ def test_minimum_dependency_ci_lane_uses_minimum_constraints_and_release_science
     ) in job
 
 
-def test_ci_build_smoke_installs_one_wheel_outside_checkout() -> None:
+def test_ci_installed_distribution_verifier_checks_wheel_and_sdist_matrix() -> None:
+    workflow = _read(".github/workflows/ci.yml")
     build_job = _workflow_job_block(
-        _read(".github/workflows/ci.yml"), "build-distributions"
+        workflow,
+        "build-distributions",
+    )
+    verifier_job = _workflow_job_block(
+        workflow,
+        "installed-distribution-verification",
     )
 
     assert "make build" in build_job
-    assert "dist/*.whl" in build_job
-    assert "dist/*.tar.gz" in build_job
-    assert "Expected exactly one wheel" in build_job
-    assert "Expected exactly one sdist" in build_job
-    assert "mktemp -d" in build_job
-    assert "python -m venv" in build_job
-    assert "-m pip check" in build_job
-    assert 'cd "$smoke_dir"' in build_job
-    assert 'python" -I -c' in build_job
-    assert "import pathlib, phospy" in build_job
+    assert "name: python-package-distributions" in build_job
+    assert _has_needs(verifier_job, "build-distributions")
+    assert _expected_matrix_literal() in verifier_job
+    assert "uses: actions/download-artifact@v6" in verifier_job
+    assert "name: python-package-distributions" in verifier_job
+    assert "python scripts/verify_installed_distributions.py" in verifier_job
+    assert "--dist-dir dist" in verifier_job
+    assert '--repo-root "$GITHUB_WORKSPACE"' in verifier_job
+    assert "--constraint constraints/ci.txt" in verifier_job
 
 
 def test_publish_jobs_wait_for_single_release_check_build() -> None:
     workflow = _read(".github/workflows/publish.yml")
     build = _workflow_job_block(workflow, "build")
+    verifier = _workflow_job_block(workflow, "installed-distribution-verification")
 
     assert "run: make release-check" in build
     assert "path: dist/" in build
+    assert _has_needs(verifier, "build")
+    assert _expected_matrix_literal() in verifier
+    assert "python scripts/verify_installed_distributions.py" in verifier
+    assert "--dist-dir dist" in verifier
+    assert '--repo-root "$GITHUB_WORKSPACE"' in verifier
+    assert "--constraint constraints/ci.txt" in verifier
     for publish_job in ("publish-to-testpypi", "publish-to-pypi"):
         publish_block = _workflow_job_block(workflow, publish_job)
         assert _has_needs(publish_block, "build")
+        assert _has_needs(publish_block, "installed-distribution-verification")
         assert "uses: actions/download-artifact@v6" in publish_block
         assert "name: python-package-distributions" in publish_block
         assert "packages-dir: dist/" in publish_block

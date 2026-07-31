@@ -36,6 +36,7 @@ TWINE ?= $(PYTHON) -m twine
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance test-release-gates validate-reference-bundles release-check benchmark-release-scale test-seams build clean \
+	verify-installed-distributions \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
@@ -53,6 +54,7 @@ help:
 	@printf '%s\n' '  make test-performance              Run the performance contract suite'
 	@printf '%s\n' '  make test-release-gates            Run release/golden/reproducibility gates'
 	@printf '%s\n' '  make validate-reference-bundles    Validate checked-in reference bundle manifests and files'
+	@printf '%s\n' '  make verify-installed-distributions Install and execute the built wheel and sdist outside the checkout'
 	@printf '%s\n' '  make release-check                 Run maintainer release checks'
 	@printf '%s\n' '  make test                          Run unit and parity tests'
 	@printf '%s\n' '  make tests-all                     Alias for all-tests'
@@ -123,7 +125,7 @@ test-release-gates: check-tools
 validate-reference-bundles: check-tools
 	$(PYTHON) scripts/validate_reference_bundle_index.py --repo-root .
 
-release-check: lint type-check test-unit test-parity test-performance validate-reference-bundles test-release-gates build
+release-check: lint type-check test-unit test-parity test-performance validate-reference-bundles test-release-gates build verify-installed-distributions
 
 benchmark-release-scale: check-tools
 	$(PYTHON) benchmarks/measure_release_scale_builder_differential.py
@@ -175,6 +177,9 @@ build: check-tools
 	if (( $${#sdists[@]} != 1 )); then printf 'Expected exactly one sdist in dist/, found %s\n' "$${#sdists[@]}" >&2; exit 1; fi
 	$(TWINE) check dist/*
 	$(PYTHON) scripts/validate_reference_bundle_distribution.py --no-git-index-compare dist/*
+
+verify-installed-distributions: check-tools build
+	$(PYTHON) scripts/verify_installed_distributions.py --dist-dir dist --repo-root . --constraint constraints/ci.txt
 
 clean:
 	$(RM_RF) .pytest_cache .ruff_cache build dist .eggs

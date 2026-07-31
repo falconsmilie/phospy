@@ -1,0 +1,711 @@
+"""Verify built PhosPy wheel and sdist by installing and executing them.
+
+This script is intentionally independent of repository pytest fixtures. It
+creates isolated virtual environments outside the checkout, installs exactly one
+wheel and one sdist from ``dist/``, and runs an isolated Python probe from a
+temporary working directory so source-tree imports cannot satisfy the check.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shlex
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+SUPPORTED_PYTHON_VERSIONS = ("3.10", "3.11", "3.12")
+WHEEL_SUFFIX = ".whl"
+SDIST_SUFFIX = ".tar.gz"
+
+INSTALLED_PROBE_SOURCE = r"""
+from __future__ import annotations
+
+import hashlib
+import importlib.resources as resources
+import json
+import pathlib
+import sys
+
+import pandas as pd
+
+import phospy
+import phospy.api as api
+from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import KinaseWorkflow
+from phospy.api import Contrast, DatasetBuildRequest, DatasetIntensityTransformConfig
+from phospy.api import DatasetLocalisationConfig, DatasetMissingDataConfig
+from phospy.api import DatasetNormalisationConfig, DatasetPreprocessingConfig
+from phospy.api import DatasetSiteMatrixConfig, DifferentialAnalysisRequest
+from phospy.api import ExperimentalDesign, KinaseReliabilityProfile
+from phospy.api import KinaseScoringConfig, KinaseWorkflowRequest, Organism
+from phospy.api import ReferenceContextCompatibilityPolicy, ReferencePreset
+from phospy.api import SampleDesignRecord
+from phospy.science.references.resources import load_bundled_kinase_substrate_map
+from phospy.science.references.resources import load_bundled_motif_scores
+from phospy.science.references.resources import load_bundled_motif_sizes
+from phospy.science.references.resources import load_bundled_reference_manifest
+from phospy.science.references.resources import load_bundled_site_sequences
+
+
+REQUIRED_API_NAMES = (
+    "AnalysisReadyDatasetBuilder",
+    "AnalysisReadyPhosphoDataset",
+    "DatasetBuildRequest",
+    "DatasetPreprocessingConfig",
+    "DifferentialAnalysisRequest",
+    "DifferentialAnalysisWorkflow",
+    "ExperimentalDesign",
+    "KinaseWorkflow",
+    "KinaseWorkflowRequest",
+    "Organism",
+    "ReferencePreset",
+    "SignalomeWorkflow",
+)
+
+
+def main() -> None:
+    repo_root = pathlib.Path(sys.argv[1]).resolve()
+    environment_root = pathlib.Path(sys.argv[2]).resolve()
+    artifact_kind = sys.argv[3]
+
+    package_file = pathlib.Path(phospy.__file__).resolve()
+    _require_inside(package_file, environment_root, "phospy.__file__")
+    _require_outside(package_file, repo_root, "phospy.__file__")
+
+    _verify_public_surface()
+    resource_report = _verify_bundled_rat_reference_resources()
+    scientific_report = _exercise_public_scientific_contracts()
+
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "artifact_kind": artifact_kind,
+                "python": sys.version.split()[0],
+                "executable": str(pathlib.Path(sys.executable).resolve()),
+                "phospy_file": str(package_file),
+                "resource_report": resource_report,
+                "scientific_report": scientific_report,
+            },
+            sort_keys=True,
+        )
+    )
+
+
+def _verify_public_surface() -> None:
+    for name in REQUIRED_API_NAMES:
+        if name not in api.__all__:
+            raise AssertionError(f"phospy.api.__all__ is missing {name!r}")
+        getattr(api, name)
+    if phospy.AnalysisReadyDatasetBuilder is not api.AnalysisReadyDatasetBuilder:
+        raise AssertionError("root AnalysisReadyDatasetBuilder is not api export")
+    if phospy.DifferentialAnalysisWorkflow is not api.DifferentialAnalysisWorkflow:
+        raise AssertionError("root DifferentialAnalysisWorkflow is not api export")
+    if phospy.KinaseWorkflow is not api.KinaseWorkflow:
+        raise AssertionError("root KinaseWorkflow is not api export")
+
+
+def _verify_bundled_rat_reference_resources() -> dict[str, object]:
+    package_root = resources.files("phospy")
+    bundle_root = (
+        package_root.joinpath("data")
+        .joinpath("reference_bundles")
+        .joinpath("rat")
+        .joinpath("l6_native")
+    )
+    manifest_resource = bundle_root.joinpath("manifest.json")
+    if not manifest_resource.is_file():
+        raise AssertionError("bundled rat l6_native manifest is missing")
+    manifest_payload = json.loads(manifest_resource.read_text(encoding="utf-8"))
+    if manifest_payload.get("reference_id") != "l6_native":
+        raise AssertionError("bundled rat manifest reference_id changed")
+
+    manifest = load_bundled_reference_manifest(Organism.RAT)
+    if manifest.reference_id != "l6_native":
+        raise AssertionError("typed bundled rat manifest reference_id changed")
+    if manifest.reference_version != manifest_payload.get("reference_version"):
+        raise AssertionError("typed manifest version does not match resource JSON")
+
+    verified_files: dict[str, str] = {}
+    for file_manifest in manifest_payload["files"]:
+        relative_path = file_manifest["relative_path"]
+        declared_hash = file_manifest["sha256"]
+        resource = bundle_root.joinpath(relative_path)
+        if not resource.is_file():
+            raise AssertionError(f"manifest-declared resource is missing: {relative_path}")
+        actual_hash = hashlib.sha256(resource.read_bytes()).hexdigest()
+        if actual_hash != declared_hash:
+            raise AssertionError(
+                "manifest-declared resource hash mismatch: "
+                f"{relative_path}; expected={declared_hash}; actual={actual_hash}"
+            )
+        verified_files[str(relative_path)] = actual_hash
+
+    substrate_map = load_bundled_kinase_substrate_map(Organism.RAT)
+    site_sequences = load_bundled_site_sequences(Organism.RAT)
+    motif_scores = load_bundled_motif_scores(Organism.RAT)
+    motif_sizes = load_bundled_motif_sizes(Organism.RAT)
+    if substrate_map.empty or site_sequences.empty:
+        raise AssertionError("bundled rat reference core tables must be non-empty")
+    if motif_scores is None or motif_scores.empty:
+        raise AssertionError("bundled rat motif_scores must be present and non-empty")
+    if motif_sizes is None or motif_sizes.empty:
+        raise AssertionError("bundled rat motif_sizes must be present and non-empty")
+
+    return {
+        "reference_id": manifest.reference_id,
+        "reference_version": manifest.reference_version,
+        "verified_resource_count": len(verified_files),
+        "verified_resource_sha256": verified_files,
+        "substrate_rows": int(substrate_map.shape[0]),
+        "site_sequence_rows": int(site_sequences.shape[0]),
+        "motif_score_shape": [int(motif_scores.shape[0]), int(motif_scores.shape[1])],
+        "motif_size_count": int(motif_sizes.shape[0]),
+    }
+
+
+def _exercise_public_scientific_contracts() -> dict[str, object]:
+    imputed_dataset = _build_dataset(include_missing=True)
+    if int(imputed_dataset.phospho.isna().sum().sum()) != 0:
+        raise AssertionError("row-median preprocessing left missing values")
+    if imputed_dataset.processing_state.missing_data.complete_matrix is not True:
+        raise AssertionError("missing-data processing state is not complete")
+    if imputed_dataset.processing_state.missing_data.imputed is not True:
+        raise AssertionError("missing-data processing state did not record imputation")
+
+    dataset = _build_dataset(include_missing=False)
+    if dataset.phospho.index.name != "site_key":
+        raise AssertionError("dataset builder did not establish site_key identity")
+    if dataset.processing_state.missing_data.imputed is not False:
+        raise AssertionError("non-missing dataset incorrectly records imputation")
+
+    differential_result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=_design(),
+            contrasts=(
+                Contrast(
+                    name="B_vs_A",
+                    numerator_condition="B",
+                    denominator_condition="A",
+                ),
+            ),
+        )
+    )
+    differential_table = differential_result.table_for("B_vs_A")
+    required_columns = {
+        "site_key",
+        "display_id",
+        "logFC",
+        "t",
+        "P.Value",
+        "adj.P.Val",
+    }
+    if not required_columns.issubset(differential_table.columns):
+        raise AssertionError("differential result table is missing public columns")
+    adjusted = differential_table["adj.P.Val"].dropna()
+    if not adjusted.between(0.0, 1.0, inclusive="both").all():
+        raise AssertionError("differential adjusted p-values are outside [0, 1]")
+
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(
+                reliability_profile=KinaseReliabilityProfile.CUSTOM,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
+            activity_config=None,
+            site_sequence_conflict_policy="prefer_reference",
+        )
+    )
+    if kinase_result.scoring_result.profile_scores.empty:
+        raise AssertionError("kinase profile scores are empty")
+    if kinase_result.prediction_result.pred_mat.empty:
+        raise AssertionError("kinase prediction matrix is empty")
+    if kinase_result.references.manifest is None:
+        raise AssertionError("kinase bundled reference manifest was not retained")
+    if kinase_result.references.manifest.reference_id != "l6_native":
+        raise AssertionError("kinase workflow did not use the rat l6_native manifest")
+
+    return {
+        "imputed_dataset_shape": [
+            int(imputed_dataset.phospho.shape[0]),
+            int(imputed_dataset.phospho.shape[1]),
+        ],
+        "dataset_shape": [int(dataset.phospho.shape[0]), int(dataset.phospho.shape[1])],
+        "differential_rows": int(differential_table.shape[0]),
+        "kinase_profile_shape": [
+            int(kinase_result.scoring_result.profile_scores.shape[0]),
+            int(kinase_result.scoring_result.profile_scores.shape[1]),
+        ],
+        "kinase_prediction_shape": [
+            int(kinase_result.prediction_result.pred_mat.shape[0]),
+            int(kinase_result.prediction_result.pred_mat.shape[1]),
+        ],
+    }
+
+
+def _build_dataset(*, include_missing: bool):
+    index = ["TSC2;S939;", "GSK3B;S9;", "MAPK14;Y182;", "GSK3A;S21;"]
+    phospho = pd.DataFrame(
+        {
+            "A_1": [10.0, 9.0, 7.5, 8.0],
+            "A_2": [10.4, 9.1, 7.7, 8.2],
+            "B_1": [12.0, 9.3, 7.4, 9.1],
+            "B_2": [12.2, 9.4, 7.6, 9.0],
+        },
+        index=index,
+    )
+    if include_missing:
+        phospho.iloc[1, 1] = None
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["TSC2", "GSK3B", "MAPK14", "GSK3A"],
+            "site": ["S939", "S9", "Y182", "S21"],
+            "site_sequence": [
+                "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+                "_______MSGRPRTTSFAESCKPVQQPSAFG",
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+            ],
+            "display_id": index,
+            "organism": ["rat"] * 4,
+            "protein_namespace": ["protein_id"] * 4,
+            "protein_identifier": ["TSC2", "GSK3B", "MAPK14", "GSK3A"],
+            "localisation_confidence": [0.95] * 4,
+            "protein_id": ["TSC2", "GSK3B", "MAPK14", "GSK3A"],
+        },
+        index=index,
+    )
+    return AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                localisation=DatasetLocalisationConfig(
+                    mode="require_threshold",
+                    confidence_column="localisation_confidence",
+                    min_confidence=0.75,
+                ),
+                intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
+                normalisation=DatasetNormalisationConfig(policy="median_center"),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=1,
+                ),
+                site_matrix=DatasetSiteMatrixConfig(policy="as_input"),
+            ),
+        )
+    )
+
+
+def _design() -> ExperimentalDesign:
+    return ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_1",
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_1",
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_2",
+            ),
+        )
+    )
+
+
+def _require_inside(path: pathlib.Path, root: pathlib.Path, label: str) -> None:
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise AssertionError(f"{label} is outside expected root: {path} not in {root}") from exc
+
+
+def _require_outside(path: pathlib.Path, root: pathlib.Path, label: str) -> None:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return
+    raise AssertionError(f"{label} unexpectedly resolves inside checkout: {path}")
+
+
+main()
+"""
+
+
+class InstalledDistributionVerificationError(RuntimeError):
+    """Built distribution installation or installed-package execution failed."""
+
+
+@dataclass(frozen=True)
+class DistributionArtifacts:
+    wheel: Path
+    sdist: Path
+
+
+@dataclass(frozen=True)
+class InstalledDistributionReport:
+    artifact_kind: str
+    artifact_path: Path
+    environment_root: Path
+    run_directory: Path
+    phospy_file: Path
+    python_version: str
+    resource_count: int
+
+
+def find_distribution_artifacts(dist_dir: str | Path) -> DistributionArtifacts:
+    """Return exactly one wheel and one sdist from a distribution directory."""
+
+    root = Path(dist_dir)
+    wheels = sorted(path for path in root.glob(f"*{WHEEL_SUFFIX}") if path.is_file())
+    sdists = sorted(path for path in root.glob(f"*{SDIST_SUFFIX}") if path.is_file())
+    if len(wheels) != 1:
+        raise InstalledDistributionVerificationError(
+            f"expected exactly one wheel in {root}, found {len(wheels)}"
+        )
+    if len(sdists) != 1:
+        raise InstalledDistributionVerificationError(
+            f"expected exactly one sdist in {root}, found {len(sdists)}"
+        )
+    return DistributionArtifacts(wheel=wheels[0].resolve(), sdist=sdists[0].resolve())
+
+
+def verify_installed_distributions(
+    *,
+    dist_dir: str | Path,
+    repo_root: str | Path,
+    python_executable: str | Path = sys.executable,
+    constraint: str | Path | None = None,
+) -> tuple[InstalledDistributionReport, ...]:
+    """Install and execute the built wheel and sdist in isolated environments."""
+
+    artifacts = find_distribution_artifacts(dist_dir)
+    resolved_repo_root = Path(repo_root).resolve()
+    resolved_python = str(python_executable)
+    resolved_constraint = None if constraint is None else Path(constraint).resolve()
+
+    reports: list[InstalledDistributionReport] = []
+    with tempfile.TemporaryDirectory(prefix="phospy-installed-dist-") as tmp_dir:
+        work_root = Path(tmp_dir).resolve()
+        _require_path_outside(
+            work_root, resolved_repo_root, label="verification tempdir"
+        )
+        for artifact_kind, artifact_path in (
+            ("wheel", artifacts.wheel),
+            ("sdist", artifacts.sdist),
+        ):
+            reports.append(
+                _verify_one_artifact(
+                    artifact_kind=artifact_kind,
+                    artifact_path=artifact_path,
+                    work_root=work_root,
+                    repo_root=resolved_repo_root,
+                    python_executable=resolved_python,
+                    constraint=resolved_constraint,
+                )
+            )
+    return tuple(reports)
+
+
+def _verify_one_artifact(
+    *,
+    artifact_kind: str,
+    artifact_path: Path,
+    work_root: Path,
+    repo_root: Path,
+    python_executable: str,
+    constraint: Path | None,
+) -> InstalledDistributionReport:
+    environment_root = work_root / f"{artifact_kind}-venv"
+    run_directory = work_root / f"{artifact_kind}-run"
+    run_directory.mkdir()
+
+    _run(
+        [python_executable, "-m", "venv", str(environment_root)],
+        cwd=work_root,
+        repo_root=repo_root,
+        context=f"create {artifact_kind} verification environment",
+    )
+    environment_python = _environment_python(environment_root)
+    if not environment_python.is_file():
+        raise InstalledDistributionVerificationError(
+            f"virtual environment Python is missing: {environment_python}"
+        )
+
+    _run_pip(
+        environment_python,
+        "install packaging tools",
+        repo_root=repo_root,
+        cwd=work_root,
+        constraint=constraint,
+        arguments=["install", "--upgrade", "pip", "setuptools", "wheel"],
+    )
+    _run_pip(
+        environment_python,
+        f"install {artifact_kind}",
+        repo_root=repo_root,
+        cwd=work_root,
+        constraint=constraint,
+        arguments=["install", str(artifact_path)],
+    )
+    _run_pip(
+        environment_python,
+        f"check {artifact_kind} environment",
+        repo_root=repo_root,
+        cwd=work_root,
+        constraint=None,
+        arguments=["check"],
+    )
+    result = _run(
+        [
+            str(environment_python),
+            "-I",
+            "-c",
+            INSTALLED_PROBE_SOURCE,
+            str(repo_root),
+            str(environment_root.resolve()),
+            artifact_kind,
+        ],
+        cwd=run_directory,
+        repo_root=repo_root,
+        context=f"execute installed {artifact_kind} probe",
+    )
+    payload = _probe_payload(result.stdout, artifact_kind=artifact_kind)
+    phospy_file = Path(_required_string(payload, "phospy_file")).resolve()
+    _require_path_inside(
+        phospy_file, environment_root.resolve(), label="phospy.__file__"
+    )
+    _require_path_outside(phospy_file, repo_root, label="phospy.__file__")
+    resource_report = payload.get("resource_report")
+    if not isinstance(resource_report, dict):
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe did not report resource results"
+        )
+    resource_count = resource_report.get("verified_resource_count")
+    if not isinstance(resource_count, int) or resource_count < 1:
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe verified no resources"
+        )
+    return InstalledDistributionReport(
+        artifact_kind=artifact_kind,
+        artifact_path=artifact_path,
+        environment_root=environment_root.resolve(),
+        run_directory=run_directory.resolve(),
+        phospy_file=phospy_file,
+        python_version=_required_string(payload, "python"),
+        resource_count=int(resource_count),
+    )
+
+
+def _run_pip(
+    environment_python: Path,
+    context: str,
+    *,
+    repo_root: Path,
+    cwd: Path,
+    constraint: Path | None,
+    arguments: list[str],
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        str(environment_python),
+        "-m",
+        "pip",
+        "--disable-pip-version-check",
+        arguments[0],
+    ]
+    if constraint is not None and arguments[0] == "install":
+        command.extend(["-c", str(constraint)])
+    command.extend(arguments[1:])
+    return _run(command, cwd=cwd, repo_root=repo_root, context=context)
+
+
+def _run(
+    command: list[str],
+    *,
+    cwd: Path,
+    repo_root: Path,
+    context: str,
+) -> subprocess.CompletedProcess[str]:
+    _require_path_outside(cwd.resolve(), repo_root, label=f"{context} cwd")
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    env.pop("PYTHONHOME", None)
+    env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise InstalledDistributionVerificationError(
+            f"{context} failed with exit code {result.returncode}\n"
+            f"command: {_format_command(command)}\n\n"
+            f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
+        )
+    return result
+
+
+def _probe_payload(stdout: str, *, artifact_kind: str) -> dict[str, Any]:
+    lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+    if not lines:
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe produced no JSON output"
+        )
+    try:
+        payload = json.loads(lines[-1])
+    except json.JSONDecodeError as exc:
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe produced invalid JSON: {lines[-1]!r}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe JSON is not an object"
+        )
+    if payload.get("status") != "ok":
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} probe did not report ok status: {payload!r}"
+        )
+    if payload.get("artifact_kind") != artifact_kind:
+        raise InstalledDistributionVerificationError(
+            f"installed probe reported wrong artifact kind: {payload!r}"
+        )
+    return payload
+
+
+def _required_string(payload: dict[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise InstalledDistributionVerificationError(
+            f"installed probe payload field {key!r} must be a non-empty string"
+        )
+    return value
+
+
+def _environment_python(environment_root: Path) -> Path:
+    if os.name == "nt":
+        return environment_root / "Scripts" / "python.exe"
+    return environment_root / "bin" / "python"
+
+
+def _require_path_inside(path: Path, root: Path, *, label: str) -> None:
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError as exc:
+        raise InstalledDistributionVerificationError(
+            f"{label} is outside expected root: {path.resolve()} not in {root.resolve()}"
+        ) from exc
+
+
+def _require_path_outside(path: Path, root: Path, *, label: str) -> None:
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return
+    raise InstalledDistributionVerificationError(
+        f"{label} unexpectedly resolves inside checkout: {path.resolve()}"
+    )
+
+
+def _format_command(command: list[str]) -> str:
+    if os.name == "nt":
+        return subprocess.list2cmdline(command)
+    return shlex.join(command)
+
+
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Install exactly one built PhosPy wheel and one built PhosPy sdist "
+            "outside the checkout, then run isolated installed-package checks."
+        )
+    )
+    parser.add_argument(
+        "--dist-dir",
+        default="dist",
+        help="Directory containing exactly one .whl and one .tar.gz artifact.",
+    )
+    parser.add_argument(
+        "--repo-root",
+        default=Path(__file__).resolve().parents[1],
+        type=Path,
+        help="Repository root to exclude from installed import origins.",
+    )
+    parser.add_argument(
+        "--python",
+        default=sys.executable,
+        help="Python executable used to create verification environments.",
+    )
+    parser.add_argument(
+        "--constraint",
+        type=Path,
+        default=None,
+        help="Optional pip constraint file used for artifact installations.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    try:
+        reports = verify_installed_distributions(
+            dist_dir=args.dist_dir,
+            repo_root=args.repo_root,
+            python_executable=args.python,
+            constraint=args.constraint,
+        )
+    except InstalledDistributionVerificationError as exc:
+        print(f"installed distribution verification failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "supported_python_versions": SUPPORTED_PYTHON_VERSIONS,
+                "verified": [
+                    {
+                        "artifact_kind": report.artifact_kind,
+                        "artifact_path": str(report.artifact_path),
+                        "python": report.python_version,
+                        "phospy_file": str(report.phospy_file),
+                        "resource_count": report.resource_count,
+                    }
+                    for report in reports
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

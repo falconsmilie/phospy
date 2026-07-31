@@ -367,12 +367,18 @@ packaged-reference validation. The maintained commands/workflows are:
   `pytest tests/performance -m "performance or release_gate"`,
   `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"`,
   `python scripts/validate_reference_bundle_index.py --repo-root .`, and
-  `make build`.
+  distribution build plus installed wheel/sdist verification.
 - `make build` starts from an empty `dist/`, builds one wheel and one sdist,
   runs metadata checks, and validates packaged reference manifests and declared
   file hashes in both archives. It does not require Git metadata.
-- The publish workflow runs `make release-check` once on the checked-out tag and
-  publishes the freshly built `dist/` artifacts through trusted publishing.
+- `make verify-installed-distributions` rebuilds the artifacts, installs the
+  wheel and sdist outside the checkout, checks installed import origins,
+  verifies bundled rat reference resources and SHA-256 values, and runs
+  representative public workflow contracts without repository test fixtures.
+- The publish workflow runs `make release-check` once on the checked-out tag,
+  verifies the uploaded wheel/sdist artifacts on Python 3.10, 3.11, and 3.12,
+  and publishes those artifacts through trusted publishing only after the
+  verifier matrix passes.
 - CI runs clean constrained `[dev,test]` installs, the full default
   non-parity source suite, threshold-bearing parity, release/golden gates, and
   performance contracts on Python 3.10, 3.11, and 3.12.

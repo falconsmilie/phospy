@@ -34,8 +34,10 @@ validation, and a fresh distribution build.
 CI expands the release-science evidence beyond the single local aggregate
 command by running the non-parity suite, threshold-bearing parity suite, bounded
 performance contracts, and release/golden gates on Python 3.10, 3.11, and 3.12.
-Build and packaged-artifact validation remain a dedicated single-version job so
-wheel publication is not duplicated.
+Distribution building and archive-level packaged-reference validation remain a
+dedicated single-build job so wheel publication is not duplicated. The uploaded
+wheel and sdist from that job are then installed and executed by a separate
+installed-distribution verifier matrix on Python 3.10, 3.11, and 3.12.
 
 The performance-contract CI job is a release blocker for bounded tests under
 `tests/performance/`. The 50,000-site x 48-sample end-to-end workload is no
@@ -60,18 +62,31 @@ release-gate selector.
 `make build` starts from an empty `dist/`, builds one wheel and one sdist using
 the constrained no-isolation build policy, runs metadata checks, and validates
 the packaged reference manifests and declared file hashes inside both archives.
-It must work from a copied source tree without Git metadata.
+It must work from a copied source tree without Git metadata. This archive-level
+validation remains separate from installed execution.
+
+`make verify-installed-distributions` installs exactly one wheel and exactly
+one sdist from `dist/` into separate temporary environments outside the
+checkout. Its installed probe runs Python with isolation enabled, asserts
+`phospy.__file__` resolves inside the installed environment rather than the
+source tree, imports the supported public package surface, loads the bundled
+rat `l6_native` reference manifest, verifies every manifest-declared bundled
+resource and SHA-256 digest, and exercises representative dataset,
+differential, and kinase public workflow contracts. The verifier must not
+import repository tests, fixtures, or `conftest.py`.
 
 Publishing uses GitHub trusted publishing. The publish workflow builds once on
-the checked-out tag, uploads the freshly built `dist/` directory, and publishes
-that same workflow artifact to TestPyPI for `tv*` tags or PyPI for `v*` tags.
+the checked-out tag, uploads the freshly built `dist/` directory, waits for the
+installed-distribution verifier matrix to pass against that uploaded artifact
+set, and publishes that same workflow artifact to TestPyPI for `tv*` tags or
+PyPI for `v*` tags.
 
 ## Consequences
 
 The release process is easier to understand and operate. It preserves ordinary
 CI, scientific tests, reference metadata checks, clean builds, package metadata
-checks, packaged-reference validation, and a lightweight installed-wheel smoke
-test.
+checks, archive-level packaged-reference validation, and substantive installed
+wheel/sdist execution verification.
 
 The deliberate trade-off is lower auditability. PhosPy no longer provides
 formal exact-source/exact-artifact attestation, retained report aggregation, or
@@ -85,13 +100,16 @@ metadata and must not be weakened to simplify publishing.
 
 Release policy tests check the Makefile command flow, CI and publish workflow
 shape, dependency constraints, minimum-dependency lane, supported Python
-release-science matrix, selector coverage, and packaged-reference build checks.
+release-science and installed-distribution matrices, selector coverage,
+archive-level packaged-reference build checks, and installed-distribution
+verifier source constraints.
 The selector coverage audit uses collection-only pytest subprocesses to compare
 actual node IDs and effective markers against the authoritative release targets.
 Scientific runtime invariants remain protected by focused unit, integration,
 parity, golden, release, validation, workflow, architecture, and bounded
-performance tests. Machine-dependent scale observations are collected through
-explicit local benchmark scripts.
+performance tests. Installed artifact behavior is checked by standalone release
+tooling rather than pytest source-tree behavior. Machine-dependent scale
+observations are collected through explicit local benchmark scripts.
 
 ## Amendment: Release-Scale Scientific Summary Equality (2026-07-27)
 

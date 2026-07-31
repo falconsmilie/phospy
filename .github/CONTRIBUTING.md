@@ -56,8 +56,8 @@ behavior or before preparing a release. The maintainer release command is
 `make release-check`; default `pytest` is not sufficient for publishing, and
 blocking parity tests, performance contracts, release/golden/reproducibility
 tests, checked-in reference validation, metadata checks, packaged-reference
-checks, and the wheel smoke test are release-blocking. Default pytest `testpaths`
-omit `tests/release`, `tests/golden`, and `tests/performance`; the
+checks, and installed wheel/sdist verification are release-blocking. Default
+pytest `testpaths` omit `tests/release`, `tests/golden`, and `tests/performance`; the
 `test-release-gates` Make target selects release/golden tests explicitly. This
 provides normal CI/build confidence, not formal exact-source/exact-artifact
 attestation:
@@ -71,9 +71,13 @@ For local scale profiling, use `make benchmark-release-scale`. That optional
 50,000 x 48 benchmark is machine-dependent and informational; it is not part of
 `make release-check` or CI.
 
-Before publishing distributions, use `make build`. It starts from an empty
-`dist/`, builds one wheel and one sdist, runs metadata checks, and validates the
-packaged reference manifests and declared file hashes in both archives.
+Before publishing distributions, use `make release-check`. Its build step
+starts from an empty `dist/`, builds one wheel and one sdist, runs metadata
+checks, and validates the packaged reference manifests and declared file hashes
+in both archives. Its installed-distribution step then installs and executes the
+wheel and sdist outside the checkout. To inspect only the artifacts, run
+`make build`; to rebuild and run the installed-artifact verifier, run
+`make verify-installed-distributions`.
 
 ## Style
 

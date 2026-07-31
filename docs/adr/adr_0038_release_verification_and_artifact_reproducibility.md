@@ -16,8 +16,9 @@ The retained evidence aggregation, exact selected-source identity, artifact
 verification matrix, final attestation, and attested publication directory
 described below are historical and are no longer active release requirements.
 PhosPy deliberately keeps normal tests, constrained builds, metadata checks,
-packaged-reference validation, trusted publishing, and one installed-wheel smoke
-test, while no longer providing formal exact-source/exact-artifact attestation.
+packaged-reference validation, trusted publishing, and installed wheel/sdist
+execution verification, while no longer providing formal
+exact-source/exact-artifact attestation.
 The active release command is `make release-check`; release/golden tests are
 selected through `make test-release-gates`, not the superseded
 `make test-release-gate` command named in this historical decision.
@@ -46,21 +47,22 @@ The superseded release-verification command was `make test-release-gate`.
 Release CI and publish CI were expected to invoke that same documented command
 rather than a private variant. ADR-0039 replaces this with `make release-check`.
 
-Release verification requires:
+This superseded ADR historically required:
 
 - a clean constrained `[dev,test]` installation on Python 3.10, 3.11, and 3.12;
 - the full default pytest suite on Python 3.10, 3.11, and 3.12;
 - the full release gate on Python 3.10, 3.11, and 3.12;
-- source-form-aware reference-bundle validation through
-  `python scripts/validate_reference_bundle_source.py --repo-root . --source-identity build/reports/source-identity.json`;
+- source-form-aware reference-bundle validation tied to a source-identity
+  report;
 - wheel and sdist builds through `make build`;
 - wheel and sdist reference-bundle validation against the exact source identity
   evidence;
 - wheel and sdist installation checks on every supported Python version; and
 - retained duration, JUnit, release metadata, and performance-budget reports.
-- installed-artifact `public-boundary-integrity` verification with passing
-  detail outcomes for public signatures, dataset provenance binding, public
-  DataFrame ownership, and public JSON immutability.
+
+ADR-0039 intentionally does not retain the source-identity report, legacy
+public-boundary attestation, or attested publication directory as active
+release requirements.
 
 The Pyright development requirement in `pyproject.toml` and the CI constraint
 in `constraints/ci.txt` must move together. CI type checking must install the
@@ -91,10 +93,11 @@ do not define release budgets.
 
 ## Validation
 
-The release-policy tests under `tests/release/` enforce the documented command,
-the supported Python matrix, the Pyright constraint alignment, the source-aware
-reference-bundle check, the wheel/sdist artifact checks, and the public-boundary
-integrity attestation details.
+The active release-policy tests under `tests/release/` enforce the documented
+`make release-check` command, supported Python matrix, Pyright constraint
+alignment, archive-level packaged-reference checks, installed wheel/sdist
+verification, and the absence of the obsolete release-scale workload from
+required gates.
 
 This ADR amends ADR-0014's release-gate policy and ADR-0015's reference-data
 release rules by making clean supported-version verification and artifact
