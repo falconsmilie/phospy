@@ -41,9 +41,13 @@ from phospy.science.datasets.preprocessing.state_builder import (
 )
 from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.transformations.models import (
+    IntensityScaleKind,
     IntensityScaleState,
     IntensityTransformationEvent,
     QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeContractState,
 )
 
 
@@ -76,6 +80,19 @@ class DatasetPreprocessor:
             correction_integrator or CorrectedPreprocessingOutputIntegrator()
         )
 
+    def validate_quantitative_contracts(
+        self,
+        *,
+        plan: PreprocessingPlan,
+        initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+        initial_quantitative_meaning: QuantitativeMeaning | None = None,
+    ) -> QuantitativeContractState:
+        return self._pipeline.validate_quantitative_contracts(
+            plan=plan,
+            initial_quantitative_scale_kind=initial_quantitative_scale_kind,
+            initial_quantitative_meaning=initial_quantitative_meaning,
+        )
+
     def run(
         self,
         *,
@@ -85,6 +102,8 @@ class DatasetPreprocessor:
         total: pd.DataFrame | None = None,
         plan: PreprocessingPlan,
         corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None,
+        initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+        initial_quantitative_meaning: QuantitativeMeaning | None = None,
     ) -> PreprocessedDatasetBuildTables:
         if (
             corrected_preprocessing_output is not None
@@ -107,7 +126,9 @@ class DatasetPreprocessor:
                 sample_metadata=sample_metadata,
                 total=total,
                 plan=plan,
-            )
+            ),
+            initial_quantitative_scale_kind=initial_quantitative_scale_kind,
+            initial_quantitative_meaning=initial_quantitative_meaning,
         )
         if corrected_preprocessing_output is not None:
             preprocessed_state, correction_trace = self._correction_integrator.run(

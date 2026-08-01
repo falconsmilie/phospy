@@ -31,6 +31,20 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageFactoryContext,
 )
 from phospy.science.datasets.processing_state import JsonValue, MissingDataDiagnosticsV1
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeOperationContract,
+    QuantitativeReversibilityKind,
+    preserve_meaning_transition,
+    preserve_quantitative_contract,
+    preserve_scale_transition,
+)
 
 from .audit import (
     build_knn_audit_records,
@@ -425,6 +439,69 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     }
 
 
+def _resolve_quantitative_contract(
+    plan: PreprocessingPlan,
+) -> QuantitativeOperationContract:
+    policy = plan.missing_data_policy
+    if policy is MissingDataPolicy.FORBID:
+        return preserve_quantitative_contract(
+            required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+            negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+            reversibility=QuantitativeReversibilityKind.REVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.NONE,
+        )
+    if policy is MissingDataPolicy.IMPUTE_MINPROB:
+        return QuantitativeOperationContract(
+            accepted_input_scale_kinds=frozenset({IntensityScaleKind.LOG2}),
+            accepted_quantitative_meanings=frozenset(
+                {
+                    QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+                    QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+                    QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE,
+                    QuantitativeMeaning.UNKNOWN,
+                }
+            ),
+            output_scale_transition=preserve_scale_transition(
+                frozenset({IntensityScaleKind.LOG2}),
+                output_scale_label="log2",
+            ),
+            output_meaning_transition=preserve_meaning_transition(
+                frozenset(
+                    {
+                        QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+                        QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+                        QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE,
+                        QuantitativeMeaning.UNKNOWN,
+                    }
+                )
+            ),
+            preserves_abundance=False,
+            negative_domain_policy=NegativeDomainPolicy.REQUIRES_LOG2_DOMAIN,
+            required_evidence=frozenset(
+                {
+                    QuantitativeEvidenceRequirement.MISSINGNESS_MASK,
+                    QuantitativeEvidenceRequirement.RANDOM_SEED,
+                }
+            ),
+            reversibility=QuantitativeReversibilityKind.IRREVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.IMPUTATION,
+        )
+    if policy in {MissingDataPolicy.IMPUTE_ROW_MEDIAN, MissingDataPolicy.IMPUTE_KNN}:
+        return preserve_quantitative_contract(
+            preserves_abundance=False,
+            required_evidence=frozenset(
+                {QuantitativeEvidenceRequirement.MISSINGNESS_MASK}
+            ),
+            negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+            reversibility=QuantitativeReversibilityKind.IRREVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.IMPUTATION,
+        )
+    raise PhosPyInputError(
+        "dataset build request preprocessing_config contains an unsupported "
+        "missing_data.policy"
+    )
+
+
 def _resolve_determinism_kind(plan: PreprocessingPlan) -> DeterminismKind:
     if plan.missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
         return DeterminismKind.SEEDED_STOCHASTIC
@@ -453,6 +530,7 @@ MISSING_DATA_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
     ),
+    quantitative_contract=_resolve_quantitative_contract,
     stage_factory=_build_missing_data_stage,
     backend="pandas",
     determinism_kind=_resolve_determinism_kind,

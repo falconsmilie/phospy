@@ -31,6 +31,13 @@ from phospy.science.datasets.preprocessing.stage_contract import (
 from phospy.science.evidence.localisation import (
     assess_localisation_probability_column,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
+)
 
 _EXAMPLE_LIMIT = 5
 
@@ -326,6 +333,13 @@ LOCALISATION_CONFIDENCE_STAGE_CONTRACT = PreprocessingStageContract(
     produced_output_tables=(
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
+    ),
+    quantitative_contract=preserve_quantitative_contract(
+        information_loss=QuantitativeInformationLossKind.NONE,
+        preserves_abundance=True,
+        required_evidence=frozenset({QuantitativeEvidenceRequirement.ROW_AUDIT}),
+        negative_domain_policy=NegativeDomainPolicy.NOT_APPLICABLE,
+        reversibility=QuantitativeReversibilityKind.REVERSIBLE,
     ),
     stage_factory=_build_localisation_confidence_stage,
     backend="pandas",

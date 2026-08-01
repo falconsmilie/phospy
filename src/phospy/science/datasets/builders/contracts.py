@@ -185,6 +185,8 @@ class DatasetPreprocessorContract(Protocol):
         total: pd.DataFrame | None,
         plan: PreprocessingPlan,
         corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None,
+        initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+        initial_quantitative_meaning: QuantitativeMeaning | None = None,
     ) -> PreprocessedDatasetBuildTables: ...
 
 

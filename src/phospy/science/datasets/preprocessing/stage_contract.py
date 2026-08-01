@@ -14,6 +14,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStage,
     PreprocessingStateTableKey,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeOperationContract,
+)
 
 if TYPE_CHECKING:
     from phospy.science.datasets.preprocessing.stages.batch_correction import (
@@ -26,8 +29,15 @@ _ParameterSerializer = Callable[[PreprocessingPlan], dict[str, object]]
 _OperationResolver = Callable[[PreprocessingPlan], str]
 _PlanValidator = Callable[[PreprocessingPlan], None]
 _RandomSeedResolver = Callable[[Mapping[str, object], str], int | None]
+_QuantitativeContractResolver = Callable[
+    [PreprocessingPlan],
+    QuantitativeOperationContract,
+]
 _DeterminismDeclaration = (
     DeterminismKind | str | Callable[[PreprocessingPlan], DeterminismKind | str]
+)
+_QuantitativeContractDeclaration = (
+    QuantitativeOperationContract | _QuantitativeContractResolver | None
 )
 
 
@@ -60,6 +70,7 @@ class InterpretedPreprocessingStageContract:
     parameters: dict[str, object]
     consumed_input_tables: tuple[PreprocessingStateTableKey, ...]
     produced_output_tables: tuple[PreprocessingStateTableKey, ...]
+    quantitative_contract: QuantitativeOperationContract
     determinism_kind: DeterminismKind
     backend: str | None = None
 
@@ -90,6 +101,7 @@ class PreprocessingStageContract:
     serialize_parameters: _ParameterSerializer
     consumed_input_tables: tuple[PreprocessingStateTableKey, ...]
     produced_output_tables: tuple[PreprocessingStateTableKey, ...]
+    quantitative_contract: _QuantitativeContractDeclaration = None
     stage_factory: _StageFactory | None = None
     provenance_stage: str | None = None
     backend: str | None = None
@@ -153,6 +165,7 @@ class PreprocessingStageContract:
             parameters=self.serialize_parameters(plan),
             consumed_input_tables=self.consumed_input_tables,
             produced_output_tables=self.produced_output_tables,
+            quantitative_contract=self.resolve_quantitative_contract(plan),
             determinism_kind=self.resolve_determinism_kind(plan),
             backend=self.backend,
         )
@@ -163,6 +176,25 @@ class PreprocessingStageContract:
         return _normalize_determinism_kind(
             resolved,
             stage_key=self.stage_key,
+        )
+
+    def resolve_quantitative_contract(
+        self,
+        plan: PreprocessingPlan,
+    ) -> QuantitativeOperationContract:
+        declaration = self.quantitative_contract
+        if declaration is None:
+            raise DatasetBuildError(
+                "dataset preprocessing stage metadata is missing quantitative "
+                f"semantic contract: stage={self.stage_key!r}"
+            )
+        resolved = declaration(plan) if callable(declaration) else declaration
+        if isinstance(resolved, QuantitativeOperationContract):
+            return resolved
+        raise DatasetBuildError(
+            "dataset preprocessing stage metadata returned invalid quantitative "
+            f"semantic contract: stage={self.stage_key!r}, got {resolved!r} "
+            f"({type(resolved).__name__})"
         )
 
 

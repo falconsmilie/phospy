@@ -53,9 +53,17 @@ from phospy.science.datasets.preprocessing.stage_registry import (
 from phospy.science.datasets.preprocessing.stages.batch_correction import (
     BATCH_CORRECTION_STAGE_CONTRACT,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeOperationContract,
+    preserve_quantitative_contract,
+)
 from tests.support.site_keys import site_key_index_from_display_ids
 
 _DISPLAY_IDS = ["MAPK14;Y182;", "AKT1;T308;"]
+
+
+def _preserve_quantitative_contract() -> QuantitativeOperationContract:
+    return preserve_quantitative_contract()
 
 
 def _phospho() -> pd.DataFrame:
@@ -164,6 +172,13 @@ def test_every_registered_stage_has_required_metadata_contract_fields() -> None:
         assert isinstance(metadata.resolve_determinism_kind(plan), DeterminismKind)
         assert isinstance(metadata.diagnostics_metadata, dict)
         assert metadata.diagnostics_metadata
+        contract = metadata.resolve_quantitative_contract(plan)
+        assert isinstance(contract, QuantitativeOperationContract)
+        assert contract.accepted_input_scale_kinds
+        assert contract.accepted_quantitative_meanings
+        assert contract.output_scale_transition.output_scale_by_input
+        assert contract.output_meaning_transition.output_meaning_by_input
+        assert contract.required_evidence
 
 
 def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
@@ -176,6 +191,7 @@ def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
             serialize_parameters=lambda _plan: {},
             consumed_input_tables=("dataset.phospho",),
             produced_output_tables=("dataset.phospho",),
+            quantitative_contract=_preserve_quantitative_contract(),
             diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
         ),
         PreprocessingStageMetadata(
@@ -185,12 +201,30 @@ def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
             serialize_parameters=lambda _plan: {},
             consumed_input_tables=("dataset.phospho",),
             produced_output_tables=("dataset.phospho",),
+            quantitative_contract=_preserve_quantitative_contract(),
             diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
         ),
     )
 
     with pytest.raises(DatasetBuildError, match="duplicate stage key"):
         resolve_registered_preprocessing_stages(duplicate_entries)
+
+
+def test_registry_rejects_quantitative_stage_without_semantic_contract() -> None:
+    missing_contract = PreprocessingStageMetadata(
+        stage_key="custom_quantitative_stage",
+        display_label="custom_quantitative_stage",
+        operation_name=lambda _plan: "custom_quantitative_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+
+    with pytest.raises(
+        DatasetBuildError, match="missing quantitative semantic contract"
+    ):
+        resolve_registered_preprocessing_stages((missing_contract,))
 
 
 def test_stage_metadata_rejects_unknown_consumed_table_key() -> None:
@@ -202,6 +236,7 @@ def test_stage_metadata_rejects_unknown_consumed_table_key() -> None:
             serialize_parameters=lambda _plan: {},
             consumed_input_tables=("dataset.sampl_metadata",),
             produced_output_tables=("dataset.phospho",),
+            quantitative_contract=_preserve_quantitative_contract(),
             diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
         )
 
@@ -215,6 +250,7 @@ def test_stage_metadata_rejects_unknown_produced_table_key() -> None:
             serialize_parameters=lambda _plan: {},
             consumed_input_tables=("dataset.phospho",),
             produced_output_tables=("report.row_audt",),
+            quantitative_contract=_preserve_quantitative_contract(),
             diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
         )
 
@@ -241,6 +277,7 @@ def test_known_optional_missing_table_is_skipped_in_trace_fingerprints() -> None
         serialize_parameters=lambda _plan: {},
         consumed_input_tables=("dataset.sample_metadata",),
         produced_output_tables=("dataset.phospho",),
+        quantitative_contract=_preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
     )
 
@@ -376,6 +413,7 @@ def test_dependency_free_stage_factory_receives_uniform_context() -> None:
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
         stage_factory=_build_context_free_stage,
+        quantitative_contract=_preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
     )
     context = PreprocessingStageFactoryContext()
@@ -416,6 +454,7 @@ def test_dependency_bearing_stage_receives_collaborator_from_uniform_context() -
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
         stage_factory=_build_collaborator_stage,
+        quantitative_contract=_preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
     )
     collaborator = FakeCollaborator()
@@ -466,6 +505,7 @@ def test_pipeline_builds_dependency_bearing_custom_stage_without_registry_branch
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
         stage_factory=_build_collaborator_stage,
+        quantitative_contract=_preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("collaborator",)},
     )
     phospho = _phospho()
@@ -548,6 +588,7 @@ def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
         serialize_parameters=lambda _plan: {},
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
+        quantitative_contract=_preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
     )
     state = _fake_stage_state("legacy_alias_stage")
@@ -588,6 +629,7 @@ def test_custom_stage_registration_is_stage_owned() -> None:
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
         stage_factory=_build_fake_stage,
+        quantitative_contract=_preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
     )
     state = PreprocessingState(
@@ -634,6 +676,7 @@ def _fake_stage_contract(
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
         determinism_kind=determinism_kind,
+        quantitative_contract=_preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("random_seed",)},
     )
 

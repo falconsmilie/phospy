@@ -30,6 +30,13 @@ from phospy.science.sequences.resolver import (
     RESOLUTION_STATUS_RESOLVED,
     PhosphositeSequenceResolver,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
+)
 
 
 class SiteSequenceResolutionStage:
@@ -221,6 +228,13 @@ SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT = PreprocessingStageContract(
     serialize_parameters=_resolve_parameters,
     consumed_input_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
     produced_output_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
+    quantitative_contract=preserve_quantitative_contract(
+        information_loss=QuantitativeInformationLossKind.NONE,
+        preserves_abundance=True,
+        required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+        negative_domain_policy=NegativeDomainPolicy.NOT_APPLICABLE,
+        reversibility=QuantitativeReversibilityKind.REVERSIBLE,
+    ),
     stage_factory=_build_site_sequence_resolution_stage,
     backend="phospy.science.sequences",
     determinism_kind=DeterminismKind.DETERMINISTIC,

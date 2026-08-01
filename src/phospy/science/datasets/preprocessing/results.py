@@ -23,6 +23,10 @@ from phospy.science.datasets.preprocessing.report_schema import (
     PreprocessingRowAuditRow,
 )
 from phospy.science.transformations.models import IntensityTransformationEvent
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeOperationContract,
+    QuantitativeTransitionEvidence,
+)
 
 if TYPE_CHECKING:
     from phospy.science.datasets.preprocessing.trace import PreprocessingState
@@ -74,6 +78,7 @@ class PreprocessingStageResult:
     report_rows: Sequence[PreprocessingReportRow] = ()
     batch_correction_provenance: BatchCorrectionProvenance | None = None
     intensity_transformation_event: IntensityTransformationEvent | None = None
+    quantitative_transition_evidence: QuantitativeTransitionEvidence | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +110,8 @@ class PreprocessingStageExecution:
     diagnostics: Mapping[str, object] = field(default_factory=dict)
     batch_correction_provenance: BatchCorrectionProvenance | None = None
     intensity_transformation_event: IntensityTransformationEvent | None = None
+    quantitative_transition_evidence: QuantitativeTransitionEvidence | None = None
+    quantitative_contract: QuantitativeOperationContract | None = None
 
     @property
     def input_rows(self) -> int:

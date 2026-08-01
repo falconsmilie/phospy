@@ -34,6 +34,9 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
 )
 from phospy.science.datasets.preprocessing.trace_builder import _StageTraceBuilder
+from phospy.science.transformations.quantitative_contracts import (
+    preserve_quantitative_contract,
+)
 
 
 def _base_phospho() -> pd.DataFrame:
@@ -184,6 +187,7 @@ def test_stage_trace_builder_reproduces_pipeline_trace_payload() -> None:
         serialize_parameters=lambda _plan: {"mode": "test"},
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
+        quantitative_contract=preserve_quantitative_contract(),
         diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
     )
     phospho = _base_phospho()

@@ -101,6 +101,35 @@ explicit `input_intensity_scale='log2'` declaration. A separate future
 multiplicative median-scaling operation may support linear abundance by
 division rather than subtraction.
 
+Update note (2026-08-01, operation-level quantitative contracts):
+Preprocessing stages that can affect quantitative values now carry an explicit
+`QuantitativeOperationContract` resolved from stage-owned metadata. The contract
+is the semantic authority for accepted input scale kinds, accepted quantitative
+meanings, output scale transition, output meaning transition,
+abundance-preservation status, negative-domain behavior, required evidence,
+reversibility, and information-loss category. Registry construction rejects any
+quantitative preprocessing stage that omits this contract.
+
+The contract layer is intentionally split by responsibility:
+
+- stage execution owns numerical logic and typed operation evidence;
+- `science.transformations` owns the typed transition vocabulary and semantic
+  state model;
+- `science.datasets.preprocessing.state_builder` folds executed contracts into
+  `IntensityScaleState` and mints quantitative-meaning provenance;
+- workflows and public configuration DTOs request operations but do not own or
+  mint semantic transitions.
+
+State builders must consume typed contract metadata and typed stage evidence.
+They must not infer scientific meaning from diagnostic text. Diagnostics may
+mirror the resolved contract output for reporting and audit, but a diagnostic
+value that disagrees with the typed transition is an error. This makes
+total-protein correction a normal operation-derived meaning transition rather
+than a special state-builder branch.
+Contracts that affect pre-execution scale/meaning folding without minting a
+separate operation-derived quantitative-meaning provenance event must declare
+that explicitly.
+
 This ADR supersedes the old transformation-state wording but does not remove
 compatibility behavior where historical names appear in non-contract internals.
 
@@ -141,6 +170,14 @@ compatibility behavior where historical names appear in non-contract internals.
   `src/phospy/science/transformations/_authority.py` and
   `src/phospy/science/transformations/models.py`. Public DTOs may request a
   declaration, but they do not mint transition authority.
+- Operation-level quantitative contracts are defined in
+  `src/phospy/science/transformations/quantitative_contracts.py`, declared by
+  stage-owned contracts under
+  `src/phospy/science/datasets/preprocessing/stages/`, validated by the
+  preprocessing stage registry, pre-folded by the preprocessing pipeline and
+  dataset-build executor before numerical execution, and folded into processing
+  state by
+  `src/phospy/science/datasets/preprocessing/state_builder.py`.
 - Numeric intensity transformations (including default preprocessing log2) must
   execute through transformer implementations in
   `src/phospy/science/transformations/transformers/`; preprocessing stages

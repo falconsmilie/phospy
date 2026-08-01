@@ -62,6 +62,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     QuantitativeMeaning,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    preserve_quantitative_contract,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
@@ -292,6 +295,7 @@ def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
         serialize_parameters=lambda _plan: {},
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
+        quantitative_contract=preserve_quantitative_contract(),
     )
 
 
@@ -2502,6 +2506,8 @@ def test_dataset_preprocessor_applies_median_center_normalisation_policy() -> No
                 normalisation=DatasetNormalisationConfig(policy="median_center")
             )
         ),
+        initial_quantitative_scale_kind=IntensityScaleKind.LOG2,
+        initial_quantitative_meaning=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
     )
 
     expected = pd.DataFrame(
@@ -2791,6 +2797,17 @@ def test_dataset_preprocessor_rejects_non_numeric_phospho_columns_for_new_method
         index=phospho.index.copy(),
     )
     site_metadata = _with_test_site_identity(site_metadata)
+    seed_kwargs: dict[str, object] = {}
+    if (
+        intensity_transform.policy == "identity"
+        and normalisation.policy == "median_center"
+    ):
+        seed_kwargs = {
+            "initial_quantitative_scale_kind": IntensityScaleKind.LOG2,
+            "initial_quantitative_meaning": (
+                QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+            ),
+        }
 
     with pytest.raises(PhosPyInputError, match=expected):
         DatasetPreprocessor().run(
@@ -2804,4 +2821,5 @@ def test_dataset_preprocessor_rejects_non_numeric_phospho_columns_for_new_method
                     normalisation=normalisation,
                 )
             ),
+            **seed_kwargs,
         )

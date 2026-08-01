@@ -21,6 +21,7 @@ from phospy.science.datasets.preprocessing.fingerprints import (
     _StageFingerprintService,
 )
 from phospy.science.datasets.preprocessing.models import (
+    PreprocessingPlan,
     PreprocessingReportRow,
     PreprocessingStage,
     PreprocessingStageExecution,
@@ -31,6 +32,7 @@ from phospy.science.datasets.preprocessing.report_rows import (
     validate_preprocessing_report_row,
 )
 from phospy.science.datasets.preprocessing.stage_contract import (
+    InterpretedPreprocessingStageContract,
     PreprocessingStageFactoryContext,
 )
 from phospy.science.datasets.preprocessing.stage_registry import (
@@ -44,6 +46,14 @@ from phospy.science.datasets.preprocessing.stages import (
     SpsRuvStyleBatchCorrectionRunner,
 )
 from phospy.science.datasets.preprocessing.trace_builder import _StageTraceBuilder
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeContractState,
+    initial_quantitative_contract_state,
+)
 
 _LEGACY_STAGE_METADATA_REGISTRY_DEPRECATION_MESSAGE = (
     "PreprocessingPipeline(stage_metadata_registry=...) is deprecated because "
@@ -95,17 +105,34 @@ class PreprocessingPipeline:
             metadata.stage_key: metadata for metadata in resolved_metadata_registry
         }
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
-        final_state, _ = self.run_with_trace(state)
+    def run(
+        self,
+        state: PreprocessingState,
+        *,
+        initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+        initial_quantitative_meaning: QuantitativeMeaning | None = None,
+    ) -> PreprocessingState:
+        final_state, _ = self.run_with_trace(
+            state,
+            initial_quantitative_scale_kind=initial_quantitative_scale_kind,
+            initial_quantitative_meaning=initial_quantitative_meaning,
+        )
         return final_state
 
     def run_with_trace(
         self,
         state: PreprocessingState,
+        *,
+        initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+        initial_quantitative_meaning: QuantitativeMeaning | None = None,
     ) -> tuple[PreprocessingState, tuple[PreprocessingStageExecution, ...]]:
         current = state
         trace: list[PreprocessingStageExecution] = []
         report_rows: list[PreprocessingReportRow] = list(current.report_rows)
+        quantitative_state = initial_quantitative_contract_state(
+            declared_input_scale_kind=initial_quantitative_scale_kind,
+            explicit_quantitative_meaning=initial_quantitative_meaning,
+        )
         event_validator = _TransformationEventSequenceValidator()
         diagnostics_defaults_resolver = _StageDiagnosticsDefaultsResolver()
         diagnostics_normalizer = _StageDiagnosticsNormalizer()
@@ -117,6 +144,15 @@ class PreprocessingPipeline:
             contract = self._resolve_stage_contract(stage_key)
             previous = current
             interpreted_contract = contract.interpret(previous.plan)
+            _run_stage_pre_quantitative_contract_validation(
+                stage=stage,
+                state=previous,
+            )
+            quantitative_state = _validate_quantitative_contract_before_execution(
+                quantitative_state=quantitative_state,
+                stage_key=stage_key,
+                interpreted_contract=interpreted_contract,
+            )
             stage_result = stage.run(current)
             if not isinstance(stage_result, PreprocessingStageResult):
                 raise DatasetBuildError(
@@ -161,6 +197,32 @@ class PreprocessingPipeline:
         if report_rows:
             current = replace(current, report_rows=tuple(report_rows))
         return current, tuple(trace)
+
+    def validate_quantitative_contracts(
+        self,
+        *,
+        plan: object,
+        initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+        initial_quantitative_meaning: QuantitativeMeaning | None = None,
+    ) -> QuantitativeContractState:
+        if not isinstance(plan, PreprocessingPlan):
+            raise DatasetBuildError(
+                "dataset preprocessing quantitative contract validation requires "
+                "a PreprocessingPlan"
+            )
+        quantitative_state = initial_quantitative_contract_state(
+            declared_input_scale_kind=initial_quantitative_scale_kind,
+            explicit_quantitative_meaning=initial_quantitative_meaning,
+        )
+        for stage_key in plan.stage_order:
+            contract = self._resolve_stage_contract(stage_key)
+            interpreted_contract = contract.interpret(plan)
+            quantitative_state = _validate_quantitative_contract_before_execution(
+                quantitative_state=quantitative_state,
+                stage_key=stage_key,
+                interpreted_contract=interpreted_contract,
+            )
+        return quantitative_state
 
     def _resolve_stage(self, stage_key: str) -> PreprocessingStage:
         stage = self._stages_by_key.get(stage_key)
@@ -207,6 +269,30 @@ def _normalize_report_rows(
     for row in rows:
         normalized.append(validate_preprocessing_report_row(row))
     return tuple(normalized)
+
+
+def _validate_quantitative_contract_before_execution(
+    *,
+    quantitative_state: QuantitativeContractState,
+    stage_key: str,
+    interpreted_contract: InterpretedPreprocessingStageContract,
+) -> QuantitativeContractState:
+    return interpreted_contract.quantitative_contract.validate_and_transition(
+        quantitative_state,
+        stage=stage_key,
+        operation=interpreted_contract.operation,
+        evidence=None,
+    )
+
+
+def _run_stage_pre_quantitative_contract_validation(
+    *,
+    stage: PreprocessingStage,
+    state: PreprocessingState,
+) -> None:
+    validator = getattr(stage, "validate_before_quantitative_contract", None)
+    if callable(validator):
+        validator(state)
 
 
 __all__ = ["PreprocessingPipeline", "_resolve_state_table"]

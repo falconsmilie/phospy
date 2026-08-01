@@ -53,6 +53,9 @@ from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    preserve_quantitative_contract,
+)
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
 from tests.support.site_keys import (
     site_key_context_columns,
@@ -152,6 +155,7 @@ def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
         serialize_parameters=lambda _plan: {},
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
+        quantitative_contract=preserve_quantitative_contract(),
     )
 
 
@@ -1026,7 +1030,11 @@ def test_pipeline_trace_preserves_normalisation_diagnostics() -> None:
         ),
     )
 
-    _, trace = PreprocessingPipeline().run_with_trace(state)
+    _, trace = PreprocessingPipeline().run_with_trace(
+        state,
+        initial_quantitative_scale_kind=IntensityScaleKind.LOG2,
+        initial_quantitative_meaning=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+    )
 
     diagnostics = trace[0].diagnostics
     assert diagnostics["method"] == "median_center"

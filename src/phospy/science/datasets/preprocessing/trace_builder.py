@@ -89,6 +89,10 @@ class _StageTraceBuilder:
             diagnostics=dict(diagnostics.diagnostics),
             batch_correction_provenance=stage_result.batch_correction_provenance,
             intensity_transformation_event=intensity_transformation_event,
+            quantitative_transition_evidence=(
+                stage_result.quantitative_transition_evidence
+            ),
+            quantitative_contract=interpreted_contract.quantitative_contract,
         )
 
 

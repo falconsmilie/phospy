@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import replace
 
 import pandas as pd
@@ -41,13 +42,23 @@ from phospy.science.datasets.models import (
 from phospy.science.datasets.organism_coherence import (
     normalize_dataset_organism_state,
 )
+from phospy.science.datasets.preprocessing.models import (
+    reject_external_corrected_output_after_downstream_preprocessing,
+)
 from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwarePreparationResult,
 )
 from phospy.science.datasets.preprocessing.quantitative_scale_policy import (
     AdditivePreprocessingScaleGuard,
 )
+from phospy.science.datasets.preprocessing.stage_registry import (
+    get_preprocessing_stage_metadata,
+)
 from phospy.science.transformations.contracts import Transformer
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeContractState,
+    initial_quantitative_contract_state,
+)
 from phospy.science.transformations.transformers import IdentityTransformer
 
 
@@ -161,6 +172,13 @@ class DatasetBuildExecutor:
             "total": request.total,
             "plan": request.preprocessing_plan,
         }
+        if _preprocessor_accepts_quantitative_contract_seed(self._preprocessor):
+            preprocessor_kwargs["initial_quantitative_scale_kind"] = (
+                request.declared_input_intensity_scale_kind
+            )
+            preprocessor_kwargs["initial_quantitative_meaning"] = (
+                request.quantitative_meaning
+            )
         if request.corrected_preprocessing_output is not None:
             preprocessor_kwargs["corrected_preprocessing_output"] = (
                 request.corrected_preprocessing_output
@@ -171,10 +189,18 @@ class DatasetBuildExecutor:
         self,
         request: InterpretedDatasetBuildRequest,
     ) -> None:
+        if request.corrected_preprocessing_output is not None:
+            reject_external_corrected_output_after_downstream_preprocessing(
+                request.preprocessing_plan.stage_order
+            )
         self._additive_preprocessing_scale_guard.run(
             preprocessing_plan=request.preprocessing_plan,
             declared_input_scale_kind=request.declared_input_intensity_scale_kind,
             corrected_preprocessing_output=request.corrected_preprocessing_output,
+        )
+        _validate_quantitative_operation_contracts_before_preprocessing(
+            request,
+            preprocessor=self._preprocessor,
         )
 
     def _validate_analysis_ready_site_sequences(
@@ -342,3 +368,55 @@ def _declared_scale_diagnostic_policy_label(
     if request.declared_input_intensity_scale_kind.value == "log2":
         return "error"
     return "warn"
+
+
+def _validate_quantitative_operation_contracts_before_preprocessing(
+    request: InterpretedDatasetBuildRequest,
+    *,
+    preprocessor: DatasetPreprocessorContract,
+) -> QuantitativeContractState:
+    preprocessor_validator = getattr(
+        preprocessor,
+        "validate_quantitative_contracts",
+        None,
+    )
+    if callable(preprocessor_validator):
+        result = preprocessor_validator(
+            plan=request.preprocessing_plan,
+            initial_quantitative_scale_kind=(
+                request.declared_input_intensity_scale_kind
+            ),
+            initial_quantitative_meaning=request.quantitative_meaning,
+        )
+        if isinstance(result, QuantitativeContractState):
+            return result
+    quantitative_state = initial_quantitative_contract_state(
+        declared_input_scale_kind=request.declared_input_intensity_scale_kind,
+        explicit_quantitative_meaning=request.quantitative_meaning,
+    )
+    plan = request.preprocessing_plan
+    for stage_key in plan.stage_order:
+        metadata = get_preprocessing_stage_metadata(stage_key)
+        interpreted = metadata.interpret(plan)
+        quantitative_state = interpreted.quantitative_contract.validate_and_transition(
+            quantitative_state,
+            stage=stage_key,
+            operation=interpreted.operation,
+            evidence=None,
+        )
+    return quantitative_state
+
+
+def _preprocessor_accepts_quantitative_contract_seed(
+    preprocessor: DatasetPreprocessorContract,
+) -> bool:
+    try:
+        parameters = inspect.signature(preprocessor.run).parameters
+    except (TypeError, ValueError):
+        return False
+    if any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
+    ):
+        return True
+    return "initial_quantitative_scale_kind" in parameters

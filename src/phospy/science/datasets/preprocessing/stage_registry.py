@@ -80,6 +80,15 @@ def _build_stage_metadata_by_key(
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without determinism resolver"
             )
+        try:
+            metadata.resolve_quantitative_contract(PreprocessingPlan())
+        except DatasetBuildError:
+            raise
+        except Exception as exc:
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} with invalid "
+                "quantitative semantic contract"
+            ) from exc
         if not isinstance(metadata.diagnostics_metadata, Mapping):
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} with invalid diagnostics metadata"

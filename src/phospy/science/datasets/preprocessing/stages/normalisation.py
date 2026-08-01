@@ -24,6 +24,20 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
     PreprocessingStageFactoryContext,
 )
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeOperationContract,
+    QuantitativeReversibilityKind,
+    preserve_meaning_transition,
+    preserve_quantitative_contract,
+    preserve_scale_transition,
+)
 
 
 class _ShapePayload(TypedDict):
@@ -352,6 +366,54 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return _resolve_method_parameters(plan.normalisation_policy)
 
 
+def _resolve_quantitative_contract(
+    plan: PreprocessingPlan,
+) -> QuantitativeOperationContract:
+    policy = plan.normalisation_policy
+    if policy is NormalisationPolicy.NONE:
+        return preserve_quantitative_contract(
+            required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+            negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+            reversibility=QuantitativeReversibilityKind.REVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.NONE,
+        )
+    if policy is NormalisationPolicy.MEDIAN_CENTER:
+        accepted_meanings = frozenset(
+            {
+                QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+                QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+                QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE,
+                QuantitativeMeaning.UNKNOWN,
+            }
+        )
+        return QuantitativeOperationContract(
+            accepted_input_scale_kinds=frozenset({IntensityScaleKind.LOG2}),
+            accepted_quantitative_meanings=accepted_meanings,
+            output_scale_transition=preserve_scale_transition(
+                frozenset({IntensityScaleKind.LOG2}),
+                output_scale_label="log2",
+            ),
+            output_meaning_transition=preserve_meaning_transition(accepted_meanings),
+            preserves_abundance=False,
+            negative_domain_policy=NegativeDomainPolicy.MAY_INTRODUCE_NEGATIVE_VALUES,
+            required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+            reversibility=QuantitativeReversibilityKind.CONDITIONALLY_REVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.DISTRIBUTION_RESHAPING,
+        )
+    if policy is NormalisationPolicy.QUANTILE:
+        return preserve_quantitative_contract(
+            preserves_abundance=False,
+            required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+            negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+            reversibility=QuantitativeReversibilityKind.IRREVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.DISTRIBUTION_RESHAPING,
+        )
+    raise PhosPyInputError(
+        "dataset build request preprocessing_config contains an unsupported "
+        "normalisation.policy"
+    )
+
+
 def _build_normalisation_stage(
     _context: PreprocessingStageFactoryContext,
 ) -> NormalisationStage:
@@ -366,6 +428,7 @@ NORMALISATION_STAGE_CONTRACT = PreprocessingStageContract(
     serialize_parameters=_resolve_parameters,
     consumed_input_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
     produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    quantitative_contract=_resolve_quantitative_contract,
     stage_factory=_build_normalisation_stage,
     backend="numpy",
     determinism_kind=DeterminismKind.DETERMINISTIC,

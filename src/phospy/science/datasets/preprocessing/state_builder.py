@@ -21,6 +21,9 @@ from phospy.science.datasets.preprocessing.policy_models import (
     SiteMatrixPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.datasets.preprocessing.stage_registry import (
+    get_preprocessing_stage_metadata,
+)
 from phospy.science.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     ComparisonState,
@@ -40,7 +43,6 @@ from phospy.science.transformations._authority import (
 from phospy.science.transformations.models import (
     QUANTITATIVE_MEANING_OPERATION_CALLER_DECLARATION,
     QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
-    QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
     QUANTITATIVE_MEANING_USER_DECLARED_CAVEAT_CODE,
     IntensityScaleState,
     QuantitativeMeaning,
@@ -50,12 +52,13 @@ from phospy.science.transformations.models import (
     default_quantitative_meaning_for_scale_kind,
     is_caller_declarable_quantitative_meaning,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeContractState,
+    QuantitativeOperationContract,
+)
 
 _DATASET_BUILDER_QUANTITATIVE_MEANING_PRODUCER = (
     "phospy.science.datasets.preprocessing.state_builder"
-)
-_TOTAL_PROTEIN_CORRECTION_QUANTITATIVE_MEANING_PRODUCER = (
-    "phospy.science.datasets.preprocessing.stages.total_protein_correction"
 )
 
 
@@ -110,6 +113,7 @@ class DatasetProcessingStateBuilder:
             else None
         )
         intensity_scale_state = _resolve_quantitative_meaning_state(
+            plan=plan,
             intensity_scale_state=intensity_scale_state,
             total_correction_policy=resolved_total_policy,
             correction_diagnostics=correction_diagnostics,
@@ -351,6 +355,7 @@ class DatasetProcessingStateBuilder:
 
 def _resolve_quantitative_meaning_state(
     *,
+    plan: PreprocessingPlan,
     intensity_scale_state: IntensityScaleState,
     total_correction_policy: TotalProteinCorrectionPolicy,
     correction_diagnostics: dict[str, object] | None,
@@ -363,55 +368,21 @@ def _resolve_quantitative_meaning_state(
             intensity_scale_state=resolved_state,
             target=explicit_quantitative_meaning,
         )
-    quantitative_meaning = ProcessingTraceDiagnostics.resolve_optional_string(
-        correction_diagnostics,
-        stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
-        key="quantitative_meaning",
-        default=None,
-    )
-    if quantitative_meaning is not None:
-        try:
-            target = QuantitativeMeaning(quantitative_meaning)
-        except ValueError as exc:
-            supported = ", ".join(member.value for member in QuantitativeMeaning)
-            raise DatasetBuildError(
-                "dataset preprocessing total_protein_correction diagnostics "
-                "quantitative_meaning must be one of: "
-                f"{supported}; got {quantitative_meaning!r}"
-            ) from exc
-        if total_correction_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL:
-            if resolved_state.quantity is None:
-                resolved_state = _infer_quantitative_meaning_from_scale_contract(
-                    intensity_scale_state=resolved_state
-                )
-            return _apply_total_protein_correction_quantitative_meaning(
-                intensity_scale_state=resolved_state,
-                target=target,
-                preprocessing_trace=preprocessing_trace,
-                correction_diagnostics=correction_diagnostics,
-            )
-        if explicit_quantitative_meaning is None:
-            return _apply_caller_declared_quantitative_meaning(
-                intensity_scale_state=resolved_state,
-                target=target,
-            )
-        return resolved_state
-    if total_correction_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL:
-        if resolved_state.quantity is None:
-            resolved_state = _infer_quantitative_meaning_from_scale_contract(
-                intensity_scale_state=resolved_state
-            )
-        return _apply_total_protein_correction_quantitative_meaning(
-            intensity_scale_state=resolved_state,
-            target=QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
-            preprocessing_trace=preprocessing_trace,
-            correction_diagnostics=correction_diagnostics,
+    elif resolved_state.quantity is None:
+        resolved_state = _infer_quantitative_meaning_from_scale_contract(
+            intensity_scale_state=resolved_state
         )
-    if resolved_state.quantity is not None:
-        return resolved_state
-    return _infer_quantitative_meaning_from_scale_contract(
-        intensity_scale_state=resolved_state
+    resolved_state = _apply_quantitative_operation_contract_transitions(
+        plan=plan,
+        plan_total_correction_policy=total_correction_policy,
+        intensity_scale_state=resolved_state,
+        preprocessing_trace=preprocessing_trace,
     )
+    _reject_diagnostic_quantitative_meaning_mismatch(
+        correction_diagnostics=correction_diagnostics,
+        resolved_state=resolved_state,
+    )
+    return resolved_state
 
 
 def _apply_caller_declared_quantitative_meaning(
@@ -473,66 +444,173 @@ def _infer_quantitative_meaning_from_scale_contract(
     )
 
 
-def _apply_total_protein_correction_quantitative_meaning(
+def _apply_quantitative_operation_contract_transitions(
     *,
+    plan: PreprocessingPlan,
     intensity_scale_state: IntensityScaleState,
-    target: QuantitativeMeaning,
+    plan_total_correction_policy: TotalProteinCorrectionPolicy,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-    correction_diagnostics: dict[str, object] | None,
 ) -> IntensityScaleState:
-    stage = _require_total_protein_correction_stage(preprocessing_trace)
-    input_fingerprints = stage.consumed_input_tables
+    _require_trace_for_contract_emitting_plan_stages(
+        plan=plan,
+        preprocessing_trace=preprocessing_trace,
+    )
+    resolved_state = intensity_scale_state
+    for stage in preprocessing_trace or ():
+        contract = _resolve_trace_quantitative_contract(stage=stage, plan=plan)
+        if not contract.emits_quantitative_meaning_state_event:
+            continue
+        current_quantity = resolved_state.quantity
+        if current_quantity is None:
+            raise DatasetBuildError(
+                "quantitative operation contract transition requires an established "
+                f"input quantitative meaning: stage={stage.stage!r}"
+            )
+        contract_state = QuantitativeContractState(
+            scale_kind=resolved_state.kind,
+            meaning=current_quantity,
+        )
+        target_state = contract.validate_and_transition(
+            contract_state,
+            stage=stage.stage,
+            operation=stage.operation,
+            evidence=stage.quantitative_transition_evidence,
+        )
+        if target_state.meaning is current_quantity:
+            continue
+        provenance = _build_contract_quantitative_meaning_provenance(
+            stage=stage,
+            contract=contract,
+            source=current_quantity,
+            target=target_state.meaning,
+        )
+        resolved_state = resolved_state.transition_quantitative_meaning(
+            target_quantity=target_state.meaning,
+            provenance=provenance,
+            authority=dataset_quantitative_meaning_transition_authority(),
+        )
+    if (
+        plan_total_correction_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL
+        and resolved_state.quantity
+        not in {
+            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+            QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE,
+        }
+    ):
+        raise DatasetBuildError(
+            "dataset preprocessing plan requested total-protein correction but no "
+            "quantitative operation contract transition changed the output meaning"
+        )
+    return resolved_state
+
+
+def _require_trace_for_contract_emitting_plan_stages(
+    *,
+    plan: PreprocessingPlan,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> None:
+    observed_stages = {stage.stage for stage in preprocessing_trace or ()}
+    stage_keys = list(plan.stage_order)
+    if (
+        plan.total_protein_correction_policy
+        is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL
+        and DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION not in stage_keys
+    ):
+        stage_keys.append(DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION)
+    for stage_key in stage_keys:
+        if stage_key in observed_stages:
+            continue
+        metadata = get_preprocessing_stage_metadata(stage_key)
+        interpreted = metadata.interpret(plan)
+        if (
+            interpreted.quantitative_contract.emits_quantitative_meaning_state_event
+            and interpreted.stage not in observed_stages
+        ):
+            raise DatasetBuildError(
+                "quantitative operation contract transition requires a "
+                f"{interpreted.stage} preprocessing trace stage with fingerprints"
+            )
+
+
+def _resolve_trace_quantitative_contract(
+    *,
+    stage: PreprocessingStageExecution,
+    plan: PreprocessingPlan,
+) -> QuantitativeOperationContract:
+    if stage.quantitative_contract is not None:
+        return stage.quantitative_contract
+    metadata = get_preprocessing_stage_metadata(stage.stage)
+    interpreted = metadata.interpret(plan)
+    return interpreted.quantitative_contract
+
+
+def _build_contract_quantitative_meaning_provenance(
+    *,
+    stage: PreprocessingStageExecution,
+    contract: QuantitativeOperationContract,
+    source: QuantitativeMeaning,
+    target: QuantitativeMeaning,
+) -> QuantitativeMeaningTransitionProvenance:
+    operation_id = contract.operation_id
+    producer_id = contract.producer_id
+    output_table = contract.provenance_output_table
+    if operation_id is None or producer_id is None or output_table is None:
+        raise DatasetBuildError(
+            "quantitative operation contract is missing semantic provenance "
+            f"metadata: stage={stage.stage!r}, operation={stage.operation!r}"
+        )
     _require_stage_input_fingerprint_names(
         stage,
-        required_names=("dataset.phospho", "dataset.total"),
+        required_names=contract.provenance_input_tables,
     )
     output_fingerprint = _require_stage_output_fingerprint(
         stage,
-        table_name="dataset.phospho",
+        table_name=output_table,
     )
-    parameters = dict(stage.parameters)
-    if correction_diagnostics is not None:
-        for key in (
-            "formula",
-            "matched_rows",
-            "corrected_row_count",
-            "uncorrected_row_count",
-            "identity_mode",
-            "identity_matching_policy",
-            "duplicate_policy",
-            "unmatched_policy",
-        ):
-            if key in correction_diagnostics:
-                parameters[f"diagnostics.{key}"] = correction_diagnostics[key]
-    provenance = QuantitativeMeaningTransitionProvenance(
-        source_quantity=intensity_scale_state.quantity,
+    parameters = _contract_transition_parameters(
+        stage=stage,
+        contract=contract,
+    )
+    return QuantitativeMeaningTransitionProvenance(
+        source_quantity=source,
         target_quantity=target,
-        operation_id=QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
-        producer_id=_TOTAL_PROTEIN_CORRECTION_QUANTITATIVE_MEANING_PRODUCER,
-        evidence_mode=QuantitativeMeaningEvidenceMode.DERIVED_BY_PHOSPY_OPERATION,
+        operation_id=operation_id,
+        producer_id=producer_id,
+        evidence_mode=contract.evidence_mode,
         parameters=parameters,
-        input_table_fingerprints=input_fingerprints,
+        input_table_fingerprints=stage.consumed_input_tables,
         output_table_fingerprint=output_fingerprint,
         trace_id=f"{stage.stage}:{stage.operation}:{stage.output_hash}",
-        diagnostic_caveat_codes=_total_correction_meaning_caveat_codes(target),
-    )
-    return intensity_scale_state.transition_quantitative_meaning(
-        target_quantity=target,
-        provenance=provenance,
-        authority=dataset_quantitative_meaning_transition_authority(),
+        diagnostic_caveat_codes=contract.caveat_codes(
+            target=target,
+            evidence=stage.quantitative_transition_evidence,
+        ),
     )
 
 
-def _require_total_protein_correction_stage(
-    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-) -> PreprocessingStageExecution:
-    for stage in preprocessing_trace or ():
-        if stage.stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-            return stage
-    raise DatasetBuildError(
-        "subtract-log-total quantitative meaning transition requires a "
-        "total_protein_correction preprocessing trace stage with fingerprints"
-    )
+def _contract_transition_parameters(
+    *,
+    stage: PreprocessingStageExecution,
+    contract: QuantitativeOperationContract,
+) -> dict[str, object]:
+    parameters = dict(stage.parameters)
+    diagnostics = stage.diagnostics
+    for key in contract.provenance_diagnostic_fields:
+        if key in diagnostics:
+            parameters[f"diagnostics.{key}"] = diagnostics[key]
+    evidence = stage.quantitative_transition_evidence
+    if evidence is not None:
+        for key, value in evidence.to_payload().items():
+            parameters[f"evidence.{key}"] = value
+    parameters["semantic_contract"] = {
+        "preserves_abundance": bool(contract.preserves_abundance),
+        "negative_domain_policy": contract.negative_domain_policy.value,
+        "reversibility": contract.reversibility.value,
+        "information_loss": contract.information_loss.value,
+        "emits_state_transition_event": bool(contract.emits_state_transition_event),
+        "required_evidence": sorted(item.value for item in contract.required_evidence),
+    }
+    return parameters
 
 
 def _require_stage_output_fingerprint(
@@ -544,7 +622,7 @@ def _require_stage_output_fingerprint(
         if fingerprint.name == table_name:
             return fingerprint
     raise DatasetBuildError(
-        "subtract-log-total quantitative meaning transition requires output "
+        "quantitative operation contract transition requires output "
         f"fingerprint for {table_name!r}"
     )
 
@@ -558,20 +636,44 @@ def _require_stage_input_fingerprint_names(
     missing = tuple(name for name in required_names if name not in observed)
     if missing:
         raise DatasetBuildError(
-            "subtract-log-total quantitative meaning transition requires input "
+            "quantitative operation contract transition requires input "
             "fingerprints for " + ", ".join(repr(name) for name in missing)
         )
 
 
-def _total_correction_meaning_caveat_codes(
-    target: QuantitativeMeaning,
-) -> tuple[str, ...]:
-    if (
-        target
-        is QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE
-    ):
-        return ("quantitative_meaning_mixed_total_protein_correction",)
-    return ()
+def _reject_diagnostic_quantitative_meaning_mismatch(
+    *,
+    correction_diagnostics: dict[str, object] | None,
+    resolved_state: IntensityScaleState,
+) -> None:
+    diagnostic_meaning = ProcessingTraceDiagnostics.resolve_optional_string(
+        correction_diagnostics,
+        stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+        key="quantitative_meaning",
+        default=None,
+    )
+    if diagnostic_meaning is None:
+        return
+    try:
+        diagnostic_quantity = QuantitativeMeaning(diagnostic_meaning)
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        raise DatasetBuildError(
+            "dataset preprocessing total_protein_correction diagnostics "
+            "quantitative_meaning must be one of: "
+            f"{supported}; got {diagnostic_meaning!r}"
+        ) from exc
+    resolved_quantity = resolved_state.quantity
+    if resolved_quantity is None:
+        raise DatasetBuildError("intensity-scale state is missing quantitative meaning")
+    if diagnostic_quantity is resolved_quantity:
+        return
+    raise DatasetBuildError(
+        "dataset preprocessing total_protein_correction diagnostics "
+        "quantitative_meaning does not match the typed quantitative contract "
+        "transition output: "
+        f"diagnostics={diagnostic_meaning!r}, contract={resolved_quantity.value!r}"
+    )
 
 
 def _resolve_ruv_readiness_state(

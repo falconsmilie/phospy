@@ -20,6 +20,20 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageFactoryContext,
 )
 from phospy.science.transformations.contracts import Transformer
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeOperationContract,
+    QuantitativeReversibilityKind,
+    linear_to_log2_scale_transition,
+    preserve_quantitative_contract,
+    static_meaning_transition,
+)
 from phospy.science.transformations.transformers import (
     IdentityTransformer,
     Log2Transformer,
@@ -124,6 +138,51 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return {"pseudocount": float(plan.intensity_transform_pseudocount)}
 
 
+def _resolve_quantitative_contract(
+    plan: PreprocessingPlan,
+) -> QuantitativeOperationContract:
+    if plan.intensity_transform_policy is IntensityTransformPolicy.IDENTITY:
+        return preserve_quantitative_contract(
+            required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+            negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+            reversibility=QuantitativeReversibilityKind.REVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.NONE,
+        )
+    if plan.intensity_transform_policy is IntensityTransformPolicy.LOG2:
+        return QuantitativeOperationContract(
+            accepted_input_scale_kinds=frozenset({IntensityScaleKind.LINEAR}),
+            accepted_quantitative_meanings=frozenset(
+                {
+                    QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE,
+                    QuantitativeMeaning.UNKNOWN,
+                }
+            ),
+            output_scale_transition=linear_to_log2_scale_transition(),
+            output_meaning_transition=static_meaning_transition(
+                {
+                    QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE: (
+                        QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+                    ),
+                    QuantitativeMeaning.UNKNOWN: QuantitativeMeaning.UNKNOWN,
+                }
+            ),
+            preserves_abundance=False,
+            negative_domain_policy=(
+                NegativeDomainPolicy.REQUIRES_POSITIVE_INPUT_AFTER_PSEUDOCOUNT
+            ),
+            required_evidence=frozenset(
+                {QuantitativeEvidenceRequirement.TYPED_INTENSITY_TRANSFORMATION_EVENT}
+            ),
+            reversibility=QuantitativeReversibilityKind.CONDITIONALLY_REVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.SCALE_TRANSFORMATION,
+            emits_state_transition_event=False,
+        )
+    raise PhosPyInputError(
+        "dataset build request preprocessing_config contains an unsupported "
+        "intensity_transform.policy"
+    )
+
+
 def _build_intensity_transform_stage(
     _context: PreprocessingStageFactoryContext,
 ) -> IntensityTransformStage:
@@ -144,6 +203,7 @@ INTENSITY_TRANSFORM_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_PHOSPHO,
         PreprocessingStateTableKey.DATASET_TOTAL,
     ),
+    quantitative_contract=_resolve_quantitative_contract,
     stage_factory=_build_intensity_transform_stage,
     backend="numpy",
     determinism_kind=DeterminismKind.DETERMINISTIC,

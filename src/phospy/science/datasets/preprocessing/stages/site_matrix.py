@@ -43,6 +43,13 @@ from phospy.science.sites.identity_columns import (
     enforce_display_id_column,
     enforce_site_key_column,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
+)
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"
 _SITE_COLUMN = "site"
@@ -551,6 +558,13 @@ SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.REPORT_DUPLICATE_SITE_RESOLUTION,
         PreprocessingStateTableKey.REPORT_METADATA_CONFLICTS,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
+    ),
+    quantitative_contract=preserve_quantitative_contract(
+        information_loss=QuantitativeInformationLossKind.ROW_FILTERING,
+        preserves_abundance=True,
+        required_evidence=frozenset({QuantitativeEvidenceRequirement.ROW_AUDIT}),
+        negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+        reversibility=QuantitativeReversibilityKind.IRREVERSIBLE,
     ),
     stage_factory=_build_site_matrix_stage,
     backend="pandas",

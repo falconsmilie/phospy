@@ -33,6 +33,13 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
     PreprocessingStageFactoryContext,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
+)
 
 _REMOVAL_REASON = "insufficient finite coverage within configured sample groups"
 
@@ -429,6 +436,13 @@ GROUP_COVERAGE_FILTER_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_PHOSPHO,
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
+    ),
+    quantitative_contract=preserve_quantitative_contract(
+        information_loss=QuantitativeInformationLossKind.ROW_FILTERING,
+        preserves_abundance=True,
+        required_evidence=frozenset({QuantitativeEvidenceRequirement.ROW_AUDIT}),
+        negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+        reversibility=QuantitativeReversibilityKind.IRREVERSIBLE,
     ),
     stage_factory=_build_group_coverage_filter_stage,
     backend="numpy",

@@ -29,6 +29,7 @@ from phospy.science.datasets.preprocessing.batch_correction import (
 )
 from phospy.science.datasets.preprocessing.batch_correction_metadata import (
     BatchCorrectionMetadataResolver,
+    ResolvedBatchCorrectionMetadata,
 )
 from phospy.science.datasets.preprocessing.batch_correction_provenance import (
     build_native_batch_correction_provenance,
@@ -48,6 +49,20 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
     PreprocessingStageFactoryContext,
+)
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeOperationContract,
+    QuantitativeReversibilityKind,
+    preserve_meaning_transition,
+    preserve_quantitative_contract,
+    preserve_scale_transition,
 )
 
 
@@ -177,27 +192,7 @@ class BatchCorrectionStage:
             )
 
         try:
-            self._metadata_validator.run(
-                phospho=state.phospho,
-                sample_metadata=state.sample_metadata,
-                batch_column=state.plan.batch_correction_batch_column,
-                condition_columns=(state.plan.batch_correction_condition_column,),
-                context="dataset build request preprocessing_config.batch_correction",
-            )
-            metadata = self._metadata_resolver.run(
-                phospho=state.phospho,
-                sample_metadata=state.sample_metadata,
-                batch_column=state.plan.batch_correction_batch_column,
-                condition_column=state.plan.batch_correction_condition_column,
-            )
-            self._adequacy_validator.run(
-                batch_by_sample=metadata.batch_by_sample,
-                condition_by_sample=metadata.condition_by_sample,
-                sample_order=metadata.sample_order,
-                preserve_condition_effects=(
-                    state.plan.batch_correction_preserve_condition_effects
-                ),
-            )
+            metadata = self._resolve_validated_linear_residualize_metadata(state)
             result = self._engine.run(
                 phospho=state.phospho,
                 batch_labels=metadata.batch_labels,
@@ -241,6 +236,44 @@ class BatchCorrectionStage:
             },
             batch_correction_provenance=provenance,
         )
+
+    def validate_before_quantitative_contract(self, state: PreprocessingState) -> None:
+        method = _resolve_method(state.plan)
+        if method != DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH:
+            return
+        try:
+            self._resolve_validated_linear_residualize_metadata(state)
+        except PhosPyInputError as exc:
+            raise PhosPyInputError(
+                _validation_failure_message(state=state, method=method, reason=str(exc))
+            ) from exc
+
+    def _resolve_validated_linear_residualize_metadata(
+        self,
+        state: PreprocessingState,
+    ) -> ResolvedBatchCorrectionMetadata:
+        self._metadata_validator.run(
+            phospho=state.phospho,
+            sample_metadata=state.sample_metadata,
+            batch_column=state.plan.batch_correction_batch_column,
+            condition_columns=(state.plan.batch_correction_condition_column,),
+            context="dataset build request preprocessing_config.batch_correction",
+        )
+        metadata = self._metadata_resolver.run(
+            phospho=state.phospho,
+            sample_metadata=state.sample_metadata,
+            batch_column=state.plan.batch_correction_batch_column,
+            condition_column=state.plan.batch_correction_condition_column,
+        )
+        self._adequacy_validator.run(
+            batch_by_sample=metadata.batch_by_sample,
+            condition_by_sample=metadata.condition_by_sample,
+            sample_order=metadata.sample_order,
+            preserve_condition_effects=(
+                state.plan.batch_correction_preserve_condition_effects
+            ),
+        )
+        return metadata
 
 
 def _resolve_method(plan: PreprocessingPlan) -> str:
@@ -330,6 +363,53 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
             }
         )
     return parameters
+
+
+def _resolve_quantitative_contract(
+    plan: PreprocessingPlan,
+) -> QuantitativeOperationContract:
+    method = _resolve_method(plan)
+    if method == DATASET_BATCH_CORRECTION_METHOD_NONE:
+        return preserve_quantitative_contract(
+            required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+            negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+            reversibility=QuantitativeReversibilityKind.REVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.NONE,
+        )
+    if (
+        method == DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH
+        or method in SPS_RUV_BATCH_CORRECTION_METHODS
+    ):
+        accepted_meanings = frozenset(
+            {
+                QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+                QuantitativeMeaning.UNKNOWN,
+            }
+        )
+        required_evidence = {
+            QuantitativeEvidenceRequirement.SAMPLE_METADATA_DESIGN,
+        }
+        if method in SPS_RUV_BATCH_CORRECTION_METHODS:
+            required_evidence.add(QuantitativeEvidenceRequirement.CONTROL_SITE_SET)
+            required_evidence.add(QuantitativeEvidenceRequirement.MISSINGNESS_MASK)
+        return QuantitativeOperationContract(
+            accepted_input_scale_kinds=frozenset({IntensityScaleKind.LOG2}),
+            accepted_quantitative_meanings=accepted_meanings,
+            output_scale_transition=preserve_scale_transition(
+                frozenset({IntensityScaleKind.LOG2}),
+                output_scale_label="log2",
+            ),
+            output_meaning_transition=preserve_meaning_transition(accepted_meanings),
+            preserves_abundance=False,
+            negative_domain_policy=NegativeDomainPolicy.MAY_INTRODUCE_NEGATIVE_VALUES,
+            required_evidence=frozenset(required_evidence),
+            reversibility=QuantitativeReversibilityKind.IRREVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.ADDITIVE_RESIDUALIZATION,
+        )
+    raise PhosPyInputError(
+        "dataset preprocessing plan contains unsupported "
+        f"batch_correction_method={method!r}"
+    )
 
 
 def _run_sps_ruv_style_correction(
@@ -439,6 +519,7 @@ BATCH_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
     ),
     produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    quantitative_contract=_resolve_quantitative_contract,
     stage_factory=_build_batch_correction_stage,
     backend="numpy",
     determinism_kind=DeterminismKind.DETERMINISTIC,

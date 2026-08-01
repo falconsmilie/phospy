@@ -35,7 +35,24 @@ from phospy.science.datasets.preprocessing.stage_contract import (
 from phospy.science.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
 )
-from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.science.transformations.models import (
+    QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeOperationContract,
+    QuantitativeReversibilityKind,
+    QuantitativeTransitionEvidence,
+    evidence_resolved_meaning_transition,
+    preserve_quantitative_contract,
+    preserve_scale_transition,
+    total_protein_evidence_caveats,
+    total_protein_evidence_meaning_resolver,
+)
 
 _INDEX_IDENTITY_KEY = "__index__"
 _PHOSPHO_TOTAL_LOG_RATIO_QUANTITATIVE_MEANING = (
@@ -162,6 +179,14 @@ class TotalProteinCorrectionStage:
                 "notes": "stage executed",
                 "diagnostics": diagnostics,
             },
+            quantitative_transition_evidence=QuantitativeTransitionEvidence(
+                total_protein_corrected_row_count=int(
+                    len(mapping.corrected_phosphosite_rows)
+                ),
+                total_protein_uncorrected_row_count=int(
+                    len(mapping.uncorrected_phosphosite_rows)
+                ),
+            ),
         )
 
 
@@ -696,6 +721,70 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     }
 
 
+def _resolve_quantitative_contract(
+    plan: PreprocessingPlan,
+) -> QuantitativeOperationContract:
+    if plan.total_protein_correction_policy is TotalProteinCorrectionPolicy.NONE:
+        return preserve_quantitative_contract(
+            required_evidence=frozenset({QuantitativeEvidenceRequirement.NONE}),
+            negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+            reversibility=QuantitativeReversibilityKind.REVERSIBLE,
+            information_loss=QuantitativeInformationLossKind.NONE,
+        )
+    if (
+        plan.total_protein_correction_policy
+        is not TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL
+    ):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config contains an unsupported "
+            "total_protein_correction.policy"
+        )
+    return QuantitativeOperationContract(
+        accepted_input_scale_kinds=frozenset({IntensityScaleKind.LOG2}),
+        accepted_quantitative_meanings=frozenset(
+            {QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE}
+        ),
+        output_scale_transition=preserve_scale_transition(
+            frozenset({IntensityScaleKind.LOG2}),
+            output_scale_label="log2_ratio",
+        ),
+        output_meaning_transition=evidence_resolved_meaning_transition(
+            accepted_input_meanings=frozenset(
+                {QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE}
+            ),
+            resolver=total_protein_evidence_meaning_resolver,
+            default_output_meaning=QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+        ),
+        preserves_abundance=False,
+        negative_domain_policy=NegativeDomainPolicy.ALLOWS_NEGATIVE_OUTPUT,
+        required_evidence=frozenset(
+            {
+                QuantitativeEvidenceRequirement.TABLE_FINGERPRINTS,
+                QuantitativeEvidenceRequirement.TOTAL_PROTEIN_ROW_MAPPING,
+            }
+        ),
+        reversibility=QuantitativeReversibilityKind.CONDITIONALLY_REVERSIBLE,
+        information_loss=QuantitativeInformationLossKind.RATIO_TRANSFORMATION,
+        operation_id=QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
+        producer_id=(
+            "phospy.science.datasets.preprocessing.stages.total_protein_correction"
+        ),
+        provenance_input_tables=("dataset.phospho", "dataset.total"),
+        provenance_output_table="dataset.phospho",
+        provenance_diagnostic_fields=(
+            "formula",
+            "matched_rows",
+            "corrected_row_count",
+            "uncorrected_row_count",
+            "identity_mode",
+            "identity_matching_policy",
+            "duplicate_policy",
+            "unmatched_policy",
+        ),
+        caveat_resolver=total_protein_evidence_caveats,
+    )
+
+
 def _build_total_protein_correction_stage(
     _context: PreprocessingStageFactoryContext,
 ) -> TotalProteinCorrectionStage:
@@ -714,6 +803,7 @@ TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
     ),
     produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    quantitative_contract=_resolve_quantitative_contract,
     stage_factory=_build_total_protein_correction_stage,
     backend="pandas",
     determinism_kind=DeterminismKind.DETERMINISTIC,

@@ -34,6 +34,13 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
     PreprocessingStageFactoryContext,
 )
+from phospy.science.transformations.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
+)
 
 _COMPARISON_OUTPUT_PREFIX = "p_"
 
@@ -467,6 +474,15 @@ COMPARISONS_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_COMPARISONS,
         PreprocessingStateTableKey.REPORT_COMPARISON_GROUP_STATS,
         PreprocessingStateTableKey.REPORT_COMPARISON_PAIR_STATS,
+    ),
+    quantitative_contract=preserve_quantitative_contract(
+        information_loss=QuantitativeInformationLossKind.COMPARISON_DERIVATION,
+        preserves_abundance=True,
+        required_evidence=frozenset(
+            {QuantitativeEvidenceRequirement.SAMPLE_METADATA_DESIGN}
+        ),
+        negative_domain_policy=NegativeDomainPolicy.PRESERVES_INPUT_DOMAIN,
+        reversibility=QuantitativeReversibilityKind.REVERSIBLE,
     ),
     stage_factory=_build_comparisons_stage,
     backend="pandas",
