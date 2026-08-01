@@ -6,7 +6,7 @@ tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,f
 tests/architecture/test_package_dependency_dag.py,architecture,601,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_validation_boundaries.py,architecture,692,24,false,false,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
+tests/architecture/test_validation_boundaries.py,architecture,722,25,false,false,,,,,,[auto-orchestration] 13 hit(s); indicators: private_member_access
 tests/architecture/test_validation_ownership_governance.py,architecture,537,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,369,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
@@ -16,7 +16,7 @@ tests/integration/test_dataset_builder_boundary_honesty_integration.py,integrati
 tests/integration/test_dataset_builder_integration.py,integration,1992,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,584,15,true,false,,,,,,
 tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,,,,,
-tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1738,39,true,true,,,,,,
+tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1740,39,true,true,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,177,2,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,201,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
@@ -87,6 +87,7 @@ tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,778,
 tests/unit/science/datasets/test_processing_state.py,datasets,705,27,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,1424,39,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_additive_preprocessing_scale_policy.py,unit,386,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,884,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access

@@ -194,7 +194,7 @@ def test_dataset_builder_records_applied_declared_batch_correction_execution() -
             site_metadata=_site_metadata(),
             sample_metadata=_sample_metadata(),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=DatasetPreprocessingConfig(
                 batch_correction=DatasetBatchCorrectionConfig(
                     method="linear_residualize_batch"
@@ -223,7 +223,7 @@ def test_dataset_builder_attaches_full_native_batch_correction_provenance() -> N
             site_metadata=_site_metadata(),
             sample_metadata=_sample_metadata(),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=DatasetPreprocessingConfig(
                 batch_correction=DatasetBatchCorrectionConfig(
                     method="linear_residualize_batch"

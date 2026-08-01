@@ -539,7 +539,7 @@ def test_dataset_builder_still_rejects_incomplete_corrected_output() -> None:
                 phospho=phospho,
                 site_metadata=_builder_site_metadata(),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_forged_incomplete_corrected_output(
                     corrected,
                     input_matrix=phospho,

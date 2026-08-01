@@ -133,7 +133,7 @@ def test_dataset_builder_resolves_declared_batch_metadata_during_execution() -> 
                 index=["sample_d", "sample_b", "sample_a", "sample_c"]
             ),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=DatasetPreprocessingConfig(
                 batch_correction=DatasetBatchCorrectionConfig(
                     method="linear_residualize_batch"

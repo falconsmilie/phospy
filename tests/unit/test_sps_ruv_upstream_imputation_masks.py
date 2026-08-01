@@ -69,7 +69,7 @@ def test_dataset_sps_ruv_preserves_upstream_imputation_observation_mask() -> Non
             site_metadata=_site_metadata(phospho.index),
             sample_metadata=_sample_metadata(),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=_preprocessing_config(),
         )
     )
@@ -166,7 +166,7 @@ def test_dataset_sps_ruv_without_upstream_missing_values_keeps_all_true_mask() -
             site_metadata=_site_metadata(_phospho().index),
             sample_metadata=_sample_metadata(),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=_preprocessing_config(),
         )
     )
@@ -191,7 +191,7 @@ def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> Non
             site_metadata=_site_metadata(_phospho().index),
             sample_metadata=_sample_metadata(),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=_preprocessing_config(),
         )
     )
@@ -260,7 +260,7 @@ def test_sps_ruv_rejects_all_same_replicate_labels() -> None:
                     replicates=("same", "same", "same", "same")
                 ),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 preprocessing_config=_preprocessing_config(),
             )
         )
@@ -277,7 +277,7 @@ def test_sps_ruv_rejects_all_unique_replicate_labels() -> None:
                 site_metadata=_site_metadata(_phospho().index),
                 sample_metadata=_sample_metadata(replicates=("r1", "r2", "r3", "r4")),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 preprocessing_config=_preprocessing_config(),
             )
         )
@@ -294,7 +294,7 @@ def test_sps_ruv_rejects_batch_confounded_replicate_labels() -> None:
                 site_metadata=_site_metadata(_phospho().index),
                 sample_metadata=_sample_metadata(replicates=("r1", "r1", "r2", "r2")),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 preprocessing_config=_preprocessing_config(),
             )
         )
@@ -314,7 +314,7 @@ def test_sps_ruv_rejects_condition_confounded_replicate_labels() -> None:
                 site_metadata=_site_metadata(_phospho().index),
                 sample_metadata=_sample_metadata(replicates=("r1", "r2", "r1", "r2")),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 preprocessing_config=_preprocessing_config(),
             )
         )
@@ -327,7 +327,7 @@ def test_sps_ruv_accepts_valid_replicate_labels_and_records_provenance() -> None
             site_metadata=_site_metadata(_phospho().index),
             sample_metadata=_sample_metadata(replicates=("r1", "r2", "r2", "r1")),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=_preprocessing_config(),
         )
     )
@@ -358,7 +358,7 @@ def test_sps_ruv_valid_replicate_relabeling_does_not_change_corrected_matrix() -
             site_metadata=_site_metadata(_phospho().index),
             sample_metadata=_sample_metadata(replicates=("r1", "r2", "r2", "r1")),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=_preprocessing_config(),
         )
     )
@@ -370,7 +370,7 @@ def test_sps_ruv_valid_replicate_relabeling_does_not_change_corrected_matrix() -
                 replicates=("new_1", "new_2", "new_2", "new_1")
             ),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=_preprocessing_config(),
         )
     )
@@ -404,7 +404,7 @@ def test_dataset_sps_ruv_rejects_invalid_replicate_metadata_when_column_supplied
                 site_metadata=_site_metadata(_phospho().index),
                 sample_metadata=sample_metadata,
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 preprocessing_config=_preprocessing_config(),
             )
         )

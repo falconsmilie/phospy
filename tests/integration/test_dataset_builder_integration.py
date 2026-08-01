@@ -1746,7 +1746,7 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=DatasetPreprocessingConfig(
                 normalisation=DatasetNormalisationConfig(policy="median_center")
             ),

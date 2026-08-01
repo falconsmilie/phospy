@@ -67,7 +67,7 @@ def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> No
             site_metadata=_site_metadata(phospho),
             sample_metadata=_sample_metadata(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             corrected_preprocessing_output=_correction_output(corrected),
         )
     )
@@ -129,7 +129,7 @@ def test_external_corrected_output_allowed_without_downstream_matrix_consuming_s
             site_metadata=_site_metadata(phospho),
             sample_metadata=_sample_metadata(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             corrected_preprocessing_output=_correction_output(corrected),
         )
     )
@@ -157,7 +157,7 @@ def test_external_corrected_output_rejected_with_total_protein_correction_stage(
             ),
         ),
         "total_protein_correction",
-        input_intensity_scale="linear",
+        input_intensity_scale="log2",
         total=_total(_phospho()),
     )
 
@@ -198,7 +198,7 @@ def test_sps_ruv_corrected_output_without_provenance_is_rejected() -> None:
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     _resolved_correction_matrix(phospho + 1.0),
                     provenance=None,
@@ -221,7 +221,7 @@ def test_external_corrected_output_requires_applied_status(status: str) -> None:
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     _resolved_correction_matrix(phospho + 1.0),
                     status=status,
@@ -243,7 +243,7 @@ def test_external_corrected_output_rejects_none_method() -> None:
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     _resolved_correction_matrix(phospho + 1.0),
                     method="none",
@@ -265,7 +265,7 @@ def test_external_corrected_output_rejects_unsupported_method_label() -> None:
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     _resolved_correction_matrix(phospho + 1.0),
                     method="linear_residualize_batch",
@@ -292,7 +292,7 @@ def test_sps_ruv_corrected_output_with_empty_dependency_versions_is_rejected() -
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -322,7 +322,7 @@ def test_sps_ruv_corrected_output_with_missing_phospy_version_is_rejected(
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -349,7 +349,7 @@ def test_sps_ruv_corrected_output_with_missing_python_version_is_rejected() -> N
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -371,7 +371,7 @@ def test_sps_ruv_corrected_output_accepts_complete_external_environment_provenan
             site_metadata=_site_metadata(phospho),
             sample_metadata=_sample_metadata(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             corrected_preprocessing_output=_correction_output(
                 corrected,
                 provenance=provenance,
@@ -397,7 +397,7 @@ def test_external_corrected_output_accepts_applied_sps_ruv_style_with_provenance
             site_metadata=_site_metadata(phospho),
             sample_metadata=_sample_metadata(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             corrected_preprocessing_output=_correction_output(
                 corrected,
                 method="sps_ruv_style",
@@ -434,7 +434,7 @@ def test_sps_ruv_corrected_output_with_not_provided_controls_is_rejected() -> No
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -461,7 +461,7 @@ def test_sps_ruv_corrected_output_with_one_control_for_one_factor_is_rejected() 
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -484,7 +484,7 @@ def test_sps_ruv_corrected_output_accepts_two_controls_for_one_factor() -> None:
             site_metadata=_site_metadata(phospho),
             sample_metadata=_sample_metadata(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             corrected_preprocessing_output=_correction_output(
                 corrected,
                 provenance=provenance,
@@ -518,7 +518,7 @@ def test_corrected_output_integrator_rejects_selected_controls_absent_from_matri
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -563,7 +563,7 @@ def test_sps_ruv_corrected_output_rejects_missing_or_invalid_unwanted_factors(
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -590,7 +590,7 @@ def test_sps_ruv_corrected_output_missing_fingerprints_is_rejected() -> None:
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -617,7 +617,7 @@ def test_sps_ruv_corrected_output_missing_observation_mask_is_rejected() -> None
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -650,7 +650,7 @@ def test_sps_ruv_corrected_output_input_fingerprint_mismatch_is_rejected() -> No
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     input_matrix=_resolved_correction_matrix(phospho),
@@ -684,7 +684,7 @@ def test_sps_ruv_corrected_output_output_fingerprint_mismatch_is_rejected() -> N
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     input_matrix=_resolved_correction_matrix(phospho),
@@ -727,7 +727,7 @@ def test_sps_ruv_corrected_output_observation_mask_fingerprint_mismatch_is_rejec
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     input_matrix=_resolved_correction_matrix(phospho),
@@ -761,7 +761,7 @@ def test_sps_ruv_corrected_output_missing_control_metadata_requires_rationale() 
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -795,7 +795,7 @@ def test_sps_ruv_corrected_output_missing_control_usage_metadata_is_rejected(
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
                     provenance=provenance,
@@ -831,7 +831,7 @@ def test_sps_ruv_corrected_output_accepts_missing_control_usage_metadata_rationa
             site_metadata=_site_metadata(phospho),
             sample_metadata=_sample_metadata(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             corrected_preprocessing_output=_correction_output(
                 corrected,
                 provenance=provenance,
@@ -872,7 +872,7 @@ def test_sps_ruv_corrected_output_accepts_control_metadata_missing_rationale() -
             site_metadata=_site_metadata(phospho),
             sample_metadata=_sample_metadata(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             corrected_preprocessing_output=_correction_output(
                 corrected,
                 provenance=provenance,
@@ -1277,7 +1277,7 @@ def test_invalid_resolved_correction_output_is_rejected_at_dataset_build() -> No
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(misaligned),
             )
         )
@@ -1295,7 +1295,7 @@ def test_resolved_correction_output_cannot_be_applied_twice() -> None:
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 preprocessing_config=DatasetPreprocessingConfig(
                     batch_correction=DatasetBatchCorrectionConfig(
                         method="linear_residualize_batch"
@@ -1316,7 +1316,7 @@ def test_resolved_correction_after_downstream_consumption_is_rejected() -> None:
                 site_metadata=_site_metadata(phospho),
                 sample_metadata=_sample_metadata(phospho),
                 organism=Organism.RAT,
-                input_intensity_scale="linear",
+                input_intensity_scale="log2",
                 corrected_preprocessing_output=_correction_output(
                     phospho + 1.0,
                     consumed_by_downstream=True,
@@ -1371,7 +1371,7 @@ def _assert_external_corrected_output_rejected_with_preprocessing_config(
     preprocessing_config: DatasetPreprocessingConfig,
     expected_stage: str,
     *,
-    input_intensity_scale: str = "linear",
+    input_intensity_scale: str = "log2",
     total: pd.DataFrame | None = None,
 ) -> None:
     phospho = _phospho()
@@ -1539,7 +1539,7 @@ def _resolved_correction_matrix(matrix: pd.DataFrame) -> pd.DataFrame:
             site_metadata=_site_metadata(_phospho()),
             sample_metadata=_sample_metadata(_phospho()),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
     corrected = matrix.copy(deep=True)

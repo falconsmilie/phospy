@@ -13,6 +13,10 @@ import phospy.api.requests as public_request_api
 import phospy.api.workflows as public_workflow_api
 import phospy.validation.identity_contracts as identity_contracts
 from phospy.errors.validation import DatasetValidationError
+from phospy.science.datasets.builders.executor import DatasetBuildExecutor
+from phospy.science.datasets.preprocessing.quantitative_scale_policy import (
+    AdditivePreprocessingScaleGuard,
+)
 from phospy.science.references.models import Organism
 from phospy.tables.datasets import SiteMetadataTable
 from phospy.validation.identity_contracts import (
@@ -486,6 +490,32 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
     assert "enforce_localisation_requirement(" in kinase_source
     assert "enforce_localisation_requirement(" in signalome_source
     assert "enforce_required_non_empty_string_column(" in signalome_grouping_source
+
+
+def test_additive_preprocessing_scale_policy_is_private_builder_owned() -> None:
+    executor_source = inspect.getsource(DatasetBuildExecutor.run)
+    executor_guard_source = inspect.getsource(
+        DatasetBuildExecutor._validate_additive_preprocessing_scale_policy
+    )
+    workflow_sources = (
+        inspect.getsource(DifferentialAnalysisValidator),
+        inspect.getsource(KinaseWorkflowValidator),
+        inspect.getsource(SignalomeWorkflowValidator),
+    )
+
+    assert (
+        AdditivePreprocessingScaleGuard.__module__
+        == "phospy.science.datasets.preprocessing.quantitative_scale_policy"
+    )
+    assert not hasattr(public_api, "AdditivePreprocessingScaleGuard")
+    assert "_validate_additive_preprocessing_scale_policy(" in executor_source
+    assert "self._additive_preprocessing_scale_guard.run(" in executor_guard_source
+    assert all(
+        "AdditivePreprocessingScaleGuard" not in source for source in workflow_sources
+    )
+    assert all(
+        "additive_preprocessing_scale" not in source for source in workflow_sources
+    )
 
 
 def test_signalome_result_identity_validation_is_science_owned_and_workflow_composed() -> (

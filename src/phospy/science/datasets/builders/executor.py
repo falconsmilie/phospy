@@ -44,6 +44,9 @@ from phospy.science.datasets.organism_coherence import (
 from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwarePreparationResult,
 )
+from phospy.science.datasets.preprocessing.quantitative_scale_policy import (
+    AdditivePreprocessingScaleGuard,
+)
 from phospy.science.transformations.contracts import Transformer
 from phospy.science.transformations.transformers import IdentityTransformer
 
@@ -64,6 +67,8 @@ class DatasetBuildExecutor:
         protein_aware_preparation_runner: DatasetProteinAwarePreparationRunner
         | None = None,
         provenance_assembler: DatasetRunProvenanceAssembler | None = None,
+        additive_preprocessing_scale_guard: AdditivePreprocessingScaleGuard
+        | None = None,
     ) -> None:
         self._intensity_scale_resolver = (
             intensity_scale_resolver
@@ -90,10 +95,14 @@ class DatasetBuildExecutor:
         self._provenance_assembler = (
             provenance_assembler or DatasetRunProvenanceAssembler()
         )
+        self._additive_preprocessing_scale_guard = (
+            additive_preprocessing_scale_guard or AdditivePreprocessingScaleGuard()
+        )
 
     def run(
         self, request: InterpretedDatasetBuildRequest
     ) -> AnalysisReadyPhosphoDataset:
+        self._validate_additive_preprocessing_scale_policy(request)
         preprocessed = self._run_preprocessing(request)
         validated_site_metadata = self._validate_analysis_ready_site_sequences(
             preprocessed
@@ -157,6 +166,16 @@ class DatasetBuildExecutor:
                 request.corrected_preprocessing_output
             )
         return self._preprocessor.run(**preprocessor_kwargs)
+
+    def _validate_additive_preprocessing_scale_policy(
+        self,
+        request: InterpretedDatasetBuildRequest,
+    ) -> None:
+        self._additive_preprocessing_scale_guard.run(
+            preprocessing_plan=request.preprocessing_plan,
+            declared_input_scale_kind=request.declared_input_intensity_scale_kind,
+            corrected_preprocessing_output=request.corrected_preprocessing_output,
+        )
 
     def _validate_analysis_ready_site_sequences(
         self,

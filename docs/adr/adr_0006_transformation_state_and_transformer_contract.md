@@ -89,6 +89,18 @@ and deterministic caveat codes. Bundle reconstruction may restore trusted
 serialized semantic provenance or explicitly migrate legacy payloads as
 unverified; it must not reinterpret a missing record as derived evidence.
 
+Corrective clarification (2026-08-01, additive preprocessing scale policy):
+Until PhosPy has a general transition model for additive versus multiplicative
+abundance operations, additive preprocessing may not produce datasets labelled
+as established linear abundance. Median centring, fixed-effect batch
+residualisation (`linear_residualize_batch`), and native SPS/RUV-style
+residualisation require an established log2 phosphosite-abundance scale at the
+point where the additive operation runs. Linear abundance users must first apply
+the supported log2 transform or provide already-log2 abundance data with an
+explicit `input_intensity_scale='log2'` declaration. A separate future
+multiplicative median-scaling operation may support linear abundance by
+division rather than subtraction.
+
 This ADR supersedes the old transformation-state wording but does not remove
 compatibility behavior where historical names appear in non-contract internals.
 
@@ -133,6 +145,10 @@ compatibility behavior where historical names appear in non-contract internals.
   execute through transformer implementations in
   `src/phospy/science/transformations/transformers/`; preprocessing stages
   orchestrate and report but do not own transformation science.
+- Additive preprocessing scale eligibility is privately enforced by
+  `src/phospy/science/datasets/preprocessing/quantitative_scale_policy.py` and
+  composed by the dataset builder before preprocessing execution. Workflow
+  validators do not reimplement this rule.
 - Intensity-scale preservation is expressed as transformer capability metadata
   (`preserves_input_scale_state`, `changes_numeric_values`,
   `requires_established_input_state`); resolvers consume these capabilities and
