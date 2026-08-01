@@ -130,6 +130,25 @@ Contracts that affect pre-execution scale/meaning folding without minting a
 separate operation-derived quantitative-meaning provenance event must declare
 that explicitly.
 
+Update note (2026-08-01, final numeric-semantic coherence):
+Final analysis-ready dataset construction now validates the observed finite
+numeric sign domain against the established intensity scale and quantitative
+meaning. This is a meaning-aware dataset-boundary rule, not a generic
+table-schema positivity rule. Linear phosphosite abundance and linear total
+protein abundance must be non-negative. Signed scientific quantities remain
+valid when their established meaning permits signed values, including centred
+log abundance, phospho/total log ratios, fold changes, differential effect
+sizes, activity scores, and mixed log-ratio/log-abundance matrices. Unknown
+quantitative meaning has no numeric-domain contract and therefore cannot be
+promoted to analysis-ready merely because the values look plausible.
+
+The rule consumes only typed transformation state and matrix values. It must
+not infer scientific meaning from column names, diagnostics text, or informal
+labels. Table wrappers continue to own structural numeric validity
+(DataFrame-ness, numeric dtype, finiteness, shape, and alignment); dataset
+validation owns the scientific coherence between scale, quantitative meaning,
+and observed numeric domain.
+
 This ADR supersedes the old transformation-state wording but does not remove
 compatibility behavior where historical names appear in non-contract internals.
 
@@ -182,6 +201,10 @@ compatibility behavior where historical names appear in non-contract internals.
   execute through transformer implementations in
   `src/phospy/science/transformations/transformers/`; preprocessing stages
   orchestrate and report but do not own transformation science.
+- Final numeric-semantic coherence is implemented in
+  `src/phospy/science/transformations/state_coherence.py` and composed by the
+  private dataset construction boundary. This validator checks observed
+  numeric sign domain against established `IntensityScaleState.quantity`.
 - Additive preprocessing scale eligibility is privately enforced by
   `src/phospy/science/datasets/preprocessing/quantitative_scale_policy.py` and
   composed by the dataset builder before preprocessing execution. Workflow

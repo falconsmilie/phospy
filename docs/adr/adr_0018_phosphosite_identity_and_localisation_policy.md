@@ -35,6 +35,12 @@ the dataset boundary but is never accepted as localisation evidence. The
 localisation dimension must record source, policy, and threshold, or an
 explicit localisation waiver.
 
+Update note (2026-08-01, numeric-semantic waiver does not affect localisation):
+Trusted construction now also has an optional typed `numeric_semantic_domain`
+evidence or waiver surface for numeric-domain conflicts. It is independent of
+the seven required scientific assertion dimensions and does not weaken
+localisation evidence, sequence evidence, or aligned-structure checks.
+
 ## Decision
 
 PhosPy enforces localisation eligibility at the dataset preprocessing/validation

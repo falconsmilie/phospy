@@ -108,6 +108,18 @@ fingerprints of every actual represented table, and false fingerprints are
 rejected. Direct public constructor calls now fail immediately; advanced
 callers must use `from_trusted_tables(...)`.
 
+Update note (2026-08-01, numeric-semantic dataset coherence and typed waiver):
+The analysis-ready boundary now rejects matrices whose observed numeric sign
+domain contradicts their established scale and quantitative meaning. This
+validation is private dataset validation, after structural table wrappers have
+confirmed numeric finiteness and alignment. Trusted construction still requires
+the seven core evidence dimensions above. A conflicting numeric-semantic domain
+can only pass with an explicit typed
+`trusted_construction_assertions.numeric_semantic_domain` waiver, and that
+waiver remains serialized, fingerprinted, and visible in trusted-construction
+provenance. A quantitative-meaning waiver or generic trusted assertion does not
+bypass this rule.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary
@@ -187,6 +199,8 @@ The dataset is expected to enforce the following invariants at construction time
 - `phospho` must be a non-empty numeric `DataFrame`
 - `phospho.index` must be unique
 - `phospho.columns` must be unique
+- the observed finite numeric sign domain of `phospho` must be coherent with
+  established `intensity_scale_state.quantity`
 
 ### Site Metadata Invariants
 
@@ -225,12 +239,17 @@ If `total` is provided:
 - it must be a numeric `DataFrame`
 - `total.columns` must exactly match `phospho.columns`
 - `total.index` must be unique
+- if represented as linear total abundance, its observed finite numeric sign
+  domain must be non-negative
 
 ### Transformation-State Invariant
 
 - transformation state must be established by a supported transformer path
 - the dataset must expose a validated transformation state rather than relying on an informal free-text label alone
 - any remaining public scale label, if retained, must be derived from that stronger transformation state
+- established quantitative meaning must be coherent with the observed numeric
+  sign domain; unknown meaning cannot be promoted to analysis-ready without an
+  explicit typed numeric-semantic waiver
 
 ## Meaning of "Analysis-Ready"
 
@@ -437,8 +456,11 @@ ordinary builder is explicitly scoped:
   dimensions: identity, intensity scale, quantitative meaning, aligned table
   structure, localisation, sequence, and reference context. Only scientific
   assertion dimensions may be waived; these remain typed evidence or waiver
-  assertions. Aligned table structure is not waivable, and supplied trusted
-  provenance table fingerprints must match the actual constructed tables.
+  assertions. Aligned table structure is not waivable. Numeric-semantic domain
+  conflicts are not covered by the quantitative-meaning assertion; they require
+  the optional typed `numeric_semantic_domain` waiver to remain visible in
+  provenance and assertion fingerprints. Supplied trusted provenance table
+  fingerprints must match the actual constructed tables.
 - `AnalysisReadyPhosphoDataset(...)`: sealed public constructor. It exists only
   to preserve the class as an importable public type and raises `TypeError`
   immediately with the two supported construction paths.

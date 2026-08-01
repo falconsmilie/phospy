@@ -19,10 +19,15 @@ from phospy.frames.validation import (
     require_numeric_dataframe,
     require_unique_columns,
 )
-from phospy.provenance.models import RunProvenance
+from phospy.provenance.models import (
+    RunProvenance,
+    TrustedDatasetConstructionAssertions,
+    TrustedDatasetConstructionEvidence,
+)
 from phospy.science.transformations.models import IntensityScaleState
 from phospy.science.transformations.state_coherence import (
     require_intensity_scale_state_coherence,
+    require_quantitative_numeric_domain_coherence,
 )
 
 _NUMPY_DTYPES_WITH_NAN_SENTINELS = frozenset(("f", "c"))
@@ -46,6 +51,41 @@ class _IntensityScaleStateValidator:
 
 
 _INTENSITY_SCALE_STATE_VALIDATOR = _IntensityScaleStateValidator()
+
+
+class _QuantitativeNumericDomainValidator:
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        total: pd.DataFrame | None,
+        intensity_scale_state: IntensityScaleState,
+        trusted_construction_assertions: TrustedDatasetConstructionAssertions
+        | None = None,
+    ) -> None:
+        require_quantitative_numeric_domain_coherence(
+            phospho=phospho,
+            total=total,
+            intensity_scale_state=intensity_scale_state,
+            allow_numeric_semantic_domain_waiver=(
+                _has_numeric_semantic_domain_waiver(trusted_construction_assertions)
+            ),
+            error_type=DatasetValidationError,
+        )
+
+
+def _has_numeric_semantic_domain_waiver(
+    trusted_construction_assertions: TrustedDatasetConstructionAssertions | None,
+) -> bool:
+    if trusted_construction_assertions is None:
+        return False
+    evidence = trusted_construction_assertions.numeric_semantic_domain
+    return isinstance(evidence, TrustedDatasetConstructionEvidence) and (
+        evidence.is_waiver
+    )
+
+
+_QUANTITATIVE_NUMERIC_DOMAIN_VALIDATOR = _QuantitativeNumericDomainValidator()
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,7 +197,9 @@ _DIRECT_CONSTRUCTION_ERROR_MESSAGE = (
     "AnalysisReadyPhosphoDataset(...) direct construction is no longer supported. "
     "Use AnalysisReadyDatasetBuilder for ordinary construction, or "
     "AnalysisReadyPhosphoDataset.from_trusted_tables(...) with complete "
-    "TrustedDatasetConstructionAssertions for advanced trusted reconstruction."
+    "TrustedDatasetConstructionAssertions for advanced trusted reconstruction; "
+    "numeric-semantic-domain conflicts additionally require the typed "
+    "numeric_semantic_domain waiver."
 )
 
 

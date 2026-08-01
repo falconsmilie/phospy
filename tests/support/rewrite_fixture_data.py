@@ -5,6 +5,7 @@ import csv
 import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 
@@ -587,7 +588,7 @@ def _normalize_signalome_collection_value(value: object) -> str:
             parsed = ast.literal_eval(stripped)
         except (ValueError, SyntaxError):
             return stripped
-    elif not isinstance(value, (tuple, list)) and pd.isna(value):
+    elif _is_missing_non_collection_scalar(value):
         return "[]"
     if isinstance(parsed, (tuple, list)):
         return json.dumps(
@@ -614,7 +615,7 @@ def _normalize_signalome_kinase_collection_value(value: object) -> str:
             parsed = ast.literal_eval(stripped)
         except (ValueError, SyntaxError):
             return _canonical_kinase_label(stripped)
-    elif not isinstance(value, (tuple, list)) and pd.isna(value):
+    elif _is_missing_non_collection_scalar(value):
         return "[]"
     if isinstance(parsed, (tuple, list)):
         return json.dumps(
@@ -637,7 +638,7 @@ def _normalize_signalome_kinase_weight_collection_value(value: object) -> str:
             parsed = ast.literal_eval(stripped)
         except (ValueError, SyntaxError):
             return stripped
-    elif not isinstance(value, (tuple, list)) and pd.isna(value):
+    elif _is_missing_non_collection_scalar(value):
         return "[]"
     if isinstance(parsed, (tuple, list)):
         normalised_items: list[object] = []
@@ -653,6 +654,12 @@ def _normalize_signalome_kinase_weight_collection_value(value: object) -> str:
             separators=(",", ":"),
         )
     return str(parsed)
+
+
+def _is_missing_non_collection_scalar(value: object) -> bool:
+    if isinstance(value, (tuple, list)):
+        return False
+    return bool(pd.isna(cast(Any, value)))
 
 
 def normalize_signalome_modules_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
@@ -866,7 +873,7 @@ def build_rat_l6_dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        input_intensity_scale="linear",
+        input_intensity_scale="log2",
     )
     return AnalysisReadyDatasetBuilder().run(request)
 

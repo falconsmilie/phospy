@@ -30,6 +30,7 @@ from phospy.science.datasets.construction.trusted_assertions import (
 from phospy.science.datasets.construction.validation import (
     _DIRECT_CONSTRUCTION_ERROR_MESSAGE,
     _INTENSITY_SCALE_STATE_VALIDATOR,
+    _QUANTITATIVE_NUMERIC_DOMAIN_VALIDATOR,
     _own_dataset_frames,
     _require_builder_output_provenance,
     _validate_optional_comparisons,
@@ -90,12 +91,16 @@ class AnalysisReadyPhosphoDataset:
 
     Construction validates structural invariants, including table shape,
     alignment, analysis-ready ``site_key`` identity, processing-state
-    coherence, and established transformation state. It cannot prove the
-    biological correctness of caller-asserted provenance or scientific claims.
+    coherence, established transformation state, and numeric-semantic
+    coherence between quantitative meaning and observed numeric sign domain. It
+    cannot prove the biological correctness of caller-asserted provenance or
+    scientific claims.
     The ``from_trusted_tables(...)`` lane requires typed evidence or an explicit
     waiver for identity, intensity scale, quantitative meaning, aligned table
-    structure, localisation, sequence, and reference context. Any supplied
-    provenance must fingerprint the actual represented tables.
+    structure, localisation, sequence, and reference context. A
+    numeric-semantic-domain conflict can only be bypassed by the optional typed
+    ``numeric_semantic_domain`` waiver, which remains visible in provenance.
+    Any supplied provenance must fingerprint the actual represented tables.
 
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
@@ -343,6 +348,12 @@ class AnalysisReadyPhosphoDataset:
                 provenance=provenance,
                 assume_owned=assume_owned,
             )
+        )
+        _QUANTITATIVE_NUMERIC_DOMAIN_VALIDATOR.run(
+            phospho=phospho_table.frame,
+            total=None if total_table is None else total_table.frame,
+            intensity_scale_state=validated_intensity_scale_state,
+            trusted_construction_assertions=(resolved_trusted_construction_assertions),
         )
         if provenance is None and resolved_trusted_construction_assertions is None:
             raise DatasetValidationError(
@@ -598,7 +609,8 @@ class AnalysisReadyPhosphoDataset:
         coherent processing state. It uses the private dataset initializer and
         enforces the same structural invariants as the builder-owned path,
         including table shape, alignment, site identity, ``site_sequence``
-        validation, and state coherence.
+        validation, state coherence, and numeric-semantic coherence between
+        established quantitative meaning and observed numeric sign domain.
 
         Validation can confirm structural consistency, but it cannot prove the
         biological correctness of caller-asserted analysis-ready state,
@@ -607,8 +619,11 @@ class AnalysisReadyPhosphoDataset:
         waiver for identity, intensity scale, quantitative meaning, aligned
         structure, localisation, sequence, and reference context. Localisation
         evidence must record source, policy, and threshold; otherwise callers
-        must record an explicit waiver. Supplied run provenance must fingerprint
-        the exact analysis-ready tables; false table fingerprints are rejected.
+        must record an explicit waiver. A numeric-semantic-domain conflict
+        requires an explicit typed ``numeric_semantic_domain`` waiver; generic
+        trusted construction or quantitative-meaning waivers do not bypass it.
+        Supplied run provenance must fingerprint the exact analysis-ready
+        tables; false table fingerprints are rejected.
         Without supplied run provenance, the dataset receives a trusted-table
         reconstruction provenance marker with the assertion fingerprint linked
         into provenance.

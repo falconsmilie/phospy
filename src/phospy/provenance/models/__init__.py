@@ -49,6 +49,9 @@ from phospy.provenance.models.trusted_assertions import (
     TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3 as TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3,
 )
 from phospy.provenance.models.trusted_assertions import (
+    TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4 as TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4,
+)
+from phospy.provenance.models.trusted_assertions import (
     TrustedDatasetConstructionAssertions as TrustedDatasetConstructionAssertions,
 )
 from phospy.provenance.models.trusted_assertions import (
@@ -148,6 +151,7 @@ __all__ = [
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2",
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3",
+    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4",
     "TrustedDatasetConstructionAssertions",
     "TrustedDatasetConstructionEvidence",
 ]

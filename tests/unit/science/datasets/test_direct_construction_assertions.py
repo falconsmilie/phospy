@@ -23,6 +23,7 @@ from phospy.provenance import (
 )
 from phospy.provenance.reference_context import ReferenceContext
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.transformations.state_coherence import observe_numeric_domain
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -111,6 +112,11 @@ def _complete_assertions(
         reference_context=reference_context
         or TrustedDatasetConstructionEvidence.waiver(
             reason="source export did not retain reference context metadata",
+        ),
+        numeric_semantic_domain=TrustedDatasetConstructionEvidence.evidence(
+            source="pre-export numeric-semantic domain audit",
+            policy="analysis_ready_numeric_semantic_domain_checked",
+            details=_numeric_domain_details(_phospho(_site_index())),
         ),
         asserted_by="unit-test",
         assertion_source="curated analysis-ready export",
@@ -225,6 +231,20 @@ def _reference_context(organism: object) -> ReferenceContext:
         proteome_version=None,
         reference_table_sha256="a" * 64,
     )
+
+
+def _numeric_domain_details(phospho: pd.DataFrame) -> Mapping[str, object]:
+    observation = observe_numeric_domain(phospho, table_name="dataset.phospho")
+    return {
+        "table": observation.table_name,
+        "observed_numeric_domain": observation.observed_domain.value,
+        "value_count": observation.value_count,
+        "negative_count": observation.negative_count,
+        "zero_count": observation.zero_count,
+        "positive_count": observation.positive_count,
+        "min": observation.minimum,
+        "max": observation.maximum,
+    }
 
 
 def _mutate_payload_table(payload: dict[str, object], table_name: str) -> None:
@@ -402,7 +422,7 @@ def test_from_trusted_tables_records_typed_construction_assertions() -> None:
     assert isinstance(construction, Mapping)
     payload = construction["trusted_construction_assertions"]
     assert isinstance(payload, Mapping)
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["assertion_metadata_provided"] is True
     assert payload["identity"]["source"] == "protein-scoped site_key export"
     assert payload["intensity_scale"]["policy"] == (
@@ -421,6 +441,9 @@ def test_from_trusted_tables_records_typed_construction_assertions() -> None:
         "site_sequence column curated before PhosPy import"
     )
     assert payload["reference_context"]["kind"] == "waiver"
+    assert payload["numeric_semantic_domain"]["policy"] == (
+        "analysis_ready_numeric_semantic_domain_checked"
+    )
     assert payload["sequence_user_asserted"] is True
     assert payload["identity_user_asserted"] is True
     assert payload["intensity_scale_user_asserted"] is True
@@ -428,6 +451,7 @@ def test_from_trusted_tables_records_typed_construction_assertions() -> None:
     assert payload["aligned_structure_user_asserted"] is True
     assert payload["localisation_user_asserted"] is True
     assert payload["reference_context_user_asserted"] is True
+    assert payload["numeric_semantic_domain_user_asserted"] is True
     assert payload["asserted_by"] == "unit-test"
     assert payload["assertion_source"] == "curated analysis-ready export"
     assert payload["waived_assertions"] == ["reference_context"]
@@ -611,7 +635,7 @@ def test_from_trusted_tables_rejects_false_table_fingerprint() -> None:
         _trusted_dataset(assertions=assertions, provenance=bad_provenance)
 
 
-def test_from_trusted_tables_serializes_seven_assertion_dimensions() -> None:
+def test_from_trusted_tables_serializes_trusted_assertion_dimensions() -> None:
     dataset = _trusted_dataset()
     assert dataset.provenance is not None
 
@@ -625,7 +649,7 @@ def test_from_trusted_tables_serializes_seven_assertion_dimensions() -> None:
     trusted_assertions = _assertion_payload(
         construction["trusted_construction_assertions"]
     )
-    assert trusted_assertions["schema_version"] == 3
+    assert trusted_assertions["schema_version"] == 4
     assert trusted_assertions["missing_assertions"] == []
     for dimension in (
         "identity",
@@ -635,6 +659,7 @@ def test_from_trusted_tables_serializes_seven_assertion_dimensions() -> None:
         "localisation",
         "sequence",
         "reference_context",
+        "numeric_semantic_domain",
     ):
         assert trusted_assertions[dimension] is not None
         assert trusted_assertions[f"{dimension}_user_asserted"] is True

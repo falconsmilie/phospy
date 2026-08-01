@@ -385,6 +385,7 @@ def deterministic_analysis_ready_dataset_tables(
         seed=seed,
         site_ids=site_keys,
     )
+    phospho = phospho.clip(lower=0.0)
     site_metadata = deterministic_analysis_ready_site_metadata(
         site_keys,
         start=start,

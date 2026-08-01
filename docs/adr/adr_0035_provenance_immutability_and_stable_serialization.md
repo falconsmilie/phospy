@@ -54,6 +54,14 @@ Historical payloads that lack the field may be loaded only through the explicit
 legacy migration path, which labels the evidence as `legacy_unverified` and must
 not claim that a derived operation occurred.
 
+Update note (2026-08-01, trusted construction assertion schema v4):
+`TrustedDatasetConstructionAssertions` schema version 4 adds the optional
+`numeric_semantic_domain` evidence/waiver dimension. The seven existing
+trusted-construction dimensions remain required for complete trusted table
+construction. A numeric-semantic-domain waiver is serialized, included in
+`waived_assertions`, and contributes to the assertion fingerprint so trusted
+construction cannot hide a scale/meaning/value-domain conflict.
+
 Update note (2026-07-30, normalized fingerprint axis semantics): provenance
 fingerprints that intentionally normalize row and column order use one central
 axis-label policy in `phospy.provenance.hashing`. Labels are sorted by the

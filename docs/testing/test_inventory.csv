@@ -13,8 +13,8 @@ tests/integration/references/test_bundled_reference_manifests.py,references,168,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,120,4,true,false,,,,,,
 tests/integration/test_dataset_batch_correction_validation.py,integration,294,6,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,563,12,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/integration/test_dataset_builder_integration.py,integration,1992,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,584,15,true,false,,,,,,
+tests/integration/test_dataset_builder_integration.py,integration,1995,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,570,15,true,false,,,,,,
 tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,,,,,
 tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1738,39,true,true,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,177,2,true,false,,,,,,
@@ -52,7 +52,7 @@ tests/parity/test_preprocessing_science_parity.py,parity,562,6,true,false,parity
 tests/parity/test_public_predmat_parity.py,parity,128,2,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for public predmat parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_signalome_clustering_backend_parity.py,parity,94,2,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for signalome clustering backend parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_signalome_workflow_parity.py,parity,384,7,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for signalome workflow parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
-tests/performance/test_dataset_validation_performance.py,performance,346,8,true,false,,,,,,
+tests/performance/test_dataset_validation_performance.py,performance,353,8,true,false,,,,,,
 tests/performance/test_empirical_bayes_trend_performance.py,performance,132,2,true,true,,,,,,
 tests/performance/test_importer_performance.py,performance,106,2,true,false,,,,,,
 tests/performance/test_performance_contracts.py,performance,1363,17,true,true,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for performance contracts, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -83,7 +83,7 @@ tests/unit/references/test_reference_context.py,references,161,9,false,false,,,,
 tests/unit/references/test_reference_manifest.py,references,576,26,true,true,,,,,,
 tests/unit/references/test_reference_provenance_source_versions.py,references,661,17,true,true,,,,,,
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,778,23,true,true,,,,,,
+tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,803,23,true,true,,,,,,
 tests/unit/science/datasets/test_processing_state.py,datasets,705,27,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,1424,39,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
@@ -163,6 +163,7 @@ tests/unit/test_error_taxonomy_boundaries.py,unit,190,5,false,false,public API c
 tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for multi-site evidence handling, increasing risk of incorrect peptide-to-site interpretation.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_experimental_design_contract.py,unit,986,34,false,false,,,,,,
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_final_numeric_semantic_dataset_coherence.py,unit,416,9,true,true,,,,,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,379,14,false,false,,,,,,
 tests/unit/test_frame_ownership_policy.py,unit,2925,47,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 70 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.

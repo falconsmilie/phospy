@@ -9,6 +9,7 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
 from phospy.api import DatasetBuildRequest
 from phospy.contracts.configs import DatasetPreprocessingConfig
+from phospy.errors.validation import TransformationValidationError
 from phospy.provenance.models import (
     JsonValue,
     RunProvenance,
@@ -26,6 +27,7 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     QuantitativeMeaning,
 )
+from phospy.science.transformations.state_coherence import observe_numeric_domain
 
 
 def complete_trusted_dataset_construction_assertions_for_tests(
@@ -98,6 +100,11 @@ def complete_trusted_dataset_construction_assertions_for_tests(
         reference_context=TrustedDatasetConstructionEvidence.waiver(
             reason="test fixture does not model external reference-context metadata",
             policy="unit_test_reference_context_not_under_test",
+        ),
+        numeric_semantic_domain=TrustedDatasetConstructionEvidence.evidence(
+            source="test fixture final phospho numeric domain",
+            policy="analysis_ready_numeric_semantic_domain_checked",
+            details=_numeric_domain_details(phospho),
         ),
         asserted_by=asserted_by,
         assertion_source="test-only trusted table fixture",
@@ -238,6 +245,36 @@ def _localisation_assertion(
         reason="test fixture does not model localisation-confidence evidence",
         policy="unit_test_localisation_not_under_test",
     )
+
+
+def _numeric_domain_details(phospho: pd.DataFrame | None) -> Mapping[str, JsonValue]:
+    if not isinstance(phospho, pd.DataFrame):
+        return {"phospho_present": False}
+    try:
+        observation = observe_numeric_domain(phospho, table_name="dataset.phospho")
+    except (
+        AttributeError,
+        TypeError,
+        ValueError,
+        TransformationValidationError,
+    ) as exc:
+        return {
+            "phospho_present": True,
+            "numeric_domain_observable": False,
+            "error_type": type(exc).__name__,
+        }
+    return {
+        "phospho_present": True,
+        "numeric_domain_observable": True,
+        "table": observation.table_name,
+        "observed_numeric_domain": observation.observed_domain.value,
+        "value_count": observation.value_count,
+        "negative_count": observation.negative_count,
+        "zero_count": observation.zero_count,
+        "positive_count": observation.positive_count,
+        "min": observation.minimum,
+        "max": observation.maximum,
+    }
 
 
 def _has_column(frame: pd.DataFrame | None, column: str) -> bool:

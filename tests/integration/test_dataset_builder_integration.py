@@ -59,7 +59,7 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
 
@@ -162,7 +162,7 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
     observed_phospho = _index_by_display_id(
@@ -183,14 +183,14 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
         "protein_identifier",
         "site_key",
     ]
-    assert built.intensity_scale_state.phospho == MatrixIntensityScaleState.linear(
+    assert built.intensity_scale_state.phospho == MatrixIntensityScaleState.log2(
         established_by=(
             "phospy.science.datasets.builders.executor.input_intensity_scale"
         )
     )
     assert built.intensity_scale_state.total is None
     assert built.intensity_scale_state.quantity is not None
-    assert built.intensity_scale_state.quantity.value == "phosphosite_abundance"
+    assert built.intensity_scale_state.quantity.value == "phosphosite_log_abundance"
     meaning_provenance = built.intensity_scale_state.quantitative_meaning_provenance
     assert meaning_provenance is not None
     assert meaning_provenance.evidence_mode.value == "inferred_from_scale_contract"
@@ -207,12 +207,15 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     assert built.processing_state.total_protein_correction.output_scale is None
     assert (
         built.processing_state.total_protein_correction.quantitative_meaning
-        == "phosphosite_abundance"
+        == "phosphosite_log_abundance"
     )
     correction_diagnostics = built.processing_state.total_protein_correction.diagnostics
     assert correction_diagnostics is not None
     assert correction_diagnostics.get("diagnostics_schema_version") == 1
-    assert correction_diagnostics.get("quantitative_meaning") == "phosphosite_abundance"
+    assert (
+        correction_diagnostics.get("quantitative_meaning")
+        == "phosphosite_log_abundance"
+    )
     assert built.processing_state.site_matrix.policy == "as_input"
     assert built.processing_state.site_matrix.constructed is False
     assert built.processing_state.comparisons.policy == "none"
@@ -230,7 +233,7 @@ def test_dataset_builder_reports_ruv_readiness_without_mutating_phospho_values()
             phospho=phospho.copy(deep=True),
             site_metadata=site_metadata.copy(deep=True),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
     with_readiness = AnalysisReadyDatasetBuilder().run(
@@ -238,7 +241,7 @@ def test_dataset_builder_reports_ruv_readiness_without_mutating_phospho_values()
             phospho=phospho.copy(deep=True),
             site_metadata=site_metadata.copy(deep=True),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=DatasetPreprocessingConfig(
                 ruv_readiness=DatasetRuvReadinessConfig(enabled=True),
             ),
@@ -260,10 +263,10 @@ def test_dataset_builder_establishes_intensity_scale_state_via_supported_path() 
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
-    assert built.intensity_scale_state.label == "linear"
+    assert built.intensity_scale_state.label == "log2"
     assert built.intensity_scale_state.is_established
     assert built.intensity_scale_state.established_via is not None
     assert (
@@ -272,7 +275,7 @@ def test_dataset_builder_establishes_intensity_scale_state_via_supported_path() 
     )
 
 
-def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -> None:
+def test_dataset_builder_preserves_total_matrix_and_establishes_log2_state() -> None:
     phospho = load_rat_l6_phospho().head(8).copy(deep=True)
     total = pd.DataFrame(
         {
@@ -287,27 +290,27 @@ def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -
             site_metadata=site_metadata_for(phospho),
             total=total,
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
     assert built.total is not None
     pdt.assert_frame_equal(built.total, total)
-    assert built.intensity_scale_state.phospho == MatrixIntensityScaleState.linear(
+    assert built.intensity_scale_state.phospho == MatrixIntensityScaleState.log2(
         established_by=(
             "phospy.science.datasets.builders.executor.input_intensity_scale"
         )
     )
-    assert built.intensity_scale_state.total == MatrixIntensityScaleState.linear(
+    assert built.intensity_scale_state.total == MatrixIntensityScaleState.log2(
         established_by=(
             "phospy.science.datasets.builders.executor.input_intensity_scale"
         )
     )
     assert built.intensity_scale_state.quantity is not None
-    assert built.intensity_scale_state.quantity.value == "phosphosite_abundance"
+    assert built.intensity_scale_state.quantity.value == "phosphosite_log_abundance"
     meaning_provenance = built.intensity_scale_state.quantitative_meaning_provenance
     assert meaning_provenance is not None
     assert meaning_provenance.evidence_mode.value == "inferred_from_scale_contract"
-    assert built.intensity_scale_state.label == "linear"
+    assert built.intensity_scale_state.label == "log2"
 
 
 def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> None:
@@ -585,7 +588,7 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
     assert built.site_metadata.loc[:, "display_id"].tolist() == list(phospho.index)
@@ -619,7 +622,7 @@ def test_dataset_builder_preserves_explicit_protein_identity_column() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
         )
     )
     assert "protein_id" in built.site_metadata.columns
@@ -643,7 +646,7 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
-            input_intensity_scale="linear",
+            input_intensity_scale="log2",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",

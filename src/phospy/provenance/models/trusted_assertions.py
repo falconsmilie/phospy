@@ -25,6 +25,8 @@ TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2 = 2
 
 TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3 = 3
 
+TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4 = 4
+
 _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS = (
     "identity",
     "intensity_scale",
@@ -33,6 +35,13 @@ _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS = (
     "localisation",
     "sequence",
     "reference_context",
+)
+
+_TRUSTED_DATASET_CONSTRUCTION_OPTIONAL_DIMENSIONS = ("numeric_semantic_domain",)
+
+_TRUSTED_DATASET_CONSTRUCTION_ASSERTION_DIMENSIONS = (
+    _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS
+    + _TRUSTED_DATASET_CONSTRUCTION_OPTIONAL_DIMENSIONS
 )
 
 _TRUSTED_DATASET_CONSTRUCTION_MISSING_ASSERTION_NAMES = {
@@ -69,6 +78,7 @@ _TRUSTED_DATASET_CONSTRUCTION_ASSERTION_PAYLOAD_KEYS = frozenset(
         "localisation",
         "sequence",
         "reference_context",
+        "numeric_semantic_domain",
         "identity_user_asserted",
         "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
@@ -76,6 +86,7 @@ _TRUSTED_DATASET_CONSTRUCTION_ASSERTION_PAYLOAD_KEYS = frozenset(
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",
+        "numeric_semantic_domain_user_asserted",
         "waived_assertions",
         "missing_assertions",
         "asserted_by",
@@ -261,6 +272,9 @@ class TrustedDatasetConstructionAssertions:
     Complete trusted construction metadata records typed evidence or an
     explicit waiver for identity, intensity scale, quantitative meaning,
     aligned table structure, localisation, sequence, and reference context.
+    Numeric-semantic domain evidence is optional unless a trusted construction
+    needs to make an explicit visible waiver for a scale/meaning/value-domain
+    conflict.
     A missing assertion bundle is reserved for legacy direct-construction audit
     markers.
     """
@@ -272,11 +286,12 @@ class TrustedDatasetConstructionAssertions:
     localisation: TrustedDatasetConstructionEvidence | None = None
     sequence: TrustedDatasetConstructionEvidence | None = None
     reference_context: TrustedDatasetConstructionEvidence | None = None
+    numeric_semantic_domain: TrustedDatasetConstructionEvidence | None = None
     assertion_metadata_provided: bool = True
     asserted_by: str | None = None
     assertion_source: str | None = None
     notes: str | None = None
-    schema_version: int = TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3
+    schema_version: int = TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4
 
     def __post_init__(self) -> None:
         identity = _optional_trusted_construction_evidence(
@@ -307,6 +322,12 @@ class TrustedDatasetConstructionAssertions:
             self.reference_context,
             field_name="trusted_dataset_construction_assertions.reference_context",
         )
+        numeric_semantic_domain = _optional_trusted_construction_evidence(
+            self.numeric_semantic_domain,
+            field_name=(
+                "trusted_dataset_construction_assertions.numeric_semantic_domain"
+            ),
+        )
         assertion_metadata_provided = _required_provenance_bool(
             self.assertion_metadata_provided,
             field_name=(
@@ -322,8 +343,15 @@ class TrustedDatasetConstructionAssertions:
             "sequence": sequence,
             "reference_context": reference_context,
         }
+        optional_assertions = {
+            "numeric_semantic_domain": numeric_semantic_domain,
+        }
         if not assertion_metadata_provided and any(
-            value is not None for value in supplied_assertions.values()
+            value is not None
+            for value in (
+                *supplied_assertions.values(),
+                *optional_assertions.values(),
+            )
         ):
             raise PhosPyInputError(
                 "trusted_dataset_construction_assertions cannot record user "
@@ -344,10 +372,10 @@ class TrustedDatasetConstructionAssertions:
             self.schema_version,
             field_name="trusted_dataset_construction_assertions.schema_version",
         )
-        if schema_version != TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3:
+        if schema_version != TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4:
             raise PhosPyInputError(
                 "trusted_dataset_construction_assertions.schema_version must be "
-                f"{TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3}"
+                f"{TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4}"
             )
         object.__setattr__(self, "identity", identity)
         object.__setattr__(self, "intensity_scale", intensity_scale)
@@ -356,6 +384,11 @@ class TrustedDatasetConstructionAssertions:
         object.__setattr__(self, "localisation", localisation)
         object.__setattr__(self, "sequence", sequence)
         object.__setattr__(self, "reference_context", reference_context)
+        object.__setattr__(
+            self,
+            "numeric_semantic_domain",
+            numeric_semantic_domain,
+        )
         object.__setattr__(
             self,
             "assertion_metadata_provided",
@@ -417,6 +450,12 @@ class TrustedDatasetConstructionAssertions:
         return self.reference_context is not None
 
     @property
+    def numeric_semantic_domain_user_asserted(self) -> bool:
+        """Return whether numeric-semantic domain has evidence or a waiver."""
+
+        return self.numeric_semantic_domain is not None
+
+    @property
     def assertion_fingerprint(self) -> str:
         """Return a stable fingerprint of the assertion payload."""
 
@@ -434,7 +473,7 @@ class TrustedDatasetConstructionAssertions:
         """Return assertion dimensions satisfied by explicit waiver."""
 
         waived: list[str] = []
-        for dimension in _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS:
+        for dimension in _TRUSTED_DATASET_CONSTRUCTION_ASSERTION_DIMENSIONS:
             record = getattr(self, dimension)
             if isinstance(record, TrustedDatasetConstructionEvidence) and (
                 record.is_waiver
@@ -494,6 +533,10 @@ class TrustedDatasetConstructionAssertions:
             reference_context=_trusted_evidence_from_payload(
                 payload.get("reference_context"),
                 field_name=f"{field_name}.reference_context",
+            ),
+            numeric_semantic_domain=_trusted_evidence_from_payload(
+                payload.get("numeric_semantic_domain"),
+                field_name=f"{field_name}.numeric_semantic_domain",
             ),
             assertion_metadata_provided=_required_provenance_bool(
                 payload.get("assertion_metadata_provided"),
@@ -555,6 +598,9 @@ class TrustedDatasetConstructionAssertions:
             "localisation": _trusted_evidence_payload(self.localisation),
             "sequence": _trusted_evidence_payload(self.sequence),
             "reference_context": _trusted_evidence_payload(self.reference_context),
+            "numeric_semantic_domain": _trusted_evidence_payload(
+                self.numeric_semantic_domain
+            ),
             "identity_user_asserted": bool(self.identity_user_asserted),
             "intensity_scale_user_asserted": bool(self.intensity_scale_user_asserted),
             "quantitative_meaning_user_asserted": bool(
@@ -567,6 +613,9 @@ class TrustedDatasetConstructionAssertions:
             "sequence_user_asserted": bool(self.sequence_user_asserted),
             "reference_context_user_asserted": bool(
                 self.reference_context_user_asserted
+            ),
+            "numeric_semantic_domain_user_asserted": bool(
+                self.numeric_semantic_domain_user_asserted
             ),
             "waived_assertions": list(self.waived_assertions),
             "missing_assertions": list(self.missing_assertions),

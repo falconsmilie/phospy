@@ -34,7 +34,9 @@ def _require_complete_from_trusted_assertions(
         "AnalysisReadyPhosphoDataset.from_trusted_tables requires "
         "trusted_construction_assertions with typed evidence or an explicit "
         "waiver for identity, intensity scale, quantitative meaning, aligned "
-        "structure, localisation, sequence, and reference context"
+        "structure, localisation, sequence, and reference context; "
+        "numeric-semantic-domain conflicts additionally require the typed "
+        "numeric_semantic_domain waiver"
     )
     if assertions is None:
         raise DatasetValidationError(required_message)

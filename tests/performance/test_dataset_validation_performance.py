@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ import pytest
 
 from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.models import (
+    AnalysisReadyPhosphoDataset,
     ImputationObservationMetadata,
     _analysis_ready_matrix_missing_value_count,
     _require_boolean_observation_mask,
@@ -81,6 +83,8 @@ def test_realistic_performance_fixtures_have_expected_shapes(
     )
     assert small_metadata.index.equals(small_phospho.index)
     assert medium_metadata.index.equals(medium_phospho.index)
+    assert float(small_phospho.min().min()) >= 0.0
+    assert float(medium_phospho.min().min()) >= 0.0
 
 
 def test_medium_dataset_construction_completes_under_generous_threshold(
@@ -100,6 +104,7 @@ def test_medium_dataset_construction_completes_under_generous_threshold(
         ),
         warmup=False,
     )
+    dataset = cast(AnalysisReadyPhosphoDataset, dataset)
 
     assert dataset.phospho.shape == (
         DATASET_VALIDATION_MEDIUM_N_SITES,
@@ -144,6 +149,7 @@ def test_bounded_site_metadata_validation_completes_under_generous_threshold(
         ),
         warmup=False,
     )
+    table = cast(SiteMetadataTable, table)
 
     assert table.frame.shape[0] == DATASET_VALIDATION_MEDIUM_N_SITES
     assert table.frame.index.equals(phospho.index)
@@ -189,6 +195,7 @@ def test_bounded_observation_mask_validation_completes_under_generous_threshold(
         ),
         warmup=False,
     )
+    metadata = cast(ImputationObservationMetadata, metadata)
 
     assert metadata.observed_mask.shape == phospho.shape
     assert (

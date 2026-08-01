@@ -11,7 +11,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.errors import PhosPyInputError
+from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.errors.transformations import TransformationStateEstablishmentError
 from phospy.science.transformations.models import IntensityScaleEstablishmentSource
 
@@ -466,42 +466,28 @@ def test_builder_records_suspicious_declared_log2_override_in_provenance() -> No
     )
 
 
-def test_builder_records_suspicious_declared_linear_warning_in_provenance() -> None:
+def test_builder_rejects_declared_linear_negative_values_at_final_boundary() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [-1.0, 3.0], "sample_b": [2.0, 4.0]},
         index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
     )
-    built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=phospho,
-            site_metadata=_site_metadata(phospho.index),
-            input_intensity_scale="linear",
-            preprocessing_config=DatasetPreprocessingConfig(
-                intensity_transform=DatasetIntensityTransformConfig(policy="identity")
-            ),
-        )
-    )
 
-    workflow_payload = _workflow_establishment_payload(built)
-    warnings = workflow_payload["diagnostic_warnings"]
-    assert isinstance(warnings, list)
-    assert any(
-        "declared linear scale contains negative values" in warning
-        for warning in warnings
-    )
-    assert built.provenance is not None
-    assert (
-        built.provenance.workflow_parameters[
-            "allow_suspicious_declared_input_intensity_scale"
-        ]
-        is False
-    )
-    assert (
-        built.provenance.workflow_parameters[
-            "effective_declared_input_intensity_scale_diagnostic_policy"
-        ]
-        == "warn"
-    )
+    with pytest.raises(
+        DatasetValidationError,
+        match="linear phosphosite_abundance must be non-negative",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho.index),
+                input_intensity_scale="linear",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="identity"
+                    )
+                ),
+            )
+        )
 
 
 def test_builder_plausible_declared_scale_has_no_warning() -> None:
