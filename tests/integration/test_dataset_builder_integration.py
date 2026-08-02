@@ -651,6 +651,7 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="log2",
                 ),
             ),
         )
@@ -907,6 +908,7 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="linear",
                 ),
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
             ),
@@ -1886,6 +1888,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="linear",
                 ),
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
             ),

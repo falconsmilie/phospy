@@ -6,6 +6,11 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.preprocessing.imputation_scale_policy import (
+    IMPUTATION_INPUT_SCALE_SOURCE_CALLER_SELECTED,
+    IMPUTATION_INPUT_SCALE_SOURCE_METHOD_REQUIRED,
+    IMPUTATION_OPERATION_ORDERS,
+)
 from phospy.science.datasets.preprocessing.policy_models import MissingDataPolicy
 
 from .json_contracts import (
@@ -81,6 +86,9 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     imputation_method_family: str | None = None
     random_seed: int | None = None
     matrix_scale_requirement: str | None = None
+    imputation_input_scale: str | None = None
+    imputation_input_scale_source: str | None = None
+    imputation_operation_order: str | None = None
     left_censored_assumption: bool | None = None
     per_column_distribution_parameters: Mapping[str, object] | None = None
     dropped_rows_above_max_missing_fraction: tuple[str, ...] | None = None
@@ -205,6 +213,18 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             matrix_scale_requirement=require_optional_str(
                 payload.get("matrix_scale_requirement"),
                 field_name=f"{field_name}.matrix_scale_requirement",
+            ),
+            imputation_input_scale=require_optional_str(
+                payload.get("imputation_input_scale"),
+                field_name=f"{field_name}.imputation_input_scale",
+            ),
+            imputation_input_scale_source=require_optional_str(
+                payload.get("imputation_input_scale_source"),
+                field_name=f"{field_name}.imputation_input_scale_source",
+            ),
+            imputation_operation_order=require_optional_str(
+                payload.get("imputation_operation_order"),
+                field_name=f"{field_name}.imputation_operation_order",
             ),
             stage_order=require_required_string_tuple(
                 payload.get("stage_order"),
@@ -340,6 +360,15 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.matrix_scale_requirement,
             field_name="dataset processing state missing_data.diagnostics.matrix_scale_requirement",
         )
+        imputation_input_scale = _require_optional_imputation_input_scale(
+            self.imputation_input_scale
+        )
+        imputation_input_scale_source = _require_optional_imputation_input_scale_source(
+            self.imputation_input_scale_source
+        )
+        imputation_operation_order = _require_optional_imputation_operation_order(
+            self.imputation_operation_order
+        )
         stage_order = require_required_string_tuple(
             self.stage_order,
             field_name="dataset processing state missing_data.diagnostics.stage_order",
@@ -444,6 +473,17 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         object.__setattr__(self, "random_seed", random_seed)
         object.__setattr__(self, "method_parameters", method_parameters)
         object.__setattr__(self, "matrix_scale_requirement", matrix_scale_requirement)
+        object.__setattr__(self, "imputation_input_scale", imputation_input_scale)
+        object.__setattr__(
+            self,
+            "imputation_input_scale_source",
+            imputation_input_scale_source,
+        )
+        object.__setattr__(
+            self,
+            "imputation_operation_order",
+            imputation_operation_order,
+        )
         object.__setattr__(self, "stage_order", stage_order)
         object.__setattr__(self, "missingness_mask_hash", missingness_mask_hash)
         object.__setattr__(self, "imputation_mask_hash", imputation_mask_hash)
@@ -514,6 +554,19 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             payload, "matrix_scale_requirement", self.matrix_scale_requirement
         )
         set_optional_payload_value(
+            payload, "imputation_input_scale", self.imputation_input_scale
+        )
+        set_optional_payload_value(
+            payload,
+            "imputation_input_scale_source",
+            self.imputation_input_scale_source,
+        )
+        set_optional_payload_value(
+            payload,
+            "imputation_operation_order",
+            self.imputation_operation_order,
+        )
+        set_optional_payload_value(
             payload, "left_censored_assumption", self.left_censored_assumption
         )
         set_optional_payload_value(
@@ -536,3 +589,55 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         set_optional_payload_value(payload, "neighbour_count", self.neighbour_count)
         set_optional_payload_value(payload, "distance_metric", self.distance_metric)
         return payload
+
+
+def _require_optional_imputation_input_scale(value: object) -> str | None:
+    parsed = require_optional_str(
+        value,
+        field_name=(
+            "dataset processing state missing_data.diagnostics.imputation_input_scale"
+        ),
+    )
+    if parsed is None or parsed in {"linear", "log2"}:
+        return parsed
+    raise PhosPyInputError(
+        "dataset processing state missing_data.diagnostics."
+        "imputation_input_scale must be one of: linear, log2"
+    )
+
+
+def _require_optional_imputation_input_scale_source(value: object) -> str | None:
+    parsed = require_optional_str(
+        value,
+        field_name=(
+            "dataset processing state missing_data.diagnostics."
+            "imputation_input_scale_source"
+        ),
+    )
+    if parsed is None or parsed in {
+        IMPUTATION_INPUT_SCALE_SOURCE_CALLER_SELECTED,
+        IMPUTATION_INPUT_SCALE_SOURCE_METHOD_REQUIRED,
+    }:
+        return parsed
+    raise PhosPyInputError(
+        "dataset processing state missing_data.diagnostics."
+        "imputation_input_scale_source must be one of: caller_selected, "
+        "method_required"
+    )
+
+
+def _require_optional_imputation_operation_order(value: object) -> str | None:
+    parsed = require_optional_str(
+        value,
+        field_name=(
+            "dataset processing state missing_data.diagnostics."
+            "imputation_operation_order"
+        ),
+    )
+    if parsed is None or parsed in IMPUTATION_OPERATION_ORDERS:
+        return parsed
+    supported = ", ".join(sorted(IMPUTATION_OPERATION_ORDERS))
+    raise PhosPyInputError(
+        "dataset processing state missing_data.diagnostics."
+        f"imputation_operation_order must be one of: {supported}"
+    )

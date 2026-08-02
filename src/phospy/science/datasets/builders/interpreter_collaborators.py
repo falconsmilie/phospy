@@ -51,6 +51,7 @@ from phospy.science.sites.identity_columns import (
     enforce_site_key_column,
 )
 from phospy.science.sites.validation import require_no_mixed_site_key_isoform_scope
+from phospy.science.transformations.models import IntensityScaleKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -449,8 +450,12 @@ class DatasetBuildPreprocessingPlanner:
         *,
         phospho: pd.DataFrame | None = None,
         sample_metadata: pd.DataFrame | None = None,
+        declared_input_intensity_scale_kind: IntensityScaleKind | None = None,
     ) -> PreprocessingPlan:
-        plan = self._plan_interpreter.run(request.preprocessing_config)
+        plan = self._plan_interpreter.run(
+            request.preprocessing_config,
+            declared_input_scale_kind=declared_input_intensity_scale_kind,
+        )
         if plan.group_coverage_filter_enabled and phospho is not None:
             self._group_coverage_validator.run(
                 phospho=phospho,

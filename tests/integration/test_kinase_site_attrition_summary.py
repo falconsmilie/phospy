@@ -91,6 +91,7 @@ def _build_dataset_with_attrition_mix() -> object:
         missing_data=DatasetMissingDataConfig(
             policy="impute_row_median",
             min_observed_values=1,
+            input_scale="linear",
         ),
         site_matrix=DatasetSiteMatrixConfig(
             policy="build_from_metadata",

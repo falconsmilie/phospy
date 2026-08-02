@@ -793,6 +793,7 @@ def test_builder_rejects_preprocessing_threshold_above_sample_count() -> None:
                     missing_data=DatasetMissingDataConfig(
                         policy="impute_row_median",
                         min_observed_values=3,
+                        input_scale="linear",
                     ),
                 ),
             )

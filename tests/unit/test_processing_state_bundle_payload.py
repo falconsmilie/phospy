@@ -571,7 +571,14 @@ def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
         "imputed_row_ids": ["row_a"],
         "imputed_column_ids": ["sample_1"],
         "dropped_row_ids": [],
-        "method_parameters": {"min_observed_values": 1},
+        "method_parameters": {
+            "min_observed_values": 1,
+            "input_scale": "linear",
+            "imputation_operation_order": "no_intensity_transform",
+        },
+        "imputation_input_scale": "linear",
+        "imputation_input_scale_source": "caller_selected",
+        "imputation_operation_order": "no_intensity_transform",
         "stage_order": ["missing_data"],
         "missingness_mask_hash": "mask-hash",
         "imputation_mask_hash": "imputation-mask-hash",
@@ -623,8 +630,15 @@ def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics(
         "imputed_column_ids": ["sample_2"],
         "dropped_row_ids": ["row_c"],
         "random_seed": None,
-        "method_parameters": {"min_observed_values": 1},
+        "method_parameters": {
+            "min_observed_values": 1,
+            "input_scale": "linear",
+            "imputation_operation_order": "no_intensity_transform",
+        },
         "matrix_scale_requirement": None,
+        "imputation_input_scale": "linear",
+        "imputation_input_scale_source": "caller_selected",
+        "imputation_operation_order": "no_intensity_transform",
         "stage_order": ["missing_data"],
         "missingness_mask_hash": "abc123",
         "imputation_mask_hash": "imputation-mask-hash",
@@ -658,6 +672,8 @@ def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics(
 
     assert isinstance(restored.missing_data.diagnostics, MissingDataDiagnostics)
     assert restored.missing_data.diagnostics is not None
+    assert restored.missing_data.imputation_input_scale == "linear"
+    assert restored.missing_data.imputation_operation_order == "no_intensity_transform"
     assert (
         restored.missing_data.diagnostics.to_payload()
         == payload["missing_data"]["diagnostics"]

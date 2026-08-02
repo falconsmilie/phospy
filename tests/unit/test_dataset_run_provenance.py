@@ -421,6 +421,7 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="linear",
                 )
             ),
         )
@@ -751,6 +752,7 @@ def test_run_provenance_serializes_resolved_stage_order_for_non_minprob_with_log
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 ),
             ),
         )
@@ -835,6 +837,7 @@ def test_run_provenance_from_payload_rejects_legacy_stage_shape() -> None:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 )
             ),
         )

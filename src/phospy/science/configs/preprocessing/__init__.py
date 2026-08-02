@@ -88,12 +88,16 @@ from phospy.science.configs.preprocessing.localisation import (
     DatasetLocalisationMode,
 )
 from phospy.science.configs.preprocessing.missing_data import (
+    DATASET_MISSING_DATA_INPUT_SCALE_LINEAR,
+    DATASET_MISSING_DATA_INPUT_SCALE_LOG2,
+    DATASET_MISSING_DATA_INPUT_SCALES,
     DATASET_MISSING_DATA_POLICIES,
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
     DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
     DatasetMissingDataConfig,
+    DatasetMissingDataInputScale,
     DatasetMissingDataPolicy,
 )
 from phospy.science.configs.preprocessing.normalisation import (
@@ -208,6 +212,9 @@ __all__ = [
     "DATASET_INTENSITY_TRANSFORM_POLICIES",
     "DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY",
     "DATASET_INTENSITY_TRANSFORM_POLICY_LOG2",
+    "DATASET_MISSING_DATA_INPUT_SCALE_LINEAR",
+    "DATASET_MISSING_DATA_INPUT_SCALE_LOG2",
+    "DATASET_MISSING_DATA_INPUT_SCALES",
     "DATASET_MISSING_DATA_POLICIES",
     "DATASET_MISSING_DATA_POLICY_FORBID",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_KNN",
@@ -284,6 +291,7 @@ __all__ = [
     "DatasetIntensityTransformConfig",
     "DatasetIntensityTransformPolicy",
     "DatasetMissingDataConfig",
+    "DatasetMissingDataInputScale",
     "DatasetMissingDataPolicy",
     "DatasetNormalisationConfig",
     "DatasetNormalisationPolicy",

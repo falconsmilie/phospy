@@ -451,7 +451,9 @@ def validate_missing_data_config(
     k: object | None,
     distance: object | None,
     max_missing_fraction_per_row: object | None,
+    input_scale: object | None,
     supported_policies: Collection[str],
+    supported_input_scales: Collection[str],
     policy_forbid: str,
     policy_impute_row_median: str,
     policy_impute_minprob: str,
@@ -465,12 +467,27 @@ def validate_missing_data_config(
         supported_values=supported_policies,
         error_type=PhosPyInputError,
     )
+    if input_scale is not None:
+        require_supported_literal(
+            input_scale,
+            field_name=(
+                "dataset build request preprocessing_config.missing_data.input_scale"
+            ),
+            supported_values=supported_input_scales,
+            error_type=PhosPyInputError,
+        )
     if resolved_policy == policy_forbid:
         if min_observed_values is not None:
             raise PhosPyInputError(
                 "dataset build request "
                 "preprocessing_config.missing_data.min_observed_values must be "
                 "None when missing_data.policy='forbid'"
+            )
+        if input_scale is not None:
+            raise PhosPyInputError(
+                "dataset build request "
+                "preprocessing_config.missing_data.input_scale must be None when "
+                "missing_data.policy='forbid'"
             )
         if (
             q is not None

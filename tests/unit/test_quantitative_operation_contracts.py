@@ -91,10 +91,12 @@ def test_built_in_quantitative_contracts_cover_all_policy_branches() -> None:
         ),
         PreprocessingPlan(
             missing_data_policy=MissingDataPolicy.IMPUTE_ROW_MEDIAN,
+            missing_data_input_scale="linear",
             stage_order=("missing_data",),
         ),
         PreprocessingPlan(
             missing_data_policy=MissingDataPolicy.IMPUTE_KNN,
+            missing_data_input_scale="linear",
             stage_order=("missing_data",),
         ),
         PreprocessingPlan(

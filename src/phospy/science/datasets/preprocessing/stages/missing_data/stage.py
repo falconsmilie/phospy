@@ -12,6 +12,9 @@ from phospy.science.datasets._processing_state.json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
 )
+from phospy.science.datasets.preprocessing.imputation_scale_policy import (
+    imputation_input_scale_kind,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     PreprocessingPlan,
@@ -36,6 +39,7 @@ from phospy.science.transformations.models import (
     QuantitativeMeaning,
 )
 from phospy.science.transformations.quantitative_contracts import (
+    ALL_QUANTITATIVE_MEANINGS,
     NegativeDomainPolicy,
     QuantitativeEvidenceRequirement,
     QuantitativeInformationLossKind,
@@ -114,6 +118,9 @@ def _run_forbid_policy(
             random_seed=None,
             method_parameters={},
             matrix_scale_requirement=None,
+            imputation_input_scale=None,
+            imputation_input_scale_source=None,
+            imputation_operation_order=None,
             stage_order=state.plan.stage_order,
             missingness_mask_hash=input_profile.missingness_mask_hash,
             left_censored_assumption=False,
@@ -146,6 +153,9 @@ def _run_forbid_policy(
         random_seed=None,
         method_parameters={},
         matrix_scale_requirement=None,
+        imputation_input_scale=None,
+        imputation_input_scale_source=None,
+        imputation_operation_order=None,
         stage_order=state.plan.stage_order,
         missingness_mask_hash=input_profile.missingness_mask_hash,
         left_censored_assumption=None,
@@ -178,6 +188,7 @@ def _run_row_median_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_row_median_policy(state)
+    imputation_input_scale = _required_imputation_input_scale_value(state.plan)
     imputation_mask_hash = hash_imputation_mask(outcome.imputed_mask)
     row_audit_records = build_row_median_audit_records(
         plan=state.plan,
@@ -197,8 +208,17 @@ def _run_row_median_policy(
         imputed_column_ids=outcome.imputed_column_ids,
         dropped_row_ids=outcome.dropped_row_ids,
         random_seed=None,
-        method_parameters={"min_observed_values": int(outcome.min_observed_values)},
+        method_parameters={
+            "min_observed_values": int(outcome.min_observed_values),
+            "input_scale": imputation_input_scale,
+            "imputation_operation_order": (
+                state.plan.missing_data_imputation_operation_order
+            ),
+        },
         matrix_scale_requirement=None,
+        imputation_input_scale=imputation_input_scale,
+        imputation_input_scale_source=state.plan.missing_data_input_scale_source,
+        imputation_operation_order=state.plan.missing_data_imputation_operation_order,
         stage_order=state.plan.stage_order,
         missingness_mask_hash=input_profile.missingness_mask_hash,
         left_censored_assumption=False,
@@ -231,6 +251,7 @@ def _run_knn_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_knn_policy(state)
+    imputation_input_scale = _required_imputation_input_scale_value(state.plan)
     imputation_mask_hash = hash_imputation_mask(outcome.imputed_mask)
     row_audit_records = build_knn_audit_records(
         plan=state.plan,
@@ -254,8 +275,15 @@ def _run_knn_policy(
             "k": int(outcome.k),
             "distance": outcome.distance,
             "max_missing_fraction_per_row": float(outcome.max_missing_fraction_per_row),
+            "input_scale": imputation_input_scale,
+            "imputation_operation_order": (
+                state.plan.missing_data_imputation_operation_order
+            ),
         },
         matrix_scale_requirement=None,
+        imputation_input_scale=imputation_input_scale,
+        imputation_input_scale_source=state.plan.missing_data_input_scale_source,
+        imputation_operation_order=state.plan.missing_data_imputation_operation_order,
         stage_order=state.plan.stage_order,
         missingness_mask_hash=input_profile.missingness_mask_hash,
         left_censored_assumption=False,
@@ -288,6 +316,7 @@ def _run_minprob_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_minprob_policy(state)
+    imputation_input_scale = _required_imputation_input_scale_value(state.plan)
     imputation_mask_hash = hash_imputation_mask(outcome.imputed_mask)
     row_audit_records = build_minprob_audit_records(
         plan=state.plan,
@@ -312,8 +341,15 @@ def _run_minprob_policy(
             "width": float(outcome.width),
             "seed": int(outcome.seed),
             "max_missing_fraction_per_row": float(outcome.max_missing_fraction_per_row),
+            "input_scale": imputation_input_scale,
+            "imputation_operation_order": (
+                state.plan.missing_data_imputation_operation_order
+            ),
         },
         matrix_scale_requirement="log2",
+        imputation_input_scale=imputation_input_scale,
+        imputation_input_scale_source=state.plan.missing_data_input_scale_source,
+        imputation_operation_order=state.plan.missing_data_imputation_operation_order,
         stage_order=state.plan.stage_order,
         missingness_mask_hash=input_profile.missingness_mask_hash,
         left_censored_assumption=True,
@@ -424,6 +460,15 @@ def _resolve_operation(plan: PreprocessingPlan) -> str:
     return plan.missing_data_policy.value
 
 
+def _required_imputation_input_scale_value(plan: PreprocessingPlan) -> str:
+    if plan.missing_data_input_scale is None:
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'missing_data' requires "
+            "missing_data_input_scale for imputation policies"
+        )
+    return plan.missing_data_input_scale.value
+
+
 def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return {
         "missing_data_policy": plan.missing_data_policy.value,
@@ -435,6 +480,15 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
         "missing_data_distance": plan.missing_data_distance,
         "missing_data_max_missing_fraction_per_row": (
             plan.missing_data_max_missing_fraction_per_row
+        ),
+        "missing_data_input_scale": (
+            None
+            if plan.missing_data_input_scale is None
+            else plan.missing_data_input_scale.value
+        ),
+        "missing_data_input_scale_source": plan.missing_data_input_scale_source,
+        "missing_data_imputation_operation_order": (
+            plan.missing_data_imputation_operation_order
         ),
     }
 
@@ -487,7 +541,15 @@ def _resolve_quantitative_contract(
             information_loss=QuantitativeInformationLossKind.IMPUTATION,
         )
     if policy in {MissingDataPolicy.IMPUTE_ROW_MEDIAN, MissingDataPolicy.IMPUTE_KNN}:
-        return preserve_quantitative_contract(
+        input_scale_kind = imputation_input_scale_kind(plan.missing_data_input_scale)
+        return QuantitativeOperationContract(
+            accepted_input_scale_kinds=frozenset({input_scale_kind}),
+            accepted_quantitative_meanings=ALL_QUANTITATIVE_MEANINGS,
+            output_scale_transition=preserve_scale_transition(
+                frozenset({input_scale_kind}),
+                output_scale_label=input_scale_kind.value,
+            ),
+            output_meaning_transition=preserve_meaning_transition(),
             preserves_abundance=False,
             required_evidence=frozenset(
                 {QuantitativeEvidenceRequirement.MISSINGNESS_MASK}

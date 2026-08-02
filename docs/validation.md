@@ -109,6 +109,9 @@ no total-protein correction, and no comparison construction.
 Common cross-field checks:
 
 - missing-data handling runs before normalisation in preprocessing stage order.
+  Its placement relative to intensity transformation is method/scale policy:
+  linear imputations run before a configured log2 transform, and log2
+  imputations run after the transform or on input declared as already log2.
 - when `intensity_transform.policy="identity"`, declare
   `input_intensity_scale` on `DatasetBuildRequest` (`"linear"` or `"log2"`), or
   use an explicit scale-changing transform (for example `policy="log2"`).
@@ -119,13 +122,20 @@ Common cross-field checks:
   effective policy, input declaration source, and diagnostic warnings are
   recorded in provenance. Other declared-scale diagnostics are recorded as
   provenance warnings.
-- `missing_data.policy="impute_row_median"` is deterministic.
+- `missing_data.policy="impute_row_median"` is deterministic and requires
+  explicit `missing_data.input_scale` (`"linear"` or `"log2"`) during
+  preprocessing plan interpretation.
 - row-median imputation is not left-censored imputation.
 - imputed row-median values are replacements and must not be treated as evidence that the original values were observed.
-- `missing_data.policy="impute_minprob"` requires `intensity_transform.policy="log2"`.
+- `missing_data.policy="impute_minprob"` has method-required
+  `missing_data.input_scale="log2"`. It requires either a configured log2
+  transform before imputation or a dataset input scale declared as already
+  log2.
 - `impute_minprob` requires explicit `q`, `width`, `seed`, and `max_missing_fraction_per_row`.
 - `impute_minprob` is left-censored random imputation with deterministic seeded draws and row-drop reporting above the configured missing-fraction threshold.
-- `missing_data.policy="impute_knn"` requires explicit `k`, `distance="nan_euclidean"`, and `max_missing_fraction_per_row`.
+- `missing_data.policy="impute_knn"` requires explicit
+  `missing_data.input_scale` (`"linear"` or `"log2"`), `k`,
+  `distance="nan_euclidean"`, and `max_missing_fraction_per_row`.
 - `impute_knn` requires `min_observed_values=None` and does not support alternative distance metrics in the public contract.
 - `impute_knn` is a deterministic PhosPy-owned implementation, not a
   scikit-learn delegation. It drops rows above
@@ -143,10 +153,11 @@ Common cross-field checks:
   row, sample, or distance-work budgets fail with a `PhosPyInputError` that
   reports the shape and suggests reducing retained missing rows or choosing a
   simpler missing-data policy.
-- Missing-data and total-protein correction diagnostics in processing state use
-  the shared immutable JSON policy internally. Bundle payloads still serialize
-  as schema v1 `dict`/`list` JSON, and each serialization returns fresh detached
-  containers.
+- Missing-data diagnostics and processing state preserve the observation mask,
+  imputation input scale, and imputation operation order. Missing-data and
+  total-protein correction diagnostics use the shared immutable JSON policy
+  internally. Bundle payloads still serialize as schema v1 `dict`/`list` JSON,
+  and each serialization returns fresh detached containers.
 - `subtract_log_total` requires `total` input data.
 - `subtract_log_total` requires `intensity_transform.policy="log2"`.
 - When `subtract_log_total` runs with `unmatched_policy="allow_uncorrected"` and

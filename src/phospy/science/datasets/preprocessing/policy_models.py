@@ -10,6 +10,11 @@ class MissingDataPolicy(PolicyEnum):
     IMPUTE_KNN = "impute_knn"
 
 
+class ImputationInputScale(PolicyEnum):
+    LINEAR = "linear"
+    LOG2 = "log2"
+
+
 class TotalProteinCorrectionPolicy(PolicyEnum):
     NONE = "none"
     SUBTRACT_LOG_TOTAL = "subtract_log_total"
@@ -76,6 +81,7 @@ class LocalisationEligibilityMode(PolicyEnum):
 
 __all__ = [
     "ComparisonBuildingPolicy",
+    "ImputationInputScale",
     "IntensityTransformPolicy",
     "LocalisationEligibilityMode",
     "MissingDataPolicy",

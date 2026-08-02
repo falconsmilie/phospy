@@ -416,6 +416,7 @@ def _build_dataset(*, include_missing: bool):
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 ),
                 site_matrix=DatasetSiteMatrixConfig(policy="as_input"),
             ),

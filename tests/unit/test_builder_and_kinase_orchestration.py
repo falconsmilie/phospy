@@ -387,6 +387,7 @@ def test_builder_orchestration_threads_preprocessing_config_to_executor() -> Non
             missing_data=DatasetMissingDataConfig(
                 policy="impute_row_median",
                 min_observed_values=2,
+                input_scale="linear",
             ),
         ),
     )

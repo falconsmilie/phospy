@@ -381,6 +381,7 @@ def test_processing_state_bundle_round_trip_from_real_preprocessing_output() -> 
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="linear",
                 ),
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
@@ -433,6 +434,7 @@ def test_preprocessing_policy_changes_are_visible_in_provenance() -> None:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 )
             ),
         )

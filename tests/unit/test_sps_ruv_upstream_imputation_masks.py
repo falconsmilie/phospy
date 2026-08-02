@@ -567,6 +567,7 @@ def _preprocessing_config() -> DatasetPreprocessingConfig:
         missing_data=DatasetMissingDataConfig(
             policy="impute_row_median",
             min_observed_values=2,
+            input_scale="log2",
         ),
         batch_correction=SpsRuvBatchCorrectionConfig(
             control_site_set=ControlSiteSet.from_site_keys(

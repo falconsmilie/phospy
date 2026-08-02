@@ -13,18 +13,27 @@ DATASET_MISSING_DATA_POLICY_FORBID = "forbid"
 DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN = "impute_row_median"
 DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB = "impute_minprob"
 DATASET_MISSING_DATA_POLICY_IMPUTE_KNN = "impute_knn"
+DATASET_MISSING_DATA_INPUT_SCALE_LINEAR = "linear"
+DATASET_MISSING_DATA_INPUT_SCALE_LOG2 = "log2"
 DatasetMissingDataPolicy = Literal[
     "forbid",
     "impute_row_median",
     "impute_minprob",
     "impute_knn",
 ]
+DatasetMissingDataInputScale = Literal["linear", "log2"]
 DATASET_MISSING_DATA_POLICIES = frozenset(
     {
         DATASET_MISSING_DATA_POLICY_FORBID,
         DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
         DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
         DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
+    }
+)
+DATASET_MISSING_DATA_INPUT_SCALES = frozenset(
+    {
+        DATASET_MISSING_DATA_INPUT_SCALE_LINEAR,
+        DATASET_MISSING_DATA_INPUT_SCALE_LOG2,
     }
 )
 
@@ -44,6 +53,12 @@ class DatasetMissingDataConfig:
       filtering, deterministic donor tie rules, and retained-column mean
       fallback when a missing cell has no donor with overlapping observed
       values.
+
+    `input_scale` declares the quantitative scale presented to the imputer.
+    `"impute_row_median"` and `"impute_knn"` require callers to select
+    `"linear"` or `"log2"` during preprocessing plan interpretation.
+    `"impute_minprob"` operates on `"log2"` values by method design; an explicit
+    `input_scale`, when provided, must be compatible with that requirement.
 
     `min_observed_values` is required for `"impute_row_median"` and must stay
     unset for `"forbid"`, `"impute_minprob"`, and `"impute_knn"`.
@@ -80,6 +95,7 @@ class DatasetMissingDataConfig:
     k: int | None = None
     distance: str | None = None
     max_missing_fraction_per_row: float | None = None
+    input_scale: DatasetMissingDataInputScale | None = None
 
     def __post_init__(self) -> None:
         validate_missing_data_config(
@@ -91,7 +107,9 @@ class DatasetMissingDataConfig:
             k=self.k,
             distance=self.distance,
             max_missing_fraction_per_row=self.max_missing_fraction_per_row,
+            input_scale=self.input_scale,
             supported_policies=DATASET_MISSING_DATA_POLICIES,
+            supported_input_scales=DATASET_MISSING_DATA_INPUT_SCALES,
             policy_forbid=DATASET_MISSING_DATA_POLICY_FORBID,
             policy_impute_row_median=DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
             policy_impute_minprob=DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
@@ -100,11 +118,15 @@ class DatasetMissingDataConfig:
 
 
 __all__ = [
+    "DATASET_MISSING_DATA_INPUT_SCALE_LINEAR",
+    "DATASET_MISSING_DATA_INPUT_SCALE_LOG2",
+    "DATASET_MISSING_DATA_INPUT_SCALES",
     "DATASET_MISSING_DATA_POLICIES",
     "DATASET_MISSING_DATA_POLICY_FORBID",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_KNN",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
     "DatasetMissingDataConfig",
+    "DatasetMissingDataInputScale",
     "DatasetMissingDataPolicy",
 ]

@@ -68,6 +68,11 @@ Important user-facing assumptions:
 - Missing values are forbidden by default or handled by an explicit
   preprocessing policy.
 - missing-data handling runs before normalisation in preprocessing stage order.
+- imputation order relative to intensity transformation is explicit:
+  row-median and KNN use caller-selected `missing_data.input_scale`
+  (`"linear"` or `"log2"`), while MinProb requires log2 input. Linear
+  imputations run before a configured log2 transform; log2 imputations run
+  after that transform or on input declared as already log2.
 - row-median imputation is deterministic.
 - row-median imputation is not left-censored imputation.
 - Localisation should be configured before site-level scientific workflows when
@@ -85,6 +90,11 @@ Important user-facing assumptions:
 handling, site construction, site-sequence resolution, total-protein
 correction, protein-aware preparation, comparison building, and localisation
 policy.
+
+Imputation scale, imputation operation order, and observation-mask preservation
+are preprocessing-owned scientific policy. Downstream workflows, including
+differential analysis, consume the recorded dataset state and validate
+eligibility; they do not reinterpret missing-data method semantics.
 
 Batch-correction preprocessing surfaces are explicit: optional
 `linear_residualize_batch` fixed-effect residualisation and native SPS/RUV-style

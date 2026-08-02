@@ -509,6 +509,7 @@ def test_provenance_adapter_includes_execution_summary_for_imputation_stage() ->
             missing_data=DatasetMissingDataConfig(
                 policy="impute_row_median",
                 min_observed_values=1,
+                input_scale="linear",
             )
         )
     )

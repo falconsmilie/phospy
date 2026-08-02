@@ -496,6 +496,15 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "missing_data_max_missing_fraction_per_row": (
             plan.missing_data_max_missing_fraction_per_row
         ),
+        "missing_data_input_scale": (
+            None
+            if plan.missing_data_input_scale is None
+            else plan.missing_data_input_scale.value
+        ),
+        "missing_data_input_scale_source": plan.missing_data_input_scale_source,
+        "missing_data_imputation_operation_order": (
+            plan.missing_data_imputation_operation_order
+        ),
         "localisation_mode": plan.localisation_mode.value,
         "localisation_min_confidence": float(plan.localisation_min_confidence),
         "localisation_confidence_column": plan.localisation_confidence_column,

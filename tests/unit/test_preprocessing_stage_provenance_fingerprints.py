@@ -360,6 +360,7 @@ def test_missing_data_missingness_mask_hash_is_stable() -> None:
         missing_data=DatasetMissingDataConfig(
             policy="impute_row_median",
             min_observed_values=1,
+            input_scale="linear",
         )
     )
 

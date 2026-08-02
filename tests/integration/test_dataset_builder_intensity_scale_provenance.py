@@ -551,6 +551,7 @@ def test_preprocessing_operations_include_execution_summary_for_imputation() -> 
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 )
             ),
         )

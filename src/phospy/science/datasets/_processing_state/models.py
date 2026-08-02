@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from phospy.errors.input import DatasetProcessingStateError, PhosPyInputError
+from phospy.science.datasets.preprocessing.imputation_scale_policy import (
+    IMPUTATION_OPERATION_ORDERS,
+)
 from phospy.science.datasets.preprocessing.policy_models import (
     MissingDataPolicy,
     NormalisationPolicy,
@@ -32,6 +35,8 @@ class MissingDataState:
     diagnostics: MissingDataDiagnostics | None = None
     has_missing_values: bool | None = None
     missing_value_count: int | None = None
+    imputation_input_scale: str | None = None
+    imputation_operation_order: str | None = None
 
     def __post_init__(self) -> None:
         try:
@@ -61,6 +66,12 @@ class MissingDataState:
         missing_value_count = require_optional_non_negative_int(
             self.missing_value_count,
             field_name="dataset processing state missing_data.missing_value_count",
+        )
+        imputation_input_scale = _require_optional_imputation_input_scale_state(
+            self.imputation_input_scale,
+        )
+        imputation_operation_order = _require_optional_imputation_operation_order_state(
+            self.imputation_operation_order,
         )
         diagnostics = self.diagnostics
         if diagnostics is not None and not isinstance(
@@ -95,6 +106,22 @@ class MissingDataState:
                     "dataset processing state missing_data.has_missing_values "
                     "must match missing_data.diagnostics.output_missing_cell_count"
                 )
+            imputation_input_scale = _resolve_diagnostic_optional_str(
+                diagnostics=diagnostics,
+                key="imputation_input_scale",
+                current=imputation_input_scale,
+                field_name=(
+                    "dataset processing state missing_data.imputation_input_scale"
+                ),
+            )
+            imputation_operation_order = _resolve_diagnostic_optional_str(
+                diagnostics=diagnostics,
+                key="imputation_operation_order",
+                current=imputation_operation_order,
+                field_name=(
+                    "dataset processing state missing_data.imputation_operation_order"
+                ),
+            )
 
         if complete_matrix and missing_value_count is None:
             missing_value_count = 0
@@ -170,6 +197,12 @@ class MissingDataState:
         object.__setattr__(self, "diagnostics", diagnostics)
         object.__setattr__(self, "has_missing_values", has_missing_values)
         object.__setattr__(self, "missing_value_count", missing_value_count)
+        object.__setattr__(self, "imputation_input_scale", imputation_input_scale)
+        object.__setattr__(
+            self,
+            "imputation_operation_order",
+            imputation_operation_order,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -589,6 +622,56 @@ def _diagnostic_int(
     if isinstance(value, bool) or not isinstance(value, int):
         raise DatasetProcessingStateError(f"{field_name} must be an int")
     return value
+
+
+def _resolve_diagnostic_optional_str(
+    *,
+    diagnostics: MissingDataDiagnostics,
+    key: str,
+    current: str | None,
+    field_name: str,
+) -> str | None:
+    diagnostic_value = diagnostics.get(key)
+    if diagnostic_value is None:
+        return current
+    diagnostic_text = require_optional_str(
+        diagnostic_value,
+        field_name=f"dataset processing state missing_data.diagnostics.{key}",
+    )
+    if current is None:
+        return diagnostic_text
+    if current == diagnostic_text:
+        return current
+    raise DatasetProcessingStateError(
+        f"{field_name} must match missing_data.diagnostics.{key}"
+    )
+
+
+def _require_optional_imputation_input_scale_state(value: object) -> str | None:
+    parsed = require_optional_str(
+        value,
+        field_name="dataset processing state missing_data.imputation_input_scale",
+    )
+    if parsed is None or parsed in {"linear", "log2"}:
+        return parsed
+    raise DatasetProcessingStateError(
+        "dataset processing state missing_data.imputation_input_scale must be "
+        "one of: linear, log2"
+    )
+
+
+def _require_optional_imputation_operation_order_state(value: object) -> str | None:
+    parsed = require_optional_str(
+        value,
+        field_name="dataset processing state missing_data.imputation_operation_order",
+    )
+    if parsed is None or parsed in IMPUTATION_OPERATION_ORDERS:
+        return parsed
+    supported = ", ".join(sorted(IMPUTATION_OPERATION_ORDERS))
+    raise DatasetProcessingStateError(
+        "dataset processing state missing_data.imputation_operation_order must be "
+        f"one of: {supported}"
+    )
 
 
 def _require_string_non_negative_int_mapping(

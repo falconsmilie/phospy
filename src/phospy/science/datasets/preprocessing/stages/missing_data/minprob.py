@@ -14,7 +14,10 @@ from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.policy_models import IntensityTransformPolicy
+from phospy.science.datasets.preprocessing.policy_models import (
+    ImputationInputScale,
+    IntensityTransformPolicy,
+)
 from phospy.science.datasets.processing_state import JsonValue
 
 from .models import MinProbPolicyOutcome, RowImputationRecord
@@ -85,17 +88,19 @@ def _stable_column_label_seed(base_seed: int, column_label: object) -> int:
 def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
     """Apply minprob policy numerical transformation."""
 
-    if state.plan.intensity_transform_policy is not IntensityTransformPolicy.LOG2:
+    if state.plan.missing_data_input_scale is not ImputationInputScale.LOG2:
         raise PhosPyInputError(
             "dataset build request preprocessing_config.missing_data.policy="
             "'impute_minprob' requires log2-scale values. Configure "
-            "preprocessing_config.intensity_transform.policy='log2'."
+            "preprocessing_config.missing_data.input_scale='log2' with a recorded "
+            "log2 transition or declared log2 input."
         )
     stage_order = tuple(state.plan.stage_order)
     if DATASET_PREPROCESSING_STAGE_MISSING_DATA in stage_order:
         missing_data_index = stage_order.index(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
         if (
-            DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM
+            state.plan.intensity_transform_policy is IntensityTransformPolicy.LOG2
+            and DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM
             not in stage_order[:missing_data_index]
         ):
             raise PhosPyInputError(
@@ -104,6 +109,17 @@ def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
                 "plan stage_order is incompatible with minprob intensity-state "
                 "requirements. missing_data must run after intensity_transform "
                 "(log2)."
+            )
+        if (
+            DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM
+            in stage_order[missing_data_index + 1 :]
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing stage 'missing_data' cannot apply "
+                "missing_data.policy='impute_minprob' because the preprocessing "
+                "plan stage_order is incompatible with minprob intensity-state "
+                "requirements. When intensity_transform is configured, missing_data "
+                "must run after intensity_transform (log2)."
             )
 
     q = state.plan.missing_data_q

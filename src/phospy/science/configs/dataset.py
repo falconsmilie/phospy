@@ -10,6 +10,7 @@ from phospy.science.configs.preprocessing import (
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
+    DATASET_MISSING_DATA_INPUT_SCALE_LINEAR,
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
     DATASET_NORMALISATION_POLICY_MEDIAN_CENTER,
@@ -217,6 +218,7 @@ class DatasetPreprocessingConfig:
             missing_data=DatasetMissingDataConfig(
                 policy=DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
                 min_observed_values=1,
+                input_scale=DATASET_MISSING_DATA_INPUT_SCALE_LINEAR,
             ),
             total_protein_correction=DatasetTotalProteinCorrectionConfig(
                 policy=DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE

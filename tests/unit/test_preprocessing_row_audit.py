@@ -75,6 +75,7 @@ def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> N
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="linear",
                 )
             )
         ),
@@ -133,6 +134,7 @@ def test_missing_data_stage_audits_row_median_imputation() -> None:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 )
             )
         ),

@@ -353,6 +353,7 @@ config = DatasetPreprocessingConfig(
     missing_data=DatasetMissingDataConfig(
         policy="impute_row_median",
         min_observed_values=2,
+        input_scale="linear",
     ),
 )
 
@@ -765,6 +766,7 @@ and `dataset.preprocessing_report.operations`. Stage diagnostics include:
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
 | `policy` | `str` | `"forbid"` | `"forbid"`, `"impute_row_median"`, `"impute_minprob"`, `"impute_knn"` | Selects rejection or imputation behaviour. |
+| `input_scale` | `str` or `None` | `None` | `"linear"` or `"log2"` for `"impute_row_median"` and `"impute_knn"`; `None` or `"log2"` for `"impute_minprob"`; `None` for `"forbid"` | Declares the scale that the imputer consumes. Linear imputation runs before a configured log2 transform; log2 imputation runs after that transform or on input declared as already log2. MinProb resolves to method-required `"log2"` when omitted. |
 | `min_observed_values` | `int` or `None` | `None` | Integer `>= 1` when `policy="impute_row_median"`; otherwise `None` | Drops rows with too few observed samples before row-median imputation. |
 | `q` | `float` or `None` | `None` | `0 < q < 0.5` when `policy="impute_minprob"`; otherwise `None` | Lower-tail quantile for MinProb-style imputation. |
 | `width` | `float` or `None` | `None` | `0 < width <= 1.0` when `policy="impute_minprob"`; otherwise `None` | Controls the width of the imputation distribution. |
@@ -779,6 +781,7 @@ Row-median example:
 missing_data = DatasetMissingDataConfig(
     policy="impute_row_median",
     min_observed_values=2,
+    input_scale="linear",
 )
 ```
 
@@ -791,6 +794,7 @@ missing_data = DatasetMissingDataConfig(
     width=0.3,
     seed=12345,
     max_missing_fraction_per_row=0.5,
+    input_scale="log2",
 )
 ```
 
@@ -802,6 +806,7 @@ missing_data = DatasetMissingDataConfig(
     k=5,
     distance="nan_euclidean",
     max_missing_fraction_per_row=0.5,
+    input_scale="linear",
 )
 ```
 
@@ -809,6 +814,12 @@ Missing-data diagnostics stored on `dataset.processing_state.missing_data` use
 immutable internal JSON mappings. Calls to `to_payload()` and bundle
 serialization still return ordinary schema v1 JSON `dict`/`list` payloads, and
 each call returns a fresh detached copy.
+
+Processing state records the imputation input scale and operation order
+(`before_intensity_transform`, `after_intensity_transform`, or
+`no_intensity_transform`) when imputation is active. The observation mask is
+preserved so downstream workflows can distinguish originally observed values
+from imputed replacements.
 
 ## Group Coverage Filter Parameters
 
@@ -851,6 +862,7 @@ preprocessing = DatasetPreprocessingConfig(
     missing_data=DatasetMissingDataConfig(
         policy="impute_row_median",
         min_observed_values=1,
+        input_scale="linear",
     ),
 )
 ```

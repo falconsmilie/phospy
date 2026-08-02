@@ -115,6 +115,7 @@ def _knn_state(phospho: pd.DataFrame) -> PreprocessingState:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_knn",
+            missing_data_input_scale="linear",
             missing_data_k=1,
             missing_data_distance="nan_euclidean",
             missing_data_max_missing_fraction_per_row=0.5,
@@ -164,6 +165,7 @@ def test_row_median_policy_is_independently_testable() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_row_median",
+            missing_data_input_scale="linear",
             missing_data_min_observed_values=2,
             stage_order=("missing_data",),
         ),
@@ -193,6 +195,7 @@ def test_knn_policy_is_independently_testable() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_knn",
+            missing_data_input_scale="linear",
             missing_data_k=1,
             missing_data_distance="nan_euclidean",
             missing_data_max_missing_fraction_per_row=0.5,
@@ -224,6 +227,7 @@ def test_knn_policy_matches_reference_loop_for_current_small_fixture() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_knn",
+            missing_data_input_scale="linear",
             missing_data_k=2,
             missing_data_distance="nan_euclidean",
             missing_data_max_missing_fraction_per_row=0.5,
@@ -256,6 +260,7 @@ def test_knn_policy_imputes_all_missing_retained_row_from_column_means() -> None
             total=None,
             plan=PreprocessingPlan(
                 missing_data_policy="impute_knn",
+                missing_data_input_scale="linear",
                 missing_data_k=1,
                 missing_data_distance="nan_euclidean",
                 missing_data_max_missing_fraction_per_row=1.0,
@@ -288,6 +293,7 @@ def test_knn_policy_ignores_donors_without_observed_overlap() -> None:
             total=None,
             plan=PreprocessingPlan(
                 missing_data_policy="impute_knn",
+                missing_data_input_scale="linear",
                 missing_data_k=1,
                 missing_data_distance="nan_euclidean",
                 missing_data_max_missing_fraction_per_row=1.0,
@@ -317,6 +323,7 @@ def test_knn_policy_falls_back_to_column_mean_when_no_donor_overlaps() -> None:
             total=None,
             plan=PreprocessingPlan(
                 missing_data_policy="impute_knn",
+                missing_data_input_scale="linear",
                 missing_data_k=1,
                 missing_data_distance="nan_euclidean",
                 missing_data_max_missing_fraction_per_row=1.0,
@@ -344,6 +351,7 @@ def test_knn_policy_rejects_too_many_sample_columns() -> None:
                 total=None,
                 plan=PreprocessingPlan(
                     missing_data_policy="impute_knn",
+                    missing_data_input_scale="linear",
                     missing_data_k=1,
                     missing_data_distance="nan_euclidean",
                     missing_data_max_missing_fraction_per_row=1.0,
@@ -376,6 +384,7 @@ def test_knn_policy_rejects_impractical_distance_work(
                 total=None,
                 plan=PreprocessingPlan(
                     missing_data_policy="impute_knn",
+                    missing_data_input_scale="linear",
                     missing_data_k=1,
                     missing_data_distance="nan_euclidean",
                     missing_data_max_missing_fraction_per_row=1.0,
@@ -471,7 +480,11 @@ def test_knn_imputation_diagnostics_are_reproducible() -> None:
         "k": 1,
         "distance": "nan_euclidean",
         "max_missing_fraction_per_row": 0.5,
+        "input_scale": "linear",
+        "imputation_operation_order": "no_intensity_transform",
     }
+    assert diagnostics["imputation_input_scale"] == "linear"
+    assert diagnostics["imputation_operation_order"] == "no_intensity_transform"
 
 
 @pytest.mark.reproducibility
@@ -620,6 +633,9 @@ def test_diagnostics_builder_supports_each_policy_shape() -> None:
         random_seed=None,
         method_parameters={"min_observed_values": 1},
         matrix_scale_requirement=None,
+        imputation_input_scale="linear",
+        imputation_input_scale_source="caller_selected",
+        imputation_operation_order="no_intensity_transform",
         stage_order=("missing_data",),
         missingness_mask_hash="abc",
         left_censored_assumption=False,
@@ -731,6 +747,13 @@ def replace_plan(
     k: int | None = None,
     distance: str | None = None,
 ) -> PreprocessingState:
+    stage_order = state.plan.stage_order
+    if missing_data_policy != "impute_minprob":
+        stage_order = (
+            ("missing_data", "intensity_transform")
+            if state.plan.intensity_transform_policy.value == "log2"
+            else ("missing_data",)
+        )
     return PreprocessingState(
         phospho=state.phospho.copy(deep=True),
         site_metadata=state.site_metadata.copy(deep=True),
@@ -739,6 +762,9 @@ def replace_plan(
         plan=PreprocessingPlan(
             intensity_transform_policy=state.plan.intensity_transform_policy,
             missing_data_policy=missing_data_policy,
+            missing_data_input_scale=(
+                None if missing_data_policy == "impute_minprob" else "linear"
+            ),
             missing_data_min_observed_values=min_obs,
             missing_data_q=state.plan.missing_data_q,
             missing_data_width=state.plan.missing_data_width,
@@ -746,7 +772,7 @@ def replace_plan(
             missing_data_max_missing_fraction_per_row=state.plan.missing_data_max_missing_fraction_per_row,
             missing_data_k=k,
             missing_data_distance=distance,
-            stage_order=state.plan.stage_order,
+            stage_order=stage_order,
         ),
     )
 

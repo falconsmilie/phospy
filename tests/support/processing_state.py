@@ -27,7 +27,14 @@ def imputed_processing_state(
         imputed_row_ids=("row_a",),
         imputed_column_ids=("sample_a",),
         dropped_row_ids=(),
-        method_parameters={"min_observed_values": 1},
+        method_parameters={
+            "min_observed_values": 1,
+            "input_scale": "linear",
+            "imputation_operation_order": "no_intensity_transform",
+        },
+        imputation_input_scale="linear",
+        imputation_input_scale_source="caller_selected",
+        imputation_operation_order="no_intensity_transform",
         stage_order=("missing_data",),
         missingness_mask_hash="test-missingness-mask",
         imputation_mask_hash="test-imputation-mask",
@@ -44,5 +51,7 @@ def imputed_processing_state(
             diagnostics=diagnostics,
             has_missing_values=False,
             missing_value_count=0,
+            imputation_input_scale="linear",
+            imputation_operation_order="no_intensity_transform",
         ),
     )

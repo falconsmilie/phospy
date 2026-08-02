@@ -217,6 +217,7 @@ def test_missing_data_stage_returns_stage_result() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_row_median",
+            missing_data_input_scale="linear",
             missing_data_min_observed_values=1,
             stage_order=("missing_data",),
         ),
@@ -237,6 +238,7 @@ def test_missing_data_stage_emits_typed_row_audit_report_rows() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_row_median",
+            missing_data_input_scale="linear",
             missing_data_min_observed_values=1,
             stage_order=("missing_data",),
         ),
@@ -365,6 +367,7 @@ def test_missing_data_stage_report_rows_appear_in_final_report() -> None:
             declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan(
                 missing_data_policy="impute_row_median",
+                missing_data_input_scale="linear",
                 missing_data_min_observed_values=1,
                 stage_order=("missing_data",),
             ),
@@ -398,6 +401,7 @@ def test_missing_data_stage_operations_report_imputation_summary_note() -> None:
             declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan(
                 missing_data_policy="impute_row_median",
+                missing_data_input_scale="linear",
                 missing_data_min_observed_values=1,
                 stage_order=("missing_data",),
             ),
@@ -437,6 +441,7 @@ def test_final_dataset_has_complete_matrix_after_missing_data_imputation() -> No
             declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan(
                 missing_data_policy="impute_row_median",
+                missing_data_input_scale="linear",
                 missing_data_min_observed_values=1,
                 stage_order=("missing_data",),
             ),
@@ -1104,6 +1109,7 @@ def test_missing_data_stage_row_median_emits_structured_diagnostics() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_row_median",
+            missing_data_input_scale="linear",
             missing_data_min_observed_values=2,
             stage_order=("missing_data",),
         ),
@@ -1132,6 +1138,9 @@ def test_missing_data_stage_row_median_emits_structured_diagnostics() -> None:
     assert diagnostics["dropped_row_count"] == 1
     assert diagnostics["random_seed"] is None
     assert diagnostics["matrix_scale_requirement"] is None
+    assert diagnostics["imputation_input_scale"] == "linear"
+    assert diagnostics["imputation_input_scale_source"] == "caller_selected"
+    assert diagnostics["imputation_operation_order"] == "no_intensity_transform"
     assert diagnostics["stage_order"] == ["missing_data"]
     assert isinstance(diagnostics["missingness_mask_hash"], str)
     assert isinstance(diagnostics["imputation_mask_hash"], str)
@@ -1162,6 +1171,7 @@ def test_missing_data_stage_row_median_values_remain_unchanged() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_row_median",
+            missing_data_input_scale="linear",
             missing_data_min_observed_values=2,
             stage_order=("missing_data",),
         ),
@@ -1423,6 +1433,7 @@ def test_missing_data_stage_knn_imputes_drops_and_reports_diagnostics() -> None:
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_knn",
+            missing_data_input_scale="linear",
             missing_data_k=1,
             missing_data_distance="nan_euclidean",
             missing_data_max_missing_fraction_per_row=0.5,
@@ -1454,6 +1465,9 @@ def test_missing_data_stage_knn_imputes_drops_and_reports_diagnostics() -> None:
     assert diagnostics["imputed_column_count"] == 1
     assert diagnostics["output_missing_cell_count"] == 0
     assert diagnostics["matrix_scale_requirement"] is None
+    assert diagnostics["imputation_input_scale"] == "linear"
+    assert diagnostics["imputation_input_scale_source"] == "caller_selected"
+    assert diagnostics["imputation_operation_order"] == "no_intensity_transform"
     assert diagnostics["left_censored_assumption"] is False
     assert isinstance(diagnostics["imputation_mask_hash"], str)
 
@@ -1481,6 +1495,7 @@ def test_missing_data_stage_knn_rejects_columns_without_observed_values() -> Non
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_knn",
+            missing_data_input_scale="linear",
             missing_data_k=1,
             missing_data_distance="nan_euclidean",
             missing_data_max_missing_fraction_per_row=1.0,
@@ -1499,6 +1514,7 @@ def test_processing_state_missing_data_imputed_flag_requires_provenance() -> Non
     state = build_dataset_processing_state(
         plan=PreprocessingPlan(
             missing_data_policy="impute_row_median",
+            missing_data_input_scale="linear",
             missing_data_min_observed_values=1,
             stage_order=("missing_data",),
         ),

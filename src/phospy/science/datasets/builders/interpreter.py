@@ -61,10 +61,14 @@ class DatasetBuildRequestInterpreter:
         request: DatasetBuildRequestProtocol,
     ) -> InterpretedDatasetBuildRequest:
         resolved_sources = self._source_resolver.run(request)
+        declared_input_intensity_scale_kind = _resolve_input_intensity_scale_kind(
+            request.input_intensity_scale
+        )
         preprocessing_plan = self._preprocessing_planner.run(
             request,
             phospho=resolved_sources.phospho,
             sample_metadata=resolved_sources.sample_metadata,
+            declared_input_intensity_scale_kind=(declared_input_intensity_scale_kind),
         )
         sequence_resolution = self._site_sequence_resolver.run(
             site_metadata=resolved_sources.site_metadata,
@@ -78,9 +82,7 @@ class DatasetBuildRequestInterpreter:
             total=resolved_sources.total,
             organism=request.organism,
             preprocessing_plan=preprocessing_plan,
-            declared_input_intensity_scale_kind=_resolve_input_intensity_scale_kind(
-                request.input_intensity_scale
-            ),
+            declared_input_intensity_scale_kind=declared_input_intensity_scale_kind,
             declared_input_intensity_scale_source=(
                 "dataset_build_request.input_intensity_scale"
                 if request.input_intensity_scale is not None

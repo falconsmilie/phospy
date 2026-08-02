@@ -30,6 +30,7 @@ from phospy.science.datasets.preprocessing.plan_stage_order import (
 )
 from phospy.science.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
+    ImputationInputScale,
     IntensityTransformPolicy,
     LocalisationEligibilityMode,
     MissingDataPolicy,
@@ -37,6 +38,7 @@ from phospy.science.datasets.preprocessing.policy_models import (
     SiteMatrixPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.transformations.models import IntensityScaleKind
 
 
 def test_preprocessing_plan_interpreter_builds_default_plan() -> None:
@@ -75,12 +77,15 @@ def test_preprocessing_plan_interpreter_orders_minprob_after_log2_transform() ->
         plan.stage_order_resolution[2].rationale
         == PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA
     )
+    assert plan.missing_data_input_scale is ImputationInputScale.LOG2
+    assert plan.missing_data_input_scale_source == "method_required"
+    assert plan.missing_data_imputation_operation_order == "after_intensity_transform"
 
 
 def test_preprocessing_plan_interpreter_preserves_minprob_scale_error() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="missing_data.policy='impute_minprob' requires",
+        match="missing_data.input_scale='log2' requires",
     ):
         PreprocessingPlanInterpreter().run(
             DatasetPreprocessingConfig(
@@ -93,6 +98,128 @@ def test_preprocessing_plan_interpreter_preserves_minprob_scale_error() -> None:
                     max_missing_fraction_per_row=0.5,
                 ),
             )
+        )
+
+
+def test_preprocessing_plan_interpreter_allows_minprob_on_declared_log2_input() -> None:
+    plan = PreprocessingPlanInterpreter().run(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(policy="identity"),
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_minprob",
+                q=0.01,
+                width=0.3,
+                seed=12345,
+                max_missing_fraction_per_row=0.5,
+            ),
+        ),
+        declared_input_scale_kind=IntensityScaleKind.LOG2,
+    )
+
+    assert plan.stage_order == ("localisation_confidence", "missing_data")
+    assert plan.missing_data_input_scale is ImputationInputScale.LOG2
+    assert plan.missing_data_imputation_operation_order == "no_intensity_transform"
+
+
+@pytest.mark.parametrize("policy", ["impute_row_median", "impute_knn"])
+def test_preprocessing_plan_interpreter_rejects_ambiguous_imputation_scale(
+    policy: str,
+) -> None:
+    kwargs: dict[str, object] = (
+        {"min_observed_values": 1}
+        if policy == "impute_row_median"
+        else {
+            "k": 2,
+            "distance": "nan_euclidean",
+            "max_missing_fraction_per_row": 0.5,
+        }
+    )
+    with pytest.raises(PhosPyInputError, match="input_scale is required"):
+        PreprocessingPlanInterpreter().run(
+            DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(policy=policy, **kwargs),
+            )
+        )
+
+
+def test_preprocessing_plan_interpreter_rejects_invalid_minprob_scale() -> None:
+    with pytest.raises(PhosPyInputError, match="impute_minprob.*input_scale='log2'"):
+        PreprocessingPlanInterpreter().run(
+            DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_minprob",
+                    q=0.01,
+                    width=0.3,
+                    seed=12345,
+                    max_missing_fraction_per_row=0.5,
+                    input_scale="linear",
+                ),
+            )
+        )
+
+
+def test_preprocessing_plan_interpreter_orders_linear_imputation_before_log2() -> None:
+    plan = PreprocessingPlanInterpreter().run(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=1,
+                input_scale="linear",
+            ),
+        )
+    )
+
+    assert plan.stage_order == (
+        "localisation_confidence",
+        "missing_data",
+        "intensity_transform",
+    )
+    assert plan.missing_data_input_scale is ImputationInputScale.LINEAR
+    assert plan.missing_data_imputation_operation_order == "before_intensity_transform"
+
+
+def test_preprocessing_plan_interpreter_orders_log2_imputation_after_log2() -> None:
+    plan = PreprocessingPlanInterpreter().run(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=1,
+                input_scale="log2",
+            ),
+        )
+    )
+
+    assert plan.stage_order == (
+        "localisation_confidence",
+        "intensity_transform",
+        "missing_data",
+    )
+    assert plan.missing_data_input_scale is ImputationInputScale.LOG2
+    assert plan.missing_data_imputation_operation_order == "after_intensity_transform"
+
+
+def test_preprocessing_plan_rejects_manual_linear_imputation_after_log2() -> None:
+    with pytest.raises(PhosPyInputError, match="input_scale='linear'.*before"):
+        PreprocessingPlan(
+            intensity_transform_policy="log2",
+            missing_data_policy="impute_row_median",
+            missing_data_min_observed_values=1,
+            missing_data_input_scale="linear",
+            stage_order=("intensity_transform", "missing_data"),
+        )
+
+
+def test_preprocessing_plan_rejects_manual_log2_imputation_before_log2() -> None:
+    with pytest.raises(PhosPyInputError, match="input_scale='log2'.*after"):
+        PreprocessingPlan(
+            intensity_transform_policy="log2",
+            missing_data_policy="impute_row_median",
+            missing_data_min_observed_values=1,
+            missing_data_input_scale="log2",
+            stage_order=("missing_data", "intensity_transform"),
         )
 
 
@@ -160,6 +287,7 @@ def test_preprocessing_plan_from_config_remains_compatibility_wrapper() -> None:
         missing_data=DatasetMissingDataConfig(
             policy="impute_row_median",
             min_observed_values=1,
+            input_scale="linear",
         ),
     )
 
@@ -177,6 +305,7 @@ def test_preprocessing_stage_order_planner_returns_structured_findings() -> None
         comparison_building_policy=ComparisonBuildingPolicy.NONE,
         localisation_mode=LocalisationEligibilityMode.REQUIRE_THRESHOLD,
         missing_data_policy=MissingDataPolicy.IMPUTE_ROW_MEDIAN,
+        missing_data_input_scale=ImputationInputScale.LINEAR,
         batch_correction_method="linear_residualize_batch",
         total_correction_policy=TotalProteinCorrectionPolicy.NONE,
         group_coverage_filter_enabled=True,

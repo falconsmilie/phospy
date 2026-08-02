@@ -34,6 +34,11 @@ from phospy.science.configs.preprocessing import (
 from phospy.science.configs.preprocessing._validation import (
     validate_protein_aware_preparation_config,
 )
+from phospy.science.datasets.preprocessing.imputation_scale_policy import (
+    reject_incompatible_imputation_stage_order,
+    reject_unestablished_log2_imputation_input_scale,
+    resolve_imputation_scale_policy,
+)
 from phospy.science.datasets.preprocessing.plan_config_resolution import (
     PreprocessingConfigPolicyResolver,
     resolve_site_sequence_resolution_conflict_policy,
@@ -75,6 +80,7 @@ from phospy.science.datasets.preprocessing.plan_stage_order import (
 )
 from phospy.science.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
+    ImputationInputScale,
     IntensityTransformPolicy,
     LocalisationEligibilityMode,
     MissingDataPolicy,
@@ -87,6 +93,7 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.transformations.models import IntensityScaleKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +147,9 @@ class PreprocessingPlan:
     missing_data_k: int | None = None
     missing_data_distance: str | None = None
     missing_data_max_missing_fraction_per_row: float | None = None
+    missing_data_input_scale: ImputationInputScale | None = None
+    missing_data_input_scale_source: str | None = None
+    missing_data_imputation_operation_order: str | None = None
     localisation_mode: LocalisationEligibilityMode = (
         LocalisationEligibilityMode.REQUIRE_THRESHOLD
     )
@@ -219,6 +229,30 @@ class PreprocessingPlan:
             missing_data_policy=self.missing_data_policy,
         )
         _set_resolved_plan_fields(self, core)
+        imputation_scale = resolve_imputation_scale_policy(
+            missing_data_policy=core.missing_data_policy,
+            requested_input_scale=self.missing_data_input_scale,
+            intensity_transform_policy=core.intensity_transform_policy,
+        )
+        object.__setattr__(
+            self,
+            "missing_data_input_scale",
+            imputation_scale.input_scale,
+        )
+        object.__setattr__(
+            self,
+            "missing_data_input_scale_source",
+            imputation_scale.input_scale_source,
+        )
+        object.__setattr__(
+            self,
+            "missing_data_imputation_operation_order",
+            imputation_scale.operation_order,
+        )
+        reject_incompatible_imputation_stage_order(
+            stage_order=self.stage_order,
+            resolved_policy=imputation_scale,
+        )
 
         localisation = PreprocessingLocalisationPlanRuleFamily().run(
             localisation_mode=self.localisation_mode,
@@ -310,7 +344,12 @@ class PreprocessingPlanInterpreter:
     ) -> None:
         self._plan_type = plan_type
 
-    def run(self, config: DatasetPreprocessingConfig) -> PreprocessingPlan:
+    def run(
+        self,
+        config: DatasetPreprocessingConfig,
+        *,
+        declared_input_scale_kind: IntensityScaleKind | None = None,
+    ) -> PreprocessingPlan:
         validate_protein_aware_preparation_config(
             policy=config.protein_aware_preparation.policy,
             protein_mapping_policy=(
@@ -323,6 +362,16 @@ class PreprocessingPlanInterpreter:
         )
 
         policies = PreprocessingConfigPolicyResolver().run(config)
+        imputation_scale = resolve_imputation_scale_policy(
+            missing_data_policy=policies.missing_data_policy,
+            requested_input_scale=config.missing_data.input_scale,
+            intensity_transform_policy=policies.intensity_transform_policy,
+        )
+        reject_unestablished_log2_imputation_input_scale(
+            resolved_policy=imputation_scale,
+            intensity_transform_policy=policies.intensity_transform_policy,
+            declared_input_scale_kind=declared_input_scale_kind,
+        )
         stage_plan = PreprocessingStageOrderPlanner().run(
             site_sequence_resolution_enabled=(
                 policies.site_sequence_resolution_enabled
@@ -333,6 +382,7 @@ class PreprocessingPlanInterpreter:
             comparison_building_policy=policies.comparison_building_policy,
             localisation_mode=policies.localisation_mode,
             missing_data_policy=policies.missing_data_policy,
+            missing_data_input_scale=imputation_scale.input_scale,
             batch_correction_method=policies.batch_correction_method,
             total_correction_policy=policies.total_correction_policy,
             group_coverage_filter_enabled=bool(config.group_coverage_filter.enabled),
@@ -361,6 +411,9 @@ class PreprocessingPlanInterpreter:
                 if config.missing_data.max_missing_fraction_per_row is None
                 else float(config.missing_data.max_missing_fraction_per_row)
             ),
+            missing_data_input_scale=imputation_scale.input_scale,
+            missing_data_input_scale_source=imputation_scale.input_scale_source,
+            missing_data_imputation_operation_order=(imputation_scale.operation_order),
             localisation_mode=policies.localisation_mode,
             localisation_min_confidence=float(config.localisation.min_confidence),
             localisation_confidence_column=str(

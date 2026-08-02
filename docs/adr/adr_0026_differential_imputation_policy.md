@@ -17,14 +17,22 @@ look more certain than the measurement evidence supports.
 
 Dataset preprocessing now preserves imputation facts: an observed-cell mask and
 per-feature `imputed_cell_count`, `observed_cell_count`, and
-`imputed_fraction`. Differential analysis needs an explicit policy for any use
-of imputed datasets.
+`imputed_fraction`. Preprocessing also records the imputation input scale and
+whether imputation happened before or after intensity transformation. These are
+dataset-owned scientific facts; differential analysis needs an explicit policy
+for any use of imputed datasets.
 
 ## Decision
 
 `DifferentialAnalysisConfig.imputed_value_policy` defaults to `"reject"`.
 Imputed datasets are rejected unless callers explicitly request a supported
 non-default policy.
+
+Imputation science remains owned by preprocessing. Missing-data configuration
+and preprocessing plan interpretation decide the imputation method, required or
+selected input scale, operation order, and observation-mask preservation.
+Differential analysis does not reinterpret or rerun imputation; it only
+validates downstream eligibility from the dataset-owned imputation metadata.
 
 The supported non-default policy is
 `"withhold_imputed_features"`. It requires dataset-owned imputation observation

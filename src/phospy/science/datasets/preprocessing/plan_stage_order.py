@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.configs.preprocessing import DATASET_BATCH_CORRECTION_METHOD_NONE
@@ -22,6 +23,8 @@ from phospy.science.datasets.preprocessing.plan_constants import (
     PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION,
     PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
     PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_LOG2_IMPUTATION_INTENSITY_TRANSFORM,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_LOG2_IMPUTATION_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM,
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM,
@@ -29,6 +32,7 @@ from phospy.science.datasets.preprocessing.plan_constants import (
 )
 from phospy.science.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
+    ImputationInputScale,
     IntensityTransformPolicy,
     LocalisationEligibilityMode,
     MissingDataPolicy,
@@ -53,6 +57,10 @@ class PreprocessingStageOrderPlan:
 
     stage_order: tuple[str, ...]
     stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...]
+
+
+class _StageAppender(Protocol):
+    def __call__(self, stage: str, *, rationale: str) -> None: ...
 
 
 class PreprocessingStageOrderValidator:
@@ -134,9 +142,18 @@ class PreprocessingStageOrderPlanner:
         batch_correction_method: str,
         total_correction_policy: TotalProteinCorrectionPolicy,
         group_coverage_filter_enabled: bool,
+        missing_data_input_scale: ImputationInputScale | None = None,
     ) -> PreprocessingStageOrderPlan:
         stage_order: list[str] = []
         stage_order_resolution: list[PreprocessingStageOrderResolution] = []
+        missing_data_policy = MissingDataPolicy.parse(
+            missing_data_policy,
+            field_name="dataset preprocessing stage-order missing_data_policy",
+        )
+        intensity_transform_policy = IntensityTransformPolicy.parse(
+            intensity_transform_policy,
+            field_name=("dataset preprocessing stage-order intensity_transform_policy"),
+        )
 
         def _append_stage(stage: str, *, rationale: str) -> None:
             stage_order.append(stage)
@@ -163,37 +180,12 @@ class PreprocessingStageOrderPlanner:
                 DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
                 rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER,
             )
-        if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
-            if intensity_transform_policy is not IntensityTransformPolicy.LOG2:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.missing_data.policy="
-                    "'impute_minprob' requires "
-                    "preprocessing_config.intensity_transform.policy='log2'. "
-                    "Set intensity_transform.policy='log2' or choose a different "
-                    "missing_data policy."
-                )
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
-                rationale=(
-                    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM
-                ),
-            )
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
-            )
-        else:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
-            )
-            if intensity_transform_policy is not IntensityTransformPolicy.IDENTITY:
-                _append_stage(
-                    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
-                    rationale=(
-                        PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM
-                    ),
-                )
+        _append_missing_data_and_transform_stages(
+            append_stage=_append_stage,
+            missing_data_policy=missing_data_policy,
+            missing_data_input_scale=missing_data_input_scale,
+            intensity_transform_policy=intensity_transform_policy,
+        )
         if batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE:
             _append_stage(
                 DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
@@ -223,6 +215,104 @@ class PreprocessingStageOrderPlanner:
             stage_order=tuple(stage_order),
             stage_order_resolution=tuple(stage_order_resolution),
         )
+
+
+def _append_missing_data_and_transform_stages(
+    *,
+    append_stage: _StageAppender,
+    missing_data_policy: MissingDataPolicy,
+    missing_data_input_scale: ImputationInputScale | None,
+    intensity_transform_policy: IntensityTransformPolicy,
+) -> None:
+    if missing_data_policy is MissingDataPolicy.FORBID:
+        _append_linear_or_strict_missing_data_path(
+            append_stage=append_stage,
+            intensity_transform_policy=intensity_transform_policy,
+        )
+        return
+    input_scale = _require_imputation_input_scale(
+        missing_data_policy=missing_data_policy,
+        missing_data_input_scale=missing_data_input_scale,
+    )
+    if input_scale is ImputationInputScale.LOG2:
+        _append_log2_imputation_path(
+            append_stage=append_stage,
+            missing_data_policy=missing_data_policy,
+            intensity_transform_policy=intensity_transform_policy,
+        )
+        return
+    if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
+        raise PhosPyInputError(
+            "dataset preprocessing plan has unsupported stage-order policy: "
+            "missing_data.policy='impute_minprob' cannot run on "
+            "missing_data.input_scale='linear'"
+        )
+    _append_linear_or_strict_missing_data_path(
+        append_stage=append_stage,
+        intensity_transform_policy=intensity_transform_policy,
+    )
+
+
+def _append_linear_or_strict_missing_data_path(
+    *,
+    append_stage: _StageAppender,
+    intensity_transform_policy: IntensityTransformPolicy,
+) -> None:
+    append_stage(
+        DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+        rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
+    )
+    if intensity_transform_policy is not IntensityTransformPolicy.IDENTITY:
+        append_stage(
+            DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+            rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM,
+        )
+
+
+def _append_log2_imputation_path(
+    *,
+    append_stage: _StageAppender,
+    missing_data_policy: MissingDataPolicy,
+    intensity_transform_policy: IntensityTransformPolicy,
+) -> None:
+    if intensity_transform_policy is IntensityTransformPolicy.LOG2:
+        append_stage(
+            DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+            rationale=_log2_transform_rationale(missing_data_policy),
+        )
+    append_stage(
+        DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+        rationale=_log2_missing_data_rationale(missing_data_policy),
+    )
+
+
+def _require_imputation_input_scale(
+    *,
+    missing_data_policy: MissingDataPolicy,
+    missing_data_input_scale: ImputationInputScale | None,
+) -> ImputationInputScale:
+    if missing_data_input_scale is None:
+        raise PhosPyInputError(
+            "dataset preprocessing stage-order planning requires "
+            "missing_data.input_scale for imputation policy "
+            f"{missing_data_policy.value!r}"
+        )
+    return ImputationInputScale.parse(
+        missing_data_input_scale,
+        field_name="dataset preprocessing plan missing_data_input_scale",
+    )
+
+
+def _log2_transform_rationale(missing_data_policy: MissingDataPolicy) -> str:
+    if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
+        return PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM
+    return PREPROCESSING_STAGE_ORDER_RATIONALE_LOG2_IMPUTATION_INTENSITY_TRANSFORM
+
+
+def _log2_missing_data_rationale(missing_data_policy: MissingDataPolicy) -> str:
+    if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
+        return PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA
+    return PREPROCESSING_STAGE_ORDER_RATIONALE_LOG2_IMPUTATION_MISSING_DATA
 
 
 def reject_external_corrected_output_after_downstream_preprocessing(

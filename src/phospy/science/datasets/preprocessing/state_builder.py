@@ -185,6 +185,14 @@ class DatasetProcessingStateBuilder:
             key="imputed_cell_count",
             default=0,
         )
+        default_imputation_input_scale = (
+            None
+            if plan.missing_data_input_scale is None
+            else plan.missing_data_input_scale.value
+        )
+        default_imputation_operation_order = (
+            plan.missing_data_imputation_operation_order
+        )
         ruv_readiness = _resolve_ruv_readiness_state(
             plan=plan,
             final_phospho=final_phospho,
@@ -292,6 +300,18 @@ class DatasetProcessingStateBuilder:
                 diagnostics=typed_missing_data_diagnostics,
                 has_missing_values=(output_missing_cell_count > 0),
                 missing_value_count=output_missing_cell_count,
+                imputation_input_scale=parsed.resolve_optional_string(
+                    missing_data_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                    key="imputation_input_scale",
+                    default=default_imputation_input_scale,
+                ),
+                imputation_operation_order=parsed.resolve_optional_string(
+                    missing_data_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                    key="imputation_operation_order",
+                    default=default_imputation_operation_order,
+                ),
             ),
             normalisation=NormalisationState(policy=plan.normalisation_policy.value),
             total_protein_correction=TotalProteinCorrectionState(

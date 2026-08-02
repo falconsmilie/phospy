@@ -1043,6 +1043,7 @@ def test_knn_imputation_sparse_and_moderate_benchmarks_and_peak_memory_regressio
         total=None,
         plan=PreprocessingPlan(
             missing_data_policy="impute_knn",
+            missing_data_input_scale="linear",
             missing_data_k=1,
             missing_data_distance="nan_euclidean",
             missing_data_max_missing_fraction_per_row=0.5,

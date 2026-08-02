@@ -71,7 +71,14 @@ def _missing_data_diagnostics() -> MissingDataDiagnosticsV1:
         imputed_row_ids=("row_a",),
         imputed_column_ids=("sample_a",),
         dropped_row_ids=(),
-        method_parameters={"min_observed_values": 1},
+        method_parameters={
+            "min_observed_values": 1,
+            "input_scale": "linear",
+            "imputation_operation_order": "no_intensity_transform",
+        },
+        imputation_input_scale="linear",
+        imputation_input_scale_source="caller_selected",
+        imputation_operation_order="no_intensity_transform",
         stage_order=("missing_data",),
         missingness_mask_hash="missingness-hash",
         imputation_mask_hash="imputation-hash",
@@ -129,6 +136,9 @@ def test_missing_data_diagnostics_constructor_inputs_are_recursively_detached() 
         imputed_column_ids=("sample_a",),
         dropped_row_ids=(),
         method_parameters=method_parameters,
+        imputation_input_scale="linear",
+        imputation_input_scale_source="caller_selected",
+        imputation_operation_order="no_intensity_transform",
         stage_order=("missing_data",),
         missingness_mask_hash="missingness-hash",
         imputation_mask_hash="imputation-hash",
@@ -156,6 +166,20 @@ def test_missing_data_diagnostics_constructor_inputs_are_recursively_detached() 
         1,
         {"score": 2.0},
     ]
+    assert diagnostics.to_payload()["imputation_input_scale"] == "linear"
+
+
+def test_missing_data_state_derives_imputation_scale_order_from_diagnostics() -> None:
+    state = MissingDataState(
+        policy="impute_row_median",
+        min_observed_values=1,
+        complete_matrix=True,
+        imputed=True,
+        diagnostics=_missing_data_diagnostics(),
+    )
+
+    assert state.imputation_input_scale == "linear"
+    assert state.imputation_operation_order == "no_intensity_transform"
 
 
 def test_missing_data_diagnostics_payload_is_fresh_and_nested_detached() -> None:

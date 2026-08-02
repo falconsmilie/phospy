@@ -87,6 +87,7 @@ def test_row_median_missing_data_policy_is_deterministic_and_provenance_backed(
         missing_data=DatasetMissingDataConfig(
             policy="impute_row_median",
             min_observed_values=2,
+            input_scale="linear",
         )
     )
     plan = PreprocessingPlan.from_config(config)

@@ -107,6 +107,10 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "imputed": state.missing_data.imputed,
             "has_missing_values": state.missing_data.has_missing_values,
             "missing_value_count": state.missing_data.missing_value_count,
+            "imputation_input_scale": state.missing_data.imputation_input_scale,
+            "imputation_operation_order": (
+                state.missing_data.imputation_operation_order
+            ),
             "diagnostics": (
                 None
                 if missing_data_diagnostics is None
@@ -433,6 +437,18 @@ def _parse_missing_data_state(
         payload.get("missing_value_count"),
         field_name="dataset.metadata.processing_state.missing_data.missing_value_count",
     )
+    imputation_input_scale = _require_optional_str(
+        payload.get("imputation_input_scale"),
+        field_name=(
+            "dataset.metadata.processing_state.missing_data.imputation_input_scale"
+        ),
+    )
+    imputation_operation_order = _require_optional_str(
+        payload.get("imputation_operation_order"),
+        field_name=(
+            "dataset.metadata.processing_state.missing_data.imputation_operation_order"
+        ),
+    )
     return MissingDataState(
         policy=MissingDataPolicy.parse(
             require_str(
@@ -453,6 +469,8 @@ def _parse_missing_data_state(
         diagnostics=diagnostics,
         has_missing_values=has_missing_values,
         missing_value_count=missing_value_count,
+        imputation_input_scale=imputation_input_scale,
+        imputation_operation_order=imputation_operation_order,
     )
 
 

@@ -237,6 +237,7 @@ def test_report_schema_stable_with_missing_data_diagnostics_enabled() -> None:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 ),
             ),
         )

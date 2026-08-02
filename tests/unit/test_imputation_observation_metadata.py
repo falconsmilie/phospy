@@ -81,6 +81,7 @@ def _build_imputed_dataset() -> AnalysisReadyPhosphoDataset:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=1,
+                    input_scale="linear",
                 )
             ),
         )

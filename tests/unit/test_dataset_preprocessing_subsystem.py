@@ -439,6 +439,7 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="linear",
                 )
             )
         ),
@@ -471,6 +472,102 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
     assert "imputed_columns" in imputed.iloc[0]["parameter_snapshot"]
 
 
+def test_dataset_preprocessor_imputes_linear_values_before_log2_transform() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [3.0], "sample_c": [float("nan")]},
+        index=pd.Index(["MAPK14;Y182;"]),
+    )
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=2,
+                input_scale="linear",
+            ),
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+        )
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    assert [stage.stage for stage in preprocessed.preprocessing_trace] == [
+        "localisation_confidence",
+        "missing_data",
+        "intensity_transform",
+    ]
+    assert float(preprocessed.phospho.loc["MAPK14;Y182;", "sample_c"]) == (
+        pytest.approx(float(np.log2(3.0)))
+    )
+    assert preprocessed.imputation_observation_mask is not None
+    assert (
+        bool(preprocessed.imputation_observation_mask.loc["MAPK14;Y182;", "sample_c"])
+        is False
+    )
+    missing_stage = preprocessed.preprocessing_trace[1]
+    assert missing_stage.diagnostics["imputation_input_scale"] == "linear"
+    assert (
+        missing_stage.diagnostics["imputation_operation_order"]
+        == "before_intensity_transform"
+    )
+
+
+def test_dataset_preprocessor_imputes_log_values_after_log2_transform() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [3.0], "sample_c": [float("nan")]},
+        index=pd.Index(["MAPK14;Y182;"]),
+    )
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=2,
+                input_scale="log2",
+            ),
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+        )
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    assert [stage.stage for stage in preprocessed.preprocessing_trace] == [
+        "localisation_confidence",
+        "intensity_transform",
+        "missing_data",
+    ]
+    assert float(preprocessed.phospho.loc["MAPK14;Y182;", "sample_c"]) == (
+        pytest.approx(1.5)
+    )
+    assert preprocessed.imputation_observation_mask is not None
+    assert (
+        bool(preprocessed.imputation_observation_mask.loc["MAPK14;Y182;", "sample_c"])
+        is False
+    )
+    missing_stage = preprocessed.preprocessing_trace[2]
+    assert missing_stage.diagnostics["imputation_input_scale"] == "log2"
+    assert (
+        missing_stage.diagnostics["imputation_operation_order"]
+        == "after_intensity_transform"
+    )
+
+
 def test_build_dataset_processing_state_row_median_diagnostics_include_row_medians_used() -> (
     None
 ):
@@ -485,6 +582,7 @@ def test_build_dataset_processing_state_row_median_diagnostics_include_row_media
             missing_data=DatasetMissingDataConfig(
                 policy="impute_row_median",
                 min_observed_values=2,
+                input_scale="linear",
             )
         ),
     )
@@ -524,6 +622,7 @@ def test_build_dataset_processing_state_row_median_diagnostics_include_row_media
             k=1,
             distance="nan_euclidean",
             max_missing_fraction_per_row=0.5,
+            input_scale="linear",
         ),
     ],
 )
@@ -709,6 +808,7 @@ def test_ruv_readiness_enabled_reports_ready_when_requirements_are_met() -> None
             DatasetMissingDataConfig(
                 policy="impute_row_median",
                 min_observed_values=2,
+                input_scale="linear",
             ),
             "row_median",
         ),
@@ -728,6 +828,7 @@ def test_ruv_readiness_enabled_reports_ready_when_requirements_are_met() -> None
                 k=1,
                 distance="nan_euclidean",
                 max_missing_fraction_per_row=0.5,
+                input_scale="linear",
             ),
             "knn",
         ),
@@ -793,6 +894,7 @@ def test_dataset_preprocessor_knn_imputes_expected_values_and_preserves_labels()
                     k=1,
                     distance="nan_euclidean",
                     max_missing_fraction_per_row=0.5,
+                    input_scale="linear",
                 )
             )
         ),
@@ -825,7 +927,7 @@ def test_dataset_preprocessor_knn_imputes_expected_values_and_preserves_labels()
 def test_preprocessing_plan_rejects_minprob_without_log2_transform() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="missing_data.policy='impute_minprob' requires",
+        match="missing_data.input_scale='log2' requires",
     ):
         PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
@@ -880,12 +982,17 @@ def test_preprocessing_plan_orders_minprob_after_intensity_transform() -> None:
 @pytest.mark.parametrize(
     "missing_data",
     (
-        DatasetMissingDataConfig(policy="impute_row_median", min_observed_values=1),
+        DatasetMissingDataConfig(
+            policy="impute_row_median",
+            min_observed_values=1,
+            input_scale="linear",
+        ),
         DatasetMissingDataConfig(
             policy="impute_knn",
             k=1,
             distance="nan_euclidean",
             max_missing_fraction_per_row=0.5,
+            input_scale="linear",
         ),
     ),
 )
@@ -950,7 +1057,7 @@ def test_preprocessing_plan_orders_fasta_resolution_before_minprob_with_log2(
 def test_preprocessing_plan_rejects_minprob_without_log2_when_fasta_enabled() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="missing_data.policy='impute_minprob' requires",
+        match="missing_data.input_scale='log2' requires",
     ):
         PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
@@ -2237,6 +2344,7 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
             missing_data=DatasetMissingDataConfig(
                 policy="impute_row_median",
                 min_observed_values=2,
+                input_scale="linear",
             ),
         ),
     )
@@ -2735,6 +2843,7 @@ def test_dataset_preprocessor_trace_tracks_stagewise_transform_progression() -> 
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
                     min_observed_values=2,
+                    input_scale="linear",
                 ),
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
