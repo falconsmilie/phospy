@@ -111,14 +111,28 @@ manifest version.
 
 ## Bundle Safety Rules
 
+Result bundle manifests are versioned. Current kinase and signalome bundle
+writers emit manifest version 2.
+
 Bundle-relative manifest paths must stay inside the bundle root. Absolute paths
 and paths that escape the root are rejected.
+
+The manifest is the bundle trust root and is written last. It records each
+bundle-owned payload file's relative path, SHA-256 digest, byte size, and logical
+type. Table entries also record row and column counts. Loaders verify declared
+file sizes and digests, reject missing files, and reject undeclared stale files
+before reconstructing workflow result models.
+
+Writers stage bundles in a sibling temporary directory and promote the completed
+directory only after all tables, JSON sidecars, and the manifest have been
+written. Existing output directories are rejected by default. Pass
+`overwrite=True` to replace an existing bundle with a freshly staged bundle.
 
 Optional tables remain optional. Missing optional activity, motif, node,
 site-membership, or context tables are represented as `None` when loaded.
 
-The manifest records output format, bundle kind, manifest version, table paths,
-reference organism, and provenance where available. Dataset metadata in the
+The manifest records output format, bundle kind, manifest version, table file
+entries, reference organism, and provenance where available. Dataset metadata in the
 manifest includes `processing_state`, so explicit quantitative meaning
 (`phosphosite_log_abundance`, `phospho_total_log_ratio`, or mixed state) is
 preserved in published outputs.
@@ -134,6 +148,10 @@ Bundle loaders reconstruct `dataset.processing_state` and
 `dataset.intensity_scale_state` from saved payloads, including mixed
 corrected/uncorrected total-protein quantitative meaning and row-level
 total-protein correction diagnostics.
+
+Version-1 kinase and signalome result bundles are rejected with a migration
+message. Regenerate old result bundles with the current PhosPy version before
+loading them.
 
 ## Choosing the Right Output Path
 

@@ -8,8 +8,13 @@ from pathlib import Path
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._shared.paths import resolve_bundle_relative_path
-from phospy.io.bundles._shared.primitives import require_str
+from phospy.io.bundles._shared.integrity import (
+    build_table_file_entry,
+    require_optional_table_entry,
+    require_table_entry,
+    table_entry_path,
+    validate_table_entry_shape,
+)
 from phospy.io.readers.tables import read_table, write_table
 
 
@@ -20,13 +25,18 @@ def write_bundle_table(
     relative_path: Path,
     written: dict[str, Path],
     written_key: str,
-) -> str:
+) -> dict[str, object]:
     """Write a table and return its manifest-safe relative path."""
 
     output_path = bundle_root / relative_path
     write_table(table, output_path)
     written[written_key] = output_path
-    return relative_path.as_posix()
+    return build_table_file_entry(
+        bundle_root=bundle_root,
+        path=output_path,
+        table=table,
+        logical_type=written_key,
+    )
 
 
 def write_optional_bundle_table(
@@ -36,7 +46,7 @@ def write_optional_bundle_table(
     relative_path: Path,
     written: dict[str, Path],
     written_key: str,
-) -> str | None:
+) -> dict[str, object] | None:
     """Write optional table and return manifest-safe relative path when present."""
 
     if table is None:
@@ -59,12 +69,18 @@ def read_required_table(
 ) -> pd.DataFrame:
     """Read required table declared in manifest tables section."""
 
-    table_path = resolve_bundle_relative_path(
-        bundle_root,
-        require_str(tables.get(table_key), field_name=field_name),
+    entry = require_table_entry(
+        tables.get(table_key),
         field_name=field_name,
     )
-    return read_table(table_path)
+    table_path = table_entry_path(
+        entry,
+        bundle_root=bundle_root,
+        field_name=field_name,
+    )
+    table = read_table(table_path)
+    validate_table_entry_shape(table, entry, field_name=field_name)
+    return table
 
 
 def read_optional_table(
@@ -81,12 +97,20 @@ def read_optional_table(
     raw_value = tables[table_key]
     if raw_value is None:
         return None
-    table_path = resolve_bundle_relative_path(
-        bundle_root,
-        require_str(raw_value, field_name=field_name),
+    entry = require_optional_table_entry(
+        raw_value,
         field_name=field_name,
     )
-    return read_table(table_path)
+    if entry is None:
+        return None
+    table_path = table_entry_path(
+        entry,
+        bundle_root=bundle_root,
+        field_name=field_name,
+    )
+    table = read_table(table_path)
+    validate_table_entry_shape(table, entry, field_name=field_name)
+    return table
 
 
 def read_optional_series(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -50,6 +51,91 @@ def _collect_keys(value: object) -> set[str]:
             keys.update(_collect_keys(item))
         return keys
     return set()
+
+
+def _sha256_path(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _entry_path(entry: object) -> str | None:
+    if entry is None:
+        return None
+    assert isinstance(entry, dict)
+    path = entry["path"]
+    assert isinstance(path, str)
+    return path
+
+
+def _table_paths(tables: dict[str, object]) -> dict[str, str | None]:
+    return {key: _entry_path(value) for key, value in tables.items()}
+
+
+def _assert_file_entry(
+    entry: object,
+    *,
+    bundle_root: Path,
+    relative_path: str,
+    logical_type: str,
+    shape: tuple[int, int] | None = None,
+) -> None:
+    assert isinstance(entry, dict)
+    path = bundle_root / relative_path
+    assert entry["path"] == relative_path
+    assert entry["logical_type"] == logical_type
+    assert entry["byte_size"] == path.stat().st_size
+    assert entry["sha256"] == _sha256_path(path)
+    if shape is not None:
+        assert entry["shape"] == {"rows": shape[0], "columns": shape[1]}
+
+
+def _iter_file_entries(value: object):
+    if isinstance(value, dict):
+        if {"path", "sha256", "byte_size"}.issubset(value):
+            yield value
+            return
+        for item in value.values():
+            yield from _iter_file_entries(item)
+        return
+    if isinstance(value, list):
+        for item in value:
+            yield from _iter_file_entries(item)
+
+
+def _assert_manifest_covers_bundle_payload_files(
+    manifest: dict[str, object],
+    *,
+    bundle_root: Path,
+) -> None:
+    entries = list(_iter_file_entries(manifest))
+    declared_paths = {str(entry["path"]) for entry in entries}
+    observed_paths = {
+        path.relative_to(bundle_root).as_posix()
+        for path in bundle_root.rglob("*")
+        if path.is_file() and path.name != "manifest.json"
+    }
+    assert declared_paths == observed_paths
+    for entry in entries:
+        path = bundle_root / str(entry["path"])
+        assert entry["byte_size"] == path.stat().st_size
+        assert entry["sha256"] == _sha256_path(path)
+
+
+def _save_basic_kinase_bundle(
+    tmp_path: Path,
+    *,
+    bundle_name: str,
+    activity: bool = False,
+) -> tuple[Path, dict[str, object]]:
+    request = _build_request(activity=activity)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / bundle_name
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    return bundle_root, manifest
 
 
 def test_kinase_bundle_round_trip_preserves_outputs_and_config(
@@ -260,7 +346,9 @@ def test_kinase_bundle_round_trip_preserves_mixed_total_protein_quantitative_mea
     assert correction_payload["diagnostics"]["quantitative_meaning"] == mixed_meaning
 
 
-def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
+def test_kinase_bundle_manifest_v2_is_explicit_and_content_addressed(
+    tmp_path: Path,
+) -> None:
     request = _build_request(activity=True)
     result = KinaseWorkflow().run(request)
     bundle_root = tmp_path / "kinase_bundle"
@@ -275,24 +363,37 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     assert manifest["manifest_version"] == KINASE_BUNDLE_MANIFEST_VERSION
     assert manifest["bundle_type"] == "kinase_workflow_result"
     assert manifest["table_format"] == "csv"
-    assert manifest["config_snapshot"] == "config/snapshot.json"
-    assert manifest["dataset"]["tables"] == {
+    _assert_file_entry(
+        manifest["config_snapshot"],
+        bundle_root=bundle_root,
+        relative_path="config/snapshot.json",
+        logical_type="config_snapshot",
+    )
+    assert _table_paths(manifest["dataset"]["tables"]) == {
         "phospho": "dataset/phospho.csv",
         "sample_metadata": "dataset/sample_metadata.csv",
         "site_metadata": "dataset/site_metadata.csv",
         "total": "dataset/total.csv",
     }
-    assert manifest["resolved_references"]["tables"] == {
+    _assert_file_entry(
+        manifest["dataset"]["tables"]["phospho"],
+        bundle_root=bundle_root,
+        relative_path="dataset/phospho.csv",
+        logical_type="dataset.phospho",
+        shape=result.dataset.phospho.shape,
+    )
+    _assert_manifest_covers_bundle_payload_files(manifest, bundle_root=bundle_root)
+    assert _table_paths(manifest["resolved_references"]["tables"]) == {
         "kinase_substrate_map": "references/kinase_substrate_map.csv",
         "site_sequences": "references/site_sequences.csv",
     }
-    assert manifest["outputs"]["scoring"]["tables"] == {
+    assert _table_paths(manifest["outputs"]["scoring"]["tables"]) == {
         "rank_weighted_fusion_scores": "scoring/rank_weighted_fusion_scores.csv",
         "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
         "score_fusion_weights": None,
     }
-    assert manifest["outputs"]["prediction"]["tables"] == {
+    assert _table_paths(manifest["outputs"]["prediction"]["tables"]) == {
         "pred_mat": "prediction/pred_mat.csv",
         "substrate_list": "prediction/substrate_list.csv",
     }
@@ -310,7 +411,7 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
         or result.activity_result.method_summary is None
         else result.activity_result.method_summary.to_payload()
     )
-    assert manifest["outputs"]["activity"]["tables"] == {
+    assert _table_paths(manifest["outputs"]["activity"]["tables"]) == {
         "weighted_activity": "activity/weighted_activity.csv",
         "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
         "thresholded_substrate_counts": "activity/thresholded_substrate_counts.csv",
@@ -376,6 +477,184 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             "statistics_table": None,
         },
     }
+
+
+def test_kinase_bundle_loader_rejects_table_tampering(tmp_path: Path) -> None:
+    bundle_root, manifest = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_table_tamper",
+    )
+    phospho_entry = manifest["dataset"]["tables"]["phospho"]
+    assert isinstance(phospho_entry, dict)
+    phospho_path = bundle_root / str(phospho_entry["path"])
+    phospho_bytes = bytearray(phospho_path.read_bytes())
+    phospho_bytes[-1] = phospho_bytes[-1] ^ 1
+    phospho_path.write_bytes(bytes(phospho_bytes))
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="digest mismatch: path=dataset/phospho\\.csv",
+    ):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_loader_rejects_json_tampering(tmp_path: Path) -> None:
+    bundle_root, manifest = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_json_tamper",
+    )
+    config_entry = manifest["config_snapshot"]
+    assert isinstance(config_entry, dict)
+    config_path = bundle_root / str(config_entry["path"])
+    config_bytes = bytearray(config_path.read_bytes())
+    config_bytes[-1] = config_bytes[-1] ^ 1
+    config_path.write_bytes(bytes(config_bytes))
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="digest mismatch: path=config/snapshot\\.json",
+    ):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_loader_rejects_missing_declared_file(tmp_path: Path) -> None:
+    bundle_root, manifest = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_missing_file",
+    )
+    prediction_entry = manifest["outputs"]["prediction"]["tables"]["pred_mat"]
+    assert isinstance(prediction_entry, dict)
+    (bundle_root / str(prediction_entry["path"])).unlink()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="declared file is missing: path=prediction/pred_mat\\.csv",
+    ):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_loader_rejects_extra_stale_file(tmp_path: Path) -> None:
+    bundle_root, _ = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_extra_file",
+    )
+    (bundle_root / "stale.csv").write_text("stale\n", encoding="utf-8")
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="undeclared file\\(s\\): stale\\.csv",
+    ):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_interrupted_write_does_not_publish_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.io.bundles._kinase.writer as kinase_writer
+
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_interrupted"
+    original_write_json = kinase_writer.write_json
+
+    def fail_manifest_write(path: Path, payload: object, *, label: str) -> None:
+        if label == "bundle manifest":
+            raise PhosPyInputError("simulated interrupted manifest write")
+        original_write_json(path, payload, label=label)
+
+    monkeypatch.setattr(kinase_writer, "write_json", fail_manifest_write)
+
+    with pytest.raises(PhosPyInputError, match="simulated interrupted manifest write"):
+        save_kinase_workflow_bundle(
+            result,
+            bundle_root,
+            config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+        )
+
+    assert not bundle_root.exists()
+    assert not list(tmp_path.glob(".kinase_interrupted.tmp-*"))
+
+
+def test_kinase_bundle_overwrite_policy_is_explicit_and_transactional(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.io.bundles._kinase.writer as kinase_writer
+
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    config_snapshot = KinaseWorkflowConfigSnapshot.from_request(request)
+    bundle_root = tmp_path / "kinase_overwrite"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=config_snapshot,
+    )
+
+    with pytest.raises(PhosPyInputError, match="Pass overwrite=True"):
+        save_kinase_workflow_bundle(
+            result,
+            bundle_root,
+            config_snapshot=config_snapshot,
+        )
+
+    original_write_json = kinase_writer.write_json
+
+    def fail_manifest_write(path: Path, payload: object, *, label: str) -> None:
+        if label == "bundle manifest":
+            raise PhosPyInputError("simulated overwrite interruption")
+        original_write_json(path, payload, label=label)
+
+    monkeypatch.setattr(kinase_writer, "write_json", fail_manifest_write)
+    with pytest.raises(PhosPyInputError, match="simulated overwrite interruption"):
+        save_kinase_workflow_bundle(
+            result,
+            bundle_root,
+            config_snapshot=config_snapshot,
+            overwrite=True,
+        )
+    loaded_after_failed_overwrite = load_kinase_workflow_bundle(bundle_root)
+    _assert_kinase_result_equal(loaded_after_failed_overwrite.result, result)
+
+    monkeypatch.setattr(kinase_writer, "write_json", original_write_json)
+    stale_file = bundle_root / "stale.csv"
+    stale_file.write_text("stale\n", encoding="utf-8")
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=config_snapshot,
+        overwrite=True,
+    )
+
+    assert not stale_file.exists()
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    _assert_kinase_result_equal(loaded.result, result)
+
+
+def test_kinase_bundle_v1_manifest_is_rejected_with_migration_message(
+    tmp_path: Path,
+) -> None:
+    bundle_root, manifest = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_v1_rejected",
+    )
+    manifest["manifest_version"] = 1
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "Legacy kinase bundle schemas are no longer supported.*"
+            "Regenerate the bundle with the current PhosPy version.*"
+            "unsupported bundle manifest version '1'; expected "
+            f"{KINASE_BUNDLE_MANIFEST_VERSION}"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 @pytest.mark.parametrize(

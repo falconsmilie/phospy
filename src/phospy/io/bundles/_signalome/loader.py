@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
+from phospy.io.bundles._shared.integrity import file_entry_path, verify_bundle_integrity
 from phospy.io.bundles._shared.json_files import read_json
-from phospy.io.bundles._shared.paths import resolve_bundle_relative_path
 from phospy.io.bundles._shared.primitives import require_mapping
 from phospy.io.bundles._signalome.constants import MANIFEST_FILENAME
 from phospy.io.bundles._signalome.manifest import parse_manifest
@@ -24,11 +24,16 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
         field_name="bundle manifest",
     )
     sections = parse_manifest(manifest_payload)
+    verify_bundle_integrity(
+        bundle_root=root,
+        manifest_payload=manifest_payload,
+        manifest_filename=MANIFEST_FILENAME,
+    )
     result = reconstruct_signalome_result(bundle_root=root, sections=sections)
 
-    config_snapshot_path = resolve_bundle_relative_path(
-        root,
-        sections.config_snapshot_path,
+    config_snapshot_path = file_entry_path(
+        sections.config_snapshot_entry,
+        bundle_root=root,
         field_name="bundle manifest.config_snapshot",
     )
     config_snapshot_payload = require_mapping(

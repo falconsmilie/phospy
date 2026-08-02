@@ -31,6 +31,7 @@ import importlib.resources as resources
 import json
 import pathlib
 import sys
+import tempfile
 
 import pandas as pd
 
@@ -46,6 +47,9 @@ from phospy.api import ExperimentalDesign, KinaseReliabilityProfile
 from phospy.api import KinaseScoringConfig, KinaseWorkflowRequest, Organism
 from phospy.api import ReferenceContextCompatibilityPolicy, ReferencePreset
 from phospy.api import SampleDesignRecord
+from phospy.io.bundles.kinase import KinaseWorkflowConfigSnapshot
+from phospy.io.bundles.kinase import load_kinase_workflow_bundle
+from phospy.io.bundles.kinase import save_kinase_workflow_bundle
 from phospy.science.references.resources import load_bundled_kinase_substrate_map
 from phospy.science.references.resources import load_bundled_motif_scores
 from phospy.science.references.resources import load_bundled_motif_sizes
@@ -281,20 +285,19 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
     if not adjusted.between(0.0, 1.0, inclusive="both").all():
         raise AssertionError("differential adjusted p-values are outside [0, 1]")
 
-    kinase_result = KinaseWorkflow().run(
-        KinaseWorkflowRequest(
-            dataset=dataset,
-            references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(
-                reliability_profile=KinaseReliabilityProfile.CUSTOM,
-                reference_context_compatibility_policy=(
-                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
-                ),
+    kinase_request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(
+            reliability_profile=KinaseReliabilityProfile.CUSTOM,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
             ),
-            activity_config=None,
-            site_sequence_conflict_policy="prefer_reference",
-        )
+        ),
+        activity_config=None,
+        site_sequence_conflict_policy="prefer_reference",
     )
+    kinase_result = KinaseWorkflow().run(kinase_request)
     if kinase_result.scoring_result.profile_scores.empty:
         raise AssertionError("kinase profile scores are empty")
     if kinase_result.prediction_result.pred_mat.empty:
@@ -303,6 +306,10 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
         raise AssertionError("kinase bundled reference manifest was not retained")
     if kinase_result.references.manifest.reference_id != "l6_native":
         raise AssertionError("kinase workflow did not use the rat l6_native manifest")
+    bundle_report = _exercise_result_bundle_round_trip(
+        kinase_request=kinase_request,
+        kinase_result=kinase_result,
+    )
 
     return {
         "imputed_dataset_shape": [
@@ -319,7 +326,45 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
             int(kinase_result.prediction_result.pred_mat.shape[0]),
             int(kinase_result.prediction_result.pred_mat.shape[1]),
         ],
+        "bundle_round_trip": bundle_report,
     }
+
+
+def _exercise_result_bundle_round_trip(
+    *,
+    kinase_request: KinaseWorkflowRequest,
+    kinase_result,
+) -> dict[str, object]:
+    with tempfile.TemporaryDirectory(prefix="phospy-installed-result-bundle-") as tmp_dir:
+        bundle_root = pathlib.Path(tmp_dir) / "kinase_bundle"
+        config_snapshot = KinaseWorkflowConfigSnapshot.from_request(kinase_request)
+        written = save_kinase_workflow_bundle(
+            kinase_result,
+            bundle_root,
+            config_snapshot=config_snapshot,
+            output_format="csv",
+        )
+        if written["manifest"] != bundle_root / "manifest.json":
+            raise AssertionError("bundle writer returned an unexpected manifest path")
+        loaded = load_kinase_workflow_bundle(bundle_root)
+        if loaded.config_snapshot != config_snapshot:
+            raise AssertionError("installed artifact bundle config snapshot changed")
+        if loaded.result.provenance != kinase_result.provenance:
+            raise AssertionError("installed artifact bundle provenance changed")
+        if loaded.result.prediction_result.pred_mat.shape != kinase_result.prediction_result.pred_mat.shape:
+            raise AssertionError("installed artifact bundle prediction shape changed")
+        manifest_payload = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+        phospho_entry = manifest_payload["dataset"]["tables"]["phospho"]
+        if not isinstance(phospho_entry, dict):
+            raise AssertionError("installed artifact bundle table entry is not content-addressed")
+        for required_key in ("path", "sha256", "byte_size", "logical_type", "shape"):
+            if required_key not in phospho_entry:
+                raise AssertionError(f"bundle table entry is missing {required_key!r}")
+        return {
+            "manifest_version": int(loaded.manifest_version),
+            "phospho_entry_logical_type": phospho_entry["logical_type"],
+            "phospho_entry_shape": phospho_entry["shape"],
+        }
 
 
 def _build_dataset(*, include_missing: bool):

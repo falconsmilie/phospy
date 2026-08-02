@@ -5,11 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from phospy.contracts.results import SignalomeWorkflowResult
+from phospy.io.bundles._shared.integrity import build_json_file_entry
 from phospy.io.bundles._shared.json_files import write_json
 from phospy.io.bundles._shared.tables import (
     write_bundle_table,
     write_optional_bundle_table,
 )
+from phospy.io.bundles._shared.transactions import write_bundle_atomically
 from phospy.io.bundles._signalome.constants import (
     CONFIG_SNAPSHOT_RELATIVE_PATH,
     MANIFEST_FILENAME,
@@ -25,10 +27,32 @@ def save_signalome_workflow_bundle(
     *,
     config_snapshot: SignalomeWorkflowConfigSnapshot,
     output_format: str = "csv",
+    overwrite: bool = False,
 ) -> dict[str, Path]:
     """Write a reproducible signalome output bundle and return written paths."""
 
-    bundle_root = Path(output_root)
+    return write_bundle_atomically(
+        output_root=Path(output_root),
+        manifest_filename=MANIFEST_FILENAME,
+        overwrite=overwrite,
+        write_staged_bundle=lambda staged_root: _write_staged_signalome_workflow_bundle(
+            result=result,
+            bundle_root=staged_root,
+            config_snapshot=config_snapshot,
+            output_format=output_format,
+        ),
+    )
+
+
+def _write_staged_signalome_workflow_bundle(
+    *,
+    result: SignalomeWorkflowResult,
+    bundle_root: Path,
+    config_snapshot: SignalomeWorkflowConfigSnapshot,
+    output_format: str,
+) -> dict[str, Path]:
+    """Write a complete signalome bundle into an already-created staging root."""
+
     suffix = table_suffix_for_format(output_format)
     normalized_format = output_format.strip().lower()
     written: dict[str, Path] = {}
@@ -43,6 +67,11 @@ def save_signalome_workflow_bundle(
     config_path = bundle_root / Path(CONFIG_SNAPSHOT_RELATIVE_PATH)
     write_json(config_path, config_snapshot.to_payload(), label="config snapshot")
     written["config_snapshot"] = config_path
+    config_snapshot_entry = build_json_file_entry(
+        bundle_root=bundle_root,
+        path=config_path,
+        logical_type="config_snapshot",
+    )
 
     manifest = build_manifest(
         result=result,
@@ -53,6 +82,7 @@ def save_signalome_workflow_bundle(
         prediction_tables=prediction_tables,
         activity_tables=activity_tables,
         signalome_tables=signalome_tables,
+        config_snapshot_entry=config_snapshot_entry,
     )
     manifest_path = bundle_root / MANIFEST_FILENAME
     write_json(manifest_path, manifest, label="bundle manifest")

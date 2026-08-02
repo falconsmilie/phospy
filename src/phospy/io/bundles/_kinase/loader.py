@@ -9,8 +9,8 @@ from phospy.io.bundles._kinase.manifest import parse_manifest
 from phospy.io.bundles._kinase.models import LoadedKinaseWorkflowBundle
 from phospy.io.bundles._kinase.reconstruction import reconstruct_kinase_result
 from phospy.io.bundles._kinase.snapshots import KinaseWorkflowConfigSnapshot
+from phospy.io.bundles._shared.integrity import file_entry_path, verify_bundle_integrity
 from phospy.io.bundles._shared.json_files import read_json
-from phospy.io.bundles._shared.paths import resolve_bundle_relative_path
 from phospy.io.bundles._shared.primitives import require_mapping
 
 
@@ -23,11 +23,16 @@ def load_kinase_workflow_bundle(bundle_root: Path) -> LoadedKinaseWorkflowBundle
         field_name="bundle manifest",
     )
     sections = parse_manifest(manifest_payload)
+    verify_bundle_integrity(
+        bundle_root=root,
+        manifest_payload=manifest_payload,
+        manifest_filename=MANIFEST_FILENAME,
+    )
     result = reconstruct_kinase_result(bundle_root=root, sections=sections)
 
-    config_snapshot_path = resolve_bundle_relative_path(
-        root,
-        sections.config_snapshot_path,
+    config_snapshot_path = file_entry_path(
+        sections.config_snapshot_entry,
+        bundle_root=root,
         field_name="bundle manifest.config_snapshot",
     )
     config_snapshot_payload = require_mapping(

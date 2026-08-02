@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -54,6 +55,64 @@ def _collect_keys(value: object) -> set[str]:
     return set()
 
 
+def _sha256_path(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _entry_path(entry: object) -> str | None:
+    if entry is None:
+        return None
+    assert isinstance(entry, dict)
+    path = entry["path"]
+    assert isinstance(path, str)
+    return path
+
+
+def _table_paths(tables: dict[str, object]) -> dict[str, str | None]:
+    return {key: _entry_path(value) for key, value in tables.items()}
+
+
+def _assert_file_entry(
+    entry: object,
+    *,
+    bundle_root: Path,
+    relative_path: str,
+    logical_type: str,
+    shape: tuple[int, int] | None = None,
+) -> None:
+    assert isinstance(entry, dict)
+    path = bundle_root / relative_path
+    assert entry["path"] == relative_path
+    assert entry["logical_type"] == logical_type
+    assert entry["byte_size"] == path.stat().st_size
+    assert entry["sha256"] == _sha256_path(path)
+    if shape is not None:
+        assert entry["shape"] == {"rows": shape[0], "columns": shape[1]}
+
+
+def _refresh_table_entry(
+    manifest: dict[str, object],
+    *,
+    bundle_root: Path,
+    section_path: tuple[str, ...],
+    table_key: str,
+    table: pd.DataFrame,
+) -> None:
+    section: object = manifest
+    for key in section_path:
+        assert isinstance(section, dict)
+        section = section[key]
+    assert isinstance(section, dict)
+    entry = section[table_key]
+    assert isinstance(entry, dict)
+    relative_path = entry["path"]
+    assert isinstance(relative_path, str)
+    path = bundle_root / relative_path
+    entry["byte_size"] = path.stat().st_size
+    entry["sha256"] = _sha256_path(path)
+    entry["shape"] = {"rows": int(table.shape[0]), "columns": int(table.shape[1])}
+
+
 def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     tmp_path: Path,
 ) -> None:
@@ -103,7 +162,7 @@ def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     _assert_signalome_result_equal(loaded.result, result)
 
 
-def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
+def test_signalome_bundle_manifest_v2_is_explicit_and_content_addressed(
     tmp_path: Path,
 ) -> None:
     request, result = _build_signalome_request_and_result()
@@ -119,15 +178,20 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert manifest["manifest_version"] == SIGNALOME_BUNDLE_MANIFEST_VERSION
     assert manifest["bundle_type"] == "signalome_workflow_result"
     assert manifest["table_format"] == "csv"
-    assert manifest["config_snapshot"] == "config/snapshot.json"
+    _assert_file_entry(
+        manifest["config_snapshot"],
+        bundle_root=bundle_root,
+        relative_path="config/snapshot.json",
+        logical_type="config_snapshot",
+    )
     assert manifest["upstream_kinase_outputs"]["activity"]["enabled"] is False
-    assert manifest["upstream_kinase_outputs"]["scoring"]["tables"] == {
+    assert _table_paths(manifest["upstream_kinase_outputs"]["scoring"]["tables"]) == {
         "rank_weighted_fusion_scores": "scoring/rank_weighted_fusion_scores.csv",
         "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
         "score_fusion_weights": None,
     }
-    assert manifest["signalome_outputs"]["tables"] == {
+    assert _table_paths(manifest["signalome_outputs"]["tables"]) == {
         "expanded_signalome": "signalome/expanded_signalome.csv",
         "kinase_network_candidate_correlations": "signalome/kinase_network_candidate_correlations.csv",
         "kinase_network_edges": "signalome/kinase_network_edges.csv",
@@ -137,6 +201,13 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         "site_membership": "signalome/site_membership.csv",
         "signalome_modules": "signalome/signalome_modules.csv",
     }
+    _assert_file_entry(
+        manifest["signalome_outputs"]["tables"]["module_assignments"],
+        bundle_root=bundle_root,
+        relative_path="signalome/module_assignments.csv",
+        logical_type="signalome.module_assignments",
+        shape=result.module_assignments.table.shape,
+    )
     signalome_metadata = manifest["signalome_outputs"]["metadata"]
     assert signalome_metadata["expanded_signalome_present"] is True
     assert signalome_metadata["kinase_network_nodes_present"] is True
@@ -418,13 +489,13 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
         pytest.param(
             "malformed_site_membership_entry",
             "malformed_site_membership_entry",
-            "bundle manifest.signalome_outputs.tables.site_membership must be a string",
+            "bundle manifest.signalome_outputs.tables.site_membership.sha256 must be a string",
             id="malformed-site-membership-entry",
         ),
         pytest.param(
             "missing_site_membership_payload",
             "missing_site_membership_payload",
-            "input file does not exist: .*site_membership\\.csv",
+            "declared file is missing: path=signalome/site_membership\\.csv",
             id="missing-site-membership-payload",
         ),
     ],
@@ -469,9 +540,11 @@ def test_signalome_bundle_contract_rejection_matrix(
             "path": "signalome/site_membership.csv"
         }
     elif mutation_kind == "missing_site_membership_payload":
-        site_membership_path = Path(
-            manifest["signalome_outputs"]["tables"]["site_membership"]
-        )
+        site_membership_entry = manifest["signalome_outputs"]["tables"][
+            "site_membership"
+        ]
+        assert isinstance(site_membership_entry, dict)
+        site_membership_path = Path(str(site_membership_entry["path"]))
         (bundle_root / site_membership_path).unlink()
     else:
         raise AssertionError(f"Unknown mutation scenario: {mutation_kind}")
@@ -564,8 +637,21 @@ def test_signalome_bundle_rejects_invalid_sidecar_table_schema(
         config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
     )
     manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
-    table_path = Path(manifest["signalome_outputs"]["tables"][table_key])
+    table_entry = manifest["signalome_outputs"]["tables"][table_key]
+    assert isinstance(table_entry, dict)
+    table_path = Path(str(table_entry["path"]))
     invalid_table.to_csv(bundle_root / table_path)
+    _refresh_table_entry(
+        manifest,
+        bundle_root=bundle_root,
+        section_path=("signalome_outputs", "tables"),
+        table_key=table_key,
+        table=invalid_table,
+    )
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
     with pytest.raises(ContractValidationError, match=pattern):
         load_signalome_workflow_bundle(bundle_root)
@@ -624,8 +710,21 @@ def test_signalome_bundle_rejects_invalid_public_output_table_schema(
         config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
     )
     manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
-    table_path = Path(manifest["signalome_outputs"]["tables"][table_key])
+    table_entry = manifest["signalome_outputs"]["tables"][table_key]
+    assert isinstance(table_entry, dict)
+    table_path = Path(str(table_entry["path"]))
     invalid_table.to_csv(bundle_root / table_path)
+    _refresh_table_entry(
+        manifest,
+        bundle_root=bundle_root,
+        section_path=("signalome_outputs", "tables"),
+        table_key=table_key,
+        table=invalid_table,
+    )
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
     with pytest.raises(PhosPyValidationError, match=pattern):
         load_signalome_workflow_bundle(bundle_root)

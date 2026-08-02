@@ -8,6 +8,7 @@ import math
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, NoReturn, cast
 
 import numpy as np
@@ -21,8 +22,10 @@ DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
 DEFAULT_STABLE_JSON_HASH_ALGORITHM = "sha256-stable-json-v1"
 DEFAULT_EXACT_TABLE_HASH_ALGORITHM = "sha256-stable-json-v1"
 DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM = "sha256-float-round-8dp-v1"
+DEFAULT_FILE_HASH_ALGORITHM = "sha256"
 _MISSING_SENTINEL = "<MISSING>"
 _FLOAT_HASH_DECIMAL_PLACES = 8
+_FILE_HASH_CHUNK_SIZE = 1024 * 1024
 _SITE_METADATA_PROVENANCE_IGNORED_COLUMNS = ("display_id", "site_key")
 _NORMALIZED_AXIS_LABEL_POLICY = "typed-axis-label-sort-v1"
 _SUPPORTED_AXIS_LABEL_TYPES_MESSAGE = (
@@ -274,6 +277,25 @@ def hash_json_payload(
 
     hasher = hashlib.new(algorithm)
     _update(hasher, payload)
+    return hasher.hexdigest()
+
+
+def hash_file_bytes(
+    path: str | Path,
+    *,
+    algorithm: str = DEFAULT_FILE_HASH_ALGORITHM,
+    chunk_size: int = _FILE_HASH_CHUNK_SIZE,
+) -> str:
+    """Return a digest for the exact bytes stored in a file.
+
+    This helper is intentionally byte-level. It does not normalize table or JSON
+    contents and is suitable for serialized-artifact integrity checks.
+    """
+
+    hasher = hashlib.new(algorithm)
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(chunk_size), b""):
+            hasher.update(chunk)
     return hasher.hexdigest()
 
 
@@ -792,6 +814,7 @@ def _is_missing_axis_label(value: object) -> bool:
 
 __all__ = [
     "DEFAULT_EXACT_TABLE_HASH_ALGORITHM",
+    "DEFAULT_FILE_HASH_ALGORITHM",
     "DEFAULT_STABLE_JSON_HASH_ALGORITHM",
     "DEFAULT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
@@ -803,6 +826,7 @@ __all__ = [
     "fingerprint_table",
     "fingerprint_table_normalized_axes",
     "fingerprint_table_strict",
+    "hash_file_bytes",
     "hash_json_payload",
     "hash_table_exact",
     "hash_table_tolerance",

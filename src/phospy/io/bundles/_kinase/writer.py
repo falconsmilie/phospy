@@ -11,11 +11,13 @@ from phospy.io.bundles._kinase.constants import (
 )
 from phospy.io.bundles._kinase.manifest import build_manifest
 from phospy.io.bundles._kinase.snapshots import KinaseWorkflowConfigSnapshot
+from phospy.io.bundles._shared.integrity import build_json_file_entry
 from phospy.io.bundles._shared.json_files import write_json
 from phospy.io.bundles._shared.tables import (
     write_bundle_table,
     write_optional_bundle_table,
 )
+from phospy.io.bundles._shared.transactions import write_bundle_atomically
 from phospy.io.readers.tables import table_suffix_for_format
 
 
@@ -25,10 +27,32 @@ def save_kinase_workflow_bundle(
     *,
     config_snapshot: KinaseWorkflowConfigSnapshot,
     output_format: str = "csv",
+    overwrite: bool = False,
 ) -> dict[str, Path]:
     """Write a reproducible kinase output bundle and return written paths."""
 
-    bundle_root = Path(output_root)
+    return write_bundle_atomically(
+        output_root=Path(output_root),
+        manifest_filename=MANIFEST_FILENAME,
+        overwrite=overwrite,
+        write_staged_bundle=lambda staged_root: _write_staged_kinase_workflow_bundle(
+            result=result,
+            bundle_root=staged_root,
+            config_snapshot=config_snapshot,
+            output_format=output_format,
+        ),
+    )
+
+
+def _write_staged_kinase_workflow_bundle(
+    *,
+    result: KinaseWorkflowResult,
+    bundle_root: Path,
+    config_snapshot: KinaseWorkflowConfigSnapshot,
+    output_format: str,
+) -> dict[str, Path]:
+    """Write a complete kinase bundle into an already-created staging root."""
+
     suffix = table_suffix_for_format(output_format)
     normalized_format = output_format.strip().lower()
     written: dict[str, Path] = {}
@@ -252,6 +276,11 @@ def save_kinase_workflow_bundle(
     config_path = bundle_root / Path(CONFIG_SNAPSHOT_RELATIVE_PATH)
     write_json(config_path, config_snapshot.to_payload(), label="config snapshot")
     written["config_snapshot"] = config_path
+    config_snapshot_entry = build_json_file_entry(
+        bundle_root=bundle_root,
+        path=config_path,
+        logical_type="config_snapshot",
+    )
 
     manifest = build_manifest(
         result=result,
@@ -261,6 +290,7 @@ def save_kinase_workflow_bundle(
         scoring_tables=scoring_tables,
         prediction_tables=prediction_tables,
         activity_tables=activity_tables,
+        config_snapshot_entry=config_snapshot_entry,
     )
     manifest_path = bundle_root / MANIFEST_FILENAME
     write_json(manifest_path, manifest, label="bundle manifest")

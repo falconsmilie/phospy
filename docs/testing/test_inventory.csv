@@ -1,6 +1,7 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_analysis_ready_construction_paths.py,architecture,53,2,false,false,,,,,,
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
+tests/architecture/test_bundle_filesystem_lifecycle_ownership.py,architecture,33,1,false,false,,,,,,
 tests/architecture/test_config_ownership.py,architecture,279,6,false,false,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_package_dependency_dag.py,architecture,601,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -22,7 +23,7 @@ tests/integration/test_differential_with_technical_replicates.py,integration,201
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,478,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/integration/test_kinase_bundle_integration.py,integration,954,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,
+tests/integration/test_kinase_bundle_integration.py,integration,1233,15,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/integration/test_kinase_library_workflow_scoring.py,integration,260,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,304,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,287,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
@@ -33,7 +34,7 @@ tests/integration/test_public_examples_smoke.py,integration,52,1,true,true,publi
 tests/integration/test_quantitative_meaning_output_audit.py,integration,456,7,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for quantitative meaning output audit, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_readme_kinase_workflow_integration.py,integration,100,1,true,false,,,,,,
 tests/integration/test_reference_bundle_builder_integration.py,integration,130,2,true,false,,,,,,
-tests/integration/test_signalome_bundle_integration.py,integration,806,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/integration/test_signalome_bundle_integration.py,integration,905,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/integration/test_signalome_publishing_integration.py,integration,205,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome publishing integration and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_signalome_workflow_integration.py,integration,856,9,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/workflows/differential/test_differential_result_provenance.py,differential,275,3,false,false,,,,,,
@@ -59,7 +60,7 @@ tests/performance/test_performance_contracts.py,performance,1363,17,true,true,pe
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
-tests/release/test_installed_distribution_verifier.py,release,416,10,true,false,,,,,,
+tests/release/test_installed_distribution_verifier.py,release,418,10,true,false,,,,,,
 tests/release/test_manifest_fixture_byte_reproducibility.py,release,256,3,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
