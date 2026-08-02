@@ -32,6 +32,7 @@ from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
 )
+from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
@@ -291,12 +292,20 @@ def test_request_config_and_result_models_construct() -> None:
             index=pd.Index([_site_index()[0]], name="site_key"),
         )
     )
+    activity_matrix = pd.DataFrame()
+    activity_input = ActivityInputMatrix.sample_level_abundance(
+        activity_matrix,
+        field_name="activity.activity_matrix",
+        _assume_owned=True,
+    )
     activity = KinaseActivityResult(
-        activity_matrix=pd.DataFrame(),
+        activity_matrix=activity_matrix,
         thresholded_substrate_mean_activity=pd.DataFrame(),
         thresholded_substrate_counts=pd.Series(dtype="int64", name="n_substrates"),
         target_counts=pd.Series(dtype="int64", name="n_targets"),
         target_table=pd.DataFrame(columns=["site_id", "kinase", "score"]),
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
     workflow_result = KinaseWorkflowResult(
         dataset=dataset,

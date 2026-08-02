@@ -56,9 +56,9 @@ class KseaZScoreActivityMethod:
             phospho_matrix=inputs.phospho_matrix,
         )
         kinases = aligned_pred_mat.columns.astype(str)
-        conditions = aligned_matrix.columns.astype(str)
+        profile_ids = aligned_matrix.columns.astype(str)
         kinase_index = pd.Index(kinases, name="kinase")
-        condition_index = pd.Index(conditions, name=aligned_matrix.columns.name)
+        profile_index = pd.Index(profile_ids, name=aligned_matrix.columns.name)
 
         evidence_values = aligned_pred_mat.to_numpy(dtype=float, copy=False)
         phospho_values = aligned_matrix.to_numpy(dtype=float, copy=False)
@@ -76,31 +76,31 @@ class KseaZScoreActivityMethod:
         z_scores = pd.DataFrame(
             np.nan,
             index=kinase_index,
-            columns=condition_index,
+            columns=profile_index,
             dtype=float,
         )
         p_value_matrix = pd.DataFrame(
             np.nan,
             index=kinase_index,
-            columns=condition_index,
+            columns=profile_index,
             dtype=float,
         )
         q_value_matrix = pd.DataFrame(
             np.nan,
             index=kinase_index,
-            columns=condition_index,
+            columns=profile_index,
             dtype=float,
         )
         substrate_means = pd.DataFrame(
             np.nan,
             index=kinase_index,
-            columns=condition_index,
+            columns=profile_index,
             dtype=float,
         )
         substrate_count_table = pd.DataFrame(
             0,
             index=kinase_index,
-            columns=condition_index,
+            columns=profile_index,
             dtype=int,
         )
         rows: list[dict[str, object]] = []
@@ -113,10 +113,10 @@ class KseaZScoreActivityMethod:
         }
 
         n_kinases = int(len(kinase_index))
-        n_conditions = int(len(condition_index))
-        for condition_position, condition_name in enumerate(condition_index):
-            background_mask = finite_phospho_mask[:, condition_position]
-            background_values = phospho_values[background_mask, condition_position]
+        n_profiles = int(len(profile_index))
+        for profile_position, profile_id in enumerate(profile_index):
+            background_mask = finite_phospho_mask[:, profile_position]
+            background_values = phospho_values[background_mask, profile_position]
             n_background = int(background_values.size)
             mean_background = (
                 float(background_values.mean()) if n_background > 0 else np.nan
@@ -143,12 +143,12 @@ class KseaZScoreActivityMethod:
             for kinase_position, kinase_name in enumerate(kinase_index):
                 substrate_mask = membership_mask[:, kinase_position] & background_mask
                 n_substrates = int(substrate_mask.sum())
-                substrate_count_table.iat[kinase_position, condition_position] = (
+                substrate_count_table.iat[kinase_position, profile_position] = (
                     n_substrates
                 )
-                substrate_values = phospho_values[substrate_mask, condition_position]
+                substrate_values = phospho_values[substrate_mask, profile_position]
                 if n_substrates > 0:
-                    substrate_means.iat[kinase_position, condition_position] = float(
+                    substrate_means.iat[kinase_position, profile_position] = float(
                         substrate_values.mean()
                     )
 
@@ -172,16 +172,15 @@ class KseaZScoreActivityMethod:
                             / float(sd_background)
                         )
                         p_value = two_sided_normal_p_value(float(z_score))
-                        z_scores.iat[kinase_position, condition_position] = z_score
-                        p_value_matrix.iat[kinase_position, condition_position] = (
-                            p_value
-                        )
+                        z_scores.iat[kinase_position, profile_position] = z_score
+                        p_value_matrix.iat[kinase_position, profile_position] = p_value
 
                 counts[status] += 1
                 rows.append(
                     {
                         "kinase": str(kinase_name),
-                        "condition": str(condition_name),
+                        "condition": str(profile_id),
+                        "profile_id": str(profile_id),
                         "z_score": float(z_score) if np.isfinite(z_score) else np.nan,
                         "p_value": float(p_value) if np.isfinite(p_value) else np.nan,
                         "q_value": np.nan,
@@ -203,6 +202,7 @@ class KseaZScoreActivityMethod:
             columns=[
                 "kinase",
                 "condition",
+                "profile_id",
                 "z_score",
                 "p_value",
                 "q_value",
@@ -217,32 +217,32 @@ class KseaZScoreActivityMethod:
             ],
         )
         if self.adjust_p_values:
-            for condition_name in condition_index:
-                condition_mask = statistics_table.loc[:, "condition"].astype(
-                    str
-                ) == str(condition_name)
+            for profile_id in profile_index:
+                profile_mask = statistics_table.loc[:, "profile_id"].astype(str) == str(
+                    profile_id
+                )
                 computed_mask = (
                     statistics_table.loc[:, "computability_status"]
                     == KSEA_STATUS_COMPUTED
                 )
-                selected = condition_mask & computed_mask
+                selected = profile_mask & computed_mask
                 if not bool(selected.any()):
                     continue
-                condition_p_values = statistics_table.loc[selected, "p_value"].astype(
+                profile_p_values = statistics_table.loc[selected, "p_value"].astype(
                     float
                 )
-                q_values = benjamini_hochberg_q_values(condition_p_values)
+                q_values = benjamini_hochberg_q_values(profile_p_values)
                 statistics_table.loc[selected, "q_value"] = q_values.to_numpy(
                     dtype=float,
                     copy=False,
                 )
-                condition_rows = statistics_table.loc[selected, "kinase"].astype(str)
+                profile_rows = statistics_table.loc[selected, "kinase"].astype(str)
                 for kinase_name, q_value in zip(
-                    condition_rows.tolist(),
+                    profile_rows.tolist(),
                     q_values.to_numpy(dtype=float, copy=False).tolist(),
                     strict=True,
                 ):
-                    q_value_matrix.at[str(kinase_name), str(condition_name)] = float(
+                    q_value_matrix.at[str(kinase_name), str(profile_id)] = float(
                         q_value
                     )
 
@@ -261,7 +261,7 @@ class KseaZScoreActivityMethod:
 
         summary = ActivityMethodSummary(
             kinases_evaluated=n_kinases,
-            kinase_condition_pairs_evaluated=n_kinases * n_conditions,
+            kinase_condition_pairs_evaluated=n_kinases * n_profiles,
             kinase_condition_pairs_computed=counts[KSEA_STATUS_COMPUTED],
             kinase_condition_pairs_insufficient_substrates=counts[
                 KSEA_STATUS_INSUFFICIENT_SUBSTRATES
@@ -306,6 +306,8 @@ class KseaZScoreActivityMethod:
             method_diagnostics=diagnostics,
             policy_provenance=(policy,),
             activity_method=KSEA_ZSCORE_ACTIVITY_METHOD,
+            input_semantics=inputs.input_semantics,
+            profile_metadata=inputs.profile_metadata,
         )
 
 

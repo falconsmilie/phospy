@@ -21,6 +21,7 @@ from phospy.api import (
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.prediction.models import KinasePredictionResult
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.workflows.kinase.contracts import (
@@ -746,6 +747,10 @@ def test_boundary_error_reports_activity_overlap_edge_case() -> None:
 def test_activity_inputs_reject_malformed_pred_mat_with_workflow_boundary_error() -> (
     None
 ):
+    phospho_matrix = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
     with pytest.raises(
         WorkflowBoundaryError, match="seam=kinase.activity.input_schema"
     ):
@@ -754,9 +759,11 @@ def test_activity_inputs_reject_malformed_pred_mat_with_workflow_boundary_error(
                 {"MAP2K6": [1.5]},
                 index=pd.Index(["MAPK14;Y182;"], name="site_id"),
             ),
-            phospho_matrix=pd.DataFrame(
-                {"sample_a": [1.0]},
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            phospho_matrix=phospho_matrix,
+            activity_input=ActivityInputMatrix.sample_level_abundance(
+                phospho_matrix,
+                field_name="test.phospho_matrix",
+                _assume_owned=True,
             ),
             threshold=0.5,
             min_substrates=1,

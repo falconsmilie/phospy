@@ -17,6 +17,14 @@ from phospy.frames.ownership import (
     export_series,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
+from phospy.science.activities.semantics import (
+    ActivityInputMatrix,
+    ActivityInputSemantics,
+    ActivityProfileAxis,
+    ActivityProfileMetadata,
+    ActivityQuantitativeSemantics,
+    require_abundance_activity_input,
+)
 from phospy.science.activities.threshold_membership import (
     ActivityThresholdMembershipDiagnostics,
 )
@@ -124,6 +132,22 @@ class ActivityMethodSummary:
 
         return {
             "kinases_evaluated": int(self.kinases_evaluated),
+            "kinase_profile_pairs_evaluated": int(
+                self.kinase_condition_pairs_evaluated
+            ),
+            "kinase_profile_pairs_computed": int(self.kinase_condition_pairs_computed),
+            "kinase_profile_pairs_insufficient_substrates": int(
+                self.kinase_condition_pairs_insufficient_substrates
+            ),
+            "kinase_profile_pairs_invalid_background_variance": int(
+                self.kinase_condition_pairs_invalid_background_variance
+            ),
+            "kinase_profile_pairs_no_finite_background_values": int(
+                self.kinase_condition_pairs_no_finite_background_values
+            ),
+            "kinase_profile_pairs_no_finite_substrate_values": int(
+                self.kinase_condition_pairs_no_finite_substrate_values
+            ),
             "kinase_condition_pairs_evaluated": int(
                 self.kinase_condition_pairs_evaluated
             ),
@@ -144,6 +168,30 @@ class ActivityMethodSummary:
             ),
         }
 
+    @property
+    def kinase_profile_pairs_evaluated(self) -> int:
+        return self.kinase_condition_pairs_evaluated
+
+    @property
+    def kinase_profile_pairs_computed(self) -> int:
+        return self.kinase_condition_pairs_computed
+
+    @property
+    def kinase_profile_pairs_insufficient_substrates(self) -> int:
+        return self.kinase_condition_pairs_insufficient_substrates
+
+    @property
+    def kinase_profile_pairs_invalid_background_variance(self) -> int:
+        return self.kinase_condition_pairs_invalid_background_variance
+
+    @property
+    def kinase_profile_pairs_no_finite_background_values(self) -> int:
+        return self.kinase_condition_pairs_no_finite_background_values
+
+    @property
+    def kinase_profile_pairs_no_finite_substrate_values(self) -> int:
+        return self.kinase_condition_pairs_no_finite_substrate_values
+
     @classmethod
     def from_payload(
         cls,
@@ -154,31 +202,163 @@ class ActivityMethodSummary:
                 payload=payload,
                 field_name="kinases_evaluated",
             ),
-            kinase_condition_pairs_evaluated=_coerce_payload_int(
+            kinase_condition_pairs_evaluated=_coerce_payload_int_with_fallback(
                 payload=payload,
-                field_name="kinase_condition_pairs_evaluated",
+                field_name="kinase_profile_pairs_evaluated",
+                fallback_field_name="kinase_condition_pairs_evaluated",
             ),
-            kinase_condition_pairs_computed=_coerce_payload_int(
+            kinase_condition_pairs_computed=_coerce_payload_int_with_fallback(
                 payload=payload,
-                field_name="kinase_condition_pairs_computed",
+                field_name="kinase_profile_pairs_computed",
+                fallback_field_name="kinase_condition_pairs_computed",
             ),
-            kinase_condition_pairs_insufficient_substrates=_coerce_payload_int(
-                payload=payload,
-                field_name="kinase_condition_pairs_insufficient_substrates",
+            kinase_condition_pairs_insufficient_substrates=(
+                _coerce_payload_int_with_fallback(
+                    payload=payload,
+                    field_name="kinase_profile_pairs_insufficient_substrates",
+                    fallback_field_name=(
+                        "kinase_condition_pairs_insufficient_substrates"
+                    ),
+                )
             ),
-            kinase_condition_pairs_invalid_background_variance=_coerce_payload_int(
-                payload=payload,
-                field_name="kinase_condition_pairs_invalid_background_variance",
+            kinase_condition_pairs_invalid_background_variance=(
+                _coerce_payload_int_with_fallback(
+                    payload=payload,
+                    field_name="kinase_profile_pairs_invalid_background_variance",
+                    fallback_field_name=(
+                        "kinase_condition_pairs_invalid_background_variance"
+                    ),
+                )
             ),
-            kinase_condition_pairs_no_finite_background_values=_coerce_payload_int(
-                payload=payload,
-                field_name="kinase_condition_pairs_no_finite_background_values",
+            kinase_condition_pairs_no_finite_background_values=(
+                _coerce_payload_int_with_fallback(
+                    payload=payload,
+                    field_name="kinase_profile_pairs_no_finite_background_values",
+                    fallback_field_name=(
+                        "kinase_condition_pairs_no_finite_background_values"
+                    ),
+                )
             ),
-            kinase_condition_pairs_no_finite_substrate_values=_coerce_payload_int(
-                payload=payload,
-                field_name="kinase_condition_pairs_no_finite_substrate_values",
+            kinase_condition_pairs_no_finite_substrate_values=(
+                _coerce_payload_int_with_fallback(
+                    payload=payload,
+                    field_name="kinase_profile_pairs_no_finite_substrate_values",
+                    fallback_field_name=(
+                        "kinase_condition_pairs_no_finite_substrate_values"
+                    ),
+                )
             ),
         )
+
+
+def _coerce_payload_int_with_fallback(
+    *,
+    payload: Mapping[str, object],
+    field_name: str,
+    fallback_field_name: str,
+) -> int:
+    if field_name in payload:
+        return _coerce_payload_int(payload=payload, field_name=field_name)
+    return _coerce_payload_int(payload=payload, field_name=fallback_field_name)
+
+
+@dataclass(frozen=True, slots=True)
+class PredMatOverlapSummary:
+    """Resolved overlap diagnostics between prediction and phospho matrices."""
+
+    overlap_count: int
+    pred_mat_rows: int
+    phospho_rows: int
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseActivityInputs:
+    """Trusted activity-like score inputs resolved by workflow validation."""
+
+    pred_mat: pd.DataFrame
+    phospho_matrix: pd.DataFrame
+    threshold: float
+    min_substrates: int
+    top_n_substrates: int
+    overlap_summary: PredMatOverlapSummary
+    activity_input: ActivityInputMatrix | None = None
+
+    def __post_init__(self) -> None:
+        if self.activity_input is None:
+            warnings.warn(
+                (
+                    "KinaseActivityInputs constructed without typed activity_input "
+                    "semantics is deprecated; treating phospho_matrix columns as "
+                    "sample/profile labels with sample-level abundance semantics."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            activity_input = ActivityInputMatrix.sample_level_abundance(
+                self.phospho_matrix,
+                field_name="dataset.phospho",
+                _assume_owned=True,
+            )
+        elif isinstance(self.activity_input, ActivityInputMatrix):
+            activity_input = self.activity_input
+        else:
+            raise WorkflowBoundaryError(
+                "activity input activity_input must be ActivityInputMatrix or None"
+            )
+        activity_input = require_abundance_activity_input(
+            activity_input,
+            field_name="kinase activity abundance methods",
+        )
+        try:
+            pred_mat = KinasePredictionMatrix(
+                frame=self.pred_mat,
+                field_name="prediction_result.pred_mat",
+                _assume_owned=True,
+            ).frame
+            phospho_matrix = ActivityMatrix(
+                frame=activity_input.frame,
+                field_name="dataset.phospho",
+                _assume_owned=True,
+            ).frame
+        except PhosPyValidationError as exc:
+            raise WorkflowBoundaryError(
+                seam="kinase.activity.input_schema",
+                next_action=(
+                    "ensure prediction_result.pred_mat and the typed activity input "
+                    "matrix satisfy activity-stage input table schema requirements"
+                ),
+                details={"schema_error": str(exc)},
+                message_prefix="kinase workflow boundary validation failed",
+            ) from exc
+        if not isinstance(self.overlap_summary, PredMatOverlapSummary):
+            raise WorkflowBoundaryError(
+                "activity input overlap_summary must be PredMatOverlapSummary"
+            )
+        object.__setattr__(self, "pred_mat", pred_mat)
+        object.__setattr__(self, "phospho_matrix", phospho_matrix)
+        object.__setattr__(
+            self,
+            "activity_input",
+            ActivityInputMatrix(
+                frame=phospho_matrix,
+                semantics=activity_input.semantics,
+                profile_metadata=activity_input.profile_metadata,
+                field_name="dataset.phospho",
+                _assume_owned=True,
+            ),
+        )
+
+    @property
+    def input_semantics(self) -> ActivityInputSemantics:
+        if self.activity_input is None:
+            raise RuntimeError("KinaseActivityInputs.activity_input was not resolved")
+        return self.activity_input.semantics
+
+    @property
+    def profile_metadata(self) -> ActivityProfileMetadata:
+        if self.activity_input is None:
+            raise RuntimeError("KinaseActivityInputs.activity_input was not resolved")
+        return self.activity_input.profile_metadata
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -272,56 +452,6 @@ def _coerce_payload_int(*, payload: Mapping[str, object], field_name: str) -> in
     raise ValueError(f"{field_name} must be int-compatible")
 
 
-@dataclass(frozen=True, slots=True)
-class PredMatOverlapSummary:
-    """Resolved overlap diagnostics between prediction and phospho matrices."""
-
-    overlap_count: int
-    pred_mat_rows: int
-    phospho_rows: int
-
-
-@dataclass(frozen=True, slots=True)
-class KinaseActivityInputs:
-    """Trusted activity-like score inputs resolved by workflow validation."""
-
-    pred_mat: pd.DataFrame
-    phospho_matrix: pd.DataFrame
-    threshold: float
-    min_substrates: int
-    top_n_substrates: int
-    overlap_summary: PredMatOverlapSummary
-
-    def __post_init__(self) -> None:
-        try:
-            pred_mat = KinasePredictionMatrix(
-                frame=self.pred_mat,
-                field_name="prediction_result.pred_mat",
-                _assume_owned=True,
-            ).frame
-            phospho_matrix = ActivityMatrix(
-                frame=self.phospho_matrix,
-                field_name="dataset.phospho",
-                _assume_owned=True,
-            ).frame
-        except PhosPyValidationError as exc:
-            raise WorkflowBoundaryError(
-                seam="kinase.activity.input_schema",
-                next_action=(
-                    "ensure prediction_result.pred_mat and dataset.phospho satisfy "
-                    "activity-stage input table schema requirements"
-                ),
-                details={"schema_error": str(exc)},
-                message_prefix="kinase workflow boundary validation failed",
-            ) from exc
-        if not isinstance(self.overlap_summary, PredMatOverlapSummary):
-            raise WorkflowBoundaryError(
-                "activity input overlap_summary must be PredMatOverlapSummary"
-            )
-        object.__setattr__(self, "pred_mat", pred_mat)
-        object.__setattr__(self, "phospho_matrix", phospho_matrix)
-
-
 @dataclass(frozen=True, slots=True, init=False)
 class KinaseActivityResult:
     """Activity-like score stage outputs.
@@ -380,6 +510,8 @@ class KinaseActivityResult:
     policy_provenance: tuple[ScientificPolicyRecord, ...]
     threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics | None
     method_summary: ActivityMethodSummary | None
+    input_semantics: ActivityInputSemantics
+    profile_metadata: ActivityProfileMetadata
 
     def __init__(
         self,
@@ -407,6 +539,8 @@ class KinaseActivityResult:
         | list[ScientificPolicyRecord]
         | ScientificPolicyRecord
         | None = None,
+        input_semantics: ActivityInputSemantics | None = None,
+        profile_metadata: ActivityProfileMetadata | None = None,
     ) -> None:
         self._init_activity_result(
             weighted_activity=weighted_activity,
@@ -427,6 +561,8 @@ class KinaseActivityResult:
             substrate_count_matrix=substrate_count_matrix,
             method_diagnostics=method_diagnostics,
             policy_provenance=policy_provenance,
+            input_semantics=input_semantics,
+            profile_metadata=profile_metadata,
             assume_owned=False,
         )
 
@@ -457,6 +593,8 @@ class KinaseActivityResult:
         | list[ScientificPolicyRecord]
         | ScientificPolicyRecord
         | None = None,
+        input_semantics: ActivityInputSemantics | None = None,
+        profile_metadata: ActivityProfileMetadata | None = None,
         assume_owned: bool,
     ) -> None:
         if not isinstance(activity_method, ActivityMethodMetadata):
@@ -481,26 +619,59 @@ class KinaseActivityResult:
             field_name="activity_result.activity_matrix",
             _assume_owned=assume_owned,
         ).frame
+        should_apply_profile_axis_name = (
+            input_semantics is not None and profile_metadata is not None
+        )
+        input_semantics, profile_metadata = _resolve_activity_result_semantics(
+            activity_matrix=activity_matrix,
+            input_semantics=input_semantics,
+            profile_metadata=profile_metadata,
+        )
+        if should_apply_profile_axis_name:
+            activity_matrix = _apply_activity_profile_axis_name(
+                activity_matrix,
+                input_semantics=input_semantics,
+            )
         p_value_matrix = _validate_optional_probability_matrix(
             p_value_matrix,
             field_name="activity_result.p_value_matrix",
             assume_owned=assume_owned,
         )
+        if should_apply_profile_axis_name:
+            p_value_matrix = _apply_optional_activity_profile_axis_name(
+                p_value_matrix,
+                input_semantics=input_semantics,
+            )
         q_value_matrix = _validate_optional_probability_matrix(
             q_value_matrix,
             field_name="activity_result.q_value_matrix",
             assume_owned=assume_owned,
         )
+        if should_apply_profile_axis_name:
+            q_value_matrix = _apply_optional_activity_profile_axis_name(
+                q_value_matrix,
+                input_semantics=input_semantics,
+            )
         confidence_interval_low = _validate_optional_activity_matrix(
             confidence_interval_low,
             field_name="activity_result.confidence_interval_low",
             assume_owned=assume_owned,
         )
+        if should_apply_profile_axis_name:
+            confidence_interval_low = _apply_optional_activity_profile_axis_name(
+                confidence_interval_low,
+                input_semantics=input_semantics,
+            )
         confidence_interval_high = _validate_optional_activity_matrix(
             confidence_interval_high,
             field_name="activity_result.confidence_interval_high",
             assume_owned=assume_owned,
         )
+        if should_apply_profile_axis_name:
+            confidence_interval_high = _apply_optional_activity_profile_axis_name(
+                confidence_interval_high,
+                input_semantics=input_semantics,
+            )
         if substrate_count_matrix is None:
             substrate_count_matrix = activity_substrate_counts
         if substrate_count_matrix is None:
@@ -510,6 +681,11 @@ class KinaseActivityResult:
             field_name="activity_result.substrate_count_matrix",
             _assume_owned=assume_owned,
         ).frame
+        if should_apply_profile_axis_name:
+            substrate_count_matrix = _apply_activity_profile_axis_name(
+                substrate_count_matrix,
+                input_semantics=input_semantics,
+            )
         if thresholded_substrate_mean_activity is None:
             thresholded_substrate_mean_activity = _empty_activity_matrix()
         thresholded_substrate_mean_activity = ActivityMatrix(
@@ -517,6 +693,11 @@ class KinaseActivityResult:
             field_name="activity_result.thresholded_substrate_mean_activity",
             _assume_owned=assume_owned,
         ).frame
+        if should_apply_profile_axis_name:
+            thresholded_substrate_mean_activity = _apply_activity_profile_axis_name(
+                thresholded_substrate_mean_activity,
+                input_semantics=input_semantics,
+            )
         if thresholded_substrate_counts is None:
             thresholded_substrate_counts = _empty_count_series("n_substrates")
         thresholded_substrate_counts = ActivityCountSeries(
@@ -530,6 +711,11 @@ class KinaseActivityResult:
                 field_name="activity_result.activity_substrate_counts",
                 _assume_owned=assume_owned,
             ).frame
+            if should_apply_profile_axis_name:
+                activity_substrate_counts = _apply_activity_profile_axis_name(
+                    activity_substrate_counts,
+                    input_semantics=input_semantics,
+                )
         if target_counts is None:
             target_counts = _empty_count_series("n_targets")
         target_counts = ActivityCountSeries(
@@ -616,6 +802,8 @@ class KinaseActivityResult:
             threshold_membership_diagnostics,
         )
         object.__setattr__(self, "method_summary", method_summary)
+        object.__setattr__(self, "input_semantics", input_semantics)
+        object.__setattr__(self, "profile_metadata", profile_metadata)
 
     @property
     def activity_matrix(self) -> pd.DataFrame:
@@ -774,6 +962,8 @@ class KinaseActivityResult:
         | list[ScientificPolicyRecord]
         | ScientificPolicyRecord
         | None = None,
+        input_semantics: ActivityInputSemantics | None = None,
+        profile_metadata: ActivityProfileMetadata | None = None,
     ) -> KinaseActivityResult:
         result = object.__new__(cls)
         KinaseActivityResult._init_activity_result(
@@ -796,6 +986,8 @@ class KinaseActivityResult:
             substrate_count_matrix=substrate_count_matrix,
             method_diagnostics=method_diagnostics,
             policy_provenance=policy_provenance,
+            input_semantics=input_semantics,
+            profile_metadata=profile_metadata,
             assume_owned=True,
         )
         return result
@@ -844,6 +1036,96 @@ class KinaseActivityResult:
         """Return a statistics-table snapshot, not a formatted report."""
 
         return export_optional_dataframe(self._statistics_table)
+
+
+def _resolve_activity_result_semantics(
+    *,
+    activity_matrix: pd.DataFrame,
+    input_semantics: ActivityInputSemantics | None,
+    profile_metadata: ActivityProfileMetadata | None,
+) -> tuple[ActivityInputSemantics, ActivityProfileMetadata]:
+    profile_ids = tuple(str(column) for column in activity_matrix.columns)
+    if input_semantics is None and profile_metadata is None:
+        warnings.warn(
+            (
+                "KinaseActivityResult constructed without explicit activity input "
+                "semantics is deprecated; treating activity columns as "
+                "sample/profile labels with sample-level abundance semantics."
+            ),
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        input_semantics = ActivityInputSemantics(
+            profile_axis=ActivityProfileAxis.SAMPLE,
+            quantitative_semantics=(
+                ActivityQuantitativeSemantics.SAMPLE_LEVEL_ABUNDANCE
+            ),
+        )
+        profile_metadata = ActivityProfileMetadata(
+            axis=ActivityProfileAxis.SAMPLE,
+            profile_ids=profile_ids,
+            sample_ids=profile_ids,
+        )
+    elif input_semantics is None or profile_metadata is None:
+        raise WorkflowBoundaryError(
+            "activity_result.input_semantics and activity_result.profile_metadata "
+            "must be provided together"
+        )
+    if not isinstance(input_semantics, ActivityInputSemantics):
+        raise WorkflowBoundaryError(
+            "activity_result.input_semantics must be ActivityInputSemantics"
+        )
+    if not isinstance(profile_metadata, ActivityProfileMetadata):
+        raise WorkflowBoundaryError(
+            "activity_result.profile_metadata must be ActivityProfileMetadata"
+        )
+    if profile_metadata.axis is not input_semantics.profile_axis:
+        raise WorkflowBoundaryError(
+            "activity_result.profile_metadata.axis must match "
+            "activity_result.input_semantics.profile_axis"
+        )
+    observed_profile_ids = tuple(str(value) for value in profile_metadata.profile_ids)
+    if observed_profile_ids != profile_ids:
+        raise WorkflowBoundaryError(
+            "activity_result.profile_metadata.profile_ids must exactly match "
+            "activity_result.activity_matrix columns; "
+            f"expected={profile_ids!r}, got={observed_profile_ids!r}"
+        )
+    return input_semantics, profile_metadata
+
+
+def _activity_profile_axis_name(
+    input_semantics: ActivityInputSemantics,
+) -> str:
+    if input_semantics.has_real_condition_contract:
+        return "condition"
+    return "profile_id"
+
+
+def _apply_activity_profile_axis_name(
+    frame: pd.DataFrame,
+    *,
+    input_semantics: ActivityInputSemantics,
+) -> pd.DataFrame:
+    if input_semantics.profile_axis is ActivityProfileAxis.SAMPLE:
+        return frame
+    renamed = frame.copy(deep=False)
+    renamed.columns = renamed.columns.copy()
+    renamed.columns.name = _activity_profile_axis_name(input_semantics)
+    return renamed
+
+
+def _apply_optional_activity_profile_axis_name(
+    frame: pd.DataFrame | None,
+    *,
+    input_semantics: ActivityInputSemantics,
+) -> pd.DataFrame | None:
+    if frame is None:
+        return None
+    return _apply_activity_profile_axis_name(
+        frame,
+        input_semantics=input_semantics,
+    )
 
 
 def _validate_optional_activity_matrix(

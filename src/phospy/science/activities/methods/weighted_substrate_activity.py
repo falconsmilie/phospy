@@ -117,6 +117,8 @@ class SimplifiedWeightedSubstrateActivityMethod:
             method_diagnostics=diagnostics,
             policy_provenance=(policy,),
             activity_method=SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,
+            input_semantics=inputs.input_semantics,
+            profile_metadata=inputs.profile_metadata,
         )
 
 

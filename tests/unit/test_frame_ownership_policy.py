@@ -59,6 +59,7 @@ from phospy.science.activities.models import (
     KinaseActivityResult,
     PredMatOverlapSummary,
 )
+from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.science.datasets.models import DatasetPreprocessingReport
@@ -468,6 +469,7 @@ def _activity_target_table() -> pd.DataFrame:
 
 
 def _activity_result_from_matrix(matrix: pd.DataFrame) -> KinaseActivityResult:
+    activity_input = ActivityInputMatrix.sample_level_abundance(matrix)
     return KinaseActivityResult(
         activity_matrix=matrix,
         thresholded_substrate_mean_activity=_activity_matrix(),
@@ -482,12 +484,16 @@ def _activity_result_from_matrix(matrix: pd.DataFrame) -> KinaseActivityResult:
             name="n_targets",
         ),
         target_table=_activity_target_table(),
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
 
 
 def _activity_result_from_target_table(table: pd.DataFrame) -> KinaseActivityResult:
+    activity_matrix = _activity_matrix()
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
     return KinaseActivityResult(
-        activity_matrix=_activity_matrix(),
+        activity_matrix=activity_matrix,
         thresholded_substrate_mean_activity=_activity_matrix(),
         thresholded_substrate_counts=pd.Series(
             [2, 2],
@@ -500,6 +506,28 @@ def _activity_result_from_target_table(table: pd.DataFrame) -> KinaseActivityRes
             name="n_targets",
         ),
         target_table=table,
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
+    )
+
+
+def _activity_result_from_thresholded_counts(
+    series: pd.Series,
+) -> KinaseActivityResult:
+    activity_matrix = _activity_matrix()
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
+    return KinaseActivityResult(
+        activity_matrix=activity_matrix,
+        thresholded_substrate_mean_activity=_activity_matrix(),
+        thresholded_substrate_counts=series,
+        target_counts=pd.Series(
+            [1, 1],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_targets",
+        ),
+        target_table=_activity_target_table(),
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
 
 
@@ -855,17 +883,7 @@ def _public_series_owner_cases() -> tuple[_PublicSeriesOwnerCase, ...]:
                 index=pd.Index(["MAP2K6", "AKT1"]),
                 name="n_substrates",
             ),
-            construct=lambda series: KinaseActivityResult(
-                activity_matrix=_activity_matrix(),
-                thresholded_substrate_mean_activity=_activity_matrix(),
-                thresholded_substrate_counts=series,
-                target_counts=pd.Series(
-                    [1, 1],
-                    index=pd.Index(["MAP2K6", "AKT1"]),
-                    name="n_targets",
-                ),
-                target_table=_activity_target_table(),
-            ),
+            construct=_activity_result_from_thresholded_counts,
             observe=lambda owner: owner.thresholded_substrate_counts,
         ),
     )
@@ -1632,6 +1650,10 @@ def test_internal_activity_inputs_alias_owned_frames() -> None:
         min_substrates=1,
         top_n_substrates=2,
         overlap_summary=overlap_summary,
+        activity_input=ActivityInputMatrix.sample_level_abundance(
+            phospho_matrix,
+            _assume_owned=True,
+        ),
     )
 
     assert inputs.pred_mat is pred_mat
@@ -2791,11 +2813,13 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
         lambda: workflow_result.substrate_contributions
     )
 
+    activity_matrix = pd.DataFrame(
+        {"MAP2K6": [1.0, 2.0]},
+        index=pd.Index(["sample_a", "sample_b"]),
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
     activity_result = KinaseActivityResult._from_owned(
-        activity_matrix=pd.DataFrame(
-            {"MAP2K6": [1.0, 2.0]},
-            index=pd.Index(["sample_a", "sample_b"]),
-        ),
+        activity_matrix=activity_matrix,
         thresholded_substrate_mean_activity=pd.DataFrame(
             {"MAP2K6": [0.5, 1.5]},
             index=pd.Index(["sample_a", "sample_b"]),
@@ -2817,6 +2841,8 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
                 "score": [0.9],
             }
         ),
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
     for getter in (
         lambda: activity_result.activity_matrix,
@@ -2827,11 +2853,13 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
 
 
 def test_kinase_activity_result_series_properties_are_defensive_snapshots() -> None:
+    activity_matrix = pd.DataFrame(
+        {"MAP2K6": [1.0, 2.0]},
+        index=pd.Index(["sample_a", "sample_b"]),
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
     activity_result = KinaseActivityResult._from_owned(
-        activity_matrix=pd.DataFrame(
-            {"MAP2K6": [1.0, 2.0]},
-            index=pd.Index(["sample_a", "sample_b"]),
-        ),
+        activity_matrix=activity_matrix,
         thresholded_substrate_mean_activity=pd.DataFrame(
             {"MAP2K6": [0.5, 1.5]},
             index=pd.Index(["sample_a", "sample_b"]),
@@ -2853,6 +2881,8 @@ def test_kinase_activity_result_series_properties_are_defensive_snapshots() -> N
                 "score": [0.9],
             }
         ),
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
 
     assert hasattr(activity_result, "thresholded_substrate_counts")

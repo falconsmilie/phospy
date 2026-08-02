@@ -41,6 +41,13 @@ from phospy.science.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
     compute_activity_from_inputs,
 )
+from phospy.science.activities.semantics import (
+    ActivityAggregationMetadata,
+    ActivityAggregationRecord,
+    ActivityInputMatrix,
+    ActivityProfileAxis,
+    ActivityQuantitativeSemantics,
+)
 from phospy.science.activities.statistics import benjamini_hochberg_q_values
 from phospy.science.activities.threshold_membership import (
     THRESHOLD_MEMBERSHIP_DESCRIPTION,
@@ -75,9 +82,15 @@ def _inputs(
     threshold: float,
     min_substrates: int,
     top_n_substrates: int,
+    activity_input: ActivityInputMatrix | None = None,
 ) -> KinaseActivityInputs:
     pred_mat = _with_site_key_index(pred_mat)
     phospho_matrix = _with_site_key_index(phospho_matrix)
+    if activity_input is None:
+        activity_input = ActivityInputMatrix.sample_level_abundance(
+            phospho_matrix,
+            _assume_owned=True,
+        )
     overlap_count = int(pred_mat.index.intersection(phospho_matrix.index).size)
     return KinaseActivityInputs(
         pred_mat=pred_mat,
@@ -90,6 +103,7 @@ def _inputs(
             pred_mat_rows=int(pred_mat.index.size),
             phospho_rows=int(phospho_matrix.index.size),
         ),
+        activity_input=activity_input,
     )
 
 
@@ -141,7 +155,9 @@ def _ssgsea_result(
         random_seed=random_seed,
         adjust_p_values=adjust_p_values,
     ).run(
-        effect_matrix=_with_site_key_index(effect_matrix),
+        activity_input=ActivityInputMatrix.standardised_effect(
+            _with_site_key_index(effect_matrix),
+        ),
         kinase_substrate_membership=_membership(kinase_to_sites),
     )
 
@@ -556,7 +572,7 @@ def test_ssgsea_permutation_results_survive_input_serialization_round_trip() -> 
     )
 
     first = method.run(
-        effect_matrix=effect_matrix,
+        activity_input=ActivityInputMatrix.standardised_effect(effect_matrix),
         kinase_substrate_membership=membership,
     )
     restored_effect_matrix = pd.read_json(
@@ -568,7 +584,7 @@ def test_ssgsea_permutation_results_survive_input_serialization_round_trip() -> 
         orient="records",
     )
     second = method.run(
-        effect_matrix=restored_effect_matrix,
+        activity_input=ActivityInputMatrix.standardised_effect(restored_effect_matrix),
         kinase_substrate_membership=restored_membership,
     )
 
@@ -617,6 +633,46 @@ def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
         SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
     )
     assert parameters["q_value_method"] == SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+
+
+def test_ssgsea_activity_input_requires_contrast_or_effect_semantics() -> None:
+    effect_matrix = _with_site_key_index(
+        pd.DataFrame(
+            {"contrast_a": [4.0, 3.0, 2.0, 1.0]},
+            index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+        )
+    )
+    membership = _membership({"K1": ["S1;S1;", "S2;S2;"]})
+    method = SsgseaSubstrateEnrichmentActivityMethod(
+        min_substrates=2,
+        permutation_count=0,
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="requires explicit contrast/effect input",
+    ):
+        method.run(
+            activity_input=ActivityInputMatrix.sample_level_abundance(effect_matrix),
+            kinase_substrate_membership=membership,
+        )
+
+    result = method.run(
+        activity_input=ActivityInputMatrix.contrast_log_fold_change(effect_matrix),
+        kinase_substrate_membership=membership,
+    )
+
+    assert result.input_semantics.profile_axis is ActivityProfileAxis.CONTRAST
+    assert (
+        result.input_semantics.quantitative_semantics
+        is ActivityQuantitativeSemantics.CONTRAST_LOG_FOLD_CHANGE
+    )
+    assert result.profile_metadata.contrast_ids == ("contrast_a",)
+    assert result.activity_matrix.columns.name == "profile_id"
+    stats = result.statistics_table
+    assert stats is not None
+    assert {"condition", "profile_id"}.issubset(stats.columns)
+    assert stats["condition"].tolist() == stats["profile_id"].tolist()
 
 
 def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:
@@ -694,6 +750,10 @@ def test_ksea_result_populates_extensible_activity_contract() -> None:
     )
     assert isinstance(result.method_diagnostics, KseaZScoreActivityDiagnostics)
     assert result.method_diagnostics.statistics_table is not None
+    stats = result.statistics_table
+    assert stats is not None
+    assert {"condition", "profile_id"}.issubset(stats.columns)
+    assert stats["condition"].tolist() == stats["profile_id"].tolist()
     assert result.policy_provenance
     policy = result.policy_provenance[0]
     assert policy.id == ScientificPolicyId.KSEA_ZSCORE_ACTIVITY
@@ -1197,10 +1257,13 @@ def test_activity_result_contract_handles_empty_optional_diagnostics_cleanly() -
         index=pd.Index(["K1"], name="kinase"),
         dtype="int64",
     )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
 
     result = KinaseActivityResult(
         activity_matrix=activity_matrix,
         substrate_count_matrix=substrate_count_matrix,
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
 
     pdt.assert_frame_equal(result.to_dataframe(), activity_matrix)
@@ -1214,6 +1277,78 @@ def test_activity_result_contract_handles_empty_optional_diagnostics_cleanly() -
     assert result.target_counts.empty
     assert result.target_table.empty
     assert result.policy_provenance == ()
+
+
+def test_activity_input_matrix_owns_caller_frame_and_exports_snapshots() -> None:
+    frame = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["site_a"], name="site_id"),
+        dtype=float,
+    )
+
+    activity_input = ActivityInputMatrix.sample_level_abundance(frame)
+    frame.at["site_a", "sample_a"] = 99.0
+
+    assert activity_input.frame.at["site_a", "sample_a"] == pytest.approx(1.0)
+    exported = activity_input.matrix
+    exported.at["site_a", "sample_a"] = 42.0
+    assert activity_input.frame.at["site_a", "sample_a"] == pytest.approx(1.0)
+
+
+def test_condition_summary_activity_input_marks_output_profiles_as_conditions() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [1.0, 1.0]},
+        index=["S1;S1;", "S2;S2;"],
+    )
+    condition_matrix = _with_site_key_index(
+        pd.DataFrame(
+            {
+                "treated_mean": [2.0, 4.0],
+                "control_mean": [1.0, 3.0],
+            },
+            index=pred_mat.index.copy(),
+        )
+    )
+    aggregation_metadata = ActivityAggregationMetadata(
+        aggregation_method="mean",
+        records=(
+            ActivityAggregationRecord(
+                profile_id="treated_mean",
+                source_profile_ids=("treated_rep1", "treated_rep2"),
+            ),
+            ActivityAggregationRecord(
+                profile_id="control_mean",
+                source_profile_ids=("control_rep1", "control_rep2"),
+            ),
+        ),
+    )
+    activity_input = ActivityInputMatrix.condition_summary_abundance(
+        condition_matrix,
+        aggregation_metadata=aggregation_metadata,
+    )
+
+    result = compute_activity_from_inputs(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=condition_matrix,
+            threshold=0.6,
+            min_substrates=2,
+            top_n_substrates=2,
+            activity_input=activity_input,
+        )
+    )
+
+    assert result.input_semantics.profile_axis is ActivityProfileAxis.CONDITION_SUMMARY
+    assert (
+        result.input_semantics.quantitative_semantics
+        is ActivityQuantitativeSemantics.CONDITION_SUMMARY_ABUNDANCE
+    )
+    assert result.profile_metadata.aggregation_metadata == aggregation_metadata
+    assert result.activity_matrix.columns.name == "condition"
+    assert result.substrate_count_matrix.columns.name == "condition"
+    assert result.thresholded_substrate_mean_activity.columns.name == "condition"
+    assert result.activity_matrix.at["K1", "treated_mean"] == pytest.approx(3.0)
+    assert result.activity_matrix.at["K1", "control_mean"] == pytest.approx(2.0)
 
 
 def test_thresholded_substrate_mean_activity_respects_threshold_and_min_substrates() -> (

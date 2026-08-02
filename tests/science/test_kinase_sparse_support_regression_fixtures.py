@@ -26,6 +26,7 @@ from phospy.science.activities.methods import (
     SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS,
     SsgseaSubstrateEnrichmentActivityMethod,
 )
+from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.references.models import ReferenceContext
 from phospy.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
@@ -285,7 +286,7 @@ def test_kinase_ssgsea_fixture_reports_optional_permutation_significance() -> No
         permutation_count=0,
         random_seed=19,
     ).run(
-        effect_matrix=effect_matrix,
+        activity_input=ActivityInputMatrix.standardised_effect(effect_matrix),
         kinase_substrate_membership=membership,
     )
     with_permutation = SsgseaSubstrateEnrichmentActivityMethod(
@@ -293,17 +294,19 @@ def test_kinase_ssgsea_fixture_reports_optional_permutation_significance() -> No
         permutation_count=12,
         random_seed=19,
     ).run(
-        effect_matrix=effect_matrix,
+        activity_input=ActivityInputMatrix.standardised_effect(effect_matrix),
         kinase_substrate_membership=membership,
     )
 
     assert no_permutation.p_value_matrix is None
     assert no_permutation.q_value_matrix is None
+    assert no_permutation.statistics_table is not None
     assert set(no_permutation.statistics_table["significance_status"]) == {
         SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS
     }
     assert with_permutation.p_value_matrix is not None
     assert with_permutation.q_value_matrix is not None
+    assert with_permutation.statistics_table is not None
     assert set(with_permutation.statistics_table["significance_status"]) == {
         SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
     }

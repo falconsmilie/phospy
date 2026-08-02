@@ -25,6 +25,7 @@ from phospy.science.activities.models import (
     ActivityMethodSummary,
     KinaseActivityResult,
 )
+from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.enrichment.models import EnrichmentResultRecord
 from phospy.science.prediction.models import (
     KinasePredictionResult,
@@ -81,6 +82,12 @@ ACTIVITY_PAYLOAD_FIELDS = {
 }
 ACTIVITY_SUMMARY_PAYLOAD_FIELDS = {
     "kinases_evaluated",
+    "kinase_profile_pairs_evaluated",
+    "kinase_profile_pairs_computed",
+    "kinase_profile_pairs_insufficient_substrates",
+    "kinase_profile_pairs_invalid_background_variance",
+    "kinase_profile_pairs_no_finite_background_values",
+    "kinase_profile_pairs_no_finite_substrate_values",
     "kinase_condition_pairs_evaluated",
     "kinase_condition_pairs_computed",
     "kinase_condition_pairs_insufficient_substrates",
@@ -136,6 +143,7 @@ FORBIDDEN_PUBLIC_METHOD_PREFIXES = (
 def _activity_result() -> KinaseActivityResult:
     kinase_index = pd.Index(["K1"], name="kinase")
     activity_matrix = pd.DataFrame({"c1": [1.0]}, index=kinase_index, dtype=float)
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
     count_matrix = pd.DataFrame({"c1": [2]}, index=kinase_index, dtype="int64")
     target_site_key = site_key_index_from_display_ids(["MAPK14;Y182;"])[0]
     statistics_table = pd.DataFrame(
@@ -197,6 +205,8 @@ def _activity_result() -> KinaseActivityResult:
             }
         ),
         statistics_table=statistics_table,
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
 
 

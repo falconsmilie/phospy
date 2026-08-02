@@ -25,6 +25,7 @@ from phospy.api.results import (
 from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.science.activities.scoring import compute_activity_from_inputs
+from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
@@ -468,6 +469,10 @@ def test_substrate_mean_activity_matches_hand_calculated_toy_example() -> None:
             overlap_count=3,
             pred_mat_rows=3,
             phospho_rows=3,
+        ),
+        activity_input=ActivityInputMatrix.sample_level_abundance(
+            phospho_matrix,
+            _assume_owned=True,
         ),
     )
 

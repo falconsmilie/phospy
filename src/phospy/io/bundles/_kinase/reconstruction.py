@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import NoReturn
 
+import pandas as pd
+
 from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.contracts.results import (
     KinaseWorkflowAttritionProvenance,
@@ -36,9 +38,16 @@ from phospy.io.bundles._shared.trusted_dataset_assertions import (
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.science.activities.models import (
+    SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
     ActivityMethodMetadata,
     ActivityMethodSummary,
     KinaseActivityResult,
+)
+from phospy.science.activities.semantics import (
+    ActivityInputSemantics,
+    ActivityProfileAxis,
+    ActivityProfileMetadata,
+    ActivityQuantitativeSemantics,
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.processing_state import DatasetProcessingState
@@ -299,6 +308,10 @@ def reconstruct_kinase_result(
             activity_method_summary = ActivityMethodSummary.from_payload(
                 sections.activity_method_summary
             )
+        input_semantics, profile_metadata = _infer_reconstructed_activity_semantics(
+            activity_method=activity_method,
+            activity_matrix=weighted_activity,
+        )
         activity_result = KinaseActivityResult._from_owned(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
@@ -309,6 +322,8 @@ def reconstruct_kinase_result(
             statistics_table=statistics_table,
             method_summary=activity_method_summary,
             activity_method=activity_method,
+            input_semantics=input_semantics,
+            profile_metadata=profile_metadata,
         )
     else:
         if (
@@ -345,6 +360,43 @@ def reconstruct_kinase_result(
         caveats=(
             result_caveats_from_payloads(sections.caveats_payload)
             or _kinase_caveats_from_provenance(provenance)
+        ),
+    )
+
+
+def _infer_reconstructed_activity_semantics(
+    *,
+    activity_method: ActivityMethodMetadata,
+    activity_matrix: pd.DataFrame,
+) -> tuple[ActivityInputSemantics, ActivityProfileMetadata]:
+    profile_ids = tuple(str(column) for column in activity_matrix.columns)
+    if (
+        activity_method.activity_method_id
+        == SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD.activity_method_id
+    ):
+        return (
+            ActivityInputSemantics(
+                profile_axis=ActivityProfileAxis.EFFECT,
+                quantitative_semantics=(
+                    ActivityQuantitativeSemantics.STANDARDISED_EFFECT
+                ),
+            ),
+            ActivityProfileMetadata(
+                axis=ActivityProfileAxis.EFFECT,
+                profile_ids=profile_ids,
+            ),
+        )
+    return (
+        ActivityInputSemantics(
+            profile_axis=ActivityProfileAxis.SAMPLE,
+            quantitative_semantics=(
+                ActivityQuantitativeSemantics.SAMPLE_LEVEL_ABUNDANCE
+            ),
+        ),
+        ActivityProfileMetadata(
+            axis=ActivityProfileAxis.SAMPLE,
+            profile_ids=profile_ids,
+            sample_ids=profile_ids,
         ),
     )
 

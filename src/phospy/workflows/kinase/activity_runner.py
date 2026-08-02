@@ -17,6 +17,7 @@ from phospy.science.activities.methods import (
     SsgseaSubstrateEnrichmentActivityMethod,
 )
 from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.prediction.internal_view import KinasePredictionInternalView
 from phospy.science.prediction.models import KinasePredictionResult
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
@@ -99,7 +100,11 @@ class KinaseActivityRunner:
                 random_seed=activity_config.ssgsea_random_seed,
                 adjust_p_values=bool(activity_config.ssgsea_adjust_p_values),
             ).run(
-                effect_matrix=request.activity_phospho_matrix,
+                activity_input=ActivityInputMatrix.standardised_effect(
+                    request.activity_phospho_matrix,
+                    field_name="kinase_request.activity_phospho_matrix",
+                    _assume_owned=True,
+                ),
                 kinase_substrate_membership=request.kinase_substrate_map,
             )
             return self._annotate_activity_result(
@@ -157,6 +162,8 @@ class KinaseActivityRunner:
             method_diagnostics=activity_result.method_diagnostics,
             policy_provenance=activity_result.policy_provenance,
             activity_method=activity_result.activity_method,
+            input_semantics=activity_result.input_semantics,
+            profile_metadata=activity_result.profile_metadata,
         )
 
 

@@ -9,6 +9,10 @@ from phospy.science.activities.models import (
     KinaseActivityInputs,
     PredMatOverlapSummary,
 )
+from phospy.science.activities.semantics import (
+    ActivityInputMatrix,
+    require_abundance_activity_input,
+)
 from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
@@ -32,6 +36,7 @@ class KinaseActivityInputValidator:
         threshold: object,
         min_substrates: object,
         top_n_substrates: object,
+        activity_input: object | None = None,
         min_overlap: int = DEFAULT_MIN_PRED_MAT_OVERLAP,
         min_fraction: float = DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
     ) -> KinaseActivityInputs:
@@ -86,22 +91,51 @@ class KinaseActivityInputValidator:
             error_type=WorkflowBoundaryError,
         )
 
-        validated_phospho = require_numeric_matrix(
-            phospho_matrix,
-            field_name="dataset.phospho",
-            allow_empty=False,
-            missing_value_policy=MissingValuePolicy.ALLOW,
-            error_type=WorkflowBoundaryError,
-        )
+        if activity_input is None:
+            validated_phospho = require_numeric_matrix(
+                phospho_matrix,
+                field_name="dataset.phospho",
+                allow_empty=False,
+                missing_value_policy=MissingValuePolicy.ALLOW,
+                error_type=WorkflowBoundaryError,
+            )
+            typed_activity_input = ActivityInputMatrix.sample_level_abundance(
+                validated_phospho,
+                field_name="dataset.phospho",
+                _assume_owned=True,
+            )
+        elif isinstance(activity_input, ActivityInputMatrix):
+            typed_activity_input = require_abundance_activity_input(
+                activity_input,
+                field_name="kinase activity abundance methods",
+            )
+            validated_phospho = require_numeric_matrix(
+                typed_activity_input.frame,
+                field_name="activity_input.matrix",
+                allow_empty=False,
+                missing_value_policy=MissingValuePolicy.ALLOW,
+                error_type=WorkflowBoundaryError,
+            )
+        else:
+            raise WorkflowBoundaryError(
+                "activity_input must be ActivityInputMatrix when provided"
+            )
         validated_phospho = require_unique_index(
             validated_phospho,
-            field_name="dataset.phospho",
+            field_name="activity_input.matrix",
             error_type=WorkflowBoundaryError,
         )
         validated_phospho = require_unique_columns(
             validated_phospho,
-            field_name="dataset.phospho",
+            field_name="activity_input.matrix",
             error_type=WorkflowBoundaryError,
+        )
+        typed_activity_input = ActivityInputMatrix(
+            frame=validated_phospho,
+            semantics=typed_activity_input.semantics,
+            profile_metadata=typed_activity_input.profile_metadata,
+            field_name="activity_input.matrix",
+            _assume_owned=True,
         )
 
         overlap_summary = self._validate_overlap(
@@ -117,6 +151,7 @@ class KinaseActivityInputValidator:
             min_substrates=normalized_min_substrates,
             top_n_substrates=normalized_top_n_substrates,
             overlap_summary=overlap_summary,
+            activity_input=typed_activity_input,
         )
 
     def _validate_overlap(

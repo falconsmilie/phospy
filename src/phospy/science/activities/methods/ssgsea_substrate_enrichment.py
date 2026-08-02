@@ -31,8 +31,15 @@ from phospy.science.activities.scientific_policies import (
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
     build_ssgsea_substrate_enrichment_activity_policy,
 )
+from phospy.science.activities.semantics import (
+    ActivityInputMatrix,
+    ActivityInputSemantics,
+    ActivityProfileAxis,
+    ActivityQuantitativeSemantics,
+    normalize_activity_input_matrix,
+    require_contrast_or_effect_activity_input,
+)
 from phospy.science.activities.statistics import benjamini_hochberg_q_values
-from phospy.science.tables.activity import ActivityMatrix
 
 SSGSEA_RANKING_DIRECTION_DESCENDING = "descending"
 SSGSEA_RANKING_DIRECTION_ASCENDING = "ascending"
@@ -115,13 +122,42 @@ class SsgseaSubstrateEnrichmentActivityMethod:
     def run(
         self,
         *,
-        effect_matrix: pd.DataFrame,
+        activity_input: ActivityInputMatrix | None = None,
+        effect_matrix: pd.DataFrame | None = None,
         kinase_substrate_membership: pd.DataFrame,
     ) -> KinaseActivityResult:
-        effects = ActivityMatrix(
-            frame=effect_matrix,
-            field_name="activity_inputs.effect_matrix",
-        ).frame
+        if activity_input is not None and effect_matrix is not None:
+            raise WorkflowBoundaryError(
+                "ssgsea activity requires either activity_input or legacy "
+                "effect_matrix, not both"
+            )
+        if activity_input is None:
+            if effect_matrix is None:
+                raise WorkflowBoundaryError(
+                    "ssgsea activity requires ActivityInputMatrix with explicit "
+                    "contrast/effect semantics"
+                )
+            activity_input = normalize_activity_input_matrix(
+                effect_matrix,
+                field_name="activity_inputs.effect_matrix",
+                legacy_dataframe_semantics=ActivityInputSemantics(
+                    profile_axis=ActivityProfileAxis.EFFECT,
+                    quantitative_semantics=(
+                        ActivityQuantitativeSemantics.STANDARDISED_EFFECT
+                    ),
+                ),
+                legacy_dataframe_warning=(
+                    "Passing a raw DataFrame as effect_matrix is deprecated; "
+                    "provide ActivityInputMatrix.contrast_log_fold_change(...) or "
+                    "ActivityInputMatrix.standardised_effect(...) so activity "
+                    "input semantics are explicit."
+                ),
+            )
+        activity_input = require_contrast_or_effect_activity_input(
+            activity_input,
+            field_name="ssgsea substrate enrichment activity",
+        )
+        effects = activity_input.frame
         membership = _validate_membership_table(kinase_substrate_membership)
         site_labels = np.asarray(effects.index.astype(str).tolist(), dtype=object)
         site_universe = set(str(value) for value in site_labels.tolist())
@@ -131,7 +167,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
         ].copy(deep=True)
         kinases = _ordered_unique_strings(membership.loc[:, _KINASE_COLUMN])
         kinase_index = pd.Index(kinases, name="kinase")
-        condition_index = pd.Index(
+        profile_index = pd.Index(
             effects.columns.astype(str).tolist(),
             name=effects.columns.name,
         )
@@ -143,20 +179,20 @@ class SsgseaSubstrateEnrichmentActivityMethod:
         activity_scores = pd.DataFrame(
             np.nan,
             index=kinase_index,
-            columns=condition_index,
+            columns=profile_index,
             dtype=float,
         )
         substrate_count_table = pd.DataFrame(
             0,
             index=kinase_index,
-            columns=condition_index,
+            columns=profile_index,
             dtype=int,
         )
         p_value_matrix = (
             pd.DataFrame(
                 np.nan,
                 index=kinase_index,
-                columns=condition_index,
+                columns=profile_index,
                 dtype=float,
             )
             if int(self.permutation_count) > 0
@@ -166,7 +202,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             pd.DataFrame(
                 np.nan,
                 index=kinase_index,
-                columns=condition_index,
+                columns=profile_index,
                 dtype=float,
             )
             if int(self.permutation_count) > 0 and bool(self.adjust_p_values)
@@ -190,12 +226,12 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES: 0,
         }
 
-        for condition_position, condition_name in enumerate(condition_index):
-            condition_values = effect_values[:, condition_position]
-            finite_positions = np.flatnonzero(np.isfinite(condition_values))
+        for profile_position, profile_id in enumerate(profile_index):
+            profile_values = effect_values[:, profile_position]
+            finite_positions = np.flatnonzero(np.isfinite(profile_values))
             ranked_site_labels = _rank_sites(
                 site_labels=site_labels,
-                values=condition_values,
+                values=profile_values,
                 finite_positions=finite_positions,
                 ranking_direction=str(self.ranking_direction),
             )
@@ -209,7 +245,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                     count=n_background,
                 )
                 n_substrates = int(hit_mask.sum())
-                substrate_count_table.iat[kinase_position, condition_position] = (
+                substrate_count_table.iat[kinase_position, profile_position] = (
                     n_substrates
                 )
 
@@ -228,12 +264,12 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                     else:
                         activity_scores.iat[
                             kinase_position,
-                            condition_position,
+                            profile_position,
                         ] = float(enrichment_score)
                         if random_seed is not None and p_value_matrix is not None:
                             permutation_rng = _make_ssgsea_permutation_rng(
                                 random_seed=int(random_seed),
-                                condition_name=str(condition_name),
+                                profile_id=str(profile_id),
                                 kinase_name=str(kinase_name),
                             )
                             p_value = _permutation_p_value(
@@ -245,7 +281,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                             )
                             p_value_matrix.iat[
                                 kinase_position,
-                                condition_position,
+                                profile_position,
                             ] = float(p_value)
 
                 counts[status] += 1
@@ -257,7 +293,8 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                 rows.append(
                     {
                         "kinase": str(kinase_name),
-                        "condition": str(condition_name),
+                        "condition": str(profile_id),
+                        "profile_id": str(profile_id),
                         "z_score": np.nan,
                         "enrichment_score": (
                             float(enrichment_score)
@@ -292,6 +329,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             columns=[
                 "kinase",
                 "condition",
+                "profile_id",
                 "z_score",
                 "enrichment_score",
                 "p_value",
@@ -314,7 +352,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             _apply_q_values(
                 statistics_table=statistics_table,
                 q_value_matrix=q_value_matrix,
-                condition_index=condition_index,
+                profile_index=profile_index,
             )
 
         target_counts = _build_target_counts(
@@ -326,7 +364,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
         summary = ActivityMethodSummary(
             kinases_evaluated=int(len(kinase_index)),
             kinase_condition_pairs_evaluated=int(
-                len(kinase_index) * len(condition_index)
+                len(kinase_index) * len(profile_index)
             ),
             kinase_condition_pairs_computed=counts[SSGSEA_STATUS_COMPUTED],
             kinase_condition_pairs_insufficient_substrates=counts[
@@ -375,6 +413,8 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             method_diagnostics=diagnostics,
             policy_provenance=(policy,),
             activity_method=SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
+            input_semantics=activity_input.semantics,
+            profile_metadata=activity_input.profile_metadata,
         )
 
 
@@ -545,13 +585,13 @@ def _permutation_p_value(
 def _make_ssgsea_permutation_rng(
     *,
     random_seed: int,
-    condition_name: str,
+    profile_id: str,
     kinase_name: str,
 ) -> np.random.Generator:
     return np.random.default_rng(
         _derive_ssgsea_permutation_seed(
             random_seed=int(random_seed),
-            condition_name=str(condition_name),
+            profile_id=str(profile_id),
             kinase_name=str(kinase_name),
         )
     )
@@ -560,14 +600,22 @@ def _make_ssgsea_permutation_rng(
 def _derive_ssgsea_permutation_seed(
     *,
     random_seed: int,
-    condition_name: str,
+    profile_id: str | None = None,
+    condition_name: str | None = None,
     kinase_name: str,
 ) -> int:
+    resolved_profile_id = (
+        str(profile_id)
+        if profile_id is not None
+        else ""
+        if condition_name is None
+        else str(condition_name)
+    )
     seed_material = {
-        "condition": str(condition_name),
         "kinase": str(kinase_name),
         "method_id": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD.activity_method_id,
         "method_version": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
+        "profile_id": resolved_profile_id,
         "random_seed": int(random_seed),
         "seed_policy": SSGSEA_PERMUTATION_RNG_SEED_POLICY,
         "seed_policy_version": SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
@@ -589,31 +637,31 @@ def _apply_q_values(
     *,
     statistics_table: pd.DataFrame,
     q_value_matrix: pd.DataFrame,
-    condition_index: pd.Index,
+    profile_index: pd.Index,
 ) -> None:
-    for condition_name in condition_index:
-        condition_mask = statistics_table.loc[:, "condition"].astype(str) == str(
-            condition_name
+    for profile_id in profile_index:
+        profile_mask = statistics_table.loc[:, "profile_id"].astype(str) == str(
+            profile_id
         )
         computed_mask = (
             statistics_table.loc[:, "computability_status"] == SSGSEA_STATUS_COMPUTED
         )
-        selected = condition_mask & computed_mask
+        selected = profile_mask & computed_mask
         if not bool(selected.any()):
             continue
-        condition_p_values = statistics_table.loc[selected, "p_value"].astype(float)
-        q_values = benjamini_hochberg_q_values(condition_p_values)
+        profile_p_values = statistics_table.loc[selected, "p_value"].astype(float)
+        q_values = benjamini_hochberg_q_values(profile_p_values)
         statistics_table.loc[selected, "q_value"] = q_values.to_numpy(
             dtype=float,
             copy=False,
         )
-        condition_rows = statistics_table.loc[selected, "kinase"].astype(str)
+        profile_rows = statistics_table.loc[selected, "kinase"].astype(str)
         for kinase_name, q_value in zip(
-            condition_rows.tolist(),
+            profile_rows.tolist(),
             q_values.to_numpy(dtype=float, copy=False).tolist(),
             strict=True,
         ):
-            q_value_matrix.at[str(kinase_name), str(condition_name)] = float(q_value)
+            q_value_matrix.at[str(kinase_name), str(profile_id)] = float(q_value)
 
 
 def _build_target_counts(
