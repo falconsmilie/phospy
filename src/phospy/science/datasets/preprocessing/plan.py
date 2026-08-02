@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass
-from typing import cast
+from dataclasses import dataclass, fields
+from typing import Any
 
 import pandas as pd
 
@@ -12,7 +11,6 @@ from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.configs.dataset import DatasetPreprocessingConfig
 from phospy.science.configs.preprocessing import (
-    DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
@@ -23,24 +21,57 @@ from phospy.science.configs.preprocessing import (
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
-    SPS_RUV_BATCH_CORRECTION_METHODS,
     CorrectionMissingnessPolicy,
-    DatasetBatchCorrectionConfig,
     DatasetComparisonPair,
     DatasetProteinAwarePreparationMappingPolicy,
     DatasetProteinAwarePreparationPolicy,
-    DatasetSiteSequenceConflictPolicy,
     DatasetTotalProteinCorrectionDuplicatePolicy,
     DatasetTotalProteinCorrectionIdentityConfig,
     DatasetTotalProteinCorrectionIdentityMode,
     DatasetTotalProteinCorrectionUnmatchedPolicy,
     InternalBatchCorrectionRequest,
-    SpsRuvBatchCorrectionConfig,
 )
 from phospy.science.configs.preprocessing._validation import (
-    reject_unsupported_ruv_iii_style_method,
-    validate_group_coverage_filter_config,
     validate_protein_aware_preparation_config,
+)
+from phospy.science.datasets.preprocessing.plan_config_resolution import (
+    PreprocessingConfigPolicyResolver,
+    resolve_site_sequence_resolution_conflict_policy,
+)
+from phospy.science.datasets.preprocessing.plan_constants import (
+    DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+    DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_LOCALISATION,
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT,
+    DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION,
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
+)
+from phospy.science.datasets.preprocessing.plan_rules import (
+    PreprocessingBatchCorrectionPlanRuleFamily,
+    PreprocessingCorePlanPolicyRuleFamily,
+    PreprocessingDownstreamPlanPolicyRuleFamily,
+    PreprocessingGroupCoveragePlanRuleFamily,
+    PreprocessingLocalisationPlanRuleFamily,
+)
+from phospy.science.datasets.preprocessing.plan_stage_order import (
+    PreprocessingStageOrderPlanner,
+    PreprocessingStageOrderResolution,
+    PreprocessingStageOrderValidator,
+    normalize_stage_order_resolution,
+    reject_external_corrected_output_after_downstream_preprocessing,
 )
 from phospy.science.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
@@ -56,172 +87,6 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
-
-_UNSUPPORTED_BATCH_CORRECTION_METHOD_RUV_III_STYLE = "ruv_iii_style"
-
-DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
-
-DATASET_PREPROCESSING_STAGE_LOCALISATION = "localisation_confidence"
-
-DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION = "site_sequence_resolution"
-
-DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
-
-DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION = "protein_aware_preparation"
-
-DATASET_PREPROCESSING_STAGE_SITE_MATRIX = "site_matrix"
-
-DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
-
-DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER = "group_coverage_filter"
-
-DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION = "batch_correction"
-
-DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
-
-DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
-
-DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (
-    DATASET_PREPROCESSING_STAGE_LOCALISATION,
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-)
-
-PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM = (
-    "impute_minprob requires log2 intensity space, so intensity_transform runs "
-    "before missing_data."
-)
-
-PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA = (
-    "impute_minprob is applied after log2 transformation because its left-censored "
-    "sampling model operates on log2 intensities."
-)
-
-PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA = (
-    "non-minprob missing-data policies run before optional log2 transformation."
-)
-
-PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM = (
-    "optional log2 transformation runs after non-minprob missing-data handling."
-)
-
-PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER = (
-    "group-aware coverage filtering runs before missing-data handling so it uses "
-    "observed input values."
-)
-
-PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION = (
-    "batch correction runs after any configured intensity transformation and "
-    "before total-protein correction, site-matrix construction, normalisation, "
-    "and comparison building."
-)
-
-PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE = (
-    "stage included because preprocessing configuration enables it."
-)
-
-_BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES = (
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-    DATASET_PREPROCESSING_STAGE_NORMALISATION,
-    DATASET_PREPROCESSING_STAGE_COMPARISONS,
-)
-
-_EXTERNAL_CORRECTION_DOWNSTREAM_MATRIX_CONSUMING_STAGES = frozenset(
-    {
-        *_BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES,
-        "normalization",
-        "differential_analysis_preparation",
-        "kinase_activity_preparation",
-        "enrichment_preparation",
-        "signalome_preparation",
-    }
-)
-
-
-class PreprocessingStageOrderValidator:
-    """Validate scientific preprocessing stage-order constraints."""
-
-    def run(
-        self,
-        *,
-        stage_order: tuple[str, ...],
-        batch_correction_requested: bool,
-    ) -> None:
-        stages = tuple(str(stage).strip() for stage in stage_order)
-        blank_positions = [
-            position for position, stage in enumerate(stages) if stage == ""
-        ]
-        if blank_positions:
-            raise PhosPyInputError(
-                "dataset preprocessing plan stage_order contains blank stage "
-                f"entries at positions {blank_positions}"
-            )
-        duplicates = [
-            stage for stage in dict.fromkeys(stages) if stages.count(stage) > 1
-        ]
-        if duplicates:
-            raise PhosPyInputError(
-                "dataset preprocessing plan stage_order contains duplicate stages: "
-                + ", ".join(repr(stage) for stage in duplicates)
-            )
-        if not batch_correction_requested:
-            return
-        if DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION not in stages:
-            raise PhosPyInputError(
-                "dataset preprocessing plan requests batch correction but "
-                "stage_order does not include 'batch_correction'. Build plans "
-                "from DatasetPreprocessingConfig or include the batch_correction "
-                "stage explicitly."
-            )
-
-        batch_position = stages.index(DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION)
-        if (
-            DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM in stages
-            and batch_position
-            < stages.index(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
-        ):
-            raise PhosPyInputError(
-                "dataset preprocessing plan has unsupported stage_order: "
-                "batch_correction must run after intensity_transform when both "
-                "stages are configured"
-            )
-
-        downstream_before_batch = [
-            stage
-            for stage in _BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES
-            if stage in stages and stages.index(stage) < batch_position
-        ]
-        if downstream_before_batch:
-            raise PhosPyInputError(
-                "dataset preprocessing plan has unsupported stage_order: "
-                "batch_correction cannot run after downstream stages have consumed "
-                "the matrix because that would weaken the analysis-ready dataset "
-                "boundary; downstream stages before batch_correction: "
-                + ", ".join(downstream_before_batch)
-            )
-
-
-def reject_external_corrected_output_after_downstream_preprocessing(
-    stage_order: tuple[str, ...],
-) -> None:
-    """Reject external correction when the plan has downstream matrix consumers."""
-
-    configured = tuple(
-        stage
-        for stage in (str(item).strip() for item in stage_order)
-        if stage in _EXTERNAL_CORRECTION_DOWNSTREAM_MATRIX_CONSUMING_STAGES
-    )
-    if not configured:
-        return
-    raise PhosPyInputError(
-        "external corrected output cannot be integrated after downstream "
-        "preprocessing stages. Configured downstream matrix-consuming "
-        "preprocessing stages: "
-        + ", ".join(configured)
-        + ". Provide the corrected output as the only matrix-changing "
-        "preprocessing input, or use native SpsRuvBatchCorrectionConfig inside "
-        "the preprocessing pipeline."
-    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,13 +118,9 @@ class TotalProteinCorrectionIdentityPolicy:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class PreprocessingStageOrderResolution:
-    """Structured explanation of resolved preprocessing stage order."""
-
-    stage: str
-    order_index: int
-    rationale: str
+def _set_resolved_plan_fields(plan: object, resolved_fields: Any) -> None:
+    for field in fields(resolved_fields):
+        object.__setattr__(plan, field.name, getattr(resolved_fields, field.name))
 
 
 @dataclass(frozen=True, slots=True)
@@ -352,285 +213,62 @@ class PreprocessingPlan:
     stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "intensity_transform_policy",
-            IntensityTransformPolicy.parse(
-                self.intensity_transform_policy,
-                field_name=(
-                    "dataset preprocessing plan intensity_transform_policy "
-                    "(internal model)"
-                ),
+        core = PreprocessingCorePlanPolicyRuleFamily().run(
+            intensity_transform_policy=self.intensity_transform_policy,
+            normalisation_policy=self.normalisation_policy,
+            missing_data_policy=self.missing_data_policy,
+        )
+        _set_resolved_plan_fields(self, core)
+
+        localisation = PreprocessingLocalisationPlanRuleFamily().run(
+            localisation_mode=self.localisation_mode,
+            localisation_min_confidence=self.localisation_min_confidence,
+            localisation_confidence_column=self.localisation_confidence_column,
+            localisation_waiver_reason=self.localisation_waiver_reason,
+        )
+        _set_resolved_plan_fields(self, localisation)
+
+        downstream = PreprocessingDownstreamPlanPolicyRuleFamily().run(
+            site_sequence_resolution_mode=self.site_sequence_resolution_mode,
+            site_sequence_resolution_conflict_policy=(
+                self.site_sequence_resolution_conflict_policy
+            ),
+            site_matrix_policy=self.site_matrix_policy,
+            comparison_building_policy=self.comparison_building_policy,
+            site_matrix_duplicate_site_policy=self.site_matrix_duplicate_site_policy,
+            site_matrix_missing_data_policy=self.site_matrix_missing_data_policy,
+            total_protein_correction_policy=self.total_protein_correction_policy,
+            protein_aware_preparation_policy=self.protein_aware_preparation_policy,
+            protein_aware_preparation_mapping_policy=(
+                self.protein_aware_preparation_mapping_policy
             ),
         )
-        object.__setattr__(
-            self,
-            "normalisation_policy",
-            NormalisationPolicy.parse(
-                self.normalisation_policy,
-                field_name=(
-                    "dataset preprocessing plan normalisation_policy (internal model)"
-                ),
+        _set_resolved_plan_fields(self, downstream)
+
+        batch_correction = PreprocessingBatchCorrectionPlanRuleFamily().run(
+            batch_correction_method=self.batch_correction_method,
+            batch_correction_batch_column=self.batch_correction_batch_column,
+            batch_correction_condition_column=self.batch_correction_condition_column,
+            batch_correction_condition_columns=self.batch_correction_condition_columns,
+            batch_correction_replicate_column=self.batch_correction_replicate_column,
+            batch_correction_control_site_set=self.batch_correction_control_site_set,
+            batch_correction_missingness_policy=(
+                self.batch_correction_missingness_policy
+            ),
+            batch_correction_internal_request=self.batch_correction_internal_request,
+            batch_correction_preserve_condition_effects=(
+                self.batch_correction_preserve_condition_effects
             ),
         )
-        object.__setattr__(
-            self,
-            "missing_data_policy",
-            MissingDataPolicy.parse(
-                self.missing_data_policy,
-                field_name=(
-                    "dataset preprocessing plan missing_data_policy (internal model)"
-                ),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "localisation_mode",
-            LocalisationEligibilityMode.parse(
-                self.localisation_mode,
-                field_name=(
-                    "dataset preprocessing plan localisation_mode (internal model)"
-                ),
-            ),
-        )
-        min_confidence = float(self.localisation_min_confidence)
-        if not math.isfinite(min_confidence) or not (0.0 <= min_confidence <= 1.0):
-            raise PhosPyInputError(
-                "dataset preprocessing plan localisation_min_confidence "
-                "(internal model) must be between 0.0 and 1.0"
-            )
-        object.__setattr__(self, "localisation_min_confidence", min_confidence)
-        confidence_column = str(self.localisation_confidence_column).strip()
-        if confidence_column == "":
-            raise PhosPyInputError(
-                "dataset preprocessing plan localisation_confidence_column "
-                "(internal model) must be a non-empty string"
-            )
-        object.__setattr__(self, "localisation_confidence_column", confidence_column)
-        if (
-            self.localisation_mode
-            is not LocalisationEligibilityMode.ALLOW_MISSING_WITH_WAIVER
-            and self.localisation_waiver_reason is not None
-        ):
-            raise PhosPyInputError(
-                "dataset preprocessing plan localisation_waiver_reason "
-                "(internal model) must be None unless localisation_mode="
-                "'allow_missing_with_waiver'"
-            )
-        if (
-            self.localisation_mode
-            is LocalisationEligibilityMode.ALLOW_MISSING_WITH_WAIVER
-        ):
-            waiver_reason = (
-                ""
-                if self.localisation_waiver_reason is None
-                else self.localisation_waiver_reason
-            ).strip()
-            if waiver_reason == "":
-                raise PhosPyInputError(
-                    "dataset preprocessing plan localisation_waiver_reason "
-                    "(internal model) must be provided when localisation_mode="
-                    "'allow_missing_with_waiver'"
-                )
-            object.__setattr__(self, "localisation_waiver_reason", waiver_reason)
-        object.__setattr__(
-            self,
-            "site_sequence_resolution_mode",
-            SiteSequenceResolutionMode.parse(
-                self.site_sequence_resolution_mode,
-                field_name=(
-                    "dataset preprocessing plan site_sequence_resolution_mode "
-                    "(internal model)"
-                ),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "site_sequence_resolution_conflict_policy",
-            SiteSequenceConflictPolicy.parse(
-                self.site_sequence_resolution_conflict_policy,
-                field_name=(
-                    "dataset preprocessing plan "
-                    "site_sequence_resolution_conflict_policy (internal model)"
-                ),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "site_matrix_policy",
-            SiteMatrixPolicy.parse(
-                self.site_matrix_policy,
-                field_name="dataset preprocessing plan site_matrix_policy (internal model)",
-            ),
-        )
-        object.__setattr__(
-            self,
-            "comparison_building_policy",
-            ComparisonBuildingPolicy.parse(
-                self.comparison_building_policy,
-                field_name=(
-                    "dataset preprocessing plan comparison_building_policy "
-                    "(internal model)"
-                ),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "site_matrix_duplicate_site_policy",
-            SiteMatrixDuplicateSitePolicy.parse(
-                self.site_matrix_duplicate_site_policy,
-                field_name=(
-                    "dataset preprocessing plan site_matrix_duplicate_site_policy "
-                    "(internal model)"
-                ),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "site_matrix_missing_data_policy",
-            SiteMatrixMissingDataPolicy.parse(
-                self.site_matrix_missing_data_policy,
-                field_name=(
-                    "dataset preprocessing plan site_matrix_missing_data_policy "
-                    "(internal model)"
-                ),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "total_protein_correction_policy",
-            TotalProteinCorrectionPolicy.parse(
-                self.total_protein_correction_policy,
-                field_name=(
-                    "dataset preprocessing plan total_protein_correction_policy "
-                    "(internal model)"
-                ),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "protein_aware_preparation_policy",
-            cast(
-                DatasetProteinAwarePreparationPolicy,
-                str(self.protein_aware_preparation_policy).strip(),
-            ),
-        )
-        object.__setattr__(
-            self,
-            "protein_aware_preparation_mapping_policy",
-            cast(
-                DatasetProteinAwarePreparationMappingPolicy,
-                str(self.protein_aware_preparation_mapping_policy).strip(),
-            ),
-        )
-        batch_correction_method = str(self.batch_correction_method).strip()
-        if not batch_correction_method:
-            batch_correction_method = DATASET_BATCH_CORRECTION_METHOD_NONE
-        if (
-            batch_correction_method
-            == _UNSUPPORTED_BATCH_CORRECTION_METHOD_RUV_III_STYLE
-        ):
-            reject_unsupported_ruv_iii_style_method(
-                batch_correction_method,
-                field_name=(
-                    "dataset preprocessing plan batch_correction_method "
-                    "(internal model)"
-                ),
-            )
-        if (
-            batch_correction_method
-            not in {
-                DATASET_BATCH_CORRECTION_METHOD_NONE,
-                DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
-            }
-            and batch_correction_method not in SPS_RUV_BATCH_CORRECTION_METHODS
-        ):
-            raise PhosPyInputError(
-                "dataset preprocessing plan batch_correction_method "
-                "(internal model) must be one of: none, "
-                "linear_residualize_batch, sps_ruv_style"
-            )
-        object.__setattr__(
-            self,
-            "batch_correction_method",
-            batch_correction_method,
-        )
-        batch_column = str(self.batch_correction_batch_column).strip()
-        condition_column = str(self.batch_correction_condition_column).strip()
-        if batch_column == "":
-            raise PhosPyInputError(
-                "dataset preprocessing plan batch_correction_batch_column "
-                "(internal model) must be a non-empty string"
-            )
-        if condition_column == "":
-            raise PhosPyInputError(
-                "dataset preprocessing plan batch_correction_condition_column "
-                "(internal model) must be a non-empty string"
-            )
-        object.__setattr__(self, "batch_correction_batch_column", batch_column)
-        object.__setattr__(self, "batch_correction_condition_column", condition_column)
-        condition_columns = tuple(
-            str(column).strip() for column in self.batch_correction_condition_columns
-        )
-        if not condition_columns or any(column == "" for column in condition_columns):
-            raise PhosPyInputError(
-                "dataset preprocessing plan batch_correction_condition_columns "
-                "(internal model) must be a non-empty tuple of non-empty strings"
-            )
-        if len(set(condition_columns)) != len(condition_columns):
-            raise PhosPyInputError(
-                "dataset preprocessing plan batch_correction_condition_columns "
-                "(internal model) must not contain duplicates"
-            )
-        object.__setattr__(
-            self,
-            "batch_correction_condition_columns",
-            condition_columns,
-        )
-        if self.batch_correction_replicate_column is not None:
-            replicate_column = str(self.batch_correction_replicate_column).strip()
-            if replicate_column == "":
-                raise PhosPyInputError(
-                    "dataset preprocessing plan batch_correction_replicate_column "
-                    "(internal model) must be a non-empty string when provided"
-                )
-            object.__setattr__(
-                self,
-                "batch_correction_replicate_column",
-                replicate_column,
-            )
-        if batch_correction_method in SPS_RUV_BATCH_CORRECTION_METHODS:
-            if self.batch_correction_internal_request is None:
-                raise PhosPyInputError(
-                    "dataset preprocessing plan SPS/RUV-style batch correction "
-                    "requires batch_correction_internal_request"
-                )
-            if self.batch_correction_control_site_set is None:
-                raise PhosPyInputError(
-                    "dataset preprocessing plan SPS/RUV-style batch correction "
-                    "requires batch_correction_control_site_set"
-                )
-            if self.batch_correction_missingness_policy is None:
-                raise PhosPyInputError(
-                    "dataset preprocessing plan SPS/RUV-style batch correction "
-                    "requires batch_correction_missingness_policy"
-                )
-        if (
-            batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
-            and self.batch_correction_preserve_condition_effects is not True
-        ):
-            raise PhosPyInputError(
-                "dataset preprocessing plan "
-                "batch_correction_preserve_condition_effects (internal model) "
-                "must be True for linear_residualize_batch"
-            )
+        _set_resolved_plan_fields(self, batch_correction)
         PreprocessingStageOrderValidator().run(
             stage_order=self.stage_order,
             batch_correction_requested=(
-                batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
+                batch_correction.batch_correction_method
+                != DATASET_BATCH_CORRECTION_METHOD_NONE
             ),
         )
-        validate_group_coverage_filter_config(
+        PreprocessingGroupCoveragePlanRuleFamily().run(
             enabled=self.group_coverage_filter_enabled,
             group_column=self.group_coverage_filter_group_column,
             min_finite_observations_per_group=(
@@ -642,23 +280,12 @@ class PreprocessingPlan:
             min_groups_passing_threshold=(
                 self.group_coverage_filter_min_groups_passing_threshold
             ),
+            stage_order=self.stage_order,
         )
-        if (
-            self.group_coverage_filter_enabled
-            and DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER
-            not in self.stage_order
-        ):
-            raise PhosPyInputError(
-                "dataset preprocessing plan requests group-aware coverage "
-                "filtering but stage_order does not include "
-                "'group_coverage_filter'. Build plans from "
-                "DatasetPreprocessingConfig or include the group_coverage_filter "
-                "stage explicitly."
-            )
         object.__setattr__(
             self,
             "stage_order_resolution",
-            _normalize_stage_order_resolution(
+            normalize_stage_order_resolution(
                 stage_order=self.stage_order,
                 stage_order_resolution=self.stage_order_resolution,
             ),
@@ -695,147 +322,28 @@ class PreprocessingPlanInterpreter:
             ),
         )
 
-        stage_order: list[str] = []
-        stage_order_resolution: list[PreprocessingStageOrderResolution] = []
-
-        def _append_stage(stage: str, *, rationale: str) -> None:
-            stage_order.append(stage)
-            stage_order_resolution.append(
-                PreprocessingStageOrderResolution(
-                    stage=stage,
-                    order_index=len(stage_order) - 1,
-                    rationale=rationale,
-                )
-            )
-
-        site_sequence_resolution_enabled = (
-            config.site_sequence_resolution.fasta_path is not None
+        policies = PreprocessingConfigPolicyResolver().run(config)
+        stage_plan = PreprocessingStageOrderPlanner().run(
+            site_sequence_resolution_enabled=(
+                policies.site_sequence_resolution_enabled
+            ),
+            intensity_transform_policy=policies.intensity_transform_policy,
+            normalisation_policy=policies.normalisation_policy,
+            site_matrix_policy=policies.site_matrix_policy,
+            comparison_building_policy=policies.comparison_building_policy,
+            localisation_mode=policies.localisation_mode,
+            missing_data_policy=policies.missing_data_policy,
+            batch_correction_method=policies.batch_correction_method,
+            total_correction_policy=policies.total_correction_policy,
+            group_coverage_filter_enabled=bool(config.group_coverage_filter.enabled),
         )
-        intensity_transform_policy = IntensityTransformPolicy.parse(
-            config.intensity_transform.policy,
-            field_name="preprocessing_config.intensity_transform.policy",
-        )
-        normalisation_policy = NormalisationPolicy.parse(
-            config.normalisation.policy,
-            field_name="preprocessing_config.normalisation.policy",
-        )
-        site_matrix_policy = SiteMatrixPolicy.parse(
-            config.site_matrix.policy,
-            field_name="preprocessing_config.site_matrix.policy",
-        )
-        site_matrix_duplicate_site_policy = SiteMatrixDuplicateSitePolicy.parse(
-            config.site_matrix.duplicate_site_policy,
-            field_name="preprocessing_config.site_matrix.duplicate_site_policy",
-        )
-        site_matrix_missing_data_policy = SiteMatrixMissingDataPolicy.parse(
-            config.site_matrix.missing_data_policy,
-            field_name="preprocessing_config.site_matrix.missing_data_policy",
-        )
-        comparison_building_policy = ComparisonBuildingPolicy.parse(
-            config.comparisons.policy,
-            field_name="preprocessing_config.comparisons.policy",
-        )
-        site_sequence_resolution_mode = SiteSequenceResolutionMode.parse(
-            config.site_sequence_resolution.mode,
-            field_name="preprocessing_config.site_sequence_resolution.mode",
-        )
-        if site_sequence_resolution_enabled:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-            )
-        localisation_mode = LocalisationEligibilityMode.parse(
-            config.localisation.mode,
-            field_name="preprocessing_config.localisation.mode",
-        )
-        if localisation_mode is not LocalisationEligibilityMode.IGNORE:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_LOCALISATION,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-            )
-        missing_data_policy = MissingDataPolicy.parse(
-            config.missing_data.policy,
-            field_name="preprocessing_config.missing_data.policy",
-        )
-        batch_correction_method = str(config.batch_correction.method).strip()
-        batch_correction_condition_column = _resolve_batch_condition_column(config)
-        batch_correction_condition_columns = _resolve_batch_condition_columns(config)
-        batch_correction_internal_request = _resolve_batch_internal_request(config)
-        batch_correction_control_site_set = _resolve_batch_control_site_set(config)
-        batch_correction_missingness_policy = _resolve_batch_missingness_policy(config)
-        batch_correction_replicate_column = _resolve_batch_replicate_column(config)
-        total_correction_policy = TotalProteinCorrectionPolicy.parse(
-            config.total_protein_correction.policy,
-            field_name="preprocessing_config.total_protein_correction.policy",
-        )
-        if config.group_coverage_filter.enabled:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER,
-            )
-        if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
-            if intensity_transform_policy is not IntensityTransformPolicy.LOG2:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.missing_data.policy="
-                    "'impute_minprob' requires "
-                    "preprocessing_config.intensity_transform.policy='log2'. "
-                    "Set intensity_transform.policy='log2' or choose a different "
-                    "missing_data policy."
-                )
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
-                rationale=(
-                    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM
-                ),
-            )
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
-            )
-        else:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
-            )
-            if intensity_transform_policy is not IntensityTransformPolicy.IDENTITY:
-                _append_stage(
-                    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
-                    rationale=(
-                        PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM
-                    ),
-                )
-        if batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION,
-            )
-        if total_correction_policy is not TotalProteinCorrectionPolicy.NONE:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-            )
-        if site_matrix_policy is not SiteMatrixPolicy.AS_INPUT:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-            )
-        if normalisation_policy is not NormalisationPolicy.NONE:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_NORMALISATION,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-            )
-        if comparison_building_policy is not ComparisonBuildingPolicy.NONE:
-            _append_stage(
-                DATASET_PREPROCESSING_STAGE_COMPARISONS,
-                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-            )
         return self._plan_type(
-            intensity_transform_policy=intensity_transform_policy,
+            intensity_transform_policy=policies.intensity_transform_policy,
             intensity_transform_pseudocount=float(
                 config.intensity_transform.pseudocount
             ),
-            normalisation_policy=normalisation_policy,
-            missing_data_policy=missing_data_policy,
+            normalisation_policy=policies.normalisation_policy,
+            missing_data_policy=policies.missing_data_policy,
             missing_data_min_observed_values=config.missing_data.min_observed_values,
             missing_data_q=(
                 None if config.missing_data.q is None else float(config.missing_data.q)
@@ -853,7 +361,7 @@ class PreprocessingPlanInterpreter:
                 if config.missing_data.max_missing_fraction_per_row is None
                 else float(config.missing_data.max_missing_fraction_per_row)
             ),
-            localisation_mode=localisation_mode,
+            localisation_mode=policies.localisation_mode,
             localisation_min_confidence=float(config.localisation.min_confidence),
             localisation_confidence_column=str(
                 config.localisation.confidence_column
@@ -863,14 +371,16 @@ class PreprocessingPlanInterpreter:
                 if config.localisation.waiver_reason is None
                 else str(config.localisation.waiver_reason).strip()
             ),
-            site_sequence_resolution_enabled=site_sequence_resolution_enabled,
+            site_sequence_resolution_enabled=(
+                policies.site_sequence_resolution_enabled
+            ),
             site_sequence_resolution_fasta_path=(
                 config.site_sequence_resolution.fasta_path
             ),
-            site_sequence_resolution_mode=site_sequence_resolution_mode,
+            site_sequence_resolution_mode=policies.site_sequence_resolution_mode,
             site_sequence_resolution_conflict_policy=(
-                _resolve_site_sequence_resolution_conflict_policy(
-                    mode=site_sequence_resolution_mode,
+                resolve_site_sequence_resolution_conflict_policy(
+                    mode=policies.site_sequence_resolution_mode,
                     conflict_policy=config.site_sequence_resolution.conflict_policy,
                 )
             ),
@@ -898,7 +408,7 @@ class PreprocessingPlanInterpreter:
             group_coverage_filter_min_groups_passing_threshold=(
                 config.group_coverage_filter.min_groups_passing_threshold
             ),
-            total_protein_correction_policy=total_correction_policy,
+            total_protein_correction_policy=policies.total_correction_policy,
             total_protein_correction_identity_policy=(
                 _resolve_total_correction_identity_policy(
                     config.total_protein_correction.identity
@@ -908,13 +418,15 @@ class PreprocessingPlanInterpreter:
             protein_aware_preparation_mapping_policy=(
                 config.protein_aware_preparation.protein_mapping_policy
             ),
-            site_matrix_policy=site_matrix_policy,
-            site_matrix_duplicate_site_policy=site_matrix_duplicate_site_policy,
-            site_matrix_missing_data_policy=site_matrix_missing_data_policy,
+            site_matrix_policy=policies.site_matrix_policy,
+            site_matrix_duplicate_site_policy=(
+                policies.site_matrix_duplicate_site_policy
+            ),
+            site_matrix_missing_data_policy=policies.site_matrix_missing_data_policy,
             site_matrix_minimum_observed_values=(
                 config.site_matrix.minimum_observed_values
             ),
-            comparison_building_policy=comparison_building_policy,
+            comparison_building_policy=policies.comparison_building_policy,
             comparison_sample_group_column=config.comparisons.sample_group_column,
             comparison_pairs=(
                 None
@@ -929,19 +441,31 @@ class PreprocessingPlanInterpreter:
                 config.ruv_readiness.replicate_group_column
             ),
             ruv_readiness_batch_column=config.ruv_readiness.batch_column,
-            batch_correction_method=batch_correction_method,
+            batch_correction_method=policies.batch_correction_method,
             batch_correction_batch_column=config.batch_correction.batch_column,
-            batch_correction_condition_column=batch_correction_condition_column,
-            batch_correction_condition_columns=batch_correction_condition_columns,
-            batch_correction_replicate_column=batch_correction_replicate_column,
-            batch_correction_control_site_set=batch_correction_control_site_set,
-            batch_correction_missingness_policy=batch_correction_missingness_policy,
-            batch_correction_internal_request=batch_correction_internal_request,
-            batch_correction_preserve_condition_effects=(
-                _resolve_batch_preserve_condition_effects(config)
+            batch_correction_condition_column=(
+                policies.batch_correction_condition_column
             ),
-            stage_order=tuple(stage_order),
-            stage_order_resolution=tuple(stage_order_resolution),
+            batch_correction_condition_columns=(
+                policies.batch_correction_condition_columns
+            ),
+            batch_correction_replicate_column=(
+                policies.batch_correction_replicate_column
+            ),
+            batch_correction_control_site_set=(
+                policies.batch_correction_control_site_set
+            ),
+            batch_correction_missingness_policy=(
+                policies.batch_correction_missingness_policy
+            ),
+            batch_correction_internal_request=(
+                policies.batch_correction_internal_request
+            ),
+            batch_correction_preserve_condition_effects=(
+                policies.batch_correction_preserve_condition_effects
+            ),
+            stage_order=stage_plan.stage_order,
+            stage_order_resolution=stage_plan.stage_order_resolution,
         )
 
 
@@ -1046,118 +570,30 @@ def _resolve_total_correction_identity_policy(
     )
 
 
-def _resolve_site_sequence_resolution_conflict_policy(
-    *,
-    mode: SiteSequenceResolutionMode,
-    conflict_policy: DatasetSiteSequenceConflictPolicy | None,
-) -> SiteSequenceConflictPolicy:
-    if conflict_policy is not None:
-        return SiteSequenceConflictPolicy.parse(
-            conflict_policy,
-            field_name="preprocessing_config.site_sequence_resolution.conflict_policy",
-        )
-    if mode is SiteSequenceResolutionMode.REPLACE_EXISTING:
-        return SiteSequenceConflictPolicy.REPLACE_EXISTING
-    return SiteSequenceConflictPolicy.PRESERVE_EXISTING
-
-
-def _sps_ruv_config(
-    config: DatasetPreprocessingConfig,
-) -> SpsRuvBatchCorrectionConfig | None:
-    batch_correction = config.batch_correction
-    if isinstance(batch_correction, SpsRuvBatchCorrectionConfig):
-        return batch_correction
-    return None
-
-
-def _resolve_batch_condition_column(config: DatasetPreprocessingConfig) -> str:
-    sps_config = _sps_ruv_config(config)
-    if sps_config is not None:
-        return sps_config.condition_columns[0]
-    batch_correction = cast(DatasetBatchCorrectionConfig, config.batch_correction)
-    return batch_correction.condition_column
-
-
-def _resolve_batch_condition_columns(
-    config: DatasetPreprocessingConfig,
-) -> tuple[str, ...]:
-    sps_config = _sps_ruv_config(config)
-    if sps_config is not None:
-        return sps_config.condition_columns
-    batch_correction = cast(DatasetBatchCorrectionConfig, config.batch_correction)
-    return (batch_correction.condition_column,)
-
-
-def _resolve_batch_replicate_column(config: DatasetPreprocessingConfig) -> str | None:
-    sps_config = _sps_ruv_config(config)
-    if sps_config is not None:
-        return sps_config.replicate_column
-    return None
-
-
-def _resolve_batch_internal_request(
-    config: DatasetPreprocessingConfig,
-) -> InternalBatchCorrectionRequest | None:
-    sps_config = _sps_ruv_config(config)
-    if sps_config is not None:
-        return sps_config.to_internal_request()
-    return None
-
-
-def _resolve_batch_control_site_set(
-    config: DatasetPreprocessingConfig,
-) -> object | None:
-    sps_config = _sps_ruv_config(config)
-    if sps_config is not None:
-        return sps_config.control_site_set
-    return None
-
-
-def _resolve_batch_missingness_policy(
-    config: DatasetPreprocessingConfig,
-) -> CorrectionMissingnessPolicy | None:
-    sps_config = _sps_ruv_config(config)
-    if sps_config is not None:
-        return sps_config.missingness_policy
-    return None
-
-
-def _resolve_batch_preserve_condition_effects(
-    config: DatasetPreprocessingConfig,
-) -> bool:
-    if _sps_ruv_config(config) is not None:
-        return True
-    batch_correction = cast(DatasetBatchCorrectionConfig, config.batch_correction)
-    return cast(bool, batch_correction.preserve_condition_effects)
-
-
-def _normalize_stage_order_resolution(
-    *,
-    stage_order: tuple[str, ...],
-    stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...],
-) -> tuple[PreprocessingStageOrderResolution, ...]:
-    if not stage_order:
-        return ()
-    if (
-        len(stage_order_resolution) == len(stage_order)
-        and tuple(item.stage for item in stage_order_resolution) == stage_order
-    ):
-        return tuple(
-            PreprocessingStageOrderResolution(
-                stage=stage,
-                order_index=index,
-                rationale=(
-                    str(stage_order_resolution[index].rationale).strip()
-                    or PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE
-                ),
-            )
-            for index, stage in enumerate(stage_order)
-        )
-    return tuple(
-        PreprocessingStageOrderResolution(
-            stage=stage,
-            order_index=index,
-            rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-        )
-        for index, stage in enumerate(stage_order)
-    )
+__all__ = [
+    "DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION",
+    "DATASET_PREPROCESSING_STAGE_COMPARISONS",
+    "DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER",
+    "DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM",
+    "DATASET_PREPROCESSING_STAGE_LOCALISATION",
+    "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
+    "DATASET_PREPROCESSING_STAGE_NORMALISATION",
+    "DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT",
+    "DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION",
+    "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
+    "DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION",
+    "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA",
+    "PreprocessingPlan",
+    "PreprocessingPlanInterpreter",
+    "PreprocessingStageOrderResolution",
+    "PreprocessingStageOrderValidator",
+    "TotalProteinCorrectionIdentityPolicy",
+    "reject_external_corrected_output_after_downstream_preprocessing",
+]

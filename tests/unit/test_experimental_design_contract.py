@@ -16,8 +16,19 @@ from phospy.api import (
 )
 from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.errors import ContractValidationError, WorkflowValidationError
+from phospy.science.design.matrix_builder import DesignMatrixBuilder
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
+)
+from phospy.validation.workflows.differential_design_rules import (
+    ContrastFrameBuilder,
+    ExperimentalDesignConditionReplicateValidator,
+    ExperimentalDesignContrastSetValidator,
+    ExperimentalDesignFixedEffectValidator,
+    ExperimentalDesignInputValidator,
+    ExperimentalDesignSampleAlignmentValidator,
+    FixedBlockDesignValidator,
+    ResolvedDifferentialDesignMatrixValidator,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -519,6 +530,142 @@ def test_differential_block_fixed_block_rejects_silent_sample_drop() -> None:
             minimum_condition_replicates=1,
             paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
         )
+
+
+def test_experimental_design_validator_composes_rule_families_in_order() -> None:
+    calls: list[str] = []
+
+    class Recorder:
+        def __init__(self, name: str, delegate: object) -> None:
+            self._name = name
+            self._delegate = delegate
+
+        def run(self, *args: object, **kwargs: object) -> object:
+            calls.append(self._name)
+            return self._delegate.run(*args, **kwargs)  # type: ignore[attr-defined]
+
+    validated = ExperimentalDesignContractValidator(
+        input_validator=Recorder("input", ExperimentalDesignInputValidator()),  # type: ignore[arg-type]
+        contrast_validator=Recorder(
+            "contrast",
+            ExperimentalDesignContrastSetValidator(),
+        ),  # type: ignore[arg-type]
+        sample_alignment_validator=Recorder(
+            "sample_alignment",
+            ExperimentalDesignSampleAlignmentValidator(),
+        ),  # type: ignore[arg-type]
+        fixed_effect_validator=Recorder(
+            "fixed_effect",
+            ExperimentalDesignFixedEffectValidator(),
+        ),  # type: ignore[arg-type]
+        condition_replicate_validator=Recorder(
+            "condition_replicate",
+            ExperimentalDesignConditionReplicateValidator(),
+        ),  # type: ignore[arg-type]
+        fixed_block_validator=Recorder(
+            "fixed_block",
+            FixedBlockDesignValidator(),
+        ),  # type: ignore[arg-type]
+        design_matrix_builder=Recorder(
+            "design_matrix",
+            DesignMatrixBuilder(),
+        ),  # type: ignore[arg-type]
+        contrast_frame_builder=Recorder(
+            "contrast_frame",
+            ContrastFrameBuilder(),
+        ),  # type: ignore[arg-type]
+        resolved_design_validator=Recorder(
+            "resolved_design",
+            ResolvedDifferentialDesignMatrixValidator(),
+        ),  # type: ignore[arg-type]
+    ).run(
+        dataset=_dataset(),
+        design=_paired_block_design(),
+        contrasts=_contrasts(),
+        allow_design_subset=False,
+        minimum_condition_replicates=2,
+        paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    )
+
+    assert validated.design_frame.columns.tolist() == ["A", "B", "block[pair_2]"]
+    assert calls == [
+        "input",
+        "contrast",
+        "sample_alignment",
+        "fixed_effect",
+        "condition_replicate",
+        "fixed_block",
+        "design_matrix",
+        "contrast_frame",
+        "resolved_design",
+    ]
+
+
+def test_experimental_design_rule_components_return_structured_findings() -> None:
+    alignment = ExperimentalDesignSampleAlignmentValidator().run(
+        dataset=_dataset(),
+        design=_design(),
+        allow_design_subset=False,
+        fixed_block_requested=False,
+    )
+    fixed_block = FixedBlockDesignValidator().run(
+        records=_paired_block_design().samples,
+        contrasts=_contrasts(),
+    )
+
+    assert alignment.dataset_sample_ids == ("A_1", "A_2", "B_1", "B_2")
+    assert alignment.design_sample_ids == ("A_1", "A_2", "B_1", "B_2")
+    assert alignment.missing_samples == ()
+    assert alignment.extra_samples == ()
+    assert fixed_block.block_ids == ("pair_1", "pair_2")
+
+
+def test_experimental_design_contrast_component_rejects_duplicate_names() -> None:
+    duplicate_contrasts = (
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A",
+        ),
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A",
+        ),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="experimental design contains duplicate contrast names: B_vs_A",
+    ):
+        ExperimentalDesignContrastSetValidator().run(duplicate_contrasts)
+
+
+def test_experimental_design_validation_error_ordering_golden() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A"),
+            SampleDesignRecord(sample_id="B_1", condition="B"),
+            SampleDesignRecord(sample_id="extra", condition="B"),
+        )
+    )
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+    assert str(exc_info.value) == (
+        "experimental design includes block_id values while "
+        "differential.paired_design_policy='reject'. Set "
+        "differential.paired_design_policy='fixed_block' to request fixed-block "
+        "validation and execution. Samples with block_id: A_1"
+    )
 
 
 def test_contract_rejects_undeclared_covariate_values() -> None:

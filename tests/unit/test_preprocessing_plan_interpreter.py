@@ -20,6 +20,23 @@ from phospy.science.datasets.preprocessing.models import (
 from phospy.science.datasets.preprocessing.plan_interpreter import (
     PreprocessingPlanInterpreter,
 )
+from phospy.science.datasets.preprocessing.plan_rules import (
+    PreprocessingBatchCorrectionPlanRuleFamily,
+    PreprocessingGroupCoveragePlanRuleFamily,
+    PreprocessingLocalisationPlanRuleFamily,
+)
+from phospy.science.datasets.preprocessing.plan_stage_order import (
+    PreprocessingStageOrderPlanner,
+)
+from phospy.science.datasets.preprocessing.policy_models import (
+    ComparisonBuildingPolicy,
+    IntensityTransformPolicy,
+    LocalisationEligibilityMode,
+    MissingDataPolicy,
+    NormalisationPolicy,
+    SiteMatrixPolicy,
+    TotalProteinCorrectionPolicy,
+)
 
 
 def test_preprocessing_plan_interpreter_builds_default_plan() -> None:
@@ -149,3 +166,81 @@ def test_preprocessing_plan_from_config_remains_compatibility_wrapper() -> None:
     assert PreprocessingPlan.from_config(config) == PreprocessingPlanInterpreter().run(
         config
     )
+
+
+def test_preprocessing_stage_order_planner_returns_structured_findings() -> None:
+    stage_plan = PreprocessingStageOrderPlanner().run(
+        site_sequence_resolution_enabled=False,
+        intensity_transform_policy=IntensityTransformPolicy.LOG2,
+        normalisation_policy=NormalisationPolicy.MEDIAN_CENTER,
+        site_matrix_policy=SiteMatrixPolicy.BUILD_FROM_METADATA,
+        comparison_building_policy=ComparisonBuildingPolicy.NONE,
+        localisation_mode=LocalisationEligibilityMode.REQUIRE_THRESHOLD,
+        missing_data_policy=MissingDataPolicy.IMPUTE_ROW_MEDIAN,
+        batch_correction_method="linear_residualize_batch",
+        total_correction_policy=TotalProteinCorrectionPolicy.NONE,
+        group_coverage_filter_enabled=True,
+    )
+
+    assert stage_plan.stage_order == (
+        "localisation_confidence",
+        "group_coverage_filter",
+        "missing_data",
+        "intensity_transform",
+        "batch_correction",
+        "site_matrix",
+        "normalisation",
+    )
+    assert [row.order_index for row in stage_plan.stage_order_resolution] == list(
+        range(len(stage_plan.stage_order))
+    )
+    assert stage_plan.stage_order_resolution[1].rationale.startswith("group-aware")
+
+
+def test_preprocessing_localisation_rule_family_normalises_waiver() -> None:
+    resolved = PreprocessingLocalisationPlanRuleFamily().run(
+        localisation_mode=LocalisationEligibilityMode.ALLOW_MISSING_WITH_WAIVER,
+        localisation_min_confidence=0.75,
+        localisation_confidence_column=" localisation_confidence ",
+        localisation_waiver_reason=" documented import limitation ",
+    )
+
+    assert (
+        resolved.localisation_mode
+        is LocalisationEligibilityMode.ALLOW_MISSING_WITH_WAIVER
+    )
+    assert resolved.localisation_confidence_column == "localisation_confidence"
+    assert resolved.localisation_waiver_reason == "documented import limitation"
+
+
+def test_preprocessing_batch_rule_family_rejects_duplicate_condition_columns() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="batch_correction_condition_columns .* must not contain duplicates",
+    ):
+        PreprocessingBatchCorrectionPlanRuleFamily().run(
+            batch_correction_method="linear_residualize_batch",
+            batch_correction_batch_column="batch",
+            batch_correction_condition_column="condition",
+            batch_correction_condition_columns=("condition", "condition"),
+            batch_correction_replicate_column=None,
+            batch_correction_control_site_set=None,
+            batch_correction_missingness_policy=None,
+            batch_correction_internal_request=None,
+            batch_correction_preserve_condition_effects=True,
+        )
+
+
+def test_preprocessing_group_coverage_rule_family_rejects_missing_stage() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="stage_order does not include 'group_coverage_filter'",
+    ):
+        PreprocessingGroupCoveragePlanRuleFamily().run(
+            enabled=True,
+            group_column="condition",
+            min_finite_observations_per_group=1,
+            min_finite_fraction_per_group=None,
+            min_groups_passing_threshold=1,
+            stage_order=("missing_data",),
+        )
