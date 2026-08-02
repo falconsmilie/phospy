@@ -16,6 +16,9 @@ from phospy.provenance.derived_quantitative import (
 from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.immutability import thaw_json_value
 from phospy.provenance.models import RunProvenance, TableFingerprint
+from phospy.science.datasets.construction.service import (
+    _AnalysisReadyDatasetConstructionService,
+)
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.references.models import Organism
@@ -226,22 +229,25 @@ class DerivedAnalysisReadyPhosphoDataset(AnalysisReadyPhosphoDataset):
             )
         if not isinstance(provenance, RunProvenance):
             raise PhosPyInputError("derived dataset requires RunProvenance")
-        self._init_analysis_ready_tables(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            intensity_scale_state=intensity_scale_state,
-            processing_state=processing_state,
-            sample_metadata=sample_metadata,
-            total=total,
-            comparisons=comparisons,
-            imputation_observation_mask=imputation_observation_mask,
-            organism=organism,
-            preprocessing_report=None,
-            protein_aware_preparation=None,
-            provenance=provenance,
-            allow_opaque_site_values=allow_opaque_site_values,
-            assume_owned=_assume_owned,
+        validated_tables = (
+            _AnalysisReadyDatasetConstructionService().from_provenanced_tables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                intensity_scale_state=intensity_scale_state,
+                processing_state=processing_state,
+                sample_metadata=sample_metadata,
+                total=total,
+                comparisons=comparisons,
+                imputation_observation_mask=imputation_observation_mask,
+                organism=organism,
+                preprocessing_report=None,
+                protein_aware_preparation=None,
+                provenance=provenance,
+                allow_opaque_site_values=allow_opaque_site_values,
+                assume_owned=_assume_owned,
+            )
         )
+        self._init_from_validated_tables(validated_tables)
         _require_lineage_matches_owned_state(
             dataset=self,
             parent_state=parent_state,

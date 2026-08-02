@@ -77,14 +77,14 @@ tests/science/test_kinase_sparse_support_regression_fixtures.py,science,317,5,tr
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/science/test_signalome_safety_regression_fixtures.py,science,177,6,true,false,,,,,,
 tests/unit/api/test_api_stability_tiers.py,api,143,9,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
-tests/unit/api/test_public_api_dataset_construction.py,api,203,5,false,false,,,,,,
+tests/unit/api/test_public_api_dataset_construction.py,api,204,5,false,false,,,,,,
 tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
 tests/unit/references/test_reference_context.py,references,161,9,false,false,,,,,,
 tests/unit/references/test_reference_manifest.py,references,576,26,true,true,,,,,,
 tests/unit/references/test_reference_provenance_source_versions.py,references,661,17,true,true,,,,,,
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,803,23,true,true,,,,,,
+tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,826,25,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,705,27,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,1564,42,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
@@ -286,7 +286,7 @@ tests/unit/test_table_schemas.py,unit,1108,65,true,true,public API contract,keep
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,563,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_transformation_provenance.py,unit,329,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_validation_common_ownership.py,unit,27,2,false,false,,,,,,
-tests/unit/test_validation_ownership.py,unit,206,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_validation_ownership.py,unit,214,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_validation_ownership_contracts.py,unit,94,3,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_validator_boundaries.py,unit,2151,76,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_workflow_boundary_error.py,unit,342,9,false,false,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in workflow boundary error and increase risk of silent reintroduction.,codex-audit,,

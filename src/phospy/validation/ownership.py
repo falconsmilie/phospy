@@ -48,7 +48,7 @@ VALIDATION_RULE_OWNERS: tuple[ValidationRuleOwner, ...] = (
     ),
     ValidationRuleOwner(
         rule="analysis-ready dataset structural contract",
-        owner="AnalysisReadyPhosphoDataset._init_analysis_ready_tables",
+        owner="_AnalysisReadyDatasetConstructionService._validate_analysis_ready_tables",
     ),
     ValidationRuleOwner(
         rule="dataset/intensity-scale-state coherence",

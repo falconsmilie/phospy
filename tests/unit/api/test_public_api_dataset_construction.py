@@ -85,6 +85,7 @@ def test_exported_dataset_signature_has_no_private_validation_controls() -> None
     ).parameters
 
     assert root_parameters == api_parameters
+    assert tuple(root_parameters) == ("args", "kwargs")
     assert "_emit_direct_constructor_deprecation" not in root_parameters
     assert "_enforce_trusted_table_fingerprints" not in root_parameters
 

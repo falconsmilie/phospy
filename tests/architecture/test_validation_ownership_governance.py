@@ -366,11 +366,11 @@ def test_ownership_map_records_dataset_construction_boundary_for_dataset_invaria
 
     for invariant in dataset_boundary_rows:
         assert (
-            "AnalysisReadyPhosphoDataset._init_analysis_ready_tables"
+            "_AnalysisReadyDatasetConstructionService._validate_analysis_ready_tables"
             in rows[invariant].enforcement_point
         )
         assert (
-            "private dataset initializer boundary"
+            "private construction service boundary"
             in rows[invariant].enforcement_point.lower()
         )
 

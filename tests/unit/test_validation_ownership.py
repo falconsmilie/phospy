@@ -16,6 +16,9 @@ from phospy.api.results import (
     SignalomeWorkflowResult,
 )
 from phospy.errors import ReferenceCompatibilityError
+from phospy.science.datasets.construction.service import (
+    _AnalysisReadyDatasetConstructionService,
+)
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import ReferenceResolver
@@ -153,9 +156,10 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
     dataset_validator_source = inspect.getsource(
         AnalysisReadyDatasetModelBoundaryValidator
     )
-    dataset_constructor_source = inspect.getsource(
-        AnalysisReadyPhosphoDataset.__init__
-    ) + inspect.getsource(AnalysisReadyPhosphoDataset._init_analysis_ready_tables)
+    dataset_constructor_source = inspect.getsource(AnalysisReadyPhosphoDataset)
+    construction_service_source = inspect.getsource(
+        _AnalysisReadyDatasetConstructionService._validate_analysis_ready_tables
+    )
     assert (
         "AnalysisReadyPhosphoDataset.from_trusted_tables(" in dataset_validator_source
     )
@@ -166,11 +170,15 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
         "intensity_scale_state"
         in inspect.signature(AnalysisReadyDatasetModelBoundaryValidator.run).parameters
     )
-    assert "PhosphoIntensityMatrix(" in dataset_constructor_source
-    assert "SiteMetadataTable(" in dataset_constructor_source
-    assert "SampleMetadataTable(" in dataset_constructor_source
-    assert "TotalProteinMatrix(" in dataset_constructor_source
-    assert "_INTENSITY_SCALE_STATE_VALIDATOR.run(" in dataset_constructor_source
+    assert "PhosphoIntensityMatrix(" not in dataset_constructor_source
+    assert "SiteMetadataTable(" not in dataset_constructor_source
+    assert "SampleMetadataTable(" not in dataset_constructor_source
+    assert "TotalProteinMatrix(" not in dataset_constructor_source
+    assert "PhosphoIntensityMatrix(" in construction_service_source
+    assert "SiteMetadataTable(" in construction_service_source
+    assert "SampleMetadataTable(" in construction_service_source
+    assert "TotalProteinMatrix(" in construction_service_source
+    assert "_INTENSITY_SCALE_STATE_VALIDATOR.run(" in construction_service_source
 
 
 def test_major_validation_rules_have_documented_owners() -> None:
@@ -196,7 +204,7 @@ def test_major_validation_rules_have_documented_owners() -> None:
     assert documented["reference bundle structural contract"]
     assert (
         documented["analysis-ready dataset structural contract"]
-        == "AnalysisReadyPhosphoDataset._init_analysis_ready_tables"
+        == "_AnalysisReadyDatasetConstructionService._validate_analysis_ready_tables"
     )
     assert documented["dataset/intensity-scale-state coherence"]
     assert (

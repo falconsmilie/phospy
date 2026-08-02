@@ -15,11 +15,12 @@ from phospy.science.transformations.models import IntensityScaleState
 
 
 class AnalysisReadyDatasetModelBoundaryValidator:
-    """Validate by delegating to `AnalysisReadyPhosphoDataset` construction.
+    """Validate by delegating to trusted analysis-ready construction.
 
-    This adapter does not own analysis-ready invariants. The model constructor
-    remains the single authoritative owner for strict dataset-boundary checks,
-    and trusted callers must supply typed construction assertions.
+    This adapter does not own analysis-ready invariants. The private
+    construction service remains the authoritative owner for strict
+    dataset-boundary checks, and trusted callers must supply typed construction
+    assertions.
     """
 
     def run(

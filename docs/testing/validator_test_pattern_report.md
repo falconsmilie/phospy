@@ -55,7 +55,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_public_config_self_validation.py | test_kinase_explicit_exploratory_rejects_modified_values | 654 | `min_substrates=3,` |
 | tests/unit/test_public_config_self_validation.py | test_kinase_explicit_custom_accepts_modified_values | 661 | `min_substrates=3,` |
 | tests/unit/test_public_config_self_validation.py | test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed | 836 | `match="prediction_config.random_state must be greater than or equal to 0",` |
-| tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 105 | `reliability_profile="custom", min_substrates=2` |
+| tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 108 | `reliability_profile="custom", min_substrates=2` |
 | tests/unit/test_validator_boundaries.py | test_kinase_scoring_default_sets_two_substrate_support_floor | 100 | `assert config.min_substrates == 2` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_custom_scoring_intent | 223 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 428 | `assert validated.preprocessing_config.missing_data.min_observed_values is None` |
@@ -273,10 +273,10 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 112 | `ReferenceBundle(` |
 | tests/unit/test_reference_bundle_validation_report.py | test_report_warns_when_organism_and_namespace_metadata_are_limited | 120 | `bundle = ReferenceBundle(` |
 | tests/unit/test_reference_bundle_validation_report.py | test_invalid_bundle_still_rejected_when_sequence_entries_are_missing | 149 | `ReferenceBundle(` |
-| tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 103 | `references=ReferencePreset.HUMAN,` |
-| tests/unit/test_validation_ownership.py | test_reference_resolver_delegates_compatibility_and_does_not_duplicate_checks | 126 | `assert "ReferenceBundleValidator" not in resolver_source` |
-| tests/unit/test_validation_ownership.py | test_reference_compatibility_validator_is_single_owner_for_compatibility_rules | 136 | `assert "ReferencePreset.AUTO requires dataset.organism" in source` |
-| tests/unit/test_validation_ownership.py | test_reference_bundle_contract_validation_has_single_owner | 141 | `bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)` |
+| tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 106 | `references=ReferencePreset.HUMAN,` |
+| tests/unit/test_validation_ownership.py | test_reference_resolver_delegates_compatibility_and_does_not_duplicate_checks | 129 | `assert "ReferenceBundleValidator" not in resolver_source` |
+| tests/unit/test_validation_ownership.py | test_reference_compatibility_validator_is_single_owner_for_compatibility_rules | 139 | `assert "ReferencePreset.AUTO requires dataset.organism" in source` |
+| tests/unit/test_validation_ownership.py | test_reference_bundle_contract_validation_has_single_owner | 144 | `bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_exploratory_scoring_intent | 194 | `references=ReferencePreset.RAT,` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_production_scoring_intent | 208 | `references=ReferencePreset.RAT,` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_custom_scoring_intent | 222 | `references=ReferencePreset.RAT,` |

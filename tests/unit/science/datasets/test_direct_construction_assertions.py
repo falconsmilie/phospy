@@ -22,6 +22,7 @@ from phospy.provenance import (
     to_payload,
 )
 from phospy.provenance.reference_context import ReferenceContext
+from phospy.science.datasets.construction import service as construction_service
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.transformations.state_coherence import observe_numeric_domain
 from tests.support.intensity_scale_states import (
@@ -354,7 +355,10 @@ def test_direct_constructor_cannot_be_unsealed_by_public_argument() -> None:
     trusted = _trusted_dataset_with_all_tables()
     payload = _public_constructor_payload_from_dataset(trusted)
 
-    with pytest.raises(TypeError, match="_emit_direct_constructor_deprecation"):
+    with pytest.raises(
+        TypeError,
+        match="AnalysisReadyDatasetBuilder.*from_trusted_tables",
+    ):
         AnalysisReadyPhosphoDataset(
             **payload,
             _emit_direct_constructor_deprecation=False,
@@ -407,8 +411,27 @@ def test_from_trusted_tables_remains_warning_free_and_fingerprint_strict() -> No
 def test_exported_dataset_signature_has_no_private_validation_controls() -> None:
     parameters = inspect.signature(AnalysisReadyPhosphoDataset).parameters
 
+    assert tuple(parameters) == ("args", "kwargs")
     assert "_emit_direct_constructor_deprecation" not in parameters
     assert "_enforce_trusted_table_fingerprints" not in parameters
+
+
+def test_validated_table_aggregate_rejects_direct_construction() -> None:
+    with pytest.raises(TypeError, match="private analysis-ready dataset construction"):
+        construction_service._ValidatedAnalysisReadyTables()
+
+
+def test_private_construction_service_is_not_publicly_exported() -> None:
+    assert "_AnalysisReadyDatasetConstructionService" not in getattr(
+        construction_service,
+        "__all__",
+        (),
+    )
+    assert "_ValidatedAnalysisReadyTables" not in getattr(
+        construction_service,
+        "__all__",
+        (),
+    )
 
 
 def test_from_trusted_tables_records_typed_construction_assertions() -> None:

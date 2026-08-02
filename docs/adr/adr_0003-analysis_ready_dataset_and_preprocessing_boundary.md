@@ -120,6 +120,17 @@ waiver remains serialized, fingerprinted, and visible in trusted-construction
 provenance. A quantitative-meaning waiver or generic trusted assertion does not
 bypass this rule.
 
+Update note (2026-08-02, private validated construction aggregate):
+Analysis-ready construction now resolves builder and trusted evidence in their
+separate private lanes before converging on the private
+`_AnalysisReadyDatasetConstructionService`. That service validates the strict
+table, state, identity, sequence, localisation, provenance, and fingerprint
+requirements and returns a private `_ValidatedAnalysisReadyTables` aggregate.
+`AnalysisReadyPhosphoDataset` consumes only this aggregate and owns immutable
+storage plus safe export/borrow access. This does not change the private
+validation decision: validators and the construction service remain outside the
+public API, and direct public constructor calls remain sealed.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary
@@ -327,10 +338,14 @@ or fail before final dataset construction.
 
 ## Construction and Validation Strategy
 
-The design is that `AnalysisReadyPhosphoDataset` validates its own public
-invariants at construction time.
+The design is that a private analysis-ready construction service validates the
+public dataset invariants before an `AnalysisReadyPhosphoDataset` is
+initialised.
 
-This keeps the public dataset boundary honest and makes invalid datasets harder to construct accidentally.
+This keeps the public dataset boundary honest and makes invalid datasets harder
+to construct accidentally without making the public dataset class a validator.
+The dataset class itself owns immutable storage and safe access to already
+validated tables.
 
 Public construction should support a flexible builder path so users are not forced to pre-normalise awkward industry input formats themselves. In particular, preprocessing and builder services should absorb variability in column naming and related ingestion quirks before final dataset construction.
 
@@ -443,24 +458,27 @@ the derived dataset's own provenance is forbidden.
 
 The standard source dataset construction path is
 `AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`, implemented by
-`DatasetBuildExecutor` and the private
-`AnalysisReadyPhosphoDataset._from_builder_output(...)` transfer after
-preprocessing, state establishment, and builder provenance assembly.
+`DatasetBuildExecutor`, builder evidence/provenance resolution, the private
+`_AnalysisReadyDatasetConstructionService.from_builder_output(...)` validation
+lane, and the private `AnalysisReadyPhosphoDataset._from_builder_output(...)`
+aggregate transfer after preprocessing, state establishment, and builder
+provenance assembly.
 
 Every source path that constructs an analysis-ready dataset without the
 ordinary builder is explicitly scoped:
 
 - `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`: primary
   advanced/trusted lane for caller-owned analysis-ready tables. It still runs
-  model-boundary validation and additionally requires seven typed assertion
-  dimensions: identity, intensity scale, quantitative meaning, aligned table
-  structure, localisation, sequence, and reference context. Only scientific
-  assertion dimensions may be waived; these remain typed evidence or waiver
-  assertions. Aligned table structure is not waivable. Numeric-semantic domain
-  conflicts are not covered by the quantitative-meaning assertion; they require
-  the optional typed `numeric_semantic_domain` waiver to remain visible in
-  provenance and assertion fingerprints. Supplied trusted provenance table
-  fingerprints must match the actual constructed tables.
+  private construction-service validation and additionally requires seven typed
+  assertion dimensions: identity, intensity scale, quantitative meaning,
+  aligned table structure, localisation, sequence, and reference context before
+  it converges with the builder lane. Only scientific assertion dimensions may
+  be waived; these remain typed evidence or waiver assertions. Aligned table
+  structure is not waivable. Numeric-semantic domain conflicts are not covered
+  by the quantitative-meaning assertion; they require the optional typed
+  `numeric_semantic_domain` waiver to remain visible in provenance and
+  assertion fingerprints. Supplied trusted provenance table fingerprints must
+  match the actual constructed tables.
 - `AnalysisReadyPhosphoDataset(...)`: sealed public constructor. It exists only
   to preserve the class as an importable public type and raises `TypeError`
   immediately with the two supported construction paths.
@@ -471,13 +489,14 @@ ordinary builder is explicitly scoped:
 - `AnalysisReadyPhosphoDataset._from_builder_output(...)`: private
   ownership-transfer constructor used by the builder only after it has
   assembled builder provenance, established processing state, and already-owned
-  tables. It does not relax organism, table, sequence, processing-state, or
-  fingerprint validity.
+  tables. It delegates validation to the private construction service and then
+  installs the validated aggregate. It does not relax organism, table,
+  sequence, processing-state, or fingerprint validity.
 - `DerivedAnalysisReadyPhosphoDataset._from_owned_derived_tables(...)`: private
   workflow-derived quantitative lane, currently for technical-replicate
-  aggregation. It validates through the same analysis-ready boundary, carries
-  typed parent lineage, recomputes derived fingerprints from actual owned
-  tables, and must not masquerade as a fresh source dataset.
+  aggregation. It validates through the same private construction-service
+  boundary, carries typed parent lineage, recomputes derived fingerprints from
+  actual owned tables, and must not masquerade as a fresh source dataset.
 
 Reviewers should treat any new call to `AnalysisReadyPhosphoDataset(...)`,
 `from_trusted_tables(...)`, `_from_builder_output(...)`, or
@@ -486,11 +505,15 @@ construction-boundary decision and require one of the scoped rationales above.
 
 ## Implementation Guidance
 
-The dataset model should remain a data container with validation, not a workflow service.
+The dataset model should remain a data container with immutable storage and
+safe access, not a validator or workflow service.
 
 A likely healthy split is:
 
-- `AnalysisReadyPhosphoDataset` as the validated public model
+- `AnalysisReadyPhosphoDataset` as the validated public model and safe table
+  owner
+- a private construction service that produces the validated aggregate consumed
+  by the dataset
 - preprocessing or builder services as internal shaping logic
 - a dedicated validation domain for reusable lower-level validation concerns
 - workflow-level validators as composers that call shared validation components and add workflow-specific rules

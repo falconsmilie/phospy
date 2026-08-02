@@ -42,6 +42,15 @@ matrices, are not builder outputs and must not reuse builder preprocessing
 reports or source builder provenance. They are internal derived dataset objects
 with fresh derived-data provenance and explicit parent lineage.
 
+Update note (2026-08-02, private construction service split): Builder
+execution now resolves preprocessing output, processing state, site-sequence
+evidence, organism state, report, and builder provenance before calling the
+private `_AnalysisReadyDatasetConstructionService.from_builder_output(...)`
+lane. That lane converges with trusted reconstruction only after trusted
+assertion evidence has been resolved in its own lane. The service returns a
+private validated aggregate consumed by `AnalysisReadyPhosphoDataset`, which
+owns immutable storage and safe access rather than validation policy.
+
 ## Context and Problem Statement
 
 Earlier ADRs established a clear direction:
@@ -115,7 +124,8 @@ This includes:
   failing clearly when it cannot be resolved
 - establishing transformation state through the supported transformer path
 - composing shared validation-domain components
-- constructing the final `AnalysisReadyPhosphoDataset`
+- constructing a final `AnalysisReadyPhosphoDataset` through the private
+  construction service once builder evidence and provenance are resolved
 
 The builder should not pass partially shaped raw structures into workflows.
 
@@ -261,7 +271,8 @@ A likely healthy composition includes:
 - sequence derivation services
 - transformer component
 - validation-domain components
-- final dataset construction
+- private validated aggregate construction
+- final dataset ownership/access initialisation
 
 The exact service names may vary, but the architecture should stay boring and explicit.
 
@@ -330,7 +341,8 @@ A likely healthy split is:
 - internal specialised builders or builder collaborators
 - internal services for input normalisation, shaping, sequence derivation, and transformation
 - validation-domain reuse for shared checks
-- final construction of `AnalysisReadyPhosphoDataset` only after the builder has established the required guarantees
+- final private construction-service validation only after the builder has
+  established the required guarantees
 
 Reviewers should reject changes that move ingestion flexibility into workflows or that force users to manually reproduce builder responsibilities in normal cases.
 

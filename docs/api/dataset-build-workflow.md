@@ -17,7 +17,7 @@ context.
 Direct `AnalysisReadyPhosphoDataset` construction is sealed and raises
 immediately; it is not an advanced bypass. Advanced callers must use
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` when they already own
-analysis-ready tables. The factory uses the private dataset initializer and
+analysis-ready tables. The factory uses the private construction service and
 requires encoded `site_key` indexes and auditable identity metadata
 (`site_key`, `display_id`, `organism`, `protein_namespace`,
 `protein_identifier`, `gene_symbol`, `site`, and `site_sequence`). It also

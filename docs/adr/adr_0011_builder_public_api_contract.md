@@ -59,6 +59,14 @@ The override flag, effective policy, input declaration source, establishment
 mode, and diagnostic warnings must be machine-readable in builder provenance
 and the preprocessing report.
 
+Update note (2026-08-02, internal construction handoff): The public builder
+contract is unchanged: `AnalysisReadyDatasetBuilder.run(...)` returns an
+`AnalysisReadyPhosphoDataset`. Internally, the builder hands resolved tables,
+state, and provenance to the private construction service, which validates and
+returns the aggregate consumed by the dataset object. This keeps validation
+private and keeps the public dataset class focused on immutable storage and
+safe access.
+
 ## Context and Problem Statement
 
 Earlier ADRs established two important truths:
@@ -125,7 +133,9 @@ typical messy industry inputs.
 Direct construction of `AnalysisReadyPhosphoDataset(...)` is not a supported
 construction story. Trusted advanced/internal callers who already have fully
 prepared `site_key`-indexed data with required protein context metadata must
-use `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`.
+use `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, which resolves
+trusted assertion evidence before entering the same private construction
+service.
 
 ## Public Builder Shape
 
@@ -332,6 +342,8 @@ A likely healthy direction is:
 - one structured public request DTO
 - internal delegation to specialised builder collaborators
 - narrow supported hints or overrides only where necessary
+- private construction-service validation after builder evidence has been
+  resolved
 - clear exceptions when the builder cannot proceed
 
 Reviewers should reject changes that fragment the public builder story or that reintroduce ingestion flexibility into the workflow layer.

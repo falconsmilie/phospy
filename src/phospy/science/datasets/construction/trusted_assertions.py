@@ -30,6 +30,29 @@ def _require_complete_from_trusted_assertions(
     dataset: AnalysisReadyPhosphoDataset,
 ) -> None:
     assertions = dataset.trusted_construction_assertions
+    provenance = dataset.provenance
+    _require_complete_trusted_assertions(
+        assertions=assertions,
+        provenance=provenance,
+    )
+
+
+def _require_complete_trusted_assertions(
+    *,
+    assertions: TrustedDatasetConstructionAssertions | None,
+    provenance: RunProvenance | None,
+) -> None:
+    _require_complete_trusted_assertion_metadata(assertions=assertions)
+    _require_assertions_linked_to_provenance(
+        assertions=assertions,
+        provenance=provenance,
+    )
+
+
+def _require_complete_trusted_assertion_metadata(
+    *,
+    assertions: TrustedDatasetConstructionAssertions | None,
+) -> None:
     required_message = (
         "AnalysisReadyPhosphoDataset.from_trusted_tables requires "
         "trusted_construction_assertions with typed evidence or an explicit "
@@ -46,15 +69,13 @@ def _require_complete_from_trusted_assertions(
         raise DatasetValidationError(
             required_message + "; missing: " + ", ".join(assertions.missing_assertions)
         )
-    _require_assertions_linked_to_provenance(dataset=dataset)
 
 
 def _require_assertions_linked_to_provenance(
     *,
-    dataset: AnalysisReadyPhosphoDataset,
+    assertions: TrustedDatasetConstructionAssertions | None,
+    provenance: RunProvenance | None,
 ) -> None:
-    assertions = dataset.trusted_construction_assertions
-    provenance = dataset.provenance
     if assertions is None or provenance is None:
         raise DatasetValidationError(
             "dataset.trusted_construction_assertions must be linked to "
