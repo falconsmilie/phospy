@@ -10,7 +10,7 @@ tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,
 tests/architecture/test_validation_boundaries.py,architecture,728,25,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/architecture/test_validation_componentization.py,architecture,145,2,false,false,,,,,,
 tests/architecture/test_validation_ownership_governance.py,architecture,537,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/golden/test_differential_fixture_provenance_golden.py,golden,369,3,true,false,,,,,,
+tests/golden/test_differential_fixture_provenance_golden.py,golden,371,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,120,4,true,false,,,,,,
 tests/integration/test_dataset_batch_correction_validation.py,integration,294,6,true,false,,,,,,
@@ -70,7 +70,7 @@ tests/release/test_release_dependency_artifact_policy.py,release,331,9,true,fals
 tests/release/test_release_gate_policy.py,release,2234,35,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,172,6,true,false,,,,,,
-tests/science/test_differential_adverse_design_contracts.py,science,361,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/science/test_differential_adverse_design_contracts.py,science,369,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
 tests/science/test_evidence_resolution_regression_fixtures.py,science,135,5,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
@@ -131,7 +131,7 @@ tests/unit/test_dataset_transformation_state_establishment.py,unit,1349,39,false
 tests/unit/test_decomposed_ownership_facades.py,unit,101,2,false,false,,,,,,
 tests/unit/test_derived_quantitative_state_certification.py,unit,707,16,true,true,,,,,,
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
-tests/unit/test_differential_analysis.py,unit,1135,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,1143,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
 tests/unit/test_differential_feature_eligibility.py,unit,500,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
@@ -139,13 +139,14 @@ tests/unit/test_differential_fixed_effect_provenance.py,unit,375,5,false,false,,
 tests/unit/test_differential_imputation_policy.py,unit,321,8,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,1062,24,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,91,7,false,false,,,,,,
+tests/unit/test_differential_replicate_reliability_policy.py,unit,427,9,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_caveats.py,unit,353,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,999,33,false,false,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,144,10,false,false,,,,,,
-tests/unit/test_differential_technical_replicate_policy.py,unit,854,19,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_differential_unsupported_designs.py,unit,250,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_differential_workflow_components.py,unit,1033,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
+tests/unit/test_differential_technical_replicate_policy.py,unit,860,19,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_differential_workflow_components.py,unit,1039,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,828,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,
@@ -294,10 +295,10 @@ tests/unit/test_workflow_boundary_error.py,unit,342,9,false,false,regression for
 tests/unit/test_workflow_identity_contracts.py,unit,537,14,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_workflow_quantitative_input_contracts.py,unit,434,14,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_workflow_stage_decomposition.py,unit,632,15,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_workflow_stage_decomposition.py,unit,633,15,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/validation/test_reference_context_compatibility.py,validation,196,7,false,false,,,,,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,224,10,true,true,,,,,,
-tests/unit/workflows/differential/test_differential_scope_validation.py,differential,270,7,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/workflows/differential/test_differential_scope_validation.py,differential,278,7,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,298,6,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,548,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/workflows/kinase/test_kinase_method_quantitative_contracts.py,kinase,678,17,true,true,,,,,,

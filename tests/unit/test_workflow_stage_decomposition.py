@@ -143,6 +143,7 @@ def _interpreted_differential_request(
             allow_suspicious_declared_input_scale=(
                 config.allow_suspicious_declared_input_scale
             ),
+            reliability_profile=config.reliability_profile,
             minimum_condition_replicates=config.minimum_condition_replicates,
             empirical_bayes=config.empirical_bayes,
             multiple_testing_method=config.multiple_testing.method,

@@ -94,6 +94,12 @@ per-feature `imputed_cell_count`, `observed_cell_count`, `imputed_fraction`, and
 `imputation_policy`, and fits statistics only for tested rows. It is not
 observed-only fitting and does not use feature-specific residual degrees of
 freedom.
+Differential production inference requires at least two biological replicates
+for every contrasted condition. The explicit
+`reliability_profile="exploratory_single_replicate"` lane allows computable
+single-biological-replicate model output, but marks it as exploratory through a
+structured result caveat. Technical replicates do not count as independent
+biological replicates.
 Differential designs may explicitly declare fixed-effect covariates on
 `ExperimentalDesign`: batch, categorical covariates, and continuous covariates.
 Modelled fixed-effect covariates are included in the fitted differential design

@@ -103,15 +103,45 @@ Important fields:
 
 | Field | Default | Notes |
 | --- | --- | --- |
+| `reliability_profile` | `"production"` | Separates production-supported inference from the explicit exploratory single-biological-replicate lane. |
 | `technical_replicate_policy` | `TechnicalReplicatePolicy.REJECT` | Controls explicit technical-replicate aggregation when repeated biological replicate groups are present. |
 | `paired_design_policy` | `"reject"` | Use `"fixed_block"` only for complete fixed-block designs with explicit `SampleDesignRecord.block_id`. |
 | `imputed_value_policy` | `"reject"` | The default rejects upstream-imputed datasets. `"withhold_imputed_features"` requires dataset-owned imputation observation metadata. |
 | `imputed_value_max_fraction` | `0.0` | Threshold used by the withhold policy. |
 | `allow_design_subset` | `False` | Allows an explicit subset of dataset samples when set to `True`. |
 | `allow_suspicious_declared_input_scale` | `False` | Explicit override for declared log2 input-scale provenance that recorded suspicious diagnostics. |
-| `minimum_condition_replicates` | `2` | Minimum replicate count per contrast side. |
+| `minimum_condition_replicates` | `2` | Minimum biological-replicate count per contrast side after reliability-profile resolution. Production has a floor of two. |
 | `empirical_bayes` | `EmpiricalBayesConfig()` | Controls `method`, `trend`, and robust winsor tails. |
 | `multiple_testing` | `MultipleTestingConfig()` | Controls how raw p-values become `adj.P.Val`. Default method is `"benjamini_hochberg"`. |
+
+## Reliability Profiles and Biological Replicates
+
+The default `reliability_profile="production"` is the supported inference lane.
+Every contrasted condition must have at least two biological replicates.
+Lowering `minimum_condition_replicates` alone is rejected in production mode.
+
+Single-biological-replicate contrasts are allowed only with the named exploratory
+opt-in:
+
+```python
+from phospy.api import DifferentialAnalysisConfig
+
+config = DifferentialAnalysisConfig(
+    reliability_profile="exploratory_single_replicate",
+)
+```
+
+This profile means the model output is computable, but PhosPy does not present it
+as production-supported inferential evidence. The result carries a structured
+`differential_exploratory_single_replicate` caveat with the resolved reliability
+profile, production support flag, replicate counts, and contrasted conditions
+that fall below the production minimum.
+
+Technical replicates cannot increase the biological replicate count. When
+`technical_replicate_id` values are declared, every affected sample must also
+declare `biological_replicate_id`, and replicate eligibility is counted from
+unique biological replicate IDs after any explicit technical-replicate
+aggregation plan.
 
 Related request classes:
 
@@ -256,6 +286,7 @@ Important fields and helpers:
 | `policy_provenance` | Structured design, contrast, replicate, imputation, input-scale, and testing provenance. |
 | `workflow_provenance` | Workflow-level execution metadata. |
 | `input_dataset_preprocessing_report` | Preprocessing report carried from the input dataset when available. |
+| `caveats` | Structured warnings such as exploratory single-replicate execution or explicit input-scale overrides. |
 
 Each contrast result table is indexed by the input `site_key`. The minimum public
 identity columns are `site_key`, `display_id`, `organism`,
@@ -335,6 +366,9 @@ multiple-testing method, imputation policy, normalisation state, unsupported
 assumptions, and unsupported-design rejection policy. Warnings are exposed on
 `result.diagnostics.warnings`; they are not only logged. Table exports return
 defensive in-memory snapshots; mutating them does not mutate the result object.
+`result.to_payload()` serializes structured caveats along with result tables and
+provenance, so downstream handoff code must preserve the `caveats` payload
+rather than treating warnings as display-only text.
 
 ## Limitations
 
@@ -347,6 +381,8 @@ defensive in-memory snapshots; mutating them does not mutate the result object.
   design terms in the fitted model.
 - `paired_design_policy="fixed_block"` is fixed-effect block modelling only. It
   is not random subject modelling.
+- Exploratory single-biological-replicate output is computable model output, not
+  production-supported inferential evidence.
 - Upstream-imputed datasets are rejected by default. The supported withhold
   policy does not implement observed-only fitting.
 

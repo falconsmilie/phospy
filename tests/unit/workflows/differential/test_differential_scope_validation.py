@@ -16,6 +16,9 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.configs import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+)
 from phospy.errors import WorkflowValidationError
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
@@ -132,13 +135,15 @@ def _request(
     design: ExperimentalDesign | None = None,
     contrasts: tuple[Contrast, ...] | None = None,
     minimum_condition_replicates: int = 2,
+    reliability_profile: str = "production",
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
         dataset=_dataset() if dataset is None else dataset,
         design=_condition_design() if design is None else design,
         contrasts=_contrast() if contrasts is None else contrasts,
         config=DifferentialAnalysisConfig(
-            minimum_condition_replicates=minimum_condition_replicates
+            reliability_profile=reliability_profile,  # type: ignore[arg-type]
+            minimum_condition_replicates=minimum_condition_replicates,
         ),
     )
 
@@ -192,6 +197,9 @@ def test_insufficient_residual_degrees_of_freedom_fails_before_execution() -> No
                 dataset=_dataset(samples=("A_1", "B_1")),
                 design=_condition_design(samples=("A_1", "B_1")),
                 minimum_condition_replicates=1,
+                reliability_profile=(
+                    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+                ),
             )
         )
     assert executor.calls == 0

@@ -20,6 +20,9 @@ from phospy.api import (
     SampleDesignRecord,
     TechnicalReplicatePolicy,
 )
+from phospy.api.configs import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+)
 from phospy.api.results import DifferentialAnalysisResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.science.datasets.models import DatasetPreprocessingReport
@@ -1015,6 +1018,9 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
         design=base_request.design,
         contrasts=base_request.contrasts,
         config=DifferentialAnalysisConfig(
+            reliability_profile=(
+                DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+            ),
             technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
             allow_design_subset=True,
             minimum_condition_replicates=1,

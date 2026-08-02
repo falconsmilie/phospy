@@ -33,6 +33,10 @@ from phospy.validation.workflows.identity import (
 from phospy.workflows.differential.models import (
     ValidatedDifferentialAnalysisRequest,
 )
+from phospy.workflows.differential.reliability import (
+    resolved_minimum_condition_replicates,
+    validate_differential_reliability_config,
+)
 from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregationPlanner,
 )
@@ -137,16 +141,8 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request allow_design_subset must be a bool"
             )
-        if not isinstance(
-            cast(object, config.minimum_condition_replicates), int
-        ) or isinstance(cast(object, config.minimum_condition_replicates), bool):
-            raise WorkflowValidationError(
-                "differential workflow request minimum_condition_replicates must be an int"
-            )
-        if config.minimum_condition_replicates < 1:
-            raise WorkflowValidationError(
-                "differential workflow request minimum_condition_replicates must be >= 1"
-            )
+        validate_differential_reliability_config(config)
+        minimum_condition_replicates = resolved_minimum_condition_replicates(config)
         if not isinstance(cast(object, config.empirical_bayes), EmpiricalBayesConfig):
             raise WorkflowValidationError(
                 "differential workflow request empirical_bayes must be EmpiricalBayesConfig"
@@ -186,7 +182,7 @@ class DifferentialAnalysisValidator:
                 design=request.design,
                 contrasts=request.contrasts,
                 allow_design_subset=config.allow_design_subset,
-                minimum_condition_replicates=config.minimum_condition_replicates,
+                minimum_condition_replicates=minimum_condition_replicates,
                 paired_design_policy=config.paired_design_policy,
                 dataset_view=dataset_view,
             )
@@ -196,7 +192,7 @@ class DifferentialAnalysisValidator:
                 design=request.design,
                 contrasts=request.contrasts,
                 allow_design_subset=config.allow_design_subset,
-                minimum_condition_replicates=config.minimum_condition_replicates,
+                minimum_condition_replicates=minimum_condition_replicates,
                 paired_design_policy=config.paired_design_policy,
             )
         analysis_matrix = cast(

@@ -15,6 +15,9 @@ from phospy.api import (
     SampleDesignRecord,
     TechnicalReplicatePolicy,
 )
+from phospy.api.configs import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+)
 from phospy.errors import WorkflowValidationError
 from phospy.provenance.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
@@ -386,6 +389,9 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
             design=design,
             contrasts=_contrasts(),
             config=DifferentialAnalysisConfig(
+                reliability_profile=(
+                    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+                ),
                 technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
                 minimum_condition_replicates=1,
             ),

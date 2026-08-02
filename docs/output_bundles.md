@@ -149,6 +149,14 @@ Bundle loaders reconstruct `dataset.processing_state` and
 corrected/uncorrected total-protein quantitative meaning and row-level
 total-protein correction diagnostics.
 
+Structured result caveats are persistence data, not display-only warnings.
+Current reloadable bundle services persist caveats for kinase and signalome
+results, and `DifferentialAnalysisResult.to_payload()` serializes differential
+caveats for handoff. Any future differential bundle writer must preserve the
+same `caveats` payload, including exploratory single-biological-replicate
+caveats that distinguish computable output from production-supported
+inferential support.
+
 Version-1 kinase and signalome result bundles are rejected with a migration
 message. Regenerate old result bundles with the current PhosPy version before
 loading them.

@@ -5,6 +5,10 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.contracts.configs import DifferentialAnalysisConfig
+from phospy.contracts.configs.differential import (
+    DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES,
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+)
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
@@ -34,6 +38,9 @@ DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE = (
 )
 DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE = "differential_withheld_features"
 DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE = "differential_narrow_parity_envelope"
+DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE = (
+    "differential_exploratory_single_replicate"
+)
 
 
 def build_differential_result_caveats(
@@ -65,6 +72,25 @@ def build_differential_result_caveats(
     )
     if direct_construction is not None:
         caveats.append(direct_construction)
+
+    exploratory_details = _exploratory_single_replicate_details(
+        config=config,
+        policy_provenance=policy_provenance,
+    )
+    if exploratory_details is not None:
+        caveats.append(
+            ResultCaveat(
+                code=DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE,
+                severity="warning",
+                message=(
+                    "Differential analysis ran under the explicit exploratory "
+                    "single-biological-replicate reliability profile. Results are "
+                    "computable model outputs, not production-supported "
+                    "inferential evidence."
+                ),
+                details=exploratory_details,
+            )
+        )
 
     declared_scale_details = _declared_scale_override_details(
         dataset=dataset,
@@ -135,6 +161,58 @@ def build_differential_result_caveats(
         )
 
     return tuple(caveats)
+
+
+def _exploratory_single_replicate_details(
+    *,
+    config: DifferentialAnalysisConfig,
+    policy_provenance: DifferentialPolicyProvenance | None,
+) -> dict[str, object] | None:
+    if (
+        config.reliability_profile
+        != DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+    ):
+        return None
+    minimum_condition_replicates = 1
+    condition_replicate_counts: list[dict[str, object]] = []
+    contrasted_conditions_below_production: list[str] = []
+    if policy_provenance is not None:
+        minimum_condition_replicates = (
+            policy_provenance.replicates.minimum_condition_replicates
+        )
+        condition_replicate_counts = [
+            {"condition": condition, "biological_replicates": int(count)}
+            for condition, count in policy_provenance.replicates.condition_replicate_counts
+        ]
+        contrasted_condition_names = {
+            condition
+            for contrast in policy_provenance.contrasts
+            for condition in (
+                contrast.numerator_condition,
+                contrast.denominator_condition,
+            )
+        }
+        contrasted_conditions_below_production = [
+            condition
+            for condition, count in policy_provenance.replicates.condition_replicate_counts
+            if condition in contrasted_condition_names
+            and int(count) < DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES
+        ]
+    return {
+        "reliability_profile": config.reliability_profile,
+        "inferential_support": "exploratory_only",
+        "computable_model_output": True,
+        "production_supported_inference": False,
+        "minimum_condition_replicates": int(minimum_condition_replicates),
+        "production_minimum_condition_replicates": (
+            DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES
+        ),
+        "condition_replicate_counts": condition_replicate_counts,
+        "contrasted_conditions_below_production_minimum": (
+            contrasted_conditions_below_production
+        ),
+        "override_config": "reliability_profile",
+    }
 
 
 def _declared_scale_override_details(
@@ -245,6 +323,7 @@ def _enum_value(value: object) -> str:
 __all__ = [
     "DIFFERENTIAL_DECLARED_SCALE_OVERRIDE_CAVEAT_CODE",
     "DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE",
+    "DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE",
     "DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE",
     "DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE",
     "DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE",

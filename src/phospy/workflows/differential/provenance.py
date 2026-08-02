@@ -29,6 +29,10 @@ from phospy.science.differential.models import (
     DifferentialUnsupportedDesignPolicyProvenance,
 )
 from phospy.workflows.differential.models import ValidatedDifferentialAnalysisRequest
+from phospy.workflows.differential.reliability import (
+    resolved_minimum_condition_replicates,
+    resolved_reliability_profile,
+)
 from phospy.workflows.intensity_scale_evidence import (
     input_intensity_scale_evidence_from_dataset,
 )
@@ -216,7 +220,10 @@ def build_differential_policy_provenance(
         ),
         contrasts=tuple(contrast_definitions),
         replicates=DifferentialReplicatePolicyProvenance(
-            minimum_condition_replicates=request.config.minimum_condition_replicates,
+            minimum_condition_replicates=resolved_minimum_condition_replicates(
+                request.config
+            ),
+            reliability_profile=resolved_reliability_profile(request.config),
             technical_replicate_policy=(
                 request.config.technical_replicate_policy.value
             ),

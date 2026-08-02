@@ -215,6 +215,7 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "minimum_condition_replicates": (
                 policy.replicates.minimum_condition_replicates
             ),
+            "reliability_profile": policy.replicates.reliability_profile,
             "technical_replicate_policy": policy.replicates.technical_replicate_policy,
             "condition_replicate_counts": list(
                 policy.replicates.condition_replicate_counts
@@ -326,6 +327,7 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
         ],
         "replicates": {
             "minimum_condition_replicates": 2,
+            "reliability_profile": "production",
             "technical_replicate_policy": "reject",
             "condition_replicate_counts": [("A", 2), ("B", 2)],
             "technical_replicate_groups": [],

@@ -422,6 +422,15 @@ class ExperimentalDesignConditionReplicateValidator:
         records: tuple[SampleDesignRecord, ...],
     ) -> int:
         biological_ids = [record.biological_replicate_id for record in records]
+        technical_ids = [record.technical_replicate_id for record in records]
+        if any(value is not None for value in technical_ids) and not all(
+            value is not None for value in biological_ids
+        ):
+            raise WorkflowValidationError(
+                "biological_replicate_id must be set for all samples within each "
+                "condition when technical_replicate_id values are provided; "
+                "technical replicates are not independent biological replicates"
+            )
         if any(value is not None for value in biological_ids):
             if not all(value is not None for value in biological_ids):
                 raise WorkflowValidationError(

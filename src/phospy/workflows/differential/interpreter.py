@@ -46,6 +46,10 @@ from phospy.workflows.differential.models import (
 from phospy.workflows.differential.provenance import (
     build_differential_policy_provenance,
 )
+from phospy.workflows.differential.reliability import (
+    resolved_minimum_condition_replicates,
+    resolved_reliability_profile,
+)
 from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregator,
 )
@@ -466,7 +470,8 @@ def _resolve_execution_config(
         allow_suspicious_declared_input_scale=(
             config.allow_suspicious_declared_input_scale
         ),
-        minimum_condition_replicates=config.minimum_condition_replicates,
+        reliability_profile=resolved_reliability_profile(config),
+        minimum_condition_replicates=resolved_minimum_condition_replicates(config),
         empirical_bayes=config.empirical_bayes,
         multiple_testing_method=config.multiple_testing.method,
     )

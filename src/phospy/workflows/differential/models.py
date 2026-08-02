@@ -14,6 +14,7 @@ from phospy.contracts.result_caveats import ResultCaveat
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.configs.differential import (
     DifferentialImputedValuePolicy,
+    DifferentialReliabilityProfile,
     MultipleTestingMethod,
     PairedDesignPolicy,
 )
@@ -89,6 +90,7 @@ class ResolvedDifferentialExecutionConfig:
     imputed_value_max_fraction: float
     allow_design_subset: bool
     allow_suspicious_declared_input_scale: bool
+    reliability_profile: DifferentialReliabilityProfile
     minimum_condition_replicates: int
     empirical_bayes: EmpiricalBayesConfig
     multiple_testing_method: MultipleTestingMethod
@@ -118,6 +120,11 @@ class ResolvedDifferentialExecutionConfig:
             self,
             "allow_suspicious_declared_input_scale",
             bool(self.allow_suspicious_declared_input_scale),
+        )
+        object.__setattr__(
+            self,
+            "reliability_profile",
+            str(self.reliability_profile),
         )
         object.__setattr__(
             self,

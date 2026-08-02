@@ -97,6 +97,12 @@ requires `biological_replicate_id` on every design sample and consistent
 optional group fields (`batch`, `block`) within each
 `condition + biological_replicate_id` group.
 
+Update note (2026-08-02, replicate reliability): ADR-0044 adds the explicit
+`reliability_profile` contract. Production differential inference requires at
+least two biological replicates for every contrasted condition; single-replicate
+execution is an exploratory opt-in and carries a structured result caveat.
+Technical replicates are never counted as independent biological replicates.
+
 No condition inference from sample names is allowed.
 No condition/replicate/batch/block inference from dataset sample metadata is
 allowed.
@@ -185,6 +191,8 @@ condition number, and maximum admissible condition number.
   Replicate policy).
 - Scope guardrails:
   `docs/scientific-coverage.md` and `docs/workflow_contracts.md`.
+- Replicate reliability profile:
+  `docs/adr/adr_0044_differential_replicate_reliability_policy.md`.
 
 ## References
 

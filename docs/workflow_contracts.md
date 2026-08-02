@@ -185,6 +185,16 @@ Important user-facing assumptions:
   fitted.
 - Incomplete or partially covered blocks are rejected; PhosPy does not drop
   those blocks or samples.
+- `reliability_profile="production"` is the default and requires at least two
+  biological replicates for every contrasted condition.
+- Single-biological-replicate contrasts require the explicit
+  `reliability_profile="exploratory_single_replicate"` opt-in. These results are
+  computable model output, not production-supported inferential evidence, and
+  carry a structured caveat in the result payload.
+- Technical replicates are never counted as independent biological replicates.
+  Declared technical-replicate metadata requires explicit biological-replicate
+  IDs, and the replicate requirement is evaluated against unique biological
+  replicate IDs after any explicit aggregation policy.
 - Upstream-imputed datasets are rejected by default. The explicit
   `withhold_imputed_features` policy uses dataset-owned imputation observation
   metadata and excludes withheld rows from the Benjamini-Hochberg denominator.

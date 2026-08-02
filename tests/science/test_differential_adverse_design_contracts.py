@@ -16,6 +16,9 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.configs import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+)
 from phospy.errors import WorkflowValidationError
 from phospy.science.differential.empirical_bayes import fit_empirical_bayes
 from tests.support.analysis_ready_dataset_factories import (
@@ -98,6 +101,7 @@ def _run(
     design: ExperimentalDesign,
     *,
     minimum_condition_replicates: int = 2,
+    reliability_profile: str = "production",
     empirical_bayes: EmpiricalBayesConfig | None = None,
 ):
     return DifferentialAnalysisWorkflow().run(
@@ -106,6 +110,7 @@ def _run(
             design=design,
             contrasts=_contrast(),
             config=DifferentialAnalysisConfig(
+                reliability_profile=reliability_profile,  # type: ignore[arg-type]
                 minimum_condition_replicates=minimum_condition_replicates,
                 empirical_bayes=(
                     EmpiricalBayesConfig()
@@ -323,6 +328,9 @@ def test_very_small_positive_residual_degrees_of_freedom_runs_with_guarded_outpu
         matrix,
         design,
         minimum_condition_replicates=1,
+        reliability_profile=(
+            DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+        ),
         empirical_bayes=EmpiricalBayesConfig(method="standard", trend=False),
     )
 

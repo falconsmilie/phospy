@@ -378,6 +378,7 @@ class DifferentialReplicatePolicyProvenance:
     """Structured replicate/group requirements for differential analysis."""
 
     minimum_condition_replicates: int
+    reliability_profile: str
     technical_replicate_policy: str
     condition_replicate_counts: tuple[tuple[str, int], ...]
     technical_replicate_groups: tuple[DifferentialTechnicalReplicateGroup, ...] = ()
@@ -387,6 +388,11 @@ class DifferentialReplicatePolicyProvenance:
             raise PhosPyInputError(
                 "differential_policy_provenance.replicates."
                 "minimum_condition_replicates must be >= 1"
+            )
+        if not self.reliability_profile:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates."
+                "reliability_profile must be non-empty"
             )
         if not self.technical_replicate_policy:
             raise PhosPyInputError(
@@ -398,6 +404,11 @@ class DifferentialReplicatePolicyProvenance:
                 "differential_policy_provenance.replicates.condition_replicate_counts "
                 "must be non-empty"
             )
+        object.__setattr__(
+            self,
+            "reliability_profile",
+            str(self.reliability_profile),
+        )
 
 
 @dataclass(frozen=True, slots=True)

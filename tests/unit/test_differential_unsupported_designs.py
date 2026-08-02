@@ -15,7 +15,10 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
+from phospy.api.configs import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+)
 from phospy.errors import (
     PhosPyInputError,
     WorkflowValidationError,
@@ -97,6 +100,7 @@ def _workflow_request(
     samples: tuple[str, ...] = ("A_1", "A_2", "B_1", "B_2"),
     minimum_condition_replicates: int = 2,
     paired_design_policy: str = "reject",
+    reliability_profile: str = "production",
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
         dataset=_dataset(samples=samples),
@@ -109,6 +113,7 @@ def _workflow_request(
             ),
         ),
         config=DifferentialAnalysisConfig(
+            reliability_profile=reliability_profile,  # type: ignore[arg-type]
             minimum_condition_replicates=minimum_condition_replicates,
             paired_design_policy=paired_design_policy,
         ),
@@ -231,6 +236,9 @@ def test_workflow_rejects_non_positive_residual_dof_for_small_n_design() -> None
                 design=design,
                 samples=("A_1", "B_1"),
                 minimum_condition_replicates=1,
+                reliability_profile=(
+                    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+                ),
             )
         )
 

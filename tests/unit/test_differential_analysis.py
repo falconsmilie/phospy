@@ -21,7 +21,10 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import SUPPORTED_MULTIPLE_TESTING_METHODS
+from phospy.api.configs import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
+)
 from phospy.errors import (
     ContractValidationError,
     PhosPyInputError,
@@ -256,6 +259,7 @@ def _request(
     empirical_bayes: EmpiricalBayesConfig | None = None,
     multiple_testing: MultipleTestingConfig | None = None,
     minimum_condition_replicates: int = 2,
+    reliability_profile: str = "production",
     allow_suspicious_declared_input_scale: bool = False,
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
@@ -263,6 +267,7 @@ def _request(
         design=_design() if design is None else design,
         contrasts=_contrasts() if contrasts is None else contrasts,
         config=DifferentialAnalysisConfig(
+            reliability_profile=reliability_profile,  # type: ignore[arg-type]
             minimum_condition_replicates=minimum_condition_replicates,
             allow_suspicious_declared_input_scale=(
                 allow_suspicious_declared_input_scale
@@ -996,6 +1001,9 @@ def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None
                 dataset=_dataset(matrix),
                 design=design,
                 minimum_condition_replicates=1,
+                reliability_profile=(
+                    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+                ),
             )
         )
 

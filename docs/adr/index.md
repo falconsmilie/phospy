@@ -60,3 +60,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0041 | Peptide-to-Site Differential Uncertainty Policy | Accepted | 2026-07-29 | [adr_0041_peptide_to_site_differential_uncertainty_policy.md](adr_0041_peptide_to_site_differential_uncertainty_policy.md) |
 | ADR-0042 | Signalome Module-Selection Stability Diagnostics | Accepted | 2026-07-30 | [adr_0042_signalome_module_selection_stability_diagnostics.md](adr_0042_signalome_module_selection_stability_diagnostics.md) |
 | ADR-0043 | Result Bundle Integrity and Transactional Writes | Accepted | 2026-08-02 | [adr_0043_result_bundle_integrity_and_transactional_writes.md](adr_0043_result_bundle_integrity_and_transactional_writes.md) |
+| ADR-0044 | Differential Replicate Reliability Policy | Accepted | 2026-08-02 | [adr_0044_differential_replicate_reliability_policy.md](adr_0044_differential_replicate_reliability_policy.md) |

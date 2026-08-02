@@ -7,6 +7,10 @@ from typing import cast
 
 from phospy.errors.validation import ContractValidationError
 from phospy.science.configs.differential import (
+    DIFFERENTIAL_EXPLORATORY_MINIMUM_CONDITION_REPLICATES,
+    DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES,
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+    DIFFERENTIAL_RELIABILITY_PROFILE_PRODUCTION,
     IMPUTED_VALUE_POLICY_REJECT,
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
@@ -17,9 +21,11 @@ from phospy.science.configs.differential import (
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES,
+    SUPPORTED_DIFFERENTIAL_RELIABILITY_PROFILES,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
     DifferentialImputedValuePolicy,
+    DifferentialReliabilityProfile,
     MultipleTestingMethod,
     PairedDesignPolicy,
 )
@@ -61,10 +67,16 @@ class DifferentialAnalysisConfig:
     and validates a fixed-effect block design matrix before execution.
     ``imputed_value_policy`` defaults to ``"reject"``. Non-default policies are
     explicit opt-ins and require dataset-owned imputation observation metadata.
+    ``reliability_profile`` separates production-supported inference from the
+    explicitly exploratory single-biological-replicate lane. Lowering
+    ``minimum_condition_replicates`` is not a supported production override.
     ``allow_suspicious_declared_input_scale`` is an explicit scientific override
     for declared log2 input-scale provenance that recorded diagnostic warnings.
     """
 
+    reliability_profile: DifferentialReliabilityProfile = (
+        DIFFERENTIAL_RELIABILITY_PROFILE_PRODUCTION
+    )
     technical_replicate_policy: TechnicalReplicatePolicy = (
         TechnicalReplicatePolicy.REJECT
     )
@@ -80,6 +92,13 @@ class DifferentialAnalysisConfig:
     )
 
     def __post_init__(self) -> None:
+        if self.reliability_profile not in SUPPORTED_DIFFERENTIAL_RELIABILITY_PROFILES:
+            supported = ", ".join(
+                repr(value) for value in SUPPORTED_DIFFERENTIAL_RELIABILITY_PROFILES
+            )
+            raise ContractValidationError(
+                f"differential.reliability_profile must be one of: {supported}"
+            )
         if self.paired_design_policy not in SUPPORTED_PAIRED_DESIGN_POLICIES:
             supported = ", ".join(
                 repr(value) for value in SUPPORTED_PAIRED_DESIGN_POLICIES
@@ -110,6 +129,11 @@ class DifferentialAnalysisConfig:
             )
         object.__setattr__(
             self,
+            "reliability_profile",
+            cast(DifferentialReliabilityProfile, self.reliability_profile),
+        )
+        object.__setattr__(
+            self,
             "paired_design_policy",
             cast(PairedDesignPolicy, self.paired_design_policy),
         )
@@ -126,8 +150,13 @@ class DifferentialAnalysisConfig:
 
 
 __all__ = [
+    "DIFFERENTIAL_EXPLORATORY_MINIMUM_CONDITION_REPLICATES",
+    "DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES",
+    "DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE",
+    "DIFFERENTIAL_RELIABILITY_PROFILE_PRODUCTION",
     "DifferentialImputedValuePolicy",
     "DifferentialAnalysisConfig",
+    "DifferentialReliabilityProfile",
     "IMPUTED_VALUE_POLICY_REJECT",
     "IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES",
     "MULTIPLE_TESTING_METHOD_BENJAMINI_YEKUTIELI",
@@ -141,6 +170,7 @@ __all__ = [
     "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",
     "SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES",
+    "SUPPORTED_DIFFERENTIAL_RELIABILITY_PROFILES",
     "SUPPORTED_PAIRED_DESIGN_POLICIES",
     "SUPPORTED_MULTIPLE_TESTING_METHODS",
 ]
