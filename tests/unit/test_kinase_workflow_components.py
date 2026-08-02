@@ -36,6 +36,7 @@ from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
+from phospy.science.transformations.models import QuantitativeMeaning
 from phospy.tables.kinase import KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
@@ -66,6 +67,8 @@ from tests.support.analysis_ready_dataset_factories import (
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
+    supported_log2_intensity_scale_state_with_meaning,
+    supported_log2_processing_state_with_meaning,
 )
 from tests.support.site_keys import site_key_context_columns
 
@@ -124,6 +127,23 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def _effect_dataset() -> AnalysisReadyPhosphoDataset:
+    base = _dataset()
+    return trusted_analysis_ready_dataset_from_tables(
+        phospho=base.phospho,
+        site_metadata=base.site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_log2_intensity_scale_state_with_meaning(
+            has_total_matrix=False,
+            meaning=QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE,
+        ),
+        processing_state=supported_log2_processing_state_with_meaning(
+            has_total_matrix=False,
+            meaning=QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE,
+        ),
     )
 
 
@@ -340,8 +360,9 @@ def _resolved_request(
     *,
     config: ResolvedKinaseExecutionConfig | None = None,
     references: ReferenceBundle | None = None,
+    dataset: AnalysisReadyPhosphoDataset | None = None,
 ) -> ResolvedKinaseWorkflowRequest:
-    dataset = _dataset()
+    dataset = dataset or _dataset()
     references = references or _references()
     kinase_substrate_map, site_sequences = _project_references_to_site_key(
         dataset,
@@ -1279,7 +1300,8 @@ def test_activity_runner_selects_ksea_method_from_config() -> None:
     request = _resolved_request(
         config=_config(
             activity=_activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE)
-        )
+        ),
+        dataset=_effect_dataset(),
     )
     prediction_result = KinasePredictionResult._from_owned(
         pred_mat=pd.DataFrame(
@@ -1305,7 +1327,8 @@ def test_activity_runner_selects_ssgsea_method_from_config() -> None:
                 method=KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
                 ssgsea_min_substrates=2,
             )
-        )
+        ),
+        dataset=_effect_dataset(),
     )
     prediction_result = KinasePredictionResult._from_owned(
         pred_mat=pd.DataFrame(

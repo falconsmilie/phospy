@@ -19,6 +19,35 @@
         "minimum_sequence_supported_fraction": 0.0,
         "minimum_scored_fraction": 0.0,
         "on_violation": "warn"
+      },
+      "method_input_contract": {
+        "contract_version": "1",
+        "method_id": "kinase_scoring.phosr_rank_weighted",
+        "accepted_scales": [
+          "linear",
+          "log2"
+        ],
+        "accepted_meanings": [
+          "phosphosite_abundance",
+          "phosphosite_log_abundance",
+          "phospho_total_log_ratio"
+        ],
+        "accepted_activity_profile_axes": [],
+        "accepted_activity_quantitative_semantics": [],
+        "required_centring": "Requires centered phosphosite sequence context; does not center quantitative values during scoring.",
+        "required_standardisation": "No automatic quantitative standardisation; values are consumed on the declared input scale.",
+        "missing_value_treatment": "Profile construction follows scoring_config.profile_missing_value_strategy; missing values are never imputed by the scoring method and no method-level imputation is performed.",
+        "profile_axis_requirements": "Rows are protein-scoped site_key phosphosites; columns are aligned sample/profile abundance or total-corrected quantitative observations used for profile support.",
+        "statistical_interpretation": "Profile-derived relative support scores are within-run evidence summaries over the declared abundance/profile axis; linear and log2 inputs are scale-sensitive and are not numerically interchangeable.",
+        "p_value_interpretation": null,
+        "quantitative_input_required": true,
+        "scale_sensitivity": "Scale-sensitive method; accepted scales are not interchangeable and the method does not transform input values.",
+        "no_implicit_transformation": true,
+        "resolved_scale": "linear",
+        "resolved_meaning": "phosphosite_abundance",
+        "resolved_activity_profile_axis": null,
+        "resolved_activity_quantitative_semantics": null,
+        "enforcement_context": "kinase workflow request dataset"
       }
     },
     "attrition_provenance": {

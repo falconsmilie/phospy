@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.method_contracts import (
+    simplified_weighted_substrate_activity_input_contract,
+)
 from phospy.science.activities.models import (
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,
     ActivityMethodSummary,
@@ -37,6 +40,20 @@ class SimplifiedWeightedSubstrateActivityMethod:
     top_n_substrates: int
 
     def run(self, inputs: KinaseActivityInputs) -> KinaseActivityResult:
+        from phospy.science.quantitative_method_contracts import (
+            resolve_activity_input_contract,
+        )
+
+        if inputs.activity_input is None:
+            raise WorkflowBoundaryError(
+                "simplified weighted substrate activity requires typed "
+                "ActivityInputMatrix semantics"
+            )
+        resolve_activity_input_contract(
+            activity_input=inputs.activity_input,
+            contract=simplified_weighted_substrate_activity_input_contract(),
+            context="simplified weighted substrate activity input",
+        )
         weighted_activity, substrate_count_matrix = _compute_weighted_kinase_activity(
             pred_mat=inputs.pred_mat,
             phospho_matrix=inputs.phospho_matrix,

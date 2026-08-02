@@ -23,7 +23,6 @@ from phospy.science.activities.semantics import (
     ActivityProfileAxis,
     ActivityProfileMetadata,
     ActivityQuantitativeSemantics,
-    require_abundance_activity_input,
 )
 from phospy.science.activities.threshold_membership import (
     ActivityThresholdMembershipDiagnostics,
@@ -305,10 +304,6 @@ class KinaseActivityInputs:
             raise WorkflowBoundaryError(
                 "activity input activity_input must be ActivityInputMatrix or None"
             )
-        activity_input = require_abundance_activity_input(
-            activity_input,
-            field_name="kinase activity abundance methods",
-        )
         try:
             pred_mat = KinasePredictionMatrix(
                 frame=self.pred_mat,

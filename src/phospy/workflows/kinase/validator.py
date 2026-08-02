@@ -18,6 +18,9 @@ from phospy.contracts.configs import (
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
 from phospy.provenance.models import ReferenceContextProtocol
+from phospy.science.activities.method_contracts import (
+    kinase_activity_method_quantitative_input_contract,
+)
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.kinase_library import KinaseLibraryResource
@@ -35,17 +38,16 @@ from phospy.validation.identity_contracts import (
 )
 from phospy.validation.workflows.configs import (
     KinaseWorkflowConfigValidator,
-    reject_mixed_total_protein_quantitative_meaning,
 )
 from phospy.validation.workflows.identity import (
     KINASE_IDENTITY_CONTRACT,
     enforce_workflow_site_identity_contract,
 )
-from phospy.validation.workflows.quantitative import (
-    WorkflowQuantitativeInputValidator,
-    kinase_profile_scoring_workflow_input_contract,
+from phospy.validation.workflows.method_quantitative import (
+    MethodQuantitativeInputValidator,
 )
 from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_method_quantitative_input_contract,
     kinase_scoring_mode_input_contract,
 )
 from phospy.workflows.kinase.sequence_contracts import (
@@ -64,11 +66,13 @@ class KinaseWorkflowValidator:
         self,
         *,
         config_validator: KinaseWorkflowConfigValidator | None = None,
-        quantitative_input_validator: WorkflowQuantitativeInputValidator | None = None,
+        method_quantitative_input_validator: (
+            MethodQuantitativeInputValidator | None
+        ) = None,
     ) -> None:
         self._config_validator = config_validator or KinaseWorkflowConfigValidator()
-        self._quantitative_input_validator = (
-            quantitative_input_validator or WorkflowQuantitativeInputValidator()
+        self._method_quantitative_input_validator = (
+            method_quantitative_input_validator or MethodQuantitativeInputValidator()
         )
 
     def run(self, request: object) -> KinaseWorkflowRequest:
@@ -86,7 +90,7 @@ class KinaseWorkflowValidator:
             raise WorkflowValidationError(
                 "kinase workflow request references must be ReferencePreset or ReferenceBundle"
             )
-        scoring_config, _, _ = self._config_validator.run(
+        scoring_config, _, activity_config = self._config_validator.run(
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,
             activity_config=request.activity_config,
@@ -128,20 +132,24 @@ class KinaseWorkflowValidator:
                     "kinase workflow request kinase_library_resource must be "
                     "KinaseLibraryResource when Kinase Library scoring is selected"
                 )
-        reject_mixed_total_protein_quantitative_meaning(
+        self._method_quantitative_input_validator.run(
             dataset=dataset,
-            allow_mixed=scoring_config.allow_mixed_total_protein_quantitative_meaning,
-            context="kinase workflow request dataset",
-        )
-        self._quantitative_input_validator.run(
-            dataset=dataset,
-            contract=kinase_profile_scoring_workflow_input_contract(
+            contract=kinase_scoring_method_quantitative_input_contract(
+                scoring_config.scoring_mode,
                 allow_mixed_total_protein_quantitative_meaning=(
                     scoring_config.allow_mixed_total_protein_quantitative_meaning
-                )
+                ),
             ),
             context="kinase workflow request dataset",
         )
+        if activity_config is not None and activity_config.enabled:
+            self._method_quantitative_input_validator.run(
+                dataset=dataset,
+                contract=kinase_activity_method_quantitative_input_contract(
+                    activity_config.method
+                ),
+                context="kinase activity request dataset",
+            )
         dataset_view = DatasetInternalView(dataset)
         site_metadata = require_dataframe(
             dataset_view.site_metadata,

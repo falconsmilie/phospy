@@ -7,6 +7,10 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.method_contracts import (
+    ksea_zscore_activity_input_contract,
+)
 from phospy.science.activities.models import (
     KSEA_ZSCORE_ACTIVITY_METHOD,
     ActivityMethodSummary,
@@ -49,8 +53,21 @@ class KseaZScoreActivityMethod:
     q_value_method: str = KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
 
     def run(self, inputs: KinaseActivityInputs) -> KinaseActivityResult:
+        from phospy.science.quantitative_method_contracts import (
+            resolve_activity_input_contract,
+        )
+
         if self.p_value_method != KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION:
             raise ValueError("ksea p_value_method must be 'normal_approximation' in v1")
+        if inputs.activity_input is None:
+            raise WorkflowBoundaryError(
+                "KSEA-style activity requires typed ActivityInputMatrix semantics"
+            )
+        resolve_activity_input_contract(
+            activity_input=inputs.activity_input,
+            contract=ksea_zscore_activity_input_contract(),
+            context="KSEA-style activity input",
+        )
         aligned_pred_mat, aligned_matrix = _align_activity_inputs(
             pred_mat=inputs.pred_mat,
             phospho_matrix=inputs.phospho_matrix,

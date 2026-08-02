@@ -30,6 +30,9 @@ from phospy.provenance.models import (
 from phospy.provenance.scientific_policy_models import (
     ScientificPolicyRecord,
 )
+from phospy.science.activities.method_contracts import (
+    kinase_activity_method_quantitative_input_contract,
+)
 from phospy.science.activities.methods import (
     KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
     SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
@@ -56,6 +59,9 @@ from phospy.science.prediction.scientific_policies import (
     build_kinase_library_motif_scoring_policy,
     build_motif_profile_rank_fusion_policy,
 )
+from phospy.science.quantitative_method_contracts import (
+    ResolvedMethodQuantitativeInputContract,
+)
 from phospy.science.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
 )
@@ -76,6 +82,9 @@ from phospy.workflows.kinase.contracts import (
 )
 from phospy.workflows.kinase.row_attrition import (
     build_kinase_row_attrition_provenance,
+)
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_method_quantitative_input_contract,
 )
 
 
@@ -354,6 +363,7 @@ def _build_workflow_parameters(
             ),
             "prediction_config": _build_prediction_config_payload(config),
             "activity_config": _build_activity_config_payload(
+                request=request,
                 config=config,
                 activity_result=activity_result,
             ),
@@ -393,6 +403,7 @@ def _build_prediction_config_payload(
 
 def _build_activity_config_payload(
     *,
+    request: ResolvedKinaseWorkflowRequest,
     config: ResolvedKinaseExecutionConfig,
     activity_result: KinaseActivityResult | None,
 ) -> dict[str, object] | None:
@@ -444,6 +455,11 @@ def _build_activity_config_payload(
         ),
         "ssgsea_significance_status": ssgsea_significance["status"],
         "ssgsea_significance_status_counts": ssgsea_significance["status_counts"],
+        "method_input_contract": _activity_method_input_contract_payload(
+            request=request,
+            config=config,
+            activity_result=activity_result,
+        ),
         "activity_method": (
             None
             if activity_result is None
@@ -490,6 +506,10 @@ def _build_scoring_config_payload(
             config.reference_context_compatibility_policy
         ),
         "attrition_policy": kinase_attrition_policy_to_payload(config.attrition_policy),
+        "method_input_contract": _scoring_method_input_contract_payload(
+            request=request,
+            config=config,
+        ),
     }
     if profile_correlation_enabled:
         payload.update(
@@ -539,6 +559,58 @@ def _localisation_requirement_to_payload(
             else float(requirement.minimum_probability)
         ),
     }
+
+
+def _scoring_method_input_contract_payload(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    config: ResolvedKinaseExecutionConfig,
+) -> dict[str, object]:
+    resolved = config.scoring_method_input_contract
+    if resolved is None:
+        resolved = ResolvedMethodQuantitativeInputContract(
+            contract=kinase_scoring_method_quantitative_input_contract(
+                config.scoring_mode,
+                allow_mixed_total_protein_quantitative_meaning=False,
+            ),
+            resolved_scale=request.dataset.intensity_scale_state.phospho.kind,
+            resolved_meaning=request.dataset.intensity_scale_state.quantity,
+            enforcement_context="kinase workflow provenance fallback",
+        )
+    return resolved.to_payload()
+
+
+def _activity_method_input_contract_payload(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    config: ResolvedKinaseExecutionConfig,
+    activity_result: KinaseActivityResult | None,
+) -> dict[str, object] | None:
+    activity_config = config.activity
+    if activity_config is None:
+        return None
+    resolved = activity_config.method_input_contract
+    if resolved is None:
+        resolved = ResolvedMethodQuantitativeInputContract(
+            contract=kinase_activity_method_quantitative_input_contract(
+                activity_config.method
+            ),
+            resolved_scale=request.dataset.intensity_scale_state.phospho.kind,
+            resolved_meaning=request.dataset.intensity_scale_state.quantity,
+            enforcement_context="kinase workflow provenance fallback",
+        )
+    if activity_result is not None:
+        resolved = ResolvedMethodQuantitativeInputContract(
+            contract=resolved.contract,
+            resolved_scale=resolved.resolved_scale,
+            resolved_meaning=resolved.resolved_meaning,
+            resolved_activity_profile_axis=activity_result.input_semantics.profile_axis,
+            resolved_activity_quantitative_semantics=(
+                activity_result.input_semantics.quantitative_semantics
+            ),
+            enforcement_context=resolved.enforcement_context,
+        )
+    return resolved.to_payload()
 
 
 def _build_ssgsea_significance_payload(

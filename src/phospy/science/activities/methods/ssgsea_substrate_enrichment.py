@@ -19,6 +19,9 @@ from phospy.frames.validation import (
     require_unique_index,
     require_unique_row_pairs,
 )
+from phospy.science.activities.method_contracts import (
+    ssgsea_substrate_enrichment_activity_input_contract,
+)
 from phospy.science.activities.models import (
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
     ActivityMethodSummary,
@@ -37,7 +40,6 @@ from phospy.science.activities.semantics import (
     ActivityProfileAxis,
     ActivityQuantitativeSemantics,
     normalize_activity_input_matrix,
-    require_contrast_or_effect_activity_input,
 )
 from phospy.science.activities.statistics import benjamini_hochberg_q_values
 
@@ -153,9 +155,17 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                     "input semantics are explicit."
                 ),
             )
-        activity_input = require_contrast_or_effect_activity_input(
-            activity_input,
-            field_name="ssgsea substrate enrichment activity",
+        from phospy.science.quantitative_method_contracts import (
+            resolve_activity_input_contract,
+        )
+
+        resolve_activity_input_contract(
+            activity_input=activity_input,
+            contract=ssgsea_substrate_enrichment_activity_input_contract(),
+            context=(
+                "ssGSEA substrate enrichment activity input requires explicit "
+                "contrast/effect input"
+            ),
         )
         effects = activity_input.frame
         membership = _validate_membership_table(kinase_substrate_membership)

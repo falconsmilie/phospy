@@ -1140,13 +1140,15 @@ def test_kinase_validator_rejects_mixed_total_protein_quantitative_meaning_by_de
     with pytest.raises(
         WorkflowValidationError,
         match=(
-            "kinase workflow request dataset received a dataset with mixed "
-            "total-protein quantitative meaning"
+            "kinase workflow request dataset method "
+            "'kinase_scoring.phosr_rank_weighted' requires quantitative meaning"
         ),
     ) as exc_info:
         KinaseWorkflowValidator().run(request)
-    assert "uncorrected_rows=1" in str(exc_info.value)
-    assert "unmatched_policy='allow_uncorrected'" in str(exc_info.value)
+    assert "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance" in str(
+        exc_info.value
+    )
+    assert "not accepted by this method contract" in str(exc_info.value)
 
 
 def test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in() -> (

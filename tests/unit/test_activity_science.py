@@ -115,6 +115,7 @@ def _ksea_result(
     min_substrates: int = 2,
     adjust_p_values: bool = True,
 ):
+    effect_matrix = _with_site_key_index(phospho_matrix)
     return KseaZScoreActivityMethod(
         evidence_threshold=evidence_threshold,
         min_substrates=min_substrates,
@@ -122,10 +123,14 @@ def _ksea_result(
     ).run(
         _inputs(
             pred_mat=pred_mat,
-            phospho_matrix=phospho_matrix,
+            phospho_matrix=effect_matrix,
             threshold=evidence_threshold,
             min_substrates=min_substrates,
             top_n_substrates=1,
+            activity_input=ActivityInputMatrix.standardised_effect(
+                effect_matrix,
+                _assume_owned=True,
+            ),
         )
     )
 

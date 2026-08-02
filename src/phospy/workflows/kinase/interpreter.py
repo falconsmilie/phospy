@@ -9,9 +9,18 @@ import pandas as pd
 from phospy.contracts.configs import ReferenceContextCompatibilityPolicy
 from phospy.contracts.configs.kinase import KinaseScoringConfig
 from phospy.contracts.requests import KinaseWorkflowRequest
+from phospy.errors.validation import WorkflowValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.method_contracts import (
+    kinase_activity_method_quantitative_input_contract,
+)
 from phospy.science.datasets.internal_view import DatasetInternalView
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
+from phospy.science.quantitative_method_contracts import (
+    MethodQuantitativeInputContract,
+    ResolvedMethodQuantitativeInputContract,
+)
 from phospy.science.references.kinase_library import KinaseLibraryResource
 from phospy.science.references.models import ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import (
@@ -23,6 +32,9 @@ from phospy.validation.identity_contracts import (
     validate_reference_context_compatibility,
 )
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
+from phospy.validation.workflows.method_quantitative import (
+    MethodQuantitativeInputValidator,
+)
 from phospy.workflows._pandas_typing import (
     dataframe_column,
     dataframe_copy,
@@ -44,6 +56,7 @@ from phospy.workflows.kinase.resolved_validator import (
     ResolvedKinaseInputs,
 )
 from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_method_quantitative_input_contract,
     kinase_scoring_mode_input_contract,
 )
 from phospy.workflows.kinase.site_sequence_policy import (
@@ -314,6 +327,27 @@ class KinaseWorkflowInterpreter:
         prediction_sampling_policy = resolve_prediction_sampling_policy(
             request.prediction_config.adaptive_policy
         )
+        scoring_method_input_contract = _resolve_dataset_method_input_contract(
+            dataset=request.dataset,
+            contract=kinase_scoring_method_quantitative_input_contract(
+                scoring_config.scoring_mode,
+                allow_mixed_total_protein_quantitative_meaning=(
+                    scoring_config.allow_mixed_total_protein_quantitative_meaning
+                ),
+            ),
+            context="kinase workflow request dataset",
+        )
+        activity_method_input_contract = (
+            None
+            if request.activity_config is None or not request.activity_config.enabled
+            else _resolve_dataset_method_input_contract(
+                dataset=request.dataset,
+                contract=kinase_activity_method_quantitative_input_contract(
+                    request.activity_config.method
+                ),
+                context="kinase activity request dataset",
+            )
+        )
         activity = (
             None
             if request.activity_config is None or not request.activity_config.enabled
@@ -345,6 +379,7 @@ class KinaseWorkflowInterpreter:
                 ssgsea_adjust_p_values=bool(
                     request.activity_config.ssgsea_adjust_p_values
                 ),
+                method_input_contract=activity_method_input_contract,
             )
         )
         return ResolvedKinaseExecutionConfig(
@@ -388,6 +423,7 @@ class KinaseWorkflowInterpreter:
             reference_context_compatibility_policy=(
                 scoring_config.reference_context_compatibility_policy
             ),
+            scoring_method_input_contract=scoring_method_input_contract,
         )
 
     @staticmethod
@@ -516,3 +552,28 @@ class KinaseWorkflowInterpreter:
             details=details,
             message_prefix="kinase workflow boundary validation failed",
         )
+
+
+def _resolve_dataset_method_input_contract(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    contract: MethodQuantitativeInputContract,
+    context: str,
+) -> ResolvedMethodQuantitativeInputContract:
+    try:
+        return MethodQuantitativeInputValidator().run(
+            dataset=dataset,
+            contract=contract,
+            context=context,
+        )
+    except WorkflowValidationError as exc:
+        raise WorkflowBoundaryError(
+            seam="kinase.interpreter.method_quantitative_input_contract",
+            next_action=(
+                "provide an analysis-ready dataset whose intensity scale and "
+                "quantitative meaning satisfy the selected kinase scoring or "
+                "activity method contract"
+            ),
+            details={"contract_error": str(exc)},
+            message_prefix="kinase workflow boundary validation failed",
+        ) from exc

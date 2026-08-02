@@ -11,6 +11,9 @@
 Amended 2026-07-29 to require explicit kinase reliability intent and make
 kinase activity execution opt-in.
 
+Amended 2026-08-02 to require method-owned quantitative input contracts for
+kinase scoring and kinase activity methods.
+
 ## Context
 
 Recent workflow work introduced explicit scientific state for quantitative
@@ -37,6 +40,8 @@ The primary models are:
 - `InputIntensityScaleEvidence`
 - `ReferenceContext`
 - `KinaseScoringModeInputContract`
+- `MethodQuantitativeInputContract` and
+  `ResolvedMethodQuantitativeInputContract`
 - `KinaseReliabilityProfile`
 - `ProfileSelfInclusionPolicy`
 
@@ -141,6 +146,50 @@ execution is opt-in by providing a `KinaseActivityConfig`; omitting the field
 must not run the historical simplified weighted activity stage. Provenance must
 record the selected scoring reliability profile and `activity_config=None`
 when the caller did not request activity.
+
+## Kinase Method Quantitative Input Contracts
+
+Each kinase scoring and activity method owns its own quantitative input
+contract. A method contract declares accepted `IntensityScaleKind` values,
+accepted `QuantitativeMeaning` values, required centring or standardisation,
+missing-value treatment, profile-axis requirements, statistical interpretation,
+and p-value interpretation when applicable. Shared validators may enforce only
+the contract they are given; they must not contain a single global kinase scale
+or meaning policy.
+
+Profile-dependent kinase scoring modes may consume declared abundance or
+total-corrected log-ratio profiles when the dataset state explicitly records
+those meanings. They must not accept contrast or effect matrices as abundance
+profiles. Those inputs are scale-sensitive: a linear matrix and its
+log2-transformed matrix are valid as separate declared inputs, but they are not
+equivalent and scoring does not transform one into the other. Motif-only
+scoring records the resolved dataset scale and meaning for audit but does not
+consume phospho values for sequence-motif score calculation. Contrast/effect
+activity analyses in the single-dataset kinase workflow must use a scoring mode
+whose scoring step does not consume quantitative profiles, such as motif-only
+scoring, or a future explicit separate activity input.
+
+Kinase activity contracts are method-specific:
+
+- Simplified weighted substrate activity accepts sample-level or
+  condition-summary abundance semantics on declared linear or log2 abundance
+  scales. It computes heuristic substrate-supported means and does not produce
+  p-values.
+- KSEA-style z-score activity accepts log2 sample abundance,
+  total-corrected log-ratio, log2 contrast fold-change, or pre-standardised
+  effect semantics. It rejects linear abundance. Its p-values are two-sided
+  normal-approximation p-values with optional Benjamini-Hochberg q-values.
+- ssGSEA-style substrate enrichment accepts only log2 contrast fold-change or
+  pre-standardised effect semantics. It produces no p-values unless seeded
+  permutations are explicitly requested, in which case p-values are empirical
+  substrate-label permutation p-values with optional Benjamini-Hochberg q-values.
+
+Invalid scale/meaning/typed activity-semantics combinations must fail before
+workflow execution. Activity methods also guard their direct method boundary so
+internal callers cannot silently relabel abundance as effect input, or effect
+input as abundance. Provenance must record the resolved method contract used by
+the run, including the observed scale, meaning, activity profile axis, and
+activity quantitative semantics when available.
 
 ## Intensity-Scale Evidence
 
@@ -360,6 +409,8 @@ Positive consequences:
 - Quantitative state is explicit and auditable at dataset and workflow
   boundaries.
 - Kinase scoring modes cannot silently change their required inputs.
+- Kinase scoring and activity methods cannot silently reinterpret linear,
+  log2, abundance, contrast, or effect inputs as interchangeable.
 - Motif-only scoring remains clearly separated from contextual/profile-aware
   scoring.
 - Reference compatibility can be checked without destabilizing `site_key`.
@@ -367,8 +418,9 @@ Positive consequences:
 
 Negative consequences:
 
-- Adding a new quantitative meaning or kinase scoring mode requires typed model
-  updates, validator policy, result/provenance review, and tests.
+- Adding a new quantitative meaning, kinase scoring mode, or activity method
+  requires typed model updates, method contract declaration, provenance review,
+  documentation generated or checked from that declaration, and tests.
 - Reference-context checks may reject workflows that previously relied on
   ambiguous provenance.
 
@@ -391,6 +443,12 @@ Neutral consequences:
   `src/phospy/contracts/configs/kinase.py`
 - Internal kinase scoring-mode input contracts:
   `src/phospy/workflows/kinase/scoring_mode_contracts.py`
+- Method quantitative input contract models:
+  `src/phospy/science/quantitative_method_contracts.py`
+- Kinase activity method quantitative contracts:
+  `src/phospy/science/activities/method_contracts.py`
+- Shared method-contract validation primitive:
+  `src/phospy/validation/workflows/method_quantitative.py`
 - Kinase scoring execution branches:
   `src/phospy/workflows/kinase/scoring_runner.py`
 - Kinase result caveat assembly:

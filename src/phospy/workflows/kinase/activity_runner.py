@@ -20,6 +20,7 @@ from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.prediction.internal_view import KinasePredictionInternalView
 from phospy.science.prediction.models import KinasePredictionResult
+from phospy.science.transformations.models import QuantitativeMeaning
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
@@ -63,6 +64,10 @@ class KinaseActivityRunner:
                 threshold=activity_config.threshold,
                 min_substrates=activity_config.min_substrates,
                 top_n_substrates=activity_config.top_n_substrates,
+                activity_input=_activity_input_from_dataset(
+                    request=request,
+                    method=activity_config.method,
+                ),
             )
             result = SimplifiedWeightedSubstrateActivityMethod(
                 threshold=float(activity_config.threshold),
@@ -80,6 +85,10 @@ class KinaseActivityRunner:
                 threshold=activity_config.ksea_evidence_threshold,
                 min_substrates=activity_config.ksea_min_substrates,
                 top_n_substrates=1,
+                activity_input=_activity_input_from_dataset(
+                    request=request,
+                    method=activity_config.method,
+                ),
             )
             result = KseaZScoreActivityMethod(
                 evidence_threshold=float(activity_config.ksea_evidence_threshold),
@@ -100,10 +109,9 @@ class KinaseActivityRunner:
                 random_seed=activity_config.ssgsea_random_seed,
                 adjust_p_values=bool(activity_config.ssgsea_adjust_p_values),
             ).run(
-                activity_input=ActivityInputMatrix.standardised_effect(
-                    request.activity_phospho_matrix,
-                    field_name="kinase_request.activity_phospho_matrix",
-                    _assume_owned=True,
+                activity_input=_activity_input_from_dataset(
+                    request=request,
+                    method=activity_config.method,
                 ),
                 kinase_substrate_membership=request.kinase_substrate_map,
             )
@@ -175,6 +183,77 @@ def _require_site_identity_map(site_identity_map: pd.DataFrame | None) -> pd.Dat
             message_prefix="kinase workflow boundary validation failed",
         )
     return site_identity_map
+
+
+def _activity_input_from_dataset(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    method: str,
+) -> ActivityInputMatrix:
+    quantity = request.dataset.intensity_scale_state.quantity
+    if method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+        if quantity in {
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+        }:
+            return ActivityInputMatrix.sample_level_abundance(
+                request.activity_phospho_matrix,
+                field_name="kinase_request.activity_phospho_matrix",
+                _assume_owned=True,
+            )
+        if quantity is QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE:
+            return ActivityInputMatrix.contrast_log_fold_change(
+                request.activity_phospho_matrix,
+                field_name="kinase_request.activity_phospho_matrix",
+                _assume_owned=True,
+            )
+        if quantity is QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE:
+            return ActivityInputMatrix.standardised_effect(
+                request.activity_phospho_matrix,
+                field_name="kinase_request.activity_phospho_matrix",
+                _assume_owned=True,
+            )
+        observed = None if quantity is None else quantity.value
+        raise WorkflowBoundaryError(
+            seam="kinase.activity.method_quantitative_input_contract",
+            next_action=(
+                "provide phosphosite_log_abundance, phospho_total_log_ratio, "
+                "contrast_log2_fold_change, or differential_effect_size values "
+                "for KSEA-style activity; the workflow does not transform "
+                "linear abundance data"
+            ),
+            details={"method": str(method), "quantitative_meaning": observed},
+            message_prefix="kinase workflow boundary validation failed",
+        )
+    if method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+        if quantity is QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE:
+            return ActivityInputMatrix.contrast_log_fold_change(
+                request.activity_phospho_matrix,
+                field_name="kinase_request.activity_phospho_matrix",
+                _assume_owned=True,
+            )
+        if quantity is QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE:
+            return ActivityInputMatrix.standardised_effect(
+                request.activity_phospho_matrix,
+                field_name="kinase_request.activity_phospho_matrix",
+                _assume_owned=True,
+            )
+        observed = None if quantity is None else quantity.value
+        raise WorkflowBoundaryError(
+            seam="kinase.activity.method_quantitative_input_contract",
+            next_action=(
+                "provide contrast_log2_fold_change or differential_effect_size "
+                "values for ssGSEA-style activity; the workflow does not "
+                "transform abundance data into effect values"
+            ),
+            details={"method": str(method), "quantitative_meaning": observed},
+            message_prefix="kinase workflow boundary validation failed",
+        )
+    return ActivityInputMatrix.sample_level_abundance(
+        request.activity_phospho_matrix,
+        field_name="kinase_request.activity_phospho_matrix",
+        _assume_owned=True,
+    )
 
 
 __all__ = ["KinaseActivityRunner"]

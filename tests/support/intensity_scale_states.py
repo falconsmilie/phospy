@@ -138,3 +138,29 @@ def supported_log2_processing_state(*, has_total_matrix: bool):
         plan=PreprocessingPlan.default(),
         intensity_scale_state=intensity_scale_state,
     )
+
+
+def supported_log2_intensity_scale_state_with_meaning(
+    *,
+    has_total_matrix: bool,
+    meaning: QuantitativeMeaning,
+) -> IntensityScaleState:
+    return with_restored_quantitative_meaning_for_tests(
+        supported_log2_intensity_scale_state(has_total_matrix=has_total_matrix),
+        meaning,
+    )
+
+
+def supported_log2_processing_state_with_meaning(
+    *,
+    has_total_matrix: bool,
+    meaning: QuantitativeMeaning,
+):
+    intensity_scale_state = supported_log2_intensity_scale_state_with_meaning(
+        has_total_matrix=has_total_matrix,
+        meaning=meaning,
+    )
+    return build_dataset_processing_state(
+        plan=PreprocessingPlan.default(),
+        intensity_scale_state=intensity_scale_state,
+    )

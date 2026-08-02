@@ -11,7 +11,6 @@ from phospy.science.activities.models import (
 )
 from phospy.science.activities.semantics import (
     ActivityInputMatrix,
-    require_abundance_activity_input,
 )
 from phospy.validation.common.dataframes import (
     require_unique_columns,
@@ -105,10 +104,7 @@ class KinaseActivityInputValidator:
                 _assume_owned=True,
             )
         elif isinstance(activity_input, ActivityInputMatrix):
-            typed_activity_input = require_abundance_activity_input(
-                activity_input,
-                field_name="kinase activity abundance methods",
-            )
+            typed_activity_input = activity_input
             validated_phospho = require_numeric_matrix(
                 typed_activity_input.frame,
                 field_name="activity_input.matrix",

@@ -29,6 +29,9 @@ from phospy.validation.identity_contracts import (
 from phospy.validation.workflows.differential import (
     DifferentialDatasetEligibilityValidator,
 )
+from phospy.validation.workflows.method_quantitative import (
+    MethodQuantitativeInputValidator,
+)
 from phospy.validation.workflows.quantitative import (
     WorkflowQuantitativeInputContract,
     WorkflowQuantitativeInputValidator,
@@ -483,8 +486,10 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
     assert (
         "DIFFERENTIAL_LOG_ABUNDANCE_INPUT_CONTRACT" in differential_eligibility_source
     )
-    assert "self._quantitative_input_validator.run(" in kinase_source
-    assert "kinase_profile_scoring_workflow_input_contract(" in kinase_source
+    assert "self._method_quantitative_input_validator.run(" in kinase_source
+    assert "kinase_scoring_method_quantitative_input_contract(" in kinase_source
+    assert "kinase_activity_method_quantitative_input_contract(" in kinase_source
+    assert "kinase_profile_scoring_workflow_input_contract(" not in kinase_source
     assert "self._quantitative_input_validator.run(" in signalome_run_source
     assert "signalome_workflow_input_contract(" in signalome_run_source
     assert "enforce_localisation_requirement(" in kinase_source
@@ -539,6 +544,7 @@ def test_signalome_result_identity_validation_is_science_owned_and_workflow_comp
 
 def test_quantitative_validators_are_validation_owned() -> None:
     validation_owned_symbols = (
+        MethodQuantitativeInputValidator,
         WorkflowQuantitativeInputContract,
         WorkflowQuantitativeInputValidator,
         kinase_profile_scoring_workflow_input_contract,

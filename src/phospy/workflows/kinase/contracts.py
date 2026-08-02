@@ -35,6 +35,9 @@ from phospy.science.prediction.policies import (
     DEFAULT_PREDICTION_SAMPLING_POLICY,
     PredictionSamplingPolicy,
 )
+from phospy.science.quantitative_method_contracts import (
+    ResolvedMethodQuantitativeInputContract,
+)
 from phospy.science.references.models import ReferenceBundle
 from phospy.science.sites.validation import (
     require_site_key_index,
@@ -712,6 +715,7 @@ class ResolvedKinaseActivityExecutionConfig:
     ssgsea_permutations: int = 0
     ssgsea_random_seed: int | None = 0
     ssgsea_adjust_p_values: bool = True
+    method_input_contract: ResolvedMethodQuantitativeInputContract | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -750,6 +754,7 @@ class ResolvedKinaseExecutionConfig:
     reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
         ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
     )
+    scoring_method_input_contract: ResolvedMethodQuantitativeInputContract | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
