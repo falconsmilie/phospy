@@ -81,6 +81,7 @@ class TechnicalReplicateAggregationPlanner:
         dataset: AnalysisReadyPhosphoDataset,
         design: ExperimentalDesign,
         technical_replicate_policy: TechnicalReplicatePolicy,
+        dataset_view: DatasetInternalView | None = None,
     ) -> TechnicalReplicateAggregationPlan:
         if not isinstance(technical_replicate_policy, TechnicalReplicatePolicy):
             raise WorkflowValidationError(
@@ -111,25 +112,25 @@ class TechnicalReplicateAggregationPlanner:
             )
 
         groups = self._build_resolved_groups(design=design)
+        resolved_dataset_view = dataset_view or DatasetInternalView(dataset)
         self._validate_required_sample_ids_exist(
-            dataset=dataset,
+            dataset_view=resolved_dataset_view,
             groups=groups,
         )
-        dataset_view = DatasetInternalView(dataset)
         return TechnicalReplicateAggregationPlan(
             technical_replicate_policy=technical_replicate_policy,
             groups=groups,
             aggregate_phospho=True,
-            aggregate_total_protein=dataset_view.total is not None,
+            aggregate_total_protein=resolved_dataset_view.total is not None,
         )
 
     @staticmethod
     def _validate_required_sample_ids_exist(
         *,
-        dataset: AnalysisReadyPhosphoDataset,
+        dataset_view: DatasetInternalView,
         groups: tuple[TechnicalReplicateAggregationGroup, ...],
     ) -> None:
-        phospho = DatasetInternalView(dataset).phospho
+        phospho = dataset_view.phospho
         required_sample_ids = [
             sample_id for group in groups for sample_id in group.input_sample_ids
         ]

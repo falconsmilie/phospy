@@ -96,13 +96,15 @@ class WorkflowQuantitativeInputValidator:
         dataset: AnalysisReadyPhosphoDataset,
         contract: WorkflowQuantitativeInputContract,
         context: str,
+        dataset_view: DatasetInternalView | None = None,
     ) -> IntensityScaleState:
         if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
                 f"{context} dataset must be AnalysisReadyPhosphoDataset"
             )
         state = dataset.intensity_scale_state
-        has_total_matrix = DatasetInternalView(dataset).total is not None
+        resolved_dataset_view = dataset_view or DatasetInternalView(dataset)
+        has_total_matrix = resolved_dataset_view.total is not None
         try:
             self._intensity_scale_state_validator.run(
                 intensity_scale_state=state,

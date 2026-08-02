@@ -26,6 +26,12 @@ Update note (2026-07-16, pandas global option isolation): PhosPy frame ownership
 helpers must not set, restore, or otherwise mutate process-global pandas options.
 Borrowing semantics are local to PhosPy-owned objects.
 
+Update note (2026-08-02, workflow-scoped immutable snapshots): internal
+dataset read paths use owner-detached immutable snapshots scoped to one
+`DatasetInternalView` instance. Workflow validation and interpretation may
+thread that view through internal collaborators so repeated reads do not
+recreate full matrix deep copies. This does not change public export semantics.
+
 ## Context and Problem Statement
 
 PhosPy datasets and workflow results carry mutable pandas objects internally.
@@ -56,7 +62,7 @@ PhosPy adopts and enforces the following ownership rules:
 1. Internal models and workflow objects own mutable pandas state.
 2. Public pandas accessors return defensive, caller-writable snapshots for both
    DataFrames and Series.
-3. Mutation-isolated internal frame access is package-private, read-only by
+3. Mutation-isolated internal frame access is package-private, immutable/read-only by
    contract, and limited to controlled internal boundaries.
 4. Provenance fingerprints describe owned internal state at result creation
    time.
@@ -79,26 +85,47 @@ user-facing `copy=False` toggles for owned boundary data.
 ### Internal Frame Snapshot Paths
 
 Package-private `_borrow_*` helpers are allowed for trusted internal
-collaboration only. They return mutation-isolated internal snapshots, are
-read-only by contract, are not part of the public contract, and must stay out of
-public API routes. Callers must not rely on successful mutation of a borrowed
-object; writes may raise or detach locally depending on the pandas runtime, but
-must not mutate the owner.
+collaboration only. They return owner-detached internal snapshots, are read-only
+by contract, are not part of the public contract, and must stay out of public
+API routes. Callers must not rely on successful mutation of a borrowed object;
+writes to NumPy-backed internal snapshots are expected to raise because PhosPy
+marks the detached snapshot blocks non-writeable. Extension-array-backed
+snapshots that cannot be made non-writeable through NumPy flags must remain
+owner-detached and may fall back to copying when exposed from a cached internal
+snapshot.
 
-Borrowed snapshots are implemented without process-global pandas mutation:
+Borrowed snapshots are implemented without process-global pandas mutation and
+without relying on undocumented pandas copy-on-write behavior:
 
-- pandas runtimes with native copy-on-write isolation may use shallow pandas
-  copies.
-- NumPy-backed pandas 2.x frames use shallow pandas copies whose borrowed blocks
-  are local read-only views.
+- `frames.ownership` owns the copy/freeze helpers.
+- Internal immutable snapshots first make one owner-detached deep pandas copy.
+- Supported mutable object cells are frozen once for internal snapshots
+  (`list` to `tuple`, `dict` to read-only mapping, `set` to `frozenset`, and
+  nested `numpy.ndarray` values to non-writeable arrays), so workflow metadata
+  reads do not recursively copy those cells on every access.
+- NumPy-backed pandas blocks are marked non-writeable on the detached snapshot.
+- `DatasetInternalView` caches those immutable snapshots for the life of the
+  view and returns shallow pandas wrappers over the read-only blocks on repeated
+  access. Mutating wrapper metadata such as adding columns is local to that
+  wrapper and does not mutate the cached snapshot or dataset owner.
 - Unsupported pandas internals, including extension arrays that cannot be made
-  read-only through the local helper, fall back to deep copies.
+  read-only through NumPy flags, stay owner-detached and fall back to detached
+  copies when exposed from a cached internal snapshot.
 
 Implementation note (2026-06-14): workflow dataset access is mediated by the
 dataset-owned `DatasetInternalView`. Workflows may depend on that defensive
 internal view for the specific frame snapshots they require, but must not call
 dataset `_borrow_*` methods directly. Workflow access to prediction and scoring
 result frames follows the same domain-owned internal view pattern.
+
+Implementation note (2026-08-02): the differential workflow threads one
+`DatasetInternalView` from request validation into interpretation when the
+validated dataset is unchanged. If technical-replicate aggregation produces a
+derived dataset, interpretation creates a new view for that independent derived
+workflow state. This keeps caches scoped to a single workflow run and avoids
+sharing mutable frames across independent runs. Representative differential
+workflow tests bound full phospho-matrix `DataFrame.copy(deep=True)` calls to no
+more than three for the validation/interpreter/execution handoff.
 
 ### Provenance
 
@@ -132,6 +159,9 @@ not be reused as the derived object's own provenance.
   performance.
 - Extension-array-backed borrowed snapshots may allocate deep copies on pandas
   versions without native local copy-on-write guarantees.
+- Cached internal snapshots retain one owner-detached copy for the duration of a
+  workflow-scoped view. This is intentional and must not become a cross-run
+  cache.
 
 ### Neutral Consequences
 
@@ -187,6 +217,13 @@ but cannot claim deep immutability.
   boundary.
 - `benchmarks/measure_dataframe_ownership_copy_policy.py` records representative
   shallow/deep copy counts for the internal borrow policy.
+- Workflow copy-count instrumentation must cover at least one representative
+  differential run and assert the full phospho matrix is not repeatedly
+  deep-copied by validator/interpreter handoffs.
+- Release-scale memory profiling remains an explicit local benchmark concern.
+  The 50,000 x 48 builder+differential workload is measured by
+  `make benchmark-release-scale` / `benchmarks/measure_release_scale_builder_differential.py`
+  rather than default CI.
 
 ## Scope Boundaries
 
@@ -208,6 +245,8 @@ Future changes must satisfy all of the following:
 3. Do provenance-sensitive paths avoid aliasing with exported objects?
 4. Are new accessor behaviors covered by explicit boundary-mutation tests?
 5. Are high-throughput persistence paths kept in explicit publisher/export APIs?
+6. Are workflow-scoped immutable snapshots confined to one run and never reused
+   as cross-run mutable caches?
 
 ## Relationship to Earlier ADRs
 

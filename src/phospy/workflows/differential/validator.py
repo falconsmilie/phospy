@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
@@ -101,13 +101,30 @@ class DifferentialAnalysisValidator:
                 "differential workflow request "
                 "allow_suspicious_declared_input_scale must be a bool"
             )
-        self._dataset_eligibility_validator.run(
-            dataset=request.dataset,
-            imputed_value_policy=config.imputed_value_policy,
-            allow_suspicious_declared_input_scale=(
-                config.allow_suspicious_declared_input_scale
-            ),
+        dataset_eligibility_validator = cast(
+            Any,
+            self._dataset_eligibility_validator,
         )
+        if isinstance(
+            dataset_eligibility_validator,
+            DifferentialDatasetEligibilityValidator,
+        ):
+            dataset_eligibility_validator.run(
+                dataset=request.dataset,
+                imputed_value_policy=config.imputed_value_policy,
+                allow_suspicious_declared_input_scale=(
+                    config.allow_suspicious_declared_input_scale
+                ),
+                dataset_view=dataset_view,
+            )
+        else:
+            dataset_eligibility_validator.run(
+                dataset=request.dataset,
+                imputed_value_policy=config.imputed_value_policy,
+                allow_suspicious_declared_input_scale=(
+                    config.allow_suspicious_declared_input_scale
+                ),
+            )
         technical_replicate_policy = config.technical_replicate_policy
         if not isinstance(
             cast(object, technical_replicate_policy), TechnicalReplicatePolicy
@@ -146,19 +163,42 @@ class DifferentialAnalysisValidator:
                 "differential workflow request multiple_testing.method must be "
                 f"one of: {supported}"
             )
-        technical_replicate_aggregation_plan = self._technical_replicate_planner.run(
-            dataset=request.dataset,
-            design=request.design,
-            technical_replicate_policy=technical_replicate_policy,
-        )
-        validated_design_contract = self._design_validator.run(
-            dataset=request.dataset,
-            design=request.design,
-            contrasts=request.contrasts,
-            allow_design_subset=config.allow_design_subset,
-            minimum_condition_replicates=config.minimum_condition_replicates,
-            paired_design_policy=config.paired_design_policy,
-        )
+        technical_replicate_planner = cast(Any, self._technical_replicate_planner)
+        if isinstance(
+            technical_replicate_planner, TechnicalReplicateAggregationPlanner
+        ):
+            technical_replicate_aggregation_plan = technical_replicate_planner.run(
+                dataset=request.dataset,
+                design=request.design,
+                technical_replicate_policy=technical_replicate_policy,
+                dataset_view=dataset_view,
+            )
+        else:
+            technical_replicate_aggregation_plan = technical_replicate_planner.run(
+                dataset=request.dataset,
+                design=request.design,
+                technical_replicate_policy=technical_replicate_policy,
+            )
+        design_validator = cast(Any, self._design_validator)
+        if isinstance(design_validator, ExperimentalDesignContractValidator):
+            validated_design_contract = design_validator.run(
+                dataset=request.dataset,
+                design=request.design,
+                contrasts=request.contrasts,
+                allow_design_subset=config.allow_design_subset,
+                minimum_condition_replicates=config.minimum_condition_replicates,
+                paired_design_policy=config.paired_design_policy,
+                dataset_view=dataset_view,
+            )
+        else:
+            validated_design_contract = design_validator.run(
+                dataset=request.dataset,
+                design=request.design,
+                contrasts=request.contrasts,
+                allow_design_subset=config.allow_design_subset,
+                minimum_condition_replicates=config.minimum_condition_replicates,
+                paired_design_policy=config.paired_design_policy,
+            )
         analysis_matrix = cast(
             pd.DataFrame,
             dataset_view.phospho[list(validated_design_contract.analysis_sample_ids)],
@@ -181,6 +221,7 @@ class DifferentialAnalysisValidator:
             workflow_provenance=None,
             dataset_preprocessing_report=(request.dataset.preprocessing_report),
             design_build_result=validated_design_contract.design_build_result,
+            dataset_view=dataset_view,
         )
 
 

@@ -97,6 +97,7 @@ class ExperimentalDesignContractValidator:
         allow_design_subset: bool,
         minimum_condition_replicates: int,
         paired_design_policy: PairedDesignPolicy = PAIRED_DESIGN_POLICY_REJECT,
+        dataset_view: DatasetInternalView | None = None,
     ) -> ValidatedExperimentalDesignContract:
         if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
@@ -129,8 +130,9 @@ class ExperimentalDesignContractValidator:
                 "experimental design contrasts must include at least one contrast"
             )
 
+        resolved_dataset_view = dataset_view or DatasetInternalView(dataset)
         dataset_sample_ids = tuple(
-            str(label) for label in DatasetInternalView(dataset).phospho.columns
+            str(label) for label in resolved_dataset_view.phospho.columns
         )
         design_sample_ids = design.sample_ids()
         dataset_sample_set = set(dataset_sample_ids)
@@ -666,6 +668,7 @@ class DifferentialDatasetEligibilityValidator:
             IMPUTED_VALUE_POLICY_REJECT
         ),
         allow_suspicious_declared_input_scale: bool = False,
+        dataset_view: DatasetInternalView | None = None,
     ) -> None:
         if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
@@ -702,6 +705,7 @@ class DifferentialDatasetEligibilityValidator:
             dataset=dataset,
             contract=DIFFERENTIAL_LOG_ABUNDANCE_INPUT_CONTRACT,
             context="differential workflow request dataset",
+            dataset_view=dataset_view,
         )
         provenance = dataset.intensity_scale_state.establishment_provenance
         if (

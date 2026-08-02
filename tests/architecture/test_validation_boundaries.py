@@ -478,9 +478,9 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
         assert "enforce_workflow_site_identity_contract(" in source
 
     assert "validate_reference_context_compatibility(" in kinase_source
-    assert "self._dataset_eligibility_validator.run(" in differential_source
-    assert "self._design_validator.run(" in differential_source
-    assert "self._technical_replicate_planner.run(" in differential_source
+    assert "dataset_eligibility_validator.run(" in differential_source
+    assert "design_validator.run(" in differential_source
+    assert "technical_replicate_planner.run(" in differential_source
     assert "self._contract_validator.run(" in enrichment_source
     assert "self._quantitative_input_validator.run(" in differential_eligibility_source
     assert (

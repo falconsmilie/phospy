@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 import warnings
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -20,17 +20,22 @@ import pytest
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
+    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
 from phospy.api import (
+    Contrast,
     DatasetBuildRequest,
+    DifferentialAnalysisRequest,
+    ExperimentalDesign,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     ReferenceContextCompatibilityPolicy,
+    SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -62,6 +67,7 @@ from phospy.science.activities.models import (
 from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.datasets.preprocessing.report_schema import (
     ComparisonGroupStatsRow,
@@ -117,6 +123,8 @@ from tests.support.analysis_ready_dataset_factories import (
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
 from tests.support.site_keys import (
@@ -273,6 +281,41 @@ def _object_payload_state(payload: object) -> dict[str, tuple[object, ...]]:
     }
 
 
+def _immutable_object_payload_state(payload: object) -> dict[str, tuple[object, ...]]:
+    assert isinstance(payload, Mapping)
+    nested_value = payload["nested"]
+    assert isinstance(nested_value, tuple)
+    nested_array_mapping = nested_value[0]
+    nested_set_mapping = nested_value[1]
+    nested_list = nested_value[2]
+    assert isinstance(nested_array_mapping, Mapping)
+    assert isinstance(nested_set_mapping, Mapping)
+    assert isinstance(nested_list, tuple)
+    array_value = payload["array"]
+    nested_array = nested_array_mapping["array"]
+    set_value = payload["set"]
+    nested_set = nested_set_mapping["set"]
+    dict_value = payload["dict"]
+    assert isinstance(array_value, np.ndarray)
+    assert isinstance(nested_array, np.ndarray)
+    assert isinstance(set_value, frozenset)
+    assert isinstance(nested_set, frozenset)
+    assert isinstance(dict_value, Mapping)
+    dict_inner = dict_value["inner"]
+    assert isinstance(dict_inner, tuple)
+    list_value = payload["list"]
+    assert isinstance(list_value, tuple)
+    return {
+        "list": tuple(list_value),
+        "dict": tuple(dict_inner),
+        "array": tuple(float(value) for value in array_value.tolist()),
+        "set": tuple(sorted(str(value) for value in set_value)),
+        "nested_array": tuple(float(value) for value in nested_array.tolist()),
+        "nested_set": tuple(sorted(str(value) for value in nested_set)),
+        "nested_list": tuple(nested_list),
+    }
+
+
 def _object_payload_frame_from_site_metadata(payload: object) -> pd.DataFrame:
     site_metadata = _site_metadata()
     site_metadata.loc[:, _OBJECT_PAYLOAD_COLUMN] = pd.Series(
@@ -313,6 +356,87 @@ def _analysis_ready_dataset() -> AnalysisReadyPhosphoDataset:
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def _differential_workflow_request(
+    *,
+    n_sites: int = 8,
+) -> DifferentialAnalysisRequest:
+    genes = [f"GENE{i}" for i in range(n_sites)]
+    sites = [f"S{i + 1}" for i in range(n_sites)]
+    site_index = protein_site_key_index(
+        protein_identifiers=genes,
+        sites=sites,
+    )
+    baseline = np.arange(1, n_sites + 1, dtype=float)
+    phospho = pd.DataFrame(
+        {
+            "A_1": baseline,
+            "A_2": baseline + 0.2,
+            "B_1": baseline + 1.0,
+            "B_2": baseline + 1.2,
+        },
+        index=site_index,
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": [
+                f"{gene};{site};" for gene, site in zip(genes, sites, strict=True)
+            ],
+            **site_key_context_columns(site_index),
+            "gene_symbol": genes,
+            "site": sites,
+            "site_sequence": [
+                ("A" * 15) + site.strip().upper()[0] + ("A" * 15) for site in sites
+            ],
+            "protein_id": genes,
+        },
+        index=site_index.copy(),
+    )
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    )
+    return DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=ExperimentalDesign(
+            samples=(
+                SampleDesignRecord(
+                    sample_id="A_1",
+                    condition="A",
+                    biological_replicate_id="A_r1",
+                ),
+                SampleDesignRecord(
+                    sample_id="A_2",
+                    condition="A",
+                    biological_replicate_id="A_r2",
+                ),
+                SampleDesignRecord(
+                    sample_id="B_1",
+                    condition="B",
+                    biological_replicate_id="B_r1",
+                ),
+                SampleDesignRecord(
+                    sample_id="B_2",
+                    condition="B",
+                    biological_replicate_id="B_r2",
+                ),
+            ),
+        ),
+        contrasts=(
+            Contrast(
+                name="B_vs_A",
+                numerator_condition="B",
+                denominator_condition="A",
+            ),
+        ),
     )
 
 
@@ -1155,6 +1279,11 @@ class _CopyCounts:
     dataframe_deep: int = 0
 
 
+@dataclass(slots=True)
+class _FullMatrixCopyCounts:
+    full_matrix_deep: int = 0
+
+
 @contextmanager
 def _count_dataframe_deep_copies() -> Iterator[_CopyCounts]:
     counts = _CopyCounts()
@@ -1171,6 +1300,37 @@ def _count_dataframe_deep_copies() -> Iterator[_CopyCounts]:
         yield counts
     finally:
         pd.DataFrame.copy = original_copy
+
+
+@contextmanager
+def _count_full_matrix_deep_copies(
+    *,
+    shape: tuple[int, int],
+    columns: tuple[object, ...],
+) -> Iterator[_FullMatrixCopyCounts]:
+    counts = _FullMatrixCopyCounts()
+    original_copy = pd.DataFrame.copy
+
+    def wrapped_copy(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        deep = kwargs.get("deep", args[0] if args else True)
+        if bool(deep) and self.shape == shape and tuple(self.columns) == columns:
+            counts.full_matrix_deep += 1
+        return original_copy(self, *args, **kwargs)
+
+    pd.DataFrame.copy = wrapped_copy
+    try:
+        yield counts
+    finally:
+        pd.DataFrame.copy = original_copy
+
+
+def _assert_numpy_blocks_readonly(frame: pd.DataFrame | pd.Series) -> None:
+    blocks = frame._mgr.blocks
+    for block in blocks:
+        values = block.values
+        flags = getattr(values, "flags", None)
+        if flags is not None and hasattr(flags, "writeable"):
+            assert flags.writeable is False
 
 
 def _mutate_first_frame_cell(frame: pd.DataFrame) -> None:
@@ -1945,6 +2105,140 @@ def test_internal_borrowed_dataset_access_is_detached_snapshot_contract() -> Non
     assert "borrowed_only" not in dataset._phospho.columns
 
 
+def test_dataset_internal_view_reuses_one_immutable_numeric_snapshot() -> None:
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_mixed_numeric_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    view = DatasetInternalView(dataset)
+
+    with _count_dataframe_deep_copies() as counts:
+        first = view.phospho
+        second = view.phospho
+        _assert_numpy_blocks_readonly(first)
+        _assert_numpy_blocks_readonly(second)
+        _mutate_existing_borrowed_frame_cell(
+            owner=dataset._phospho,
+            borrowed=first,
+            value=999.0,
+        )
+        second.loc[:, "borrowed_only"] = [1.0, 2.0]
+        third = view.phospho
+
+    assert counts.dataframe_deep == 1
+    assert first is not second
+    assert second is not third
+    assert float(dataset._phospho.iloc[0, 0]) == 1.0
+    assert "borrowed_only" not in third.columns
+
+
+def test_dataset_internal_view_freezes_metadata_object_cells_once() -> None:
+    original_payload = _mutable_object_payload()
+    site_metadata = _object_payload_frame_from_site_metadata(original_payload)
+    site_metadata.loc[:, "extension_label"] = pd.Series(
+        ["alpha", "beta"],
+        index=site_metadata.index,
+        dtype="string",
+    )
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_phospho(),
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    view = DatasetInternalView(dataset)
+
+    with _count_dataframe_deep_copies() as counts:
+        first = view.site_metadata
+        second = view.site_metadata
+
+    row_label = first.index[0]
+    first_payload = first.loc[row_label, _OBJECT_PAYLOAD_COLUMN]
+    second_payload = second.loc[row_label, _OBJECT_PAYLOAD_COLUMN]
+    _mutate_object_payload(original_payload, "external")
+
+    assert counts.dataframe_deep == 1
+    assert first_payload is second_payload
+    assert _immutable_object_payload_state(first_payload) == _OBJECT_PAYLOAD_STATE
+    assert _immutable_object_payload_state(second_payload) == _OBJECT_PAYLOAD_STATE
+    _assert_numpy_blocks_readonly(first)
+
+
+def test_dataset_internal_view_extension_dtype_metadata_is_owner_safe() -> None:
+    site_metadata = _site_metadata()
+    site_metadata.loc[:, "extension_label"] = pd.Series(
+        ["alpha", "beta"],
+        index=site_metadata.index,
+        dtype="string",
+    )
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_phospho(),
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    view = DatasetInternalView(dataset)
+
+    first = view.site_metadata
+    first.loc[first.index[0], "extension_label"] = "changed"
+    second = view.site_metadata
+
+    assert str(second.loc[second.index[0], "extension_label"]) == "alpha"
+    assert (
+        str(
+            dataset._site_metadata.loc[
+                dataset._site_metadata.index[0], "extension_label"
+            ]
+        )
+        == "alpha"
+    )
+
+
+def test_independent_dataset_internal_views_do_not_share_snapshot_cache() -> None:
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_mixed_numeric_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    with _count_dataframe_deep_copies() as counts:
+        first_run = DatasetInternalView(dataset).phospho
+        second_run = DatasetInternalView(dataset).phospho
+
+    assert counts.dataframe_deep == 2
+    assert first_run is not second_run
+    _assert_numpy_blocks_readonly(first_run)
+    _assert_numpy_blocks_readonly(second_run)
+
+
+def test_representative_differential_workflow_bounds_full_matrix_copies() -> None:
+    request = _differential_workflow_request(n_sites=8)
+
+    with _count_full_matrix_deep_copies(
+        shape=request.dataset._phospho.shape,
+        columns=tuple(request.dataset._phospho.columns),
+    ) as counts:
+        result = DifferentialAnalysisWorkflow().run(request)
+
+    assert isinstance(result, DifferentialAnalysisResult)
+    assert counts.full_matrix_deep <= 3
+
+
 @pytest.mark.parametrize(
     ("surface_name", "mutator"),
     [
@@ -2288,7 +2582,7 @@ def test_frame_ownership_helper_policy_matrix_documents_export_and_borrow_modes(
         ...,
     ] = (
         ("safe_public_copy", export_dataframe, True),
-        ("borrowed_internal_snapshot", _borrow_dataframe, True),
+        ("borrowed_internal_snapshot", _borrow_dataframe, False),
     )
 
     for category, accessor, writable_export in frame_cases:
@@ -2309,7 +2603,7 @@ def test_frame_ownership_helper_policy_matrix_documents_export_and_borrow_modes(
         ...,
     ] = (
         ("safe_public_copy", export_series, True),
-        ("borrowed_internal_snapshot", _borrow_series, True),
+        ("borrowed_internal_snapshot", _borrow_series, False),
     )
 
     for category, accessor, writable_export in series_cases:

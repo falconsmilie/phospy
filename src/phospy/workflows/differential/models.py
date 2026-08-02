@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
@@ -42,6 +42,9 @@ from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregationPlan,
 )
 
+if TYPE_CHECKING:
+    from phospy.science.datasets.internal_view import DatasetInternalView
+
 
 @dataclass(frozen=True, slots=True)
 class ValidatedDifferentialAnalysisRequest:
@@ -62,6 +65,11 @@ class ValidatedDifferentialAnalysisRequest:
     workflow_provenance: Mapping[str, object] | None = None
     dataset_preprocessing_report: DatasetPreprocessingReport | None = None
     design_build_result: DesignMatrixBuildResult | None = None
+    dataset_view: DatasetInternalView | None = field(
+        default=None,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         _require_decomposition_matches_design_matrix(

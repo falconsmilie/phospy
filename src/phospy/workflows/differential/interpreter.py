@@ -128,7 +128,11 @@ class DifferentialAnalysisInterpreter:
             resolved_design_build_result = resolved_design_contract.design_build_result
 
         analysis_sample_ids = resolved_analysis_sample_ids
-        resolved_dataset_view = DatasetInternalView(resolved_dataset)
+        resolved_dataset_view = (
+            request.dataset_view
+            if resolved_dataset is request.dataset and request.dataset_view is not None
+            else DatasetInternalView(resolved_dataset)
+        )
         resolved_site_metadata = resolved_dataset_view.site_metadata
         matrix = dataframe_loc(
             resolved_dataset_view.phospho,
@@ -156,7 +160,7 @@ class DifferentialAnalysisInterpreter:
                 },
                 message_prefix="differential workflow boundary validation failed",
             )
-        matrix_aligned = dataframe_copy(matrix, deep=True)
+        matrix_aligned = dataframe_copy(matrix, deep=False)
         result_identity_metadata = _build_result_identity_metadata(
             site_metadata=resolved_site_metadata,
             expected_index=matrix_aligned.index,
@@ -445,7 +449,7 @@ def _prefer_site_key_index_for_differential_results(
             details={"error": str(exc)},
             message_prefix="differential workflow boundary validation failed",
         ) from exc
-    remapped = dataframe_copy(matrix, deep=True)
+    remapped = dataframe_copy(matrix, deep=False)
     remapped.index = pd.Index(series_as_strings(site_keys), name="site_key")
     return remapped
 
