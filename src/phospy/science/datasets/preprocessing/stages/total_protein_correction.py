@@ -27,6 +27,10 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidence,
+    TotalProteinRowMappingEvidence,
+)
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
@@ -168,6 +172,19 @@ class TotalProteinCorrectionStage:
             total=state.total,
             corrected=corrected,
         )
+        input_phosphosite_row_ids = tuple(
+            str(row_id) for row_id in state.phospho.index.astype(str).tolist()
+        )
+        evidence_corrected_row_ids = tuple(
+            row_id
+            for row_id in input_phosphosite_row_ids
+            if row_id in mapping.phosphosite_to_total_row
+        )
+        evidence_uncorrected_row_ids = tuple(
+            row_id
+            for row_id in input_phosphosite_row_ids
+            if row_id not in mapping.phosphosite_to_total_row
+        )
         next_state = replace(state, phospho=corrected)
         return PreprocessingStageResult(
             state=next_state,
@@ -180,12 +197,22 @@ class TotalProteinCorrectionStage:
                 "diagnostics": diagnostics,
             },
             quantitative_transition_evidence=QuantitativeTransitionEvidence(
-                total_protein_corrected_row_count=int(
-                    len(mapping.corrected_phosphosite_rows)
-                ),
+                total_protein_corrected_row_count=int(len(evidence_corrected_row_ids)),
                 total_protein_uncorrected_row_count=int(
-                    len(mapping.uncorrected_phosphosite_rows)
+                    len(evidence_uncorrected_row_ids)
                 ),
+            ),
+            quantitative_evidence=QuantitativeOperationEvidence(
+                total_protein_row_mapping=TotalProteinRowMappingEvidence(
+                    input_phosphosite_row_count=int(state.phospho.shape[0]),
+                    corrected_phosphosite_row_ids=evidence_corrected_row_ids,
+                    uncorrected_phosphosite_row_ids=evidence_uncorrected_row_ids,
+                    corrected_phosphosite_to_total_row_ids=tuple(
+                        (row_id, mapping.phosphosite_to_total_row[row_id])
+                        for row_id in evidence_corrected_row_ids
+                    ),
+                    total_protein_row_count=int(state.total.shape[0]),
+                )
             ),
         )
 

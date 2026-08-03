@@ -20,6 +20,10 @@ from phospy.science.datasets.preprocessing.policy_models import (
     SiteMatrixMissingDataPolicy,
     SiteMatrixPolicy,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidence,
+    RowAuditEvidence,
+)
 from phospy.science.datasets.preprocessing.report_rows import (
     report_rows_from_duplicate_site_resolution_dataframe,
     report_rows_from_metadata_conflicts_dataframe,
@@ -131,6 +135,7 @@ class SiteMatrixStage:
                     "notes": "stage executed",
                     "diagnostics": {},
                 },
+                quantitative_evidence=_zero_row_audit_evidence(),
             )
         if policy is not SiteMatrixPolicy.BUILD_FROM_METADATA:
             raise PhosPyInputError(
@@ -269,6 +274,9 @@ class SiteMatrixStage:
                 "notes": "stage executed",
                 "diagnostics": diagnostics,
             },
+            quantitative_evidence=(
+                None if row_audit_records else _zero_row_audit_evidence()
+            ),
         )
 
     @staticmethod
@@ -498,6 +506,10 @@ def _realign_imputation_observation_mask(
     ].copy(deep=True)
     realigned.index = output_index.copy()
     return realigned.astype(bool)
+
+
+def _zero_row_audit_evidence() -> QuantitativeOperationEvidence:
+    return QuantitativeOperationEvidence(row_audit=RowAuditEvidence(record_count=0))
 
 
 def _resolve_scientific_row_key(

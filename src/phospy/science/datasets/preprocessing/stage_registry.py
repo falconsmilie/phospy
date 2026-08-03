@@ -9,6 +9,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStage,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidenceValidator,
+)
 from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
     PreprocessingStageFactoryContext,
@@ -81,7 +84,7 @@ def _build_stage_metadata_by_key(
                 f"{context} contains stage {stage_key!r} without determinism resolver"
             )
         try:
-            metadata.resolve_quantitative_contract(PreprocessingPlan())
+            contract = metadata.resolve_quantitative_contract(PreprocessingPlan())
         except DatasetBuildError:
             raise
         except Exception as exc:
@@ -89,6 +92,11 @@ def _build_stage_metadata_by_key(
                 f"{context} contains stage {stage_key!r} with invalid "
                 "quantitative semantic contract"
             ) from exc
+        QuantitativeOperationEvidenceValidator.require_supported_contract(
+            contract,
+            stage=stage_key,
+            operation=metadata.operation_name(PreprocessingPlan()),
+        )
         if not isinstance(metadata.diagnostics_metadata, Mapping):
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} with invalid diagnostics metadata"

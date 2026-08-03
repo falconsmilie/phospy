@@ -24,6 +24,10 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStateTableKey,
     append_row_audit_records,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidence,
+    RowAuditEvidence,
+)
 from phospy.science.datasets.preprocessing.report_rows import (
     report_rows_from_row_audit_rows,
 )
@@ -100,6 +104,7 @@ class GroupCoverageFilterStage:
                     notes="group-aware coverage filter disabled by configuration",
                     diagnostics=diagnostics,
                 ),
+                quantitative_evidence=_zero_row_audit_evidence(),
             )
 
         require_numeric_group_coverage_matrix(state.phospho)
@@ -165,6 +170,9 @@ class GroupCoverageFilterStage:
                     f"removed {len(dropped_row_ids)}"
                 ),
                 diagnostics=diagnostics,
+            ),
+            quantitative_evidence=(
+                None if row_audit_records else _zero_row_audit_evidence()
             ),
         )
 
@@ -399,6 +407,10 @@ def _threshold_summary(*, plan: PreprocessingPlan) -> str:
         "min_groups_passing_threshold="
         f"{parameters['min_groups_passing_threshold']}"
     )
+
+
+def _zero_row_audit_evidence() -> QuantitativeOperationEvidence:
+    return QuantitativeOperationEvidence(row_audit=RowAuditEvidence(record_count=0))
 
 
 def _resolve_operation(plan: PreprocessingPlan) -> str:

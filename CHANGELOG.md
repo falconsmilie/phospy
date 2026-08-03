@@ -103,6 +103,11 @@ All notable changes to this project are documented here.
   limited to `unknown`, `phosphosite_abundance`, and
   `phosphosite_log_abundance`, and derived total-protein meanings carry
   operation fingerprints.
+- Enforced preprocessing `QuantitativeOperationContract.required_evidence` as
+  executable policy. Pipeline execution now rejects stages before trace
+  acceptance when declared evidence is missing, and processing-state
+  reconstruction revalidates typed trace evidence before establishing completed
+  quantitative state.
 
 ### Changed
 
@@ -117,6 +122,10 @@ All notable changes to this project are documented here.
   payloads. New bundle payloads round-trip the semantic provenance exactly;
   legacy payloads without the field are loaded only through the explicit
   migration path as `legacy_unverified`, not as derived evidence.
+- Preprocessing trace records can now carry typed quantitative-operation
+  evidence sidecars for requirements such as row audits, observation masks,
+  total-protein row mappings, and resolved stochastic seeds. Fingerprints and
+  typed summaries are persisted instead of retaining full DataFrames.
 - Consolidated duplicate public/science configuration definitions so each
   config concept has one owner. Public `phospy.api.configs` imports and
   constructor behavior are preserved, while duplicate internal class identities

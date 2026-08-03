@@ -19,6 +19,10 @@ from phospy.science.datasets.preprocessing.models import (
 from phospy.science.datasets.preprocessing.policy_models import (
     LocalisationEligibilityMode,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidence,
+    RowAuditEvidence,
+)
 from phospy.science.datasets.preprocessing.report_rows import (
     report_rows_from_row_audit_rows,
 )
@@ -78,6 +82,7 @@ class LocalisationConfidenceStage:
                         "min_confidence": threshold,
                     },
                 },
+                quantitative_evidence=_zero_row_audit_evidence(),
             )
 
         site_metadata = state.site_metadata
@@ -101,6 +106,7 @@ class LocalisationConfidenceStage:
                             "below_threshold_count": 0,
                         },
                     },
+                    quantitative_evidence=_zero_row_audit_evidence(),
                 )
             raise PhosPyInputError(
                 "dataset build request preprocessing localisation policy "
@@ -175,6 +181,7 @@ class LocalisationConfidenceStage:
                         "below_threshold_count": 0,
                     },
                 },
+                quantitative_evidence=_zero_row_audit_evidence(),
             )
 
         if mode is not LocalisationEligibilityMode.ALLOW_MISSING_WITH_WAIVER:
@@ -213,6 +220,9 @@ class LocalisationConfidenceStage:
                     "below_threshold_count": below_threshold_count,
                 },
             },
+            quantitative_evidence=(
+                None if row_audit_records else _zero_row_audit_evidence()
+            ),
         )
 
 
@@ -302,6 +312,10 @@ def _summarise_examples(values: list[str], *, limit: int = _EXAMPLE_LIMIT) -> st
     preview = ", ".join(values[:limit])
     suffix = "" if len(values) <= limit else f", +{len(values) - limit} more"
     return f"[{preview}{suffix}]"
+
+
+def _zero_row_audit_evidence() -> QuantitativeOperationEvidence:
+    return QuantitativeOperationEvidence(row_audit=RowAuditEvidence(record_count=0))
 
 
 def _resolve_operation(plan: PreprocessingPlan) -> str:

@@ -15,6 +15,9 @@ from phospy.provenance.models import (
     ReproducibilityCaveat,
     TableFingerprint,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidence,
+)
 from phospy.science.datasets.preprocessing.report_schema import (
     ComparisonGroupStatsRow,
     ComparisonPairStatsRow,
@@ -79,6 +82,7 @@ class PreprocessingStageResult:
     batch_correction_provenance: BatchCorrectionProvenance | None = None
     intensity_transformation_event: IntensityTransformationEvent | None = None
     quantitative_transition_evidence: QuantitativeTransitionEvidence | None = None
+    quantitative_evidence: QuantitativeOperationEvidence | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +116,7 @@ class PreprocessingStageExecution:
     intensity_transformation_event: IntensityTransformationEvent | None = None
     quantitative_transition_evidence: QuantitativeTransitionEvidence | None = None
     quantitative_contract: QuantitativeOperationContract | None = None
+    quantitative_evidence: QuantitativeOperationEvidence | None = None
 
     @property
     def input_rows(self) -> int:

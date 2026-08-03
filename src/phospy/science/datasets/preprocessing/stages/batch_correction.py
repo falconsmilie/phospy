@@ -518,7 +518,10 @@ BATCH_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
         PreprocessingStateTableKey.DATASET_PHOSPHO,
         PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
     ),
-    produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    produced_output_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK,
+    ),
     quantitative_contract=_resolve_quantitative_contract,
     stage_factory=_build_batch_correction_stage,
     backend="numpy",

@@ -378,6 +378,14 @@ class QuantitativeOperationContract:
                 "quantitative operation contract requires required_evidence; use "
                 "QuantitativeEvidenceRequirement.NONE for no external evidence"
             )
+        if (
+            QuantitativeEvidenceRequirement.NONE in required_evidence
+            and len(required_evidence) != 1
+        ):
+            raise InvalidTransformationStateError(
+                "QuantitativeEvidenceRequirement.NONE may not be combined with "
+                "other quantitative evidence requirements"
+            )
         negative_domain_policy = _normalize_negative_domain_policy(
             self.negative_domain_policy
         )

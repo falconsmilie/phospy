@@ -19,6 +19,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    resolve_quantitative_operation_evidence,
+)
 from phospy.science.datasets.preprocessing.stage_contract import (
     InterpretedPreprocessingStageContract,
     PreprocessingStageContract,
@@ -57,6 +60,12 @@ class _StageTraceBuilder:
             backend=interpreted_contract.backend,
             determinism=determinism,
         )
+        quantitative_evidence = resolve_quantitative_operation_evidence(
+            provided=stage_result.quantitative_evidence,
+            consumed_input_tables=fingerprints.consumed_input_tables,
+            produced_output_tables=fingerprints.produced_output_tables,
+            batch_correction_provenance=stage_result.batch_correction_provenance,
+        )
         return PreprocessingStageExecution(
             stage=interpreted_contract.stage,
             operation=interpreted_contract.operation,
@@ -93,6 +102,7 @@ class _StageTraceBuilder:
                 stage_result.quantitative_transition_evidence
             ),
             quantitative_contract=interpreted_contract.quantitative_contract,
+            quantitative_evidence=quantitative_evidence,
         )
 
 

@@ -237,7 +237,8 @@ tests/unit/test_public_contract_results.py,unit,417,9,false,false,public API con
 tests/unit/test_public_contract_workflows.py,unit,194,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,555,9,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,45,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_quantitative_operation_contracts.py,unit,454,8,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_quantitative_operation_contracts.py,unit,485,8,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_quantitative_operation_evidence.py,unit,1056,9,true,true,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/unit/test_reader_enrichment_sets.py,unit,151,6,true,true,,,,,,
 tests/unit/test_reader_table_parsing_helpers.py,unit,186,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_reference_bundle_builder.py,unit,334,9,false,false,,,,,,

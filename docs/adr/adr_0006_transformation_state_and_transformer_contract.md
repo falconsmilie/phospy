@@ -132,6 +132,31 @@ Contracts that affect pre-execution scale/meaning folding without minting a
 separate operation-derived quantitative-meaning provenance event must declare
 that explicitly.
 
+Update note (2026-08-03, quantitative-operation evidence enforcement):
+`QuantitativeOperationContract.required_evidence` is executable policy rather
+than descriptive metadata. Scale and quantitative-meaning compatibility still
+fail before numerical execution, but evidence that only exists after execution
+is validated after typed diagnostics, determinism, fingerprints, and provenance
+are resolved and before a preprocessing trace entry is accepted.
+
+The validator is owned by the preprocessing domain and is keyed by
+`QuantitativeEvidenceRequirement`, not by stage name, operation name,
+diagnostic strings, or public configuration DTOs. Each requirement must be
+satisfied by typed, inspectable execution evidence such as established input
+scale state, recognised quantitative-meaning evidence, typed intensity
+transformation events, table fingerprints, row-audit summaries,
+observation-mask fingerprints, total-protein row mappings, resolved stochastic
+seeds, resolved control-site evidence, sample-design provenance, or typed
+batch-correction provenance. Declarations and arbitrary diagnostics are not
+proof.
+
+Processing-state reconstruction revalidates the same requirements against the
+supplied preprocessing trace before establishing final quantitative state. This
+keeps manually constructed, restored, or tampered traces from bypassing the
+pipeline boundary. Trace persistence should use typed immutable evidence
+objects and stable fingerprints or summaries; it should not retain full
+DataFrames just to prove a requirement.
+
 Update note (2026-08-01, final numeric-semantic coherence):
 Final analysis-ready dataset construction now validates the observed finite
 numeric sign domain against the established intensity scale and quantitative

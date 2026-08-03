@@ -29,6 +29,10 @@ from phospy.science.datasets.preprocessing.policy_models import (
     NormalisationPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidence,
+    TotalProteinRowMappingEvidence,
+)
 from phospy.science.datasets.preprocessing.stage_registry import (
     get_preprocessing_stage_metadata,
     list_registered_preprocessing_stages,
@@ -436,6 +440,33 @@ def _total_protein_stage_execution(
             "uncorrected_row_count": evidence.total_protein_uncorrected_row_count,
         },
         quantitative_transition_evidence=evidence,
+        quantitative_evidence=QuantitativeOperationEvidence(
+            total_protein_row_mapping=TotalProteinRowMappingEvidence(
+                input_phosphosite_row_count=2,
+                corrected_phosphosite_row_ids=tuple(
+                    f"row_{index}"
+                    for index in range(
+                        int(evidence.total_protein_corrected_row_count or 0)
+                    )
+                ),
+                uncorrected_phosphosite_row_ids=tuple(
+                    f"uncorrected_row_{index}"
+                    for index in range(
+                        int(evidence.total_protein_uncorrected_row_count or 0)
+                    )
+                ),
+                corrected_phosphosite_to_total_row_ids=tuple(
+                    (
+                        f"row_{index}",
+                        f"total_row_{index}",
+                    )
+                    for index in range(
+                        int(evidence.total_protein_corrected_row_count or 0)
+                    )
+                ),
+                total_protein_row_count=2,
+            )
+        ),
     )
 
 

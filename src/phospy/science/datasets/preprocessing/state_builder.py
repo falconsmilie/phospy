@@ -21,6 +21,10 @@ from phospy.science.datasets.preprocessing.policy_models import (
     SiteMatrixPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidenceContext,
+    QuantitativeOperationEvidenceValidator,
+)
 from phospy.science.datasets.preprocessing.stage_registry import (
     get_preprocessing_stage_metadata,
 )
@@ -476,10 +480,9 @@ def _apply_quantitative_operation_contract_transitions(
         preprocessing_trace=preprocessing_trace,
     )
     resolved_state = intensity_scale_state
+    evidence_validator = QuantitativeOperationEvidenceValidator()
     for stage in preprocessing_trace or ():
         contract = _resolve_trace_quantitative_contract(stage=stage, plan=plan)
-        if not contract.emits_quantitative_meaning_state_event:
-            continue
         current_quantity = resolved_state.quantity
         if current_quantity is None:
             raise DatasetBuildError(
@@ -490,6 +493,21 @@ def _apply_quantitative_operation_contract_transitions(
             scale_kind=resolved_state.kind,
             meaning=current_quantity,
         )
+        evidence_validator.validate(
+            QuantitativeOperationEvidenceContext(
+                stage=stage.stage,
+                operation=stage.operation,
+                quantitative_contract=contract,
+                trace_record=stage,
+                input_quantitative_state=contract_state,
+                input_intensity_scale_state=resolved_state,
+                input_quantitative_meaning_evidence_mode=(
+                    _resolve_quantitative_meaning_evidence_mode(resolved_state)
+                ),
+            )
+        )
+        if not contract.emits_quantitative_meaning_state_event:
+            continue
         target_state = contract.validate_and_transition(
             contract_state,
             stage=stage.stage,
@@ -522,6 +540,18 @@ def _apply_quantitative_operation_contract_transitions(
             "quantitative operation contract transition changed the output meaning"
         )
     return resolved_state
+
+
+def _resolve_quantitative_meaning_evidence_mode(
+    state: IntensityScaleState,
+) -> QuantitativeMeaningEvidenceMode | None:
+    provenance = state.quantitative_meaning_provenance
+    if provenance is None:
+        return None
+    evidence_mode = provenance.evidence_mode
+    if isinstance(evidence_mode, QuantitativeMeaningEvidenceMode):
+        return evidence_mode
+    return QuantitativeMeaningEvidenceMode(str(evidence_mode))
 
 
 def _require_trace_for_contract_emitting_plan_stages(

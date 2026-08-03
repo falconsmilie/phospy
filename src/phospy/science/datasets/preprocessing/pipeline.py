@@ -28,6 +28,10 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
+from phospy.science.datasets.preprocessing.quantitative_evidence import (
+    QuantitativeOperationEvidenceContext,
+    QuantitativeOperationEvidenceValidator,
+)
 from phospy.science.datasets.preprocessing.report_rows import (
     validate_preprocessing_report_row,
 )
@@ -49,6 +53,7 @@ from phospy.science.datasets.preprocessing.trace_builder import _StageTraceBuild
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
 )
 from phospy.science.transformations.quantitative_contracts import (
     QuantitativeContractState,
@@ -138,17 +143,24 @@ class PreprocessingPipeline:
         diagnostics_normalizer = _StageDiagnosticsNormalizer()
         fingerprint_service = _StageFingerprintService()
         trace_builder = _StageTraceBuilder()
+        evidence_validator = QuantitativeOperationEvidenceValidator()
+        quantitative_meaning_evidence_mode = (
+            _initial_quantitative_meaning_evidence_mode(
+                initial_quantitative_meaning=initial_quantitative_meaning
+            )
+        )
 
         for stage_key in current.plan.stage_order:
             stage = self._resolve_stage(stage_key)
             contract = self._resolve_stage_contract(stage_key)
             previous = current
+            stage_input_quantitative_state = quantitative_state
             interpreted_contract = contract.interpret(previous.plan)
             _run_stage_pre_quantitative_contract_validation(
                 stage=stage,
                 state=previous,
             )
-            quantitative_state = _validate_quantitative_contract_before_execution(
+            _validate_quantitative_contract_before_execution(
                 quantitative_state=quantitative_state,
                 stage_key=stage_key,
                 interpreted_contract=interpreted_contract,
@@ -181,19 +193,48 @@ class PreprocessingPipeline:
                 consumed_input_tables=interpreted_contract.consumed_input_tables,
                 produced_output_tables=interpreted_contract.produced_output_tables,
             )
-            trace.append(
-                trace_builder.run(
-                    stage_key=stage_key,
-                    contract=contract,
+            trace_record = trace_builder.run(
+                stage_key=stage_key,
+                contract=contract,
+                interpreted_contract=interpreted_contract,
+                previous=previous,
+                current=current,
+                stage_result=stage_result,
+                diagnostics=diagnostics,
+                fingerprints=fingerprints,
+                intensity_transformation_event=intensity_transformation_event,
+            )
+            evidence_validator.validate(
+                QuantitativeOperationEvidenceContext(
+                    stage=trace_record.stage,
+                    operation=trace_record.operation,
+                    quantitative_contract=interpreted_contract.quantitative_contract,
+                    trace_record=trace_record,
+                    input_quantitative_state=stage_input_quantitative_state,
+                    input_quantitative_meaning_evidence_mode=(
+                        quantitative_meaning_evidence_mode
+                    ),
                     interpreted_contract=interpreted_contract,
-                    previous=previous,
-                    current=current,
-                    stage_result=stage_result,
-                    diagnostics=diagnostics,
-                    fingerprints=fingerprints,
-                    intensity_transformation_event=intensity_transformation_event,
+                    previous_preprocessing_state=previous,
+                    current_preprocessing_state=current,
                 )
             )
+            quantitative_state = (
+                interpreted_contract.quantitative_contract.validate_and_transition(
+                    stage_input_quantitative_state,
+                    stage=stage_key,
+                    operation=interpreted_contract.operation,
+                    evidence=trace_record.quantitative_transition_evidence,
+                )
+            )
+            quantitative_meaning_evidence_mode = (
+                _resolve_output_quantitative_meaning_evidence_mode(
+                    input_state=stage_input_quantitative_state,
+                    output_state=quantitative_state,
+                    input_mode=quantitative_meaning_evidence_mode,
+                )
+            )
+            trace.append(trace_record)
         if report_rows:
             current = replace(current, report_rows=tuple(report_rows))
         return current, tuple(trace)
@@ -283,6 +324,26 @@ def _validate_quantitative_contract_before_execution(
         operation=interpreted_contract.operation,
         evidence=None,
     )
+
+
+def _initial_quantitative_meaning_evidence_mode(
+    *,
+    initial_quantitative_meaning: QuantitativeMeaning | None,
+) -> QuantitativeMeaningEvidenceMode:
+    if initial_quantitative_meaning is not None:
+        return QuantitativeMeaningEvidenceMode.DECLARED_BY_CALLER
+    return QuantitativeMeaningEvidenceMode.INFERRED_FROM_SCALE_CONTRACT
+
+
+def _resolve_output_quantitative_meaning_evidence_mode(
+    *,
+    input_state: QuantitativeContractState,
+    output_state: QuantitativeContractState,
+    input_mode: QuantitativeMeaningEvidenceMode,
+) -> QuantitativeMeaningEvidenceMode:
+    if output_state.meaning is input_state.meaning:
+        return input_mode
+    return QuantitativeMeaningEvidenceMode.DERIVED_BY_PHOSPY_OPERATION
 
 
 def _run_stage_pre_quantitative_contract_validation(

@@ -152,8 +152,8 @@ def _intensity_transform_execution(
         output_shape=(1, 1),
         input_hash="input-hash",
         output_hash="output-hash",
-        phospho_input_hash="input-phospho-hash",
-        phospho_output_hash="output-phospho-hash",
+        phospho_input_hash="input-fingerprint",
+        phospho_output_hash="output-fingerprint",
         diagnostics={} if diagnostics is None else diagnostics,
         intensity_transformation_event=event,  # type: ignore[arg-type]
     )
