@@ -1,19 +1,14 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Stable localisation config facade with compatibility adapters."""
 
+from __future__ import annotations
+
+from phospy.api._compat import deprecated_config_export
 from phospy.contracts.configs.preprocessing.localisation import (
-    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
-    DATASET_LOCALISATION_MODE_IGNORE,
-    DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD,
-    DATASET_LOCALISATION_MODES,
     DatasetLocalisationConfig,
-    DatasetLocalisationMode,
 )
 
-__all__ = [
-    "DATASET_LOCALISATION_MODES",
-    "DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER",
-    "DATASET_LOCALISATION_MODE_IGNORE",
-    "DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD",
-    "DatasetLocalisationConfig",
-    "DatasetLocalisationMode",
-]
+__all__ = ["DatasetLocalisationConfig"]
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

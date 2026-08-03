@@ -36,17 +36,19 @@ import tempfile
 import pandas as pd
 
 import phospy
+import phospy.advanced as advanced
 import phospy.api as api
+from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.advanced import DatasetMissingDataConfig, DatasetNormalisationConfig
+from phospy.advanced import DatasetSiteMatrixConfig, KinaseReliabilityProfile
+from phospy.advanced import KinaseScoringConfig
+from phospy.advanced import ReferenceContextCompatibilityPolicy
 from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
 from phospy import KinaseWorkflow
-from phospy.api import Contrast, DatasetBuildRequest, DatasetIntensityTransformConfig
-from phospy.api import DatasetLocalisationConfig, DatasetMissingDataConfig
-from phospy.api import DatasetNormalisationConfig, DatasetPreprocessingConfig
-from phospy.api import DatasetSiteMatrixConfig, DifferentialAnalysisRequest
-from phospy.api import ExperimentalDesign, KinaseReliabilityProfile
-from phospy.api import KinaseScoringConfig, KinaseWorkflowRequest, Organism
-from phospy.api import ReferenceContextCompatibilityPolicy, ReferencePreset
-from phospy.api import SampleDesignRecord
+from phospy.api import Contrast, DatasetBuildRequest, DatasetLocalisationConfig
+from phospy.api import DatasetPreprocessingConfig, DifferentialAnalysisRequest
+from phospy.api import ExperimentalDesign, KinaseWorkflowRequest, Organism
+from phospy.api import ReferencePreset, SampleDesignRecord
 from phospy.io.bundles.kinase import KinaseWorkflowConfigSnapshot
 from phospy.io.bundles.kinase import load_kinase_workflow_bundle
 from phospy.io.bundles.kinase import save_kinase_workflow_bundle
@@ -108,6 +110,16 @@ def _verify_public_surface() -> dict[str, object]:
         if name not in api.__all__:
             raise AssertionError(f"phospy.api.__all__ is missing {name!r}")
         getattr(api, name)
+    for name in (
+        "DatasetIntensityTransformConfig",
+        "KinaseScoringConfig",
+        "ReferenceContextCompatibilityPolicy",
+    ):
+        if name in api.__all__:
+            raise AssertionError(f"advanced API name leaked into phospy.api: {name}")
+        if name not in advanced.__all__:
+            raise AssertionError(f"phospy.advanced.__all__ is missing {name!r}")
+        getattr(advanced, name)
     if phospy.AnalysisReadyDatasetBuilder is not api.AnalysisReadyDatasetBuilder:
         raise AssertionError("root AnalysisReadyDatasetBuilder is not api export")
     if phospy.DifferentialAnalysisWorkflow is not api.DifferentialAnalysisWorkflow:

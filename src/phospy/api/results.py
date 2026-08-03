@@ -1,9 +1,13 @@
-"""Public compatibility wrapper for internal contract ownership."""
+# pyright: reportUnsupportedDunderAll=false
+# ruff: noqa: F401
+"""Stable public result models."""
 
-from phospy.contracts import results as _result_contracts
+from __future__ import annotations
+
+from phospy._api_inventory import STABLE_RESULT_API
+from phospy.api._compat import deprecated_advanced_result_export
 from phospy.contracts.results import (
     DifferentialAnalysisResult,
-    DifferentialModelDiagnostics,
     EnrichmentResultRecord,
     EnrichmentWorkflowResult,
     KinaseActivityResult,
@@ -15,36 +19,8 @@ from phospy.contracts.results import (
     SignalomeWorkflowResult,
 )
 
-# Compatibility aliases intentionally re-exported at module scope.
-KinaseEligibilityReport = _result_contracts.KinaseEligibilityReport
-KinaseWorkflowPreprocessingAttritionSummary = (
-    _result_contracts.KinaseWorkflowPreprocessingAttritionSummary
-)
-KinaseWorkflowScoringAttritionSummary = (
-    _result_contracts.KinaseWorkflowScoringAttritionSummary
-)
-KinaseWorkflowSiteAttritionSummary = (
-    _result_contracts.KinaseWorkflowSiteAttritionSummary
-)
-KinaseWorkflowAttritionProvenance = _result_contracts.KinaseWorkflowAttritionProvenance
-KinaseWorkflowCaveat = _result_contracts.KinaseWorkflowCaveat
+__all__ = STABLE_RESULT_API
 
-__all__ = [
-    "DifferentialAnalysisResult",
-    "DifferentialModelDiagnostics",
-    "EnrichmentResultRecord",
-    "EnrichmentWorkflowResult",
-    "KinaseActivityResult",
-    "KinaseEligibilityReport",
-    "KinasePredictionResult",
-    "KinaseScoringResult",
-    "KinaseWorkflowAttritionProvenance",
-    "KinaseWorkflowCaveat",
-    "KinaseWorkflowPreprocessingAttritionSummary",
-    "KinaseWorkflowResult",
-    "KinaseWorkflowScoringAttritionSummary",
-    "KinaseWorkflowSiteAttritionSummary",
-    "PhosphositeImportResult",
-    "ResultCaveat",
-    "SignalomeWorkflowResult",
-]
+
+def __getattr__(name: str) -> object:
+    return deprecated_advanced_result_export(name, old_module=__name__)

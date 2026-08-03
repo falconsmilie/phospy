@@ -1,21 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced localisation policy imports."""
 
-from phospy.contracts.configs.localisation import (
-    LOCALISATION_POLICIES,
-    LOCALISATION_POLICY_ALLOW_UNKNOWN,
-    LOCALISATION_POLICY_REQUIRE_PRESENT,
-    LOCALISATION_POLICY_REQUIRE_THRESHOLD,
-    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
-    LocalisationPolicy,
-    LocalisationRequirement,
-)
+from __future__ import annotations
 
-__all__ = [
-    "LOCALISATION_POLICIES",
-    "LOCALISATION_POLICY_ALLOW_UNKNOWN",
-    "LOCALISATION_POLICY_REQUIRE_PRESENT",
-    "LOCALISATION_POLICY_REQUIRE_THRESHOLD",
-    "LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY",
-    "LocalisationPolicy",
-    "LocalisationRequirement",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

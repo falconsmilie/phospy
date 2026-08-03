@@ -223,6 +223,51 @@ class SignalomeWorkflowResult:
             raise ContractValidationError(
                 "signalome_result internal initialization payload missing"
             )
+        _require_instance(
+            self.dataset,
+            AnalysisReadyPhosphoDataset,
+            field_name="signalome_result.dataset",
+        )
+        _require_instance(
+            self.kinase_result,
+            KinaseWorkflowResult,
+            field_name="signalome_result.kinase_result",
+        )
+        _require_instance(
+            self.module_assignments,
+            SignalomeAssignments,
+            field_name="signalome_result.module_assignments",
+        )
+        _require_instance(
+            self.signalome_modules,
+            SignalomeModules,
+            field_name="signalome_result.signalome_modules",
+        )
+        _require_instance(
+            self.kinase_network,
+            KinaseNetwork,
+            field_name="signalome_result.kinase_network",
+        )
+        _require_instance(
+            self.module_selection_diagnostics,
+            SignalomeModuleSelectionDiagnostics,
+            field_name="signalome_result.module_selection_diagnostics",
+        )
+        _require_instance(
+            self.clustering_preparation_diagnostics,
+            SignalomeClusteringPreparationDiagnostics,
+            field_name="signalome_result.clustering_preparation_diagnostics",
+        )
+        _require_instance(
+            self.score_preconditioning_diagnostics,
+            SignalomeScorePreconditioningDiagnostics,
+            field_name="signalome_result.score_preconditioning_diagnostics",
+        )
+        _require_instance(
+            self.alignment_diagnostics,
+            SignalomeAlignmentDiagnostics,
+            field_name="signalome_result.alignment_diagnostics",
+        )
         expanded_signalome, site_membership, protein_site_context, assume_owned = (
             payload
         )
@@ -403,6 +448,16 @@ def _validate_non_empty_site_identity_columns(
                 f"{field_name} site rows require non-empty "
                 f"{column_name} values; invalid_count={invalid_count}"
             )
+
+
+def _require_instance(
+    value: object,
+    expected_type: type[object],
+    *,
+    field_name: str,
+) -> None:
+    if not isinstance(value, expected_type):
+        raise ContractValidationError(f"{field_name} must be {expected_type.__name__}")
 
 
 __all__ = [

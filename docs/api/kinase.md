@@ -66,7 +66,7 @@ For production workflow validation, use the scoring preset that carries the
 same site-level threshold requirement into the kinase request:
 
 ```python
-from phospy.api import KinaseScoringConfig
+from phospy.advanced import KinaseScoringConfig
 
 scoring_config = KinaseScoringConfig.production(
     minimum_reference_overlap_fraction=study_reference_overlap_floor,
@@ -235,7 +235,8 @@ supported.
 
 ```python
 from phospy import KinaseWorkflow
-from phospy.api import KinaseScoringConfig, KinaseWorkflowRequest, ReferencePreset
+from phospy.advanced import KinaseScoringConfig
+from phospy.api import KinaseWorkflowRequest, ReferencePreset
 
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
@@ -296,7 +297,7 @@ to assemble and
 attach `kinase_result.substrate_contributions`.
 
 ```python
-from phospy.api import KinaseReliabilityProfile
+from phospy.advanced import KinaseReliabilityProfile, KinaseScoringConfig
 
 request = KinaseWorkflowRequest(
     dataset=dataset,
@@ -420,12 +421,14 @@ returns fresh ordinary `dict`/`list` payloads from `to_payload()`.
 
 ```python
 from phospy import KinaseWorkflow
-from phospy.api import (
+from phospy.advanced import (
     KinaseReliabilityProfile,
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflowRequest,
     ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    KinaseWorkflowRequest,
     ReferencePreset,
 )
 

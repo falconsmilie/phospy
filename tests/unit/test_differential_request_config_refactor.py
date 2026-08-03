@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import get_type_hints
 
 import phospy.api.requests as request_models
-from phospy.api import (
+from phospy.advanced import (
     DifferentialAnalysisConfig,
-    DifferentialAnalysisRequest,
     MultipleTestingConfig,
     TechnicalReplicatePolicy,
 )
-from phospy.api.configs import DifferentialAnalysisConfig as ConfigFromConfigs
+from phospy.advanced.configs import DifferentialAnalysisConfig as ConfigFromConfigs
+from phospy.api import DifferentialAnalysisRequest
 from phospy.science.differential.policy_models import (
     TechnicalReplicatePolicy as PolicyFromDifferentialPolicyModels,
 )
@@ -40,19 +40,21 @@ def test_differential_request_construction_does_not_coerce_inputs() -> None:
 
 
 def test_api_requests_no_longer_owns_differential_policy_or_testing_config() -> None:
-    assert not hasattr(request_models, "TechnicalReplicatePolicy")
-    assert not hasattr(request_models, "MultipleTestingConfig")
+    assert "TechnicalReplicatePolicy" not in request_models.__dict__
+    assert "MultipleTestingConfig" not in request_models.__dict__
+    assert "TechnicalReplicatePolicy" not in request_models.__all__
+    assert "MultipleTestingConfig" not in request_models.__all__
 
 
 def test_technical_replicate_policy_is_owned_by_differential_policy_models() -> None:
     assert TechnicalReplicatePolicy is PolicyFromDifferentialPolicyModels
 
 
-def test_differential_config_is_exported_from_api_configs() -> None:
+def test_differential_config_is_exported_from_advanced_configs() -> None:
     assert ConfigFromConfigs is DifferentialAnalysisConfig
 
 
-def test_differential_config_and_policy_are_exported_from_api() -> None:
+def test_differential_config_and_policy_are_exported_from_advanced_api() -> None:
     assert isinstance(DifferentialAnalysisConfig(), DifferentialAnalysisConfig)
     assert isinstance(MultipleTestingConfig(), MultipleTestingConfig)
     assert TechnicalReplicatePolicy.REJECT.value == "reject"

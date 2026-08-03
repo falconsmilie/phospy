@@ -1,11 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for config helper imports."""
 
-from phospy.contracts.configs.common import (
-    _require_int_at_least,
-    _require_real_between,
-)
+from __future__ import annotations
 
-__all__ = [
-    "_require_int_at_least",
-    "_require_real_between",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

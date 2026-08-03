@@ -10,16 +10,18 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 

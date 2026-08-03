@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import pytest
 
-def test_public_config_imports_remain_stable() -> None:
+
+def test_stable_config_imports_remain_from_api_configs() -> None:
     from phospy.api.configs import (
+        DatasetLocalisationConfig,
+        DatasetPreprocessingConfig,
+        EnrichmentConfig,
+    )
+
+    assert DatasetLocalisationConfig is not None
+    assert DatasetPreprocessingConfig is not None
+    assert EnrichmentConfig is not None
+
+
+def test_advanced_config_imports_have_advanced_owner() -> None:
+    from phospy.advanced.configs import (
         DatasetBatchCorrectionConfig,
         DatasetGroupCoverageFilterConfig,
         DatasetIntensityTransformConfig,
-        DatasetPreprocessingConfig,
         DatasetTotalProteinCorrectionConfig,
-        EnrichmentConfig,
         KinaseActivityConfig,
         KinaseAttritionPolicy,
         KinasePredictionConfig,
@@ -19,10 +31,8 @@ def test_public_config_imports_remain_stable() -> None:
 
     assert DatasetBatchCorrectionConfig is not None
     assert DatasetGroupCoverageFilterConfig is not None
-    assert DatasetPreprocessingConfig is not None
     assert DatasetIntensityTransformConfig is not None
     assert DatasetTotalProteinCorrectionConfig is not None
-    assert EnrichmentConfig is not None
     assert KinaseActivityConfig is not None
     assert KinaseAttritionPolicy is not None
     assert KinasePredictionConfig is not None
@@ -34,17 +44,25 @@ def test_public_config_imports_remain_stable() -> None:
 def test_config_all_exports_public_api() -> None:
     import phospy.api.configs as configs
 
+    assert set(configs.__all__) == {
+        "DatasetLocalisationConfig",
+        "DatasetPreprocessingConfig",
+        "EnrichmentConfig",
+    }
     assert "DatasetPreprocessingConfig" in configs.__all__
-    assert "KinaseActivityConfig" in configs.__all__
-    assert "KinaseAttritionPolicy" in configs.__all__
-    assert "KinasePredictionConfig" in configs.__all__
-    assert "ProfileSelfInclusionPolicy" in configs.__all__
-    assert "ReferenceContextCompatibilityPolicy" in configs.__all__
-    assert "SignalomeConfig" in configs.__all__
-    assert "DatasetTotalProteinCorrectionConfig" in configs.__all__
-    assert "DatasetBatchCorrectionConfig" in configs.__all__
-    assert "DatasetGroupCoverageFilterConfig" in configs.__all__
     assert "EnrichmentConfig" in configs.__all__
+
+
+def test_api_config_advanced_compatibility_import_warns() -> None:
+    namespace: dict[str, object] = {}
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=r"from phospy\.advanced\.configs import SignalomeConfig",
+    ):
+        exec("from phospy.api.configs import SignalomeConfig", namespace)
+
+    assert namespace["SignalomeConfig"] is not None
 
 
 def test_config_refactor_does_not_create_import_cycles() -> None:

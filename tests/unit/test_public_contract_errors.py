@@ -12,10 +12,10 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
 )
+from phospy.advanced import DatasetSiteMatrixConfig
 from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
-    DatasetSiteMatrixConfig,
     KinaseWorkflowResult,
     Organism,
     PhosPyInputError,
@@ -621,21 +621,17 @@ def test_result_containers_use_phospy_validation_errors_for_dataframe_fields() -
         KinaseScoringResult(profile_scores=object())
 
 
-def test_workflow_results_are_typed_containers_not_nested_type_validators() -> None:
-    dataset = object()
-    references = object()
-    scoring_result = object()
-    prediction_result = object()
-    result = KinaseWorkflowResult(
-        dataset=dataset,
-        references=references,
-        scoring_result=scoring_result,
-        prediction_result=prediction_result,
-    )
-    assert result.dataset is dataset
-    assert result.references is references
-    assert result.scoring_result is scoring_result
-    assert result.prediction_result is prediction_result
+def test_workflow_results_validate_nested_result_container_types() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="kinase_workflow_result.dataset must be AnalysisReadyPhosphoDataset",
+    ):
+        KinaseWorkflowResult(
+            dataset=object(),  # type: ignore[arg-type]
+            references=object(),  # type: ignore[arg-type]
+            scoring_result=object(),  # type: ignore[arg-type]
+            prediction_result=object(),  # type: ignore[arg-type]
+        )
     assert "workflow-owned container" in (KinaseWorkflowResult.__doc__ or "")
 
 
@@ -667,22 +663,24 @@ def test_signalome_result_accepts_context_free_expanded_site_key_values() -> Non
     assert result.expanded_signalome.loc[0, SITE_KEY_COLUMN] == "not-a-site-key"
 
 
-def test_signalome_result_constructor_does_not_read_dataset_internals() -> None:
+def test_signalome_result_constructor_rejects_non_dataset_boundary() -> None:
     opaque_dataset = object()
     kinase_result = _kinase_result()
 
-    result = SignalomeWorkflowResult(
-        dataset=opaque_dataset,  # type: ignore[arg-type]
-        kinase_result=kinase_result,
-        module_assignments=SignalomeAssignments(
-            table=_valid_signalome_assignments_table()
-        ),
-        signalome_modules=SignalomeModules(table=_valid_signalome_modules_table()),
-        kinase_network=KinaseNetwork(edges=_valid_kinase_network_edges_table()),
-        expanded_signalome=_valid_expanded_signalome_table(),
-    )
-
-    assert result.dataset is opaque_dataset
+    with pytest.raises(
+        ContractValidationError,
+        match="signalome_result.dataset must be AnalysisReadyPhosphoDataset",
+    ):
+        SignalomeWorkflowResult(
+            dataset=opaque_dataset,  # type: ignore[arg-type]
+            kinase_result=kinase_result,
+            module_assignments=SignalomeAssignments(
+                table=_valid_signalome_assignments_table()
+            ),
+            signalome_modules=SignalomeModules(table=_valid_signalome_modules_table()),
+            kinase_network=KinaseNetwork(edges=_valid_kinase_network_edges_table()),
+            expanded_signalome=_valid_expanded_signalome_table(),
+        )
 
 
 def test_signalome_result_rejects_missing_display_id_in_site_membership() -> None:

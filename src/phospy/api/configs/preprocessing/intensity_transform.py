@@ -1,17 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced intensity-transform configs."""
 
-from phospy.contracts.configs.preprocessing.intensity_transform import (
-    DATASET_INTENSITY_TRANSFORM_POLICIES,
-    DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
-    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
-    DatasetIntensityTransformConfig,
-    DatasetIntensityTransformPolicy,
-)
+from __future__ import annotations
 
-__all__ = [
-    "DATASET_INTENSITY_TRANSFORM_POLICIES",
-    "DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY",
-    "DATASET_INTENSITY_TRANSFORM_POLICY_LOG2",
-    "DatasetIntensityTransformConfig",
-    "DatasetIntensityTransformPolicy",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

@@ -16,38 +16,48 @@ burden, and encouraged users to import validators, diagnostic internals, and
 compatibility constants from the same route as workflow entrypoints.
 
 ADR-0001 remains the public API governance baseline. This ADR narrows the
-aggregate facade and defines stability tiers for names exported from
-`phospy.api`.
+aggregate facade and defines stability tiers for names exported from stable and
+advanced package facades.
 
 ## Decision
 
-PhosPy now uses three API tiers:
+PhosPy now uses three API tiers with separate stable and advanced namespaces:
 
-- Stable public API: default user-facing imports for builders, request objects,
+- Stable public API (`phospy.api`): default user-facing imports for builders, request objects,
   workflow classes, primary result objects, reference-bundle entrypoints,
   example-level enums, and common exception types.
-- Advanced supported API: explicit opt-in imports for specialized
+- Advanced supported API (`phospy.advanced`): explicit opt-in imports for specialized
   configuration, advanced reference-resource loading, control-site policy
-  values, and result-table inspection helpers.
+  values, diagnostic result models, compatibility result aliases, and
+  result-table inspection helpers.
 - Internal / experimental API: implementation details that are not exported
   from `phospy.api`, including validators, workflow interpreters/executors,
   result assemblers, low-level scoring helpers, private provenance
   serialization, processing-state internals, reference manifest validation
   internals, nested diagnostic models, and compatibility constants.
 
-`phospy.api.__all__` is the aggregate public facade and contains only stable and
-advanced supported names. Advanced names may still change through normal
-deprecation and documentation policy, but they are intentionally public. Names
-classified as internal / experimental are not aggregate exports; when they are
-needed for PhosPy development, import them from their owning modules.
+`phospy.api.__all__` contains only stable supported names. `phospy.advanced.__all__`
+contains advanced supported names. Advanced names may still change through
+normal deprecation and documentation policy, but their import route no longer
+implies stable support. Names classified as internal / experimental are not
+stable or advanced exports; when they are needed for PhosPy development, import
+them from their owning modules.
 
-Public submodule wildcard surfaces under `phospy.api` follow the same
-stability-tier inventory. A name classified as internal / experimental must not
-appear in a public submodule `__all__`, and `phospy.api.datasets` is a
-stable-only route that exports only `AnalysisReadyPhosphoDataset`. Dataset
-preprocessing diagnostics remain inspectable from returned objects such as
-`dataset.preprocessing_report` and workflow result properties when present; the
-diagnostic model classes are not supported import targets under `phospy.api`.
+Public submodule wildcard surfaces under `phospy.api` are stable-only or
+compatibility-only. A name classified as advanced or internal / experimental
+must not appear in a stable public submodule `__all__`, and
+`phospy.api.datasets` is a stable-only route that exports only
+`AnalysisReadyPhosphoDataset`. Dataset preprocessing diagnostics remain
+inspectable from returned objects such as `dataset.preprocessing_report` and
+workflow result properties when present; the diagnostic model classes are not
+stable import targets under `phospy.api`.
+
+Historical advanced imports from `phospy.api`, `phospy.api.configs`,
+`phospy.api.requests`, and `phospy.api.results` are retained during migration
+as compatibility adapters. They emit `DeprecationWarning` and identify a
+replacement import, usually `phospy.advanced` or a `phospy.advanced.*`
+submodule. Internal compatibility imports, where retained, warn that they are
+unsupported compatibility routes.
 
 Update note (2026-07-22): `AnalysisReadyPhosphoDataset` remains a stable public
 result/domain type and import target. Its ordinary public constructor is sealed
@@ -56,7 +66,8 @@ and raises immediately; supported creation is through
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` factory.
 
 Update note (2026-07-22, config ownership): Stable public configuration import
-routes are preserved through `phospy.api.configs` and `phospy.api`. Some public
+routes are preserved through `phospy.api.configs` and `phospy.api`. Advanced
+configuration import routes are owned by `phospy.advanced.configs`. Some public
 config names are compatibility re-exports of science-owned policy objects; those
 routes must re-export the exact object identity. Public transport DTO classes
 remain owned by `phospy.contracts.configs` and are translated by workflow
@@ -111,8 +122,10 @@ must re-export the exact owned objects from `phospy.science.tables` or
 `phospy.frames`; they do not own scientific logic, validation behavior, or
 duplicate class definitions.
 
-Configuration wrapper routes under `phospy.api.configs.*` are retained public
-routes. They must forward to the owning contract/science route and preserve
+Configuration wrapper routes under `phospy.api.configs.*` are retained only for
+stable names or as compatibility adapters during migration. Advanced
+configuration imports must use `phospy.advanced.configs`. Compatibility
+adapters must forward to the owning contract/science route and preserve
 constructor behavior, enum values, defaults, and deliberate object identity for
 science-owned policies.
 
@@ -122,16 +135,18 @@ assemblers, or reference manifest validation internals may be promoted into
 
 ## Inventory
 
-The implementation source of truth is `src/phospy/api/__init__.py`:
+The implementation source of truth is `src/phospy/_api_inventory.py`, surfaced
+by `src/phospy/api/__init__.py` and `src/phospy/advanced/__init__.py`:
 
 - `_STABLE_PUBLIC_API`
 - `_ADVANCED_SUPPORTED_API`
 - `_INTERNAL_EXPERIMENTAL_API`
 
-The three groups below classify every one of the 202 pre-reduction aggregate
-exports.
+The groups below classify every current stable, advanced, and retained
+compatibility-audit export name. The implementation inventory is the source
+of truth; this ADR records the policy classification for review.
 
-### Stable Public API
+### Stable Public API (61 names)
 
 - AnalysisReadyDatasetBuilder
 - AnalysisReadyPhosphoDataset
@@ -152,6 +167,8 @@ exports.
 - DesignMatrix
 - ContrastMatrix
 - DifferentialAnalysisRequest
+- EnrichmentIdentifierSetProvenance
+- EnrichmentIdentifierSetSourceType
 - EnrichmentSet
 - EnrichmentSetCollection
 - EnrichmentWorkflowRequest
@@ -173,6 +190,7 @@ exports.
 - KinasePredictionResult
 - KinaseScoringResult
 - KinaseWorkflowResult
+- ResultCaveat
 - SignalomeWorkflowResult
 - Organism
 - ReferenceBundle
@@ -183,6 +201,7 @@ exports.
 - PhosPyInputError
 - UnsupportedInputFormatError
 - PhosPyValidationError
+- ContractValidationError
 - PhosPyReferenceError
 - ReferenceResolutionError
 - ReferenceCompatibilityError
@@ -191,33 +210,56 @@ exports.
 - WorkflowBoundaryError
 - SignalomeScaleError
 
-### Advanced Supported API
+### Advanced Supported API (100 names)
 
+- ControlSiteAnnotation
+- ControlSiteSet
+- ControlSiteSourceMetadata
+- ControlSiteStatus
 - CorrectionMaskPolicy
 - CorrectionMissingnessPolicy
 - ObservationMask
 - OriginallyMissingCellTracking
 - TemporaryImputationMethod
 - TemporaryImputationPolicy
-- ControlSiteAnnotation
-- ControlSiteSet
-- ControlSiteSourceMetadata
-- ControlSiteStatus
 - DatasetBatchCorrectionConfig
+- DatasetBatchCorrectionMethod
+- DatasetPreprocessingBatchCorrectionConfig
 - SpsRuvBatchCorrectionConfig (native PhosPy SPS/RUV-style; not RUV-III)
+- SpsRuvBatchCorrectionMethod
 - DatasetComparisonBuildingConfig
+- DatasetComparisonBuildingPolicy
+- DatasetComparisonPair
 - DatasetGroupCoverageFilterConfig
 - DatasetIntensityTransformConfig
+- DatasetIntensityTransformPolicy
+- DatasetLocalisationMode
 - DatasetMissingDataConfig
+- DatasetMissingDataInputScale
+- DatasetMissingDataPolicy
 - DatasetNormalisationConfig
+- DatasetNormalisationPolicy
 - DatasetProteinAwarePreparationConfig
+- DatasetProteinAwarePreparationMappingPolicy
+- DatasetProteinAwarePreparationPolicy
 - DatasetRuvReadinessConfig
 - DatasetSiteMatrixConfig
+- DatasetSiteMatrixDuplicateSitePolicy
+- DatasetSiteMatrixMissingDataPolicy
+- DatasetSiteMatrixPolicy
+- DatasetSiteSequenceConflictPolicy
 - DatasetSiteSequenceResolutionConfig
+- DatasetSiteSequenceResolutionMode
 - DatasetTotalProteinCorrectionConfig
+- DatasetTotalProteinCorrectionDuplicatePolicy
 - DatasetTotalProteinCorrectionIdentityConfig
+- DatasetTotalProteinCorrectionIdentityMatchingPolicy
+- DatasetTotalProteinCorrectionIdentityMode
+- DatasetTotalProteinCorrectionPolicy
+- DatasetTotalProteinCorrectionUnmatchedPolicy
 - DifferentialAnalysisConfig
 - DifferentialImputedValuePolicy
+- DifferentialReliabilityProfile
 - EmpiricalBayesConfig
 - MultipleTestingConfig
 - MultipleTestingCorrection
@@ -225,16 +267,37 @@ exports.
 - PairedDesignPolicy
 - EnrichmentIdentifierKind
 - EnrichmentMethod
+- EnrichmentOutsideBackgroundPolicy
 - KinaseActivityConfig
+- KinaseActivityMethod
+- KinaseActivityPValueMethod
+- KinaseActivitySsgseaRankingDirection
+- KinaseAdaptivePolicy
+- KinaseAttritionPolicy
+- KinaseAttritionViolationMode
 - KinasePredictionConfig
+- KinasePredictionMode
+- KinaseProfileMissingValueStrategy
+- KinaseReferenceDisplayAmbiguityPolicy
+- KinaseReliabilityProfile
 - KinaseScoringConfig
+- KinaseScoringMode
+- KinaseSiteSequenceConflictPolicy
+- LocalisationPolicy
 - LocalisationRequirement
-- SignalomeConfig
-- SignalomeScientificConfig
+- ProfileSelfInclusionPolicy
+- ReferenceContextCompatibilityPolicy
+- SignalomeAssignmentPolicy
+- SignalomeCandidateScoringPolicy
 - SignalomeClusteringConfig
-- SignalomeValidationConfig
+- SignalomeConfig
+- SignalomeKinaseNetworkPolicy
+- SignalomeMode
 - SignalomeOutputConfig
 - SignalomePerformanceConfig
+- SignalomeScientificConfig
+- SignalomeScorePreconditioningPolicy
+- SignalomeValidationConfig
 - TechnicalReplicatePolicy
 - KinaseLibraryResource
 - KinaseLibraryResourceLoadRequest
@@ -242,9 +305,17 @@ exports.
 - load_kinase_library_resource
 - filter_differential_results
 - rank_differential_results
+- DifferentialModelDiagnostics
+- KinaseEligibilityReport
+- KinaseWorkflowAttritionProvenance
+- KinaseWorkflowCaveat
+- KinaseWorkflowPreprocessingAttritionSummary
+- KinaseWorkflowScoringAttritionSummary
+- KinaseWorkflowSiteAttritionSummary
 
-### Internal / Experimental API
+### Internal / Experimental API (102 names)
 
+- ActivityMethodDiagnostics
 - BatchCorrectionDiagnostics
 - BatchCorrectionPolicy
 - BatchCorrectionReport
@@ -295,6 +366,7 @@ exports.
 - KINASE_SCORING_MODES
 - KinaseLibraryMatrix
 - KinaseLibraryResidueClass
+- KseaZScoreActivityDiagnostics
 - MatrixIntensityScaleState
 - MissingDataState
 - MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
@@ -325,9 +397,11 @@ exports.
 - ReferenceIdentifierNormalisationValidationError
 - ReferenceValidationError
 - RuvReadinessState
+- SignalomeClusteringEngine
 - SiteMatrixState
 - SiteSequenceResolutionRowDiagnostic
 - SiteSequenceResolutionState
+- SsgseaSubstrateEnrichmentActivityDiagnostics
 - SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES
 - SUPPORTED_ENRICHMENT_IDENTIFIER_KINDS
 - SUPPORTED_ENRICHMENT_METHODS
@@ -341,20 +415,21 @@ exports.
 - TransformationValidationError
 - TransformerExecutionError
 - UnsupportedOrganismError
+- WeightedSubstrateActivityDiagnostics
 - WorkflowStageError
 
 ## Review Criteria
 
 Future API changes must satisfy these criteria:
 
-1. `phospy.api.__all__` remains the union of stable and explicitly advanced
-   supported names only.
+1. `phospy.api.__all__` remains stable-only.
 2. README examples use stable public API names.
-3. Advanced names are documented as advanced.
+3. Advanced names are exported from `phospy.advanced` and documented as
+   advanced.
 4. Validators, executors, interpreters, private assemblers, internal scoring
    helpers, private provenance serialization, and reference manifest validation
-   internals are not exported through `phospy.api`.
-5. Public submodule `__all__` lists do not include names classified as
-   internal / experimental.
+   internals are not exported through `phospy.api` or `phospy.advanced`.
+5. Stable public submodule `__all__` lists do not include names classified as
+   advanced or internal / experimental.
 6. Any promotion from internal / experimental to supported public API requires
    code, docs, and tests in the same change.

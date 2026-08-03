@@ -7,17 +7,34 @@ from pathlib import Path
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import (
-    Contrast,
+from phospy.advanced import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
-    DatasetBuildRequest,
     DatasetIntensityTransformConfig,
-    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ObservationMask,
+    OriginallyMissingCellTracking,
+    SignalomeClusteringConfig,
+    SignalomeConfig,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
+    SpsRuvBatchCorrectionConfig,
+    TemporaryImputationMethod,
+    TemporaryImputationPolicy,
+)
+from phospy.api import (
+    Contrast,
+    DatasetBuildRequest,
+    DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     EnrichmentConfig,
@@ -26,28 +43,13 @@ from phospy.api import (
     ExperimentalDesign,
     GeneSetCollection,
     IntensityScaleKind,
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
-    ObservationMask,
     Organism,
-    OriginallyMissingCellTracking,
     ReferenceBundle,
     ReferencePreset,
     SampleDesignRecord,
-    SignalomeClusteringConfig,
-    SignalomeConfig,
-    SignalomeOutputConfig,
-    SignalomePerformanceConfig,
-    SignalomeScientificConfig,
-    SignalomeValidationConfig,
     SignalomeWorkflowRequest,
-    SpsRuvBatchCorrectionConfig,
-    TemporaryImputationMethod,
-    TemporaryImputationPolicy,
 )
 from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 
@@ -432,11 +434,14 @@ def test_api_docs_public_imports_are_valid() -> None:
     Organism,
     ReferenceBundle,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
     UnsupportedInputFormatError,
     WorkflowValidationError,
 )""",
+        namespace,
+    )
+    exec(
+        """from phospy.advanced import SignalomeConfig""",
         namespace,
     )
     exec(

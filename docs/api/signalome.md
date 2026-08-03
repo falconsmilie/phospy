@@ -74,7 +74,7 @@ For production workflow validation, use the signalome preset that carries the
 same site-level threshold requirement into the request:
 
 ```python
-from phospy.api import SignalomeConfig
+from phospy.advanced import SignalomeConfig
 
 config = SignalomeConfig.production()
 ```
@@ -87,7 +87,7 @@ Historical exploratory behavior is still available, but it must be named
 explicitly:
 
 ```python
-from phospy.api import SignalomeConfig
+from phospy.advanced import SignalomeConfig
 
 config = SignalomeConfig.compatibility()
 ```
@@ -156,7 +156,8 @@ Important fields:
 
 ```python
 from phospy import SignalomeWorkflow
-from phospy.api import SignalomeConfig, SignalomeWorkflowRequest
+from phospy.advanced import SignalomeConfig
+from phospy.api import SignalomeWorkflowRequest
 
 signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(
@@ -169,7 +170,7 @@ signalome_result = SignalomeWorkflow().run(
 Use an explicit config when you need to document a policy choice:
 
 ```python
-from phospy.api import SignalomeConfig
+from phospy.advanced import SignalomeConfig
 
 request = SignalomeWorkflowRequest(
     kinase_result=kinase_result,
@@ -307,11 +308,13 @@ as site-row removal.
 
 ```python
 from phospy import SignalomeWorkflow
-from phospy.api import (
+from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeValidationConfig,
+)
+from phospy.api import (
     SignalomeWorkflowRequest,
 )
 

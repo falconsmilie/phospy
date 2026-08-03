@@ -86,11 +86,17 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
     UnsupportedInputFormatError,
     WorkflowValidationError,
 )
+```
+
+Use `phospy.advanced` only when you need specialized policy objects or
+diagnostic/result-inspection helpers outside the stable facade:
+
+```python
+from phospy.advanced import KinaseScoringConfig, SignalomeConfig
 ```
 
 `EnrichmentWorkflow` is a supported public workflow from `phospy.api`, not a
@@ -126,7 +132,7 @@ stable import targets and should not be imported from `phospy.api`.
 
 Do not write code that depends on imports such as:
 
-```python
+```text
 from phospy.api.datasets import DatasetProcessingState
 from phospy.api.datasets import MissingDataState
 ```
@@ -154,7 +160,10 @@ Advanced supported API is public but should be imported deliberately. It
 includes selected specialized configuration objects, control-site policy
 helpers, local Kinase Library-style resource loaders, and explicit result-table
 inspection helpers such as `filter_differential_results` and
-`rank_differential_results`.
+`rank_differential_results`. The supported import route is
+`phospy.advanced`; historical `phospy.api` advanced import routes are
+compatibility adapters that emit `DeprecationWarning` and identify the
+replacement import.
 
 Internal / experimental API is not exported through `phospy.api`. This includes
 validators, private result assemblers, internal scoring helpers, private
@@ -172,9 +181,11 @@ inventory and promotion policy.
 The supported public API remains:
 
 - `phospy` for the small top-level workflow convenience surface.
-- `phospy.api` for public request, config, result, enum, reference, workflow,
-  and exception names listed in `phospy.api.__all__`. This list contains stable
-  and explicitly advanced supported names only.
+- `phospy.api` for stable request, config, result, enum, reference, workflow,
+  and exception names listed in `phospy.api.__all__`.
+- `phospy.advanced` for advanced supported configuration, result-inspection,
+  reference-resource, and policy-helper names listed in
+  `phospy.advanced.__all__`.
 
 Selected `phospy.science.*` routes are semi-public compatibility routes for
 advanced extension, parity, and backend-contract use. They are not promoted to
@@ -301,16 +312,18 @@ wiring only.
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     IntensityScaleKind,
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 

@@ -1,21 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced comparison-building configs."""
 
-from phospy.contracts.configs.preprocessing.comparisons import (
-    DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
-    DATASET_COMPARISON_BUILDING_POLICIES,
-    DATASET_COMPARISON_BUILDING_POLICY_NONE,
-    DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
-    DatasetComparisonBuildingConfig,
-    DatasetComparisonBuildingPolicy,
-    DatasetComparisonPair,
-)
+from __future__ import annotations
 
-__all__ = [
-    "DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN",
-    "DATASET_COMPARISON_BUILDING_POLICIES",
-    "DATASET_COMPARISON_BUILDING_POLICY_NONE",
-    "DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS",
-    "DatasetComparisonBuildingConfig",
-    "DatasetComparisonBuildingPolicy",
-    "DatasetComparisonPair",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

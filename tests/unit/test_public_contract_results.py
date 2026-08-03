@@ -3,20 +3,23 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+import phospy.advanced.results as advanced_result_models
 import phospy.api.results as result_models
 from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.api import (
+from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -48,9 +51,8 @@ INTENTIONAL_RESULT_COMPATIBILITY_ALIASES = {
     "KinaseWorkflowSiteAttritionSummary",
 }
 
-EXPECTED_RESULT_EXPORTS = {
+EXPECTED_STABLE_RESULT_EXPORTS = {
     "DifferentialAnalysisResult",
-    "DifferentialModelDiagnostics",
     "EnrichmentResultRecord",
     "EnrichmentWorkflowResult",
     "KinaseActivityResult",
@@ -60,6 +62,10 @@ EXPECTED_RESULT_EXPORTS = {
     "PhosphositeImportResult",
     "ResultCaveat",
     "SignalomeWorkflowResult",
+}
+
+EXPECTED_ADVANCED_RESULT_EXPORTS = {
+    "DifferentialModelDiagnostics",
 } | INTENTIONAL_RESULT_COMPATIBILITY_ALIASES
 
 
@@ -156,7 +162,8 @@ def _kinase_result() -> KinaseWorkflowResult:
 
 
 def test_public_result_exports_match_contract() -> None:
-    assert set(result_models.__all__) == EXPECTED_RESULT_EXPORTS
+    assert set(result_models.__all__) == EXPECTED_STABLE_RESULT_EXPORTS
+    assert set(advanced_result_models.__all__) == EXPECTED_ADVANCED_RESULT_EXPORTS
 
 
 def test_contract_result_domain_modules_preserve_legacy_import_identity() -> None:
@@ -193,8 +200,11 @@ def test_contract_result_domain_modules_preserve_legacy_import_identity() -> Non
     assert contracts_results.SignalomeWorkflowResult is SignalomeWorkflowResult
 
 
-def test_result_compatibility_aliases_are_public_exports() -> None:
-    assert INTENTIONAL_RESULT_COMPATIBILITY_ALIASES <= set(result_models.__all__)
+def test_result_compatibility_aliases_are_advanced_exports() -> None:
+    assert INTENTIONAL_RESULT_COMPATIBILITY_ALIASES <= set(
+        advanced_result_models.__all__
+    )
+    assert INTENTIONAL_RESULT_COMPATIBILITY_ALIASES.isdisjoint(result_models.__all__)
 
 
 def test_result_star_import_exposes_public_contract_without_internals() -> None:
@@ -203,8 +213,8 @@ def test_result_star_import_exposes_public_contract_without_internals() -> None:
     exec("from phospy.api.results import *", namespace)
 
     exported_names = {name for name in namespace if name != "__builtins__"}
-    assert exported_names == EXPECTED_RESULT_EXPORTS
-    for name in EXPECTED_RESULT_EXPORTS:
+    assert exported_names == EXPECTED_STABLE_RESULT_EXPORTS
+    for name in EXPECTED_STABLE_RESULT_EXPORTS:
         assert namespace[name] is getattr(result_models, name)
     assert "_result_contracts" not in namespace
 

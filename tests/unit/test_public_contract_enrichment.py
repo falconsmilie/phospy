@@ -9,27 +9,30 @@ import pandas as pd
 import pytest
 
 import phospy
+import phospy.advanced as advanced_api
 import phospy.api as public_api
 import phospy.api.requests as request_models
 import phospy.api.results as result_models
 import phospy.api.workflows as workflow_models
 import phospy.workflows as native_workflows
+from phospy.advanced import (
+    EnrichmentIdentifierKind,
+    EnrichmentOutsideBackgroundPolicy,
+    MultipleTestingCorrection,
+)
 from phospy.api import (
     ContractValidationError,
     EnrichmentConfig,
-    EnrichmentIdentifierKind,
-    EnrichmentOutsideBackgroundPolicy,
     EnrichmentResultRecord,
     EnrichmentSetCollection,
     EnrichmentWorkflow,
     EnrichmentWorkflowRequest,
     EnrichmentWorkflowResult,
     GeneSetCollection,
-    MultipleTestingCorrection,
     PtmSetCollection,
     WorkflowValidationError,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     ENRICHMENT_METHOD_OVER_REPRESENTATION,
@@ -351,7 +354,7 @@ def test_enrichment_public_contract_remains_typed_and_narrow() -> None:
     assert result_hints["identifier_kind"] == EnrichmentIdentifierKind
     assert result_hints["set_collection"] == EnrichmentSetCollection
     assert get_args(result_hints["records"]) == (EnrichmentResultRecord, Ellipsis)
-    assert config_hints["method"] == public_api.EnrichmentMethod
+    assert config_hints["method"] == advanced_api.EnrichmentMethod
     assert config_hints["multiple_testing_correction"] == MultipleTestingCorrection
     assert (
         config_hints["selected_outside_background_policy"]

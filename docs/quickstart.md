@@ -72,18 +72,20 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow
 )
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseReliabilityProfile,
     KinaseScoringConfig,
-    KinaseWorkflowRequest,
-    Organism,
     ReferenceContextCompatibilityPolicy,
-    ReferencePreset,
     SignalomeConfig,
     SignalomeValidationConfig,
+)
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferencePreset,
     SignalomeWorkflowRequest,
 )
 

@@ -5,7 +5,7 @@ import importlib
 from pathlib import Path
 from typing import get_type_hints
 
-from phospy.api import DifferentialAnalysisConfig
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.workflows.differential.interpreter import _resolve_execution_config
 from phospy.workflows.differential.models import ResolvedDifferentialExecutionConfig
 from phospy.workflows.kinase.contracts import ResolvedKinaseExecutionConfig

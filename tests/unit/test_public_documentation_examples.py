@@ -435,12 +435,17 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
             "Organism",
             "ReferenceBundle",
             "ReferencePreset",
-            "SignalomeConfig",
             "SignalomeWorkflowRequest",
             "UnsupportedInputFormatError",
             "WorkflowValidationError",
         ),
         context="API guide phospy.api import contract",
+    )
+    _assert_python_imports(
+        source,
+        "phospy.advanced",
+        ("SignalomeConfig",),
+        context="API guide advanced import contract",
     )
     _assert_python_run_call(
         source,

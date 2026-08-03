@@ -1,6 +1,21 @@
 from __future__ import annotations
 
-from phospy.api.configs import (
+from phospy.advanced.configs import (
+    LocalisationRequirement,
+    ReferenceContextCompatibilityPolicy,
+    SignalomeAssignmentPolicy,
+    SignalomeCandidateScoringPolicy,
+    SignalomeClusteringConfig,
+    SignalomeConfig,
+    SignalomeKinaseNetworkPolicy,
+    SignalomeMode,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
+    SignalomeScorePreconditioningPolicy,
+    SignalomeValidationConfig,
+)
+from phospy.contracts.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
@@ -12,20 +27,7 @@ from phospy.api.configs import (
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
-    LocalisationRequirement,
-    ReferenceContextCompatibilityPolicy,
-    SignalomeAssignmentPolicy,
-    SignalomeCandidateScoringPolicy,
-    SignalomeClusteringConfig,
     SignalomeClusteringEngine,
-    SignalomeConfig,
-    SignalomeKinaseNetworkPolicy,
-    SignalomeMode,
-    SignalomeOutputConfig,
-    SignalomePerformanceConfig,
-    SignalomeScientificConfig,
-    SignalomeScorePreconditioningPolicy,
-    SignalomeValidationConfig,
 )
 
 

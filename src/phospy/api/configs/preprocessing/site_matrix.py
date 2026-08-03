@@ -1,37 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced site-matrix configs."""
 
-from phospy.contracts.configs.preprocessing.site_matrix import (
-    DATASET_SITE_MATRIX_DUPLICATE_POLICIES,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
-    DATASET_SITE_MATRIX_POLICIES,
-    DATASET_SITE_MATRIX_POLICY_AS_INPUT,
-    DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
-    DatasetSiteMatrixConfig,
-    DatasetSiteMatrixDuplicateSitePolicy,
-    DatasetSiteMatrixMissingDataPolicy,
-    DatasetSiteMatrixPolicy,
-)
+from __future__ import annotations
 
-__all__ = [
-    "DATASET_SITE_MATRIX_DUPLICATE_POLICIES",
-    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN",
-    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN",
-    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR",
-    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST",
-    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL",
-    "DATASET_SITE_MATRIX_MISSING_DATA_POLICIES",
-    "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING",
-    "DATASET_SITE_MATRIX_POLICIES",
-    "DATASET_SITE_MATRIX_POLICY_AS_INPUT",
-    "DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA",
-    "DatasetSiteMatrixConfig",
-    "DatasetSiteMatrixDuplicateSitePolicy",
-    "DatasetSiteMatrixMissingDataPolicy",
-    "DatasetSiteMatrixPolicy",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

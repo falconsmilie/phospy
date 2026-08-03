@@ -6,6 +6,7 @@ from types import ModuleType
 
 import pytest
 
+import phospy.advanced as advanced_api
 import phospy.api as public_api
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -40,7 +41,8 @@ def test_api_tiers_are_explicit_disjoint_and_drive_all() -> None:
     assert stable.isdisjoint(advanced)
     assert stable.isdisjoint(internal)
     assert advanced.isdisjoint(internal)
-    assert set(public_api.__all__) == stable | advanced
+    assert set(public_api.__all__) == stable
+    assert set(advanced_api.__all__) == advanced
 
 
 def test_advanced_exports_are_grouped_and_documented() -> None:
@@ -53,6 +55,11 @@ def test_advanced_exports_are_grouped_and_documented() -> None:
         "filter_differential_results",
         "rank_differential_results",
     } <= advanced
+    assert {
+        "DifferentialModelDiagnostics",
+        "KinaseEligibilityReport",
+        "KinaseWorkflowAttritionProvenance",
+    } <= advanced
 
     guide = API_GUIDE.read_text(encoding="utf-8")
     adr = POLICY_ADR.read_text(encoding="utf-8")
@@ -64,6 +71,39 @@ def test_advanced_exports_are_grouped_and_documented() -> None:
         assert required in public_api.__doc__
         assert required in guide
         assert required in adr
+    assert "phospy.advanced" in guide
+    assert "phospy.advanced" in adr
+
+
+def test_advanced_exports_are_not_stable_api_exports() -> None:
+    advanced = set(public_api._ADVANCED_SUPPORTED_API)
+
+    assert advanced.isdisjoint(public_api.__all__)
+    assert not any(name.endswith("Validator") for name in advanced_api.__all__)
+
+
+def test_deprecated_aggregate_advanced_import_points_to_advanced_namespace() -> None:
+    namespace: dict[str, object] = {}
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=r"from phospy\.advanced import KinaseScoringConfig",
+    ):
+        exec("from phospy.api import KinaseScoringConfig", namespace)
+
+    assert namespace["KinaseScoringConfig"] is advanced_api.KinaseScoringConfig
+
+
+def test_deprecated_config_wrapper_import_points_to_advanced_namespace() -> None:
+    namespace: dict[str, object] = {}
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=r"from phospy\.advanced\.configs import KinaseScoringConfig",
+    ):
+        exec("from phospy.api.configs import KinaseScoringConfig", namespace)
+
+    assert namespace["KinaseScoringConfig"] is advanced_api.KinaseScoringConfig
 
 
 def test_internal_inventory_documents_removed_previous_exports() -> None:
@@ -128,6 +168,7 @@ def test_api_submodules_respect_stability_tier_inventory() -> None:
     import phospy.api.results as results_api
 
     internal = set(public_api._INTERNAL_EXPERIMENTAL_API)
+    advanced = set(public_api._ADVANCED_SUPPORTED_API)
     submodules: tuple[ModuleType, ...] = (
         dataset_api,
         results_api,
@@ -140,4 +181,8 @@ def test_api_submodules_respect_stability_tier_inventory() -> None:
         assert not leaked_names, (
             f"{submodule.__name__} exports internal/experimental names: "
             f"{sorted(leaked_names)}"
+        )
+        leaked_advanced_names = set(submodule.__all__) & advanced
+        assert not leaked_advanced_names, (
+            f"{submodule.__name__} exports advanced names from the stable API route"
         )

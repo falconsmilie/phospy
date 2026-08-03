@@ -232,6 +232,46 @@ class KinaseWorkflowResult:
         caveats: tuple[ResultCaveat, ...] = (),
         assume_owned: bool,
     ) -> None:
+        _require_instance(
+            dataset,
+            AnalysisReadyPhosphoDataset,
+            field_name="kinase_workflow_result.dataset",
+        )
+        _require_instance(
+            references,
+            ReferenceBundle,
+            field_name="kinase_workflow_result.references",
+        )
+        _require_instance(
+            scoring_result,
+            KinaseScoringResult,
+            field_name="kinase_workflow_result.scoring_result",
+        )
+        _require_instance(
+            prediction_result,
+            KinasePredictionResult,
+            field_name="kinase_workflow_result.prediction_result",
+        )
+        _require_optional_instance(
+            eligibility_report,
+            KinaseEligibilityReport,
+            field_name="kinase_workflow_result.eligibility_report",
+        )
+        _require_optional_instance(
+            site_attrition_summary,
+            KinaseWorkflowSiteAttritionSummary,
+            field_name="kinase_workflow_result.site_attrition_summary",
+        )
+        _require_optional_instance(
+            activity_result,
+            KinaseActivityResult,
+            field_name="kinase_workflow_result.activity_result",
+        )
+        _require_optional_instance(
+            provenance,
+            RunProvenance,
+            field_name="kinase_workflow_result.provenance",
+        )
         object.__setattr__(self, "dataset", dataset)
         object.__setattr__(self, "references", references)
         object.__setattr__(self, "scoring_result", scoring_result)
@@ -338,6 +378,26 @@ def _own_attrition_provenance(
         "kinase_workflow_result.attrition_provenance must be "
         "KinaseWorkflowAttritionProvenance or None"
     )
+
+
+def _require_instance(
+    value: object,
+    expected_type: type[object],
+    *,
+    field_name: str,
+) -> None:
+    if not isinstance(value, expected_type):
+        raise PhosPyInputError(f"{field_name} must be {expected_type.__name__}")
+
+
+def _require_optional_instance(
+    value: object | None,
+    expected_type: type[object],
+    *,
+    field_name: str,
+) -> None:
+    if value is not None and not isinstance(value, expected_type):
+        raise PhosPyInputError(f"{field_name} must be {expected_type.__name__} or None")
 
 
 def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:

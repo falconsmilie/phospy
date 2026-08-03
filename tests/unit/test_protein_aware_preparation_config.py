@@ -5,13 +5,13 @@ from dataclasses import fields
 import pytest
 
 import phospy
+import phospy.advanced as advanced_api
 import phospy.api as public_api
-from phospy.api import (
-    DatasetPreprocessingConfig,
+from phospy.advanced import (
     DatasetProteinAwarePreparationConfig,
     DatasetTotalProteinCorrectionConfig,
-    PhosPyInputError,
 )
+from phospy.api import DatasetPreprocessingConfig, PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
@@ -81,10 +81,11 @@ def test_protein_aware_preparation_declaration_resolves_plan_without_total_corre
 
 
 def test_public_contract_protein_aware_preparation_is_typed_and_narrow() -> None:
-    assert "DatasetProteinAwarePreparationConfig" in public_api.__all__
+    assert "DatasetProteinAwarePreparationConfig" in advanced_api.__all__
+    assert "DatasetProteinAwarePreparationConfig" not in public_api.__all__
     assert "DatasetProteinAwarePreparationConfig" not in phospy.__all__
     assert (
-        public_api.DatasetProteinAwarePreparationConfig
+        advanced_api.DatasetProteinAwarePreparationConfig
         is DatasetProteinAwarePreparationConfig
     )
     assert [field.name for field in fields(DatasetProteinAwarePreparationConfig)] == [

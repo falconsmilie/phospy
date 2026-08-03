@@ -13,7 +13,7 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     DifferentialAnalysisConfig,
     KinaseScoringConfig,
     MultipleTestingConfig,
@@ -59,8 +59,6 @@ EXPECTED_REQUEST_EXPORTS = {
     "DesignMatrix",
     "DatasetBuildRequest",
     "DifferentialAnalysisRequest",
-    "EmpiricalBayesConfig",
-    "EnrichmentIdentifierKind",
     "EnrichmentIdentifierSetProvenance",
     "EnrichmentIdentifierSetSourceType",
     "EnrichmentSet",

@@ -89,11 +89,11 @@ machine-dependent, and intentionally excluded from `make release-check` and CI.
 2. Run the supported workflow lane you need: differential, enrichment, kinase,
    or signalome.
 3. Explore full API workflow documentation:
-   - [Dataset building](docs/api/dataset-build-workflow.md)
-   - [Differential workflow](docs/api/differential-analysis.md)
-   - [Enrichment workflow](docs/api/enrichment.md)
-   - [Kinase workflow](docs/api/kinase.md)
-   - [Signalome workflow](docs/api/signalome.md)
+    - [Dataset building](docs/api/dataset-build-workflow.md)
+    - [Differential workflow](docs/api/differential-analysis.md)
+    - [Enrichment workflow](docs/api/enrichment.md)
+    - [Kinase workflow](docs/api/kinase.md)
+    - [Signalome workflow](docs/api/signalome.md)
 
 Bundled runtime references in the current release are rat-only. For human or
 mouse work, create and pass an explicit `ReferenceBundle` in Python instead of
@@ -183,7 +183,7 @@ from phospy.api import (
     Organism,
     ReferencePreset,
 )
-from phospy.api.configs import (
+from phospy.advanced import (
     KinaseReliabilityProfile,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
@@ -342,10 +342,10 @@ from phospy.api import EnrichmentWorkflowRequest, GeneSetCollection
 ```
 
 Specialized configuration and inspection helpers that are not part of the
-stable facade are documented as advanced supported API. Import lower-level
-constants and nested result models from explicit submodules such as
-`phospy.api.configs` or `phospy.api.results` only when you need that advanced
-surface.
+stable facade are documented as advanced supported API. Import them from the
+explicit `phospy.advanced` namespace. Historical `phospy.api` advanced import
+routes are compatibility adapters and emit deprecation warnings with the
+replacement import.
 
 ## Documentation
 

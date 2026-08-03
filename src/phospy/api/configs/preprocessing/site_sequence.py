@@ -1,33 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced site-sequence configs."""
 
-from phospy.contracts.configs.preprocessing.site_sequence import (
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICIES,
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING,
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODES,
-    DatasetRuvReadinessConfig,
-    DatasetSiteSequenceConflictPolicy,
-    DatasetSiteSequenceResolutionConfig,
-    DatasetSiteSequenceResolutionMode,
-)
+from __future__ import annotations
 
-__all__ = [
-    "DATASET_SITE_SEQUENCE_CONFLICT_POLICIES",
-    "DATASET_SITE_SEQUENCE_CONFLICT_POLICY_ERROR",
-    "DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING",
-    "DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING",
-    "DATASET_SITE_SEQUENCE_RESOLUTION_MODES",
-    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY",
-    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING",
-    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING",
-    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY",
-    "DatasetRuvReadinessConfig",
-    "DatasetSiteSequenceConflictPolicy",
-    "DatasetSiteSequenceResolutionConfig",
-    "DatasetSiteSequenceResolutionMode",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

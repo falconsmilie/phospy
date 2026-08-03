@@ -1,7 +1,13 @@
-"""Public compatibility wrapper for internal contract ownership."""
+# pyright: reportUnsupportedDunderAll=false
+# ruff: noqa: F401
+"""Stable public request models and request compatibility constants."""
 
+from __future__ import annotations
+
+from phospy._api_inventory import STABLE_REQUEST_API
+from phospy.advanced.configs import SignalomeConfig as _SIGNALOME_CONFIG_TYPE_HINT_ALIAS
+from phospy.api._compat import deprecated_request_export
 from phospy.contracts import requests as _request_contracts
-from phospy.contracts.configs import SignalomeConfig
 from phospy.contracts.requests import (
     BatchCovariate,
     CategoricalCovariate,
@@ -11,8 +17,6 @@ from phospy.contracts.requests import (
     DatasetBuildRequest,
     DesignMatrix,
     DifferentialAnalysisRequest,
-    EmpiricalBayesConfig,
-    EnrichmentIdentifierKind,
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
     EnrichmentSet,
@@ -31,11 +35,6 @@ from phospy.contracts.requests import (
     contrasts_vs_control,
 )
 
-# SignalomeConfig is an implementation dependency here; configs remain owned by
-# phospy.api.configs, so this private helper is intentionally not exported.
-_SIGNALOME_CONFIG_TYPE_HINT_ALIAS = SignalomeConfig
-
-# Compatibility constants intentionally re-exported at module scope.
 DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (
     _request_contracts.DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
 )
@@ -51,37 +50,13 @@ DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
     _request_contracts.DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
 )
 
-__all__ = [
-    "BatchCovariate",
-    "Contrast",
-    "ContrastMatrix",
-    "CategoricalCovariate",
-    "ContinuousCovariate",
-    "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
-    "DATASET_MULTI_SITE_POLICY_KEEP_JOINT",
-    "DATASET_MULTI_SITE_POLICY_REJECT",
-    "DATASET_MULTI_SITE_POLICY_SPLIT",
-    "DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE",
-    "DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED",
-    "DesignMatrix",
-    "DatasetBuildRequest",
-    "DifferentialAnalysisRequest",
-    "EmpiricalBayesConfig",
-    "EnrichmentIdentifierKind",
-    "EnrichmentIdentifierSetProvenance",
-    "EnrichmentIdentifierSetSourceType",
-    "EnrichmentSet",
-    "EnrichmentSetCollection",
-    "EnrichmentWorkflowRequest",
-    "ExperimentalDesign",
-    "FixedEffectCovariate",
-    "GeneSetCollection",
-    "KinaseWorkflowRequest",
-    "PhosphositeImporter",
-    "PhosphositeImportRequest",
-    "PtmSetCollection",
-    "SampleDesignRecord",
-    "SignalomeWorkflowRequest",
-    "all_pairwise_contrasts",
-    "contrasts_vs_control",
-]
+SignalomeWorkflowRequest.__annotations__ = {
+    **SignalomeWorkflowRequest.__annotations__,
+    "config": _SIGNALOME_CONFIG_TYPE_HINT_ALIAS,
+}
+
+__all__ = STABLE_REQUEST_API
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_request_export(name, old_module=__name__)

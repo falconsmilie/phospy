@@ -14,18 +14,20 @@ from dataclasses import replace
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
+)
 from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )

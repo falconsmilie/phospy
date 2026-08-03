@@ -54,33 +54,34 @@ dataset = AnalysisReadyDatasetBuilder().run(
 
 ```python
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import (
+from phospy.advanced import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
-    DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetGroupCoverageFilterConfig,
     DatasetIntensityTransformConfig,
-    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
     DatasetProteinAwarePreparationConfig,
     DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
-    IntensityScaleKind,
     ObservationMask,
-    Organism,
     OriginallyMissingCellTracking,
-    QuantitativeMeaning,
     SpsRuvBatchCorrectionConfig,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
+    IntensityScaleKind,
+    Organism,
 )
 ```
 
@@ -553,14 +554,16 @@ Minimal valid native-correction example:
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import (
+from phospy.advanced import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
+    SpsRuvBatchCorrectionConfig,
+)
+from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
-    SpsRuvBatchCorrectionConfig,
 )
 
 phospho = pd.DataFrame(
@@ -998,9 +1001,9 @@ Use it only when you provide `total` input data and want an auditable
 `ProteinAwarePreparationResult` on the built dataset:
 
 ```python
+from phospy.advanced import DatasetProteinAwarePreparationConfig
 from phospy.api import (
     DatasetPreprocessingConfig,
-    DatasetProteinAwarePreparationConfig,
 )
 
 preprocessing = DatasetPreprocessingConfig(
@@ -1141,12 +1144,14 @@ ruv_readiness = DatasetRuvReadinessConfig(
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
-    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
+)
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     Organism,
 )

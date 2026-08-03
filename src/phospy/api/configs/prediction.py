@@ -1,31 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced prediction config imports."""
 
-from phospy.contracts.configs.prediction import (
-    KINASE_ADAPTIVE_POLICIES,
-    KINASE_ADAPTIVE_POLICY_R_PARITY,
-    KINASE_ADAPTIVE_POLICY_STABLE,
-    KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
-    KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
-    KINASE_PREDICTION_DEFAULT_ITERATIONS,
-    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
-    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
-    KINASE_PREDICTION_MODES,
-    KinaseAdaptivePolicy,
-    KinasePredictionConfig,
-    KinasePredictionMode,
-)
+from __future__ import annotations
 
-__all__ = [
-    "KINASE_ADAPTIVE_POLICIES",
-    "KINASE_ADAPTIVE_POLICY_R_PARITY",
-    "KINASE_ADAPTIVE_POLICY_STABLE",
-    "KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS",
-    "KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES",
-    "KINASE_PREDICTION_DEFAULT_ITERATIONS",
-    "KINASE_PREDICTION_MODES",
-    "KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE",
-    "KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING",
-    "KinaseAdaptivePolicy",
-    "KinasePredictionConfig",
-    "KinasePredictionMode",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

@@ -124,7 +124,7 @@ Single-biological-replicate contrasts are allowed only with the named explorator
 opt-in:
 
 ```python
-from phospy.api import DifferentialAnalysisConfig
+from phospy.advanced import DifferentialAnalysisConfig
 
 config = DifferentialAnalysisConfig(
     reliability_profile="exploratory_single_replicate",
@@ -305,7 +305,7 @@ the model, recompute p-values, or change the `DifferentialAnalysisResult`.
 Filter by adjusted p-value and absolute `logFC`:
 
 ```python
-from phospy.api import filter_differential_results
+from phospy.advanced import filter_differential_results
 
 table = result.table_for("treatment_vs_control")
 
@@ -323,7 +323,7 @@ part of your reporting; they are not model settings.
 Rank by raw p-value, or by absolute `logFC` for the largest fitted effects:
 
 ```python
-from phospy.api import rank_differential_results
+from phospy.advanced import rank_differential_results
 
 ranked_by_p = rank_differential_results(
     table,

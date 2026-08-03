@@ -14,6 +14,12 @@ PACKAGE_ROOT = SRC_ROOT / "phospy"
 
 ALLOWED_PACKAGE_EDGES = frozenset(
     {
+        ("phospy.advanced", "phospy._api_inventory"),
+        ("phospy.advanced", "phospy.contracts"),
+        ("phospy.advanced", "phospy.io"),
+        ("phospy.advanced", "phospy.science"),
+        ("phospy.api", "phospy._api_inventory"),
+        ("phospy.api", "phospy.advanced"),
         ("phospy.api", "phospy.contracts"),
         ("phospy.api", "phospy.errors"),
         ("phospy.api", "phospy.io"),

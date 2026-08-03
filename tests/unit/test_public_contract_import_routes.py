@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 import phospy
+import phospy.advanced as advanced_api
 import phospy.api as public_api
 import phospy.science.datasets.preprocessing.stage_registry as preprocessing_stage_registry
 import phospy.science.prediction.scoring as prediction_scoring
@@ -22,39 +23,42 @@ TOP_LEVEL_CONVENIENCE_SURFACE = {
     "SignalomeWorkflow",
 }
 
-API_ONLY_CONTRACT_TYPES = {
+API_ONLY_STABLE_CONTRACT_TYPES = {
+    "DatasetBuildRequest",
+    "DatasetPreprocessingConfig",
+    "EnrichmentConfig",
+    "EnrichmentWorkflow",
+    "EnrichmentWorkflowRequest",
+    "EnrichmentWorkflowResult",
+    "GeneSetCollection",
+    "KinaseWorkflowRequest",
+    "KinaseWorkflowResult",
+    "Organism",
+    "ReferenceBundle",
+    "ReferencePreset",
+    "PtmSetCollection",
+    "SignalomeWorkflowRequest",
+    "SignalomeWorkflowResult",
+    "PhosPyValidationError",
+    "UnsupportedInputFormatError",
+}
+
+ADVANCED_CONTRACT_TYPES = {
     "ControlSiteAnnotation",
     "ControlSiteSet",
     "ControlSiteSourceMetadata",
     "ControlSiteStatus",
     "CorrectionMissingnessPolicy",
-    "DatasetBuildRequest",
     "DatasetBatchCorrectionConfig",
     "DatasetGroupCoverageFilterConfig",
-    "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",
-    "EnrichmentConfig",
     "EnrichmentIdentifierKind",
-    "EnrichmentWorkflow",
-    "EnrichmentWorkflowRequest",
-    "EnrichmentWorkflowResult",
-    "GeneSetCollection",
     "KinaseAttritionPolicy",
-    "KinaseWorkflowRequest",
-    "KinaseWorkflowResult",
-    "Organism",
     "ProfileSelfInclusionPolicy",
     "ReferenceContextCompatibilityPolicy",
-    "ReferenceBundle",
-    "ReferencePreset",
-    "PtmSetCollection",
     "SignalomeConfig",
-    "SignalomeWorkflowRequest",
-    "SignalomeWorkflowResult",
     "SpsRuvBatchCorrectionConfig",
     "TemporaryImputationPolicy",
-    "PhosPyValidationError",
-    "UnsupportedInputFormatError",
 }
 
 SEMI_PUBLIC_SCIENCE_IMPORTS = {
@@ -101,8 +105,13 @@ def test_top_level_package_exports_only_curated_convenience_surface() -> None:
     assert TOP_LEVEL_CONVENIENCE_SURFACE.issubset(set(public_api.__all__))
     for exported in TOP_LEVEL_CONVENIENCE_SURFACE:
         assert getattr(phospy, exported) is getattr(public_api, exported)
-    for exported in API_ONLY_CONTRACT_TYPES:
+    for exported in API_ONLY_STABLE_CONTRACT_TYPES:
         assert exported in public_api.__all__
+        assert exported not in phospy.__all__
+        assert not hasattr(phospy, exported)
+    for exported in ADVANCED_CONTRACT_TYPES:
+        assert exported in advanced_api.__all__
+        assert exported not in public_api.__all__
         assert exported not in phospy.__all__
         assert not hasattr(phospy, exported)
 

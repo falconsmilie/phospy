@@ -1,9 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced coverage-filter configs."""
 
-from phospy.contracts.configs.preprocessing.coverage_filter import (
-    DatasetGroupCoverageFilterConfig,
-)
+from __future__ import annotations
 
-__all__ = [
-    "DatasetGroupCoverageFilterConfig",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)

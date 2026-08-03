@@ -1,29 +1,11 @@
-"""Public compatibility wrapper for internal contract ownership."""
+"""Deprecated compatibility adapter for advanced missing-data configs."""
 
-from phospy.contracts.configs.preprocessing.missing_data import (
-    DATASET_MISSING_DATA_INPUT_SCALE_LINEAR,
-    DATASET_MISSING_DATA_INPUT_SCALE_LOG2,
-    DATASET_MISSING_DATA_INPUT_SCALES,
-    DATASET_MISSING_DATA_POLICIES,
-    DATASET_MISSING_DATA_POLICY_FORBID,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
-    DatasetMissingDataConfig,
-    DatasetMissingDataInputScale,
-    DatasetMissingDataPolicy,
-)
+from __future__ import annotations
 
-__all__ = [
-    "DATASET_MISSING_DATA_INPUT_SCALE_LINEAR",
-    "DATASET_MISSING_DATA_INPUT_SCALE_LOG2",
-    "DATASET_MISSING_DATA_INPUT_SCALES",
-    "DATASET_MISSING_DATA_POLICIES",
-    "DATASET_MISSING_DATA_POLICY_FORBID",
-    "DATASET_MISSING_DATA_POLICY_IMPUTE_KNN",
-    "DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB",
-    "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
-    "DatasetMissingDataConfig",
-    "DatasetMissingDataInputScale",
-    "DatasetMissingDataPolicy",
-]
+from phospy.api._compat import deprecated_config_export
+
+__all__: list[str] = []
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_config_export(name, old_module=__name__)
