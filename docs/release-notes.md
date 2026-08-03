@@ -96,6 +96,8 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - `KinaseActivityResult.activity_scores` and
   `KinaseActivityResult.weighted_activity` now emit `DeprecationWarning`; use
   `KinaseActivityResult.activity_matrix`.
+- `KinaseActivityResult.legacy_condition_statistics_table_dataframe()` emits
+  `DeprecationWarning`; use statistics tables with `profile_id`.
 - Bare motif sequence strings passed to
   `build_motif_library_from_sequences(...)` now emit `DeprecationWarning`.
   Use `ExplicitMotifSequence` values or structured mapping entries with stable

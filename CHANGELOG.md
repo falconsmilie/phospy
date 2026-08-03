@@ -42,6 +42,13 @@ All notable changes to this project are documented here.
   and executable peptide-to-site mapping semantics are not implemented. The
   preferred PhosPy-origin lane remains peptide evidence resolution at
   sample-intensity level before `DifferentialAnalysisWorkflow`.
+- Breaking: kinase activity statistics tables now use `profile_id` as the
+  canonical row identity. Canonical result and bundle tables no longer include
+  `condition` for sample, contrast, or effect profiles; `condition` is reserved
+  for genuine condition-summary activity results and must equal `profile_id`
+  when present. Use
+  `KinaseActivityResult.legacy_condition_statistics_table_dataframe()` only for
+  deprecated condition-shaped compatibility snapshots.
 
 ### Added
 

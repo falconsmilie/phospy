@@ -225,7 +225,7 @@ Activity score substrate support is counted from prediction/activity inputs,
 not from the scoring profile count. For the simplified weighted and KSEA-style
 methods, finite prediction support at or above the configured threshold is
 included. KSEA-style and ssGSEA-style results keep not-computable
-kinase-condition pairs in `statistics_table` with insufficient-substrate status
+kinase-profile pairs in `statistics_table` with insufficient-substrate status
 when the selected method can report that detail. Activity diagnostics also
 expose `method_summary`, `substrate_count_matrix`,
 `thresholded_substrate_counts`, and threshold-membership metadata where
@@ -238,6 +238,15 @@ identifiers, and condition-summary aggregation metadata when condition-summary
 profiles are supplied. Method identity does not determine these semantics:
 for example, KSEA can consume sample log-abundance, contrast log-fold-change,
 or standardised-effect profiles according to the explicit input semantics.
+For activity statistics, `profile_id` is the required row identifier:
+sample-axis results use sample IDs, condition-summary results use condition
+summary IDs, contrast-axis results use contrast IDs, and effect-axis results
+use neutral effect profile IDs. A `condition` column is reserved for genuine
+condition-summary results, where it must match `profile_id`; sample, contrast,
+and effect statistics tables do not contain `condition`. Use
+`legacy_condition_statistics_table_dataframe()` only for deprecated consumers
+that still need an old condition-shaped table; the adapter adds
+`condition = profile_id` and does not create a biological condition contract.
 
 ## Running the Workflow
 

@@ -129,6 +129,11 @@ class KseaZScoreActivityMethod:
             KSEA_STATUS_NO_FINITE_BACKGROUND_VALUES: 0,
             KSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES: 0,
         }
+        condition_ids_by_profile = _condition_ids_by_profile(
+            profile_ids=profile_index,
+            condition_ids=inputs.profile_metadata.condition_ids,
+            include_condition=inputs.input_semantics.has_real_condition_contract,
+        )
 
         n_kinases = int(len(kinase_index))
         n_profiles = int(len(profile_index))
@@ -194,45 +199,46 @@ class KseaZScoreActivityMethod:
                         p_value_matrix.iat[kinase_position, profile_position] = p_value
 
                 counts[status] += 1
-                rows.append(
-                    {
-                        "kinase": str(kinase_name),
-                        "condition": str(profile_id),
-                        "profile_id": str(profile_id),
-                        "z_score": float(z_score) if np.isfinite(z_score) else np.nan,
-                        "p_value": float(p_value) if np.isfinite(p_value) else np.nan,
-                        "q_value": np.nan,
-                        "n_substrates": int(n_substrates),
-                        "n_background_sites": int(n_background),
-                        "evidence_threshold": float(self.evidence_threshold),
-                        "evidence_threshold_operator": threshold_policy.operator,
-                        "evidence_threshold_description": (
-                            threshold_policy.description
-                        ),
-                        "min_substrates": int(self.min_substrates),
-                        "computability_status": status,
-                        "reason": reason,
-                    }
-                )
+                row = {
+                    "kinase": str(kinase_name),
+                    "profile_id": str(profile_id),
+                    "z_score": float(z_score) if np.isfinite(z_score) else np.nan,
+                    "p_value": float(p_value) if np.isfinite(p_value) else np.nan,
+                    "q_value": np.nan,
+                    "n_substrates": int(n_substrates),
+                    "n_background_sites": int(n_background),
+                    "evidence_threshold": float(self.evidence_threshold),
+                    "evidence_threshold_operator": threshold_policy.operator,
+                    "evidence_threshold_description": threshold_policy.description,
+                    "min_substrates": int(self.min_substrates),
+                    "computability_status": status,
+                    "reason": reason,
+                }
+                condition_id = condition_ids_by_profile.get(str(profile_id))
+                if condition_id is not None:
+                    row["condition"] = condition_id
+                rows.append(row)
 
+        statistics_columns = [
+            "kinase",
+            "profile_id",
+            "z_score",
+            "p_value",
+            "q_value",
+            "n_substrates",
+            "n_background_sites",
+            "evidence_threshold",
+            "evidence_threshold_operator",
+            "evidence_threshold_description",
+            "min_substrates",
+            "computability_status",
+            "reason",
+        ]
+        if condition_ids_by_profile:
+            statistics_columns.insert(2, "condition")
         statistics_table = pd.DataFrame.from_records(
             rows,
-            columns=[
-                "kinase",
-                "condition",
-                "profile_id",
-                "z_score",
-                "p_value",
-                "q_value",
-                "n_substrates",
-                "n_background_sites",
-                "evidence_threshold",
-                "evidence_threshold_operator",
-                "evidence_threshold_description",
-                "min_substrates",
-                "computability_status",
-                "reason",
-            ],
+            columns=statistics_columns,
         )
         if self.adjust_p_values:
             for profile_id in profile_index:
@@ -279,19 +285,19 @@ class KseaZScoreActivityMethod:
 
         summary = ActivityMethodSummary(
             kinases_evaluated=n_kinases,
-            kinase_condition_pairs_evaluated=n_kinases * n_profiles,
-            kinase_condition_pairs_computed=counts[KSEA_STATUS_COMPUTED],
-            kinase_condition_pairs_insufficient_substrates=counts[
+            kinase_profile_pairs_evaluated=n_kinases * n_profiles,
+            kinase_profile_pairs_computed=counts[KSEA_STATUS_COMPUTED],
+            kinase_profile_pairs_insufficient_substrates=counts[
                 KSEA_STATUS_INSUFFICIENT_SUBSTRATES
             ],
-            kinase_condition_pairs_invalid_background_variance=(
+            kinase_profile_pairs_invalid_background_variance=(
                 counts[KSEA_STATUS_ZERO_BACKGROUND_VARIANCE]
                 + counts[KSEA_STATUS_NO_FINITE_BACKGROUND_VALUES]
             ),
-            kinase_condition_pairs_no_finite_background_values=counts[
+            kinase_profile_pairs_no_finite_background_values=counts[
                 KSEA_STATUS_NO_FINITE_BACKGROUND_VALUES
             ],
-            kinase_condition_pairs_no_finite_substrate_values=counts[
+            kinase_profile_pairs_no_finite_substrate_values=counts[
                 KSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
             ],
         )
@@ -353,6 +359,20 @@ def _align_activity_inputs(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     common_sites = pred_mat.index.intersection(phospho_matrix.index)
     return pred_mat.loc[common_sites], phospho_matrix.loc[common_sites]
+
+
+def _condition_ids_by_profile(
+    *,
+    profile_ids: pd.Index,
+    condition_ids: tuple[str, ...],
+    include_condition: bool,
+) -> dict[str, str]:
+    if not include_condition:
+        return {}
+    return {
+        str(profile_id): str(condition_id)
+        for profile_id, condition_id in zip(profile_ids, condition_ids, strict=True)
+    }
 
 
 def _build_target_table(

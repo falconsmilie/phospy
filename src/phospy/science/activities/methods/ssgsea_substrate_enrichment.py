@@ -29,7 +29,6 @@ from phospy.science.activities.models import (
     SsgseaSubstrateEnrichmentActivityDiagnostics,
 )
 from phospy.science.activities.scientific_policies import (
-    SSGSEA_PERMUTATION_RNG_SEED_POLICY,
     SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
     build_ssgsea_substrate_enrichment_activity_policy,
@@ -73,6 +72,7 @@ _KINASE_COLUMN = "kinase"
 _SUBSTRATE_COLUMN = "substrate_site"
 _SSGSEA_PERMUTATION_STREAM_NAME = "substrate_label_permutation"
 _SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES = 16
+_SSGSEA_PERMUTATION_RNG_SEED_HASH_POLICY_TOKEN = "stable_by_method_condition_kinase"
 
 
 @dataclass(frozen=True, slots=True)
@@ -303,7 +303,6 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                 rows.append(
                     {
                         "kinase": str(kinase_name),
-                        "condition": str(profile_id),
                         "profile_id": str(profile_id),
                         "z_score": np.nan,
                         "enrichment_score": (
@@ -338,7 +337,6 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             rows,
             columns=[
                 "kinase",
-                "condition",
                 "profile_id",
                 "z_score",
                 "enrichment_score",
@@ -373,21 +371,19 @@ class SsgseaSubstrateEnrichmentActivityMethod:
         target_table = _build_target_table(aligned_membership=aligned_membership)
         summary = ActivityMethodSummary(
             kinases_evaluated=int(len(kinase_index)),
-            kinase_condition_pairs_evaluated=int(
-                len(kinase_index) * len(profile_index)
-            ),
-            kinase_condition_pairs_computed=counts[SSGSEA_STATUS_COMPUTED],
-            kinase_condition_pairs_insufficient_substrates=counts[
+            kinase_profile_pairs_evaluated=int(len(kinase_index) * len(profile_index)),
+            kinase_profile_pairs_computed=counts[SSGSEA_STATUS_COMPUTED],
+            kinase_profile_pairs_insufficient_substrates=counts[
                 SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES
             ],
-            kinase_condition_pairs_invalid_background_variance=(
+            kinase_profile_pairs_invalid_background_variance=(
                 counts[SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES]
                 + counts[SSGSEA_STATUS_INSUFFICIENT_BACKGROUND_SITES]
             ),
-            kinase_condition_pairs_no_finite_background_values=counts[
+            kinase_profile_pairs_no_finite_background_values=counts[
                 SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES
             ],
-            kinase_condition_pairs_no_finite_substrate_values=counts[
+            kinase_profile_pairs_no_finite_substrate_values=counts[
                 SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
             ],
         )
@@ -614,6 +610,9 @@ def _derive_ssgsea_permutation_seed(
     condition_name: str | None = None,
     kinase_name: str,
 ) -> int:
+    if profile_id is not None and condition_name is not None:
+        if str(profile_id) != str(condition_name):
+            raise ValueError("profile_id conflicts with legacy condition_name")
     resolved_profile_id = (
         str(profile_id)
         if profile_id is not None
@@ -627,7 +626,7 @@ def _derive_ssgsea_permutation_seed(
         "method_version": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
         "profile_id": resolved_profile_id,
         "random_seed": int(random_seed),
-        "seed_policy": SSGSEA_PERMUTATION_RNG_SEED_POLICY,
+        "seed_policy": _SSGSEA_PERMUTATION_RNG_SEED_HASH_POLICY_TOKEN,
         "seed_policy_version": SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
         "stream": _SSGSEA_PERMUTATION_STREAM_NAME,
     }

@@ -96,7 +96,7 @@ class ActivityMatrix(TableSchema):
 
 @dataclass(frozen=True, slots=True)
 class ActivityCountMatrix(TableSchema):
-    """Schema wrapper for condition-specific activity count matrices."""
+    """Schema wrapper for profile-specific activity count matrices."""
 
     field_name: str = field(
         default="activity_result.activity_substrate_counts",
@@ -267,7 +267,7 @@ class ActivityStatisticsTable(TableSchema):
             field_name=self._field_name,
             required_columns=(
                 "kinase",
-                "condition",
+                "profile_id",
                 "z_score",
                 "p_value",
                 "q_value",
@@ -285,14 +285,27 @@ class ActivityStatisticsTable(TableSchema):
         if frame.empty:
             return frame
 
+        require_canonical_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name="kinase",
+            error_type=self._error_type,
+        )
+        require_canonical_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name="profile_id",
+            error_type=self._error_type,
+        )
+
         string_columns = (
-            "kinase",
-            "condition",
             "evidence_threshold_operator",
             "evidence_threshold_description",
             "computability_status",
             "reason",
         )
+        if "condition" in frame.columns:
+            string_columns = (*string_columns, "condition")
         if "significance_status" in frame.columns:
             string_columns = (*string_columns, "significance_status")
         for column_name in string_columns:
@@ -301,7 +314,12 @@ class ActivityStatisticsTable(TableSchema):
                 raise self._error_type(
                     f"{self._field_name}.{column_name} must not contain missing values"
                 )
-            if not values.astype(str).str.len().ge(0).all():
+            non_strings = [
+                index
+                for index, raw_value in values.items()
+                if not isinstance(raw_value, str)
+            ]
+            if non_strings:
                 raise self._error_type(
                     f"{self._field_name}.{column_name} must contain string values"
                 )

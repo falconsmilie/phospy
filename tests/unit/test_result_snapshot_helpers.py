@@ -88,12 +88,6 @@ ACTIVITY_SUMMARY_PAYLOAD_FIELDS = {
     "kinase_profile_pairs_invalid_background_variance",
     "kinase_profile_pairs_no_finite_background_values",
     "kinase_profile_pairs_no_finite_substrate_values",
-    "kinase_condition_pairs_evaluated",
-    "kinase_condition_pairs_computed",
-    "kinase_condition_pairs_insufficient_substrates",
-    "kinase_condition_pairs_invalid_background_variance",
-    "kinase_condition_pairs_no_finite_background_values",
-    "kinase_condition_pairs_no_finite_substrate_values",
 }
 ENRICHMENT_RESULT_COLUMNS = [
     "term_id",
@@ -149,7 +143,7 @@ def _activity_result() -> KinaseActivityResult:
     statistics_table = pd.DataFrame(
         {
             "kinase": ["K1"],
-            "condition": ["c1"],
+            "profile_id": ["c1"],
             "z_score": [1.0],
             "p_value": [0.05],
             "q_value": [0.05],
@@ -373,12 +367,12 @@ def test_activity_payload_helpers_return_expected_fields_and_fresh_dicts() -> No
 
     summary = ActivityMethodSummary(
         kinases_evaluated=1,
-        kinase_condition_pairs_evaluated=2,
-        kinase_condition_pairs_computed=3,
-        kinase_condition_pairs_insufficient_substrates=4,
-        kinase_condition_pairs_invalid_background_variance=5,
-        kinase_condition_pairs_no_finite_background_values=6,
-        kinase_condition_pairs_no_finite_substrate_values=7,
+        kinase_profile_pairs_evaluated=2,
+        kinase_profile_pairs_computed=3,
+        kinase_profile_pairs_insufficient_substrates=4,
+        kinase_profile_pairs_invalid_background_variance=5,
+        kinase_profile_pairs_no_finite_background_values=6,
+        kinase_profile_pairs_no_finite_substrate_values=7,
     )
     summary_payload = summary.to_payload()
 

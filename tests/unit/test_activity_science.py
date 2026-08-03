@@ -6,6 +6,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.science.activities.methods.ksea_zscore import (
@@ -25,6 +26,7 @@ from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
     _derive_ssgsea_permutation_seed,
 )
 from phospy.science.activities.models import (
+    ActivityMethodSummary,
     KinaseActivityInputs,
     KinaseActivityResult,
     KseaZScoreActivityDiagnostics,
@@ -46,6 +48,7 @@ from phospy.science.activities.semantics import (
     ActivityAggregationRecord,
     ActivityInputMatrix,
     ActivityProfileAxis,
+    ActivityProfileMetadata,
     ActivityQuantitativeSemantics,
 )
 from phospy.science.activities.statistics import benjamini_hochberg_q_values
@@ -141,6 +144,82 @@ def _membership(kinase_to_sites: dict[str, list[str]]) -> pd.DataFrame:
         for site_key in _site_key_index(display_ids).astype(str).tolist():
             rows.append({"kinase": kinase, "substrate_site": site_key})
     return pd.DataFrame.from_records(rows)
+
+
+def _statistics_table(
+    profile_ids: list[str],
+    *,
+    include_condition: bool = False,
+    condition_values: list[str] | None = None,
+) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    for position, profile_id in enumerate(profile_ids):
+        row: dict[str, object] = {
+            "kinase": "K1",
+            "profile_id": profile_id,
+            "z_score": 1.0,
+            "p_value": 0.05,
+            "q_value": 0.05,
+            "n_substrates": 2,
+            "n_background_sites": 4,
+            "evidence_threshold": 0.5,
+            "evidence_threshold_operator": ">=",
+            "evidence_threshold_description": "unit-test threshold",
+            "min_substrates": 1,
+            "computability_status": "computed",
+            "reason": "",
+        }
+        if include_condition:
+            condition_id = (
+                profile_id if condition_values is None else condition_values[position]
+            )
+            row["condition"] = condition_id
+        rows.append(row)
+    columns = [
+        "kinase",
+        "profile_id",
+        "z_score",
+        "p_value",
+        "q_value",
+        "n_substrates",
+        "n_background_sites",
+        "evidence_threshold",
+        "evidence_threshold_operator",
+        "evidence_threshold_description",
+        "min_substrates",
+        "computability_status",
+        "reason",
+    ]
+    if include_condition:
+        columns.insert(2, "condition")
+    return pd.DataFrame.from_records(rows, columns=columns)
+
+
+def _activity_result_from_statistics_table(
+    statistics_table: pd.DataFrame,
+    *,
+    activity_input: ActivityInputMatrix,
+) -> KinaseActivityResult:
+    kinase_index = pd.Index(["K1"], name="kinase")
+    activity_matrix = pd.DataFrame(
+        [[1.0 for _ in activity_input.profile_metadata.profile_ids]],
+        index=kinase_index,
+        columns=pd.Index(activity_input.profile_metadata.profile_ids),
+        dtype=float,
+    )
+    substrate_count_matrix = pd.DataFrame(
+        [[2 for _ in activity_input.profile_metadata.profile_ids]],
+        index=kinase_index,
+        columns=pd.Index(activity_input.profile_metadata.profile_ids),
+        dtype="int64",
+    )
+    return KinaseActivityResult(
+        activity_matrix=activity_matrix,
+        substrate_count_matrix=substrate_count_matrix,
+        statistics_table=statistics_table,
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
+    )
 
 
 def _ssgsea_result(
@@ -247,15 +326,15 @@ def _assert_named_ssgsea_result_equal(
     ]
     if not compare_q_values:
         stat_columns.remove("q_value")
-    left_named = left_stats.set_index(["kinase", "condition"]).sort_index()
-    right_named = right_stats.set_index(["kinase", "condition"]).sort_index()
+    left_named = left_stats.set_index(["kinase", "profile_id"]).sort_index()
+    right_named = right_stats.set_index(["kinase", "profile_id"]).sort_index()
     if index_labels is not None or column_labels is not None:
         kinase_labels = (
             set(index_labels)
             if index_labels is not None
             else {str(value[0]) for value in left_named.index}
         )
-        condition_labels = (
+        profile_labels = (
             set(column_labels)
             if column_labels is not None
             else {str(value[1]) for value in left_named.index}
@@ -263,7 +342,7 @@ def _assert_named_ssgsea_result_equal(
         selected_index = [
             value
             for value in left_named.index
-            if str(value[0]) in kinase_labels and str(value[1]) in condition_labels
+            if str(value[0]) in kinase_labels and str(value[1]) in profile_labels
         ]
         left_named = left_named.loc[selected_index, :]
         right_named = right_named.loc[selected_index, :]
@@ -290,12 +369,17 @@ def test_ssgsea_deterministic_rank_score_on_synthetic_data() -> None:
     assert result.activity_method.activity_method_id == (
         "ssgsea_substrate_enrichment_activity_v1"
     )
+    assert result.input_semantics.profile_axis is ActivityProfileAxis.EFFECT
+    assert result.profile_metadata.profile_ids == ("c1",)
     assert result.activity_matrix.at["K_TOP", "c1"] == pytest.approx(0.5)
     assert result.activity_matrix.at["K_BOTTOM", "c1"] == pytest.approx(-0.5)
     assert result.substrate_count_matrix.at["K_TOP", "c1"] == 2
     assert result.substrate_count_matrix.at["K_BOTTOM", "c1"] == 2
     stats = result.statistics_table
     assert stats is not None
+    assert "profile_id" in stats.columns
+    assert "condition" not in stats.columns
+    assert set(stats["profile_id"]) == {"c1"}
     top = stats.loc[stats["kinase"] == "K_TOP"].iloc[0]
     assert top["computability_status"] == SSGSEA_STATUS_COMPUTED
     assert top["significance_status"] == (
@@ -330,10 +414,30 @@ def test_ssgsea_minimum_substrate_filtering_retains_diagnostic_pair() -> None:
         SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES
     )
     assert result.method_summary is not None
-    assert result.method_summary.kinase_condition_pairs_insufficient_substrates == 1
+    assert result.method_summary.kinase_profile_pairs_insufficient_substrates == 1
 
 
-def test_ssgsea_p_value_adjustment_is_bh_per_condition_when_enabled() -> None:
+def test_ssgsea_effect_statistics_use_neutral_profile_identifiers() -> None:
+    effect_matrix = pd.DataFrame(
+        {"effect_a": [4.0, 3.0, 2.0, 1.0]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+
+    result = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites={"K1": ["S1;S1;", "S2;S2;"]},
+    )
+
+    assert result.input_semantics.profile_axis is ActivityProfileAxis.EFFECT
+    assert result.profile_metadata.profile_ids == ("effect_a",)
+    stats = result.statistics_table
+    assert stats is not None
+    assert "profile_id" in stats.columns
+    assert "condition" not in stats.columns
+    assert set(stats["profile_id"]) == {"effect_a"}
+
+
+def test_ssgsea_p_value_adjustment_is_bh_per_profile_when_enabled() -> None:
     effect_matrix = pd.DataFrame(
         {"c1": [6.0, 5.0, 4.0, 3.0, 2.0, 1.0]},
         index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;", "S5;S5;", "S6;S6;"],
@@ -437,7 +541,7 @@ def test_ssgsea_permutation_results_are_kinase_order_invariant() -> None:
     _assert_named_ssgsea_result_equal(first, second)
 
 
-def test_ssgsea_permutation_results_are_condition_order_invariant() -> None:
+def test_ssgsea_permutation_results_are_profile_order_invariant() -> None:
     effect_matrix = pd.DataFrame(
         {
             "c1": [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
@@ -532,12 +636,12 @@ def test_ssgsea_permutation_results_ignore_unrelated_kinase_insertion() -> None:
 def test_ssgsea_permutation_seed_derivation_changes_with_global_seed() -> None:
     first_seed = _derive_ssgsea_permutation_seed(
         random_seed=37,
-        condition_name="c1",
+        profile_id="c1",
         kinase_name="K_TOP",
     )
     second_seed = _derive_ssgsea_permutation_seed(
         random_seed=38,
-        condition_name="c1",
+        profile_id="c1",
         kinase_name="K_TOP",
     )
 
@@ -676,8 +780,12 @@ def test_ssgsea_activity_input_requires_contrast_or_effect_semantics() -> None:
     assert result.activity_matrix.columns.name == "profile_id"
     stats = result.statistics_table
     assert stats is not None
-    assert {"condition", "profile_id"}.issubset(stats.columns)
-    assert stats["condition"].tolist() == stats["profile_id"].tolist()
+    assert "profile_id" in stats.columns
+    assert "condition" not in stats.columns
+    assert set(stats["profile_id"]) == {"contrast_a"}
+    assert all(
+        "condition" not in value for value in result.count_field_semantics.values()
+    )
 
 
 def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:
@@ -742,6 +850,8 @@ def test_ksea_result_populates_extensible_activity_contract() -> None:
         min_substrates=2,
     )
 
+    assert result.input_semantics.profile_axis is ActivityProfileAxis.EFFECT
+    assert result.profile_metadata.profile_ids == ("c1",)
     pdt.assert_frame_equal(result.to_dataframe(), result.activity_matrix)
     assert result.p_value_matrix is not None
     assert result.q_value_matrix is not None
@@ -757,15 +867,89 @@ def test_ksea_result_populates_extensible_activity_contract() -> None:
     assert result.method_diagnostics.statistics_table is not None
     stats = result.statistics_table
     assert stats is not None
-    assert {"condition", "profile_id"}.issubset(stats.columns)
-    assert stats["condition"].tolist() == stats["profile_id"].tolist()
+    assert "profile_id" in stats.columns
+    assert "condition" not in stats.columns
+    assert set(stats["profile_id"]) == {"c1"}
+    assert all(
+        "condition" not in value for value in result.count_field_semantics.values()
+    )
     assert result.policy_provenance
     policy = result.policy_provenance[0]
     assert policy.id == ScientificPolicyId.KSEA_ZSCORE_ACTIVITY
     assert policy.to_payload()["id"] == "ksea_zscore_activity_v1"
 
 
-def test_ksea_computes_each_kinase_condition_pair_independently() -> None:
+def test_ksea_sample_statistics_use_profile_ids_and_adjust_p_values_per_profile() -> (
+    None
+):
+    pred_mat = _with_site_key_index(
+        pd.DataFrame(
+            {
+                "K1": [0.9, 0.9, 0.1, 0.1],
+                "K2": [0.1, 0.1, 0.9, 0.9],
+                "K3": [0.9, 0.1, 0.1, 0.9],
+            },
+            index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+        )
+    )
+    phospho = _with_site_key_index(
+        pd.DataFrame(
+            {
+                "sample_a": [1.0, 2.0, 3.0, 4.0],
+                "sample_b": [4.0, 1.0, 2.0, 3.0],
+            },
+            index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+        )
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(
+        phospho,
+        _assume_owned=True,
+    )
+
+    result = KseaZScoreActivityMethod(
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    ).run(
+        KinaseActivityInputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=1,
+            overlap_summary=PredMatOverlapSummary(
+                overlap_count=int(pred_mat.index.intersection(phospho.index).size),
+                pred_mat_rows=int(pred_mat.index.size),
+                phospho_rows=int(phospho.index.size),
+            ),
+            activity_input=activity_input,
+        )
+    )
+
+    assert result.input_semantics.profile_axis is ActivityProfileAxis.SAMPLE
+    assert result.profile_metadata.sample_ids == ("sample_a", "sample_b")
+    stats = result.statistics_table
+    assert stats is not None
+    assert "profile_id" in stats.columns
+    assert "condition" not in stats.columns
+    assert set(stats["profile_id"]) == set(result.profile_metadata.sample_ids)
+    for profile_id in result.profile_metadata.sample_ids:
+        computed = stats.loc[
+            (stats["profile_id"] == profile_id)
+            & (stats["computability_status"] == KSEA_STATUS_COMPUTED),
+            :,
+        ]
+        expected_q_values = benjamini_hochberg_q_values(
+            computed.loc[:, "p_value"].astype(float)
+        )
+        pdt.assert_series_equal(
+            computed.loc[:, "q_value"].astype(float),
+            expected_q_values,
+            check_names=False,
+        )
+
+
+def test_ksea_computes_each_kinase_profile_pair_independently() -> None:
     pred_mat = pd.DataFrame(
         {
             "K1": [0.9, 0.9, 0.1],
@@ -1017,7 +1201,7 @@ def test_ksea_reports_zero_background_variance_as_not_computable() -> None:
     assert pd.isna(stats.at[0, "z_score"])
 
 
-def test_ksea_excludes_non_finite_phosphosite_values_per_condition() -> None:
+def test_ksea_excludes_non_finite_phosphosite_values_per_profile() -> None:
     pred_mat = pd.DataFrame(
         {"K1": [0.9, 0.9, 0.9]},
         index=["S1;S1;", "S2;S2;", "S3;S3;"],
@@ -1040,8 +1224,8 @@ def test_ksea_excludes_non_finite_phosphosite_values_per_condition() -> None:
     stats = result.statistics_table
     assert stats is not None
     assert result.activity_substrate_counts is not None
-    c1 = stats.loc[stats["condition"] == "c1"].iloc[0]
-    c2 = stats.loc[stats["condition"] == "c2"].iloc[0]
+    c1 = stats.loc[stats["profile_id"] == "c1"].iloc[0]
+    c2 = stats.loc[stats["profile_id"] == "c2"].iloc[0]
     assert c1["n_background_sites"] == 2
     assert c1["n_substrates"] == 2
     assert c1["computability_status"] == KSEA_STATUS_COMPUTED
@@ -1055,7 +1239,7 @@ def test_ksea_excludes_non_finite_phosphosite_values_per_condition() -> None:
     assert (
         result.count_field_semantics["thresholded_substrate_counts"]
         == "global post-threshold evidence membership count before "
-        "condition-specific finite-value filtering"
+        "profile-specific finite-value filtering"
     )
 
 
@@ -1077,7 +1261,7 @@ def test_ksea_p_value_uses_two_sided_normal_approximation() -> None:
     assert stats.at[0, "p_value"] == pytest.approx(0.27332167829229814)
 
 
-def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_condition() -> None:
+def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_profile() -> None:
     pred_mat = pd.DataFrame(
         {
             "K1": [0.9, 0.9, 0.1, 0.1],
@@ -1098,7 +1282,7 @@ def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_condition() -> None:
 
     stats = result.statistics_table
     assert stats is not None
-    c1_rows = stats.loc[stats["condition"] == "c1"].sort_values("kinase")
+    c1_rows = stats.loc[stats["profile_id"] == "c1"].sort_values("kinase")
     q_values = c1_rows.loc[:, "q_value"].to_numpy(dtype=float)
     assert q_values[0] == pytest.approx(0.4099825174384472)
     assert q_values[1] == pytest.approx(0.4099825174384472)
@@ -1132,7 +1316,7 @@ def test_ksea_activity_substrate_counts_match_statistics_table_n_substrates() ->
     stats = result.statistics_table
     assert stats is not None
     expected = (
-        stats.pivot(index="kinase", columns="condition", values="n_substrates")
+        stats.pivot(index="kinase", columns="profile_id", values="n_substrates")
         .reindex(index=result.activity_substrate_counts.index)
         .reindex(columns=result.activity_substrate_counts.columns)
         .astype("int64")
@@ -1284,6 +1468,145 @@ def test_activity_result_contract_handles_empty_optional_diagnostics_cleanly() -
     assert result.policy_provenance == ()
 
 
+def test_activity_statistics_table_rejects_missing_profile_id() -> None:
+    activity_matrix = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["site_a"], name="site_id"),
+        dtype=float,
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
+    statistics_table = _statistics_table(["sample_a"]).drop(columns=["profile_id"])
+
+    with pytest.raises(
+        PhosPyValidationError,
+        match="missing required columns: profile_id",
+    ):
+        _activity_result_from_statistics_table(
+            statistics_table,
+            activity_input=activity_input,
+        )
+
+
+def test_activity_statistics_table_rejects_blank_profile_id() -> None:
+    activity_matrix = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["site_a"], name="site_id"),
+        dtype=float,
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
+
+    with pytest.raises(
+        PhosPyValidationError,
+        match="profile_id must contain stripped non-empty string values",
+    ):
+        _activity_result_from_statistics_table(
+            _statistics_table([""]),
+            activity_input=activity_input,
+        )
+
+
+def test_activity_statistics_table_rejects_unknown_profile_id() -> None:
+    activity_matrix = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["site_a"], name="site_id"),
+        dtype=float,
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
+
+    with pytest.raises(
+        PhosPyValidationError,
+        match="unknown_profile_ids=\\('unknown_profile',\\)",
+    ):
+        _activity_result_from_statistics_table(
+            _statistics_table(["unknown_profile"]),
+            activity_input=activity_input,
+        )
+
+
+def test_activity_statistics_table_rejects_condition_claim_on_sample_profiles() -> None:
+    activity_matrix = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["site_a"], name="site_id"),
+        dtype=float,
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
+
+    with pytest.raises(
+        PhosPyValidationError,
+        match="condition is reserved for condition-summary activity results",
+    ):
+        _activity_result_from_statistics_table(
+            _statistics_table(["sample_a"], include_condition=True),
+            activity_input=activity_input,
+        )
+
+
+def test_activity_method_summary_accepts_legacy_payload_but_serializes_profile_fields() -> (
+    None
+):
+    legacy_payload = {
+        "kinases_evaluated": 1,
+        "kinase_condition_pairs_evaluated": 2,
+        "kinase_condition_pairs_computed": 3,
+        "kinase_condition_pairs_insufficient_substrates": 4,
+        "kinase_condition_pairs_invalid_background_variance": 5,
+        "kinase_condition_pairs_no_finite_background_values": 6,
+        "kinase_condition_pairs_no_finite_substrate_values": 7,
+    }
+
+    summary = ActivityMethodSummary.from_payload(legacy_payload)
+
+    assert summary.kinase_profile_pairs_evaluated == 2
+    assert summary.kinase_profile_pairs_computed == 3
+    payload = summary.to_payload()
+    assert "kinase_profile_pairs_evaluated" in payload
+    assert "kinase_condition_pairs_evaluated" not in payload
+    with pytest.warns(
+        DeprecationWarning,
+        match="kinase_condition_pairs_evaluated.*kinase_profile_pairs_evaluated",
+    ):
+        assert summary.kinase_condition_pairs_evaluated == 2
+
+
+def test_activity_method_summary_rejects_conflicting_payload_aliases() -> None:
+    with pytest.raises(ValueError, match="conflicts with legacy alias"):
+        ActivityMethodSummary.from_payload(
+            {
+                "kinases_evaluated": 1,
+                "kinase_profile_pairs_evaluated": 2,
+                "kinase_condition_pairs_evaluated": 3,
+            }
+        )
+
+
+def test_legacy_condition_statistics_table_adapter_is_deprecated_and_defensive() -> (
+    None
+):
+    activity_matrix = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["site_a"], name="site_id"),
+        dtype=float,
+    )
+    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
+    result = _activity_result_from_statistics_table(
+        _statistics_table(["sample_a"]),
+        activity_input=activity_input,
+    )
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="does not establish a biological condition contract",
+    ):
+        legacy = result.legacy_condition_statistics_table_dataframe()
+
+    assert legacy is not None
+    assert legacy["condition"].tolist() == legacy["profile_id"].tolist()
+    legacy.loc[0, "condition"] = "mutated"
+    stats = result.statistics_table
+    assert stats is not None
+    assert "condition" not in stats.columns
+
+
 def test_activity_input_matrix_owns_caller_frame_and_exports_snapshots() -> None:
     frame = pd.DataFrame(
         {"sample_a": [1.0]},
@@ -1354,6 +1677,103 @@ def test_condition_summary_activity_input_marks_output_profiles_as_conditions() 
     assert result.thresholded_substrate_mean_activity.columns.name == "condition"
     assert result.activity_matrix.at["K1", "treated_mean"] == pytest.approx(3.0)
     assert result.activity_matrix.at["K1", "control_mean"] == pytest.approx(2.0)
+
+
+def test_condition_summary_statistics_table_may_include_matching_condition_alias() -> (
+    None
+):
+    condition_matrix = pd.DataFrame(
+        {
+            "treated_mean": [2.0, 4.0],
+            "control_mean": [1.0, 3.0],
+        },
+        index=pd.Index(["site_a", "site_b"], name="site_id"),
+        dtype=float,
+    )
+    aggregation_metadata = ActivityAggregationMetadata(
+        aggregation_method="mean",
+        records=(
+            ActivityAggregationRecord(
+                profile_id="treated_mean",
+                source_profile_ids=("treated_rep1", "treated_rep2"),
+            ),
+            ActivityAggregationRecord(
+                profile_id="control_mean",
+                source_profile_ids=("control_rep1", "control_rep2"),
+            ),
+        ),
+    )
+    activity_input = ActivityInputMatrix.condition_summary_abundance(
+        condition_matrix,
+        aggregation_metadata=aggregation_metadata,
+    )
+
+    result = _activity_result_from_statistics_table(
+        _statistics_table(
+            ["treated_mean", "control_mean"],
+            include_condition=True,
+        ),
+        activity_input=activity_input,
+    )
+
+    assert result.profile_metadata.aggregation_metadata == aggregation_metadata
+    stats = result.statistics_table
+    assert stats is not None
+    assert "profile_id" in stats.columns
+    assert "condition" in stats.columns
+    assert stats["condition"].tolist() == stats["profile_id"].tolist()
+    assert (
+        "condition-specific" in result.count_field_semantics["substrate_count_matrix"]
+    )
+
+
+def test_condition_summary_statistics_table_rejects_mismatched_condition_alias() -> (
+    None
+):
+    condition_matrix = pd.DataFrame(
+        {"treated_mean": [2.0]},
+        index=pd.Index(["site_a"], name="site_id"),
+        dtype=float,
+    )
+    aggregation_metadata = ActivityAggregationMetadata(
+        aggregation_method="mean",
+        records=(
+            ActivityAggregationRecord(
+                profile_id="treated_mean",
+                source_profile_ids=("treated_rep1", "treated_rep2"),
+            ),
+        ),
+    )
+    activity_input = ActivityInputMatrix.condition_summary_abundance(
+        condition_matrix,
+        aggregation_metadata=aggregation_metadata,
+    )
+
+    with pytest.raises(
+        PhosPyValidationError,
+        match="condition must equal profile_id",
+    ):
+        _activity_result_from_statistics_table(
+            _statistics_table(
+                ["treated_mean"],
+                include_condition=True,
+                condition_values=["treated_label_from_elsewhere"],
+            ),
+            activity_input=activity_input,
+        )
+
+
+def test_condition_summary_profile_metadata_requires_aggregation_metadata() -> None:
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="condition-summary activity input requires explicit "
+        "ActivityAggregationMetadata",
+    ):
+        ActivityProfileMetadata(
+            axis=ActivityProfileAxis.CONDITION_SUMMARY,
+            profile_ids=("treated_mean",),
+            condition_ids=("treated_mean",),
+        )
 
 
 def test_thresholded_substrate_mean_activity_respects_threshold_and_min_substrates() -> (

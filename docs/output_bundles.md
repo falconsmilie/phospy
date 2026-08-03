@@ -155,10 +155,18 @@ Within `outputs.activity`, schema version 3 uses the fields `enabled`, `method`,
 requires `input_semantics` and `profile_metadata` objects. Disabled activity
 requires both fields to be `null`.
 
-KSEA runs also emit an activity `statistics_table` with z-scores, p-values,
-optional q-values, substrate counts, background counts, and computability
-statuses. These outputs are exploratory substrate-supported scores, not direct
-causal kinase activation evidence.
+KSEA-style and ssGSEA-style runs also emit an activity `statistics_table` with
+method statistics, p-values when available, optional q-values, substrate counts,
+background counts, and computability statuses. The statistics-table row
+identity is `profile_id`.
+For `ActivityProfileAxis.SAMPLE`, `profile_id` contains sample IDs; for
+`ActivityProfileAxis.CONDITION_SUMMARY`, it contains condition-summary profile
+IDs and an optional `condition` column may also be present with the same values;
+for `ActivityProfileAxis.CONTRAST`, it contains contrast IDs; and for
+`ActivityProfileAxis.EFFECT`, it contains neutral effect profile IDs. Sample,
+contrast, and effect statistics tables do not persist a `condition` column.
+These outputs are exploratory substrate-supported scores, not direct causal
+kinase activation evidence.
 
 Bundle loaders reconstruct `dataset.processing_state` and
 `dataset.intensity_scale_state` from saved payloads, including mixed

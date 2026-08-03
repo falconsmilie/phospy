@@ -705,7 +705,7 @@ class KinaseActivityConfig:
     and ssGSEA-style floors default to `5`. Weighted and KSEA-style membership
     uses finite prediction support at or above the configured threshold. Missing
     or sparse substrate support weakens interpretation. When a kinase or
-    kinase-condition pair has too few usable substrates for the selected method,
+    kinase-profile pair has too few usable substrates for the selected method,
     score values are omitted or reported as not computable through diagnostics
     rather than silently filled.
     """

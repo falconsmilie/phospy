@@ -9,11 +9,11 @@ from phospy.provenance.scientific_policy_models import (
 from phospy.science.scoring.policy_models import ThresholdMode
 
 SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "1"
-SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_condition_kinase"
+SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_profile_kinase"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
 SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (
     "blake2b-128-json(method_id, method_version, seed_policy, "
-    "seed_policy_version, random_seed, condition, kinase, stream)"
+    "seed_policy_version, random_seed, profile_id, kinase, stream)"
 )
 
 
@@ -55,7 +55,7 @@ def build_simplified_weighted_substrate_activity_policy(
             "This is not full KSEA-style statistical enrichment.",
         ),
         output_scale=(
-            "Sample-by-kinase exploratory activity-like summaries (weighted mean "
+            "Profile-by-kinase exploratory activity-like summaries (weighted mean "
             "and thresholded mean)."
         ),
         quantitative_meaning="relative_substrate_supported_kinase_score",
@@ -95,7 +95,7 @@ def build_ksea_zscore_activity_policy(
         },
         assumptions=(
             "Substrate evidence contributes as binary membership after thresholding.",
-            "Background phosphosite values define per-condition mean and sample "
+            "Background phosphosite values define per-profile mean and sample "
             "variance.",
             "Scores with insufficient substrates or invalid background variance "
             "are not computable.",
@@ -107,7 +107,7 @@ def build_ksea_zscore_activity_policy(
             "KSEA z-scores are not PhosR-equivalent activity inference.",
         ),
         output_scale=(
-            "Condition-by-kinase inferred kinase activity score matrix "
+            "Profile-by-kinase inferred kinase activity score matrix "
             "(z-score substrate-set enrichment) with normal-approximation p-values."
         ),
         quantitative_meaning="substrate_set_enrichment_z_score",
@@ -169,14 +169,14 @@ def build_ssgsea_substrate_enrichment_activity_policy(
             "Sparse or missing substrate support weakens interpretation.",
             "Permutation p-values, when requested, use seeded random substrate-set "
             "label permutations with deterministic child RNG streams keyed by "
-            "method, condition, kinase, and user seed.",
+            "method, profile, kinase, and user seed.",
             "The enrichment score does not prove kinase activation or causal "
             "regulation; causal kinase activity claims require external validation.",
             "This is a validated PhosPy implementation and is not a PTM-SEA "
             "parity claim.",
         ),
         output_scale=(
-            "Condition-by-kinase rank-walk substrate-supported kinase score matrix "
+            "Profile-by-kinase rank-walk substrate-supported kinase score matrix "
             "with optional empirical p-values."
         ),
         quantitative_meaning="rank_based_substrate_set_enrichment_score",

@@ -556,6 +556,16 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
         ),
         pytest.param(
             {
+                "name": "condition_summary_statistics",
+                "activity_result": "condition_summary_statistics",
+                "method": KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+                "scale": "linear",
+                "meaning": "phosphosite_abundance",
+            },
+            id="condition-summary-statistics",
+        ),
+        pytest.param(
+            {
                 "name": "ksea_sample_log_abundance",
                 "activity_result": "ksea_sample_log_abundance",
                 "method": KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
@@ -628,11 +638,27 @@ def test_kinase_bundle_round_trip_preserves_exact_activity_semantics(
         activity_config=_activity_config_for_method(method),
     )
     bundle_root = tmp_path / f"kinase_bundle_{case['name']}"
+    if activity_result.statistics_table is not None:
+        with pytest.warns(
+            DeprecationWarning,
+            match="does not establish a biological condition contract",
+        ):
+            legacy_statistics = (
+                activity_result.legacy_condition_statistics_table_dataframe()
+            )
+        assert legacy_statistics is not None
+        assert legacy_statistics["condition"].tolist() == (
+            legacy_statistics["profile_id"].tolist()
+        )
 
     save_kinase_workflow_bundle(
         result,
         bundle_root,
         config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    _assert_persisted_activity_statistics_table_uses_canonical_schema(
+        bundle_root,
+        activity_result,
     )
     loaded = load_kinase_workflow_bundle(bundle_root)
 
@@ -1152,6 +1178,7 @@ def _activity_result_factory(name: str):
     factories = {
         "weighted_sample": _weighted_sample_activity_result,
         "weighted_condition_summary": _weighted_condition_summary_activity_result,
+        "condition_summary_statistics": _condition_summary_statistics_activity_result,
         "ksea_sample_log_abundance": _ksea_sample_log_abundance_activity_result,
         "ksea_contrast_log_fold_change": _ksea_contrast_log_fold_change_activity_result,
         "ksea_standardised_effect": _ksea_standardised_effect_activity_result,
@@ -1225,6 +1252,76 @@ def _weighted_condition_summary_activity_result() -> KinaseActivityResult:
             min_substrates=2,
             top_n_substrates=2,
         )
+    )
+
+
+def _condition_summary_statistics_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    input_matrix = pd.DataFrame(
+        {
+            "treated_mean": [2.0, 4.0, 6.0],
+            "control_mean": [1.0, 3.0, 5.0],
+        },
+        index=pred_mat.index.copy(),
+        dtype=float,
+    )
+    aggregation_metadata = ActivityAggregationMetadata(
+        aggregation_method="mean",
+        records=(
+            ActivityAggregationRecord(
+                profile_id="treated_mean",
+                source_profile_ids=("treated_rep1", "treated_rep2"),
+            ),
+            ActivityAggregationRecord(
+                profile_id="control_mean",
+                source_profile_ids=("control_rep1", "control_rep2"),
+            ),
+        ),
+    )
+    activity_input = ActivityInputMatrix.condition_summary_abundance(
+        input_matrix,
+        aggregation_metadata=aggregation_metadata,
+        _assume_owned=True,
+    )
+    kinase_index = pd.Index(["K1"], name="kinase")
+    profile_index = pd.Index(
+        activity_input.profile_metadata.profile_ids,
+        name="condition",
+    )
+    statistics_table = pd.DataFrame(
+        {
+            "kinase": ["K1", "K1"],
+            "profile_id": ["treated_mean", "control_mean"],
+            "condition": ["treated_mean", "control_mean"],
+            "z_score": [1.0, -1.0],
+            "p_value": [0.05, 0.10],
+            "q_value": [0.10, 0.10],
+            "n_substrates": [2, 2],
+            "n_background_sites": [3, 3],
+            "evidence_threshold": [0.5, 0.5],
+            "evidence_threshold_operator": [">=", ">="],
+            "evidence_threshold_description": ["unit-test threshold"] * 2,
+            "min_substrates": [2, 2],
+            "computability_status": ["computed", "computed"],
+            "reason": ["", ""],
+        }
+    )
+    return KinaseActivityResult(
+        activity_matrix=pd.DataFrame(
+            [[1.0, -1.0]],
+            index=kinase_index,
+            columns=profile_index,
+            dtype=float,
+        ),
+        substrate_count_matrix=pd.DataFrame(
+            [[2, 2]],
+            index=kinase_index.copy(),
+            columns=profile_index.copy(),
+            dtype="int64",
+        ),
+        statistics_table=statistics_table,
+        input_semantics=activity_input.semantics,
+        profile_metadata=activity_input.profile_metadata,
     )
 
 
@@ -1613,6 +1710,33 @@ def _assert_activity_result_semantics_round_tripped(
     _assert_optional_frame_equal(loaded.statistics_table, original.statistics_table)
     assert loaded.activity_method == original.activity_method
     assert loaded.method_summary == original.method_summary
+
+
+def _assert_persisted_activity_statistics_table_uses_canonical_schema(
+    bundle_root: Path,
+    original: KinaseActivityResult,
+) -> None:
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    activity_tables = manifest["outputs"]["activity"]["tables"]
+    assert isinstance(activity_tables, dict)
+    entry = activity_tables["statistics_table"]
+    if original.statistics_table is None:
+        assert entry is None
+        return
+    assert isinstance(entry, dict)
+    table_path = bundle_root / str(entry["path"])
+    persisted = pd.read_csv(table_path, index_col=0)
+    assert "profile_id" in persisted.columns
+    assert set(persisted["profile_id"].astype(str)) <= set(
+        original.profile_metadata.profile_ids
+    )
+    if original.input_semantics.has_real_condition_contract:
+        assert "condition" in persisted.columns
+        assert persisted["condition"].astype(str).tolist() == (
+            persisted["profile_id"].astype(str).tolist()
+        )
+    else:
+        assert "condition" not in persisted.columns
 
 
 def _expected_activity_axis_name(axis: ActivityProfileAxis | str) -> str | None:

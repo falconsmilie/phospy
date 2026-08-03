@@ -106,12 +106,12 @@ class SimplifiedWeightedSubstrateActivityMethod:
         evaluated_pairs = int(inputs.pred_mat.shape[1] * inputs.phospho_matrix.shape[1])
         summary = ActivityMethodSummary(
             kinases_evaluated=int(inputs.pred_mat.shape[1]),
-            kinase_condition_pairs_evaluated=evaluated_pairs,
-            kinase_condition_pairs_computed=evaluated_pairs,
-            kinase_condition_pairs_insufficient_substrates=0,
-            kinase_condition_pairs_invalid_background_variance=0,
-            kinase_condition_pairs_no_finite_background_values=0,
-            kinase_condition_pairs_no_finite_substrate_values=0,
+            kinase_profile_pairs_evaluated=evaluated_pairs,
+            kinase_profile_pairs_computed=evaluated_pairs,
+            kinase_profile_pairs_insufficient_substrates=0,
+            kinase_profile_pairs_invalid_background_variance=0,
+            kinase_profile_pairs_no_finite_background_values=0,
+            kinase_profile_pairs_no_finite_substrate_values=0,
         )
         diagnostics = WeightedSubstrateActivityDiagnostics(
             method_summary=summary,

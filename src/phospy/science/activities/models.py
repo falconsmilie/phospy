@@ -114,82 +114,178 @@ SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD = ActivityMethodMetadata(
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ActivityMethodSummary:
     """Method-level score computability counters."""
 
     kinases_evaluated: int
-    kinase_condition_pairs_evaluated: int
-    kinase_condition_pairs_computed: int
-    kinase_condition_pairs_insufficient_substrates: int
-    kinase_condition_pairs_invalid_background_variance: int
-    kinase_condition_pairs_no_finite_background_values: int
-    kinase_condition_pairs_no_finite_substrate_values: int
+    kinase_profile_pairs_evaluated: int
+    kinase_profile_pairs_computed: int
+    kinase_profile_pairs_insufficient_substrates: int
+    kinase_profile_pairs_invalid_background_variance: int
+    kinase_profile_pairs_no_finite_background_values: int
+    kinase_profile_pairs_no_finite_substrate_values: int
+
+    def __init__(
+        self,
+        *,
+        kinases_evaluated: int,
+        kinase_profile_pairs_evaluated: int | None = None,
+        kinase_profile_pairs_computed: int | None = None,
+        kinase_profile_pairs_insufficient_substrates: int | None = None,
+        kinase_profile_pairs_invalid_background_variance: int | None = None,
+        kinase_profile_pairs_no_finite_background_values: int | None = None,
+        kinase_profile_pairs_no_finite_substrate_values: int | None = None,
+        kinase_condition_pairs_evaluated: int | None = None,
+        kinase_condition_pairs_computed: int | None = None,
+        kinase_condition_pairs_insufficient_substrates: int | None = None,
+        kinase_condition_pairs_invalid_background_variance: int | None = None,
+        kinase_condition_pairs_no_finite_background_values: int | None = None,
+        kinase_condition_pairs_no_finite_substrate_values: int | None = None,
+    ) -> None:
+        object.__setattr__(
+            self,
+            "kinases_evaluated",
+            _coerce_summary_counter_value(
+                kinases_evaluated,
+                field_name="kinases_evaluated",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "kinase_profile_pairs_evaluated",
+            _resolve_summary_counter_alias(
+                field_name="kinase_profile_pairs_evaluated",
+                field_value=kinase_profile_pairs_evaluated,
+                fallback_field_name="kinase_condition_pairs_evaluated",
+                fallback_value=kinase_condition_pairs_evaluated,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "kinase_profile_pairs_computed",
+            _resolve_summary_counter_alias(
+                field_name="kinase_profile_pairs_computed",
+                field_value=kinase_profile_pairs_computed,
+                fallback_field_name="kinase_condition_pairs_computed",
+                fallback_value=kinase_condition_pairs_computed,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "kinase_profile_pairs_insufficient_substrates",
+            _resolve_summary_counter_alias(
+                field_name="kinase_profile_pairs_insufficient_substrates",
+                field_value=kinase_profile_pairs_insufficient_substrates,
+                fallback_field_name="kinase_condition_pairs_insufficient_substrates",
+                fallback_value=kinase_condition_pairs_insufficient_substrates,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "kinase_profile_pairs_invalid_background_variance",
+            _resolve_summary_counter_alias(
+                field_name="kinase_profile_pairs_invalid_background_variance",
+                field_value=kinase_profile_pairs_invalid_background_variance,
+                fallback_field_name=(
+                    "kinase_condition_pairs_invalid_background_variance"
+                ),
+                fallback_value=kinase_condition_pairs_invalid_background_variance,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "kinase_profile_pairs_no_finite_background_values",
+            _resolve_summary_counter_alias(
+                field_name="kinase_profile_pairs_no_finite_background_values",
+                field_value=kinase_profile_pairs_no_finite_background_values,
+                fallback_field_name=(
+                    "kinase_condition_pairs_no_finite_background_values"
+                ),
+                fallback_value=kinase_condition_pairs_no_finite_background_values,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "kinase_profile_pairs_no_finite_substrate_values",
+            _resolve_summary_counter_alias(
+                field_name="kinase_profile_pairs_no_finite_substrate_values",
+                field_value=kinase_profile_pairs_no_finite_substrate_values,
+                fallback_field_name=(
+                    "kinase_condition_pairs_no_finite_substrate_values"
+                ),
+                fallback_value=kinase_condition_pairs_no_finite_substrate_values,
+            ),
+        )
 
     def to_payload(self) -> dict[str, int]:
         """Return computability counters as a plain defensive snapshot."""
 
         return {
             "kinases_evaluated": int(self.kinases_evaluated),
-            "kinase_profile_pairs_evaluated": int(
-                self.kinase_condition_pairs_evaluated
-            ),
-            "kinase_profile_pairs_computed": int(self.kinase_condition_pairs_computed),
+            "kinase_profile_pairs_evaluated": int(self.kinase_profile_pairs_evaluated),
+            "kinase_profile_pairs_computed": int(self.kinase_profile_pairs_computed),
             "kinase_profile_pairs_insufficient_substrates": int(
-                self.kinase_condition_pairs_insufficient_substrates
+                self.kinase_profile_pairs_insufficient_substrates
             ),
             "kinase_profile_pairs_invalid_background_variance": int(
-                self.kinase_condition_pairs_invalid_background_variance
+                self.kinase_profile_pairs_invalid_background_variance
             ),
             "kinase_profile_pairs_no_finite_background_values": int(
-                self.kinase_condition_pairs_no_finite_background_values
+                self.kinase_profile_pairs_no_finite_background_values
             ),
             "kinase_profile_pairs_no_finite_substrate_values": int(
-                self.kinase_condition_pairs_no_finite_substrate_values
-            ),
-            "kinase_condition_pairs_evaluated": int(
-                self.kinase_condition_pairs_evaluated
-            ),
-            "kinase_condition_pairs_computed": int(
-                self.kinase_condition_pairs_computed
-            ),
-            "kinase_condition_pairs_insufficient_substrates": int(
-                self.kinase_condition_pairs_insufficient_substrates
-            ),
-            "kinase_condition_pairs_invalid_background_variance": int(
-                self.kinase_condition_pairs_invalid_background_variance
-            ),
-            "kinase_condition_pairs_no_finite_background_values": int(
-                self.kinase_condition_pairs_no_finite_background_values
-            ),
-            "kinase_condition_pairs_no_finite_substrate_values": int(
-                self.kinase_condition_pairs_no_finite_substrate_values
+                self.kinase_profile_pairs_no_finite_substrate_values
             ),
         }
 
     @property
-    def kinase_profile_pairs_evaluated(self) -> int:
-        return self.kinase_condition_pairs_evaluated
+    def kinase_condition_pairs_evaluated(self) -> int:
+        _warn_legacy_activity_summary_alias(
+            legacy_field_name="kinase_condition_pairs_evaluated",
+            field_name="kinase_profile_pairs_evaluated",
+        )
+        return self.kinase_profile_pairs_evaluated
 
     @property
-    def kinase_profile_pairs_computed(self) -> int:
-        return self.kinase_condition_pairs_computed
+    def kinase_condition_pairs_computed(self) -> int:
+        _warn_legacy_activity_summary_alias(
+            legacy_field_name="kinase_condition_pairs_computed",
+            field_name="kinase_profile_pairs_computed",
+        )
+        return self.kinase_profile_pairs_computed
 
     @property
-    def kinase_profile_pairs_insufficient_substrates(self) -> int:
-        return self.kinase_condition_pairs_insufficient_substrates
+    def kinase_condition_pairs_insufficient_substrates(self) -> int:
+        _warn_legacy_activity_summary_alias(
+            legacy_field_name="kinase_condition_pairs_insufficient_substrates",
+            field_name="kinase_profile_pairs_insufficient_substrates",
+        )
+        return self.kinase_profile_pairs_insufficient_substrates
 
     @property
-    def kinase_profile_pairs_invalid_background_variance(self) -> int:
-        return self.kinase_condition_pairs_invalid_background_variance
+    def kinase_condition_pairs_invalid_background_variance(self) -> int:
+        _warn_legacy_activity_summary_alias(
+            legacy_field_name="kinase_condition_pairs_invalid_background_variance",
+            field_name="kinase_profile_pairs_invalid_background_variance",
+        )
+        return self.kinase_profile_pairs_invalid_background_variance
 
     @property
-    def kinase_profile_pairs_no_finite_background_values(self) -> int:
-        return self.kinase_condition_pairs_no_finite_background_values
+    def kinase_condition_pairs_no_finite_background_values(self) -> int:
+        _warn_legacy_activity_summary_alias(
+            legacy_field_name="kinase_condition_pairs_no_finite_background_values",
+            field_name="kinase_profile_pairs_no_finite_background_values",
+        )
+        return self.kinase_profile_pairs_no_finite_background_values
 
     @property
-    def kinase_profile_pairs_no_finite_substrate_values(self) -> int:
-        return self.kinase_condition_pairs_no_finite_substrate_values
+    def kinase_condition_pairs_no_finite_substrate_values(self) -> int:
+        _warn_legacy_activity_summary_alias(
+            legacy_field_name="kinase_condition_pairs_no_finite_substrate_values",
+            field_name="kinase_profile_pairs_no_finite_substrate_values",
+        )
+        return self.kinase_profile_pairs_no_finite_substrate_values
 
     @classmethod
     def from_payload(
@@ -201,17 +297,17 @@ class ActivityMethodSummary:
                 payload=payload,
                 field_name="kinases_evaluated",
             ),
-            kinase_condition_pairs_evaluated=_coerce_payload_int_with_fallback(
+            kinase_profile_pairs_evaluated=_coerce_payload_int_with_fallback(
                 payload=payload,
                 field_name="kinase_profile_pairs_evaluated",
                 fallback_field_name="kinase_condition_pairs_evaluated",
             ),
-            kinase_condition_pairs_computed=_coerce_payload_int_with_fallback(
+            kinase_profile_pairs_computed=_coerce_payload_int_with_fallback(
                 payload=payload,
                 field_name="kinase_profile_pairs_computed",
                 fallback_field_name="kinase_condition_pairs_computed",
             ),
-            kinase_condition_pairs_insufficient_substrates=(
+            kinase_profile_pairs_insufficient_substrates=(
                 _coerce_payload_int_with_fallback(
                     payload=payload,
                     field_name="kinase_profile_pairs_insufficient_substrates",
@@ -220,7 +316,7 @@ class ActivityMethodSummary:
                     ),
                 )
             ),
-            kinase_condition_pairs_invalid_background_variance=(
+            kinase_profile_pairs_invalid_background_variance=(
                 _coerce_payload_int_with_fallback(
                     payload=payload,
                     field_name="kinase_profile_pairs_invalid_background_variance",
@@ -229,7 +325,7 @@ class ActivityMethodSummary:
                     ),
                 )
             ),
-            kinase_condition_pairs_no_finite_background_values=(
+            kinase_profile_pairs_no_finite_background_values=(
                 _coerce_payload_int_with_fallback(
                     payload=payload,
                     field_name="kinase_profile_pairs_no_finite_background_values",
@@ -238,7 +334,7 @@ class ActivityMethodSummary:
                     ),
                 )
             ),
-            kinase_condition_pairs_no_finite_substrate_values=(
+            kinase_profile_pairs_no_finite_substrate_values=(
                 _coerce_payload_int_with_fallback(
                     payload=payload,
                     field_name="kinase_profile_pairs_no_finite_substrate_values",
@@ -257,8 +353,72 @@ def _coerce_payload_int_with_fallback(
     fallback_field_name: str,
 ) -> int:
     if field_name in payload:
-        return _coerce_payload_int(payload=payload, field_name=field_name)
+        value = _coerce_payload_int(payload=payload, field_name=field_name)
+        if fallback_field_name in payload:
+            fallback_value = _coerce_payload_int(
+                payload=payload,
+                field_name=fallback_field_name,
+            )
+            if value != fallback_value:
+                raise ValueError(
+                    f"{field_name} conflicts with legacy alias {fallback_field_name}"
+                )
+        return value
     return _coerce_payload_int(payload=payload, field_name=fallback_field_name)
+
+
+def _resolve_summary_counter_alias(
+    *,
+    field_name: str,
+    field_value: int | None,
+    fallback_field_name: str,
+    fallback_value: int | None,
+) -> int:
+    if field_value is not None:
+        value = _coerce_summary_counter_value(field_value, field_name=field_name)
+        if fallback_value is not None:
+            legacy_value = _coerce_summary_counter_value(
+                fallback_value,
+                field_name=fallback_field_name,
+            )
+            if value != legacy_value:
+                raise ValueError(
+                    f"{field_name} conflicts with legacy alias {fallback_field_name}"
+                )
+        return value
+    if fallback_value is not None:
+        _warn_legacy_activity_summary_alias(
+            legacy_field_name=fallback_field_name,
+            field_name=field_name,
+        )
+        return _coerce_summary_counter_value(
+            fallback_value,
+            field_name=fallback_field_name,
+        )
+    raise ValueError(f"{field_name} must be provided")
+
+
+def _coerce_summary_counter_value(value: object, *, field_name: str) -> int:
+    if not isinstance(value, bool | int | float | str | bytes | bytearray):
+        raise ValueError(f"{field_name} must be int-compatible")
+    return int(value)
+
+
+def _warn_legacy_activity_summary_alias(
+    *,
+    legacy_field_name: str,
+    field_name: str,
+) -> None:
+    warnings.warn(
+        (
+            f"ActivityMethodSummary.{legacy_field_name} is deprecated; use "
+            f"{field_name}. The deprecated condition-named alias is only a "
+            "compatibility counter name and does not define biological "
+            "condition semantics."
+        ),
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -470,11 +630,11 @@ class KinaseActivityResult:
     - ``confidence_interval_low``: optional lower confidence interval matrix
     - ``confidence_interval_high``: optional upper confidence interval matrix
     - ``substrate_count_matrix``: method-neutral count matrix for substrates used
-      per kinase-condition score when defined by the method
+      per kinase-profile score when defined by the method
     - ``thresholded_substrate_mean_activity``: sample-by-kinase mean phospho
       signal over predicted substrates above threshold for legacy weighted output
     - ``thresholded_substrate_counts``: compatibility sidecar count series
-    - ``activity_substrate_counts``: method-neutral condition-specific count matrix
+    - ``activity_substrate_counts``: method-neutral profile-specific count matrix
       legacy accessor retained for KSEA-style count matrices
     - ``target_counts``: thresholded predicted target counts per kinase
     - ``target_table``: thresholded kinase-target edge table
@@ -743,6 +903,11 @@ class KinaseActivityResult:
                 frame=statistics_table,
                 _assume_owned=assume_owned,
             ).frame
+            _validate_activity_statistics_profile_contract(
+                statistics_table=statistics_table,
+                input_semantics=input_semantics,
+                profile_metadata=profile_metadata,
+            )
         _validate_optional_method_summary(method_summary)
         _validate_optional_threshold_membership_diagnostics(
             threshold_membership_diagnostics
@@ -884,19 +1049,30 @@ class KinaseActivityResult:
     def count_field_semantics(self) -> dict[str, str]:
         """Return count-field meaning text as a fresh mapping snapshot."""
 
+        profile_specific = (
+            "condition-specific"
+            if self.input_semantics.has_real_condition_contract
+            else "profile-specific"
+        )
+        kinase_profile_pair = (
+            "kinase-condition"
+            if self.input_semantics.has_real_condition_contract
+            else "kinase-profile"
+        )
         if self.activity_method.is_ksea:
             return {
                 "substrate_count_matrix": (
-                    "condition-specific finite substrate count used for each "
-                    "kinase-condition kinase activity score"
+                    f"{profile_specific} finite substrate count used for each "
+                    f"{kinase_profile_pair} kinase activity score"
                 ),
                 "activity_substrate_counts": (
-                    "condition-specific finite substrate count used for each "
-                    "kinase-condition kinase activity score; legacy KSEA accessor"
+                    f"{profile_specific} finite substrate count used for each "
+                    f"{kinase_profile_pair} kinase activity score; legacy KSEA "
+                    "accessor"
                 ),
                 "thresholded_substrate_counts": (
                     "global post-threshold evidence membership count before "
-                    "condition-specific finite-value filtering"
+                    f"{profile_specific} finite-value filtering"
                 ),
                 "target_counts": (
                     "global post-threshold predicted target membership count"
@@ -905,23 +1081,24 @@ class KinaseActivityResult:
         if self.activity_method.activity_method_family == "substrate_set_enrichment":
             return {
                 "substrate_count_matrix": (
-                    "condition-specific finite substrate count used for each "
-                    "kinase-condition substrate-set enrichment score"
+                    f"{profile_specific} finite substrate count used for each "
+                    f"{kinase_profile_pair} substrate-set enrichment score"
                 ),
                 "activity_substrate_counts": (
-                    "condition-specific finite substrate count used for each "
-                    "kinase-condition substrate-set enrichment score"
+                    f"{profile_specific} finite substrate count used for each "
+                    f"{kinase_profile_pair} substrate-set enrichment score"
                 ),
                 "thresholded_substrate_counts": (
                     "global kinase-substrate membership count before "
-                    "condition-specific finite-value filtering"
+                    f"{profile_specific} finite-value filtering"
                 ),
                 "target_counts": "global kinase-substrate membership count",
             }
         return {
             "substrate_count_matrix": (
-                "condition-specific finite substrate count used for each primary "
-                "kinase-condition activity-like score when supplied by the method"
+                f"{profile_specific} finite substrate count used for each primary "
+                f"{kinase_profile_pair} activity-like score when supplied by the "
+                "method"
             ),
             "thresholded_substrate_counts": (
                 "global thresholded substrate membership count per kinase"
@@ -1032,6 +1209,27 @@ class KinaseActivityResult:
 
         return export_optional_dataframe(self._statistics_table)
 
+    def legacy_condition_statistics_table_dataframe(self) -> pd.DataFrame | None:
+        """Return an old condition-shaped statistics-table compatibility snapshot."""
+
+        warnings.warn(
+            (
+                "KinaseActivityResult.legacy_condition_statistics_table_dataframe() "
+                "is deprecated; use statistics_table_dataframe() or statistics_table "
+                "and the canonical profile_id column. This adapter adds "
+                "condition=profile_id only for compatibility and does not establish "
+                "a biological condition contract."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        table = export_optional_dataframe(self._statistics_table)
+        if table is None:
+            return None
+        legacy_table = table.copy(deep=True)
+        legacy_table.loc[:, "condition"] = legacy_table.loc[:, "profile_id"]
+        return legacy_table
+
 
 def _resolve_activity_result_semantics(
     *,
@@ -1087,6 +1285,92 @@ def _resolve_activity_result_semantics(
             f"expected={profile_ids!r}, got={observed_profile_ids!r}"
         )
     return input_semantics, profile_metadata
+
+
+def _validate_activity_statistics_profile_contract(
+    *,
+    statistics_table: pd.DataFrame,
+    input_semantics: ActivityInputSemantics,
+    profile_metadata: ActivityProfileMetadata,
+) -> None:
+    profile_values = tuple(
+        str(value) for value in statistics_table.loc[:, "profile_id"].tolist()
+    )
+    declared_profile_ids = tuple(str(value) for value in profile_metadata.profile_ids)
+    declared_profile_set = set(declared_profile_ids)
+    unknown_profile_ids = sorted(set(profile_values).difference(declared_profile_set))
+    if unknown_profile_ids:
+        raise PhosPyValidationError(
+            "activity_result.statistics_table.profile_id values must occur in "
+            "activity_result.profile_metadata.profile_ids; "
+            f"unknown_profile_ids={tuple(unknown_profile_ids)!r}"
+        )
+
+    namespace_ids = _activity_statistics_profile_namespace(
+        profile_metadata=profile_metadata,
+    )
+    namespace_set = set(namespace_ids)
+    outside_namespace = sorted(set(profile_values).difference(namespace_set))
+    if outside_namespace:
+        axis = _activity_profile_axis_value(profile_metadata.axis)
+        raise PhosPyValidationError(
+            "activity_result.statistics_table.profile_id values must use the "
+            f"declared {axis} profile namespace; "
+            f"unknown_profile_ids={tuple(outside_namespace)!r}"
+        )
+
+    if input_semantics.has_real_condition_contract:
+        if "condition" not in statistics_table.columns:
+            return
+        condition_values = tuple(
+            str(value) for value in statistics_table.loc[:, "condition"].tolist()
+        )
+        mismatched = sorted(
+            {
+                profile_id
+                for profile_id, condition_id in zip(
+                    profile_values,
+                    condition_values,
+                    strict=True,
+                )
+                if condition_id != profile_id
+            }
+        )
+        if mismatched:
+            raise PhosPyValidationError(
+                "activity_result.statistics_table.condition must equal profile_id "
+                "for condition-summary activity results; "
+                f"mismatched_profile_ids={tuple(mismatched)!r}"
+            )
+        return
+
+    if "condition" in statistics_table.columns:
+        axis = _activity_profile_axis_value(input_semantics.profile_axis)
+        raise PhosPyValidationError(
+            "activity_result.statistics_table.condition is reserved for "
+            "condition-summary activity results; "
+            f"profile_axis={axis!r} does not define a biological condition contract"
+        )
+
+
+def _activity_statistics_profile_namespace(
+    *,
+    profile_metadata: ActivityProfileMetadata,
+) -> tuple[str, ...]:
+    axis = profile_metadata.axis
+    if axis is ActivityProfileAxis.SAMPLE:
+        return tuple(str(value) for value in profile_metadata.sample_ids)
+    if axis is ActivityProfileAxis.CONDITION_SUMMARY:
+        return tuple(str(value) for value in profile_metadata.condition_ids)
+    if axis is ActivityProfileAxis.CONTRAST:
+        return tuple(str(value) for value in profile_metadata.contrast_ids)
+    return tuple(str(value) for value in profile_metadata.profile_ids)
+
+
+def _activity_profile_axis_value(axis: ActivityProfileAxis | str) -> str:
+    if isinstance(axis, ActivityProfileAxis):
+        return axis.value
+    return str(axis)
 
 
 def _activity_profile_axis_name(

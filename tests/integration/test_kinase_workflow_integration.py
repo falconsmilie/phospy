@@ -545,7 +545,7 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
     assert result.activity_result.statistics_table is not None
     assert {
         "kinase",
-        "condition",
+        "profile_id",
         "z_score",
         "p_value",
         "q_value",
@@ -558,11 +558,12 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         "computability_status",
         "reason",
     } <= set(result.activity_result.statistics_table.columns)
+    assert "condition" not in result.activity_result.statistics_table.columns
     assert result.activity_result.activity_substrate_counts is not None
     expected_counts = (
         result.activity_result.statistics_table.pivot(
             index="kinase",
-            columns="condition",
+            columns="profile_id",
             values="n_substrates",
         )
         .reindex(index=result.activity_result.activity_substrate_counts.index)
