@@ -94,9 +94,9 @@ installed wheel/sdist verifier are not optional for public release decisions.
 
 The publish pipeline (`.github/workflows/publish.yml`) runs
 `make release-check` once on the checked-out tag, uploads the fresh `dist/`
-directory, verifies the uploaded wheel and sdist on Python 3.10, 3.11, and
-3.12, and publishes those artifacts through trusted publishing only after that
-matrix passes.
+directory, verifies the uploaded wheel and sdist on Python 3.11 and 3.12, and
+publishes those artifacts through trusted publishing only after that matrix
+passes.
 
 This process provides normal CI/build confidence, not formal
 exact-source/exact-artifact attestation. Do not treat a partial local pass, a

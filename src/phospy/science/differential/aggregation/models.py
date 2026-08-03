@@ -487,8 +487,8 @@ def _copy_selected_columns(
     frame: pd.DataFrame,
     columns: Sequence[str],
 ) -> pd.DataFrame:
-    selected = cast(pd.DataFrame, frame.loc[:, list(columns)])  # pyright: ignore[reportUnknownMemberType, reportArgumentType, reportCallIssue] - pandas-stubs cannot express generic DataFrame.loc column selection.
-    copied = cast(pd.DataFrame, selected.copy(deep=True))  # pyright: ignore[reportUnknownMemberType] - pandas-stubs loses concrete DataFrame type for copy.
+    selected = cast(pd.DataFrame, frame.loc[:, list(columns)])  # pyright: ignore[reportUnknownMemberType, reportArgumentType, reportCallIssue, reportUnnecessaryCast] - pandas-stubs cannot express generic DataFrame.loc column selection consistently across supported stub versions.
+    copied = cast(pd.DataFrame, selected.copy(deep=True))  # pyright: ignore[reportUnknownMemberType, reportUnnecessaryCast] - pandas-stubs loses concrete DataFrame type for copy on some supported stub versions.
     return copied
 
 

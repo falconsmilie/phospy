@@ -6,6 +6,7 @@ import warnings
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -528,7 +529,8 @@ class TechnicalReplicateAggregator:
     ) -> pd.DataFrame:
         rows: list[pd.Series] = []
         for group in groups:
-            rows.append(metadata.loc[group.input_sample_ids[0], :].copy(deep=True))
+            row = cast(pd.Series, metadata.loc[group.input_sample_ids[0], :])
+            rows.append(row.copy(deep=True))
         aggregated = pd.DataFrame(
             rows,
             index=pd.Index(

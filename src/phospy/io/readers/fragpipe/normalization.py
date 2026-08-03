@@ -117,7 +117,11 @@ def _adapt_fragpipe_source(
     adapted[_ADAPTED_PROTEIN_ID_COLUMN] = protein_values
     adapted[_ADAPTED_GENE_SYMBOL_COLUMN] = gene_values
     adapted[_ADAPTED_SITE_COLUMN] = site_values
-    adapted[_ADAPTED_LOCALISATION_COLUMN] = localisation_values
+    adapted[_ADAPTED_LOCALISATION_COLUMN] = pd.Series(
+        localisation_values,
+        index=adapted.index,
+        dtype=object,
+    )
     adapted[_ADAPTED_UNIQUE_FEATURE_ID_COLUMN] = _build_unique_feature_ids(
         source=source,
         resolved=resolved,
@@ -131,16 +135,21 @@ def _adapt_fragpipe_source(
         )
         for position, value in enumerate(source.loc[:, resolved.peptide_sequence])
     ]
-    adapted[_ADAPTED_MODIFIED_PEPTIDE_SEQUENCE_COLUMN] = [
-        required_text(
-            value,
-            field_name=f"FragPipe {resolved.modified_peptide_sequence}",
-            row_position=position,
-        )
-        for position, value in enumerate(
-            source.loc[:, resolved.modified_peptide_sequence]
-        )
-    ]
+    modified_peptide_sequences = pd.Series(
+        [
+            required_text(
+                value,
+                field_name=f"FragPipe {resolved.modified_peptide_sequence}",
+                row_position=position,
+            )
+            for position, value in enumerate(
+                source.loc[:, resolved.modified_peptide_sequence]
+            )
+        ],
+        index=adapted.index,
+        dtype=object,
+    )
+    adapted[_ADAPTED_MODIFIED_PEPTIDE_SEQUENCE_COLUMN] = modified_peptide_sequences
     adapted[_ADAPTED_PEPTIDE_SITE_STRING_COLUMN] = peptide_site_values
     adapted[_ADAPTED_CANDIDATE_SITES_COLUMN] = candidate_site_values
     adapted[_ADAPTED_SITE_PROBABILITIES_COLUMN] = site_probability_values

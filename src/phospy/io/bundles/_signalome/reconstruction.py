@@ -150,7 +150,7 @@ def _normalize_optional_string_columns(
                 normalized.loc[:, column_name].astype(object).fillna("").astype(str)
             )
             normalized = normalized.drop(columns=[column_name])
-            normalized.insert(column_index, column_name, series)
+            normalized.insert(column_index, column_name, series)  # pyright: ignore[reportArgumentType] - pandas-stubs cannot narrow get_loc to int for unique columns.
     return normalized
 
 

@@ -4,18 +4,13 @@ import ast
 import re
 import shlex
 import textwrap
+import tomllib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
-
-try:
-    import tomllib  # pyright: ignore[reportMissingImports]
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    import tomli as tomllib  # pyright: ignore[reportMissingImports]
-
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -555,7 +550,7 @@ def _pytest_default_source_paths(root: Path) -> set[Path]:
 
 
 def _assert_supported_python_matrix(job_block: str) -> None:
-    assert "python-version: ['3.10', '3.11', '3.12']" in job_block
+    assert "python-version: ['3.11', '3.12']" in job_block
 
 
 _UNKNOWN = object()
@@ -2184,7 +2179,12 @@ def test_publish_workflow_builds_once_and_publishes_uploaded_dist() -> None:
 
 def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None:
     workflow = _read(".github/workflows/ci.yml")
+    unsupported_python_310 = "3." + "10"
+    lint = _workflow_job_block(workflow, "lint")
     clean_install = _workflow_job_block(workflow, "clean-constrained-install")
+    minimum = _workflow_job_block(workflow, "minimum-dependency-suite")
+    benchmark = _workflow_job_block(workflow, "benchmark-smoke")
+    testing_audit = _workflow_job_block(workflow, "testing-audit-freshness")
     default_suite = _workflow_job_block(workflow, "default-suite")
     activity_parity = _workflow_job_block(workflow, "activity-parity-gate")
     hard_parity = _workflow_job_block(workflow, "parity-tests")
@@ -2193,9 +2193,11 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     reference_bundles = _workflow_job_block(workflow, "reference-bundles")
     fixture_integrity = _workflow_job_block(workflow, "fixture-integrity")
     release_gates = _workflow_job_block(workflow, "release-gates")
+    adaptive = _workflow_job_block(workflow, "adaptive-mode-standard-install")
     build = _workflow_job_block(workflow, "build-distributions")
     installed = _workflow_job_block(workflow, "installed-distribution-verification")
 
+    assert f"python-version: '{unsupported_python_310}'" not in workflow
     _assert_supported_python_matrix(clean_install)
     _assert_supported_python_matrix(default_suite)
     _assert_supported_python_matrix(activity_parity)
@@ -2203,7 +2205,16 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     _assert_supported_python_matrix(performance)
     _assert_supported_python_matrix(release_gates)
     _assert_supported_python_matrix(installed)
-    assert "python-version: '3.10'" in diagnostics
+    for lowest_supported_job in (
+        lint,
+        minimum,
+        benchmark,
+        testing_audit,
+        reference_bundles,
+        adaptive,
+        diagnostics,
+    ):
+        assert "python-version: '3.11'" in lowest_supported_job
     assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance
     assert "make validate-reference-bundles" in reference_bundles

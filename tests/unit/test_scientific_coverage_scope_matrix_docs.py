@@ -1,11 +1,7 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
-    import tomli as tomllib  # type: ignore[no-redef]
 
 from phospy.science.references import validation as reference_manifest_validation
 from phospy.science.references.manifest import RedistributionStatus

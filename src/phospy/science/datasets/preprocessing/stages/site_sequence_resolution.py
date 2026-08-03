@@ -191,7 +191,7 @@ class SiteSequenceResolutionStage:
 def _normalize_optional_site_sequence_series(column: pd.Series) -> pd.Series:
     as_string = column.astype("string").str.strip()
     missing = column.isna() | as_string.isna() | (as_string == "")
-    return as_string.where(~missing, other=pd.NA)
+    return as_string.where(~missing, other=pd.NA)  # pyright: ignore[reportArgumentType] - pandas-stubs does not accept pd.NA for nullable string Series.where.
 
 
 def _resolve_operation(plan: PreprocessingPlan) -> str:

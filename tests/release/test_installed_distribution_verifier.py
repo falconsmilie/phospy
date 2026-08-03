@@ -247,6 +247,7 @@ def test_verifier_dispatches_wheel_and_sdist_to_isolated_artifact_checks(
                 environment_root / "Lib" / "site-packages" / "phospy" / "__init__.py"
             ),
             python_version="3.12.10",
+            requires_python=verifier.EXPECTED_REQUIRES_PYTHON,
             resource_count=5,
             ticket_1_boundary_status="withdrawn_asserted",
         )
@@ -267,6 +268,29 @@ def test_verifier_dispatches_wheel_and_sdist_to_isolated_artifact_checks(
     assert all(call[4] == "python-under-test" for call in calls)
     assert all(call[5] == constraint.resolve() for call in calls)
     assert [report.artifact_kind for report in reports] == ["wheel", "sdist"]
+
+
+def test_built_artifact_metadata_declares_supported_python_contract(
+    built_distribution_artifacts: DistributionArtifacts,
+) -> None:
+    assert (
+        verifier._requires_python_specifiers(
+            verifier._artifact_requires_python(
+                artifact_kind="wheel",
+                artifact_path=built_distribution_artifacts.wheel,
+            )
+        )
+        == verifier.EXPECTED_REQUIRES_PYTHON_SPECIFIERS
+    )
+    assert (
+        verifier._requires_python_specifiers(
+            verifier._artifact_requires_python(
+                artifact_kind="sdist",
+                artifact_path=built_distribution_artifacts.sdist,
+            )
+        )
+        == verifier.EXPECTED_REQUIRES_PYTHON_SPECIFIERS
+    )
 
 
 def test_clean_wheel_and_sdist_install_and_execute_standalone_probe(
@@ -292,6 +316,10 @@ def test_clean_wheel_and_sdist_install_and_execute_standalone_probe(
             label="phospy.__file__",
         )
         _require_path_outside(report.phospy_file, ROOT, label="phospy.__file__")
+        assert (
+            verifier._requires_python_specifiers(report.requires_python)
+            == verifier.EXPECTED_REQUIRES_PYTHON_SPECIFIERS
+        )
         assert report.resource_count >= 5
         assert report.ticket_1_boundary_status == "withdrawn_asserted"
 

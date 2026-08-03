@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import hashlib
-import importlib
 import locale
 import os
 import platform
+import tomllib
 from collections.abc import Mapping
 from datetime import datetime
 from functools import lru_cache
 from importlib import metadata
 from pathlib import Path
-from types import ModuleType
 from typing import cast
 
 from phospy.provenance.models import (
@@ -134,14 +133,11 @@ def _package_version(package_name: str) -> str:
 
 
 def _project_metadata_version(package_name: str) -> str | None:
-    toml_parser = _toml_parser()
-    if toml_parser is None:
-        return None
     try:
         pyproject = _project_root_from_module() / "pyproject.toml"
         payload = cast(
             Mapping[str, object],
-            toml_parser.loads(pyproject.read_text(encoding="utf-8")),
+            tomllib.loads(pyproject.read_text(encoding="utf-8")),
         )
     except Exception:
         return None
@@ -151,15 +147,6 @@ def _project_metadata_version(package_name: str) -> str | None:
     if _normalize_optional_value(project.get("name")) != package_name:
         return None
     return _normalize_optional_value(project.get("version"))
-
-
-def _toml_parser() -> ModuleType | None:
-    for module_name in ("tomllib", "tomli"):
-        try:
-            return importlib.import_module(module_name)
-        except ModuleNotFoundError:
-            continue
-    return None
 
 
 def _platform_provenance() -> dict[str, str]:

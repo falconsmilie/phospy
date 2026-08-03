@@ -7,7 +7,7 @@ name = "phospy"
 version = "1.6.0"
 description = "Python package for selected PhosR-inspired phosphoproteomics workflows"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.11,<3.13"
 license = "GPL-3.0"
 license-files = ["LICENSE", "NOTICE.md"]
 authors = [
@@ -36,7 +36,6 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering",
@@ -48,7 +47,6 @@ dependencies = [
   "pandas>=2.0",
   "scipy>=1.10",
   "scikit-learn>=1.6",
-  "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.urls]
@@ -72,9 +70,8 @@ test = [
 
 dev = [
   "hypothesis>=6",
-  "pandas-stubs>=2.2.3.250527,<3.0.0; python_version < '3.11'",
-  "pandas-stubs>=3.0.0.260204; python_version >= '3.11'",
-  "scipy-stubs>=1.17.1.0; python_version >= '3.11'",
+  "pandas-stubs>=3.0.0.260204",
+  "scipy-stubs>=1.17.1.0",
   "pre-commit>=4.0",
   "pyright>=1.1.410",
   "pytest>=8.0",
@@ -112,7 +109,7 @@ markers = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py311"
 force-exclude = true
 
 [tool.ruff.lint]
@@ -125,6 +122,7 @@ select = [
 ]
 ignore = [
   "E501",  # formatter handles line wrapping
+  "UP042", # keep str+Enum public contracts until StrEnum migration is reviewed
 ]
 
 [tool.ruff.format]
@@ -134,7 +132,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pyright]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"

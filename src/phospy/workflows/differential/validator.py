@@ -195,7 +195,7 @@ class DifferentialAnalysisValidator:
                 minimum_condition_replicates=minimum_condition_replicates,
                 paired_design_policy=config.paired_design_policy,
             )
-        analysis_matrix = cast(
+        analysis_matrix = cast(  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
             pd.DataFrame,
             dataset_view.phospho[list(validated_design_contract.analysis_sample_ids)],
         )

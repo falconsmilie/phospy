@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -290,9 +291,11 @@ def _build_kinase_target_table(
 ) -> pd.DataFrame:
     filtered = threshold_membership_filtered_frame(pred_mat, threshold=threshold)
     try:
-        edges = filtered.stack(future_stack=True).rename("score").reset_index()
+        stacked = cast(pd.Series, filtered.stack(future_stack=True))
     except TypeError:
-        edges = filtered.stack().rename("score").reset_index()
+        stacked = cast(pd.Series, filtered.stack())
+    stacked.name = "score"
+    edges = stacked.reset_index()
     edges = edges.loc[edges["score"].notna()]
     edges.columns = [_SITE_ID_COLUMN, "kinase", "score"]
     return edges.sort_values(["kinase", "score"], ascending=[True, False])

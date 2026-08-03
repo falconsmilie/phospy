@@ -46,13 +46,13 @@ pytest marker category, is not collected by pytest, and is excluded from
 
 CI runs the default non-parity suite, threshold-bearing parity suite, release
 and golden gates, and performance contracts on each supported Python version:
-3.10, 3.11, and 3.12. Build and archive-level packaged-reference validation
-remain a dedicated single-build artifact job; the uploaded wheel and sdist are
-then installed and executed by a separate Python 3.10, 3.11, and 3.12 verifier
-matrix. Manifest-governed fixture byte integrity also runs on both Ubuntu and
-Windows to catch checkout newline conversion regressions.
+3.11 and 3.12. Build and archive-level packaged-reference validation remain a
+dedicated single-build artifact job; the uploaded wheel and sdist are then
+installed and executed by a separate Python 3.11 and 3.12 verifier matrix.
+Manifest-governed fixture byte integrity also runs on both Ubuntu and Windows
+to catch checkout newline conversion regressions.
 
-CI also has a Python 3.10 minimum-dependency lane using
+CI also has a Python 3.11 minimum-dependency lane using
 `constraints/minimum.txt`. That lane installs the project with test
 dependencies under declared lower-bound pins, runs `pip check`, then runs the
 non-parity suite plus release/golden/reproducibility selectors that do not

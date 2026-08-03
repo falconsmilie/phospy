@@ -384,13 +384,13 @@ packaged-reference validation. The maintained commands/workflows are:
   verifies bundled rat reference resources and SHA-256 values, and runs
   representative public workflow contracts without repository test fixtures.
 - The publish workflow runs `make release-check` once on the checked-out tag,
-  verifies the uploaded wheel/sdist artifacts on Python 3.10, 3.11, and 3.12,
+  verifies the uploaded wheel/sdist artifacts on Python 3.11 and 3.12,
   and publishes those artifacts through trusted publishing only after the
   verifier matrix passes.
 - CI runs clean constrained `[dev,test]` installs, the full default
   non-parity source suite, threshold-bearing parity, release/golden gates, and
-  performance contracts on Python 3.10, 3.11, and 3.12.
-- CI also runs a Python 3.10 minimum-dependency lane from
+  performance contracts on Python 3.11 and 3.12.
+- CI also runs a Python 3.11 minimum-dependency lane from
   `constraints/minimum.txt`, installs the project with test dependencies under
   those lower-bound pins, runs `pip check`, then runs the non-parity suite plus
   release/golden/reproducibility selectors that do not require external tools.

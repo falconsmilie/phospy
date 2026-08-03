@@ -270,7 +270,7 @@ class SiteSequenceDeriver:
     def _normalized_optional_site_sequence(column: pd.Series) -> pd.Series:
         as_string = column.astype("string").str.strip()
         missing = column.isna() | as_string.isna() | (as_string == "")
-        return as_string.where(~missing, other=pd.NA)
+        return as_string.where(~missing, other=pd.NA)  # pyright: ignore[reportArgumentType] - pandas-stubs does not accept pd.NA for nullable string Series.where.
 
     @staticmethod
     def _derive_from_bundled_sequences_if_available(

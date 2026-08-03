@@ -2,19 +2,18 @@ from __future__ import annotations
 
 import re
 import shlex
+import tomllib
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    import tomli as tomllib
-
-
 ROOT = Path(__file__).resolve().parents[2]
-SUPPORTED_PYTHON_VERSIONS = ("3.10", "3.11", "3.12")
+SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12")
+EXPECTED_REQUIRES_PYTHON = ">=3.11,<3.13"
+UNSUPPORTED_PYTHON_310 = "3." + "10"
+UNSUPPORTED_RUFF_TARGET = "py" + "310"
+REMOVED_TOMLI_REQUIREMENT = "toml" + "i"
 WORKFLOW_PATHS = (
     Path(".github/workflows/ci.yml"),
     Path(".github/workflows/publish.yml"),
@@ -24,7 +23,6 @@ MINIMUM_CONSTRAINT_LOWER_BOUND_PINS = {
     "pandas": "2.0.0",
     "scipy": "1.10.0",
     "scikit-learn": "1.6.0",
-    "tomli": "2.0.0",
     "hypothesis": "6.0.0",
     "pytest": "8.0.0",
     "setuptools": "77.0.3",
@@ -187,20 +185,31 @@ def test_ci_constraints_pin_every_direct_release_dependency() -> None:
     assert unpinned == []
 
 
-def test_ci_dev_type_stub_markers_preserve_python_310_clean_installs() -> None:
+def test_ci_dev_type_stub_requirements_are_unconditional_for_supported_versions() -> (
+    None
+):
     dev_requirements = _load_pyproject()["project"]["optional-dependencies"]["dev"]
+    pandas_stub_requirements = [
+        requirement
+        for requirement in dev_requirements
+        if _requirement_name(requirement) == "pandas-stubs"
+    ]
     scipy_stub_requirements = [
         requirement
         for requirement in dev_requirements
         if _requirement_name(requirement) == "scipy-stubs"
     ]
 
-    assert scipy_stub_requirements == [
-        "scipy-stubs>=1.17.1.0; python_version >= '3.11'"
+    assert pandas_stub_requirements == ["pandas-stubs>=3.0.0.260204"]
+    assert scipy_stub_requirements == ["scipy-stubs>=1.17.1.0"]
+    assert _raw_constraint_lines_by_name("pandas-stubs") == [
+        "pandas-stubs==3.0.0.260204"
     ]
-    assert _raw_constraint_lines_by_name("scipy-stubs") == [
-        'scipy-stubs==1.17.1.4 ; python_version >= "3.11"'
-    ]
+    assert _raw_constraint_lines_by_name("scipy-stubs") == ["scipy-stubs==1.17.1.4"]
+    assert all(
+        "python_version" not in requirement
+        for requirement in pandas_stub_requirements + scipy_stub_requirements
+    )
 
 
 def test_minimum_constraints_pin_declared_runtime_and_test_lower_bounds() -> None:
@@ -242,7 +251,7 @@ def test_distribution_build_uses_preinstalled_constrained_pep517_dependencies() 
 def test_python_support_declaration_matches_source_test_matrices() -> None:
     pyproject = _load_pyproject()
     classifiers = set(pyproject["project"]["classifiers"])
-    assert pyproject["project"]["requires-python"] == ">=3.10,<3.13"
+    assert pyproject["project"]["requires-python"] == EXPECTED_REQUIRES_PYTHON
     assert {
         classifier.rsplit("::", maxsplit=1)[1].strip()
         for classifier in classifiers
@@ -275,7 +284,7 @@ def test_minimum_dependency_ci_lane_uses_minimum_constraints_and_release_science
         "PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/constraints/minimum.txt" in job
     )
     assert "constraints/ci.txt" not in job
-    assert "python-version: '3.10'" in job
+    assert "python-version: '3.11'" in job
     assert 'python -m pip install -c constraints/minimum.txt -e ".[test]"' in job
     assert "python -m pip check" in job
     assert 'pytest --durations=25 --durations-min=0.01 -m "not parity"' in job
@@ -283,6 +292,10 @@ def test_minimum_dependency_ci_lane_uses_minimum_constraints_and_release_science
         "pytest -o addopts= tests/release tests/golden "
         '-m "release_gate or golden or reproducibility"'
     ) in job
+    assert "minimum-dependencies-py3.11.txt" in job
+    assert "minimum-non-parity-py3.11.xml" in job
+    assert "minimum-release-gates-py3.11.xml" in job
+    assert "minimum-dependency-suite-py3.11" in job
 
 
 def test_ci_installed_distribution_verifier_checks_wheel_and_sdist_matrix() -> None:
@@ -329,3 +342,57 @@ def test_publish_jobs_wait_for_single_release_check_build() -> None:
         assert "name: python-package-distributions" in publish_block
         assert "packages-dir: dist/" in publish_block
         assert "id-token: write" in publish_block
+
+
+def test_installed_distribution_verifier_reports_current_supported_versions() -> None:
+    source = _read("scripts/verify_installed_distributions.py")
+
+    assert 'SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12")' in source
+    assert f'EXPECTED_REQUIRES_PYTHON = "{EXPECTED_REQUIRES_PYTHON}"' in source
+    assert '"supported_python_versions": SUPPORTED_PYTHON_VERSIONS' in source
+    assert '"requires_python": report.requires_python' in source
+
+
+def test_active_support_files_do_not_reintroduce_python_310_contracts() -> None:
+    pyproject = _read("pyproject.toml")
+    constraints = _read("constraints/ci.txt") + "\n" + _read("constraints/minimum.txt")
+    workflows = "\n".join(_read(path) for path in WORKFLOW_PATHS)
+    active_runtime = (
+        _read("scripts/verify_installed_distributions.py")
+        + "\n"
+        + _read("src/phospy/provenance/environment.py")
+    )
+
+    assert f'requires-python = ">={UNSUPPORTED_PYTHON_310}' not in pyproject
+    assert (
+        f"Programming Language :: Python :: {UNSUPPORTED_PYTHON_310}" not in pyproject
+    )
+    assert f'target-version = "{UNSUPPORTED_RUFF_TARGET}"' not in pyproject
+    assert f'pythonVersion = "{UNSUPPORTED_PYTHON_310}"' not in pyproject
+    assert f"python-version: '{UNSUPPORTED_PYTHON_310}'" not in workflows
+    assert f"python-version: ['{UNSUPPORTED_PYTHON_310}'" not in workflows
+    assert (
+        re.search(
+            rf"\b{re.escape(REMOVED_TOMLI_REQUIREMENT)}\b",
+            pyproject + "\n" + constraints,
+        )
+        is None
+    )
+    assert (
+        re.search(rf"\b{re.escape(REMOVED_TOMLI_REQUIREMENT)}\b", active_runtime)
+        is None
+    )
+    assert (
+        re.search(
+            rf"python_version\s*<\s*['\"]{re.escape(SUPPORTED_PYTHON_VERSIONS[0])}",
+            pyproject,
+        )
+        is None
+    )
+    assert (
+        re.search(
+            rf"python_version\s*<\s*['\"]{re.escape(SUPPORTED_PYTHON_VERSIONS[0])}",
+            constraints,
+        )
+        is None
+    )

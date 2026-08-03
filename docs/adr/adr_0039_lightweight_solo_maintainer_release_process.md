@@ -33,11 +33,11 @@ validation, and a fresh distribution build.
 
 CI expands the release-science evidence beyond the single local aggregate
 command by running the non-parity suite, threshold-bearing parity suite, bounded
-performance contracts, and release/golden gates on Python 3.10, 3.11, and 3.12.
+performance contracts, and release/golden gates on Python 3.11 and 3.12.
 Distribution building and archive-level packaged-reference validation remain a
 dedicated single-build job so wheel publication is not duplicated. The uploaded
 wheel and sdist from that job are then installed and executed by a separate
-installed-distribution verifier matrix on Python 3.10, 3.11, and 3.12.
+installed-distribution verifier matrix on Python 3.11 and 3.12.
 
 The performance-contract CI job is a release blocker for bounded tests under
 `tests/performance/`. The 50,000-site x 48-sample end-to-end workload is no
@@ -46,7 +46,7 @@ It is retained as an opt-in local benchmark under `benchmarks/` and is invoked
 explicitly with `make benchmark-release-scale`. Its runtime and process-memory
 observations are informational and do not establish release budgets.
 
-CI also includes a Python 3.10 minimum-dependency lane. That lane uses
+CI also includes a Python 3.11 minimum-dependency lane. That lane uses
 `constraints/minimum.txt`, not `constraints/ci.txt`, installs the project with
 test dependencies under declared lower-bound pins, runs `pip check`, and then
 runs the non-parity suite plus release/golden/reproducibility selectors that do
@@ -162,3 +162,15 @@ must not invoke this benchmark.
 The release-policy audit detects equivalent 50,000 x 48 dimensions through
 required helper modules and transitive Make/workflow reachability; current
 bounded 50,000 x 12 and 50,000 x 24 contracts remain permitted.
+
+## Amendment: Python 3.10 Support Removed (2026-08-03)
+
+Python 3.10 is no longer supported. The active supported interpreter matrix is
+Python 3.11 and Python 3.12, with package metadata declaring
+`Requires-Python: >=3.11,<3.13`.
+
+The minimum-dependency lane remains part of the release process and now runs on
+Python 3.11 as the lowest supported interpreter. Python 3.10-specific
+compatibility dependencies and branches, including the `tomli` dependency and
+the dynamic `tomllib`/`tomli` parser fallback, have been removed. Environment
+provenance uses the Python 3.11 standard-library `tomllib` module directly.

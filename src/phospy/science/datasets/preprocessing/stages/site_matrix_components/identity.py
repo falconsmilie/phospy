@@ -213,7 +213,7 @@ def _resolve_optional_string_column(
     column = site_metadata.loc[:, column_name]
     normalized = column.astype("string").str.strip()
     missing_mask = column.isna() | normalized.isna() | (normalized == "")
-    return normalized.where(~missing_mask, other=pd.NA)
+    return normalized.where(~missing_mask, other=pd.NA)  # pyright: ignore[reportArgumentType] - pandas-stubs does not accept pd.NA for nullable string Series.where.
 
 
 def _require_scientific_row_key(

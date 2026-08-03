@@ -6,6 +6,10 @@ All notable changes to this project are documented here.
 
 ### API
 
+- Breaking: dropped Python 3.10 support. Python 3.11 is now the minimum
+  supported version, with active support limited to Python 3.11 and Python
+  3.12. The Python 3.10 CI lanes and compatibility dependencies were removed,
+  and PhosPy now uses the standard-library `tomllib` module directly.
 - Deprecated the internal `PreprocessingPipeline(stage_metadata_registry=...)`
   constructor alias. It still works with a `DeprecationWarning`, but callers
   must use `stage_contract_registry=...`; passing both aliases now raises.
@@ -47,7 +51,7 @@ All notable changes to this project are documented here.
 - Added `benchmarks/measure_release_scale_builder_differential.py` and
   `make benchmark-release-scale` for the opt-in local 50,000-site by 48-sample
   builder/preprocessing/provenance/fingerprinting/differential scale benchmark.
-- Added `constraints/minimum.txt` and a Python 3.10 CI lane that installs the
+- Added `constraints/minimum.txt` and a Python 3.11 CI lane that installs the
   project with test dependencies under declared lower-bound pins, runs
   `pip check`, and executes non-parity plus release/golden selectors.
 - Added `scripts/verify_installed_distributions.py` and
@@ -81,7 +85,7 @@ All notable changes to this project are documented here.
   `tests/golden`, parity, and performance nodes cannot be omitted silently from
   authoritative release targets.
 - Replaced the former wheel-only CI smoke with substantive installed wheel and
-  sdist verification on Python 3.10, 3.11, and 3.12. Publish jobs now
+  sdist verification on Python 3.11 and 3.12. Publish jobs now
   wait for that verifier matrix before trusted publishing.
 - Rejected conflicting supplied peptide-evidence `site_sequence` contexts for
   the same resolved phosphosite deterministically instead of selecting whichever
@@ -109,7 +113,7 @@ All notable changes to this project are documented here.
   identity-preserving compatibility re-exports.
 - Expanded CI release-science coverage so the default non-parity suite,
   threshold-bearing parity suite, release/golden gates, and performance
-  contracts run on Python 3.10, 3.11, and 3.12. Build and publication remain
+  contracts run on Python 3.11 and 3.12. Build and publication remain
   single-artifact flows.
 
 ### Documentation

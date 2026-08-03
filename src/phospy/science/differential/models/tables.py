@@ -150,7 +150,7 @@ def _validate_result_table_statistics(
     if missing:
         joined = ", ".join(missing)
         raise PhosPyInputError(f"{field_name} is missing required columns: {joined}")
-    stat_table = cast(pd.DataFrame, table[list(_RESULT_STATISTIC_COLUMNS)])
+    stat_table = cast(pd.DataFrame, table[list(_RESULT_STATISTIC_COLUMNS)])  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
     require_numeric_dataframe(
         stat_table,
         field_name=field_name,

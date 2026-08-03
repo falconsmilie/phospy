@@ -15,15 +15,13 @@ pandas==2.2.3
 scipy==1.15.2
 scikit-learn==1.6.1
 pyarrow==24.0.0
-tomli==2.2.1 ; python_version < "3.11"
 
 hypothesis==6.152.9
 pytest==8.3.5
 pre-commit==4.1.0
 pyright==1.1.410
-pandas-stubs==2.2.3.250527 ; python_version < "3.11"
-pandas-stubs==3.0.0.260204 ; python_version >= "3.11"
-scipy-stubs==1.17.1.4 ; python_version >= "3.11"
+pandas-stubs==3.0.0.260204
+scipy-stubs==1.17.1.4
 ruff==0.15.7
 
 build==1.2.2.post1

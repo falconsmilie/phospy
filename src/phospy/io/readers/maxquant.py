@@ -535,8 +535,12 @@ def _adapt_maxquant_source(
     adapted[_ADAPTED_PROTEIN_ID_COLUMN] = protein_values
     adapted[_ADAPTED_GENE_SYMBOL_COLUMN] = gene_values
     adapted[_ADAPTED_SITE_COLUMN] = site_values
-    adapted[_ADAPTED_LOCALISATION_COLUMN] = _normalise_localisation_source_values(
-        source.loc[:, resolved.localisation_confidence]
+    adapted[_ADAPTED_LOCALISATION_COLUMN] = pd.Series(
+        _normalise_localisation_source_values(
+            source.loc[:, resolved.localisation_confidence]
+        ),
+        index=adapted.index,
+        dtype=object,
     )
     adapted[_ADAPTED_UNIQUE_FEATURE_ID_COLUMN] = _build_unique_feature_ids(
         source=source,
@@ -551,8 +555,10 @@ def _adapt_maxquant_source(
         )
         for position, value in enumerate(source.loc[:, resolved.peptide_sequence])
     ]
-    adapted[_ADAPTED_MODIFIED_PEPTIDE_SEQUENCE_COLUMN] = (
-        _resolve_modified_peptide_sequences(source, resolved=resolved)
+    adapted[_ADAPTED_MODIFIED_PEPTIDE_SEQUENCE_COLUMN] = pd.Series(
+        _resolve_modified_peptide_sequences(source, resolved=resolved),
+        index=adapted.index,
+        dtype=object,
     )
     adapted[_ADAPTED_PEPTIDE_SITE_STRING_COLUMN] = peptide_site_values
     if resolved.site_sequence is not None:

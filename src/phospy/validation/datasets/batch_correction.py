@@ -413,12 +413,12 @@ class BatchDesignMetadataValidator:
                 f"{context} validation requires sample_metadata input data"
             )
         metadata_frame = sample_metadata
-        aligned = cast(pd.DataFrame, metadata_frame.copy(deep=False))
+        aligned = cast(pd.DataFrame, metadata_frame.copy(deep=False))  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
         aligned.index = _normalize_sample_index(
             metadata_frame.index,
             field_name=f"{context} sample_metadata.index",
         )
-        aligned = cast(pd.DataFrame, aligned.reindex(sample_order))
+        aligned = cast(pd.DataFrame, aligned.reindex(sample_order))  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
         batch_by_sample = self._batch_structure_validator.run(
             sample_metadata=aligned,
             sample_order=sample_order,

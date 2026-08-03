@@ -23,7 +23,7 @@ The active release command is `make release-check`; release/golden tests are
 selected through `make test-release-gates`, not the superseded
 `make test-release-gate` command named in this historical decision.
 Current CI also keeps a supported-version release-science matrix and a
-dedicated Python 3.10 minimum-dependency lane under ADR-0039. Those current
+dedicated Python 3.11 minimum-dependency lane under ADR-0039. Those current
 checks are active release confidence controls even though this ADR's former
 exact-source/exact-artifact attestation system remains superseded.
 ADR-0039 now treats the 50,000 x 48 end-to-end workload as an opt-in local

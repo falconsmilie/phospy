@@ -27,7 +27,7 @@ You can view the full documentation here: [PhosPy Docs](https://phospy.com/docs)
 
 ## Installation
 
-PhosPy requires Python 3.10, 3.11, or 3.12.
+PhosPy requires Python 3.11 or 3.12.
 
 ```bash
 pip install phospy
@@ -77,7 +77,7 @@ the artifacts when invoked directly, then installs the wheel and sdist in
 isolated environments outside the checkout, verifies `phospy.__file__` resolves
 inside the installed environment, checks bundled reference resources and SHA-256
 values, and runs representative public workflow contracts. CI runs this
-installed-distribution verifier on Python 3.10, 3.11, and 3.12.
+installed-distribution verifier on Python 3.11 and 3.12.
 
 For local scale profiling only, `make benchmark-release-scale` runs the
 optional 50,000 x 48 builder+differential benchmark. It is informational,

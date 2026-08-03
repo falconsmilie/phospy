@@ -184,7 +184,7 @@ def _build_weighted_top_module_table(
         ]
         .sum()
         .astype(float)
-        .unstack(KINASE_COLUMN, fill_value=0.0)
+        .unstack(KINASE_COLUMN, fill_value=0)
     )
     return module_hits.reindex(
         index=module_index.copy(),

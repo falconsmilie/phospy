@@ -2,17 +2,13 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import tomllib
 from dataclasses import fields
 from pathlib import Path
 from typing import get_type_hints
 
 import pandas as pd
 import pytest
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
-    import tomli as tomllib
 
 import phospy
 import phospy.api as public_api

@@ -37,14 +37,13 @@ promoted into the release selector. `make test-release-gates` selects
 `release_gate or golden or reproducibility`.
 
 CI runs the non-parity, threshold-bearing parity, release/golden, and
-performance release-science selectors on Python 3.10, 3.11, and 3.12. A
-separate Python 3.10 minimum-dependency lane uses `constraints/minimum.txt`,
-runs `pip check`, then runs the non-parity suite and release/golden selectors
-that do not require external scientific tools. Manifest-governed fixture byte
+performance release-science selectors on Python 3.11 and 3.12. A separate
+Python 3.11 minimum-dependency lane uses `constraints/minimum.txt`, runs
+`pip check`, then runs the non-parity suite and release/golden selectors that
+do not require external scientific tools. Manifest-governed fixture byte
 integrity runs on both Ubuntu and Windows so release fixtures keep LF bytes
 across checkout platforms. The installed-distribution verifier also runs on
-Python 3.10, 3.11, and 3.12 against the single uploaded wheel/sdist artifact
-set.
+Python 3.11 and 3.12 against the single uploaded wheel/sdist artifact set.
 
 The optional 50,000 x 48 release-scale builder+differential benchmark lives
 under `benchmarks/` and is invoked with `make benchmark-release-scale`. It is

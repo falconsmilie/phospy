@@ -14,12 +14,17 @@ import os
 import shlex
 import subprocess
 import sys
+import tarfile
 import tempfile
+import zipfile
 from dataclasses import dataclass
+from email.parser import Parser
 from pathlib import Path
 from typing import Any
 
-SUPPORTED_PYTHON_VERSIONS = ("3.10", "3.11", "3.12")
+SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12")
+EXPECTED_REQUIRES_PYTHON = ">=3.11,<3.13"
+EXPECTED_REQUIRES_PYTHON_SPECIFIERS = frozenset(EXPECTED_REQUIRES_PYTHON.split(","))
 WHEEL_SUFFIX = ".whl"
 SDIST_SUFFIX = ".tar.gz"
 
@@ -500,6 +505,7 @@ class InstalledDistributionReport:
     run_directory: Path
     phospy_file: Path
     python_version: str
+    requires_python: str
     resource_count: int
     ticket_1_boundary_status: str
 
@@ -582,6 +588,10 @@ def _verify_one_artifact(
     install_packaging_tools: bool = True,
     ignore_requires_python: bool = False,
 ) -> InstalledDistributionReport:
+    requires_python = _validate_artifact_requires_python(
+        artifact_kind=artifact_kind,
+        artifact_path=artifact_path,
+    )
     environment_root = work_root / f"{artifact_kind}-venv"
     run_directory = work_root / f"{artifact_kind}-run"
     run_directory.mkdir()
@@ -674,9 +684,111 @@ def _verify_one_artifact(
         run_directory=run_directory.resolve(),
         phospy_file=phospy_file,
         python_version=_required_string(payload, "python"),
+        requires_python=requires_python,
         resource_count=int(resource_count),
         ticket_1_boundary_status=ticket_1_boundary_status,
     )
+
+
+def _validate_artifact_requires_python(
+    *,
+    artifact_kind: str,
+    artifact_path: Path,
+) -> str:
+    requires_python = _artifact_requires_python(
+        artifact_kind=artifact_kind,
+        artifact_path=artifact_path,
+    )
+    if (
+        _requires_python_specifiers(requires_python)
+        != EXPECTED_REQUIRES_PYTHON_SPECIFIERS
+    ):
+        raise InstalledDistributionVerificationError(
+            f"{artifact_kind} metadata Requires-Python mismatch for {artifact_path}: "
+            f"expected {EXPECTED_REQUIRES_PYTHON!r}, found {requires_python!r}"
+        )
+    return requires_python
+
+
+def _artifact_requires_python(*, artifact_kind: str, artifact_path: Path) -> str:
+    if artifact_kind == "wheel":
+        metadata_text = _wheel_metadata_text(artifact_path)
+    elif artifact_kind == "sdist":
+        metadata_text = _sdist_metadata_text(artifact_path)
+    else:
+        raise InstalledDistributionVerificationError(
+            f"unsupported artifact kind for metadata verification: {artifact_kind!r}"
+        )
+    value = Parser().parsestr(metadata_text).get("Requires-Python")
+    if value is None or not value.strip():
+        raise InstalledDistributionVerificationError(
+            f"{artifact_kind} metadata is missing Requires-Python: {artifact_path}"
+        )
+    return value.strip()
+
+
+def _requires_python_specifiers(value: str) -> frozenset[str]:
+    return frozenset(part.strip() for part in value.split(",") if part.strip())
+
+
+def _wheel_metadata_text(artifact_path: Path) -> str:
+    try:
+        with zipfile.ZipFile(artifact_path) as wheel:
+            metadata_names = sorted(
+                name
+                for name in wheel.namelist()
+                if name.endswith(".dist-info/METADATA")
+            )
+            if len(metadata_names) != 1:
+                raise InstalledDistributionVerificationError(
+                    f"expected exactly one wheel METADATA file in {artifact_path}, "
+                    f"found {len(metadata_names)}"
+                )
+            return wheel.read(metadata_names[0]).decode("utf-8")
+    except zipfile.BadZipFile as exc:
+        raise InstalledDistributionVerificationError(
+            f"wheel is not a readable zip archive: {artifact_path}"
+        ) from exc
+    except UnicodeDecodeError as exc:
+        raise InstalledDistributionVerificationError(
+            f"wheel METADATA is not UTF-8 decodable: {artifact_path}"
+        ) from exc
+
+
+def _sdist_metadata_text(artifact_path: Path) -> str:
+    try:
+        with tarfile.open(artifact_path, "r:gz") as sdist:
+            metadata_members = sorted(
+                (
+                    member
+                    for member in sdist.getmembers()
+                    if member.isfile() and member.name.endswith("/PKG-INFO")
+                ),
+                key=lambda member: member.name,
+            )
+            top_level_members = [
+                member for member in metadata_members if member.name.count("/") == 1
+            ]
+            candidates = top_level_members or metadata_members
+            if len(candidates) != 1:
+                raise InstalledDistributionVerificationError(
+                    f"expected exactly one sdist PKG-INFO file in {artifact_path}, "
+                    f"found {len(candidates)}"
+                )
+            extracted = sdist.extractfile(candidates[0])
+            if extracted is None:
+                raise InstalledDistributionVerificationError(
+                    f"sdist PKG-INFO could not be read: {candidates[0].name}"
+                )
+            return extracted.read().decode("utf-8")
+    except tarfile.TarError as exc:
+        raise InstalledDistributionVerificationError(
+            f"sdist is not a readable gzipped tar archive: {artifact_path}"
+        ) from exc
+    except UnicodeDecodeError as exc:
+        raise InstalledDistributionVerificationError(
+            f"sdist PKG-INFO is not UTF-8 decodable: {artifact_path}"
+        ) from exc
 
 
 def _ticket_1_boundary_status(
@@ -878,6 +990,7 @@ def main(argv: list[str] | None = None) -> int:
                         "artifact_kind": report.artifact_kind,
                         "artifact_path": str(report.artifact_path),
                         "python": report.python_version,
+                        "requires_python": report.requires_python,
                         "phospy_file": str(report.phospy_file),
                         "resource_count": report.resource_count,
                         "ticket_1_boundary_status": report.ticket_1_boundary_status,

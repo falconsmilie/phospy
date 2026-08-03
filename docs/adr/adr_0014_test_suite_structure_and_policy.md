@@ -158,7 +158,7 @@ adverse scientific cases.
 9. CI must not run opt-in local benchmarks that are explicitly documented as
    machine-dependent and non-release-blocking.
 10. CI and publication workflows must run installed wheel/sdist verification
-    against the single built artifact set on Python 3.10, 3.11, and 3.12.
+    against the single built artifact set on Python 3.11 and 3.12.
 11. Release-policy tests must audit the effective command and import closure of
     release Make targets and CI/publication workflow commands so the prohibited
     50,000 x 48 workload cannot become release-reachable through renaming,
@@ -268,6 +268,13 @@ audit covers simple constant arithmetic, generic aliases, positional and keyword
 dimensions, dictionary/config objects, local helper imports, Make target
 closures, and CI/publication workflow command reachability. Bounded 50,000 x 12
 and 50,000 x 24 contracts remain allowed.
+
+## Amendment: Python 3.11 Minimum Support Policy (2026-08-03)
+
+PhosPy's active supported interpreter matrix is Python 3.11 and Python 3.12.
+Python 3.10 is no longer a supported CI, publication, minimum-dependency, or
+installed-distribution verification target. The minimum-dependency lane remains
+required, but it now runs on Python 3.11 as the lowest supported interpreter.
 
 ## References
 

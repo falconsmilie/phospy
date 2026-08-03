@@ -973,7 +973,8 @@ def _build_site_diagnostics(
         status = site.status
         reason = site.reason
         if site.site_id in raw_scores.index:
-            scored_kinase_count = int(raw_scores.loc[site.site_id].notna().sum())
+            site_scores = cast(pd.Series, raw_scores.loc[site.site_id])
+            scored_kinase_count = int(site_scores.notna().sum())
         if site.status == KINASE_LIBRARY_SITE_STATUS_VALID_UNSCORED_SITE:
             if scored_kinase_count > 0:
                 status = KINASE_LIBRARY_SITE_STATUS_VALID_SCORED_SITE
