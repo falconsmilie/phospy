@@ -38,7 +38,8 @@ from phospy.science.signalomes.constants import (
 def build_module_assignments(
     *,
     prediction_matrix: pd.DataFrame,
-    site_to_protein: pd.Series,
+    site_to_protein_group_id: pd.Series | None = None,
+    site_to_protein: pd.Series | None = None,
     site_metadata: pd.DataFrame | None = None,
     protein_modules: pd.Series | None = None,
 ) -> pd.DataFrame:
@@ -47,9 +48,13 @@ def build_module_assignments(
     if prediction_matrix.shape[1] == 0:
         raise WorkflowStageError("prediction matrix must contain at least one kinase")
     site_index = _as_unique_string_index(prediction_matrix.index, context="pred_mat")
+    site_to_protein_group_id = _resolve_site_to_protein_group_id_argument(
+        site_to_protein_group_id=site_to_protein_group_id,
+        site_to_protein=site_to_protein,
+    )
     resolved_site_to_protein = _resolve_site_to_protein(
         site_index=site_index,
-        site_to_protein=site_to_protein,
+        site_to_protein=site_to_protein_group_id,
     )
     site_identity = _resolve_site_identity_columns(
         site_index=site_index,
@@ -255,6 +260,27 @@ def _as_unique_string_index(index: pd.Index, *, context: str) -> pd.Index:
     )
 
 
+def _resolve_site_to_protein_group_id_argument(
+    *,
+    site_to_protein_group_id: pd.Series | None,
+    site_to_protein: pd.Series | None,
+) -> pd.Series:
+    if site_to_protein_group_id is None:
+        if site_to_protein is None:
+            raise TypeError(
+                "build_module_assignments requires site_to_protein_group_id"
+            )
+        return site_to_protein
+    if site_to_protein is not None and not site_to_protein.equals(
+        site_to_protein_group_id
+    ):
+        raise ValueError(
+            "build_module_assignments received conflicting "
+            "site_to_protein_group_id and legacy site_to_protein mappings"
+        )
+    return site_to_protein_group_id
+
+
 def _resolve_site_to_protein(
     *,
     site_index: pd.Index,
@@ -267,12 +293,13 @@ def _resolve_site_to_protein(
         preview = ", ".join(missing[:3])
         suffix = "..." if len(missing) > 3 else ""
         raise WorkflowStageError(
-            f"site-to-protein mapping is missing prediction sites: {preview}{suffix}"
+            "site-to-protein-group-id mapping is missing prediction sites: "
+            f"{preview}{suffix}"
         )
     aligned = resolved.loc[site_index].astype(str).str.strip()
     if (aligned == "").any():
         raise WorkflowStageError(
-            "site-to-protein mapping contains empty protein identifiers"
+            "site-to-protein-group-id mapping contains empty protein_group_id values"
         )
     aligned.index = site_index.copy()
     aligned.name = PROTEIN_COLUMN

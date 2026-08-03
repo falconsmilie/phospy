@@ -20,7 +20,9 @@ SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM = (
     "signalome.interpreter.score_preconditioning"
 )
 
-SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA = "dataset.site_metadata.protein_id"
+SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA = (
+    "dataset.site_metadata.protein_group_id"
+)
 
 __all__ = [
     "SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM",

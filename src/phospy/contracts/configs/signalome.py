@@ -33,6 +33,9 @@ from phospy.science.configs.signalome import (
     SIGNALOME_MAX_EXACT_TREE_SITES_FLOOR,
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_FLOOR,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    SIGNALOME_MODE_PRODUCTION,
+    SIGNALOME_MODES,
     SIGNALOME_MODULE_COUNT_FLOOR,
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
@@ -47,6 +50,7 @@ from phospy.science.configs.signalome import (
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringEngine,
     SignalomeKinaseNetworkPolicy,
+    SignalomeMode,
     SignalomeScorePreconditioningPolicy,
 )
 
@@ -159,7 +163,7 @@ class SignalomeValidationConfig:
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
     localisation_requirement: LocalisationRequirement = field(
-        default_factory=LocalisationRequirement
+        default_factory=LocalisationRequirement.production_site_level
     )
     allow_mixed_total_protein_quantitative_meaning: bool = (
         SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
@@ -215,7 +219,9 @@ class SignalomeOutputConfig:
     network_policy: SignalomeKinaseNetworkPolicy = (
         SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
     )
-    network_min_paired_finite_observations: int | None = None
+    network_min_paired_finite_observations: int | None = (
+        SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+    )
 
     def __post_init__(self) -> None:
         _require_real_between(
@@ -291,6 +297,7 @@ class SignalomeConfig:
     performance: SignalomePerformanceConfig = field(
         default_factory=SignalomePerformanceConfig
     )
+    mode: SignalomeMode = SIGNALOME_MODE_PRODUCTION
 
     def __post_init__(self) -> None:
         if not isinstance(self.scientific, SignalomeScientificConfig):
@@ -316,6 +323,19 @@ class SignalomeConfig:
             raise ContractValidationError(
                 "signalome workflow request config.performance must be "
                 "SignalomePerformanceConfig"
+            )
+        if self.mode not in SIGNALOME_MODES:
+            allowed_modes = ", ".join(sorted(SIGNALOME_MODES))
+            raise ContractValidationError(
+                "signalome workflow request config.mode must be one of: "
+                f"{allowed_modes}"
+            )
+        if self.mode == SIGNALOME_MODE_PRODUCTION:
+            _require_production_localisation_requirement(
+                self.validation.localisation_requirement
+            )
+            _require_production_network_observation_minimum(
+                self.output.network_min_paired_finite_observations
             )
 
     @classmethod
@@ -351,11 +371,73 @@ class SignalomeConfig:
 
     @classmethod
     def production(cls) -> SignalomeConfig:
-        """Return production signalome config with strict site-level localisation."""
+        """Return recommended production signalome config."""
         return cls(
+            mode=SIGNALOME_MODE_PRODUCTION,
             validation=SignalomeValidationConfig(
                 localisation_requirement=LocalisationRequirement.production_site_level()
-            )
+            ),
+            output=SignalomeOutputConfig(
+                network_min_paired_finite_observations=(
+                    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+                )
+            ),
+        )
+
+    @classmethod
+    def compatibility(cls) -> SignalomeConfig:
+        """Return explicitly named exploratory compatibility config."""
+        return cls(
+            mode=SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+            validation=SignalomeValidationConfig(
+                localisation_requirement=LocalisationRequirement(),
+                reference_context_compatibility_policy=(
+                    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH
+                ),
+            ),
+            output=SignalomeOutputConfig(
+                network_min_paired_finite_observations=(
+                    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR
+                )
+            ),
+        )
+
+
+def _require_production_localisation_requirement(
+    requirement: LocalisationRequirement,
+) -> None:
+    production_minimum = (
+        LocalisationRequirement.production_site_level().minimum_probability
+    )
+    if production_minimum is None:  # pragma: no cover
+        raise AssertionError("production localisation minimum must be defined")
+    if (
+        not requirement.require_present
+        or requirement.minimum_probability is None
+        or float(requirement.minimum_probability) < float(production_minimum)
+    ):
+        raise ContractValidationError(
+            "signalome workflow request config.mode='production' requires "
+            "config.validation.localisation_requirement to require present "
+            "site-level localisation with minimum_probability >= "
+            f"{float(production_minimum)}"
+        )
+
+
+def _require_production_network_observation_minimum(
+    network_min_paired_finite_observations: int | None,
+) -> None:
+    effective_minimum = (
+        SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+        if network_min_paired_finite_observations is None
+        else int(network_min_paired_finite_observations)
+    )
+    if effective_minimum < SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT:
+        raise ContractValidationError(
+            "signalome workflow request config.mode='production' requires "
+            "config.output.network_min_paired_finite_observations to resolve to "
+            "at least "
+            f"{SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT}"
         )
 
 
@@ -378,6 +460,9 @@ __all__ = [
     "SIGNALOME_MAX_EXACT_TREE_SITES_FLOOR",
     "SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT",
     "SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_FLOOR",
+    "SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY",
+    "SIGNALOME_MODE_PRODUCTION",
+    "SIGNALOME_MODES",
     "SIGNALOME_MODULE_COUNT_FLOOR",
     "SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT",
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT",
@@ -394,6 +479,7 @@ __all__ = [
     "SignalomeClusteringEngine",
     "SignalomeConfig",
     "SignalomeKinaseNetworkPolicy",
+    "SignalomeMode",
     "LocalisationRequirement",
     "SignalomeOutputConfig",
     "SignalomePerformanceConfig",

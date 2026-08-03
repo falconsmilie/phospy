@@ -606,10 +606,10 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         downstream_score_matrix=score_matrix,
         downstream_score_source="profile_scores",
         prediction_matrix=kinase_result.prediction_result.pred_mat,
-        site_to_protein=pd.Series(
+        site_to_protein_group_id=pd.Series(
             ["MAPK14", "GSK3B"],
             index=score_matrix.index.copy(),
-            name="protein_id",
+            name="protein_group_id",
             dtype=str,
         ),
     )
@@ -623,7 +623,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
                     "display_id": [_DISPLAY_IDS[0]],
                     "gene_symbol": [_PROTEINS[0]],
                     "site": [_SITES[0]],
-                    "protein_id": ["MAPK14"],
+                    "protein_group_id": ["MAPK14"],
                     "protein_accession": [""],
                     "isoform_id": [""],
                     "module_id": [1],

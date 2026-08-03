@@ -551,7 +551,7 @@ def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> No
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
-    assert interpreted.site_to_protein.tolist() == ["P28482-1", "P28482-2"]
+    assert interpreted.site_to_protein_group_id.tolist() == ["P28482-1", "P28482-2"]
 
 
 def test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_missing() -> (
@@ -891,7 +891,8 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     assert interpreted.execution_config.network_policy == "signed"
     assert (
         interpreted.execution_config.network_min_paired_finite_observations_requested
-        is None
+        == SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+        == 5
     )
     assert (
         interpreted.execution_config.network_min_paired_finite_observations
@@ -1052,11 +1053,11 @@ def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_precon
     ]
     assert interpreted.downstream_score_matrix.index.tolist() == retained_sites
     assert interpreted.prediction_matrix.index.tolist() == retained_sites
-    assert interpreted.site_to_protein.index.tolist() == retained_sites
+    assert interpreted.site_to_protein_group_id.index.tolist() == retained_sites
     assert interpreted.prediction_matrix.index.equals(
         interpreted.downstream_score_matrix.index
     )
-    assert interpreted.site_to_protein.index.equals(
+    assert interpreted.site_to_protein_group_id.index.equals(
         interpreted.downstream_score_matrix.index
     )
     assert pd.isna(interpreted.downstream_score_matrix.loc[_site_key("P2;S2;"), "K2"])
@@ -1153,9 +1154,9 @@ def test_interpreter_reports_alignment_diagnostics_for_perfect_overlap() -> None
     assert diagnostics.kinases.provided_count == 2
     assert diagnostics.kinases.retained_count == 2
     assert diagnostics.kinases.dropped_count == 0
-    assert diagnostics.protein_identifiers.provided_count == 2
-    assert diagnostics.protein_identifiers.retained_count == 2
-    assert diagnostics.protein_identifiers.dropped_count == 0
+    assert diagnostics.protein_group_ids.provided_count == 2
+    assert diagnostics.protein_group_ids.retained_count == 2
+    assert diagnostics.protein_group_ids.dropped_count == 0
 
 
 def test_interpreter_reports_alignment_diagnostics_for_partial_site_overlap() -> None:
@@ -1390,14 +1391,14 @@ def test_resolved_signalome_request_rejects_mismatched_site_indexes() -> None:
             downstream_score_matrix=downstream_score_matrix,
             downstream_score_source="rank_weighted_fusion_scores",
             prediction_matrix=prediction_matrix,
-            site_to_protein=site_to_protein,
+            site_to_protein_group_id=site_to_protein,
         )
 
     message = str(exc_info.value)
     assert "seam=signalome.contracts.site_index_alignment" in message
     assert "downstream_score_sites=1" in message
     assert "prediction_sites=2" in message
-    assert "site_to_protein_sites=1" in message
+    assert "site_to_protein_group_id_sites=1" in message
 
 
 def test_interpreter_respects_explicit_allow_and_report_preconditioning_policy() -> (
@@ -1593,25 +1594,25 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
     p2_site_key = _site_key("P2;S2;")
     assert interpreted.downstream_score_matrix.index.tolist() == [p2_site_key]
     assert interpreted.prediction_matrix.index.tolist() == [p2_site_key]
-    assert interpreted.site_to_protein.index.tolist() == [p2_site_key]
-    assert interpreted.site_to_protein.loc[p2_site_key] == "P2"
+    assert interpreted.site_to_protein_group_id.index.tolist() == [p2_site_key]
+    assert interpreted.site_to_protein_group_id.loc[p2_site_key] == "P2"
     assert (
         interpreted.alignment_diagnostics.dataset_sites.dropped_reasons[
             "removed_by_score_preconditioning"
         ]
         == 1
     )
-    assert interpreted.alignment_diagnostics.protein_identifiers.provided_count == 2
-    assert interpreted.alignment_diagnostics.protein_identifiers.retained_count == 1
-    assert interpreted.alignment_diagnostics.protein_identifiers.dropped_count == 1
-    assert interpreted.alignment_diagnostics.protein_identifiers.dropped_reasons == {
+    assert interpreted.alignment_diagnostics.protein_group_ids.provided_count == 2
+    assert interpreted.alignment_diagnostics.protein_group_ids.retained_count == 1
+    assert interpreted.alignment_diagnostics.protein_group_ids.dropped_count == 1
+    assert interpreted.alignment_diagnostics.protein_group_ids.dropped_reasons == {
         "removed_by_score_preconditioning": 1,
-        "missing_protein_identifier": 0,
+        "missing_protein_group_id": 0,
         "removed_by_validation_policy": 0,
     }
 
 
-def test_interpreter_fails_for_retained_site_with_missing_protein_id() -> None:
+def test_interpreter_fails_for_retained_site_with_missing_protein_group_id() -> None:
     site_ids = ["P1;S1;"]
     dataset = _dataset_with_missing_protein_ids(
         site_ids=site_ids,
@@ -1643,10 +1644,10 @@ def test_interpreter_fails_for_retained_site_with_missing_protein_id() -> None:
     error = exc_info.value
     message = str(error)
     assert error.seam == SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM
-    assert error.details["retained_with_missing_protein_id"] == 1
+    assert error.details["retained_with_missing_protein_group_id"] == 1
     assert error.details["retained_and_valid"] == 0
     assert error.details["removed_by_score_preconditioning"] == 0
-    assert error.details["missing_protein_id_sites"] == [_site_key("P1;S1;")]
+    assert error.details["missing_protein_group_id_sites"] == [_site_key("P1;S1;")]
     assert _site_key("P1;S1;") in message
     assert "retained signalome sites after score preconditioning" in message
 
@@ -1745,8 +1746,8 @@ def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_re
     error = exc_info.value
     message = str(error)
     assert error.seam == SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM
-    assert error.details["missing_protein_id_sites"] == [_site_key("P3;S3;")]
-    assert error.details["retained_with_missing_protein_id"] == 1
+    assert error.details["missing_protein_group_id_sites"] == [_site_key("P3;S3;")]
+    assert error.details["retained_with_missing_protein_group_id"] == 1
     assert error.details["retained_and_valid"] == 1
     assert error.details["removed_by_score_preconditioning"] == 1
     assert _site_key("P3;S3;") in message
@@ -2624,7 +2625,7 @@ def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_g
     resolved = SignalomeWorkflowInterpreter().run(request)
     result = SignalomeWorkflowExecutor().run(resolved)
     assignments = result.module_assignments.table
-    proteins = assignments.loc[:, "protein_id"].tolist()
+    proteins = assignments.loc[:, "protein_group_id"].tolist()
     assert proteins == ["P28482-1", "P28482-2", "P28482-3"]
     assert assignments.loc[:, "module_id"].astype("int64").ge(0).all()
 
@@ -2723,7 +2724,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
         downstream_score_matrix=score_matrix_missing_kinase,
         downstream_score_source="rank_weighted_fusion_scores",
         prediction_matrix=prediction_matrix,
-        site_to_protein=pd.Series(
+        site_to_protein_group_id=pd.Series(
             ["P1", "P2"],
             index=site_key_index_from_display_ids(["P1;S1;", "P2;S2;"]),
             name="protein_id",
@@ -2910,7 +2911,7 @@ def test_signalome_result_rejects_malformed_site_membership_immediately() -> Non
                         "display_id": ["P1;S1;"],
                         "gene_symbol": ["P1"],
                         "site": ["S1"],
-                        "protein_id": ["P1"],
+                        "protein_group_id": ["P1"],
                         "protein_accession": [""],
                         "isoform_id": [""],
                         "module_id": [1],
@@ -3125,7 +3126,7 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
         downstream_score_matrix=score_matrix,
         downstream_score_source="rank_weighted_fusion_scores",
         prediction_matrix=prediction_matrix,
-        site_to_protein=pd.Series(
+        site_to_protein_group_id=pd.Series(
             ["P1", "P2"],
             index=site_key_index_from_display_ids(site_ids),
             name="protein_id",
@@ -3189,7 +3190,7 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
                 "display_id": site_ids,
                 "gene_symbol": ["P1", "P2"],
                 "site": ["S1", "S2"],
-                "protein_id": ["P1", "P2"],
+                "protein_group_id": ["P1", "P2"],
                 "protein_accession": ["", ""],
                 "isoform_id": ["", ""],
                 "module_id": [1, 2],
@@ -3280,7 +3281,7 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
                 "display_id": [""],
                 "site_id": ["P1;S1;"],
                 "site_order": [-1],
-                "protein_id": [""],
+                "protein_group_id": [""],
                 "module_id": [0],
                 "support_kinases": ["[]"],
                 "support_weight": [0.0],

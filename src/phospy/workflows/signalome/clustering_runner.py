@@ -100,7 +100,7 @@ class SignalomeClusteringRunner:
         try:
             backend_result = self._run_backend_clustering(
                 scoring_matrix=request.downstream_score_matrix,
-                site_to_protein=request.site_to_protein,
+                site_to_protein_group_id=request.site_to_protein_group_id,
                 requested_module_count=validated_requested_module_count,
                 primary_threshold=config.module_selection_primary_threshold,
                 fallback_threshold=config.module_selection_fallback_threshold,
@@ -182,7 +182,7 @@ class SignalomeClusteringRunner:
         *,
         config: ResolvedSignalomeExecutionConfig,
         site_count: int,
-        site_to_protein: pd.Series,
+        site_to_protein_group_id: pd.Series,
         downstream_score_kinases: int,
         clustering_result: ClusterSitesResult,
     ) -> SignalomeScaleGuardDecision:
@@ -208,7 +208,7 @@ class SignalomeClusteringRunner:
             return str(payload["tree_implementation"])
 
         input_protein_count = int(
-            pd.Index(site_to_protein.astype(str)).nunique(dropna=True)
+            pd.Index(site_to_protein_group_id.astype(str)).nunique(dropna=True)
         )
         input_kinase_count = int(downstream_score_kinases)
         candidate_scores = (

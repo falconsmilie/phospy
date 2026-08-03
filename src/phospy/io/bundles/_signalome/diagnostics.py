@@ -1017,9 +1017,7 @@ def signalome_alignment_diagnostics_to_payload(
             diagnostics.downstream_score_sites
         ),
         "kinases": _alignment_input_to_payload(diagnostics.kinases),
-        "protein_identifiers": _alignment_input_to_payload(
-            diagnostics.protein_identifiers
-        ),
+        "protein_group_ids": _alignment_input_to_payload(diagnostics.protein_group_ids),
     }
 
 
@@ -1033,14 +1031,11 @@ def signalome_alignment_diagnostics_from_payload(
         field_name=f"{scope}.alignment_diagnostics",
     )
     diagnostics_field_name = f"{scope}.alignment_diagnostics"
-    allowed_fields = frozenset(
-        {
-            "dataset_sites",
-            "prediction_score_sites",
-            "downstream_score_sites",
-            "kinases",
-            "protein_identifiers",
-        }
+    required_fields = frozenset(
+        {"dataset_sites", "prediction_score_sites", "downstream_score_sites", "kinases"}
+    )
+    allowed_fields = required_fields | frozenset(
+        {"protein_group_ids", "protein_identifiers"}
     )
     _reject_unsupported_fields(
         diagnostics_payload,
@@ -1050,8 +1045,36 @@ def signalome_alignment_diagnostics_from_payload(
     _require_fields(
         diagnostics_payload,
         field_name=diagnostics_field_name,
-        required_fields=allowed_fields,
+        required_fields=required_fields,
     )
+    protein_group_payload = diagnostics_payload.get("protein_group_ids")
+    legacy_protein_identifier_payload = diagnostics_payload.get("protein_identifiers")
+    if protein_group_payload is None and legacy_protein_identifier_payload is None:
+        raise PhosPyInputError(
+            f"{diagnostics_field_name} is missing required field(s): "
+            "protein_group_ids (legacy alias: protein_identifiers)"
+        )
+    protein_group_ids = _alignment_input_from_payload(
+        (
+            protein_group_payload
+            if protein_group_payload is not None
+            else legacy_protein_identifier_payload
+        ),
+        field_name=f"{scope}.alignment_diagnostics.protein_group_ids",
+    )
+    if (
+        protein_group_payload is not None
+        and legacy_protein_identifier_payload is not None
+    ):
+        legacy_protein_identifiers = _alignment_input_from_payload(
+            legacy_protein_identifier_payload,
+            field_name=f"{scope}.alignment_diagnostics.protein_identifiers",
+        )
+        if legacy_protein_identifiers != protein_group_ids:
+            raise PhosPyInputError(
+                f"{diagnostics_field_name} has conflicting protein_group_ids "
+                "and legacy protein_identifiers diagnostics"
+            )
     return SignalomeAlignmentDiagnostics(
         dataset_sites=_alignment_input_from_payload(
             diagnostics_payload.get("dataset_sites"),
@@ -1069,10 +1092,7 @@ def signalome_alignment_diagnostics_from_payload(
             diagnostics_payload.get("kinases"),
             field_name=f"{scope}.alignment_diagnostics.kinases",
         ),
-        protein_identifiers=_alignment_input_from_payload(
-            diagnostics_payload.get("protein_identifiers"),
-            field_name=f"{scope}.alignment_diagnostics.protein_identifiers",
-        ),
+        protein_group_ids=protein_group_ids,
     )
 
 

@@ -36,8 +36,8 @@ def _example_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
             "protein_namespace": ["protein_id", "protein_id"],
             "protein_identifier": ["TSC2", "GSK3A"],
             "localisation_confidence": [0.95] * phospho.shape[0],
-            # Signalome has a separate explicit protein_id requirement.
-            "protein_id": ["TSC2", "GSK3A"],
+            # Signalome has a separate explicit grouping requirement.
+            "protein_group_id": ["TSC2", "GSK3A"],
         },
         index=phospho.index.copy(),
     )
@@ -82,15 +82,15 @@ def main() -> None:
                 "organism",
                 "protein_namespace",
                 "protein_identifier",
-                "protein_id",
+                "protein_group_id",
                 "site_sequence",
             ],
         ]
     )
     print(
-        "protein_id present for all sites:",
+        "protein_group_id present for all sites:",
         bool(
-            dataset.site_metadata["protein_id"]
+            dataset.site_metadata["protein_group_id"]
             .astype("string")
             .str.strip()
             .ne("")

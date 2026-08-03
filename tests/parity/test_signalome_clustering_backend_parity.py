@@ -38,7 +38,7 @@ def _fixture_site_to_protein(site_index: pd.Index) -> pd.Series:
     return pd.Series(
         proteins,
         index=pd.Index(site_index.astype(str), name="site_id"),
-        name="protein_id",
+        name="protein_group_id",
         dtype=str,
     )
 
@@ -75,12 +75,12 @@ def test_backend_protocol_matches_legacy_clustering_and_module_derivation() -> N
     )
     legacy_modules = derive_protein_modules(
         site_clusters=legacy.site_clusters,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
     )
 
     backend = run_signalome_clustering_engine(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         requested_module_count=None,
         max_clusters=4,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,

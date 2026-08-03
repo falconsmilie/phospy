@@ -39,12 +39,13 @@ def _assert_duplicate_display_rows(
 
 
 def _assert_signalome_protein_grouping_metadata_message(message: str) -> None:
-    assert "Missing signalome protein grouping metadata: protein_id" in message
-    assert "dataset.site_metadata.protein_id" in message
-    assert "not canonical protein identity" in message
+    assert "Missing signalome protein grouping metadata: protein_group_id" in message
+    assert "dataset.site_metadata.protein_group_id" in message
+    assert "legacy dataset.site_metadata.protein_id" in message
+    assert "not core protein identity" in message
     assert "protein_namespace" in message
     assert "protein_identifier" in message
-    assert "does not infer protein_id from gene_symbol or display_id" in message
+    assert "does not infer protein_group_id from gene_symbol or display_id" in message
     assert "identity requirement failed" not in message
 
 
@@ -155,7 +156,9 @@ def test_signalome_workflow_does_not_repair_missing_site_key_identity() -> None:
         SignalomeWorkflow().run(request)
 
 
-def test_signalome_workflow_rejects_missing_protein_id_grouping_metadata() -> None:
+def test_signalome_workflow_rejects_missing_protein_group_id_grouping_metadata() -> (
+    None
+):
     dataset = build_duplicate_display_kinase_dataset()
     request = build_duplicate_display_signalome_request(dataset=dataset)
     drop_site_metadata_column(dataset, "protein_id")
@@ -164,11 +167,11 @@ def test_signalome_workflow_rejects_missing_protein_id_grouping_metadata() -> No
         SignalomeWorkflow().run(request)
 
     message = str(exc_info.value)
-    assert "is missing required columns: protein_id" in message
+    assert "is missing required columns: protein_group_id" in message
     _assert_signalome_protein_grouping_metadata_message(message)
 
 
-def test_signalome_workflow_rejects_blank_protein_id_grouping_metadata() -> None:
+def test_signalome_workflow_rejects_blank_legacy_protein_id_grouping_metadata() -> None:
     dataset = build_duplicate_display_kinase_dataset()
     request = build_duplicate_display_signalome_request(dataset=dataset)
     unsafe_set_dataset_site_metadata_columns(

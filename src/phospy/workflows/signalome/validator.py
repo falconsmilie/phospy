@@ -19,6 +19,10 @@ from phospy.science.prediction.internal_view import (
     KinaseScoringInternalView,
 )
 from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.signalomes.constants import (
+    LEGACY_PROTEIN_GROUP_ID_COLUMN,
+    PROTEIN_GROUP_ID_COLUMN,
+)
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_exact_index_match,
@@ -49,15 +53,21 @@ from phospy.validation.workflows.quantitative import (
     signalome_workflow_input_contract,
 )
 
+SIGNALOME_PROTEIN_GROUP_ID_COLUMN = PROTEIN_GROUP_ID_COLUMN
+SIGNALOME_LEGACY_PROTEIN_GROUP_ID_COLUMN = LEGACY_PROTEIN_GROUP_ID_COLUMN
+
 SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE = (
-    "Signalome uses dataset.site_metadata.protein_id as explicit "
+    "Signalome uses dataset.site_metadata.protein_group_id as explicit "
     "signalome-specific protein grouping metadata for protein-level module and "
-    "protein-site context summaries. It is not canonical protein identity. "
+    "protein-site context summaries. The legacy dataset.site_metadata.protein_id "
+    "column is accepted only as a migration alias. This grouping value is not "
+    "core protein identity. "
     "Core protein identity remains the dataset-level organism, "
     "protein_namespace, and protein_identifier metadata carried by the "
     "site_key-indexed row identity contract. "
-    "Do not replace protein_namespace or protein_identifier with protein_id. "
-    "Signalome does not infer protein_id from gene_symbol or display_id and "
+    "Do not replace protein_namespace or protein_identifier with "
+    "protein_group_id. "
+    "Signalome does not infer protein_group_id from gene_symbol or display_id and "
     "does not repair invalid site_key identity."
 )
 
@@ -322,19 +332,71 @@ class SignalomeWorkflowValidator:
         field_name: str,
     ) -> None:
         try:
+            column_name = _resolve_signalome_protein_grouping_column(
+                site_metadata=site_metadata,
+                field_name=field_name,
+            )
             enforce_required_non_empty_string_column(
                 site_metadata=site_metadata,
                 field_name=field_name,
                 workflow_name="signalome protein grouping metadata",
-                column_name="protein_id",
+                column_name=column_name,
                 error_type=WorkflowValidationError,
             )
         except WorkflowValidationError as exc:
+            if str(exc).startswith("Conflicting signalome protein grouping metadata"):
+                raise
             raise WorkflowValidationError(
-                "Missing signalome protein grouping metadata: protein_id; "
+                "Missing signalome protein grouping metadata: protein_group_id "
+                "(legacy alias: protein_id); "
                 "signalome protein grouping metadata requirement failed: "
                 f"{exc}. {SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE}"
             ) from exc
+
+
+def _resolve_signalome_protein_grouping_column(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+) -> str:
+    has_new = SIGNALOME_PROTEIN_GROUP_ID_COLUMN in site_metadata.columns
+    has_legacy = SIGNALOME_LEGACY_PROTEIN_GROUP_ID_COLUMN in site_metadata.columns
+    if has_new and has_legacy:
+        new_values = _normalised_grouping_values(
+            site_metadata.loc[:, SIGNALOME_PROTEIN_GROUP_ID_COLUMN]
+        )
+        legacy_values = _normalised_grouping_values(
+            site_metadata.loc[:, SIGNALOME_LEGACY_PROTEIN_GROUP_ID_COLUMN]
+        )
+        mismatch_mask = new_values.ne(legacy_values)
+        if bool(mismatch_mask.any()):
+            mismatch_index = site_metadata.index[mismatch_mask.to_numpy()]
+            mismatch_rows = [
+                str(row_id) for row_id in mismatch_index.astype(str).tolist()
+            ]
+            preview = ", ".join(mismatch_rows[:5])
+            suffix = "" if len(mismatch_rows) <= 5 else " ..."
+            raise WorkflowValidationError(
+                "Conflicting signalome protein grouping metadata: "
+                f"{field_name}.protein_group_id and legacy alias "
+                f"{field_name}.protein_id contain different values; "
+                f"mismatch_site_keys=[{preview}{suffix}]. "
+                f"{SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE}"
+            )
+        return SIGNALOME_PROTEIN_GROUP_ID_COLUMN
+    if has_new:
+        return SIGNALOME_PROTEIN_GROUP_ID_COLUMN
+    if has_legacy:
+        return SIGNALOME_LEGACY_PROTEIN_GROUP_ID_COLUMN
+    raise WorkflowValidationError(
+        f"{field_name} is missing required columns: protein_group_id "
+        "(legacy alias: protein_id). "
+        f"{SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE}"
+    )
+
+
+def _normalised_grouping_values(values: pd.Series) -> pd.Series:
+    return values.fillna("").astype(str).str.strip()
 
 
 def _require_reference_context_compatibility(

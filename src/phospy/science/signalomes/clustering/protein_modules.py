@@ -14,11 +14,23 @@ from phospy.science.signalomes.constants import (
 def derive_protein_modules(
     *,
     site_clusters: pd.Series,
-    site_to_protein: pd.Series,
+    site_to_protein_group_id: pd.Series | None = None,
+    site_to_protein: pd.Series | None = None,
 ) -> pd.Series:
-    """Collapse site-level clusters into protein-level module assignments."""
+    """Collapse site-level clusters into protein-group-level module assignments."""
 
-    aligned_site_to_protein = site_to_protein.copy()
+    if site_to_protein_group_id is None:
+        if site_to_protein is None:
+            raise TypeError("derive_protein_modules requires site_to_protein_group_id")
+        site_to_protein_group_id = site_to_protein
+    elif site_to_protein is not None and not site_to_protein.equals(
+        site_to_protein_group_id
+    ):
+        raise ValueError(
+            "derive_protein_modules received conflicting site_to_protein_group_id "
+            "and legacy site_to_protein mappings"
+        )
+    aligned_site_to_protein = site_to_protein_group_id.copy()
     aligned_site_to_protein.index = pd.Index(
         aligned_site_to_protein.index.astype(str),
         name=SITE_ID_COLUMN,
@@ -33,7 +45,8 @@ def derive_protein_modules(
         preview = ", ".join(missing_sites[:3])
         suffix = "..." if len(missing_sites) > 3 else ""
         raise ValueError(
-            f"site_to_protein is missing clustered site mappings: {preview}{suffix}"
+            "site_to_protein_group_id is missing clustered site mappings: "
+            f"{preview}{suffix}"
         )
     aligned_site_to_protein = aligned_site_to_protein.loc[cluster_index].astype(str)
 

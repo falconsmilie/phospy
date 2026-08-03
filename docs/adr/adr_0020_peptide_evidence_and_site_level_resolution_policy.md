@@ -133,7 +133,8 @@ models require separate scientific review and a future ADR.
 Peptide-evidence protein_accession is row-identity metadata. It must be
 preserved as protein_accession or explicit protein_namespace/protein_identifier
 metadata. It must not be rewritten into protein_id, which remains available for
-grouping semantics.
+legacy grouping-alias compatibility. New Signalome grouping metadata uses
+protein_group_id.
 
 If peptide-evidence rows collapse to one resolved site, the resolved site must
 not aggregate multiple distinct accessions silently. Conflicting accessions for

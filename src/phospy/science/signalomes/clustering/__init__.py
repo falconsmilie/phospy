@@ -69,7 +69,8 @@ _build_cluster_tree = _exact._build_cluster_tree
 def run_signalome_clustering_engine(
     *,
     scoring_matrix: pd.DataFrame,
-    site_to_protein: pd.Series,
+    site_to_protein_group_id: pd.Series | None = None,
+    site_to_protein: pd.Series | None = None,
     requested_module_count: int | None,
     primary_threshold: float = 0.5,
     fallback_threshold: float = 0.1,
@@ -91,6 +92,7 @@ def run_signalome_clustering_engine(
     return run_clustering_engine(
         request=SignalomeClusteringEngineRequest(
             scoring_matrix=scoring_matrix,
+            site_to_protein_group_id=site_to_protein_group_id,
             site_to_protein=site_to_protein,
             requested_module_count=requested_module_count,
             primary_threshold=primary_threshold,

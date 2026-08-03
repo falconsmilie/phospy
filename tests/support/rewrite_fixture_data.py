@@ -557,7 +557,10 @@ def load_signalome_rewrite_l6_network_edges() -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def load_signalome_rewrite_l6_expanded_signalome() -> pd.DataFrame:
-    return pd.read_csv(SIGNALOME_REWRITE_L6_EXPANDED_SIGNALOME).astype(
+    frame = _migrate_signalome_grouping_column(
+        pd.read_csv(SIGNALOME_REWRITE_L6_EXPANDED_SIGNALOME)
+    )
+    return frame.astype(
         {
             "kinase": str,
             "row_kind": str,
@@ -566,7 +569,7 @@ def load_signalome_rewrite_l6_expanded_signalome() -> pd.DataFrame:
             "regulated_module_ids": str,
             "site_id": str,
             "site_order": "int64",
-            "protein_id": str,
+            "protein_group_id": str,
             "module_id": "int64",
             "support_kinases": str,
             "support_weight": float,
@@ -676,7 +679,7 @@ def normalize_signalome_modules_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
 def normalize_signalome_module_assignments_for_parity(
     frame: pd.DataFrame,
 ) -> pd.DataFrame:
-    normalized = frame.copy(deep=True).astype("object")
+    normalized = _migrate_signalome_grouping_column(frame).astype("object")
     for column_name in ("site_key", "display_id", "site_id"):
         duplicate_name = f"{column_name}.1"
         if (
@@ -690,7 +693,7 @@ def normalize_signalome_module_assignments_for_parity(
         "display_id",
         "gene_symbol",
         "site",
-        "protein_id",
+        "protein_group_id",
         "protein_accession",
         "isoform_id",
         "top_kinase",
@@ -781,7 +784,7 @@ def normalize_signalome_network_edges_for_parity(frame: pd.DataFrame) -> pd.Data
 def normalize_signalome_expanded_signalome_for_parity(
     frame: pd.DataFrame,
 ) -> pd.DataFrame:
-    normalized = frame.copy(deep=True).astype("object")
+    normalized = _migrate_signalome_grouping_column(frame).astype("object")
     for column_name in (
         "kinase",
         "row_kind",
@@ -793,7 +796,7 @@ def normalize_signalome_expanded_signalome_for_parity(
         "site_id",
         "gene_symbol",
         "site",
-        "protein_id",
+        "protein_group_id",
         "protein_accession",
         "isoform_id",
         "support_kinases",
@@ -829,11 +832,31 @@ def normalize_signalome_expanded_signalome_for_parity(
             "site_id",
             "site_order",
             "module_id",
-            "protein_id",
+            "protein_group_id",
             "top_kinase",
         ],
         kind="mergesort",
     ).reset_index(drop=True)
+
+
+def _migrate_signalome_grouping_column(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy(deep=True)
+    if "protein_group_id" in normalized.columns:
+        if "protein_id" in normalized.columns:
+            current = (
+                normalized.loc[:, "protein_group_id"].fillna("").astype(str).str.strip()
+            )
+            legacy = normalized.loc[:, "protein_id"].fillna("").astype(str).str.strip()
+            if not current.equals(legacy):
+                raise AssertionError(
+                    "fixture has conflicting Signalome grouping columns "
+                    "protein_group_id and legacy protein_id"
+                )
+            normalized = normalized.drop(columns=["protein_id"])
+        return normalized
+    if "protein_id" in normalized.columns:
+        return normalized.rename(columns={"protein_id": "protein_group_id"})
+    return normalized
 
 
 def site_metadata_for(phospho: pd.DataFrame) -> pd.DataFrame:

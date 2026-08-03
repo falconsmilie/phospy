@@ -207,8 +207,8 @@ site_metadata = pd.DataFrame(
         "organism": ["rat", "rat", "rat"],
         "protein_namespace": ["protein_id", "protein_id", "protein_id"],
         "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
-        # Signalome has a separate explicit protein_id requirement.
-        "protein_id": ["MAPK14", "GSK3A", "TSC2"],
+        # Signalome has a separate explicit grouping requirement.
+        "protein_group_id": ["MAPK14", "GSK3A", "TSC2"],
         "localisation_confidence": [0.95, 0.94, 0.96],
     },
     index=phospho.index.copy(),
@@ -254,7 +254,7 @@ print(
             "organism",
             "protein_namespace",
             "protein_identifier",
-            "protein_id",
+            "protein_group_id",
             "site_sequence",
         ],
     ]
@@ -294,7 +294,8 @@ Differential result tables use strict protein-scoped identity. Public
 `DifferentialAnalysisResult` tables must be indexed by encoded `site_key` values
 and include `site_key`, `display_id`, `gene_symbol`, and `site`. Workflow-created
 results preserve available protein context such as `organism`,
-`protein_namespace`, `protein_identifier`, and `protein_id`. Display-indexed or
+`protein_namespace`, `protein_identifier`, and Signalome grouping metadata such
+as `protein_group_id`. Display-indexed or
 stat-only result tables are not valid public inputs.
 
 ## Import Contract

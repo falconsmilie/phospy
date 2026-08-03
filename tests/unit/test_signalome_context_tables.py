@@ -213,14 +213,14 @@ def test_signalome_result_exposes_site_and_protein_context_tables() -> None:
     assert not result.module_assignments.table.empty
     assert {
         "site_id",
-        "protein_id",
+        "protein_group_id",
         "site_cluster",
         "protein_module_id",
         "included_in_module_table",
         "excluded_reason",
     }.issubset(result.site_membership.columns)
     assert {
-        "protein_id",
+        "protein_group_id",
         "n_sites",
         "site_ids",
         "site_clusters",
@@ -246,7 +246,7 @@ def test_site_membership_contains_only_retained_interpreted_sites() -> None:
     assert interpreted.prediction_matrix.index.equals(
         interpreted.downstream_score_matrix.index
     )
-    assert interpreted.site_to_protein.index.equals(
+    assert interpreted.site_to_protein_group_id.index.equals(
         interpreted.downstream_score_matrix.index
     )
 
@@ -254,7 +254,7 @@ def test_site_membership_contains_only_retained_interpreted_sites() -> None:
 def test_protein_site_context_flags_multi_site_and_ambiguity() -> None:
     result, _ = _run_signalome_executor()
     assert result.protein_site_context is not None
-    context = result.protein_site_context.set_index("protein_id")
+    context = result.protein_site_context.set_index("protein_group_id")
 
     assert bool(context.loc["P1", "multi_site_protein"])
     assert bool(context.loc["P1", "ambiguous_module_context"])
@@ -275,11 +275,11 @@ def test_context_tables_do_not_change_module_outputs() -> None:
     )
     protein_modules = derive_protein_modules(
         site_clusters=clustering_result.site_clusters,
-        site_to_protein=interpreted.site_to_protein,
+        site_to_protein_group_id=interpreted.site_to_protein_group_id,
     )
     expected_assignments = build_module_assignments(
         prediction_matrix=interpreted.prediction_matrix,
-        site_to_protein=interpreted.site_to_protein,
+        site_to_protein_group_id=interpreted.site_to_protein_group_id,
         site_metadata=interpreted.dataset._borrow_site_metadata_frame(),
         protein_modules=protein_modules,
     )
@@ -310,7 +310,7 @@ def test_site_membership_builder_rejects_non_empty_missing_required_columns() ->
     with pytest.raises(WorkflowStageError, match="missing columns"):
         build_site_membership_table(
             module_assignments=pd.DataFrame(
-                {"protein_id": ["P1"]},
+                {"protein_group_id": ["P1"]},
                 index=pd.Index(["P1;S1;"], name="site_id"),
             ),
             site_clusters=pd.Series(

@@ -522,10 +522,44 @@ def test_signalome_validator_requires_signalome_protein_grouping_metadata() -> N
     message = str(exc_info.value)
     assert "signalome protein grouping metadata requirement failed" in message
     assert "protein grouping metadata" in message
-    assert "dataset.site_metadata.protein_id" in message
+    assert "dataset.site_metadata.protein_group_id" in message
+    assert "legacy dataset.site_metadata.protein_id" in message
     assert "gene_symbol" in message
     assert "display_id" in message
     assert "identity requirement failed" not in message
+
+
+def test_signalome_validator_accepts_legacy_protein_id_grouping_alias() -> None:
+    request = _signalome_request(dataset=_kinase_dataset())
+
+    validated = SignalomeWorkflowValidator().run(request)
+
+    assert validated is request
+
+
+def test_signalome_validator_rejects_conflicting_grouping_alias_values() -> None:
+    source = _kinase_dataset()
+    site_metadata = source.site_metadata.copy(deep=True)
+    site_metadata.loc[:, "protein_group_id"] = ["GROUP_A", "GROUP_B"]
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=source.phospho,
+        site_metadata=site_metadata,
+        sample_metadata=source.sample_metadata,
+        total=source.total,
+        organism=source.organism,
+        intensity_scale_state=source.intensity_scale_state,
+        processing_state=source.processing_state,
+    )
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        _run_signalome_validator(dataset)
+
+    message = str(exc_info.value)
+    assert "Conflicting signalome protein grouping metadata" in message
+    assert "protein_group_id" in message
+    assert "legacy alias" in message
+    assert "protein_id" in message
+    assert "protein_identifier" in message
 
 
 def test_kinase_workflow_rejects_reference_organism_mismatch_where_applicable() -> None:

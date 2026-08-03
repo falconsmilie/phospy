@@ -273,7 +273,7 @@ def test_builder_allows_duplicate_display_ids_across_distinct_protein_ids() -> N
     assert built.phospho.shape[0] == 2
 
 
-def test_signalome_still_requires_explicit_protein_identity() -> None:
+def test_signalome_still_requires_explicit_protein_grouping_identity() -> None:
     base_dataset = build_rat_l6_dataset(n_sites=260)
     dataset_without_protein = trusted_analysis_ready_dataset_from_tables(
         phospho=base_dataset.phospho,
@@ -306,7 +306,7 @@ def test_signalome_still_requires_explicit_protein_identity() -> None:
 
     with pytest.raises(
         WorkflowValidationError,
-        match="site_metadata is missing required columns: protein_id",
+        match="site_metadata is missing required columns: protein_group_id",
     ):
         SignalomeWorkflow().run(
             SignalomeWorkflowRequest(

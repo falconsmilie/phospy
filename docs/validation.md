@@ -24,11 +24,12 @@ include non-empty `gene_symbol`, `site`, and `site_sequence` columns at the
 analysis-ready boundary, plus auditable protein context (`organism`,
 `protein_namespace`, and `protein_identifier`). `site_sequence` may be omitted
 at ingestion only when preprocessing can derive it before final dataset
-construction. `protein_id` is not part of dataset row identity; it is optional
-at the analysis-ready dataset boundary, may be absent, and may contain missing
-or blank values until a workflow explicitly requires it. Signalome is the
-workflow that requires complete `protein_id` values as algorithm-specific
-protein grouping metadata.
+construction. `protein_group_id` is not part of dataset row identity; it is
+optional at the analysis-ready dataset boundary, may be absent, and may contain
+missing or blank values until a workflow explicitly requires it. Signalome is
+the workflow that requires complete `protein_group_id` values as
+algorithm-specific protein grouping metadata. Legacy `protein_id` is accepted
+only as a Signalome migration alias.
 
 At the analysis-ready dataset boundary, `site_sequence` means required sequence
 evidence for the row: a non-empty, plausible amino-acid context string aligned
@@ -51,9 +52,9 @@ Accepted column aliases are narrow:
 | `centralized_sequence` | `site_sequence` |
 
 If `gene_symbol` or `site` is missing, the builder can derive them from an
-input index like `TSC2;S939;`. It does not derive `protein_id` from the
+input index like `TSC2;S939;`. It does not derive `protein_group_id` from the
 gene-symbol prefix, and it does not treat the display prefix as protein context
-or signalome grouping metadata. Builder ingestion may accept legacy
+or Signalome grouping metadata. Builder ingestion may accept legacy
 display-indexed input only when enough protein context exists to derive
 `site_key`. The trusted analysis-ready factory must receive `site_key`; it does
 not silently fall back to `GENE;SITE;` display labels and cannot prove the
@@ -75,9 +76,10 @@ A built `AnalysisReadyPhosphoDataset` must have:
   `gene_symbol`, `site`, and `site_sequence`
 - `site_metadata["site_key"]` matching the metadata-derived
   (`organism`, `protein_namespace`, `protein_identifier`, `site`) key
-- optional `protein_id`, which is signalome grouping metadata when signalome is
-  run, may be incomplete at the dataset boundary, and is not a replacement for
-  `protein_identifier` or `site_key`
+- optional `protein_group_id`, which is Signalome grouping metadata when
+  Signalome is run, may be incomplete at the dataset boundary, and is not a
+  replacement for `protein_identifier` or `site_key`. Legacy `protein_id` is a
+  migration alias for this Signalome field.
 - `sample_metadata.index` exactly matching `phospho.columns` when provided
 - `sample_metadata.columns` unique when provided
 - `total.columns` exactly matching `phospho.columns` when provided
@@ -270,11 +272,13 @@ sequences require an explicit conflict policy such as `prefer_dataset` or
 ### Signalome Workflow
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
-Signalome also requires explicit, non-empty `protein_id` values for every
-interpreted site as signalome-specific protein grouping metadata. Signalome
-uses this field to group retained phosphosites into protein-level module and
-protein-site context summaries. `protein_id` is not core protein identity;
-core protein identity remains the dataset-level `organism`,
+Signalome also requires explicit, non-empty `protein_group_id` values for every
+interpreted site as Signalome-specific protein grouping metadata. Legacy
+`protein_id` is accepted only as a migration alias, and conflicting
+`protein_group_id`/`protein_id` values fail validation. Signalome uses this
+field to group retained phosphosites into protein-level module and protein-site
+context summaries. `protein_group_id` is not core protein identity; core protein
+identity remains the dataset-level `organism`,
 `protein_namespace`, and `protein_identifier` metadata. Gene-symbol prefixes in
 display labels are not treated as protein grouping metadata or protein
 identity.
@@ -306,7 +310,7 @@ shows exact tree-generation details and candidate-scoring details separately.
 | missing `gene_symbol` or `site` | Add those columns or, for builder input only, use index labels formatted as `GENE;SITE;` with sufficient protein context. |
 | missing protein-scoped identity metadata | Add non-empty `organism`, `protein_namespace`, `protein_identifier`, and `site`, or use a builder-compatible protein-context source that derives them before final construction. |
 | display-indexed direct construction | Use the builder with enough protein context, or, for advanced/trusted construction, use `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with encoded `site_key` indexes and matching `site_metadata.site_key`. |
-| signalome protein grouping metadata error | Add non-empty `protein_id` grouping metadata for every interpreted site; keep core protein identity in `protein_namespace` and `protein_identifier`; do not use `gene_symbol` or `display_id` as a fallback. |
+| signalome protein grouping metadata error | Add non-empty `protein_group_id` grouping metadata for every interpreted site. Legacy `protein_id` is accepted only as a migration alias. Keep core protein identity in `protein_namespace` and `protein_identifier`; do not use `gene_symbol` or `display_id` as a fallback. |
 | workflow-specific sequence context error | Check selected `site_sequence`, sequence source, required window length, center index, center residue, alphabet, padding policy, and dataset/reference conflict policy for the workflow/scoring mode. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |

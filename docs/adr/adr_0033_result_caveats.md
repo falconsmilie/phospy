@@ -123,13 +123,14 @@ top-level caveats on `KinaseWorkflowResult`.
 
 Signalome workflow caveats include inherited upstream kinase attrition,
 prediction/reference limitations, permissive localisation policy,
-`protein_id` grouping assumptions, the descriptive-only meaning of signalome
-network correlations, and dropped fully missing clustering dimensions when
-present. Signalome result assembly may reference upstream kinase caveat codes
-and structured attrition facts, but must not copy full upstream provenance into
-signalome caveat details. Dropped-dimension caveats should use bounded previews
-for user-facing messages while preserving full deterministic label lists in
-structured provenance when payload size remains reasonable.
+`protein_group_id` grouping assumptions with legacy `protein_id` alias details,
+the descriptive-only meaning of signalome network correlations, and dropped
+fully missing clustering dimensions when present. Signalome result assembly may
+reference upstream kinase caveat codes and structured attrition facts, but must
+not copy full upstream provenance into signalome caveat details.
+Dropped-dimension caveats should use bounded previews for user-facing messages
+while preserving full deterministic label lists in structured provenance when
+payload size remains reasonable.
 
 Enrichment workflow caveats include offline ORA-only scope, caller-supplied
 background-universe assumptions, declared identifier-kind assumptions, and the

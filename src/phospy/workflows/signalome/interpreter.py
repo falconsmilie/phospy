@@ -193,14 +193,14 @@ class SignalomeWorkflowInterpreter:
             preconditioning_result.downstream_score_matrix, deep=False
         )
         downstream_score_matrix.index = downstream_output_index
-        site_to_protein = self._protein_resolver.run(
+        site_to_protein_group_id = self._protein_resolver.run(
             dataset=dataset,
             site_index=retained_site_index,
             removed_by_score_preconditioning_count=int(
                 aligned_matrices.aligned_site_index.size - retained_site_index.size
             ),
         )
-        site_to_protein.index = index_snapshot(retained_site_key_index)
+        site_to_protein_group_id.index = index_snapshot(retained_site_key_index)
         dataset_sites_for_diagnostics = _map_site_index_to_site_keys(
             site_metadata=dataset_site_metadata,
             site_index=aligned_matrices.dataset_site_index,
@@ -242,7 +242,7 @@ class SignalomeWorkflowInterpreter:
             downstream_score_matrix=downstream_score_matrix,
             downstream_score_source=score_selection.downstream_score_source,
             prediction_matrix=retained_prediction_matrix,
-            site_to_protein=site_to_protein,
+            site_to_protein_group_id=site_to_protein_group_id,
             score_preconditioning_diagnostics=preconditioning_result.diagnostics,
             alignment_diagnostics=alignment_diagnostics,
             downstream_score_selection_policy=(
@@ -301,6 +301,7 @@ class SignalomeWorkflowInterpreter:
                 if request.config.clustering.module_count is None
                 else int(request.config.clustering.module_count)
             ),
+            mode=str(request.config.mode),
             clustering_engine=str(request.config.clustering.clustering_engine),
             candidate_scoring_policy_definition=(
                 resolve_candidate_scoring_policy_definition(

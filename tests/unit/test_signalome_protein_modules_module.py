@@ -20,7 +20,7 @@ def test_derive_protein_modules_groups_by_site_membership_patterns() -> None:
 
     modules = derive_protein_modules(
         site_clusters=site_clusters,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
     )
 
     assert modules.at["P1"] == modules.at["P2"]
@@ -42,5 +42,5 @@ def test_derive_protein_modules_fails_when_mapping_is_missing_sites() -> None:
     with pytest.raises(ValueError, match="missing clustered site mappings"):
         derive_protein_modules(
             site_clusters=site_clusters,
-            site_to_protein=site_to_protein,
+            site_to_protein_group_id=site_to_protein,
         )

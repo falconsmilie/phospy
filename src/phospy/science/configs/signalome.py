@@ -4,6 +4,16 @@ from __future__ import annotations
 
 from typing import Literal
 
+SIGNALOME_MODE_PRODUCTION = "production"
+SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY = "exploratory_compatibility"
+SignalomeMode = Literal["production", "exploratory_compatibility"]
+SIGNALOME_MODES = frozenset(
+    {
+        SIGNALOME_MODE_PRODUCTION,
+        SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    }
+)
+
 SIGNALOME_MODULE_COUNT_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT = 0.5
 SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT = 0.1
@@ -93,6 +103,9 @@ __all__ = [
     "SIGNALOME_MAX_EXACT_TREE_SITES_FLOOR",
     "SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT",
     "SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_FLOOR",
+    "SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY",
+    "SIGNALOME_MODE_PRODUCTION",
+    "SIGNALOME_MODES",
     "SIGNALOME_MODULE_COUNT_FLOOR",
     "SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT",
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT",
@@ -107,5 +120,6 @@ __all__ = [
     "SignalomeCandidateScoringPolicy",
     "SignalomeClusteringEngine",
     "SignalomeKinaseNetworkPolicy",
+    "SignalomeMode",
     "SignalomeScorePreconditioningPolicy",
 ]

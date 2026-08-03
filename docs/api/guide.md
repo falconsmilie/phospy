@@ -335,7 +335,7 @@ site_metadata = pd.DataFrame(
         "organism": ["rat", "rat"],
         "protein_namespace": ["protein_id", "protein_id"],
         "protein_identifier": ["TSC2", "GSK3B"],
-        "protein_id": ["TSC2", "GSK3B"],
+        "protein_group_id": ["TSC2", "GSK3B"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),

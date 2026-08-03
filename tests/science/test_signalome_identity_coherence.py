@@ -23,12 +23,12 @@ def test_signalome_science_tables_keep_duplicate_display_ids_separate() -> None:
         ["P28482", "Q99999"],
         index=site_index.copy(),
         dtype=object,
-        name="protein_id",
+        name="protein_group_id",
     )
 
     module_assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         site_metadata=site_metadata,
     )
 

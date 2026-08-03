@@ -433,7 +433,7 @@ def test_protein_module_from_site_membership_policy_matches_derivation_behavior(
 
     protein_modules = derive_protein_modules(
         site_clusters=site_clusters,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
     )
 
     assert protein_modules.at["P1"] == protein_modules.at["P2"]

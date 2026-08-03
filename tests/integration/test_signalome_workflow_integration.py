@@ -258,7 +258,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         "display_id",
         "gene_symbol",
         "site",
-        "protein_id",
+        "protein_group_id",
         "protein_accession",
         "isoform_id",
         "module_id",
@@ -279,7 +279,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     assert _is_text_dtype(assignments.loc[:, "display_id"])
     assert _is_text_dtype(assignments.loc[:, "gene_symbol"])
     assert _is_text_dtype(assignments.loc[:, "site"])
-    assert _is_text_dtype(assignments.loc[:, "protein_id"])
+    assert _is_text_dtype(assignments.loc[:, "protein_group_id"])
     assert _is_text_dtype(assignments.loc[:, "protein_accession"])
     assert _is_text_dtype(assignments.loc[:, "isoform_id"])
     assert is_integer_dtype(assignments.loc[:, "module_id"])
@@ -358,7 +358,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         "site_order",
         "gene_symbol",
         "site",
-        "protein_id",
+        "protein_group_id",
         "protein_accession",
         "isoform_id",
         "module_id",
@@ -435,7 +435,7 @@ def test_signalome_workflow_runs_with_scipy_clustering_engine() -> None:
     )
 
 
-def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id() -> (
+def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_group_id() -> (
     None
 ):
     base_dataset = build_rat_l6_dataset(n_sites=260)
@@ -471,12 +471,12 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
         )
 
     message = str(exc_info.value)
-    assert "site_metadata is missing required columns: protein_id" in message
-    assert "Missing signalome protein grouping metadata: protein_id" in message
-    assert "not canonical protein identity" in message
+    assert "site_metadata is missing required columns: protein_group_id" in message
+    assert "Missing signalome protein grouping metadata: protein_group_id" in message
+    assert "not core protein identity" in message
     assert "protein_namespace" in message
     assert "protein_identifier" in message
-    assert "does not infer protein_id from gene_symbol or display_id" in message
+    assert "does not infer protein_group_id from gene_symbol or display_id" in message
 
 
 def test_signalome_workflow_uses_explicit_dataset_protein_grouping_metadata_when_present() -> (
@@ -484,7 +484,8 @@ def test_signalome_workflow_uses_explicit_dataset_protein_grouping_metadata_when
 ):
     base_dataset = build_rat_l6_dataset(n_sites=260)
     site_metadata = base_dataset.site_metadata.copy(deep=True)
-    site_metadata.loc[:, "protein_id"] = [
+    site_metadata = site_metadata.drop(columns=["protein_id"])
+    site_metadata.loc[:, "protein_group_id"] = [
         f"PROT_{position:05d}" for position in range(site_metadata.shape[0])
     ]
     dataset = trusted_analysis_ready_dataset_from_tables(
@@ -518,7 +519,9 @@ def test_signalome_workflow_uses_explicit_dataset_protein_grouping_metadata_when
 
     assignments = result.module_assignments.table
     assert not assignments.empty
-    assert assignments.loc[:, "protein_id"].astype(str).str.startswith("PROT_").all()
+    assert (
+        assignments.loc[:, "protein_group_id"].astype(str).str.startswith("PROT_").all()
+    )
 
 
 def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> None:

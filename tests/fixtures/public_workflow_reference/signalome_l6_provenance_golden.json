@@ -2,6 +2,7 @@
   "workflow_name": "signalome_workflow",
   "workflow_parameters": {
     "signalome_config": {
+      "mode": "exploratory_compatibility",
       "scientific": {
         "substrate_support_cutoff": 0.5,
         "assignment_policy": "cutoff_binary"
@@ -18,6 +19,11 @@
       },
       "validation": {
         "score_preconditioning_policy": "error_on_drop",
+        "localisation_requirement": {
+          "require_present": false,
+          "minimum_probability": null,
+          "policy": "allow_unknown"
+        },
         "allow_mixed_total_protein_quantitative_meaning": false,
         "reference_context_compatibility_policy": "allow_unknown_with_caveat"
       },

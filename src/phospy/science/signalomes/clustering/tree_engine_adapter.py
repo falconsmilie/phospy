@@ -56,7 +56,7 @@ def run_clustering_with_tree_engine(
     )
     protein_modules = derive_protein_modules(
         site_clusters=clustering_result.site_clusters,
-        site_to_protein=request.site_to_protein,
+        site_to_protein_group_id=request.site_to_protein_group_id,
     )
     selected_module_count = int(
         clustering_result.module_selection_diagnostics.selected_module_count

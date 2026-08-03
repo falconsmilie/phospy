@@ -19,7 +19,7 @@ class SignalomeAlignmentDiagnosticsBuilder:
     _REASON_MISSING_FROM_PREDICTION_SCORES = "missing_from_prediction_scores"
     _REASON_MISSING_FROM_DOWNSTREAM_SCORES = "missing_from_downstream_scores"
     _REASON_MISSING_FROM_KINASE_SUPPORT = "missing_kinase_support"
-    _REASON_MISSING_PROTEIN_IDENTIFIER = "missing_protein_identifier"
+    _REASON_MISSING_PROTEIN_GROUP_ID = "missing_protein_group_id"
     _REASON_REMOVED_BY_SCORE_PRECONDITIONING = "removed_by_score_preconditioning"
     _REASON_REMOVED_BY_VALIDATION_POLICY = "removed_by_validation_policy"
 
@@ -129,13 +129,13 @@ class SignalomeAlignmentDiagnosticsBuilder:
         protein_dropped = int(
             interpreted_protein_index.size - retained_protein_index.size
         )
-        protein_diag = SignalomeAlignmentInputDiagnostics(
+        protein_group_diag = SignalomeAlignmentInputDiagnostics(
             provided_count=int(interpreted_protein_index.size),
             retained_count=int(retained_protein_index.size),
             dropped_count=protein_dropped,
             dropped_reasons={
                 self._REASON_REMOVED_BY_SCORE_PRECONDITIONING: protein_dropped,
-                self._REASON_MISSING_PROTEIN_IDENTIFIER: 0,
+                self._REASON_MISSING_PROTEIN_GROUP_ID: 0,
                 self._REASON_REMOVED_BY_VALIDATION_POLICY: 0,
             },
         )
@@ -145,7 +145,7 @@ class SignalomeAlignmentDiagnosticsBuilder:
             prediction_score_sites=prediction_sites_diag,
             downstream_score_sites=downstream_sites_diag,
             kinases=kinases_diag,
-            protein_identifiers=protein_diag,
+            protein_group_ids=protein_group_diag,
         )
 
     def _build_site_alignment_input_diagnostics(

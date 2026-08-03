@@ -26,7 +26,7 @@ def _valid_assignments() -> pd.DataFrame:
             "display_id": display_ids,
             "gene_symbol": ["P1", "P2"],
             "site": ["S1", "S2"],
-            "protein_id": ["P1", "P2"],
+            "protein_group_id": ["P1", "P2"],
             "protein_accession": ["", ""],
             "isoform_id": ["", ""],
             "module_id": [1, 0],
@@ -146,7 +146,7 @@ def test_signalome_assignments_table_allows_duplicate_display_ids() -> None:
     table.loc[:, "display_id"] = ["AKT1;T308;", "AKT1;T308;"]
     table.loc[:, "gene_symbol"] = ["AKT1", "AKT1"]
     table.loc[:, "site"] = ["T308", "T308"]
-    table.loc[:, "protein_id"] = ["P31749", "Q9Y243"]
+    table.loc[:, "protein_group_id"] = ["P31749", "Q9Y243"]
 
     wrapper = SignalomeAssignmentsTable(frame=table)
 

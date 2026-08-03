@@ -13,7 +13,8 @@ from kinase scoring/prediction output.
 Good fits:
 
 - site-keyed kinase prediction and downstream score matrices
-- datasets with explicit `protein_id` grouping metadata for interpreted sites
+- datasets with explicit `protein_group_id` grouping metadata for interpreted
+  sites
 - module assignment and kinase score-profile association summaries for
   exploratory analysis
 
@@ -33,19 +34,21 @@ The upstream result must provide:
 - an authoritative downstream score matrix from `scoring_result`
 - overlapping site keys and kinase columns between prediction and score
   matrices
-- non-empty `dataset.site_metadata.protein_id` values for interpreted sites
+- non-empty `dataset.site_metadata.protein_group_id` values for interpreted
+  sites
 
-Signalome requires `protein_id` because it groups retained phosphosites into
-protein-level module and protein-site context summaries. `protein_id` is
-therefore signalome-specific grouping metadata, not core protein identity.
-Core protein identity remains the dataset-level `organism`,
-`protein_namespace`, and `protein_identifier` metadata carried by the
-`site_key` row identity contract. Do not replace `protein_namespace` or
-`protein_identifier` with `protein_id`.
+Signalome requires `protein_group_id` because it groups retained phosphosites
+into protein-level module and protein-site context summaries. `protein_group_id`
+is Signalome-specific grouping metadata, not core protein identity. The legacy
+`dataset.site_metadata.protein_id` column is accepted only as a migration alias
+for older datasets and bundles. Core protein identity remains the dataset-level
+`organism`, `protein_namespace`, and `protein_identifier` metadata carried by
+the `site_key` row identity contract. Do not replace `protein_namespace` or
+`protein_identifier` with `protein_group_id`.
 
 Signalome does not reinterpret `display_id` as row identity, does not infer
-`protein_id` from `gene_symbol` or `display_id`, and does not repair missing
-protein grouping metadata.
+`protein_group_id` from `gene_symbol` or `display_id`, and does not repair
+missing protein grouping metadata.
 
 ## Localisation Prerequisite
 
@@ -76,8 +79,20 @@ from phospy.api import SignalomeConfig
 config = SignalomeConfig.production()
 ```
 
-The default `SignalomeConfig()` keeps localisation permissive for backwards
-compatibility, but reference-context compatibility is conservative: unknown
+The default `SignalomeConfig()` is the production mode and is the recommended
+entry point. It requires site-level localisation evidence with the production
+threshold and uses five paired finite observations for new network edges.
+
+Historical exploratory behavior is still available, but it must be named
+explicitly:
+
+```python
+from phospy.api import SignalomeConfig
+
+config = SignalomeConfig.compatibility()
+```
+
+Reference-context compatibility remains conservative in both modes: unknown
 context fails unless
 `ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT` is set
 explicitly.
@@ -116,6 +131,7 @@ Useful presets:
 ```python
 strict = SignalomeConfig.strict()
 production = SignalomeConfig.production()
+compatibility = SignalomeConfig.compatibility()
 permissive = SignalomeConfig.permissive_missing_scores()
 sampled = SignalomeConfig.sampled_candidate_scoring()
 ```
@@ -124,25 +140,29 @@ Important fields:
 
 | Field | Default | Notes |
 | --- | --- | --- |
+| `mode` | `"production"` | Recommended mode. Use `"exploratory_compatibility"` only through `SignalomeConfig.compatibility()` for legacy/exploratory behavior. |
 | `scientific.substrate_support_cutoff` | `0.5` | Prediction support cutoff for kinase-supported substrates. |
 | `scientific.assignment_policy` | `"cutoff_binary"` | Also supports `"weighted_top"`. |
 | `clustering.module_count` | `None` | Use `None` for automatic module selection. |
 | `clustering.candidate_scoring_policy` | `"full"` | `"sampled"` approximates candidate module-count scoring only. |
 | `clustering.clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` is also available. |
 | `validation.score_preconditioning_policy` | `"error_on_drop"` | `"allow_and_report"` drops all-missing score rows and reports counts. |
-| `validation.localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. Use `SignalomeConfig.production()` for the 0.75 production threshold. |
+| `validation.localisation_requirement` | `LocalisationRequirement.production_site_level()` | Workflow-level localisation requirement. Production requires present site-level localisation with minimum probability 0.75. |
 | `output.network_policy` | `"signed"` | Also supports `"positive_only"` and `"absolute_threshold"`. |
-| `output.network_min_paired_finite_observations` | `None` | `None` resolves at execution to the built-in default of five paired finite observations. Explicit values must be at least three. |
+| `output.network_min_paired_finite_observations` | `5` | Production requires at least five paired finite observations. Compatibility mode may lower this to the public floor of three. |
 | `performance.max_exact_tree_sites` | `2000` | Exact tree scale guardrail. |
 
 ## Running the Workflow
 
 ```python
 from phospy import SignalomeWorkflow
-from phospy.api import SignalomeWorkflowRequest
+from phospy.api import SignalomeConfig, SignalomeWorkflowRequest
 
 signalome_result = SignalomeWorkflow().run(
-    SignalomeWorkflowRequest(kinase_result=kinase_result)
+    SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=SignalomeConfig.production(),
+    )
 )
 ```
 
@@ -153,7 +173,7 @@ from phospy.api import SignalomeConfig
 
 request = SignalomeWorkflowRequest(
     kinase_result=kinase_result,
-    config=SignalomeConfig.strict(),
+    config=SignalomeConfig.compatibility(),
 )
 ```
 
@@ -179,7 +199,9 @@ Important fields and helpers:
 | `provenance` | Workflow provenance. |
 
 Site-level public sidecars include `site_key` and `display_id` where
-applicable. `site_key` remains the row identity.
+applicable. Signalome protein-group sidecars and assignment tables use
+`protein_group_id` for Signalome grouping identity. `site_key` remains the row
+identity.
 
 ## Interpreting the Result
 
@@ -251,10 +273,11 @@ diagnostics are recorded in provenance.
 Workflow provenance records upstream kinase provenance, resolved config,
 alignment diagnostics, score-preconditioning diagnostics, clustering preparation
 diagnostics, scale-guard decisions, scientific policy records, table
-fingerprints, and signalome score semantics. The semantics include the network
-threshold, requested/effective paired-observation minimum, stable policy
-identifier, correlation basis, edge directionality, skipped-edge diagnostics,
-prepared clustering matrix fingerprint, and interpretation limits.
+fingerprints, Signalome mode, Signalome grouping identity, and signalome score
+semantics. The semantics include the network threshold, requested/effective
+paired-observation minimum, stable policy identifier, correlation basis, edge
+directionality, skipped-edge diagnostics, prepared clustering matrix
+fingerprint, and interpretation limits.
 
 Signalome provenance uses the same causal site-row attrition contract as other
 workflows. `row_attrition`, when present, records only stage-local site-row
@@ -265,10 +288,12 @@ as site-row removal.
 
 ## Limitations
 
-- Requires explicit `protein_id` grouping metadata for interpreted sites so
+- Requires explicit `protein_group_id` grouping metadata for interpreted sites so
   retained sites can be summarized by protein in signalome module context.
-- Does not infer `protein_id` or protein identity from `gene_symbol` or display
-  labels.
+- Accepts legacy `protein_id` only as a migration alias and rejects conflicting
+  `protein_group_id`/`protein_id` values.
+- Does not infer `protein_group_id` or core protein identity from `gene_symbol`
+  or display labels.
 - Does not run kinase scoring or prediction itself.
 - Module and network-style outputs are derived summaries, not causal proof or
   experimental evidence of signalling relationships.

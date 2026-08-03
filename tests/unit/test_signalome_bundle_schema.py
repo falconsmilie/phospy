@@ -7,6 +7,9 @@ from phospy.api import SignalomeConfig
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    SIGNALOME_MODE_PRODUCTION,
+    LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
     SignalomeOutputConfig,
     SignalomeScientificConfig,
@@ -47,6 +50,7 @@ def _full_signalome_snapshot_payload(
     **overrides: object,
 ) -> dict[str, dict[str, object]]:
     signalome_config: dict[str, object] = {
+        "mode": SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
         "scientific": {
             "substrate_support_cutoff": 0.5,
             "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
@@ -67,6 +71,10 @@ def _full_signalome_snapshot_payload(
             "reference_context_compatibility_policy": (
                 ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH.value
             ),
+            "localisation_requirement": {
+                "require_present": False,
+                "minimum_probability": None,
+            },
         },
         "output": {
             "network_correlation_threshold": 0.6,
@@ -100,6 +108,7 @@ def _full_signalome_snapshot_payload(
             "score_preconditioning_policy",
             "allow_mixed_total_protein_quantitative_meaning",
             "reference_context_compatibility_policy",
+            "localisation_requirement",
         }:
             validation = signalome_config["validation"]
             assert isinstance(validation, dict)
@@ -184,9 +193,16 @@ def test_signalome_snapshot_writes_effective_network_default_when_recorded() -> 
     payload = snapshot.to_payload()
     signalome_config = payload["signalome_config"]
     assert isinstance(signalome_config, dict)
+    assert signalome_config["mode"] == SIGNALOME_MODE_PRODUCTION
+    validation = signalome_config["validation"]
+    assert isinstance(validation, dict)
+    assert validation["localisation_requirement"] == {
+        "require_present": True,
+        "minimum_probability": 0.75,
+    }
     output = signalome_config["output"]
     assert isinstance(output, dict)
-    assert output["network_min_paired_finite_observations"] is None
+    assert output["network_min_paired_finite_observations"] == 5
     assert output["network_min_paired_finite_observations_effective"] == 5
 
 
@@ -228,12 +244,14 @@ def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
                 score_preconditioning_policy=(
                     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
                 ),
+                localisation_requirement=LocalisationRequirement(),
             ),
             output=SignalomeOutputConfig(
                 network_correlation_threshold=0.7,
                 network_policy="absolute_threshold",
                 network_min_paired_finite_observations=3,
             ),
+            mode=SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
         )
     )
 
@@ -244,6 +262,7 @@ def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
 def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
     payload = {
         "signalome_config": {
+            "mode": SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
             "scientific": {
                 "substrate_support_cutoff": 0.42,
                 "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
@@ -264,6 +283,10 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
                 "reference_context_compatibility_policy": (
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT.value
                 ),
+                "localisation_requirement": {
+                    "require_present": False,
+                    "minimum_probability": None,
+                },
             },
             "output": {
                 "network_correlation_threshold": 0.73,
@@ -456,6 +479,29 @@ def test_module_assignment_normalization_does_not_repair_legacy_identity_columns
     assert "site_key.1" not in normalized.columns
     assert "display_id" not in normalized.columns
     assert "display_id.1" in normalized.columns
+
+
+def test_module_assignment_normalization_migrates_legacy_protein_group_alias() -> None:
+    table = pd.DataFrame({"protein_id": ["P1", "P2"]})
+
+    normalized = normalize_module_assignments_table(table)
+
+    assert "protein_group_id" in normalized.columns
+    assert "protein_id" not in normalized.columns
+    assert normalized.loc[:, "protein_group_id"].tolist() == ["P1", "P2"]
+
+
+def test_module_assignment_normalization_rejects_conflicting_group_aliases() -> None:
+    table = pd.DataFrame(
+        {
+            "protein_group_id": ["P1", "P2"],
+            "protein_id": ["P1", "LEGACY_P2"],
+        },
+        index=pd.Index(["site_a", "site_b"]),
+    )
+
+    with pytest.raises(PhosPyInputError, match="conflicting Signalome grouping"):
+        normalize_module_assignments_table(table)
 
 
 def test_module_selection_diagnostics_payload_round_trip() -> None:
@@ -706,13 +752,13 @@ def test_alignment_diagnostics_payload_round_trip() -> None:
                 "missing_kinase_support": 0,
             },
         ),
-        protein_identifiers=SignalomeAlignmentInputDiagnostics(
+        protein_group_ids=SignalomeAlignmentInputDiagnostics(
             provided_count=8,
             retained_count=8,
             dropped_count=0,
             dropped_reasons={
                 "removed_by_score_preconditioning": 0,
-                "missing_protein_identifier": 0,
+                "missing_protein_group_id": 0,
                 "removed_by_validation_policy": 0,
             },
         ),

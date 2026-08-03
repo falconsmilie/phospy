@@ -18,7 +18,7 @@ from phospy.science.signalomes.network import (
 def test_domain_modules_weighted_top_requires_weight_column() -> None:
     module_assignments = pd.DataFrame(
         {
-            "protein_id": ["P1", "P2"],
+            "protein_group_id": ["P1", "P2"],
             "module_id": [1, 2],
         },
         index=pd.Index(["S1", "S2"], name="site_id"),
@@ -65,7 +65,7 @@ def test_domain_expanded_requires_network_edge_columns() -> None:
             "display_id": ["S1"],
             "gene_symbol": ["P1"],
             "site": ["S1"],
-            "protein_id": ["P1"],
+            "protein_group_id": ["P1"],
             "protein_accession": [""],
             "isoform_id": [""],
             "module_id": [1],

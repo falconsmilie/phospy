@@ -48,13 +48,13 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_exposes_sequence_validation_diagnostics | 476 | `min_substrates=2,` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_reports_partial_sequence_coverage_in_provenance | 638 | `min_substrates=2,` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_continues_when_no_sites_have_valid_sequence | 715 | `min_substrates=2,` |
-| tests/unit/test_public_config_self_validation.py | test_dataset_preprocessing_config_presets_return_expected_values | 362 | `assert raw.missing_data.min_observed_values == 1` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_production_config_uses_strict_reliability_invariants | 554 | `assert production.min_substrates == 5` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_production_label_rejects_weakened_invariants | 622 | `"min_substrates": 5,` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_custom_profile_accepts_modified_exploratory_values | 643 | `min_substrates=3,` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_explicit_exploratory_rejects_modified_values | 654 | `min_substrates=3,` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_explicit_custom_accepts_modified_values | 661 | `min_substrates=3,` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed | 836 | `match="prediction_config.random_state must be greater than or equal to 0",` |
+| tests/unit/test_public_config_self_validation.py | test_dataset_preprocessing_config_presets_return_expected_values | 364 | `assert raw.missing_data.min_observed_values == 1` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_production_config_uses_strict_reliability_invariants | 556 | `assert production.min_substrates == 5` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_production_label_rejects_weakened_invariants | 624 | `"min_substrates": 5,` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_custom_profile_accepts_modified_exploratory_values | 645 | `min_substrates=3,` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_explicit_exploratory_rejects_modified_values | 656 | `min_substrates=3,` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_explicit_custom_accepts_modified_values | 663 | `min_substrates=3,` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed | 838 | `match="prediction_config.random_state must be greater than or equal to 0",` |
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 108 | `reliability_profile="custom", min_substrates=2` |
 | tests/unit/test_validator_boundaries.py | test_kinase_scoring_default_sets_two_substrate_support_floor | 100 | `assert config.min_substrates == 2` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_custom_scoring_intent | 223 | `scoring_config=_kinase_scoring_config(min_substrates=2),` |
@@ -86,10 +86,10 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_blank_protein_id_message_distinguishes_grouping_metadata | 1652 | `assert "to contain non-empty string values" in message` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_blank_site_metadata_protein_id_values | 1732 | `assert "non-empty string values" in message` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_non_string_site_metadata_protein_id_values | 1751 | `assert "non-empty string values" in message` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_missing_site_metadata_protein_values | 2122 | `assert "non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_blank_legacy_alias_message_distinguishes_grouping | 1654 | `assert "to contain non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_blank_legacy_grouping_alias_values | 1735 | `assert "non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_non_string_legacy_grouping_alias_values | 1753 | `assert "non-empty string values" in message` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_missing_site_metadata_protein_values | 2125 | `assert "non-empty string values" in message` |
 
 ### Bounded Numeric Range
 
@@ -99,9 +99,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
 | tests/unit/test_config_validation_primitives.py | test_optional_numeric_primitives_accept_none_and_validate_ranges | 118 | `require_optional_real_between(` |
-| tests/unit/test_public_config_self_validation.py | test_dataset_intensity_transform_pseudocount_range_matrix | 135 | `pseudocount: object, pattern: str \| None` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_attrition_policy_rejects_nonfinite_fraction | 449 | `match="attrition_policy.minimum_scored_fraction must be finite",` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed | 836 | `match="prediction_config.random_state must be greater than or equal to 0",` |
+| tests/unit/test_public_config_self_validation.py | test_dataset_intensity_transform_pseudocount_range_matrix | 137 | `pseudocount: object, pattern: str \| None` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_attrition_policy_rejects_nonfinite_fraction | 451 | `match="attrition_policy.minimum_scored_fraction must be finite",` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed | 838 | `match="prediction_config.random_state must be greater than or equal to 0",` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_has_default_preprocessing_config | 423 | `validated.preprocessing_config.intensity_transform.pseudocount` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_log2_pseudocount_range_boundary | 619 | `pseudocount: object, pattern: str \| None` |
 | tests/unit/test_validator_boundaries.py | test_dataset_preprocessing_config_validator_allows_log2_subtract_log_total | 669 | `pseudocount=1.0,` |
@@ -125,13 +125,13 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_config_validation_primitives.py | test_coerce_policy_enum_trims_and_parses_supported_values | 34 | `def test_coerce_policy_enum_trims_and_parses_supported_values() -> None:` |
 | tests/unit/test_config_validation_primitives.py | test_coerce_policy_enum_rejects_unsupported_values_with_field_name | 44 | `def test_coerce_policy_enum_rejects_unsupported_values_with_field_name() -> None:` |
 | tests/unit/test_control_site_eligibility_validator.py | test_control_site_validator_rejects_unsupported_weighted_grouped_controls | 476 | `match="unsupported control weighting/grouping combination",` |
-| tests/unit/test_public_config_self_validation.py | test_kinase_attrition_policy_rejects_invalid_violation_mode | 457 | `match="attrition_policy.on_violation must be one of",` |
+| tests/unit/test_public_config_self_validation.py | test_kinase_attrition_policy_rejects_invalid_violation_mode | 459 | `match="attrition_policy.on_violation must be one of",` |
 | tests/unit/test_site_identity_validation.py | test_protein_scoped_identity_site_key_index_enforcement | 473 | `invalid = site_metadata.copy(deep=True)` |
 | tests/unit/test_site_identity_validation.py | test_analysis_ready_site_key_column_must_match_index_exactly | 521 | `invalid = site_metadata.copy(deep=True)` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_unknown_quantitative_meaning_literal | 553 | `match="dataset build request quantitative_meaning must be one of:",` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_removed_ratio_to_total_alias | 759 | `match="preprocessing_config.total_protein_correction.policy must be one of",` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_rejects_unknown_reference_display_ambiguity_policy | 975 | `match="reference_display_ambiguity_policy must be one of",` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_reports_invalid_localisation_probability_values | 1814 | `"invalid values in signalome workflow request "` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_reports_invalid_localisation_probability_values | 1816 | `"invalid values in signalome workflow request "` |
 
 ### Nullable Collection / Optional Field Coupling
 
@@ -141,7 +141,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
 | tests/unit/test_config_validation_primitives.py | test_require_optional_int_at_least_matrix | 94 | `# Matrix keeps before/after coverage obvious for optional-positive integer cases.` |
-| tests/unit/test_public_config_self_validation.py | test_optional_positive_integer_config_fields_self_validate | 805 | `# Consolidated matrix for optional integer boundaries keeps field-level messages explicit.` |
+| tests/unit/test_public_config_self_validation.py | test_optional_positive_integer_config_fields_self_validate | 807 | `# Consolidated matrix for optional integer boundaries keeps field-level messages explicit.` |
 | tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 110 | `match="duplicate \\(kinase, substrate_site\\) pairs",` |
 | tests/unit/test_site_identity_validation.py | test_validate_identity_optional_columns_rejects_non_string_values | 106 | `with pytest.raises(ValueError, match="optional identity columns"):` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_min_observed_values_for_forbid_policy | 653 | `"missing_data.min_observed_values must be None when "` |
@@ -211,9 +211,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_site_matrix_build_from_metadata_policy | 766 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_sample_metadata_pairs_comparison_policy | 863 | `phospho=pd.DataFrame(` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_sample_metadata_for_comparison_building | 891 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1882 | `phospho=pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1936 | `phospho=pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_cast_numeric_matrices | 2017 | `monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1884 | `phospho=pd.DataFrame(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1938 | `phospho=pd.DataFrame(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_cast_numeric_matrices | 2019 | `monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_reference_overlap | 184 | `kinase_substrate_map=pd.DataFrame(` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_eligible_kinases | 202 | `kinase_substrate_map=pd.DataFrame(` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_sequence_supported_sites | 218 | `empty_sequences = pd.DataFrame(` |
@@ -248,11 +248,11 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/unit/test_public_config_self_validation.py | test_optional_positive_integer_config_fields_self_validate | 800 | `factory: type[KinasePredictionConfig] \| type[SignalomeClusteringConfig],` |
-| tests/unit/test_public_config_self_validation.py | test_signalome_config_accepts_supported_clustering_engine_names | 1122 | `clustering=SignalomeClusteringConfig(` |
-| tests/unit/test_public_config_self_validation.py | test_signalome_output_config_accepts_network_minimum_observation_policy | 1141 | `config = SignalomeOutputConfig(` |
-| tests/unit/test_public_config_self_validation.py | test_signalome_config_accepts_engine_and_policy_names | 1224 | `clustering=SignalomeClusteringConfig(` |
-| tests/unit/test_public_config_self_validation.py | test_signalome_clustering_config_rejects_removed_tree_engine_argument | 1248 | `SignalomeClusteringConfig(tree_engine="exact") # type: ignore[call-arg]` |
+| tests/unit/test_public_config_self_validation.py | test_optional_positive_integer_config_fields_self_validate | 802 | `factory: type[KinasePredictionConfig] \| type[SignalomeClusteringConfig],` |
+| tests/unit/test_public_config_self_validation.py | test_signalome_config_accepts_supported_clustering_engine_names | 1142 | `clustering=SignalomeClusteringConfig(` |
+| tests/unit/test_public_config_self_validation.py | test_signalome_output_config_accepts_network_minimum_observation_policy | 1161 | `config = SignalomeOutputConfig(` |
+| tests/unit/test_public_config_self_validation.py | test_signalome_config_accepts_engine_and_policy_names | 1258 | `clustering=SignalomeClusteringConfig(` |
+| tests/unit/test_public_config_self_validation.py | test_signalome_clustering_config_rejects_removed_tree_engine_argument | 1282 | `SignalomeClusteringConfig(tree_engine="exact") # type: ignore[call-arg]` |
 | tests/unit/test_validation_ownership_contracts.py | test_signalome_module_selection_stability_computation_stays_in_clustering_science | 76 | `def test_signalome_module_selection_stability_computation_stays_in_clustering_science() -> (` |
 | tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1483 | `config = SignalomeClusteringConfig(module_count=module_count) # type: ignore[arg-type]` |
 | tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_replay_of_historical_network_threshold_two | 1517 | `"module_selection_primary_correlation_threshold": 0.5,` |
@@ -281,8 +281,8 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_production_scoring_intent | 208 | `references=ReferencePreset.RAT,` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_custom_scoring_intent | 222 | `references=ReferencePreset.RAT,` |
 | tests/unit/test_validator_boundaries.py | test_kinase_reference_compatibility_boundary_matrix | 1122 | `except ReferenceCompatibilityError as exc: # pragma: no cover - defensive` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1902 | `references = ReferenceBundle(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1956 | `references = ReferenceBundle(` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1904 | `references = ReferenceBundle(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1958 | `references = ReferenceBundle(` |
 
 ## Suggested Follow-Up Tickets
 

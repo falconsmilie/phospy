@@ -45,7 +45,7 @@ def test_build_module_assignments_surfaces_site_level_score_ties() -> None:
 
     assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         site_metadata=site_metadata,
     )
 
@@ -77,7 +77,7 @@ def test_build_module_assignments_surfaces_protein_level_equal_ranking() -> None
 
     assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         site_metadata=site_metadata,
     )
     p1s1, p1s2 = site_index.astype(str).tolist()
@@ -122,7 +122,7 @@ def test_build_module_assignments_marks_zero_evidence_rows_without_false_winner(
 
     assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         site_metadata=site_metadata,
     )
 

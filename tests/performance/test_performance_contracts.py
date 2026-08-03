@@ -308,7 +308,7 @@ def _cluster_partitions_match(left: pd.Series, right: pd.Series) -> bool:
 def _run_signalome_backend_contract(
     *,
     scoring_matrix: pd.DataFrame,
-    site_to_protein: pd.Series,
+    site_to_protein_group_id: pd.Series,
     clustering_engine: str,
     max_clusters: int = 8,
     candidate_scoring_policy: str | None = None,
@@ -318,7 +318,7 @@ def _run_signalome_backend_contract(
     return measure_runtime_and_peak_mib(
         lambda: run_signalome_clustering_engine(
             scoring_matrix=scoring_matrix,
-            site_to_protein=site_to_protein,
+            site_to_protein_group_id=site_to_protein_group_id,
             requested_module_count=None,
             primary_threshold=0.45,
             fallback_threshold=0.15,
@@ -489,7 +489,7 @@ def test_signalome_backend_contracts_compare_exact_and_scipy_equivalent_small_fi
 
     exact_result, exact_runtime, exact_peak_mib = _run_signalome_backend_contract(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
         max_clusters=8,
         max_exact_tree_sites=96,
@@ -497,7 +497,7 @@ def test_signalome_backend_contracts_compare_exact_and_scipy_equivalent_small_fi
     )
     scipy_result, scipy_runtime, scipy_peak_mib = _run_signalome_backend_contract(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
         max_clusters=8,
         max_exact_tree_sites=96,
@@ -582,7 +582,7 @@ def test_signalome_backend_contracts_medium_fixture_activates_sampled_candidate_
 
     exact_result, exact_runtime, exact_peak_mib = _run_signalome_backend_contract(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
         max_clusters=10,
         max_exact_tree_sites=500,
@@ -590,7 +590,7 @@ def test_signalome_backend_contracts_medium_fixture_activates_sampled_candidate_
     )
     scipy_result, scipy_runtime, scipy_peak_mib = _run_signalome_backend_contract(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
         max_clusters=10,
         max_exact_tree_sites=500,
@@ -661,7 +661,7 @@ def test_signalome_candidate_scoring_contract_full_vs_sampled_policy() -> None:
 
     full_result, full_runtime, full_peak_mib = _run_signalome_backend_contract(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
         max_clusters=10,
         candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
@@ -670,7 +670,7 @@ def test_signalome_candidate_scoring_contract_full_vs_sampled_policy() -> None:
     )
     sampled_result, sampled_runtime, sampled_peak_mib = _run_signalome_backend_contract(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
         max_clusters=10,
         candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
@@ -713,7 +713,7 @@ def test_signalome_exact_tree_guard_contract_near_threshold_fixture() -> None:
     )
     passing_result, passing_runtime, _passing_peak = _run_signalome_backend_contract(
         scoring_matrix=passing_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
         max_clusters=7,
         max_exact_tree_sites=near_limit,
@@ -736,7 +736,7 @@ def test_signalome_exact_tree_guard_contract_near_threshold_fixture() -> None:
     with pytest.raises(SignalomeScaleError) as exc_info:
         run_signalome_clustering_engine(
             scoring_matrix=failing_matrix,
-            site_to_protein=failing_site_to_protein,
+            site_to_protein_group_id=failing_site_to_protein,
             requested_module_count=None,
             max_clusters=7,
             max_exact_tree_sites=near_limit,
@@ -765,7 +765,7 @@ def test_signalome_full_correlation_guard_contract_fixture() -> None:
     with pytest.raises(SignalomeScaleError) as exc_info:
         run_signalome_clustering_engine(
             scoring_matrix=scoring_matrix,
-            site_to_protein=site_to_protein,
+            site_to_protein_group_id=site_to_protein,
             requested_module_count=None,
             max_clusters=6,
             candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
@@ -794,7 +794,7 @@ def test_signalome_candidate_scoring_skip_contract_for_explicit_module_count() -
     backend_result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
         lambda: run_signalome_clustering_engine(
             scoring_matrix=scoring_matrix,
-            site_to_protein=site_to_protein,
+            site_to_protein_group_id=site_to_protein,
             requested_module_count=4,
             max_clusters=8,
             clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,

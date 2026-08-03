@@ -101,7 +101,8 @@ reference provenance, those organism values must resolve to the dataset
 Peptide-evidence protein_accession is row-identity metadata. It must be
 preserved as protein_accession or explicit protein_namespace/protein_identifier
 metadata. It must not be rewritten into protein_id, which remains available for
-grouping semantics.
+legacy grouping-alias compatibility. New Signalome grouping metadata uses
+protein_group_id.
 
 Workflows operate on `site_key`. Site-level workflow outputs that materialize
 row identity include both `site_key` and `display_id`.

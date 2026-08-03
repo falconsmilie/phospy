@@ -19,7 +19,7 @@ pytestmark = pytest.mark.integration
             [
                 "Preferred 1.5.0 dataset builder lane",
                 "Bundled reference-compatible organism: rat",
-                "protein_id present for all sites: True",
+                "protein_group_id present for all sites: True",
             ],
         ),
         (
@@ -34,7 +34,7 @@ pytestmark = pytest.mark.integration
             "signalome_workflow_demo.py",
             [
                 "Preferred 1.5.0 signalome workflow lane",
-                "protein_id present for all sites: True",
+                "protein_group_id present for all sites: True",
                 "Resolved reference organism: rat",
             ],
         ),

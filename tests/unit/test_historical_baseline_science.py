@@ -238,7 +238,7 @@ def test_signalome_clustering_historical_baseline_locks_dominant_module_assignme
 
     assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         site_metadata=site_metadata,
     )
     p1s1, p1s2, p2s3, p2s4 = site_index.astype(str).tolist()
@@ -287,7 +287,7 @@ def test_weighted_top_assignment_historical_baseline_locks_fractional_metadata_a
 
     assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         site_metadata=site_metadata,
     )
     p1s1, p1s2 = site_index.astype(str).tolist()

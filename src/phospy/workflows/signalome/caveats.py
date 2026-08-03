@@ -5,6 +5,10 @@ from __future__ import annotations
 from phospy.contracts.configs import ReferenceContextCompatibilityPolicy
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.signalomes.constants import (
+    LEGACY_PROTEIN_GROUP_ID_COLUMN,
+    PROTEIN_GROUP_ID_COLUMN,
+)
 from phospy.science.signalomes.models import SignalomeClusteringPreparationDiagnostics
 from phospy.validation.identity_contracts import (
     validate_reference_context_compatibility,
@@ -34,8 +38,11 @@ SIGNALOME_PREDICTION_REFERENCE_LIMITATION_CAVEAT_CODE = (
 SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE = (
     "signalome_permissive_localisation_policy"
 )
+SIGNALOME_PROTEIN_GROUP_ID_GROUPING_ASSUMPTION_CAVEAT_CODE = (
+    "signalome_protein_group_id_grouping_assumption"
+)
 SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE = (
-    "signalome_protein_id_grouping_assumption"
+    SIGNALOME_PROTEIN_GROUP_ID_GROUPING_ASSUMPTION_CAVEAT_CODE
 )
 SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE = (
     "signalome_descriptive_network_association_policy"
@@ -77,7 +84,7 @@ def build_signalome_result_caveats(
     )
     if dropped_dimensions is not None:
         caveats.append(dropped_dimensions)
-    caveats.append(_protein_id_grouping_assumption_caveat(request))
+    caveats.append(_protein_group_id_grouping_assumption_caveat(request))
     return deduplicate_caveats(caveats)
 
 
@@ -233,7 +240,9 @@ def _permissive_localisation_caveat(
     details.update(
         {
             "policy_is_permissive": True,
-            "retained_signalome_site_count": int(request.site_to_protein.shape[0]),
+            "retained_signalome_site_count": int(
+                request.site_to_protein_group_id.shape[0]
+            ),
         }
     )
     return ResultCaveat(
@@ -248,31 +257,42 @@ def _permissive_localisation_caveat(
     )
 
 
-def _protein_id_grouping_assumption_caveat(
+def _protein_group_id_grouping_assumption_caveat(
     request: ResolvedSignalomeWorkflowRequest,
 ) -> ResultCaveat:
-    protein_ids = request.site_to_protein.astype(str)
-    counts = protein_ids.value_counts(sort=False)
+    protein_group_ids = request.site_to_protein_group_id.astype(str)
+    counts = protein_group_ids.value_counts(sort=False)
     multi_site_counts = counts.loc[counts > 1]
+    site_metadata = request.dataset.site_metadata
+    source_column = (
+        PROTEIN_GROUP_ID_COLUMN
+        if PROTEIN_GROUP_ID_COLUMN in site_metadata.columns
+        else LEGACY_PROTEIN_GROUP_ID_COLUMN
+    )
     details = {
-        "grouping_column": "protein_id",
-        "grouping_source": "dataset.site_metadata.protein_id",
-        "retained_signalome_site_count": int(protein_ids.shape[0]),
+        "grouping_column": PROTEIN_GROUP_ID_COLUMN,
+        "grouping_source": f"dataset.site_metadata.{source_column}",
+        "legacy_alias": LEGACY_PROTEIN_GROUP_ID_COLUMN,
+        "legacy_alias_used": source_column == LEGACY_PROTEIN_GROUP_ID_COLUMN,
+        "retained_signalome_site_count": int(protein_group_ids.shape[0]),
         "unique_protein_group_count": int(counts.shape[0]),
         "multi_site_protein_group_count": int(multi_site_counts.shape[0]),
         "max_sites_per_protein_group": (0 if counts.empty else int(counts.max())),
-        "site_to_protein_index_matches_score_matrix": bool(
-            request.site_to_protein.index.equals(request.downstream_score_matrix.index)
+        "site_to_protein_group_id_index_matches_score_matrix": bool(
+            request.site_to_protein_group_id.index.equals(
+                request.downstream_score_matrix.index
+            )
         ),
-        "protein_id_grouping_is_explicit": True,
+        "protein_group_id_grouping_is_explicit": True,
     }
     return ResultCaveat(
         code=SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE,
         severity="info",
         message=(
             "Signalome workflow groups phosphosites by dataset.site_metadata."
-            "protein_id; module context assumes those protein_id values are the "
-            "intended protein grouping labels."
+            "protein_group_id; module context assumes those protein_group_id "
+            "values are the intended Signalome grouping labels. The legacy "
+            "protein_id column is accepted only as a migration alias."
         ),
         details=details,
     )
@@ -356,6 +376,7 @@ __all__ = [
     "SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE",
     "SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE",
     "SIGNALOME_PREDICTION_REFERENCE_LIMITATION_CAVEAT_CODE",
+    "SIGNALOME_PROTEIN_GROUP_ID_GROUPING_ASSUMPTION_CAVEAT_CODE",
     "SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE",
     "SIGNALOME_UPSTREAM_KINASE_ATTRITION_CAVEAT_CODE",
     "build_signalome_result_caveats",

@@ -313,7 +313,10 @@ def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
     assert observed_backend_kwargs["requested_module_count"] == 2
     assert "tree_engine" not in observed_backend_kwargs
     assert observed_backend_kwargs["candidate_scoring_policy"] == "full"
-    assert observed_backend_kwargs["site_to_protein"] is resolved.site_to_protein
+    assert (
+        observed_backend_kwargs["site_to_protein_group_id"]
+        is resolved.site_to_protein_group_id
+    )
 
 
 def test_signalome_module_table_builder_preserves_module_summary_shape() -> None:
@@ -334,7 +337,7 @@ def test_signalome_module_table_builder_preserves_module_summary_shape() -> None
 
     expected_assignments = build_module_assignments(
         prediction_matrix=resolved.prediction_matrix,
-        site_to_protein=resolved.site_to_protein,
+        site_to_protein_group_id=resolved.site_to_protein_group_id,
         site_metadata=resolved.dataset.site_metadata,
         protein_modules=clustering.protein_modules,
     )
@@ -434,7 +437,7 @@ def test_signalome_context_table_builder_flags_multisite_proteins() -> None:
 
     pdt.assert_frame_equal(observed.site_membership, expected_site_membership)
     pdt.assert_frame_equal(observed.protein_site_context, expected_protein_context)
-    context = observed.protein_site_context.set_index("protein_id")
+    context = observed.protein_site_context.set_index("protein_group_id")
     assert bool(context.loc["P1", "multi_site_protein"])
     assert bool(context.loc["P1", "ambiguous_module_context"])
 
@@ -479,7 +482,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     scale_guard = SignalomeClusteringRunner.summarize_scale_guard(
         config=resolved.execution_config,
         site_count=metadata.downstream_score_sites,
-        site_to_protein=resolved.site_to_protein,
+        site_to_protein_group_id=resolved.site_to_protein_group_id,
         downstream_score_kinases=metadata.downstream_score_kinases,
         clustering_result=clustering.clustering_result,
     )
@@ -513,7 +516,17 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "alignment_diagnostics" in provenance.workflow_parameters
     assert "network_correlation_diagnostics" in provenance.workflow_parameters
     assert "signalome_score_semantics" in provenance.workflow_parameters
+    assert provenance.workflow_parameters["signalome_mode"] == (
+        resolved.execution_config.mode
+    )
+    grouping_identity = provenance.workflow_parameters["signalome_grouping_identity"]
+    assert grouping_identity["domain"] == "signalome"
+    assert grouping_identity["grouping_column"] == "protein_group_id"
+    assert grouping_identity["source_column"] == "protein_id"
+    assert grouping_identity["legacy_alias_used"] is True
+    assert "protein_identifier" in grouping_identity["core_identity_fields"]
     signalome_config = provenance.workflow_parameters["signalome_config"]
+    assert signalome_config["mode"] == resolved.execution_config.mode
     assert "scientific" in signalome_config
     assert "clustering" in signalome_config
     assert "validation" in signalome_config
@@ -642,7 +655,7 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
     scale_guard = SignalomeClusteringRunner.summarize_scale_guard(
         config=resolved.execution_config,
         site_count=metadata.downstream_score_sites,
-        site_to_protein=resolved.site_to_protein,
+        site_to_protein_group_id=resolved.site_to_protein_group_id,
         downstream_score_kinases=metadata.downstream_score_kinases,
         clustering_result=clustering.clustering_result,
     )
@@ -770,8 +783,10 @@ def test_signalome_result_caveats_include_grouping_assumption() -> None:
     )
 
     assert caveat.severity == "info"
-    assert caveat.details["grouping_column"] == "protein_id"
+    assert caveat.details["grouping_column"] == "protein_group_id"
     assert caveat.details["grouping_source"] == "dataset.site_metadata.protein_id"
+    assert caveat.details["legacy_alias"] == "protein_id"
+    assert caveat.details["legacy_alias_used"] is True
     assert caveat.details["retained_signalome_site_count"] == 3
     assert caveat.details["unique_protein_group_count"] == 2
     assert caveat.details["multi_site_protein_group_count"] == 1
@@ -831,7 +846,7 @@ def test_signalome_duplicate_display_ids_remain_separate_by_site_key() -> None:
         ["P1", "P2"],
         index=site_index.copy(),
         dtype=object,
-        name="protein_id",
+        name="protein_group_id",
     )
     site_metadata = pd.DataFrame(
         {
@@ -846,7 +861,7 @@ def test_signalome_duplicate_display_ids_remain_separate_by_site_key() -> None:
     )
     module_assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         site_metadata=site_metadata,
     )
 

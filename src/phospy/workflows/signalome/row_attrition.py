@@ -9,6 +9,10 @@ import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
 from phospy.provenance.models import RowAttritionRecord, RowAttritionReport
+from phospy.science.signalomes.constants import (
+    LEGACY_PROTEIN_GROUP_ID_COLUMN,
+    PROTEIN_GROUP_ID_COLUMN,
+)
 from phospy.workflows._row_attrition import (
     make_row_attrition_record,
     reconcile_row_attrition_report,
@@ -53,7 +57,10 @@ def build_signalome_row_attrition_provenance(
     missing_sequence_ids = _missing_text_ids(site_metadata, "site_sequence")
     missing_localisation_ids = _missing_localisation_probability_ids(site_metadata)
     below_localisation_threshold_ids = _below_localisation_threshold_ids(request)
-    missing_protein_ids = _missing_text_ids(site_metadata, "protein_id")
+    protein_grouping_column = _signalome_grouping_column(site_metadata)
+    missing_protein_group_ids = _missing_text_ids(
+        site_metadata, protein_grouping_column
+    )
     preconditioning = request.score_preconditioning_diagnostics
     records = _causal_site_row_records(
         request=request,
@@ -70,7 +77,7 @@ def build_signalome_row_attrition_provenance(
         "sites_below_localisation_threshold": int(
             len(below_localisation_threshold_ids)
         ),
-        "sites_missing_protein_grouping_metadata": int(len(missing_protein_ids)),
+        "sites_missing_protein_grouping_metadata": int(len(missing_protein_group_ids)),
         "sites_removed_by_score_preconditioning": int(
             preconditioning.dropped_all_missing_row_count
         ),
@@ -80,7 +87,11 @@ def build_signalome_row_attrition_provenance(
             _examples(missing_localisation_ids)
         ),
         "site_examples_missing_protein_grouping_metadata": list(
-            _examples(missing_protein_ids)
+            _examples(missing_protein_group_ids)
+        ),
+        "protein_grouping_metadata_column": protein_grouping_column,
+        "protein_grouping_metadata_legacy_alias_used": (
+            protein_grouping_column == LEGACY_PROTEIN_GROUP_ID_COLUMN
         ),
     }
     return SignalomeRowAttritionProvenance(
@@ -179,6 +190,12 @@ def _missing_text_ids(site_metadata: pd.DataFrame, column_name: str) -> tuple[st
     values = site_metadata.loc[:, column_name]
     missing = values.isna() | (values.astype(str).str.strip() == "")
     return tuple(str(site_id) for site_id in site_metadata.index[missing].tolist())
+
+
+def _signalome_grouping_column(site_metadata: pd.DataFrame) -> str:
+    if PROTEIN_GROUP_ID_COLUMN in site_metadata.columns:
+        return PROTEIN_GROUP_ID_COLUMN
+    return LEGACY_PROTEIN_GROUP_ID_COLUMN
 
 
 def _index_values(index: pd.Index) -> tuple[str, ...]:

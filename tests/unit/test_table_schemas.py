@@ -133,7 +133,7 @@ def _site_metadata_frame(index: pd.Index) -> pd.DataFrame:
             "site_sequence": [
                 ("A" * 15) + site[0] + ("A" * 15) for _, site in parsed_display
             ],
-            "protein_id": [key.protein_identifier for key in decoded_keys],
+            "protein_group_id": [key.protein_identifier for key in decoded_keys],
         },
         index=index.copy(),
     )
@@ -162,7 +162,7 @@ def _site_membership_frame() -> pd.DataFrame:
             "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
             "site_id": ["MAPK14;Y182;", "AKT1;T308;"],
             "site": ["Y182", "T308"],
-            "protein_id": ["P28482", "P31749"],
+            "protein_group_id": ["P28482", "P31749"],
             "protein_accession": ["P28482", "P31749"],
             "isoform_id": ["", ""],
             "site_cluster": [1, pd.NA],
@@ -186,7 +186,7 @@ def _protein_site_context_frame() -> pd.DataFrame:
     )
     return pd.DataFrame(
         {
-            "protein_id": ["P28482"],
+            "protein_group_id": ["P28482"],
             "n_sites": [2],
             "site_ids": ['["MAPK14;Y182;","MAPK14;T185;"]'],
             "site_keys": [site_keys_json],

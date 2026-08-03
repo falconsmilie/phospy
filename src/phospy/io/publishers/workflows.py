@@ -579,8 +579,8 @@ def _alignment_diagnostics_payload(
             diagnostics.downstream_score_sites
         ),
         "kinases": _alignment_input_diagnostics_payload(diagnostics.kinases),
-        "protein_identifiers": _alignment_input_diagnostics_payload(
-            diagnostics.protein_identifiers
+        "protein_group_ids": _alignment_input_diagnostics_payload(
+            diagnostics.protein_group_ids
         ),
     }
 

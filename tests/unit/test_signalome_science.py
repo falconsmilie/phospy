@@ -30,7 +30,9 @@ def _with_site_identity(module_assignments: pd.DataFrame) -> pd.DataFrame:
     resolved.index = pd.Index(site_keys, name="site_key")
     resolved.loc[:, "site_key"] = site_keys
     resolved.loc[:, "display_id"] = site_keys
-    resolved.loc[:, "gene_symbol"] = resolved.loc[:, "protein_id"].astype(str).tolist()
+    resolved.loc[:, "gene_symbol"] = (
+        resolved.loc[:, "protein_group_id"].astype(str).tolist()
+    )
     resolved.loc[:, "site"] = site_keys
     resolved.loc[:, "protein_accession"] = ""
     resolved.loc[:, "isoform_id"] = ""
@@ -61,14 +63,14 @@ def _historical_baseline_build_signalome_module_table(
     )
 
     protein_to_module = (
-        module_assignments.loc[:, ["protein_id", "module_id"]]
-        .drop_duplicates(subset=["protein_id"])
-        .set_index("protein_id")
+        module_assignments.loc[:, ["protein_group_id", "module_id"]]
+        .drop_duplicates(subset=["protein_group_id"])
+        .set_index("protein_group_id")
         .loc[:, "module_id"]
         .astype("int64")
     )
     protein_to_module = protein_to_module.loc[protein_to_module > 0]
-    site_to_protein = module_assignments.loc[:, "protein_id"].astype(str)
+    site_to_protein = module_assignments.loc[:, "protein_group_id"].astype(str)
     site_to_protein.index = pd.Index(
         site_to_protein.index.astype(str),
         name="site_id",
@@ -110,7 +112,7 @@ def _historical_baseline_build_signalome_module_table(
 def test_build_signalome_module_table_matches_historical_baseline_semantics() -> None:
     module_assignments = pd.DataFrame(
         {
-            "protein_id": ["P1", "P1", "P2", "P3", "P4", "P5", "P6", "P3"],
+            "protein_group_id": ["P1", "P1", "P2", "P3", "P4", "P5", "P6", "P3"],
             "module_id": [1, 1, 2, 2, 0, 3, 3, 3],
         },
         index=pd.Index(
@@ -144,7 +146,7 @@ def test_build_signalome_module_table_weighted_top_propagates_fractional_support
 ):
     module_assignments = pd.DataFrame(
         {
-            "protein_id": ["P1", "P1", "P2", "P2"],
+            "protein_group_id": ["P1", "P1", "P2", "P2"],
             "module_id": [1, 1, 2, 2],
             "top_kinase_weights": [
                 (("K1", 0.5), ("K2", 0.5)),
@@ -713,7 +715,7 @@ def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> No
     module_assignments = _with_site_identity(
         pd.DataFrame(
             {
-                "protein_id": ["P1", "P2", "P3", "P4"],
+                "protein_group_id": ["P1", "P2", "P3", "P4"],
                 "module_id": [2, 1, 2, 3],
                 "top_kinase": ["K2", "K1", "K2", "K3"],
                 "top_score": [0.91, 0.93, 0.92, 0.88],
@@ -777,7 +779,7 @@ def test_build_expanded_signalome_table_weighted_top_uses_fractional_site_suppor
     module_assignments = _with_site_identity(
         pd.DataFrame(
             {
-                "protein_id": ["P1", "P1", "P2"],
+                "protein_group_id": ["P1", "P1", "P2"],
                 "module_id": [1, 1, 2],
                 "top_kinase": ["K1", "K1", "K2"],
                 "top_score": [0.95, 0.96, 0.92],
@@ -825,7 +827,7 @@ def test_build_expanded_signalome_table_emits_expected_shape_for_site_and_summar
     module_assignments = _with_site_identity(
         pd.DataFrame(
             {
-                "protein_id": ["P1", "P2"],
+                "protein_group_id": ["P1", "P2"],
                 "module_id": [1, 2],
                 "top_kinase": ["K1", "K2"],
                 "top_score": [0.9, 0.8],

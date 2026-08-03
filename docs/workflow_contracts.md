@@ -81,9 +81,10 @@ Important user-facing assumptions:
   plausible sequence evidence. It is not by itself workflow-ready sequence
   context; sequence-aware workflows may require stricter centered window
   contracts before execution.
-- `protein_id` is optional at the base dataset boundary, but signalome requires
-  complete non-empty values for interpreted sites as workflow-specific grouping
-  metadata. It does not replace the core `protein_namespace` and
+- `protein_group_id` is Signalome-owned grouping metadata. It is optional at
+  the base dataset boundary, but Signalome requires complete non-empty values
+  for interpreted sites. Legacy `protein_id` is accepted only as a migration
+  alias. Neither name replaces the core `protein_namespace` and
   `protein_identifier` protein identity fields.
 
 `DatasetPreprocessingConfig` owns transforms, normalisation, missing-data
@@ -308,14 +309,20 @@ Important user-facing assumptions:
 - Signalome enforces centered phosphosite sequence context for sequence-aware
   upstream identity, including an `S/T/Y` center residue matched to the site, but
   it does not apply the fixed Kinase Library motif-window contract.
-- Complete non-empty `dataset.site_metadata.protein_id` values are required for
-  interpreted sites as signalome-specific protein grouping metadata. Signalome
-  uses this field to group retained phosphosites into protein-level module and
-  protein-site context summaries; it is not core protein identity.
+- Complete non-empty `dataset.site_metadata.protein_group_id` values are
+  required for interpreted sites as Signalome-specific protein grouping
+  metadata. Legacy `dataset.site_metadata.protein_id` is accepted only as a
+  migration alias and conflicts are rejected. Signalome uses this field to group
+  retained phosphosites into protein-level module and protein-site context
+  summaries; it is not core protein identity.
 - Core protein identity remains the upstream dataset's `organism`,
   `protein_namespace`, and `protein_identifier` metadata under the `site_key`
-  row identity contract. Signalome does not infer `protein_id` from
+  row identity contract. Signalome does not infer `protein_group_id` from
   `gene_symbol` or `display_id`.
+- `SignalomeConfig.production()` is the recommended preset and default mode. It
+  enforces production localisation and network paired-observation minimums.
+  `SignalomeConfig.compatibility()` is the explicitly named exploratory
+  compatibility preset for legacy-scale behavior.
 - Module and network outputs are derived summaries, not causal proof.
 - `candidate_scoring_policy="sampled"` approximates candidate module-count
   scoring only. It is not a general bypass for all signalome scale limits.
@@ -337,7 +344,7 @@ absent from the final result. Removed identifiers are represented only by a
 capped deterministic sample. `row_attrition_metrics` remains available for
 compatibility diagnostics, including site/kinase-pair attrition, but pair loss
 is not encoded as site-row loss. Invalid preconditions such as missing
-`site_sequence`, required localisation metadata, or signalome `protein_id`
+`site_sequence`, required localisation metadata, or signalome `protein_group_id`
 grouping metadata fail validation before execution rather than producing
 synthetic attrition records.
 

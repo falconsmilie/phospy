@@ -36,6 +36,10 @@ from phospy.science.signalomes.clustering.scientific_policies import (
     SignalomeMissingValueClusteringPolicy,
     build_signalome_module_candidate_score_policy,
 )
+from phospy.science.signalomes.constants import (
+    LEGACY_PROTEIN_GROUP_ID_COLUMN,
+    PROTEIN_GROUP_ID_COLUMN,
+)
 from phospy.science.signalomes.models import (
     SignalomeClusteringPreparationDiagnostics,
     SignalomeModuleSelectionAssignmentSimilaritySummary,
@@ -221,6 +225,10 @@ def _build_workflow_parameters(
     )
     payload.update(
         {
+            "signalome_mode": str(config.mode),
+            "signalome_grouping_identity": (
+                _build_signalome_grouping_identity_payload(request)
+            ),
             "site_token_validation": _build_site_token_validation_payload(request),
             "signalome_config": _build_signalome_config_payload(
                 config=config,
@@ -268,6 +276,33 @@ def _build_site_token_validation_payload(
             if request.dataset.opaque_site_values_allowed
             else "strict_sty_residue_position"
         )
+    }
+
+
+def _build_signalome_grouping_identity_payload(
+    request: ResolvedSignalomeWorkflowRequest,
+) -> dict[str, object]:
+    site_metadata = request.dataset.site_metadata
+    source_column = None
+    if PROTEIN_GROUP_ID_COLUMN in site_metadata.columns:
+        source_column = PROTEIN_GROUP_ID_COLUMN
+    elif LEGACY_PROTEIN_GROUP_ID_COLUMN in site_metadata.columns:
+        source_column = LEGACY_PROTEIN_GROUP_ID_COLUMN
+    return {
+        "domain": "signalome",
+        "grouping_column": PROTEIN_GROUP_ID_COLUMN,
+        "source_column": source_column,
+        "legacy_alias_used": source_column == LEGACY_PROTEIN_GROUP_ID_COLUMN,
+        "legacy_alias": LEGACY_PROTEIN_GROUP_ID_COLUMN,
+        "core_identity_fields": [
+            "organism",
+            "protein_namespace",
+            "protein_identifier",
+        ],
+        "meaning": (
+            "Signalome grouping identity for protein-level module and "
+            "protein-site context summaries; not core protein identity"
+        ),
     }
 
 
@@ -422,6 +457,7 @@ def _build_signalome_config_payload(
     clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics,
 ) -> dict[str, object]:
     return {
+        "mode": str(config.mode),
         "scientific": {
             "substrate_support_cutoff": float(config.substrate_support_cutoff),
             "assignment_policy": str(config.assignment_policy),
@@ -456,6 +492,17 @@ def _build_signalome_config_payload(
             "reference_context_compatibility_policy": str(
                 config.reference_context_compatibility_policy
             ),
+            "localisation_requirement": {
+                "require_present": bool(
+                    config.localisation_requirement.require_present
+                ),
+                "minimum_probability": (
+                    None
+                    if config.localisation_requirement.minimum_probability is None
+                    else float(config.localisation_requirement.minimum_probability)
+                ),
+                "policy": str(config.localisation_requirement.policy),
+            },
         },
         "output": {
             "network_correlation_threshold": float(

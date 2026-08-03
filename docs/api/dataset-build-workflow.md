@@ -89,7 +89,7 @@ from phospy.api import (
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
-| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index` at ingestion. The analysis-ready boundary requires `site_key`, `display_id`, `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and `site_sequence`. Builder input may omit `site_key` only when it includes enough protein context, preferably `protein_identifier` plus `protein_namespace`, to derive it. `protein_id` is additionally required for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
+| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index` at ingestion. The analysis-ready boundary requires `site_key`, `display_id`, `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and `site_sequence`. Builder input may omit `site_key` only when it includes enough protein context, preferably `protein_identifier` plus `protein_namespace`, to derive it. `protein_group_id` is additionally required for Signalome grouping; legacy `protein_id` is accepted by Signalome only as a migration alias. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns with unique column names. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
@@ -170,7 +170,7 @@ site_metadata = pd.DataFrame(
         "organism": ["rat", "rat"],
         "protein_namespace": ["protein_id", "protein_id"],
         "protein_identifier": ["TSC2", "GSK3B"],
-        "protein_id": ["TSC2", "GSK3B"],
+        "protein_group_id": ["TSC2", "GSK3B"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
@@ -214,7 +214,7 @@ site_metadata = pd.DataFrame(
         "organism": ["rat", "rat"],
         "protein_namespace": ["protein_id", "protein_id"],
         "protein_identifier": ["MAPK14_A", "MAPK14_B"],
-        "protein_id": ["MAPK14_A", "MAPK14_B"],
+        "protein_group_id": ["MAPK14_A", "MAPK14_B"],
         "localisation_confidence": [0.95, 0.95],
     },
     index=phospho.index.copy(),
@@ -250,8 +250,8 @@ Supported site-metadata aliases are deliberately narrow:
 - `centralized_sequence` may stand in for `site_sequence`.
 
 The builder may derive `gene_symbol` and `site` from index values formatted like
-`MAPK14;Y182;`. It does not derive `protein_id` or any protein-scoped identity
-from the gene-symbol prefix.
+`MAPK14;Y182;`. It does not derive `protein_group_id`, `protein_id`, or any
+protein-scoped identity from the gene-symbol prefix.
 
 Protein context is used to derive `site_key` when it is available and safe.
 `display_id` remains metadata and may repeat after `site_key` becomes the row
@@ -586,7 +586,7 @@ site_metadata = pd.DataFrame(
         "organism": ["rat", "rat", "rat"],
         "protein_namespace": ["protein_id", "protein_id", "protein_id"],
         "protein_identifier": ["MAPK14", "AKT1", "SRC"],
-        "protein_id": ["MAPK14", "AKT1", "SRC"],
+        "protein_group_id": ["MAPK14", "AKT1", "SRC"],
         "localisation_confidence": [0.95, 0.92, 0.98],
     },
     index=phospho.index.copy(),
@@ -1171,7 +1171,7 @@ site_metadata = pd.DataFrame(
         "organism": ["rat", "rat"],
         "protein_namespace": ["protein_id", "protein_id"],
         "protein_identifier": ["TSC2", "GSK3B"],
-        "protein_id": ["TSC2", "GSK3B"],
+        "protein_group_id": ["TSC2", "GSK3B"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),

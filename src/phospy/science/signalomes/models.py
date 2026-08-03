@@ -261,7 +261,7 @@ class SignalomeAlignmentInputDiagnostics:
     dropped_reasons: dict[str, int] = field(default_factory=dict)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class SignalomeAlignmentDiagnostics:
     """Structured alignment diagnostics across signalome scientific inputs."""
 
@@ -269,7 +269,44 @@ class SignalomeAlignmentDiagnostics:
     prediction_score_sites: SignalomeAlignmentInputDiagnostics
     downstream_score_sites: SignalomeAlignmentInputDiagnostics
     kinases: SignalomeAlignmentInputDiagnostics
-    protein_identifiers: SignalomeAlignmentInputDiagnostics
+    protein_group_ids: SignalomeAlignmentInputDiagnostics
+
+    def __init__(
+        self,
+        *,
+        dataset_sites: SignalomeAlignmentInputDiagnostics,
+        prediction_score_sites: SignalomeAlignmentInputDiagnostics,
+        downstream_score_sites: SignalomeAlignmentInputDiagnostics,
+        kinases: SignalomeAlignmentInputDiagnostics,
+        protein_group_ids: SignalomeAlignmentInputDiagnostics | None = None,
+        protein_identifiers: SignalomeAlignmentInputDiagnostics | None = None,
+    ) -> None:
+        """Create diagnostics, accepting legacy protein_identifiers alias."""
+
+        if protein_group_ids is None:
+            if protein_identifiers is None:
+                raise TypeError(
+                    "SignalomeAlignmentDiagnostics requires protein_group_ids"
+                )
+            protein_group_ids = protein_identifiers
+        elif (
+            protein_identifiers is not None and protein_identifiers != protein_group_ids
+        ):
+            raise ValueError(
+                "SignalomeAlignmentDiagnostics received conflicting "
+                "protein_group_ids and legacy protein_identifiers diagnostics"
+            )
+        object.__setattr__(self, "dataset_sites", dataset_sites)
+        object.__setattr__(self, "prediction_score_sites", prediction_score_sites)
+        object.__setattr__(self, "downstream_score_sites", downstream_score_sites)
+        object.__setattr__(self, "kinases", kinases)
+        object.__setattr__(self, "protein_group_ids", protein_group_ids)
+
+    @property
+    def protein_identifiers(self) -> SignalomeAlignmentInputDiagnostics:
+        """Legacy alias for Signalome protein grouping diagnostics."""
+
+        return self.protein_group_ids
 
 
 @dataclass(frozen=True, slots=True)
@@ -360,7 +397,7 @@ def default_signalome_alignment_diagnostics() -> SignalomeAlignmentDiagnostics:
         prediction_score_sites=_empty(),
         downstream_score_sites=_empty(),
         kinases=_empty(),
-        protein_identifiers=_empty(),
+        protein_group_ids=_empty(),
     )
 
 

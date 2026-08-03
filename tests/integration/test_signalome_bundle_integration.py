@@ -257,7 +257,15 @@ def test_signalome_bundle_manifest_v2_is_explicit_and_content_addressed(
     assert provenance["workflow_name"] == "signalome_workflow"
     assert provenance["environment"]["package_name"] == "phospy"
     assert "signalome_config" in provenance["workflow_parameters"]
+    assert (
+        provenance["workflow_parameters"]["signalome_mode"]
+        == "exploratory_compatibility"
+    )
+    grouping_identity = provenance["workflow_parameters"]["signalome_grouping_identity"]
+    assert grouping_identity["grouping_column"] == "protein_group_id"
+    assert grouping_identity["legacy_alias"] == "protein_id"
     signalome_config = provenance["workflow_parameters"]["signalome_config"]
+    assert signalome_config["mode"] == "exploratory_compatibility"
     assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
     assert (
         signalome_config["validation"]["score_preconditioning_policy"]

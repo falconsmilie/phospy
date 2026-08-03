@@ -44,7 +44,10 @@ from phospy.io.bundles._signalome.diagnostics import (
     signalome_score_preconditioning_diagnostics_from_payload,
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
-from phospy.io.bundles._signalome.tables import normalize_module_assignments_table
+from phospy.io.bundles._signalome.tables import (
+    migrate_signalome_protein_group_id_column,
+    normalize_module_assignments_table,
+)
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.science.activities.models import KinaseActivityResult
@@ -52,6 +55,10 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
+from phospy.science.signalomes.constants import (
+    LEGACY_PROTEIN_GROUP_ID_COLUMN,
+    PROTEIN_GROUP_ID_COLUMN,
+)
 from phospy.science.signalomes.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
 from phospy.science.signalomes.models import (
     KinaseNetwork,
@@ -99,13 +106,34 @@ class _SignalomeOptionalTables:
 def _normalize_site_metadata_for_dataset_contract(
     site_metadata: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Repair CSV round-trip site_key column drift for valid site_key indexes."""
+    """Repair CSV drift for valid site_key indexes."""
 
     normalized = site_metadata.copy(deep=True)
     if "site_key" not in normalized.columns and "site_key.1" in normalized.columns:
         normalized = normalized.rename(columns={"site_key.1": "site_key"})
     if "site_key" not in normalized.columns and normalized.index.name == "site_key":
         normalized.loc[:, "site_key"] = normalized.index.astype(str).tolist()
+    if (
+        PROTEIN_GROUP_ID_COLUMN in normalized.columns
+        and LEGACY_PROTEIN_GROUP_ID_COLUMN in normalized.columns
+    ):
+        current = (
+            normalized.loc[:, PROTEIN_GROUP_ID_COLUMN]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+        legacy = (
+            normalized.loc[:, LEGACY_PROTEIN_GROUP_ID_COLUMN]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+        if bool(current.ne(legacy).any()):
+            raise PhosPyInputError(
+                "bundle dataset site_metadata has conflicting Signalome grouping "
+                "columns protein_group_id and legacy protein_id"
+            )
     return normalized
 
 
@@ -767,6 +795,10 @@ def _read_site_membership_table(
             .astype(str)
         )
     if site_membership is not None:
+        site_membership = migrate_signalome_protein_group_id_column(
+            site_membership,
+            field_name="bundle manifest.signalome_outputs.tables.site_membership",
+        )
         site_membership = _normalize_optional_string_columns(
             site_membership,
             columns=(
@@ -775,7 +807,7 @@ def _read_site_membership_table(
                 "site_id",
                 "gene_symbol",
                 "site",
-                "protein_id",
+                "protein_group_id",
                 "protein_accession",
                 "isoform_id",
                 "top_kinase",
@@ -797,10 +829,16 @@ def _read_protein_site_context_table(
         field_name="bundle manifest.signalome_outputs.tables.protein_site_context",
     )
     if protein_site_context is not None:
+        protein_site_context = migrate_signalome_protein_group_id_column(
+            protein_site_context,
+            field_name=(
+                "bundle manifest.signalome_outputs.tables.protein_site_context"
+            ),
+        )
         protein_site_context = _normalize_optional_string_columns(
             protein_site_context,
             columns=(
-                "protein_id",
+                "protein_group_id",
                 "gene_symbol",
                 "site",
                 "protein_accession",
@@ -829,6 +867,10 @@ def _read_expanded_signalome_table(
         field_name="bundle manifest.signalome_outputs.tables.expanded_signalome",
     )
     if expanded_signalome is not None:
+        expanded_signalome = migrate_signalome_protein_group_id_column(
+            expanded_signalome,
+            field_name="bundle manifest.signalome_outputs.tables.expanded_signalome",
+        )
         expanded_signalome = _normalize_optional_string_columns(
             expanded_signalome,
             columns=(
@@ -837,7 +879,7 @@ def _read_expanded_signalome_table(
                 "site_id",
                 "gene_symbol",
                 "site",
-                "protein_id",
+                "protein_group_id",
                 "protein_accession",
                 "isoform_id",
                 "top_kinase",

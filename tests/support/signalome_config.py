@@ -7,6 +7,7 @@ from phospy.api.configs import (
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
@@ -19,6 +20,7 @@ from phospy.api.configs import (
     SignalomeClusteringEngine,
     SignalomeConfig,
     SignalomeKinaseNetworkPolicy,
+    SignalomeMode,
     SignalomeOutputConfig,
     SignalomePerformanceConfig,
     SignalomeScientificConfig,
@@ -60,6 +62,7 @@ def build_signalome_config(
     clustering_engine: SignalomeClusteringEngine = (
         SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     ),
+    mode: SignalomeMode = SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
 ) -> SignalomeConfig:
     return SignalomeConfig(
         scientific=SignalomeScientificConfig(
@@ -103,4 +106,5 @@ def build_signalome_config(
             max_exact_tree_sites=max_exact_tree_sites,
             max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
         ),
+        mode=mode,
     )

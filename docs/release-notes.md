@@ -70,9 +70,10 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   sample-metadata rejection, duplicate site-key resolution policies,
   DataFrame/payload snapshot helper constraints, and output-table identity
   checks.
-- `protein_id` is optional source/workflow metadata at the base dataset
-  boundary. Completeness is enforced only by workflows that require protein
-  grouping, such as signalome.
+- `protein_group_id` is Signalome-owned grouping metadata. It is optional at
+  the base dataset boundary, and Signalome enforces completeness when it needs
+  protein grouping. Legacy `protein_id` remains a migration alias for that
+  Signalome field.
 - Workflow API docs were split into dedicated kinase, differential, signalome,
   and enrichment pages. README, quickstart, examples, MkDocs navigation,
   maintenance docs, scientific-scope docs, and testing audit assets were

@@ -25,7 +25,7 @@ They intentionally keep the story small:
 - `phospy.api` for requests and enums
 - explicit protein context (`organism`, `protein_namespace`, and
   `protein_identifier`) so the builder can derive `site_key`
-- explicit `protein_id` where the signalome lane needs it
+- explicit `protein_group_id` where the signalome lane needs grouping metadata
 - output tables that expose `site_key`, `display_id`, `gene_symbol`, `site`, and
   protein-context metadata
 - explicit reporting of both numeric scale and quantitative meaning (for example, `log2` with `phosphosite_log_abundance`)

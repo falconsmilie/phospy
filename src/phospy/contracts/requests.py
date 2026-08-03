@@ -188,7 +188,9 @@ class SignalomeWorkflowRequest:
     interpretation or execution.
 
     Signalome execution requires explicit protein grouping metadata per
-    interpreted site via ``dataset.site_metadata.protein_id``.
+    interpreted site via ``dataset.site_metadata.protein_group_id``. The legacy
+    ``dataset.site_metadata.protein_id`` column is accepted only as a migration
+    alias.
     """
 
     kinase_result: KinaseWorkflowResult

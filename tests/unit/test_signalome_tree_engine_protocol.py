@@ -79,7 +79,7 @@ def test_exact_and_scipy_tree_engines_produce_equivalent_partitions() -> None:
 def test_shared_orchestration_runs_with_either_tree_engine() -> None:
     request = SignalomeClusteringEngineRequest(
         scoring_matrix=_scoring_matrix(),
-        site_to_protein=_site_to_protein(),
+        site_to_protein_group_id=_site_to_protein(),
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,

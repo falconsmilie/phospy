@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import ast
 
+from phospy.errors.input import PhosPyInputError
+from phospy.science.signalomes.constants import (
+    LEGACY_PROTEIN_GROUP_ID_COLUMN,
+    PROTEIN_GROUP_ID_COLUMN,
+)
+
 
 def normalize_module_assignments_table(table):
     """Normalize tuple/list/dict-serialized signalome assignment fields."""
 
     normalized = table.copy(deep=True)
     normalized = _normalize_current_site_key_column(normalized)
+    normalized = migrate_signalome_protein_group_id_column(
+        normalized,
+        field_name="bundle signalome module_assignments",
+    )
     normalized = _normalize_string_columns(normalized)
     candidate_columns = [
         str(column)
@@ -38,6 +48,42 @@ def normalize_module_assignments_table(table):
     return normalized
 
 
+def migrate_signalome_protein_group_id_column(table, *, field_name: str):
+    """Migrate legacy Signalome grouping column name to protein_group_id."""
+
+    has_current = PROTEIN_GROUP_ID_COLUMN in table.columns
+    has_legacy = LEGACY_PROTEIN_GROUP_ID_COLUMN in table.columns
+    if has_current and has_legacy:
+        current = (
+            table.loc[:, PROTEIN_GROUP_ID_COLUMN].fillna("").astype(str).str.strip()
+        )
+        legacy = (
+            table.loc[:, LEGACY_PROTEIN_GROUP_ID_COLUMN]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+        mismatch_mask = current.ne(legacy)
+        if bool(mismatch_mask.any()):
+            mismatch_rows = [
+                str(row_id)
+                for row_id in table.index[mismatch_mask.to_numpy()].astype(str).tolist()
+            ]
+            preview = ", ".join(mismatch_rows[:5])
+            suffix = "" if len(mismatch_rows) <= 5 else " ..."
+            raise PhosPyInputError(
+                f"{field_name} has conflicting Signalome grouping columns "
+                "protein_group_id and legacy protein_id; "
+                f"mismatch_rows=[{preview}{suffix}]"
+            )
+        return table.drop(columns=[LEGACY_PROTEIN_GROUP_ID_COLUMN])
+    if has_current or not has_legacy:
+        return table
+    return table.rename(
+        columns={LEGACY_PROTEIN_GROUP_ID_COLUMN: PROTEIN_GROUP_ID_COLUMN}
+    )
+
+
 def _normalize_current_site_key_column(table):
     if "site_key" in table.columns or "site_key.1" not in table.columns:
         return table
@@ -52,7 +98,7 @@ def _normalize_string_columns(table):
         "display_id",
         "gene_symbol",
         "site",
-        "protein_id",
+        "protein_group_id",
         "protein_accession",
         "isoform_id",
         "top_kinase",

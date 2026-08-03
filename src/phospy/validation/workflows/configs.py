@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from phospy.contracts.configs import (
+    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+    SIGNALOME_MODE_PRODUCTION,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -95,6 +98,35 @@ class SignalomeConfigValidator:
                 "threshold 2 remain readable, but replay/re-execution must migrate "
                 "to config.output.network_min_paired_finite_observations >= 3."
             )
+        if config.mode == SIGNALOME_MODE_PRODUCTION:
+            effective_minimum = (
+                SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+                if network_minimum is None
+                else int(network_minimum)
+            )
+            if (
+                effective_minimum
+                < SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+            ):
+                raise WorkflowValidationError(
+                    "signalome workflow request config.mode='production' requires "
+                    "config.output.network_min_paired_finite_observations to "
+                    "resolve to at least "
+                    f"{SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT}; "
+                    f"got {effective_minimum}"
+                )
+            localisation = config.validation.localisation_requirement
+            if (
+                not localisation.require_present
+                or localisation.minimum_probability is None
+                or float(localisation.minimum_probability)
+                < LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY
+            ):
+                raise WorkflowValidationError(
+                    "signalome workflow request config.mode='production' requires "
+                    "site-level localisation with minimum_probability >= "
+                    f"{LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY}"
+                )
         return config
 
 

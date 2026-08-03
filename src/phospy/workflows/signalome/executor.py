@@ -94,7 +94,7 @@ class SignalomeWorkflowExecutor:
         scale_guard_decision = SignalomeClusteringRunner.summarize_scale_guard(
             config=config,
             site_count=execution_metadata.downstream_score_sites,
-            site_to_protein=request.site_to_protein,
+            site_to_protein_group_id=request.site_to_protein_group_id,
             downstream_score_kinases=execution_metadata.downstream_score_kinases,
             clustering_result=clustering_stage.clustering_result,
         )

@@ -375,9 +375,10 @@ Current classification:
 - Explicit localisation requirements are validation preconditions for kinase
   and signalome. Missing or below-threshold localisation metadata fails before
   execution when the workflow contract requires it.
-- Signalome `protein_id` grouping metadata is required by the signalome
-  validator. Missing grouping metadata is not inferred as a later execution
-  filter.
+- Signalome `protein_group_id` grouping metadata is required by the Signalome
+  validator. Legacy `protein_id` is accepted only as a migration alias. Missing
+  grouping metadata is not inferred as a later execution filter, and core
+  `protein_identifier` identity is not reinterpreted as grouping identity.
 - Kinase reference/resource overlap is required for profile-dependent modes,
   but motif-only kinase scoring does not require substrate-reference overlap
   and must not emit a reference-overlap site-row record.

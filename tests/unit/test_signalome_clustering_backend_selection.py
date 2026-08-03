@@ -88,7 +88,7 @@ def test_backend_selection_rejects_unsupported_backend_name() -> None:
 def test_run_signalome_clustering_engine_defaults_to_scipy_backend() -> None:
     result = run_signalome_clustering_engine(
         scoring_matrix=_small_scoring_matrix(),
-        site_to_protein=_small_site_to_protein(),
+        site_to_protein_group_id=_small_site_to_protein(),
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
@@ -108,7 +108,7 @@ def test_exact_backend_result_surfaces_limit_threshold_and_backend_diagnostics()
 ):
     result = run_signalome_clustering_engine(
         scoring_matrix=_small_scoring_matrix(),
-        site_to_protein=_small_site_to_protein(),
+        site_to_protein_group_id=_small_site_to_protein(),
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
@@ -140,7 +140,7 @@ def test_scipy_backend_matches_exact_backend_for_small_deterministic_fixture() -
     site_to_protein = _small_site_to_protein()
     exact = run_signalome_clustering_engine(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
@@ -149,7 +149,7 @@ def test_scipy_backend_matches_exact_backend_for_small_deterministic_fixture() -
     )
     scipy_backend = run_signalome_clustering_engine(
         scoring_matrix=scoring_matrix,
-        site_to_protein=site_to_protein,
+        site_to_protein_group_id=site_to_protein,
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
@@ -180,7 +180,7 @@ def test_scipy_backend_matches_exact_backend_for_small_deterministic_fixture() -
 def test_backend_is_stable_across_repeated_runs(backend_name: str) -> None:
     kwargs = {
         "scoring_matrix": _small_scoring_matrix(),
-        "site_to_protein": _small_site_to_protein(),
+        "site_to_protein_group_id": _small_site_to_protein(),
         "requested_module_count": None,
         "primary_threshold": 0.5,
         "fallback_threshold": 0.1,
@@ -200,7 +200,7 @@ def test_backend_is_stable_across_repeated_runs(backend_name: str) -> None:
 def test_exact_backend_result_is_not_contaminated_by_prior_scipy_run() -> None:
     kwargs = {
         "scoring_matrix": _small_scoring_matrix(),
-        "site_to_protein": _small_site_to_protein(),
+        "site_to_protein_group_id": _small_site_to_protein(),
         "requested_module_count": None,
         "primary_threshold": 0.5,
         "fallback_threshold": 0.1,
@@ -256,7 +256,7 @@ def test_scipy_backend_run_does_not_call_exact_orchestration(
 
     run_signalome_clustering_engine(
         scoring_matrix=_small_scoring_matrix(),
-        site_to_protein=_small_site_to_protein(),
+        site_to_protein_group_id=_small_site_to_protein(),
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
@@ -281,7 +281,7 @@ def test_backend_rejects_requested_module_count_above_available_sites(
     with pytest.raises(SignalomeModuleCountValidationError) as exc_info:
         run_signalome_clustering_engine(
             scoring_matrix=_small_scoring_matrix(),
-            site_to_protein=_small_site_to_protein(),
+            site_to_protein_group_id=_small_site_to_protein(),
             requested_module_count=10,
             primary_threshold=0.5,
             fallback_threshold=0.1,
@@ -311,7 +311,7 @@ def test_backend_rejects_non_positive_requested_module_count(
     with pytest.raises(SignalomeModuleCountValidationError):
         run_signalome_clustering_engine(
             scoring_matrix=_small_scoring_matrix(),
-            site_to_protein=_small_site_to_protein(),
+            site_to_protein_group_id=_small_site_to_protein(),
             requested_module_count=requested_module_count,
             primary_threshold=0.5,
             fallback_threshold=0.1,

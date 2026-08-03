@@ -9,8 +9,11 @@ from phospy.contracts.configs import (
     SIGNALOME_CANDIDATE_SCORING_POLICIES,
     SIGNALOME_CLUSTERING_ENGINES,
     SIGNALOME_KINASE_NETWORK_POLICIES,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    SIGNALOME_MODES,
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
+    LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
@@ -34,9 +37,11 @@ from phospy.io.bundles._signalome.primitives import (
 )
 
 _SIGNALOME_CONFIG_ALLOWED_FIELDS = frozenset(
+    {"mode", "scientific", "clustering", "validation", "output", "performance"}
+)
+_SIGNALOME_CONFIG_REQUIRED_FIELDS = frozenset(
     {"scientific", "clustering", "validation", "output", "performance"}
 )
-_SIGNALOME_CONFIG_REQUIRED_FIELDS = _SIGNALOME_CONFIG_ALLOWED_FIELDS
 
 _SCIENTIFIC_ALLOWED_FIELDS = frozenset(
     {"substrate_support_cutoff", "assignment_policy"}
@@ -60,9 +65,20 @@ _VALIDATION_ALLOWED_FIELDS = frozenset(
         "score_preconditioning_policy",
         "allow_mixed_total_protein_quantitative_meaning",
         "reference_context_compatibility_policy",
+        "localisation_requirement",
     }
 )
-_VALIDATION_REQUIRED_FIELDS = _VALIDATION_ALLOWED_FIELDS
+_VALIDATION_REQUIRED_FIELDS = frozenset(
+    {
+        "score_preconditioning_policy",
+        "allow_mixed_total_protein_quantitative_meaning",
+        "reference_context_compatibility_policy",
+    }
+)
+_LOCALISATION_REQUIREMENT_ALLOWED_FIELDS = frozenset(
+    {"require_present", "minimum_probability"}
+)
+_LOCALISATION_REQUIREMENT_REQUIRED_FIELDS = _LOCALISATION_REQUIREMENT_ALLOWED_FIELDS
 
 _OUTPUT_ALLOWED_FIELDS = frozenset(
     {
@@ -110,6 +126,10 @@ def signalome_config_from_payload(
         payload,
         field_name=config_field_name,
         required_fields=_SIGNALOME_CONFIG_REQUIRED_FIELDS,
+    )
+    mode = _parse_signalome_mode(
+        payload.get("mode"),
+        field_name=f"{scope}.signalome_config.mode",
     )
 
     scientific_payload = require_mapping(
@@ -229,6 +249,10 @@ def signalome_config_from_payload(
             f"{scope}.signalome_config.validation.score_preconditioning_policy "
             f"must be one of: {allowed}"
         )
+    localisation_requirement = _parse_localisation_requirement(
+        validation_payload.get("localisation_requirement"),
+        field_name=f"{scope}.signalome_config.validation.localisation_requirement",
+    )
 
     output_payload = require_mapping(
         payload.get("output"),
@@ -321,6 +345,7 @@ def signalome_config_from_payload(
         ),
         validation=SignalomeValidationConfig(
             score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
+            localisation_requirement=localisation_requirement,
             allow_mixed_total_protein_quantitative_meaning=(
                 allow_mixed_total_protein_quantitative_meaning
             ),
@@ -348,6 +373,52 @@ def signalome_config_from_payload(
         performance=SignalomePerformanceConfig(
             max_exact_tree_sites=max_exact_tree_sites,
             max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
+        ),
+        mode=mode,  # type: ignore[arg-type]
+    )
+
+
+def _parse_signalome_mode(value: object, *, field_name: str) -> str:
+    if value is None:
+        return SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY
+    mode = require_str(value, field_name=field_name)
+    if mode not in SIGNALOME_MODES:
+        allowed = ", ".join(sorted(SIGNALOME_MODES))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return mode
+
+
+def _parse_localisation_requirement(
+    value: object,
+    *,
+    field_name: str,
+) -> LocalisationRequirement:
+    if value is None:
+        return LocalisationRequirement()
+    payload = require_mapping(value, field_name=field_name)
+    _reject_unsupported_fields(
+        payload,
+        field_name=field_name,
+        allowed_fields=_LOCALISATION_REQUIREMENT_ALLOWED_FIELDS,
+    )
+    _require_fields(
+        payload,
+        field_name=field_name,
+        required_fields=_LOCALISATION_REQUIREMENT_REQUIRED_FIELDS,
+    )
+    minimum_probability = payload.get("minimum_probability")
+    return LocalisationRequirement(
+        require_present=require_bool(
+            payload.get("require_present"),
+            field_name=f"{field_name}.require_present",
+        ),
+        minimum_probability=(
+            None
+            if minimum_probability is None
+            else require_float(
+                minimum_probability,
+                field_name=f"{field_name}.minimum_probability",
+            )
         ),
     )
 

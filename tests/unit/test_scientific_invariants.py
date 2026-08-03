@@ -568,12 +568,12 @@ def test_signalome_module_assignments_are_row_order_invariant_by_site_identity()
 
     base = build_module_assignments(
         prediction_matrix=prediction,
-        site_to_protein=proteins,
+        site_to_protein_group_id=proteins,
         site_metadata=site_metadata,
     )
     reordered = build_module_assignments(
         prediction_matrix=reordered_prediction,
-        site_to_protein=reordered_proteins,
+        site_to_protein_group_id=reordered_proteins,
         site_metadata=site_metadata,
     )
 

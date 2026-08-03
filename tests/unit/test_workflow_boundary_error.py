@@ -252,9 +252,10 @@ def test_signalome_validator_rejects_missing_required_site_metadata_column() -> 
         SignalomeWorkflowValidator().run(request)
 
     message = str(exc_info.value)
-    assert "is missing required columns: protein_id" in message
+    assert "is missing required columns: protein_group_id" in message
     assert "signalome protein grouping metadata requirement failed" in message
-    assert "dataset.site_metadata.protein_id" in message
+    assert "dataset.site_metadata.protein_group_id" in message
+    assert "legacy dataset.site_metadata.protein_id" in message
     assert "identity requirement failed" not in message
 
 

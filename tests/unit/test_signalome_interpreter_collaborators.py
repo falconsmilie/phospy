@@ -291,7 +291,7 @@ def test_score_preconditioner_rejects_infinite_values() -> None:
     assert error.details["infinite_score_entries"] == 1
 
 
-def test_protein_resolver_maps_retained_sites_to_explicit_protein_ids() -> None:
+def test_protein_resolver_maps_retained_sites_to_explicit_protein_group_ids() -> None:
     resolver = SignalomeProteinResolver()
     dataset = _dataset(
         site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
@@ -306,7 +306,7 @@ def test_protein_resolver_maps_retained_sites_to_explicit_protein_ids() -> None:
 
     assert resolved.index.tolist() == _site_keys(["P3;S3;", "P1;S1;"])
     assert resolved.tolist() == ["PROT3", "PROT1"]
-    assert resolved.name == "protein_id"
+    assert resolved.name == "protein_group_id"
 
 
 def test_alignment_diagnostics_builder_reports_expected_counts_and_reasons() -> None:
@@ -346,9 +346,9 @@ def test_alignment_diagnostics_builder_reports_expected_counts_and_reasons() -> 
         "missing_from_downstream_scores": 1,
         "missing_kinase_support": 0,
     }
-    assert diagnostics.protein_identifiers.dropped_reasons == {
+    assert diagnostics.protein_group_ids.dropped_reasons == {
         "removed_by_score_preconditioning": 1,
-        "missing_protein_identifier": 0,
+        "missing_protein_group_id": 0,
         "removed_by_validation_policy": 0,
     }
 
@@ -392,8 +392,8 @@ def test_interpreter_run_preserves_expected_interpreted_output_for_valid_fixture
     retained_site_keys = _site_keys(["P1;S1;", "P3;S3;"])
     assert interpreted.downstream_score_matrix.index.tolist() == retained_site_keys
     assert interpreted.prediction_matrix.index.tolist() == retained_site_keys
-    assert interpreted.site_to_protein.index.tolist() == retained_site_keys
-    assert interpreted.site_to_protein.tolist() == ["PROT1", "PROT3"]
+    assert interpreted.site_to_protein_group_id.index.tolist() == retained_site_keys
+    assert interpreted.site_to_protein_group_id.tolist() == ["PROT1", "PROT3"]
     pdt.assert_index_equal(
         interpreted.downstream_score_matrix.columns,
         interpreted.prediction_matrix.columns,

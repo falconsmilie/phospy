@@ -31,6 +31,8 @@ from phospy.api.configs import (
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    SIGNALOME_MODE_PRODUCTION,
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
@@ -1033,6 +1035,24 @@ def test_kinase_activity_ssgsea_permutation_helper_requires_seed_and_is_reproduc
                 "max_full_candidate_scoring_sites"
             ),
         ),
+        (
+            lambda: SignalomeConfig(mode="invalid"),  # type: ignore[arg-type]
+            "signalome workflow request config.mode",
+        ),
+        (
+            lambda: SignalomeConfig(
+                validation=SignalomeValidationConfig(
+                    localisation_requirement=LocalisationRequirement()
+                )
+            ),
+            "config.mode='production' requires",
+        ),
+        (
+            lambda: SignalomeConfig(
+                output=SignalomeOutputConfig(network_min_paired_finite_observations=3)
+            ),
+            "config.mode='production' requires",
+        ),
     ],
 )
 def test_signalome_config_self_validates(factory: object, pattern: str) -> None:
@@ -1152,7 +1172,10 @@ def test_signalome_config_presets_return_expected_values() -> None:
     strict = SignalomeConfig.strict()
     permissive = SignalomeConfig.permissive_missing_scores()
     sampled = SignalomeConfig.sampled_candidate_scoring()
+    compatibility = SignalomeConfig.compatibility()
 
+    assert default.mode == SIGNALOME_MODE_PRODUCTION
+    assert compatibility.mode == SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY
     assert (
         strict.validation.score_preconditioning_policy
         == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
@@ -1177,7 +1200,17 @@ def test_signalome_config_presets_return_expected_values() -> None:
         sampled.performance.max_full_candidate_scoring_sites
         == SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
     )
-    assert default.output.network_min_paired_finite_observations is None
+    assert (
+        default.output.network_min_paired_finite_observations
+        == SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+    )
+    assert (
+        compatibility.output.network_min_paired_finite_observations
+        < default.output.network_min_paired_finite_observations
+    )
+    assert (
+        compatibility.validation.localisation_requirement == LocalisationRequirement()
+    )
     assert SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT == 5
     assert (
         default.validation.reference_context_compatibility_policy
@@ -1196,8 +1229,9 @@ def test_signalome_production_config_uses_strict_localisation() -> None:
         == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
     assert SignalomeConfig().validation.localisation_requirement == (
-        LocalisationRequirement()
+        LocalisationRequirement.production_site_level()
     )
+    assert production.mode == SIGNALOME_MODE_PRODUCTION
 
 
 def test_signalome_config_removes_large_dataset_preset() -> None:

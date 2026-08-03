@@ -299,6 +299,7 @@ def test_invalid_signalome_request_fails_at_workflow_validation_stage() -> None:
         ).run(request)
 
     message = str(exc_info.value)
+    assert "protein_group_id" in message
     assert "protein_id" in message
     assert "signalome workflow request kinase_result.dataset.site_metadata" in message
     _assert_not_called(interpreter, executor)

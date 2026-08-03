@@ -43,7 +43,7 @@ Required `site_metadata` columns for this lane:
 - `organism`
 - `protein_namespace`
 - `protein_identifier`
-- `protein_id` for signalome
+- `protein_group_id` for signalome grouping
 
 Builder input may omit `site_key` only when those protein-context fields are
 available for deterministic derivation. The direct
@@ -89,26 +89,27 @@ from phospy.api import (
 
 phospho = pd.DataFrame(
     {
-        "sample_a": [1.00, 0.70],
-        "sample_b": [1.10, 0.80],
-        "sample_c": [0.95, 0.75],
+        "sample_a": [1.00, 0.70, 0.85],
+        "sample_b": [1.10, 0.80, 0.88],
+        "sample_c": [0.95, 0.75, 0.92],
     },
-    index=["TSC2;S939;", "GSK3B;S9;"],
+    index=["TSC2;S939;", "GSK3B;S9;", "MAPK14;Y182;"],
 )
 site_metadata = pd.DataFrame(
     {
-        "gene_symbol": ["TSC2", "GSK3B"],
-        "site": ["S939", "S9"],
+        "gene_symbol": ["TSC2", "GSK3B", "MAPK14"],
+        "site": ["S939", "S9", "Y182"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
         ],
-        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
-        "organism": ["rat", "rat"],
-        "protein_namespace": ["protein_id", "protein_id"],
-        "protein_identifier": ["TSC2", "GSK3B"],
-        "protein_id": ["TSC2", "GSK3B"],
-        "localisation_confidence": [0.96, 0.93],
+        "display_id": ["TSC2;S939;", "GSK3B;S9;", "MAPK14;Y182;"],
+        "organism": ["rat", "rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id", "protein_id"],
+        "protein_identifier": ["TSC2", "GSK3B", "MAPK14"],
+        "protein_group_id": ["TSC2", "GSK3B", "MAPK14"],
+        "localisation_confidence": [0.96, 0.93, 0.95],
     },
     index=phospho.index.copy(),
 )
@@ -138,12 +139,14 @@ kinase_result = KinaseWorkflow().run(
     )
 )
 
+signalome_config = SignalomeConfig.compatibility()
 signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=replace(
-            SignalomeConfig.sampled_candidate_scoring(),
-            validation=SignalomeValidationConfig(
+            signalome_config,
+            validation=replace(
+                signalome_config.validation,
                 reference_context_compatibility_policy=(
                     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
                 )
@@ -166,7 +169,7 @@ print(
             "site",
             "protein_namespace",
             "protein_identifier",
-            "protein_id",
+            "protein_group_id",
         ],
     ]
 )
@@ -199,8 +202,10 @@ print(
 )
 ```
 
-`candidate_scoring_policy="sampled"` only approximates candidate module-count
-scoring. It does not make tree generation approximate.
+This tiny example opts into `SignalomeConfig.compatibility()` because it has
+fewer than the five retained sites required by the production network
+paired-observation rule. Use `SignalomeConfig.production()` for real runs once
+your retained site set is large enough.
 
 Why `activity_config=None`? Activity execution is opt-in and this example has
 only two sites. The activity stage is more useful on larger data and defaults
@@ -220,7 +225,7 @@ are installed.
 | Symptom                                          | Most likely fix                                                                                                      |
 |--------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
 | `ReferencePreset.AUTO` cannot resolve references | Use `organism=Organism.RAT` with bundled references, or pass an explicit `ReferenceBundle`.                          |
-| Signalome fails on `protein_id`                  | Add a non-empty signalome grouping `protein_id` for every interpreted site. Keep core protein identity in `protein_namespace` and `protein_identifier`; do not use gene symbols or `display_id` labels as fallbacks. |
+| Signalome fails on `protein_group_id`            | Add a non-empty signalome grouping `protein_group_id` for every interpreted site. Legacy `protein_id` is accepted only as a migration alias. Keep core protein identity in `protein_namespace` and `protein_identifier`; do not use gene symbols or `display_id` labels as fallbacks. |
 | Missing-value error                              | Start with a complete matrix, or configure row-median imputation deliberately.                                       |
 | Site metadata does not align                     | For builder input, make `site_metadata.index` match `phospho.index`; for trusted `from_trusted_tables(...)` reconstruction, use matching `site_key` indexes. |
 | File input fails                                 | Check that the first CSV/TSV column is the row index and that the suffix is supported.                               |

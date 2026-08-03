@@ -66,6 +66,7 @@ class SignalomeWorkflowConfigSnapshot:
 
         return {
             "signalome_config": {
+                "mode": str(self.signalome_config.mode),
                 "scientific": {
                     "substrate_support_cutoff": float(
                         self.signalome_config.scientific.substrate_support_cutoff
@@ -106,6 +107,21 @@ class SignalomeWorkflowConfigSnapshot:
                     "reference_context_compatibility_policy": str(
                         self.signalome_config.validation.reference_context_compatibility_policy
                     ),
+                    "localisation_requirement": {
+                        "require_present": bool(
+                            self.signalome_config.validation.localisation_requirement.require_present
+                        ),
+                        "minimum_probability": (
+                            None
+                            if (
+                                self.signalome_config.validation.localisation_requirement.minimum_probability
+                                is None
+                            )
+                            else float(
+                                self.signalome_config.validation.localisation_requirement.minimum_probability
+                            )
+                        ),
+                    },
                 },
                 "output": {
                     "network_correlation_threshold": float(
