@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, cast
 
 import pandas as pd
 
@@ -15,6 +15,8 @@ from phospy.contracts.results import (
     KinaseWorkflowResult,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import PhosPyValidationError
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
@@ -38,7 +40,6 @@ from phospy.io.bundles._shared.trusted_dataset_assertions import (
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.science.activities.models import (
-    SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
     ActivityMethodMetadata,
     ActivityMethodSummary,
     KinaseActivityResult,
@@ -279,6 +280,7 @@ def reconstruct_kinase_result(
         table_key="statistics_table",
         field_name="bundle manifest.outputs.activity.tables.statistics_table",
     )
+    statistics_table = _normalise_activity_statistics_bundle_table(statistics_table)
 
     if sections.activity_enabled:
         if (
@@ -305,26 +307,54 @@ def reconstruct_kinase_result(
             ) from exc
         activity_method_summary = None
         if sections.activity_method_summary is not None:
-            activity_method_summary = ActivityMethodSummary.from_payload(
-                sections.activity_method_summary
-            )
-        input_semantics, profile_metadata = _infer_reconstructed_activity_semantics(
-            activity_method=activity_method,
-            activity_matrix=weighted_activity,
+            try:
+                activity_method_summary = ActivityMethodSummary.from_payload(
+                    sections.activity_method_summary
+                )
+            except (TypeError, ValueError, PhosPyInputError) as exc:
+                raise PhosPyInputError(
+                    "bundle manifest.outputs.activity.summary is invalid: "
+                    f"{exc}; regenerate the bundle from the original "
+                    "KinaseActivityResult"
+                ) from exc
+        input_semantics = _parse_activity_input_semantics(
+            sections.activity_input_semantics
         )
-        activity_result = KinaseActivityResult._from_owned(
-            weighted_activity=weighted_activity,
-            thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
-            thresholded_substrate_counts=thresholded_substrate_counts,
-            activity_substrate_counts=activity_substrate_counts,
-            target_counts=target_counts,
-            target_table=target_table,
-            statistics_table=statistics_table,
-            method_summary=activity_method_summary,
-            activity_method=activity_method,
+        profile_metadata = _parse_activity_profile_metadata(
+            sections.activity_profile_metadata
+        )
+        _validate_activity_semantic_metadata(
             input_semantics=input_semantics,
             profile_metadata=profile_metadata,
+            activity_matrix=weighted_activity,
         )
+        _validate_activity_provenance_agreement(
+            provenance=provenance,
+            input_semantics=input_semantics,
+        )
+        try:
+            activity_result = KinaseActivityResult._from_owned(
+                weighted_activity=weighted_activity,
+                thresholded_substrate_mean_activity=(
+                    thresholded_substrate_mean_activity
+                ),
+                thresholded_substrate_counts=thresholded_substrate_counts,
+                activity_substrate_counts=activity_substrate_counts,
+                target_counts=target_counts,
+                target_table=target_table,
+                statistics_table=statistics_table,
+                method_summary=activity_method_summary,
+                activity_method=activity_method,
+                input_semantics=input_semantics,
+                profile_metadata=profile_metadata,
+            )
+        except (WorkflowBoundaryError, PhosPyValidationError, ValueError) as exc:
+            raise PhosPyInputError(
+                "bundle manifest.outputs.activity semantic metadata is "
+                "inconsistent with activity tables: "
+                f"{exc}; correct the manifest or regenerate the bundle from the "
+                "original KinaseActivityResult"
+            ) from exc
     else:
         if (
             weighted_activity is not None
@@ -346,6 +376,18 @@ def reconstruct_kinase_result(
             raise PhosPyInputError(
                 "bundle manifest outputs.activity.enabled=false must not declare activity method summary metadata"
             )
+        if sections.activity_input_semantics is not None:
+            raise PhosPyInputError(
+                "bundle manifest outputs.activity.enabled=false must not declare "
+                "activity input_semantics; remove the semantic payload or "
+                "regenerate the bundle"
+            )
+        if sections.activity_profile_metadata is not None:
+            raise PhosPyInputError(
+                "bundle manifest outputs.activity.enabled=false must not declare "
+                "activity profile_metadata; remove the semantic payload or "
+                "regenerate the bundle"
+            )
         activity_result = None
 
     return KinaseWorkflowResult._from_owned(
@@ -364,40 +406,297 @@ def reconstruct_kinase_result(
     )
 
 
-def _infer_reconstructed_activity_semantics(
-    *,
-    activity_method: ActivityMethodMetadata,
-    activity_matrix: pd.DataFrame,
-) -> tuple[ActivityInputSemantics, ActivityProfileMetadata]:
-    profile_ids = tuple(str(column) for column in activity_matrix.columns)
-    if (
-        activity_method.activity_method_id
-        == SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD.activity_method_id
-    ):
-        return (
-            ActivityInputSemantics(
-                profile_axis=ActivityProfileAxis.EFFECT,
-                quantitative_semantics=(
-                    ActivityQuantitativeSemantics.STANDARDISED_EFFECT
-                ),
-            ),
-            ActivityProfileMetadata(
-                axis=ActivityProfileAxis.EFFECT,
-                profile_ids=profile_ids,
-            ),
+def _parse_activity_input_semantics(
+    payload: Mapping[str, object] | None,
+) -> ActivityInputSemantics:
+    field_name = "bundle manifest.outputs.activity.input_semantics"
+    if payload is None:
+        raise PhosPyInputError(
+            f"{field_name} is required when activity is enabled; regenerate the "
+            "bundle from the original KinaseActivityResult"
         )
-    return (
-        ActivityInputSemantics(
-            profile_axis=ActivityProfileAxis.SAMPLE,
-            quantitative_semantics=(
-                ActivityQuantitativeSemantics.SAMPLE_LEVEL_ABUNDANCE
+    try:
+        return ActivityInputSemantics.from_payload(payload)
+    except (TypeError, ValueError, PhosPyValidationError, WorkflowBoundaryError) as exc:
+        raise PhosPyInputError(
+            f"{field_name} is invalid: {exc}; correct the manifest or regenerate "
+            "the bundle from the original KinaseActivityResult"
+        ) from exc
+
+
+def _parse_activity_profile_metadata(
+    payload: Mapping[str, object] | None,
+) -> ActivityProfileMetadata:
+    field_name = "bundle manifest.outputs.activity.profile_metadata"
+    if payload is None:
+        raise PhosPyInputError(
+            f"{field_name} is required when activity is enabled; regenerate the "
+            "bundle from the original KinaseActivityResult"
+        )
+    try:
+        return ActivityProfileMetadata.from_payload(payload)
+    except (TypeError, ValueError, PhosPyValidationError, WorkflowBoundaryError) as exc:
+        raise PhosPyInputError(
+            f"{field_name} is invalid: {exc}; correct the manifest or regenerate "
+            "the bundle from the original KinaseActivityResult"
+        ) from exc
+
+
+def _validate_activity_semantic_metadata(
+    *,
+    input_semantics: ActivityInputSemantics,
+    profile_metadata: ActivityProfileMetadata,
+    activity_matrix: pd.DataFrame,
+) -> None:
+    profile_ids = tuple(str(column) for column in activity_matrix.columns)
+    if profile_metadata.axis is not input_semantics.profile_axis:
+        _raise_activity_semantic_manifest_error(
+            "bundle manifest.outputs.activity.profile_metadata.axis",
+            "must match bundle manifest.outputs.activity.input_semantics.profile_axis",
+        )
+    _require_exact_manifest_labels(
+        observed=profile_metadata.profile_ids,
+        expected=profile_ids,
+        field_name="bundle manifest.outputs.activity.profile_metadata.profile_ids",
+        expected_label="activity/weighted_activity table columns",
+    )
+
+    axis = cast(ActivityProfileAxis, input_semantics.profile_axis)
+    if axis is ActivityProfileAxis.SAMPLE:
+        _require_exact_manifest_labels(
+            observed=profile_metadata.sample_ids,
+            expected=profile_ids,
+            field_name="bundle manifest.outputs.activity.profile_metadata.sample_ids",
+            expected_label="activity/weighted_activity table columns",
+        )
+        _require_empty_manifest_labels(
+            profile_metadata.condition_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata.condition_ids"
             ),
+            axis=axis,
+        )
+        _require_empty_manifest_labels(
+            profile_metadata.contrast_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata.contrast_ids"
+            ),
+            axis=axis,
+        )
+        _require_no_aggregation_metadata(profile_metadata, axis=axis)
+        return
+
+    if axis is ActivityProfileAxis.CONDITION_SUMMARY:
+        _require_empty_manifest_labels(
+            profile_metadata.sample_ids,
+            field_name="bundle manifest.outputs.activity.profile_metadata.sample_ids",
+            axis=axis,
+        )
+        _require_exact_manifest_labels(
+            observed=profile_metadata.condition_ids,
+            expected=profile_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata.condition_ids"
+            ),
+            expected_label="activity/weighted_activity table columns",
+        )
+        _require_empty_manifest_labels(
+            profile_metadata.contrast_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata.contrast_ids"
+            ),
+            axis=axis,
+        )
+        aggregation = profile_metadata.aggregation_metadata
+        if aggregation is None:
+            _raise_activity_semantic_manifest_error(
+                "bundle manifest.outputs.activity.profile_metadata."
+                "aggregation_metadata",
+                "must be a valid ActivityAggregationMetadata object for "
+                "condition-summary activity semantics",
+            )
+        aggregation_profile_ids = tuple(
+            record.profile_id for record in aggregation.records
+        )
+        if len(aggregation_profile_ids) != len(set(aggregation_profile_ids)):
+            _raise_activity_semantic_manifest_error(
+                "bundle manifest.outputs.activity.profile_metadata."
+                "aggregation_metadata.records",
+                "must not contain duplicate profile_id values",
+            )
+        _require_exact_manifest_labels(
+            observed=aggregation_profile_ids,
+            expected=profile_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata."
+                "aggregation_metadata.records[].profile_id"
+            ),
+            expected_label="activity/weighted_activity table columns",
+        )
+        return
+
+    if axis is ActivityProfileAxis.CONTRAST:
+        _require_empty_manifest_labels(
+            profile_metadata.sample_ids,
+            field_name="bundle manifest.outputs.activity.profile_metadata.sample_ids",
+            axis=axis,
+        )
+        _require_empty_manifest_labels(
+            profile_metadata.condition_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata.condition_ids"
+            ),
+            axis=axis,
+        )
+        _require_exact_manifest_labels(
+            observed=profile_metadata.contrast_ids,
+            expected=profile_ids,
+            field_name="bundle manifest.outputs.activity.profile_metadata.contrast_ids",
+            expected_label="activity/weighted_activity table columns",
+        )
+        _require_no_aggregation_metadata(profile_metadata, axis=axis)
+        return
+
+    if axis is ActivityProfileAxis.EFFECT:
+        _require_empty_manifest_labels(
+            profile_metadata.sample_ids,
+            field_name="bundle manifest.outputs.activity.profile_metadata.sample_ids",
+            axis=axis,
+        )
+        _require_empty_manifest_labels(
+            profile_metadata.condition_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata.condition_ids"
+            ),
+            axis=axis,
+        )
+        _require_empty_manifest_labels(
+            profile_metadata.contrast_ids,
+            field_name=(
+                "bundle manifest.outputs.activity.profile_metadata.contrast_ids"
+            ),
+            axis=axis,
+        )
+        _require_no_aggregation_metadata(profile_metadata, axis=axis)
+
+
+def _validate_activity_provenance_agreement(
+    *,
+    provenance: RunProvenance,
+    input_semantics: ActivityInputSemantics,
+) -> None:
+    workflow_parameters = provenance.workflow_parameters
+    if not isinstance(workflow_parameters, Mapping):
+        return
+    activity_config = workflow_parameters.get("activity_config")
+    if not isinstance(activity_config, Mapping):
+        return
+    method_input_contract = activity_config.get("method_input_contract")
+    if not isinstance(method_input_contract, Mapping):
+        return
+    expected_axis = cast(ActivityProfileAxis, input_semantics.profile_axis).value
+    expected_quantity = cast(
+        ActivityQuantitativeSemantics,
+        input_semantics.quantitative_semantics,
+    ).value
+    _require_optional_provenance_semantic_agreement(
+        method_input_contract,
+        key="resolved_activity_profile_axis",
+        expected=expected_axis,
+        manifest_field=(
+            "bundle manifest.outputs.activity.input_semantics.profile_axis"
         ),
-        ActivityProfileMetadata(
-            axis=ActivityProfileAxis.SAMPLE,
-            profile_ids=profile_ids,
-            sample_ids=profile_ids,
+    )
+    _require_optional_provenance_semantic_agreement(
+        method_input_contract,
+        key="resolved_activity_quantitative_semantics",
+        expected=expected_quantity,
+        manifest_field=(
+            "bundle manifest.outputs.activity.input_semantics.quantitative_semantics"
         ),
+    )
+
+
+def _require_optional_provenance_semantic_agreement(
+    payload: Mapping[str, object],
+    *,
+    key: str,
+    expected: str,
+    manifest_field: str,
+) -> None:
+    if key not in payload or payload.get(key) is None:
+        return
+    provenance_field = (
+        "bundle manifest.provenance.workflow_parameters.activity_config."
+        f"method_input_contract.{key}"
+    )
+    observed = payload.get(key)
+    if not isinstance(observed, str):
+        _raise_activity_semantic_manifest_error(
+            provenance_field,
+            f"must be a string matching {manifest_field}; regenerate the bundle",
+        )
+    if observed != expected:
+        _raise_activity_semantic_manifest_error(
+            provenance_field,
+            f"must agree with {manifest_field}; expected {expected!r}, "
+            f"got {observed!r}",
+        )
+
+
+def _require_exact_manifest_labels(
+    *,
+    observed: tuple[str, ...],
+    expected: tuple[str, ...],
+    field_name: str,
+    expected_label: str,
+) -> None:
+    observed_values = tuple(str(value) for value in observed)
+    expected_values = tuple(str(value) for value in expected)
+    if observed_values == expected_values:
+        return
+    _raise_activity_semantic_manifest_error(
+        field_name,
+        f"must exactly match {expected_label} in order; "
+        f"expected={expected_values!r}, got={observed_values!r}",
+    )
+
+
+def _require_empty_manifest_labels(
+    observed: tuple[str, ...],
+    *,
+    field_name: str,
+    axis: ActivityProfileAxis,
+) -> None:
+    if not observed:
+        return
+    _raise_activity_semantic_manifest_error(
+        field_name,
+        f"must be empty when profile_metadata.axis is {axis.value!r}; "
+        f"got={tuple(str(value) for value in observed)!r}",
+    )
+
+
+def _require_no_aggregation_metadata(
+    profile_metadata: ActivityProfileMetadata,
+    *,
+    axis: ActivityProfileAxis,
+) -> None:
+    if profile_metadata.aggregation_metadata is None:
+        return
+    _raise_activity_semantic_manifest_error(
+        "bundle manifest.outputs.activity.profile_metadata.aggregation_metadata",
+        f"must be null when profile_metadata.axis is {axis.value!r}",
+    )
+
+
+def _raise_activity_semantic_manifest_error(
+    field_name: str,
+    message: str,
+) -> NoReturn:
+    raise PhosPyInputError(
+        f"{field_name} {message}; correct the manifest or regenerate the bundle "
+        "from the original KinaseActivityResult"
     )
 
 
@@ -409,6 +708,28 @@ def _normalise_site_metadata_bundle_table(table):
     normalised = table.copy(deep=True)
     normalised = normalised.rename(columns={"site_key.1": "site_key"})
     return normalised
+
+
+def _normalise_activity_statistics_bundle_table(
+    table: pd.DataFrame | None,
+) -> pd.DataFrame | None:
+    if table is None:
+        return None
+    string_columns = (
+        "kinase",
+        "condition",
+        "profile_id",
+        "evidence_threshold_operator",
+        "evidence_threshold_description",
+        "computability_status",
+        "reason",
+        "significance_status",
+    )
+    normalized = table.copy(deep=True)
+    for column_name in string_columns:
+        if column_name in normalized.columns:
+            normalized[column_name] = normalized[column_name].fillna("").astype(str)
+    return normalized
 
 
 def _parse_bundle_provenance(payload: Mapping[str, object]) -> RunProvenance:

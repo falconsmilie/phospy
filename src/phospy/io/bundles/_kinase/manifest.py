@@ -46,6 +46,8 @@ class KinaseManifestSections:
     activity_enabled: bool
     activity_method_metadata: Mapping[str, object] | None
     activity_method_summary: Mapping[str, object] | None
+    activity_input_semantics: Mapping[str, object] | None
+    activity_profile_metadata: Mapping[str, object] | None
     activity_tables: Mapping[str, object]
     provenance_payload: Mapping[str, object]
     config_snapshot_entry: Mapping[str, object]
@@ -112,7 +114,10 @@ _SCORING_TABLE_REQUIRED_KEYS = frozenset(
 )
 _PREDICTION_ALLOWED_FIELDS = frozenset({"tables"})
 _PREDICTION_TABLE_KEYS = frozenset({"pred_mat", "substrate_list"})
-_ACTIVITY_ALLOWED_FIELDS = frozenset({"enabled", "method", "summary", "tables"})
+_ACTIVITY_ALLOWED_FIELDS = frozenset(
+    {"enabled", "method", "summary", "input_semantics", "profile_metadata", "tables"}
+)
+_ACTIVITY_REQUIRED_FIELDS = _ACTIVITY_ALLOWED_FIELDS
 _ACTIVITY_TABLE_KEYS = frozenset(
     {
         "weighted_activity",
@@ -191,6 +196,16 @@ def build_manifest(
                     or result.activity_result.method_summary is None
                     else result.activity_result.method_summary.to_payload()
                 ),
+                "input_semantics": (
+                    None
+                    if result.activity_result is None
+                    else result.activity_result.input_semantics.to_payload()
+                ),
+                "profile_metadata": (
+                    None
+                    if result.activity_result is None
+                    else result.activity_result.profile_metadata.to_payload()
+                ),
                 "tables": dict(activity_tables),
             },
         },
@@ -228,6 +243,14 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         field_name="bundle manifest.manifest_version",
     )
     if manifest_version != KINASE_BUNDLE_MANIFEST_VERSION:
+        if manifest_version == 2:
+            _raise_unsupported_manifest_shape(
+                "bundle manifest.manifest_version=2 is a legacy kinase bundle "
+                "schema; activity input semantics, profile identity, and "
+                "condition-summary aggregation metadata were not part of schema "
+                "version 2, so the bundle must be regenerated with the current "
+                "PhosPy version"
+            )
         _raise_unsupported_manifest_shape(
             "unsupported bundle manifest version "
             f"'{manifest_version}'; expected {KINASE_BUNDLE_MANIFEST_VERSION}"
@@ -324,7 +347,7 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
     _require_fields(
         activity_payload,
         field_name="bundle manifest.outputs.activity",
-        required_fields=_ACTIVITY_ALLOWED_FIELDS,
+        required_fields=_ACTIVITY_REQUIRED_FIELDS,
         unsupported_shape=True,
     )
     activity_enabled = require_bool(
@@ -349,9 +372,39 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
             field_name="bundle manifest.outputs.activity.summary",
         )
     )
+    activity_input_semantics_raw = activity_payload.get("input_semantics")
+    activity_input_semantics = (
+        None
+        if activity_input_semantics_raw is None
+        else require_mapping(
+            activity_input_semantics_raw,
+            field_name="bundle manifest.outputs.activity.input_semantics",
+        )
+    )
+    activity_profile_metadata_raw = activity_payload.get("profile_metadata")
+    activity_profile_metadata = (
+        None
+        if activity_profile_metadata_raw is None
+        else require_mapping(
+            activity_profile_metadata_raw,
+            field_name="bundle manifest.outputs.activity.profile_metadata",
+        )
+    )
     if activity_enabled and activity_method_metadata is None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.method is required when activity is enabled"
+        )
+    if activity_enabled and activity_input_semantics is None:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.outputs.activity.input_semantics is required when "
+            "activity is enabled; regenerate the bundle from the original "
+            "KinaseActivityResult"
+        )
+    if activity_enabled and activity_profile_metadata is None:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.outputs.activity.profile_metadata is required when "
+            "activity is enabled; regenerate the bundle from the original "
+            "KinaseActivityResult"
         )
     if not activity_enabled and activity_method_metadata is not None:
         _raise_unsupported_manifest_shape(
@@ -360,6 +413,18 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
     if not activity_enabled and activity_method_summary is not None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.summary must be null when activity is disabled"
+        )
+    if not activity_enabled and activity_input_semantics is not None:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.outputs.activity.input_semantics must be null when "
+            "activity is disabled; remove the semantic payload or regenerate the "
+            "bundle"
+        )
+    if not activity_enabled and activity_profile_metadata is not None:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.outputs.activity.profile_metadata must be null when "
+            "activity is disabled; remove the semantic payload or regenerate the "
+            "bundle"
         )
     if payload.get("provenance") is None:
         _raise_unsupported_manifest_shape("bundle manifest.provenance is required")
@@ -504,6 +569,8 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         activity_enabled=activity_enabled,
         activity_method_metadata=activity_method_metadata,
         activity_method_summary=activity_method_summary,
+        activity_input_semantics=activity_input_semantics,
+        activity_profile_metadata=activity_profile_metadata,
         activity_tables=activity_tables,
         provenance_payload=provenance_payload,
         config_snapshot_entry=config_snapshot_entry,

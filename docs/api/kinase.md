@@ -231,6 +231,14 @@ expose `method_summary`, `substrate_count_matrix`,
 `thresholded_substrate_counts`, and threshold-membership metadata where
 supported.
 
+`KinaseActivityResult` also carries typed activity profile semantics through
+`input_semantics` and `profile_metadata`. These objects define the profile axis,
+quantitative semantics, profile identifiers, sample/condition/contrast
+identifiers, and condition-summary aggregation metadata when condition-summary
+profiles are supplied. Method identity does not determine these semantics:
+for example, KSEA can consume sample log-abundance, contrast log-fold-change,
+or standardised-effect profiles according to the explicit input semantics.
+
 ## Running the Workflow
 
 ```python
@@ -289,6 +297,14 @@ Important nested result fields:
 for kinase activity scores. Deprecated compatibility aliases such as
 `activity_scores` and `weighted_activity` are not preferred for new
 documentation or code.
+
+Reloadable kinase bundles preserve the exact typed activity semantics in
+manifest version 3. Loading a current bundle reconstructs `input_semantics` and
+`profile_metadata` from their persisted typed payloads and rejects contradictions
+between those payloads, the activity matrix columns, condition-summary
+aggregation records, or resolved activity semantics recorded in provenance.
+Kinase version-2 bundles did not persist enough semantic metadata for faithful
+activity reconstruction and must be regenerated with a current PhosPy version.
 
 ### Substrate Contribution Table
 

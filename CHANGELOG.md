@@ -99,6 +99,13 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Advanced kinase bundle schema to manifest version 3. Current bundles now
+  persist exact typed kinase activity input semantics and profile metadata,
+  including profile axes, quantitative semantics, identifiers, and
+  condition-summary aggregation records. Current-schema reconstruction no
+  longer infers activity semantics from method names, rejects manifest/provenance
+  contradictions, and rejects legacy kinase version-2 bundles with instructions
+  to regenerate them.
 - Added `quantitative_meaning_provenance` to saved `IntensityScaleState`
   payloads. New bundle payloads round-trip the semantic provenance exactly;
   legacy payloads without the field are loaded only through the explicit

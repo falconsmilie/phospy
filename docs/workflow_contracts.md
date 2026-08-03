@@ -367,6 +367,16 @@ removed. Regenerate older development-version outputs instead of relying on
 schema repair during loading. Provenance remains supported for current outputs,
 and current table-hash semantics are unchanged.
 
+Current kinase bundles persist typed activity result semantics in manifest
+version 3. The manifest, not the activity method name, is the reconstruction
+authority for activity profile axis, quantitative semantics, profile
+identifiers, sample/condition/contrast identifiers, and condition-summary
+aggregation metadata. Activity provenance is an integrity check: if resolved
+activity semantics recorded in provenance disagree with the manifest result
+semantics, the bundle is rejected. Kinase version-2 bundles must be regenerated
+because they did not contain enough semantic metadata to reconstruct all valid
+activity results faithfully.
+
 ## Where Details Live
 
 - [API Guide](api/guide.md) links to supported imports and workflow pages.

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -27,7 +29,11 @@ from phospy.api import (
 )
 from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+    KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+    KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
 )
+from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
@@ -35,6 +41,31 @@ from phospy.io.bundles.kinase import (
     load_kinase_workflow_bundle,
     save_kinase_workflow_bundle,
 )
+from phospy.provenance.models import RunProvenance
+from phospy.science.activities.method_contracts import (
+    kinase_activity_method_quantitative_input_contract,
+)
+from phospy.science.activities.methods import (
+    KseaZScoreActivityMethod,
+    SimplifiedWeightedSubstrateActivityMethod,
+    SsgseaSubstrateEnrichmentActivityMethod,
+)
+from phospy.science.activities.models import (
+    KinaseActivityInputs,
+    KinaseActivityResult,
+    PredMatOverlapSummary,
+)
+from phospy.science.activities.semantics import (
+    ActivityAggregationMetadata,
+    ActivityAggregationRecord,
+    ActivityInputMatrix,
+    ActivityProfileAxis,
+    ActivityQuantitativeSemantics,
+)
+from phospy.science.quantitative_method_contracts import (
+    ResolvedMethodQuantitativeInputContract,
+)
+from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = pytest.mark.integration
 
@@ -118,6 +149,18 @@ def _assert_manifest_covers_bundle_payload_files(
         path = bundle_root / str(entry["path"])
         assert entry["byte_size"] == path.stat().st_size
         assert entry["sha256"] == _sha256_path(path)
+
+
+def _refresh_manifest_table_entry(
+    entry: dict[str, object],
+    *,
+    bundle_root: Path,
+    table: pd.DataFrame,
+) -> None:
+    path = bundle_root / str(entry["path"])
+    entry["byte_size"] = path.stat().st_size
+    entry["sha256"] = _sha256_path(path)
+    entry["shape"] = {"rows": int(table.shape[0]), "columns": int(table.shape[1])}
 
 
 def _save_basic_kinase_bundle(
@@ -346,7 +389,7 @@ def test_kinase_bundle_round_trip_preserves_mixed_total_protein_quantitative_mea
     assert correction_payload["diagnostics"]["quantitative_meaning"] == mixed_meaning
 
 
-def test_kinase_bundle_manifest_v2_is_explicit_and_content_addressed(
+def test_kinase_bundle_manifest_v3_is_explicit_and_content_addressed(
     tmp_path: Path,
 ) -> None:
     request = _build_request(activity=True)
@@ -411,6 +454,13 @@ def test_kinase_bundle_manifest_v2_is_explicit_and_content_addressed(
         or result.activity_result.method_summary is None
         else result.activity_result.method_summary.to_payload()
     )
+    assert result.activity_result is not None
+    assert manifest["outputs"]["activity"]["input_semantics"] == (
+        result.activity_result.input_semantics.to_payload()
+    )
+    assert manifest["outputs"]["activity"]["profile_metadata"] == (
+        result.activity_result.profile_metadata.to_payload()
+    )
     assert _table_paths(manifest["outputs"]["activity"]["tables"]) == {
         "weighted_activity": "activity/weighted_activity.csv",
         "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
@@ -467,6 +517,8 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
         "enabled": False,
         "method": None,
         "summary": None,
+        "input_semantics": None,
+        "profile_metadata": None,
         "tables": {
             "weighted_activity": None,
             "thresholded_substrate_mean_activity": None,
@@ -477,6 +529,288 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             "statistics_table": None,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(
+            {
+                "name": "weighted_sample_abundance",
+                "activity_result": "weighted_sample",
+                "method": KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+                "scale": "linear",
+                "meaning": "phosphosite_abundance",
+            },
+            id="weighted-sample-abundance",
+        ),
+        pytest.param(
+            {
+                "name": "weighted_condition_summary_abundance",
+                "activity_result": "weighted_condition_summary",
+                "method": KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+                "scale": "linear",
+                "meaning": "phosphosite_abundance",
+            },
+            id="weighted-condition-summary-abundance",
+        ),
+        pytest.param(
+            {
+                "name": "ksea_sample_log_abundance",
+                "activity_result": "ksea_sample_log_abundance",
+                "method": KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+                "scale": "log2",
+                "meaning": "phosphosite_log_abundance",
+            },
+            id="ksea-sample-log-abundance",
+        ),
+        pytest.param(
+            {
+                "name": "ksea_contrast_log_fold_change",
+                "activity_result": "ksea_contrast_log_fold_change",
+                "method": KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+                "scale": "log2",
+                "meaning": "contrast_log2_fold_change",
+            },
+            id="ksea-contrast-log-fold-change",
+        ),
+        pytest.param(
+            {
+                "name": "ksea_standardised_effect",
+                "activity_result": "ksea_standardised_effect",
+                "method": KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+                "scale": "log2",
+                "meaning": "differential_effect_size",
+            },
+            id="ksea-standardised-effect",
+        ),
+        pytest.param(
+            {
+                "name": "ssgsea_contrast_log_fold_change",
+                "activity_result": "ssgsea_contrast_log_fold_change",
+                "method": KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+                "scale": "log2",
+                "meaning": "contrast_log2_fold_change",
+            },
+            id="ssgsea-contrast-log-fold-change",
+        ),
+        pytest.param(
+            {
+                "name": "ssgsea_standardised_effect",
+                "activity_result": "ssgsea_standardised_effect",
+                "method": KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+                "scale": "log2",
+                "meaning": "differential_effect_size",
+            },
+            id="ssgsea-standardised-effect",
+        ),
+    ],
+)
+def test_kinase_bundle_round_trip_preserves_exact_activity_semantics(
+    tmp_path: Path,
+    case: dict[str, object],
+) -> None:
+    base_request = _build_request(activity=False)
+    base_result = KinaseWorkflow().run(base_request)
+    activity_result_factory = _activity_result_factory(str(case["activity_result"]))
+    activity_result = activity_result_factory()
+    assert isinstance(activity_result, KinaseActivityResult)
+    method = str(case["method"])
+    result = _replace_activity_result_with_semantic_provenance(
+        base_result,
+        activity_result=activity_result,
+        method=method,
+        resolved_scale=str(case["scale"]),
+        resolved_meaning=str(case["meaning"]),
+    )
+    request = replace(
+        base_request,
+        activity_config=_activity_config_for_method(method),
+    )
+    bundle_root = tmp_path / f"kinase_bundle_{case['name']}"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    assert loaded.result.activity_result is not None
+    _assert_activity_result_semantics_round_tripped(
+        loaded.result.activity_result,
+        activity_result,
+    )
+    assert loaded.result.provenance is not None
+    _assert_activity_provenance_matches_result(loaded.result)
+
+
+@pytest.mark.parametrize(
+    ("scenario", "activity_factory_name", "mutation", "pattern"),
+    [
+        pytest.param(
+            "missing_input_semantics",
+            "weighted_sample",
+            "missing_input_semantics",
+            "bundle manifest.outputs.activity is missing required field\\(s\\): "
+            "input_semantics",
+            id="missing-input-semantics",
+        ),
+        pytest.param(
+            "missing_profile_metadata",
+            "weighted_sample",
+            "missing_profile_metadata",
+            "bundle manifest.outputs.activity is missing required field\\(s\\): "
+            "profile_metadata",
+            id="missing-profile-metadata",
+        ),
+        pytest.param(
+            "axis_quantitative_semantics_mismatch",
+            "weighted_sample",
+            "axis_quantitative_semantics_mismatch",
+            "bundle manifest.outputs.activity.input_semantics is invalid: "
+            "activity input semantics are inconsistent",
+            id="axis-quantitative-mismatch",
+        ),
+        pytest.param(
+            "profile_ids_reordered",
+            "weighted_sample",
+            "profile_ids_reordered",
+            "bundle manifest.outputs.activity.profile_metadata.profile_ids "
+            "must exactly match activity/weighted_activity table columns in order",
+            id="profile-ids-reordered",
+        ),
+        pytest.param(
+            "unknown_profile_ids",
+            "weighted_sample",
+            "unknown_profile_ids",
+            "bundle manifest.outputs.activity.profile_metadata.profile_ids "
+            "must exactly match activity/weighted_activity table columns in order",
+            id="unknown-profile-ids",
+        ),
+        pytest.param(
+            "contradictory_condition_ids",
+            "weighted_sample",
+            "contradictory_condition_ids",
+            "bundle manifest.outputs.activity.profile_metadata.condition_ids "
+            "must be empty when profile_metadata.axis is 'sample'",
+            id="contradictory-condition-ids",
+        ),
+        pytest.param(
+            "missing_condition_summary_aggregation",
+            "weighted_condition_summary",
+            "missing_condition_summary_aggregation",
+            "bundle manifest.outputs.activity.profile_metadata is invalid: "
+            "condition-summary activity input requires explicit "
+            "ActivityAggregationMetadata",
+            id="missing-condition-summary-aggregation",
+        ),
+        pytest.param(
+            "duplicate_aggregation_records",
+            "weighted_condition_summary",
+            "duplicate_aggregation_records",
+            "bundle manifest.outputs.activity.profile_metadata is invalid: "
+            "activity_aggregation_metadata.records profile_id values must be unique",
+            id="duplicate-aggregation-records",
+        ),
+        pytest.param(
+            "provenance_manifest_axis_conflict",
+            "weighted_sample",
+            "provenance_manifest_axis_conflict",
+            "resolved_activity_profile_axis must agree with "
+            "bundle manifest.outputs.activity.input_semantics.profile_axis",
+            id="provenance-axis-conflict",
+        ),
+        pytest.param(
+            "provenance_manifest_quantitative_conflict",
+            "weighted_sample",
+            "provenance_manifest_quantitative_conflict",
+            "resolved_activity_quantitative_semantics must agree with "
+            "bundle manifest.outputs.activity.input_semantics.quantitative_semantics",
+            id="provenance-quantitative-conflict",
+        ),
+        pytest.param(
+            "semantic_metadata_supplied_while_disabled",
+            None,
+            "semantic_metadata_supplied_while_disabled",
+            "bundle manifest.outputs.activity.input_semantics must be null when "
+            "activity is disabled",
+            id="disabled-semantics",
+        ),
+        pytest.param(
+            "table_tamper_with_digest_refresh",
+            "weighted_sample",
+            "table_tamper_with_digest_refresh",
+            "bundle manifest.outputs.activity.profile_metadata.profile_ids "
+            "must exactly match activity/weighted_activity table columns in order",
+            id="table-tamper-with-digest-refresh",
+        ),
+    ],
+)
+def test_kinase_bundle_loader_rejects_contradictory_activity_semantics(
+    tmp_path: Path,
+    scenario: str,
+    activity_factory_name: str | None,
+    mutation: str,
+    pattern: str,
+) -> None:
+    if activity_factory_name is None:
+        bundle_root, manifest = _save_basic_kinase_bundle(
+            tmp_path,
+            bundle_name=f"kinase_bundle_semantic_{scenario}",
+            activity=False,
+        )
+    else:
+        activity_factory = _activity_result_factory(activity_factory_name)
+        bundle_root, manifest = _save_semantic_activity_bundle(
+            tmp_path,
+            bundle_name=f"kinase_bundle_semantic_{scenario}",
+            activity_result=activity_factory(),
+            method=KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+            resolved_scale="linear",
+            resolved_meaning="phosphosite_abundance",
+        )
+
+    _mutate_activity_manifest(
+        manifest,
+        bundle_root=bundle_root,
+        mutation=mutation,
+    )
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PhosPyInputError, match=pattern):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_v2_manifest_is_rejected_as_legacy_semantics_schema(
+    tmp_path: Path,
+) -> None:
+    bundle_root, manifest = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_v2_rejected",
+        activity=True,
+    )
+    manifest["manifest_version"] = 2
+    activity_payload = manifest["outputs"]["activity"]
+    activity_payload.pop("input_semantics", None)
+    activity_payload.pop("profile_metadata", None)
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest.manifest_version=2 is a legacy kinase bundle "
+            "schema.*activity input semantics.*profile identity.*condition-summary "
+            "aggregation metadata.*bundle must be regenerated"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 def test_kinase_bundle_loader_rejects_table_tampering(tmp_path: Path) -> None:
@@ -812,6 +1146,601 @@ def test_kinase_bundle_contract_rejection_matrix(
 
     with pytest.raises(PhosPyInputError, match=pattern):
         load_kinase_workflow_bundle(bundle_root)
+
+
+def _activity_result_factory(name: str):
+    factories = {
+        "weighted_sample": _weighted_sample_activity_result,
+        "weighted_condition_summary": _weighted_condition_summary_activity_result,
+        "ksea_sample_log_abundance": _ksea_sample_log_abundance_activity_result,
+        "ksea_contrast_log_fold_change": _ksea_contrast_log_fold_change_activity_result,
+        "ksea_standardised_effect": _ksea_standardised_effect_activity_result,
+        "ssgsea_contrast_log_fold_change": _ssgsea_contrast_log_fold_change_activity_result,
+        "ssgsea_standardised_effect": _ssgsea_standardised_effect_activity_result,
+    }
+    return factories[name]
+
+
+def _weighted_sample_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    matrix = _sample_abundance_activity_matrix()
+    activity_input = ActivityInputMatrix.sample_level_abundance(
+        matrix,
+        _assume_owned=True,
+    )
+    return SimplifiedWeightedSubstrateActivityMethod(
+        threshold=0.5,
+        min_substrates=2,
+        top_n_substrates=2,
+    ).run(
+        _activity_inputs(
+            pred_mat=pred_mat,
+            matrix=matrix,
+            activity_input=activity_input,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=2,
+        )
+    )
+
+
+def _weighted_condition_summary_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    matrix = pd.DataFrame(
+        {
+            "treated_mean": [2.0, 4.0, 6.0],
+            "control_mean": [1.0, 3.0, 5.0],
+        },
+        index=pred_mat.index.copy(),
+        dtype=float,
+    )
+    aggregation_metadata = ActivityAggregationMetadata(
+        aggregation_method="mean",
+        records=(
+            ActivityAggregationRecord(
+                profile_id="treated_mean",
+                source_profile_ids=("treated_rep1", "treated_rep2"),
+            ),
+            ActivityAggregationRecord(
+                profile_id="control_mean",
+                source_profile_ids=("control_rep1", "control_rep2"),
+            ),
+        ),
+    )
+    activity_input = ActivityInputMatrix.condition_summary_abundance(
+        matrix,
+        aggregation_metadata=aggregation_metadata,
+        _assume_owned=True,
+    )
+    return SimplifiedWeightedSubstrateActivityMethod(
+        threshold=0.5,
+        min_substrates=2,
+        top_n_substrates=2,
+    ).run(
+        _activity_inputs(
+            pred_mat=pred_mat,
+            matrix=matrix,
+            activity_input=activity_input,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=2,
+        )
+    )
+
+
+def _ksea_sample_log_abundance_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    matrix = np.log2(_sample_abundance_activity_matrix())
+    activity_input = ActivityInputMatrix.sample_level_abundance(
+        matrix,
+        _assume_owned=True,
+    )
+    return _ksea_activity_result(
+        pred_mat=pred_mat,
+        matrix=matrix,
+        activity_input=activity_input,
+    )
+
+
+def _ksea_contrast_log_fold_change_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    matrix = _contrast_activity_matrix()
+    activity_input = ActivityInputMatrix.contrast_log_fold_change(
+        matrix,
+        _assume_owned=True,
+    )
+    return _ksea_activity_result(
+        pred_mat=pred_mat,
+        matrix=matrix,
+        activity_input=activity_input,
+    )
+
+
+def _ksea_standardised_effect_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    matrix = _standardised_effect_activity_matrix()
+    activity_input = ActivityInputMatrix.standardised_effect(
+        matrix,
+        _assume_owned=True,
+    )
+    return _ksea_activity_result(
+        pred_mat=pred_mat,
+        matrix=matrix,
+        activity_input=activity_input,
+    )
+
+
+def _ksea_activity_result(
+    *,
+    pred_mat: pd.DataFrame,
+    matrix: pd.DataFrame,
+    activity_input: ActivityInputMatrix,
+) -> KinaseActivityResult:
+    return KseaZScoreActivityMethod(
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    ).run(
+        _activity_inputs(
+            pred_mat=pred_mat,
+            matrix=matrix,
+            activity_input=activity_input,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=1,
+        )
+    )
+
+
+def _ssgsea_contrast_log_fold_change_activity_result() -> KinaseActivityResult:
+    matrix = _contrast_activity_matrix()
+    activity_input = ActivityInputMatrix.contrast_log_fold_change(
+        matrix,
+        _assume_owned=True,
+    )
+    return _ssgsea_activity_result(activity_input)
+
+
+def _ssgsea_standardised_effect_activity_result() -> KinaseActivityResult:
+    matrix = _standardised_effect_activity_matrix()
+    activity_input = ActivityInputMatrix.standardised_effect(
+        matrix,
+        _assume_owned=True,
+    )
+    return _ssgsea_activity_result(activity_input)
+
+
+def _ssgsea_activity_result(
+    activity_input: ActivityInputMatrix,
+) -> KinaseActivityResult:
+    return SsgseaSubstrateEnrichmentActivityMethod(
+        min_substrates=2,
+        permutation_count=0,
+        adjust_p_values=True,
+    ).run(
+        activity_input=activity_input,
+        kinase_substrate_membership=_ssgsea_membership(),
+    )
+
+
+def _activity_inputs(
+    *,
+    pred_mat: pd.DataFrame,
+    matrix: pd.DataFrame,
+    activity_input: ActivityInputMatrix,
+    threshold: float,
+    min_substrates: int,
+    top_n_substrates: int,
+) -> KinaseActivityInputs:
+    return KinaseActivityInputs(
+        pred_mat=pred_mat,
+        phospho_matrix=matrix,
+        threshold=threshold,
+        min_substrates=min_substrates,
+        top_n_substrates=top_n_substrates,
+        overlap_summary=PredMatOverlapSummary(
+            overlap_count=int(pred_mat.index.intersection(matrix.index).size),
+            pred_mat_rows=int(pred_mat.index.size),
+            phospho_rows=int(matrix.index.size),
+        ),
+        activity_input=activity_input,
+    )
+
+
+def _activity_pred_mat() -> pd.DataFrame:
+    site_index = _activity_site_index()
+    pred_mat = pd.DataFrame(
+        {
+            "K1": [0.9, 0.8, 0.1],
+            "K2": [0.1, 0.85, 0.9],
+        },
+        index=site_index,
+        dtype=float,
+    )
+    pred_mat.columns.name = "kinase"
+    return pred_mat
+
+
+def _sample_abundance_activity_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 4.0],
+            "sample_b": [2.0, 3.0, 8.0],
+        },
+        index=_activity_pred_mat().index.copy(),
+        dtype=float,
+    )
+
+
+def _contrast_activity_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "treated_vs_control": [1.25, 0.75, -0.5],
+            "drug_vs_vehicle": [-0.75, 0.5, 1.5],
+        },
+        index=_activity_pred_mat().index.copy(),
+        dtype=float,
+    )
+
+
+def _standardised_effect_activity_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "effect_a": [1.1, 0.4, -0.8],
+            "effect_b": [-0.6, 0.7, 1.3],
+        },
+        index=_activity_pred_mat().index.copy(),
+        dtype=float,
+    )
+
+
+def _ssgsea_membership() -> pd.DataFrame:
+    site_ids = tuple(str(value) for value in _activity_site_index())
+    return pd.DataFrame(
+        {
+            "kinase": ["K1", "K1", "K2", "K2"],
+            "substrate_site": [site_ids[0], site_ids[1], site_ids[1], site_ids[2]],
+        }
+    )
+
+
+def _activity_site_index() -> pd.Index:
+    return site_key_index_from_display_ids(
+        ("S1;S1;", "S2;S2;", "S3;S3;"),
+        protein_namespace="gene_symbol",
+    )
+
+
+def _save_semantic_activity_bundle(
+    tmp_path: Path,
+    *,
+    bundle_name: str,
+    activity_result: KinaseActivityResult,
+    method: str,
+    resolved_scale: str,
+    resolved_meaning: str,
+) -> tuple[Path, dict[str, object]]:
+    base_request = _build_request(activity=False)
+    base_result = KinaseWorkflow().run(base_request)
+    result = _replace_activity_result_with_semantic_provenance(
+        base_result,
+        activity_result=activity_result,
+        method=method,
+        resolved_scale=resolved_scale,
+        resolved_meaning=resolved_meaning,
+    )
+    request = replace(
+        base_request,
+        activity_config=_activity_config_for_method(method),
+    )
+    bundle_root = tmp_path / bundle_name
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    return bundle_root, manifest
+
+
+def _replace_activity_result_with_semantic_provenance(
+    base_result: KinaseWorkflowResult,
+    *,
+    activity_result: KinaseActivityResult,
+    method: str,
+    resolved_scale: str,
+    resolved_meaning: str,
+) -> KinaseWorkflowResult:
+    assert base_result.provenance is not None
+    return KinaseWorkflowResult._from_owned(
+        dataset=base_result.dataset,
+        references=base_result.references,
+        scoring_result=base_result.scoring_result,
+        prediction_result=base_result.prediction_result,
+        eligibility_report=base_result.eligibility_report,
+        site_attrition_summary=base_result.site_attrition_summary,
+        attrition_provenance=base_result.attrition_provenance,
+        activity_result=activity_result,
+        provenance=_provenance_with_activity_semantics(
+            base_result.provenance,
+            activity_result=activity_result,
+            method=method,
+            resolved_scale=resolved_scale,
+            resolved_meaning=resolved_meaning,
+        ),
+        substrate_contributions=base_result.substrate_contributions,
+        caveats=base_result.caveats,
+    )
+
+
+def _provenance_with_activity_semantics(
+    provenance: RunProvenance,
+    *,
+    activity_result: KinaseActivityResult,
+    method: str,
+    resolved_scale: str,
+    resolved_meaning: str,
+) -> RunProvenance:
+    workflow_parameters = dict(provenance.workflow_parameters)
+    activity_config_raw = workflow_parameters.get("activity_config")
+    activity_config = (
+        dict(activity_config_raw) if isinstance(activity_config_raw, dict) else {}
+    )
+    activity_config["method"] = method
+    activity_config["method_input_contract"] = ResolvedMethodQuantitativeInputContract(
+        contract=kinase_activity_method_quantitative_input_contract(method),
+        resolved_scale=resolved_scale,
+        resolved_meaning=resolved_meaning,
+        resolved_activity_profile_axis=(activity_result.input_semantics.profile_axis),
+        resolved_activity_quantitative_semantics=(
+            activity_result.input_semantics.quantitative_semantics
+        ),
+        enforcement_context="kinase bundle semantic round-trip test",
+    ).to_payload()
+    activity_config["activity_method"] = activity_result.activity_method.to_payload()
+    activity_config["activity_method_summary"] = (
+        None
+        if activity_result.method_summary is None
+        else activity_result.method_summary.to_payload()
+    )
+    workflow_parameters["activity_config"] = activity_config
+    return replace(provenance, workflow_parameters=workflow_parameters)
+
+
+def _activity_config_for_method(method: str) -> KinaseActivityConfig:
+    if method == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY:
+        return KinaseActivityConfig(
+            enabled=True,
+            method=method,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=2,
+            ksea_min_substrates=2,
+            ksea_evidence_threshold=0.5,
+            ssgsea_min_substrates=2,
+        )
+    if method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+        return KinaseActivityConfig(
+            enabled=True,
+            method=method,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=2,
+            ksea_min_substrates=2,
+            ksea_evidence_threshold=0.5,
+            ssgsea_min_substrates=2,
+        )
+    if method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+        return KinaseActivityConfig(
+            enabled=True,
+            method=method,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=2,
+            ksea_min_substrates=2,
+            ksea_evidence_threshold=0.5,
+            ssgsea_min_substrates=2,
+            ssgsea_permutations=0,
+            ssgsea_random_seed=0,
+        )
+    raise AssertionError(f"Unsupported test activity method: {method}")
+
+
+def _assert_activity_result_semantics_round_tripped(
+    loaded: KinaseActivityResult,
+    original: KinaseActivityResult,
+) -> None:
+    assert loaded.input_semantics == original.input_semantics
+    assert loaded.profile_metadata == original.profile_metadata
+    assert tuple(str(column) for column in loaded.activity_matrix.columns) == (
+        original.profile_metadata.profile_ids
+    )
+    assert loaded.activity_matrix.columns.name == _expected_activity_axis_name(
+        original.input_semantics.profile_axis
+    )
+    aggregation = loaded.profile_metadata.aggregation_metadata
+    expected_aggregation = original.profile_metadata.aggregation_metadata
+    if expected_aggregation is None:
+        assert aggregation is None
+    else:
+        assert aggregation is not None
+        assert aggregation.aggregation_method == expected_aggregation.aggregation_method
+        assert aggregation.records == expected_aggregation.records
+        assert tuple(
+            record.source_profile_ids for record in aggregation.records
+        ) == tuple(record.source_profile_ids for record in expected_aggregation.records)
+
+    pd.testing.assert_frame_equal(
+        loaded.activity_matrix,
+        original.activity_matrix,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )
+    pd.testing.assert_frame_equal(
+        loaded.thresholded_substrate_mean_activity,
+        original.thresholded_substrate_mean_activity,
+        check_dtype=False,
+        check_index_type=False,
+        check_column_type=False,
+        check_names=False,
+    )
+    pd.testing.assert_series_equal(
+        loaded.thresholded_substrate_counts,
+        original.thresholded_substrate_counts,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )
+    _assert_optional_frame_equal(
+        loaded.activity_substrate_counts,
+        original.activity_substrate_counts,
+    )
+    pd.testing.assert_series_equal(
+        loaded.target_counts,
+        original.target_counts,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )
+    pd.testing.assert_frame_equal(
+        loaded.target_table,
+        original.target_table,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )
+    _assert_optional_frame_equal(loaded.statistics_table, original.statistics_table)
+    assert loaded.activity_method == original.activity_method
+    assert loaded.method_summary == original.method_summary
+
+
+def _expected_activity_axis_name(axis: ActivityProfileAxis | str) -> str | None:
+    axis_value = axis.value if isinstance(axis, ActivityProfileAxis) else str(axis)
+    if axis_value == ActivityProfileAxis.SAMPLE.value:
+        return None
+    if axis_value == ActivityProfileAxis.CONDITION_SUMMARY.value:
+        return "condition"
+    return "profile_id"
+
+
+def _assert_activity_provenance_matches_result(
+    result: KinaseWorkflowResult,
+) -> None:
+    assert result.provenance is not None
+    assert result.activity_result is not None
+    activity_config = result.provenance.workflow_parameters["activity_config"]
+    assert isinstance(activity_config, dict)
+    method_contract = activity_config["method_input_contract"]
+    assert isinstance(method_contract, dict)
+    profile_axis = result.activity_result.input_semantics.profile_axis
+    quantity = result.activity_result.input_semantics.quantitative_semantics
+    profile_axis_value = (
+        profile_axis.value
+        if isinstance(profile_axis, ActivityProfileAxis)
+        else str(profile_axis)
+    )
+    quantity_value = (
+        quantity.value
+        if isinstance(quantity, ActivityQuantitativeSemantics)
+        else str(quantity)
+    )
+    assert method_contract["resolved_activity_profile_axis"] == (profile_axis_value)
+    assert method_contract["resolved_activity_quantitative_semantics"] == (
+        quantity_value
+    )
+
+
+def _mutate_activity_manifest(
+    manifest: dict[str, object],
+    *,
+    bundle_root: Path,
+    mutation: str,
+) -> None:
+    activity_payload = manifest["outputs"]["activity"]
+    assert isinstance(activity_payload, dict)
+    if mutation == "missing_input_semantics":
+        activity_payload.pop("input_semantics", None)
+        return
+    if mutation == "missing_profile_metadata":
+        activity_payload.pop("profile_metadata", None)
+        return
+    if mutation == "semantic_metadata_supplied_while_disabled":
+        activity_payload["input_semantics"] = {
+            "profile_axis": "sample",
+            "quantitative_semantics": "sample_level_abundance",
+        }
+        activity_payload["profile_metadata"] = {
+            "axis": "sample",
+            "profile_ids": ["sample_a"],
+            "sample_ids": ["sample_a"],
+            "condition_ids": [],
+            "contrast_ids": [],
+            "aggregation_metadata": None,
+        }
+        return
+
+    input_semantics = activity_payload["input_semantics"]
+    profile_metadata = activity_payload["profile_metadata"]
+    assert isinstance(input_semantics, dict)
+    assert isinstance(profile_metadata, dict)
+
+    if mutation == "axis_quantitative_semantics_mismatch":
+        input_semantics["profile_axis"] = "sample"
+        input_semantics["quantitative_semantics"] = "contrast_log_fold_change"
+    elif mutation == "profile_ids_reordered":
+        reordered = list(reversed(profile_metadata["profile_ids"]))
+        profile_metadata["profile_ids"] = reordered
+        profile_metadata["sample_ids"] = reordered
+    elif mutation == "unknown_profile_ids":
+        profile_metadata["profile_ids"] = ["unknown_a", "unknown_b"]
+        profile_metadata["sample_ids"] = ["unknown_a", "unknown_b"]
+    elif mutation == "contradictory_condition_ids":
+        profile_metadata["condition_ids"] = ["condition_that_should_not_exist"]
+    elif mutation == "missing_condition_summary_aggregation":
+        profile_metadata["aggregation_metadata"] = None
+    elif mutation == "duplicate_aggregation_records":
+        aggregation = profile_metadata["aggregation_metadata"]
+        assert isinstance(aggregation, dict)
+        records = aggregation["records"]
+        assert isinstance(records, list)
+        assert isinstance(records[0], dict)
+        assert isinstance(records[1], dict)
+        records[1]["profile_id"] = records[0]["profile_id"]
+    elif mutation == "provenance_manifest_axis_conflict":
+        method_contract = _activity_method_contract_payload(manifest)
+        method_contract["resolved_activity_profile_axis"] = "contrast"
+    elif mutation == "provenance_manifest_quantitative_conflict":
+        method_contract = _activity_method_contract_payload(manifest)
+        method_contract["resolved_activity_quantitative_semantics"] = (
+            "contrast_log_fold_change"
+        )
+    elif mutation == "table_tamper_with_digest_refresh":
+        tables = activity_payload["tables"]
+        assert isinstance(tables, dict)
+        entry = tables["weighted_activity"]
+        assert isinstance(entry, dict)
+        table_path = bundle_root / str(entry["path"])
+        table = pd.read_csv(table_path, index_col=0)
+        table = table.loc[:, list(reversed(table.columns))]
+        table.to_csv(table_path)
+        _refresh_manifest_table_entry(entry, bundle_root=bundle_root, table=table)
+    else:
+        raise AssertionError(f"Unknown mutation scenario: {mutation}")
+
+
+def _activity_method_contract_payload(
+    manifest: dict[str, object],
+) -> dict[str, object]:
+    provenance = manifest["provenance"]
+    assert isinstance(provenance, dict)
+    workflow_parameters = provenance["workflow_parameters"]
+    assert isinstance(workflow_parameters, dict)
+    activity_config = workflow_parameters["activity_config"]
+    assert isinstance(activity_config, dict)
+    method_contract = activity_config["method_input_contract"]
+    assert isinstance(method_contract, dict)
+    return method_contract
 
 
 def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
@@ -1175,6 +2104,10 @@ def _assert_kinase_result_equal(left, right) -> None:
     if left.activity_result is None or right.activity_result is None:
         assert left.activity_result is right.activity_result
         return
+    assert left.activity_result.input_semantics == right.activity_result.input_semantics
+    assert (
+        left.activity_result.profile_metadata == right.activity_result.profile_metadata
+    )
     pd.testing.assert_frame_equal(
         left.activity_result.activity_matrix,
         right.activity_result.activity_matrix,
@@ -1188,6 +2121,7 @@ def _assert_kinase_result_equal(left, right) -> None:
         check_dtype=False,
         check_names=False,
         check_index_type=False,
+        check_column_type=False,
     )
     pd.testing.assert_series_equal(
         left.activity_result.thresholded_substrate_counts,
@@ -1230,4 +2164,5 @@ def _assert_optional_frame_equal(left, right) -> None:
         right,
         check_dtype=False,
         check_names=False,
+        check_column_type=False,
     )

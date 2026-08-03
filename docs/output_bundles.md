@@ -111,8 +111,8 @@ manifest version.
 
 ## Bundle Safety Rules
 
-Result bundle manifests are versioned. Current kinase and signalome bundle
-writers emit manifest version 2.
+Result bundle manifests are versioned. Current kinase bundle writers emit
+manifest version 3. Current signalome bundle writers emit manifest version 2.
 
 Bundle-relative manifest paths must stay inside the bundle root. Absolute paths
 and paths that escape the root are rejected.
@@ -139,10 +139,26 @@ preserved in published outputs.
 
 For kinase activity score outputs, manifest metadata includes explicit activity
 method identity (`activity_method_id`, family, and non-KSEA/non-PhosR-equivalence
-flags) when activity is enabled. KSEA runs also emit an activity
-`statistics_table` with z-scores, p-values, optional q-values, substrate counts,
-background counts, and computability statuses. These outputs are exploratory
-substrate-supported scores, not direct causal kinase activation evidence.
+flags) when activity is enabled. Kinase manifest version 3 also persists the
+typed `ActivityInputSemantics` and `ActivityProfileMetadata` payloads from
+`KinaseActivityResult`. These payloads preserve the declared profile axis,
+quantitative semantics, profile identifiers, sample/condition/contrast
+identifiers, condition-summary aggregation metadata, and activity-matrix column
+axis semantics. Loaders reconstruct current-schema activity results from these
+typed payloads; they do not infer scientific activity semantics from activity
+method names, table labels, config strings, or diagnostic text. When provenance
+also records resolved activity profile-axis or quantitative-semantics values,
+the loader checks that provenance agrees with the manifest result semantics.
+
+Within `outputs.activity`, schema version 3 uses the fields `enabled`, `method`,
+`summary`, `input_semantics`, `profile_metadata`, and `tables`. Enabled activity
+requires `input_semantics` and `profile_metadata` objects. Disabled activity
+requires both fields to be `null`.
+
+KSEA runs also emit an activity `statistics_table` with z-scores, p-values,
+optional q-values, substrate counts, background counts, and computability
+statuses. These outputs are exploratory substrate-supported scores, not direct
+causal kinase activation evidence.
 
 Bundle loaders reconstruct `dataset.processing_state` and
 `dataset.intensity_scale_state` from saved payloads, including mixed
@@ -158,8 +174,11 @@ caveats that distinguish computable output from production-supported
 inferential support.
 
 Version-1 kinase and signalome result bundles are rejected with a migration
-message. Regenerate old result bundles with the current PhosPy version before
-loading them.
+message. Kinase version-2 bundles are also rejected as legacy because they did
+not contain enough typed activity input semantics, profile identity, or
+condition-summary aggregation metadata to reconstruct every valid
+`KinaseActivityResult` faithfully. Regenerate old result bundles with the
+current PhosPy version before loading them.
 
 ## Choosing the Right Output Path
 

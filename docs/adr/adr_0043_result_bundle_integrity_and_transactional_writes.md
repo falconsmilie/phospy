@@ -24,7 +24,11 @@ verification.
 
 ## Decision
 
-Kinase and signalome result-bundle manifests use manifest version 2.
+At ADR adoption, kinase and signalome result-bundle manifests used manifest
+version 2. Current bundle schema versions are documented in
+`docs/output_bundles.md`; later schema versions retain the same
+content-addressed integrity and transactional-write contract unless a newer ADR
+changes that contract.
 
 Version-2 manifests are content-addressed at the file-entry level:
 
