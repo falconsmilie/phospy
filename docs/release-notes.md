@@ -189,9 +189,9 @@ backgrounds. It does not bundle GO, KEGG, Reactome, PTM-SEA, PTMsigDB, Enrichr,
 gseapy, clusterProfiler, GSEA, or online-service behaviour.
 Typed selected/background identifier-set provenance is optional and does not
 change enrichment statistics. PhosPy-derived quantitative provenance preserves
-declared-versus-observed input intensity-scale evidence: declared-only evidence
-emits the documented caveat, while observed transformation evidence is recorded
-without that caveat.
+typed derivation metadata plus declared-versus-observed input intensity-scale
+evidence: declared-only evidence emits the documented caveat, while observed
+transformation evidence is recorded without that caveat.
 
 Kinase and signalome provenance distinguish causal site-row attrition from
 compatibility metrics. `row_attrition` records stage-local site-row removals

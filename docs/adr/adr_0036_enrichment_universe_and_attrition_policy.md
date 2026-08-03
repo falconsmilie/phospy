@@ -104,5 +104,6 @@ serialization/thawing paths return fresh ordinary `dict`/`list` payloads.
 
 - [ADR-0030: Ranked-List Enrichment Prerequisites](adr_0030_ranked_list_enrichment_prerequisites.md)
 - [ADR-0035: Provenance Immutability and Stable Serialization](adr_0035_provenance_immutability_and_stable_serialization.md)
+- [ADR-0045: Enrichment Derived Identifier-Set Provenance](adr_0045_enrichment_derived_identifier_set_provenance.md)
 - [Enrichment Workflow](../api/enrichment.md)
 - [Workflow Contracts](../workflow_contracts.md)

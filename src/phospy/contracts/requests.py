@@ -28,6 +28,12 @@ from phospy.contracts.configs import (
 )
 from phospy.contracts.dataset_build import DatasetBuildRequest, DatasetInput
 from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentDerivedQuantitativeSetProvenance,
+    EnrichmentDerivedSetMissingValueRule,
+    EnrichmentDerivedSetSourceResultKind,
+    EnrichmentDerivedSetThresholdDirection,
+    EnrichmentDerivedSetValueMeaning,
+    EnrichmentDerivedSetValueScale,
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
 )
@@ -233,6 +239,12 @@ __all__ = [
     "ContinuousCovariate",
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
+    "EnrichmentDerivedQuantitativeSetProvenance",
+    "EnrichmentDerivedSetMissingValueRule",
+    "EnrichmentDerivedSetSourceResultKind",
+    "EnrichmentDerivedSetThresholdDirection",
+    "EnrichmentDerivedSetValueMeaning",
+    "EnrichmentDerivedSetValueScale",
     "EnrichmentIdentifierKind",
     "EnrichmentIdentifierSetProvenance",
     "EnrichmentIdentifierSetSourceType",

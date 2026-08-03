@@ -350,8 +350,14 @@ synthetic attrition records.
 
 Enrichment identifier-set provenance is role-specific. Selected and background
 sets use the same typed provenance model, and PhosPy-derived quantitative sets
-must carry typed input-intensity-scale evidence. Manual and raw identifier lists
-remain valid without provenance. Declared quantitative scale evidence is exposed
+must carry typed derivation provenance plus typed input-intensity-scale
+evidence. Manual and raw identifier lists remain valid without provenance. The
+derived provenance records the source result fingerprint, profile or contrast,
+identifier namespace, threshold, direction, missing-value rule, quantitative
+scale/meaning, and producing software version. Enrichment validates these
+claims and source-table fingerprints when a source table is supplied, but it
+does not calculate differential thresholds, infer set membership from current
+data, or convert identifiers. Declared quantitative scale evidence is exposed
 as a caveat; observed transformation evidence is recorded in provenance without
 the declared-only caveat.
 

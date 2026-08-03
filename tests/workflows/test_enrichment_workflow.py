@@ -738,6 +738,41 @@ def test_enrichment_set_size_filter_excludes_sets_above_maximum() -> None:
     }
 
 
+def test_enrichment_publishing_preset_applies_configurable_set_size_bounds() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "SMALL": ("AKT1",),
+                "PASS": ("AKT1", "MAPK1"),
+                "LARGE": ("AKT1", "MAPK1", "MTOR", "CDK1"),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig.publishing(min_set_size=2, max_set_size=3),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert tuple(record.term_id for record in result.records) == ("PASS",)
+    assert result.config.min_set_size == 2
+    assert result.config.max_set_size == 3
+    assert result.diagnostics["set_size_filter"]["dropped_set_reason_counts"] == {
+        "below_min_set_size": 1,
+        "above_max_set_size": 1,
+    }
+    assert result.provenance is not None
+    assert result.provenance.workflow_parameters["set_size_filter"] == {
+        "min_set_size": 2,
+        "max_set_size": 3,
+        "applied_after_background_intersection": True,
+    }
+
+
 def test_enrichment_set_size_filter_uses_background_intersection_for_passing_set() -> (
     None
 ):

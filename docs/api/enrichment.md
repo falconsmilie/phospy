@@ -62,10 +62,10 @@ Important fields:
 | `selected_identifier_provenance` | Optional typed provenance for the selected identifier set. |
 | `background_identifier_provenance` | Optional typed provenance for the explicit background set. |
 
-Construction stores the request payload and can coerce provenance mappings into
-typed dataclasses. Workflow validation owns identifier-source selection,
-collection/background compatibility, identifier-count checks, and provenance
-compatibility. Workflow execution calculates enrichment statistics.
+Construction stores the request payload. Workflow validation owns
+identifier-source selection, collection/background compatibility,
+identifier-count checks, and typed provenance compatibility. Workflow execution
+calculates enrichment statistics.
 
 ## Identifier-Set Provenance
 
@@ -84,11 +84,20 @@ background sets.
 - `EnrichmentIdentifierSetSourceType.RAW_IDENTIFIER_LIST`
 - `EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE`
 
-For `MANUAL` and `RAW_IDENTIFIER_LIST`, intensity-scale evidence is not needed
-and should not be supplied. For `PHOSPY_DERIVED_QUANTITATIVE`, typed
-`InputIntensityScaleEvidence` is mandatory so downstream provenance preserves
-whether the upstream quantitative scale came from an observed transformation or
-from a user declaration.
+For `MANUAL` and `RAW_IDENTIFIER_LIST`, derivation metadata and
+intensity-scale evidence are not needed and should not be supplied. For
+`PHOSPY_DERIVED_QUANTITATIVE`, typed `InputIntensityScaleEvidence` and typed
+`EnrichmentDerivedQuantitativeSetProvenance` are mandatory. The derivation
+record includes the source result fingerprint, source profile or contrast,
+identifier namespace, threshold, direction, missing-value rule, quantitative
+scale and meaning, and producing PhosPy/software version.
+
+The enrichment workflow validates these provenance claims but does not compute
+differential thresholds, infer selected identifiers from quantitative columns,
+or convert identifier namespaces. When `input_table` is the selected identifier
+source, the declared source-result fingerprint must match that supplied table.
+When `selected_identifiers` is supplied directly, the fingerprint is recorded as
+lineage evidence for the caller-owned upstream result.
 
 `identifier_count` must match the workflow-normalized identifier count:
 distinct, nonblank identifiers after enrichment input normalization and before
@@ -127,7 +136,18 @@ from phospy.api import (
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
 )
+from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentDerivedQuantitativeSetProvenance,
+    EnrichmentDerivedSetMissingValueRule,
+    EnrichmentDerivedSetSourceResultKind,
+    EnrichmentDerivedSetThresholdDirection,
+    EnrichmentDerivedSetValueMeaning,
+    EnrichmentDerivedSetValueScale,
+)
+from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import InputIntensityScaleEvidence
+
+source_table = differential_result.table_for("stim_vs_ctrl")
 
 selected_provenance = EnrichmentIdentifierSetProvenance(
     source_type=EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
@@ -135,6 +155,23 @@ selected_provenance = EnrichmentIdentifierSetProvenance(
     identifier_count=2,
     upstream_workflow_id="differential-workflow",
     upstream_result_id="contrast-a-vs-b",
+    derived_quantitative_provenance=EnrichmentDerivedQuantitativeSetProvenance(
+        source_result_fingerprint=fingerprint_table(
+            source_table,
+            name="differential.contrast_table[stim_vs_ctrl]",
+        ),
+        source_result_kind=EnrichmentDerivedSetSourceResultKind.CONTRAST,
+        source_profile_or_contrast="stim_vs_ctrl",
+        identifier_namespace="gene_symbol",
+        threshold=0.05,
+        direction=EnrichmentDerivedSetThresholdDirection.LESS_THAN_OR_EQUAL,
+        missing_value_rule=(
+            EnrichmentDerivedSetMissingValueRule.TREAT_MISSING_AS_NOT_SELECTED
+        ),
+        quantitative_scale=EnrichmentDerivedSetValueScale.PROBABILITY,
+        quantitative_meaning=EnrichmentDerivedSetValueMeaning.ADJUSTED_P_VALUE,
+        software_version="1.6.0",
+    ),
     input_intensity_scale_evidence=InputIntensityScaleEvidence(
         input_intensity_scale="log2",
         input_intensity_scale_evidence_level="observed_transformation",
@@ -168,6 +205,11 @@ methods are `"benjamini_hochberg"`, `"bonferroni"`, `"holm"`,
 `"benjamini_yekutieli"`, and `"none"`. Correction is applied across the sets
 that are actually tested, after the configured universe policy has been applied
 and after optional set-size filters drop any sets.
+
+`EnrichmentConfig.publishing()` returns a publishing-oriented preset with
+explicit configurable set-size bounds. Defaults are `min_set_size=5` and
+`max_set_size=500`; pass different values when a study or collection requires
+different bounds.
 
 ## Universe and Attrition Policy
 
@@ -340,9 +382,10 @@ When identifier-set provenance is supplied, `result.provenance.workflow_paramete
 also stores compact `selected_identifier_provenance` and
 `background_identifier_provenance` payloads. These payloads include source type,
 source label, normalized identifier count, upstream workflow/result IDs when
-provided, and the nested input-intensity-scale evidence payload. They do not
-copy full identifier lists; identifier lists remain represented by the existing
-input-table fingerprints.
+provided, the nested input-intensity-scale evidence payload when present, and
+the nested derived quantitative provenance payload when the set came from a
+PhosPy quantitative result. They do not copy full identifier lists; identifier
+lists remain represented by the existing input-table fingerprints.
 
 ## Limitations
 

@@ -32,14 +32,16 @@ evidence that the scientific operation happened.
 
 Update note (2026-07-13, enrichment identifier-set provenance):
 `EnrichmentWorkflowRequest` may carry typed selected/background identifier-set
-provenance. For PhosPy-derived quantitative identifier sets, the provenance
-must include the shared `InputIntensityScaleEvidence` model. This keeps
-enrichment provenance aligned with dataset and workflow intensity-scale
+provenance. For PhosPy-derived quantitative identifier sets, the provenance must
+include the shared `InputIntensityScaleEvidence` model and the enrichment-owned
+typed derived-set provenance model described in
+[ADR-0045](adr_0045_enrichment_derived_identifier_set_provenance.md). This
+keeps enrichment provenance aligned with dataset and workflow intensity-scale
 evidence without inferring scale from values, column names, diagnostics, or
 labels. Manual and raw identifier lists remain valid without intensity-scale
-evidence. Declared quantitative scale evidence produces a role-specific
-enrichment caveat; observed transformation evidence is recorded without that
-declared-only caveat.
+evidence or derived-set provenance. Declared quantitative scale evidence
+produces a role-specific enrichment caveat; observed transformation evidence is
+recorded without that declared-only caveat.
 
 ## Decision
 

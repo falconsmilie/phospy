@@ -584,12 +584,15 @@ online enrichment service access, GSEA, ssGSEA, or PTM-SEA support.
 
 When callers supply typed selected/background identifier-set provenance,
 enrichment result provenance also records compact per-role source type, source
-label, normalized identifier count, upstream workflow/result IDs, and typed
-input-intensity-scale evidence. This provenance is optional for legacy/manual
+label, normalized identifier count, upstream workflow/result IDs, typed
+input-intensity-scale evidence, and typed derived-set provenance when the set is
+PhosPy-derived quantitative. This provenance is optional for legacy/manual
 identifier lists. It is required when a caller labels an identifier set as
-PhosPy-derived quantitative, because the enrichment result must preserve whether
-the upstream quantitative intensity scale was observed through transformation
-or declared by the user. Declared evidence produces a role-specific caveat;
+PhosPy-derived quantitative, because the enrichment result must preserve source
+result fingerprint, profile or contrast, namespace, threshold/direction,
+missing-value rule, quantitative scale/meaning, software version, and whether
+the upstream quantitative intensity scale was observed through transformation or
+declared by the user. Declared evidence produces a role-specific caveat;
 observed transformation evidence is recorded without that declared-only caveat.
 
 ## Saved Output and Provenance Schemas

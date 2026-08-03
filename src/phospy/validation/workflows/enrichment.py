@@ -5,8 +5,11 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import Enum
 from numbers import Integral
-from typing import Literal, cast
+from typing import Literal, TypeVar, cast
+
+import pandas as pd
 
 from phospy.contracts.configs import (
     ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
@@ -16,12 +19,21 @@ from phospy.contracts.configs import (
     EnrichmentOutsideBackgroundPolicy,
 )
 from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentDerivedQuantitativeSetProvenance,
+    EnrichmentDerivedSetMissingValueRule,
+    EnrichmentDerivedSetSourceResultKind,
+    EnrichmentDerivedSetThresholdDirection,
+    EnrichmentDerivedSetValueMeaning,
+    EnrichmentDerivedSetValueScale,
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
 )
 from phospy.contracts.requests import EnrichmentWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
+from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import InputIntensityScaleEvidence
+from phospy.provenance.models.tables import TableFingerprint
+from phospy.provenance.serialization.tables import table_fingerprint_to_payload
 from phospy.science.enrichment.models import (
     ENRICHMENT_COLLECTION_KIND_GENE_SET,
     ENRICHMENT_COLLECTION_KIND_PTM_SET,
@@ -42,6 +54,7 @@ from phospy.science.transformations.models import (
 from phospy.validation.common.dataframes import require_columns, require_dataframe
 
 EnrichmentSelectedIdentifierSource = Literal["selected_identifiers", "input_table"]
+_EnumT = TypeVar("_EnumT", bound=Enum)
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +109,7 @@ class EnrichmentWorkflowValidator:
             allow_empty=False,
         )
         config = _validate_config(request.config)
-        selected_identifiers, selected_identifier_source = (
+        selected_identifiers, selected_identifier_source, selected_source_table = (
             _resolve_selected_identifiers(
                 request=request,
                 identifier_column=identifier_column,
@@ -107,12 +120,16 @@ class EnrichmentWorkflowValidator:
             role="Selected",
             field_name="selected_identifier_provenance",
             normalized_identifier_count=len(selected_identifiers),
+            identifier_kind=identifier_kind,
+            source_result_table=selected_source_table,
         )
         background_identifier_provenance = _validate_identifier_set_provenance(
             request.background_identifier_provenance,
             role="Background",
             field_name="background_identifier_provenance",
             normalized_identifier_count=len(background_universe),
+            identifier_kind=identifier_kind,
+            source_result_table=None,
         )
         _validate_universe_policy(
             selected_identifiers=selected_identifiers,
@@ -220,7 +237,7 @@ def _resolve_selected_identifiers(
     *,
     request: EnrichmentWorkflowRequest,
     identifier_column: str,
-) -> tuple[tuple[str, ...], EnrichmentSelectedIdentifierSource]:
+) -> tuple[tuple[str, ...], EnrichmentSelectedIdentifierSource, pd.DataFrame | None]:
     has_input_table = request.input_table is not None
     has_selected_identifiers = request.selected_identifiers is not None
     if has_input_table == has_selected_identifiers:
@@ -236,6 +253,7 @@ def _resolve_selected_identifiers(
                 allow_empty=False,
             ),
             "selected_identifiers",
+            None,
         )
 
     input_table = require_dataframe(
@@ -259,6 +277,7 @@ def _resolve_selected_identifiers(
             allow_empty=False,
         ),
         "input_table",
+        input_table,
     )
 
 
@@ -429,6 +448,8 @@ def _validate_identifier_set_provenance(
     role: Literal["Selected", "Background"],
     field_name: str,
     normalized_identifier_count: int,
+    identifier_kind: EnrichmentIdentifierKind,
+    source_result_table: pd.DataFrame | None,
 ) -> EnrichmentIdentifierSetProvenance | None:
     if value is None:
         return None
@@ -468,15 +489,29 @@ def _validate_identifier_set_provenance(
         field_name="upstream_result_id",
     )
     evidence = value.input_intensity_scale_evidence
+    derived_quantitative_provenance = value.derived_quantitative_provenance
     if source_type is EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE:
         evidence = _validate_input_intensity_scale_evidence(
             evidence,
             role=role,
         )
+        derived_quantitative_provenance = _validate_derived_quantitative_provenance(
+            derived_quantitative_provenance,
+            role=role,
+            identifier_kind=identifier_kind,
+            source_result_table=source_result_table,
+        )
     elif evidence is not None:
         raise WorkflowValidationError(
             f"{role} identifier-set provenance is invalid: "
             "input_intensity_scale_evidence is only valid when "
+            "source_type='phospy_derived_quantitative'; "
+            f"observed source_type={source_type.value!r}."
+        )
+    elif derived_quantitative_provenance is not None:
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "derived_quantitative_provenance is only valid when "
             "source_type='phospy_derived_quantitative'; "
             f"observed source_type={source_type.value!r}."
         )
@@ -487,6 +522,7 @@ def _validate_identifier_set_provenance(
         upstream_workflow_id=upstream_workflow_id,
         upstream_result_id=upstream_result_id,
         input_intensity_scale_evidence=evidence,
+        derived_quantitative_provenance=derived_quantitative_provenance,
     )
 
 
@@ -565,6 +601,178 @@ def _validate_input_intensity_scale_evidence(
         input_intensity_scale_evidence_level=evidence_level.value,
         input_intensity_scale_source=evidence_source,
         input_intensity_scale_source_detail=source_detail,
+    )
+
+
+def _validate_derived_quantitative_provenance(
+    value: object | None,
+    *,
+    role: Literal["Selected", "Background"],
+    identifier_kind: EnrichmentIdentifierKind,
+    source_result_table: pd.DataFrame | None,
+) -> EnrichmentDerivedQuantitativeSetProvenance:
+    if value is None:
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "source_type='phospy_derived_quantitative' requires "
+            "derived_quantitative_provenance."
+        )
+    if not isinstance(value, EnrichmentDerivedQuantitativeSetProvenance):
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "derived_quantitative_provenance must be "
+            "EnrichmentDerivedQuantitativeSetProvenance"
+        )
+    source_result_fingerprint = _validate_source_result_fingerprint(
+        value.source_result_fingerprint,
+        role=role,
+    )
+    source_result_kind = _validate_derived_enum(
+        value.source_result_kind,
+        EnrichmentDerivedSetSourceResultKind,
+        role=role,
+        field_name="derived_quantitative_provenance.source_result_kind",
+    )
+    source_profile_or_contrast = _require_provenance_text(
+        value.source_profile_or_contrast,
+        role=role,
+        field_name="derived_quantitative_provenance.source_profile_or_contrast",
+    )
+    identifier_namespace = _require_provenance_text(
+        value.identifier_namespace,
+        role=role,
+        field_name="derived_quantitative_provenance.identifier_namespace",
+    )
+    if identifier_namespace != identifier_kind:
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "derived_quantitative_provenance.identifier_namespace must match "
+            "enrichment workflow request identifier_kind; "
+            f"observed={identifier_namespace!r}, expected={identifier_kind!r}."
+        )
+    threshold = _validate_finite_threshold(
+        value.threshold,
+        role=role,
+    )
+    direction = _validate_derived_enum(
+        value.direction,
+        EnrichmentDerivedSetThresholdDirection,
+        role=role,
+        field_name="derived_quantitative_provenance.direction",
+    )
+    missing_value_rule = _validate_derived_enum(
+        value.missing_value_rule,
+        EnrichmentDerivedSetMissingValueRule,
+        role=role,
+        field_name="derived_quantitative_provenance.missing_value_rule",
+    )
+    quantitative_scale = _validate_derived_enum(
+        value.quantitative_scale,
+        EnrichmentDerivedSetValueScale,
+        role=role,
+        field_name="derived_quantitative_provenance.quantitative_scale",
+    )
+    quantitative_meaning = _validate_derived_enum(
+        value.quantitative_meaning,
+        EnrichmentDerivedSetValueMeaning,
+        role=role,
+        field_name="derived_quantitative_provenance.quantitative_meaning",
+    )
+    software_version = _require_provenance_text(
+        value.software_version,
+        role=role,
+        field_name="derived_quantitative_provenance.software_version",
+    )
+    derived = EnrichmentDerivedQuantitativeSetProvenance(
+        source_result_fingerprint=source_result_fingerprint,
+        source_result_kind=source_result_kind,
+        source_profile_or_contrast=source_profile_or_contrast,
+        identifier_namespace=identifier_namespace,
+        threshold=threshold,
+        direction=direction,
+        missing_value_rule=missing_value_rule,
+        quantitative_scale=quantitative_scale,
+        quantitative_meaning=quantitative_meaning,
+        software_version=software_version,
+    )
+    _validate_source_result_fingerprint_matches_table(
+        derived,
+        role=role,
+        source_result_table=source_result_table,
+    )
+    return derived
+
+
+def _validate_source_result_fingerprint(
+    value: object,
+    *,
+    role: Literal["Selected", "Background"],
+) -> TableFingerprint:
+    if not isinstance(value, TableFingerprint):
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "derived_quantitative_provenance.source_result_fingerprint must be "
+            "TableFingerprint"
+        )
+    return value
+
+
+def _validate_derived_enum(
+    value: object,
+    enum_type: type[_EnumT],
+    *,
+    role: Literal["Selected", "Background"],
+    field_name: str,
+) -> _EnumT:
+    if isinstance(value, enum_type):
+        return value
+    try:
+        return enum_type(str(value).strip())
+    except ValueError as exc:
+        supported = ", ".join(item.value for item in enum_type)
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: {field_name} must be "
+            f"one of: {supported}; observed={value!r}"
+        ) from exc
+
+
+def _validate_finite_threshold(
+    value: object,
+    *,
+    role: Literal["Selected", "Background"],
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "derived_quantitative_provenance.threshold must be a finite number"
+        )
+    threshold = float(value)
+    if not math.isfinite(threshold):
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "derived_quantitative_provenance.threshold must be a finite number"
+        )
+    return threshold
+
+
+def _validate_source_result_fingerprint_matches_table(
+    derived: EnrichmentDerivedQuantitativeSetProvenance,
+    *,
+    role: Literal["Selected", "Background"],
+    source_result_table: pd.DataFrame | None,
+) -> None:
+    if source_result_table is None:
+        return
+    expected = derived.source_result_fingerprint
+    observed = fingerprint_table(source_result_table, name=expected.name)
+    if table_fingerprint_to_payload(observed) == table_fingerprint_to_payload(expected):
+        return
+    raise WorkflowValidationError(
+        f"{role} identifier-set provenance is invalid: "
+        "derived_quantitative_provenance.source_result_fingerprint mismatch "
+        "for supplied input_table; "
+        f"expected_exact_hash={expected.exact_hash_value!r}, "
+        f"observed_exact_hash={observed.exact_hash_value!r}."
     )
 
 

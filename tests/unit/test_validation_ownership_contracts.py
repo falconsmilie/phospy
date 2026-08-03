@@ -6,6 +6,7 @@ from phospy.validation.datasets import (
     protein_scoped_site_identity as site_key_validation,
 )
 from phospy.validation.datasets import site_metadata as site_metadata_validation
+from phospy.validation.workflows import enrichment as enrichment_validation
 from phospy.validation.workflows import identity as workflow_identity_validation
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
@@ -92,3 +93,17 @@ def test_signalome_module_selection_stability_computation_stays_in_clustering_sc
         "module_selection_diagnostics=clustering_result.module_selection_diagnostics"
         in result_assembler_source
     )
+
+
+def test_enrichment_validates_derived_set_provenance_without_owning_threshold_calculation() -> (
+    None
+):
+    source = inspect.getsource(enrichment_validation)
+
+    assert "derived_quantitative_provenance" in source
+    assert "source_result_fingerprint" in source
+    assert "fingerprint_table(" in source
+    assert "filter_differential_results" not in source
+    assert "rank_differential_results" not in source
+    assert "DifferentialAnalysisResult" not in source
+    assert "adjusted_p_value" not in source

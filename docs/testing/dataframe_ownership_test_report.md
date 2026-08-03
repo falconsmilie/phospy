@@ -133,7 +133,7 @@ These paths protect copy-budget, borrow-alias, and non-mutation guarantees and s
 - `tests/unit/test_frame_ownership_policy.py` :: `test_signalome_validator_read_path_does_not_mutate_internal_frames` (`lines 2385-2453`)
 - `tests/unit/test_frame_ownership_policy.py` :: `test_signalome_interpreter_read_path_does_not_mutate_dataset_frames` (`lines 2456-2484`)
 - `tests/unit/test_frame_ownership_policy.py` :: `test_owned_construction_frames_can_be_mutated_after_owned_transfer` (`lines 2487-2531`)
-- ... and 4 additional high-risk tests
+- ... and 5 additional high-risk tests
 
 ## Candidate Generic Contract Matrix
 

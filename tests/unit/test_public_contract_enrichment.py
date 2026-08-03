@@ -135,6 +135,17 @@ def test_enrichment_config_defaults_are_explicit() -> None:
     assert uncorrected.multiple_testing_correction == "none"
 
 
+def test_enrichment_config_publishing_preset_has_configurable_set_size_bounds() -> None:
+    default_publishing = EnrichmentConfig.publishing()
+    custom_publishing = EnrichmentConfig.publishing(min_set_size=3, max_set_size=250)
+
+    assert default_publishing.min_set_size == 5
+    assert default_publishing.max_set_size == 500
+    assert default_publishing.method == ENRICHMENT_METHOD_OVER_REPRESENTATION
+    assert custom_publishing.min_set_size == 3
+    assert custom_publishing.max_set_size == 250
+
+
 def test_enrichment_unsupported_method_rejected() -> None:
     with pytest.raises(ContractValidationError, match="enrichment.method"):
         EnrichmentConfig(method="competitive")  # type: ignore[arg-type]

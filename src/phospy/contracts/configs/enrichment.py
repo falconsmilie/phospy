@@ -33,6 +33,9 @@ from phospy.science.configs.enrichment import (
     MultipleTestingCorrection,
 )
 
+ENRICHMENT_PUBLISHING_DEFAULT_MIN_SET_SIZE = 5
+ENRICHMENT_PUBLISHING_DEFAULT_MAX_SET_SIZE = 500
+
 
 @dataclass(frozen=True, slots=True)
 class EnrichmentConfig:
@@ -56,6 +59,36 @@ class EnrichmentConfig:
         ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
     )
     minimum_retained_foreground_fraction: float | None = None
+
+    @classmethod
+    def publishing(
+        cls,
+        *,
+        min_set_size: int | None = ENRICHMENT_PUBLISHING_DEFAULT_MIN_SET_SIZE,
+        max_set_size: int | None = ENRICHMENT_PUBLISHING_DEFAULT_MAX_SET_SIZE,
+        method: EnrichmentMethod = ENRICHMENT_METHOD_OVER_REPRESENTATION,
+        multiple_testing_correction: MultipleTestingCorrection = (
+            MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
+        ),
+        selected_outside_background_policy: EnrichmentOutsideBackgroundPolicy = (
+            ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR
+        ),
+        set_member_outside_background_policy: EnrichmentOutsideBackgroundPolicy = (
+            ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+        ),
+        minimum_retained_foreground_fraction: float | None = None,
+    ) -> EnrichmentConfig:
+        """Return a publishing-oriented ORA config with explicit set-size bounds."""
+
+        return cls(
+            method=method,
+            multiple_testing_correction=multiple_testing_correction,
+            min_set_size=min_set_size,
+            max_set_size=max_set_size,
+            selected_outside_background_policy=selected_outside_background_policy,
+            set_member_outside_background_policy=set_member_outside_background_policy,
+            minimum_retained_foreground_fraction=(minimum_retained_foreground_fraction),
+        )
 
     def __post_init__(self) -> None:
         if self.method not in SUPPORTED_ENRICHMENT_METHODS:
@@ -181,6 +214,8 @@ __all__ = [
     "ENRICHMENT_METHOD_OVER_REPRESENTATION",
     "ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP",
     "ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR",
+    "ENRICHMENT_PUBLISHING_DEFAULT_MAX_SET_SIZE",
+    "ENRICHMENT_PUBLISHING_DEFAULT_MIN_SET_SIZE",
     "GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
     "MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG",
     "MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI",

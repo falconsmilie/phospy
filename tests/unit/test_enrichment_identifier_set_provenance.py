@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 import pandas.testing as pdt
 import pytest
 
@@ -14,6 +15,15 @@ from phospy.api import (
     WorkflowValidationError,
 )
 from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentDerivedQuantitativeSetProvenance,
+    EnrichmentDerivedSetMissingValueRule,
+    EnrichmentDerivedSetSourceResultKind,
+    EnrichmentDerivedSetThresholdDirection,
+    EnrichmentDerivedSetValueMeaning,
+    EnrichmentDerivedSetValueScale,
+)
+from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import InputIntensityScaleEvidence
 from phospy.validation.workflows.enrichment import EnrichmentWorkflowValidator
 from phospy.workflows.enrichment.interpreter import EnrichmentWorkflowInterpreter
@@ -58,12 +68,57 @@ def _declared_evidence() -> InputIntensityScaleEvidence:
     )
 
 
+def _source_result_table(
+    *,
+    log2_fc: tuple[float, float] = (1.25, 0.75),
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "gene_symbol": ["AKT1", "MAPK1"],
+            "log2_fc": list(log2_fc),
+            "adjusted_p_value": [0.01, 0.03],
+        }
+    )
+
+
+def _derived_quantitative_provenance(
+    *,
+    source_table: pd.DataFrame | None = None,
+    identifier_namespace: str = ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    threshold: float = 1.0,
+    direction: EnrichmentDerivedSetThresholdDirection = (
+        EnrichmentDerivedSetThresholdDirection.GREATER_THAN_OR_EQUAL
+    ),
+) -> EnrichmentDerivedQuantitativeSetProvenance:
+    table = _source_result_table() if source_table is None else source_table
+    return EnrichmentDerivedQuantitativeSetProvenance(
+        source_result_fingerprint=fingerprint_table(
+            table,
+            name="differential.contrast_table[stim_vs_ctrl]",
+        ),
+        source_result_kind=EnrichmentDerivedSetSourceResultKind.CONTRAST,
+        source_profile_or_contrast="stim_vs_ctrl",
+        identifier_namespace=identifier_namespace,
+        threshold=threshold,
+        direction=direction,
+        missing_value_rule=(
+            EnrichmentDerivedSetMissingValueRule.TREAT_MISSING_AS_NOT_SELECTED
+        ),
+        quantitative_scale=EnrichmentDerivedSetValueScale.LOG2,
+        quantitative_meaning=(
+            EnrichmentDerivedSetValueMeaning.CONTRAST_LOG2_FOLD_CHANGE
+        ),
+        software_version="1.6.0-test",
+    )
+
+
 def _provenance(
     source_type: EnrichmentIdentifierSetSourceType,
     *,
     count: int,
     label: str = "unit-test identifiers",
     evidence: InputIntensityScaleEvidence | None = None,
+    derived: EnrichmentDerivedQuantitativeSetProvenance | None = None,
 ) -> EnrichmentIdentifierSetProvenance:
     return EnrichmentIdentifierSetProvenance(
         source_type=source_type,
@@ -72,6 +127,7 @@ def _provenance(
         upstream_workflow_id="workflow-1",
         upstream_result_id="result-1",
         input_intensity_scale_evidence=evidence,
+        derived_quantitative_provenance=derived,
     )
 
 
@@ -80,12 +136,16 @@ def _request(
     selected_provenance: object | None = None,
     background_provenance: object | None = None,
     background_universe: object = ("AKT1", "MAPK1", "MTOR", "MTOR"),
+    input_table: pd.DataFrame | None = None,
 ) -> EnrichmentWorkflowRequest:
     return EnrichmentWorkflowRequest(
         identifier_column="gene_symbol",
         identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
         set_collection=_gene_collection(),
-        selected_identifiers=(" AKT1 ", "MAPK1", "AKT1"),
+        selected_identifiers=(
+            None if input_table is not None else (" AKT1 ", "MAPK1", "AKT1")
+        ),
+        input_table=input_table,
         background_universe=background_universe,  # type: ignore[arg-type]
         config=EnrichmentConfig(),
         selected_identifier_provenance=selected_provenance,  # type: ignore[arg-type]
@@ -143,6 +203,11 @@ def test_manual_and_raw_selected_provenance_validate_without_evidence(
     assert (
         validated.selected_identifier_provenance.input_intensity_scale_evidence is None
     )
+    assert validated.selected_identifier_provenance.derived_quantitative_provenance is (
+        None
+    )
+    assert "input_intensity_scale_evidence" not in provenance.to_payload()
+    assert "derived_quantitative_provenance" not in provenance.to_payload()
 
 
 def test_phospy_derived_selected_observed_evidence_propagates_without_caveat() -> None:
@@ -150,6 +215,7 @@ def test_phospy_derived_selected_observed_evidence_propagates_without_caveat() -
         EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
         count=2,
         evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
 
     result = EnrichmentWorkflow().run(_request(selected_provenance=provenance))
@@ -166,6 +232,7 @@ def test_phospy_derived_selected_declared_evidence_emits_selected_caveat() -> No
         EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
         count=2,
         evidence=_declared_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
 
     result = EnrichmentWorkflow().run(_request(selected_provenance=provenance))
@@ -189,6 +256,7 @@ def test_phospy_derived_background_observed_evidence_propagates_without_caveat()
         count=3,
         label="background from quantitative workflow",
         evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
 
     result = EnrichmentWorkflow().run(_request(background_provenance=provenance))
@@ -206,6 +274,7 @@ def test_mixed_selected_manual_and_background_derived_inputs_survive_interpretat
         count=3,
         label="quantitative background",
         evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
 
     validated = InternalEnrichmentWorkflowValidator().run(
@@ -226,6 +295,7 @@ def test_mixed_selected_manual_and_background_derived_inputs_survive_interpretat
                 "selected_provenance": _provenance(
                     EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
                     count=2,
+                    derived=_derived_quantitative_provenance(),
                 )
             },
             "Selected identifier-set provenance.*requires input_intensity_scale_evidence",
@@ -237,6 +307,7 @@ def test_mixed_selected_manual_and_background_derived_inputs_survive_interpretat
                     EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
                     count=3,
                     label="background",
+                    derived=_derived_quantitative_provenance(),
                 )
             },
             "Background identifier-set provenance.*requires input_intensity_scale_evidence",
@@ -251,6 +322,126 @@ def test_phospy_derived_provenance_requires_intensity_evidence(
     _ = role
     with pytest.raises(WorkflowValidationError, match=pattern):
         EnrichmentWorkflowValidator().run(_request(**kwargs))
+
+
+@pytest.mark.parametrize(
+    ("role", "kwargs", "pattern"),
+    (
+        (
+            "selected",
+            {
+                "selected_provenance": _provenance(
+                    EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
+                    count=2,
+                    evidence=_observed_evidence(),
+                )
+            },
+            "Selected identifier-set provenance.*requires "
+            "derived_quantitative_provenance",
+        ),
+        (
+            "background",
+            {
+                "background_provenance": _provenance(
+                    EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
+                    count=3,
+                    label="background",
+                    evidence=_observed_evidence(),
+                )
+            },
+            "Background identifier-set provenance.*requires "
+            "derived_quantitative_provenance",
+        ),
+    ),
+)
+def test_phospy_derived_provenance_requires_typed_derivation(
+    role: str,
+    kwargs: dict[str, object],
+    pattern: str,
+) -> None:
+    _ = role
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        EnrichmentWorkflowValidator().run(_request(**kwargs))
+
+
+def test_derived_threshold_and_direction_round_trip_through_payload() -> None:
+    derived = _derived_quantitative_provenance(
+        threshold=0.05,
+        direction=EnrichmentDerivedSetThresholdDirection.LESS_THAN_OR_EQUAL,
+    )
+    provenance = _provenance(
+        EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
+        count=2,
+        evidence=_observed_evidence(),
+        derived=derived,
+    )
+
+    restored = EnrichmentIdentifierSetProvenance.from_payload(provenance.to_payload())
+
+    assert restored.derived_quantitative_provenance is not None
+    assert restored.derived_quantitative_provenance.threshold == 0.05
+    assert restored.derived_quantitative_provenance.direction is (
+        EnrichmentDerivedSetThresholdDirection.LESS_THAN_OR_EQUAL
+    )
+    assert restored.to_payload() == provenance.to_payload()
+
+
+def test_derived_provenance_identifier_namespace_must_match_request() -> None:
+    provenance = _provenance(
+        EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
+        count=2,
+        evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(identifier_namespace="protein_id"),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="identifier_namespace must match",
+    ):
+        EnrichmentWorkflowValidator().run(_request(selected_provenance=provenance))
+
+
+def test_derived_input_table_source_result_fingerprint_mismatch_fails() -> None:
+    input_table = _source_result_table(log2_fc=(1.25, 0.75))
+    different_source_table = _source_result_table(log2_fc=(9.0, 8.0))
+    provenance = _provenance(
+        EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
+        count=2,
+        evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(source_table=different_source_table),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="source_result_fingerprint mismatch",
+    ):
+        EnrichmentWorkflowValidator().run(
+            _request(
+                input_table=input_table,
+                selected_provenance=provenance,
+            )
+        )
+
+
+def test_enrichment_validation_does_not_infer_derived_threshold_membership() -> None:
+    source_table = _source_result_table(log2_fc=(0.01, 0.02))
+    provenance = _provenance(
+        EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
+        count=2,
+        evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(
+            source_table=source_table,
+            threshold=100.0,
+            direction=EnrichmentDerivedSetThresholdDirection.GREATER_THAN_OR_EQUAL,
+        ),
+    )
+
+    validated = EnrichmentWorkflowValidator().run(
+        _request(input_table=source_table, selected_provenance=provenance)
+    )
+
+    assert validated.selected_identifiers == ("AKT1", "MAPK1")
+    assert validated.selected_identifier_provenance == provenance
 
 
 @pytest.mark.parametrize(
@@ -420,6 +611,29 @@ def test_manual_and_raw_provenance_reject_intensity_evidence(
         EnrichmentWorkflowValidator().run(_request(selected_provenance=provenance))
 
 
+@pytest.mark.parametrize(
+    "source_type",
+    (
+        EnrichmentIdentifierSetSourceType.MANUAL,
+        EnrichmentIdentifierSetSourceType.RAW_IDENTIFIER_LIST,
+    ),
+)
+def test_manual_and_raw_provenance_reject_derived_quantitative_metadata(
+    source_type: EnrichmentIdentifierSetSourceType,
+) -> None:
+    provenance = _provenance(
+        source_type,
+        count=2,
+        derived=_derived_quantitative_provenance(),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="derived_quantitative_provenance is only valid",
+    ):
+        EnrichmentWorkflowValidator().run(_request(selected_provenance=provenance))
+
+
 def test_both_provenance_objects_survive_result_and_run_provenance_serialization() -> (
     None
 ):
@@ -428,12 +642,14 @@ def test_both_provenance_objects_survive_result_and_run_provenance_serialization
         count=2,
         label="selected quantitative hits",
         evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
     background = _provenance(
         EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
         count=3,
         label="background quantitative universe",
         evidence=_observed_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
 
     result = EnrichmentWorkflow().run(
@@ -454,6 +670,18 @@ def test_both_provenance_objects_survive_result_and_run_provenance_serialization
     assert selected_payload["input_intensity_scale_evidence"] == (
         _observed_evidence().to_payload()
     )
+    selected_derivation = selected_payload["derived_quantitative_provenance"]
+    assert selected_derivation["source_result_kind"] == "contrast"
+    assert selected_derivation["source_profile_or_contrast"] == "stim_vs_ctrl"
+    assert selected_derivation["identifier_namespace"] == "gene_symbol"
+    assert selected_derivation["threshold"] == 1.0
+    assert selected_derivation["direction"] == "greater_than_or_equal"
+    assert selected_derivation["missing_value_rule"] == (
+        "treat_missing_as_not_selected"
+    )
+    assert selected_derivation["quantitative_scale"] == "log2"
+    assert selected_derivation["quantitative_meaning"] == ("contrast_log2_fold_change")
+    assert selected_derivation["software_version"] == "1.6.0-test"
     assert background_payload["source_label"] == "background quantitative universe"
     assert background_payload["identifier_count"] == 3
 
@@ -464,12 +692,14 @@ def test_declared_selected_and_background_evidence_emit_role_specific_caveats() 
         count=2,
         label="declared selected",
         evidence=_declared_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
     background = _provenance(
         EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
         count=3,
         label="declared background",
         evidence=_declared_evidence(),
+        derived=_derived_quantitative_provenance(),
     )
 
     result = EnrichmentWorkflow().run(
@@ -496,11 +726,13 @@ def test_enrichment_records_and_numeric_statistics_are_identical_with_provenance
                 EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
                 count=2,
                 evidence=_observed_evidence(),
+                derived=_derived_quantitative_provenance(),
             ),
             background_provenance=_provenance(
                 EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
                 count=3,
                 evidence=_observed_evidence(),
+                derived=_derived_quantitative_provenance(),
             ),
         )
     )

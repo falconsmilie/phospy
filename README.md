@@ -120,6 +120,11 @@ pathway activity.
 Enrichment ORA results are overlap statistics under the caller-supplied
 background universe. They do not prove pathway activation, regulation, or
 biological causality, and PhosPy does not imply GSEA or PTM-SEA support.
+Manual or external identifier lists can remain minimally described, while
+identifier sets derived from PhosPy quantitative results require typed
+derivation provenance with source-result fingerprint, threshold/direction,
+namespace, missing-value rule, quantitative scale/meaning, and software
+version.
 
 Scientific scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture
