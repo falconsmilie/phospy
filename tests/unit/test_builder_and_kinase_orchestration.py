@@ -34,6 +34,7 @@ from phospy.api.results import (
 )
 from phospy.science.activities.semantics import ActivityInputMatrix
 from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
 from phospy.science.references.models import ReferenceContext
@@ -46,6 +47,7 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
+    ValidatedKinaseWorkflowRequest,
 )
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
@@ -547,15 +549,21 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     )
 
     class ValidatorSpy:
-        def run(self, workflow_request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
+        def run(
+            self, workflow_request: KinaseWorkflowRequest
+        ) -> ValidatedKinaseWorkflowRequest:
             calls.append("validator")
-            return workflow_request
+            return ValidatedKinaseWorkflowRequest(
+                request=workflow_request,
+                dataset_view=DatasetInternalView(workflow_request.dataset),
+            )
 
     class InterpreterSpy:
         def run(
-            self, workflow_request: KinaseWorkflowRequest
+            self, workflow_request: ValidatedKinaseWorkflowRequest
         ) -> ResolvedKinaseWorkflowRequest:
             calls.append("interpreter")
+            assert workflow_request.request is request
             return interpreted
 
     class ExecutorSpy:

@@ -16,10 +16,12 @@ from phospy.api import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.workflows.kinase.contracts import (
     KinaseWorkflowExecutorContract,
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
+    ValidatedKinaseWorkflowRequest,
 )
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
@@ -72,6 +74,15 @@ def _dataset(
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
     )
 
 
@@ -322,7 +333,7 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
         site_sequence_conflict_policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     )
 
-    interpreted = KinaseWorkflowInterpreter().run(request)
+    interpreted = KinaseWorkflowInterpreter().run(_validated_request(request))
 
     mapk14_site_key = site_key_from_display_id("MAPK14;Y182;")
     assert interpreted.site_sequences.at[mapk14_site_key, "site_sequence"] == (

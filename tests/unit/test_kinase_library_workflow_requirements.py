@@ -22,6 +22,7 @@ from phospy.api.configs.kinase import (
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import KinaseLibraryResourceProvenance
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.motif_scoring import (
     KinaseLibraryMotifScorer,
@@ -34,6 +35,7 @@ from phospy.science.references.kinase_library import (
     KinaseLibraryResource,
 )
 from phospy.science.references.models import SequenceWindowDefinition
+from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.kinase_library_scoring import (
@@ -63,6 +65,15 @@ _SEQUENCES_BY_DISPLAY_ID = {
     "GENE3;Y3;": "AYA",
     "OTHER;S1;": "ASA",
 }
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def test_kinase_library_workflow_scoring_succeeds_with_all_required_inputs() -> None:
@@ -253,9 +264,11 @@ def test_kinase_library_workflow_mode_fails_when_no_site_sequences_resolve() -> 
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         interpreter.run(
-            _request(
-                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
-                kinase_library_resource=_kinase_library_resource(),
+            _validated_request(
+                _request(
+                    scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+                    kinase_library_resource=_kinase_library_resource(),
+                )
             )
         )
 
@@ -297,9 +310,11 @@ def test_kinase_library_workflow_mode_fails_when_residue_class_resources_are_mis
 
 def test_kinase_library_workflow_mode_does_not_call_phosr_inspired_fallback() -> None:
     interpreted = KinaseWorkflowInterpreter().run(
-        _request(
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
-            kinase_library_resource=_kinase_library_resource(),
+        _validated_request(
+            _request(
+                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+                kinase_library_resource=_kinase_library_resource(),
+            )
         )
     )
 
@@ -321,18 +336,20 @@ def test_kinase_library_workflow_mode_does_not_call_phosr_inspired_fallback() ->
 
 def test_kinase_library_motif_only_does_not_build_profiles() -> None:
     interpreted = KinaseWorkflowInterpreter().run(
-        _request(
-            references=_references(
-                mapped_display_ids=("OTHER;S1;",),
-                sequence_display_ids=(
-                    "GENE1;S1;",
-                    "GENE2;T2;",
-                    "GENE3;Y3;",
-                    "OTHER;S1;",
+        _validated_request(
+            _request(
+                references=_references(
+                    mapped_display_ids=("OTHER;S1;",),
+                    sequence_display_ids=(
+                        "GENE1;S1;",
+                        "GENE2;T2;",
+                        "GENE3;Y3;",
+                        "OTHER;S1;",
+                    ),
                 ),
+                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+                kinase_library_resource=_kinase_library_resource(),
             ),
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
-            kinase_library_resource=_kinase_library_resource(),
         )
     )
 

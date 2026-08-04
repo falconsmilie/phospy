@@ -49,6 +49,7 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
+    ValidatedKinaseWorkflowRequest,
 )
 from phospy.workflows.kinase.reference_projection import KinaseReferenceProjector
 from phospy.workflows.kinase.resolved_validator import (
@@ -91,9 +92,12 @@ class KinaseWorkflowInterpreter:
             resolved_validator or ResolvedKinaseEligibilityValidator()
         )
 
-    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
+    def run(
+        self, validated: ValidatedKinaseWorkflowRequest
+    ) -> ResolvedKinaseWorkflowRequest:
+        request = validated.request
         scoring_config = self._require_scoring_config(request)
-        dataset_view = DatasetInternalView(request.dataset)
+        dataset_view = validated.dataset_view
         dataset_phospho = dataset_view.phospho
         dataset_site_metadata = dataset_view.site_metadata
         site_identity_map = self._build_site_identity_map(
@@ -195,6 +199,7 @@ class KinaseWorkflowInterpreter:
         execution_config = self._resolve_execution_config(
             request,
             scoring_config=scoring_config,
+            dataset_view=dataset_view,
         )
         resolved_inputs = ResolvedKinaseInputs(
             dataset=request.dataset,
@@ -323,6 +328,7 @@ class KinaseWorkflowInterpreter:
         request: KinaseWorkflowRequest,
         *,
         scoring_config: KinaseScoringConfig,
+        dataset_view: DatasetInternalView,
     ) -> ResolvedKinaseExecutionConfig:
         prediction_sampling_policy = resolve_prediction_sampling_policy(
             request.prediction_config.adaptive_policy
@@ -336,6 +342,7 @@ class KinaseWorkflowInterpreter:
                 ),
             ),
             context="kinase workflow request dataset",
+            dataset_view=dataset_view,
         )
         activity_method_input_contract = (
             None
@@ -346,6 +353,7 @@ class KinaseWorkflowInterpreter:
                     request.activity_config.method
                 ),
                 context="kinase activity request dataset",
+                dataset_view=dataset_view,
             )
         )
         activity = (
@@ -559,12 +567,14 @@ def _resolve_dataset_method_input_contract(
     dataset: AnalysisReadyPhosphoDataset,
     contract: MethodQuantitativeInputContract,
     context: str,
+    dataset_view: DatasetInternalView,
 ) -> ResolvedMethodQuantitativeInputContract:
     try:
         return MethodQuantitativeInputValidator().run(
             dataset=dataset,
             contract=contract,
             context=context,
+            dataset_view=dataset_view,
         )
     except WorkflowValidationError as exc:
         raise WorkflowBoundaryError(

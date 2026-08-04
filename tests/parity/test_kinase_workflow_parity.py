@@ -20,7 +20,10 @@ from phospy.api import (
     ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseWorkflowRequest,
+    ValidatedKinaseWorkflowRequest,
+)
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.parity_reporting import (
     format_bool,
@@ -63,7 +66,9 @@ class _MixedMissingActivityInterpreter(KinaseWorkflowInterpreter):
         self.missing_display_id = missing_display_id
         self.missing_sample = missing_sample
 
-    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
+    def run(
+        self, request: ValidatedKinaseWorkflowRequest
+    ) -> ResolvedKinaseWorkflowRequest:
         interpreted = super().run(request)
         activity_phospho = interpreted.activity_phospho_matrix.copy(deep=True)
         assert interpreted.site_identity_map is not None

@@ -14,6 +14,7 @@ from phospy.errors import (
     ReferenceResolutionError,
 )
 from phospy.science.datasets.builders.reader import DatasetInputReader
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import ReferenceResolver
@@ -212,6 +213,7 @@ def test_resolved_kinase_validator_rejects_invalid_overlap_summary_state() -> No
                 execution_config=KinaseWorkflowInterpreter._resolve_execution_config(
                     request,
                     scoring_config=scoring_config,
+                    dataset_view=DatasetInternalView(dataset),
                 ),
                 reference_site_count=0,
             ),

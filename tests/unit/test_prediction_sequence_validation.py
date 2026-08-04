@@ -13,6 +13,7 @@ from phospy.api import (
     ReferenceBundle,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
     SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
@@ -34,6 +35,7 @@ from phospy.science.prediction.sequence_validation import (
     MotifSequenceValidator,
     SequenceValidationInput,
 )
+from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
 from tests.support.analysis_ready_dataset_factories import (
@@ -48,6 +50,15 @@ from tests.support.site_keys import (
     site_key_from_display_id,
     site_key_index_from_display_ids,
 )
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def _validator() -> MotifSequenceValidator:
@@ -486,7 +497,7 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         ),
         activity_config=None,
     )
-    interpreted = KinaseWorkflowInterpreter().run(request)
+    interpreted = KinaseWorkflowInterpreter().run(_validated_request(request))
     scoring_result = (
         KinaseScoringRunner()
         .run(

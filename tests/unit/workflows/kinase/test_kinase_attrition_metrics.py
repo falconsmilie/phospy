@@ -13,11 +13,13 @@ from phospy.api import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.workflows.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
     build_kinase_attrition_provenance_payload,
 )
+from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -38,6 +40,15 @@ from tests.support.unsafe_dataset_states import (
 def _window(display_id: str) -> str:
     residue = display_id.split(";")[1][0].upper()
     return ("A" * 15) + residue + ("A" * 15)
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def _dataset(
@@ -159,11 +170,13 @@ def _request(
 def test_kinase_attrition_metrics_no_attrition() -> None:
     display_ids = ["KIN1;S1;", "KIN2;T2;"]
     interpreted = KinaseWorkflowInterpreter().run(
-        _request(
-            dataset=_dataset(display_ids),
-            references=_references(
-                substrate_display_ids=display_ids,
-                sequence_display_ids=display_ids,
+        _validated_request(
+            _request(
+                dataset=_dataset(display_ids),
+                references=_references(
+                    substrate_display_ids=display_ids,
+                    sequence_display_ids=display_ids,
+                ),
             ),
         )
     )
@@ -184,11 +197,13 @@ def test_kinase_attrition_metrics_reference_overlap_loss() -> None:
     display_ids = ["KIN1;S1;", "KIN2;T2;", "KIN3;Y3;"]
     reference_ids = display_ids[:2]
     interpreted = KinaseWorkflowInterpreter().run(
-        _request(
-            dataset=_dataset(display_ids),
-            references=_references(
-                substrate_display_ids=reference_ids,
-                sequence_display_ids=reference_ids,
+        _validated_request(
+            _request(
+                dataset=_dataset(display_ids),
+                references=_references(
+                    substrate_display_ids=reference_ids,
+                    sequence_display_ids=reference_ids,
+                ),
             ),
         )
     )
@@ -209,14 +224,16 @@ def test_kinase_attrition_metrics_sequence_support_loss() -> None:
     display_ids = ["KIN1;S1;", "KIN2;T2;", "KIN3;Y3;"]
     sequence_supported_ids = display_ids[:2]
     interpreted = KinaseWorkflowInterpreter().run(
-        _request(
-            dataset=_dataset(
-                display_ids,
-                missing_sequence_display_ids={display_ids[2]},
-            ),
-            references=_references(
-                substrate_display_ids=display_ids,
-                sequence_display_ids=sequence_supported_ids,
+        _validated_request(
+            _request(
+                dataset=_dataset(
+                    display_ids,
+                    missing_sequence_display_ids={display_ids[2]},
+                ),
+                references=_references(
+                    substrate_display_ids=display_ids,
+                    sequence_display_ids=sequence_supported_ids,
+                ),
             ),
         )
     )
@@ -237,14 +254,16 @@ def test_kinase_attrition_metrics_zero_scored_sites_is_explicit() -> None:
     display_ids = ["KIN1;S1;", "KIN2;T2;", "KIN3;Y3;", "KIN4;S4;"]
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflowInterpreter().run(
-            _request(
-                dataset=_dataset(
-                    display_ids,
-                    missing_sequence_display_ids=set(display_ids[:2]),
-                ),
-                references=_references(
-                    substrate_display_ids=display_ids[:2],
-                    sequence_display_ids=display_ids[2:],
+            _validated_request(
+                _request(
+                    dataset=_dataset(
+                        display_ids,
+                        missing_sequence_display_ids=set(display_ids[:2]),
+                    ),
+                    references=_references(
+                        substrate_display_ids=display_ids[:2],
+                        sequence_display_ids=display_ids[2:],
+                    ),
                 ),
             )
         )

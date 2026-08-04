@@ -337,7 +337,7 @@ def test_differential_validator_accepts_valid_site_key_dataset() -> None:
 def test_kinase_validator_accepts_valid_site_key_dataset() -> None:
     request = _kinase_request(dataset=_kinase_dataset())
     validated = KinaseWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_signalome_validator_accepts_valid_site_key_dataset() -> None:

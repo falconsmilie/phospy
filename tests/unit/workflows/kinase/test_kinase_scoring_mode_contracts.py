@@ -27,6 +27,7 @@ from phospy.api.configs.kinase import (
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import KinaseLibraryResourceProvenance
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.motif_scoring.models import AMINO_ACIDS
 from phospy.science.references.kinase_library import (
@@ -35,6 +36,7 @@ from phospy.science.references.kinase_library import (
     KinaseLibraryResource,
 )
 from phospy.science.references.models import SequenceWindowDefinition
+from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.scoring_mode_contracts import (
     KINASE_ANALYSIS_READY_SITE_METADATA_COLUMNS,
@@ -59,6 +61,15 @@ from tests.support.unsafe_dataset_states import (
 )
 
 _DEFAULT_KINASE_LIBRARY_RESOURCE = object()
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -243,7 +254,7 @@ def test_scoring_modes_do_not_require_localisation_probability_by_default(
 
     validated = KinaseWorkflowValidator().run(request)
 
-    assert validated is request
+    assert validated.request is request
 
 
 @pytest.mark.parametrize(
@@ -280,7 +291,7 @@ def test_profile_modes_require_substrate_reference_overlap(
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        KinaseWorkflowInterpreter().run(request)
+        KinaseWorkflowInterpreter().run(_validated_request(request))
 
     assert exc_info.value.seam == "kinase.interpreter.reference_coverage"
 
@@ -293,7 +304,7 @@ def test_kinase_library_motif_only_does_not_require_substrate_reference_overlap(
         scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     )
 
-    resolved = KinaseWorkflowInterpreter().run(request)
+    resolved = KinaseWorkflowInterpreter().run(_validated_request(request))
     result = KinaseWorkflow().run(request)
 
     assert resolved.kinase_substrate_map.empty

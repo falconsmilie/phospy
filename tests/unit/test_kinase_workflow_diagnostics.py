@@ -22,12 +22,14 @@ from phospy.api import (
 from phospy.errors import WorkflowBoundaryError
 from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.science.activities.semantics import ActivityInputMatrix
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.models import KinasePredictionResult
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
+    ValidatedKinaseWorkflowRequest,
 )
 from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
@@ -43,6 +45,15 @@ from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
 )
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def _dataset(
@@ -244,7 +255,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         activity_config=KinaseActivityConfig(),
     )
 
-    interpreted = KinaseWorkflowInterpreter().run(request)
+    interpreted = KinaseWorkflowInterpreter().run(_validated_request(request))
 
     assert interpreted.execution_config.scoring_min_substrates == 2
     assert interpreted.execution_config.include_diagnostic_scoring_tables is False
@@ -297,10 +308,12 @@ def test_interpreter_merges_dataset_site_sequences_without_mutating_references()
     original_reference_sequences = references.site_sequences.copy(deep=True)
 
     interpreted = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(
-            dataset=dataset,
-            references=references,
-            scoring_config=_scoring_config(),
+        _validated_request(
+            KinaseWorkflowRequest(
+                dataset=dataset,
+                references=references,
+                scoring_config=_scoring_config(),
+            )
         )
     )
 

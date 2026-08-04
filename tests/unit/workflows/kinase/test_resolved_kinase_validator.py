@@ -15,8 +15,12 @@ from phospy.api import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.kinase.contracts import ResolvedKinaseExecutionConfig
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseExecutionConfig,
+    ValidatedKinaseWorkflowRequest,
+)
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
@@ -38,6 +42,15 @@ from tests.support.site_keys import (
 def _window(display_id: str) -> str:
     residue = display_id.split(";")[1][0].upper()
     return ("A" * 15) + residue + ("A" * 15)
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def _dataset(
@@ -281,7 +294,7 @@ def test_kinase_interpreter_delegates_resolved_validation() -> None:
 
     interpreted = KinaseWorkflowInterpreter(
         resolved_validator=_ResolvedValidatorSpy()  # type: ignore[arg-type]
-    ).run(request)
+    ).run(_validated_request(request))
 
     assert len(calls) == 1
     resolved_inputs = calls[0]

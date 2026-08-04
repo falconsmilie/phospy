@@ -248,7 +248,7 @@ def test_kinase_validator_accepts_log_abundance_input_meaning() -> None:
 
     validated = KinaseWorkflowValidator().run(request)
 
-    assert validated is request
+    assert validated.request is request
 
 
 @pytest.mark.parametrize(

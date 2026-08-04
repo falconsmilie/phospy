@@ -10,12 +10,15 @@ from phospy.workflows.kinase.row_attrition import (
 from tests.unit.workflows.kinase.test_kinase_attrition_policy import (
     _request,
     _strict_scored_fraction_policy,
+    _validated_request,
 )
 
 
 def _resolved_request():
     return KinaseWorkflowInterpreter().run(
-        _request(_strict_scored_fraction_policy(on_violation="warn"))
+        _validated_request(
+            _request(_strict_scored_fraction_policy(on_violation="warn"))
+        )
     )
 
 

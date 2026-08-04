@@ -11,6 +11,11 @@ PhosPy uses two different performance mechanisms:
 Performance results are operational guardrails and profiling evidence. They are
 not guarantees of identical runtime on every machine.
 
+Ordinary kinase workflow runs use one workflow-scoped immutable dataset view
+for validation and interpretation. That view is not cached on the dataset or on
+the workflow instance, so separate `KinaseWorkflow.run(...)` calls still receive
+independent immutable snapshots.
+
 ## Target Dataset Scales
 
 PhosPy currently targets these practical execution scales:

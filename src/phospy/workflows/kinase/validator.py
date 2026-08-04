@@ -46,6 +46,7 @@ from phospy.validation.workflows.identity import (
 from phospy.validation.workflows.method_quantitative import (
     MethodQuantitativeInputValidator,
 )
+from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_method_quantitative_input_contract,
     kinase_scoring_mode_input_contract,
@@ -75,7 +76,7 @@ class KinaseWorkflowValidator:
             method_quantitative_input_validator or MethodQuantitativeInputValidator()
         )
 
-    def run(self, request: object) -> KinaseWorkflowRequest:
+    def run(self, request: object) -> ValidatedKinaseWorkflowRequest:
         if not isinstance(request, KinaseWorkflowRequest):
             raise WorkflowValidationError(
                 "kinase workflow input must be a KinaseWorkflowRequest"
@@ -85,6 +86,7 @@ class KinaseWorkflowValidator:
             raise WorkflowValidationError(
                 "kinase workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
+        dataset_view = DatasetInternalView(dataset)
         references = cast(object, request.references)
         if not isinstance(references, (ReferencePreset, ReferenceBundle)):
             raise WorkflowValidationError(
@@ -141,6 +143,7 @@ class KinaseWorkflowValidator:
                 ),
             ),
             context="kinase workflow request dataset",
+            dataset_view=dataset_view,
         )
         if activity_config is not None and activity_config.enabled:
             self._method_quantitative_input_validator.run(
@@ -149,8 +152,8 @@ class KinaseWorkflowValidator:
                     activity_config.method
                 ),
                 context="kinase activity request dataset",
+                dataset_view=dataset_view,
             )
-        dataset_view = DatasetInternalView(dataset)
         site_metadata = require_dataframe(
             dataset_view.site_metadata,
             field_name="kinase workflow request dataset.site_metadata",
@@ -197,7 +200,10 @@ class KinaseWorkflowValidator:
             requirement=scoring_config.localisation_requirement,
             error_type=WorkflowValidationError,
         )
-        return request
+        return ValidatedKinaseWorkflowRequest(
+            request=request,
+            dataset_view=dataset_view,
+        )
 
 
 def _selected_explicit_reference_sequence_context(

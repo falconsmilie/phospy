@@ -23,6 +23,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.models import JsonValue
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.workflows.intensity_scale_evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
@@ -35,7 +36,10 @@ from phospy.workflows.kinase.caveats import (
     KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
     KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
 )
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseWorkflowRequest,
+    ValidatedKinaseWorkflowRequest,
+)
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -53,6 +57,15 @@ from tests.support.site_keys import (
 def _window(display_id: str) -> str:
     residue = display_id.split(";")[1][0].upper()
     return ("A" * 15) + residue + ("A" * 15)
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def _dataset(display_ids: list[str]) -> AnalysisReadyPhosphoDataset:
@@ -329,7 +342,9 @@ def test_kinase_result_caveats_include_declared_input_scale_evidence() -> None:
 def test_kinase_attrition_policy_error_message_contains_counts_and_threshold() -> None:
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflowInterpreter().run(
-            _request(_strict_scored_fraction_policy(on_violation="error"))
+            _validated_request(
+                _request(_strict_scored_fraction_policy(on_violation="error"))
+            )
         )
 
     message = str(exc_info.value)

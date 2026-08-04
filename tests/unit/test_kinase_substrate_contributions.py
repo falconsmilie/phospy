@@ -17,11 +17,13 @@ from phospy.api import (
 from phospy.api.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
 )
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
     KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
 )
 from phospy.workflows.kinase import scoring_runner as scoring_runner_module
+from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.workflows.kinase.contributions import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
     KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES,
@@ -46,6 +48,15 @@ from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
 )
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def test_contribution_table_records_statuses_sources_and_ambiguity() -> None:
@@ -172,22 +183,24 @@ def test_scoring_runner_skips_contribution_builder_when_collection_disabled(
         fail_if_called,
     )
     resolved = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(
-            dataset=_dataset(),
-            references=_references(),
-            scoring_config=KinaseScoringConfig(
-                reliability_profile="custom",
-                min_substrates=2,
-                reference_context_compatibility_policy=(
-                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        _validated_request(
+            KinaseWorkflowRequest(
+                dataset=_dataset(),
+                references=_references(),
+                scoring_config=KinaseScoringConfig(
+                    reliability_profile="custom",
+                    min_substrates=2,
+                    reference_context_compatibility_policy=(
+                        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                    ),
                 ),
-            ),
-            prediction_config=KinasePredictionConfig(
-                top_k=2,
-                deterministic_max_selected_kinases=2,
-                adaptive_ensemble_runs=2,
-            ),
-            activity_config=None,
+                prediction_config=KinasePredictionConfig(
+                    top_k=2,
+                    deterministic_max_selected_kinases=2,
+                    adaptive_ensemble_runs=2,
+                ),
+                activity_config=None,
+            )
         )
     )
 
@@ -224,7 +237,7 @@ def test_scoring_runner_collects_internal_contributions_when_requested() -> None
         ),
         activity_config=None,
     )
-    resolved = KinaseWorkflowInterpreter().run(request)
+    resolved = KinaseWorkflowInterpreter().run(_validated_request(request))
 
     scoring_execution = KinaseScoringRunner().run(
         request=resolved,

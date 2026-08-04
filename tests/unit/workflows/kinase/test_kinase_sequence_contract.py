@@ -194,7 +194,7 @@ def test_valid_centered_15aa_window_passes_for_kinase_library_mode() -> None:
 
     validated = KinaseWorkflowValidator().run(request)
 
-    assert validated is request
+    assert validated.request is request
 
 
 def test_missing_site_sequence_fails_before_kinase_motif_scoring() -> None:

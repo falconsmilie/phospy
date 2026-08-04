@@ -132,7 +132,7 @@ def test_analysis_ready_dataset_with_unknown_localisation_allows_default_kinase_
         activity_config=None,
     )
     validated = KinaseWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_analysis_ready_dataset_with_unknown_localisation_rejects_localisation_strict_kinase_validation() -> (

@@ -195,7 +195,7 @@ def test_kinase_validator_accepts_explicit_exploratory_scoring_intent() -> None:
         scoring_config=KinaseScoringConfig.exploratory(),
     )
 
-    assert KinaseWorkflowValidator().run(request) is request
+    assert KinaseWorkflowValidator().run(request).request is request
 
 
 def test_kinase_validator_accepts_explicit_production_scoring_intent() -> None:
@@ -213,7 +213,7 @@ def test_kinase_validator_accepts_explicit_production_scoring_intent() -> None:
         ),
     )
 
-    assert KinaseWorkflowValidator().run(request) is request
+    assert KinaseWorkflowValidator().run(request).request is request
 
 
 def test_kinase_validator_accepts_explicit_custom_scoring_intent() -> None:
@@ -223,7 +223,7 @@ def test_kinase_validator_accepts_explicit_custom_scoring_intent() -> None:
         scoring_config=_kinase_scoring_config(min_substrates=2),
     )
 
-    assert KinaseWorkflowValidator().run(request) is request
+    assert KinaseWorkflowValidator().run(request).request is request
 
 
 def build_signalome_config(**kwargs: object) -> SignalomeConfig:
@@ -1114,7 +1114,7 @@ def test_kinase_reference_compatibility_boundary_matrix(
         activity_config=None,
     )
     validated = KinaseWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
     if expected_exception is None:
         try:
@@ -1158,7 +1158,7 @@ def test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_o
         allow_mixed_total_protein_quantitative_meaning=True
     )
     validated = KinaseWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_kinase_validator_allows_unknown_localisation_by_default() -> None:
@@ -1174,7 +1174,7 @@ def test_kinase_validator_allows_unknown_localisation_by_default() -> None:
         activity_config=None,
     )
     validated = KinaseWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_kinase_validator_can_require_localisation_probability_presence() -> None:
@@ -1308,7 +1308,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
     )
 
     validated = KinaseWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 @pytest.mark.parametrize(
@@ -1923,10 +1923,13 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
     )
 
     validated = KinaseWorkflowValidator().run(request)
-    assert validated is request
-    assert validated.dataset._borrow_phospho_frame().index.tolist() == site_ids.tolist()
+    assert validated.request is request
     assert (
-        validated.dataset._borrow_site_metadata_frame().index.tolist()
+        validated.request.dataset._borrow_phospho_frame().index.tolist()
+        == site_ids.tolist()
+    )
+    assert (
+        validated.request.dataset._borrow_site_metadata_frame().index.tolist()
         == site_ids.tolist()
     )
 

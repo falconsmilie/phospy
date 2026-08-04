@@ -19,6 +19,7 @@ from phospy.api.configs import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
@@ -28,6 +29,7 @@ from phospy.workflows.kinase.caveats import (
     KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE,
     KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
 )
+from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
@@ -45,6 +47,15 @@ from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
 )
+
+
+def _validated_request(
+    request: KinaseWorkflowRequest,
+) -> ValidatedKinaseWorkflowRequest:
+    return ValidatedKinaseWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.dataset),
+    )
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -198,7 +209,7 @@ def test_allow_profile_self_inclusion_policy_produces_caveat() -> None:
 
 
 def test_default_profile_scores_match_existing_profile_scoring_path() -> None:
-    resolved = KinaseWorkflowInterpreter().run(_request())
+    resolved = KinaseWorkflowInterpreter().run(_validated_request(_request()))
     profile_build = build_kinase_profiles(
         phospho=resolved.activity_phospho_matrix,
         kinase_substrate_map=resolved.kinase_substrate_map,

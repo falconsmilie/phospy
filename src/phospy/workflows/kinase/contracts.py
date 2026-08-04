@@ -30,6 +30,7 @@ from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.models import RowAttritionRecord
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.policies import (
     DEFAULT_PREDICTION_SAMPLING_POLICY,
@@ -81,6 +82,19 @@ from phospy.workflows.kinase.site_sequence_policy import (
 if TYPE_CHECKING:
     from phospy.science.references.kinase_library import KinaseLibraryResource
     from phospy.science.references.resolution import ReferenceResolverContract
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedKinaseWorkflowRequest:
+    """Validated kinase request passed to interpretation."""
+
+    request: KinaseWorkflowRequest
+    dataset_view: DatasetInternalView = field(repr=False, compare=False)
+
+    def __getattr__(self, name: str) -> object:
+        """Delegate legacy internal read access to the wrapped public request."""
+
+        return getattr(self.request, name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -812,7 +826,7 @@ class ResolvedKinaseExecutionConfig:
 class KinaseWorkflowValidatorContract(Protocol):
     """Internal contract for kinase workflow request validation."""
 
-    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest: ...
+    def run(self, request: object) -> ValidatedKinaseWorkflowRequest: ...
 
 
 class KinaseWorkflowInterpreterContract(Protocol):
@@ -820,7 +834,9 @@ class KinaseWorkflowInterpreterContract(Protocol):
 
     _reference_resolver: ReferenceResolverContract
 
-    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest: ...
+    def run(
+        self, request: ValidatedKinaseWorkflowRequest
+    ) -> ResolvedKinaseWorkflowRequest: ...
 
 
 class KinaseWorkflowExecutorContract(Protocol):
@@ -836,4 +852,5 @@ __all__ = [
     "ResolvedKinaseActivityExecutionConfig",
     "ResolvedKinaseExecutionConfig",
     "ResolvedKinaseWorkflowRequest",
+    "ValidatedKinaseWorkflowRequest",
 ]

@@ -114,7 +114,7 @@ def test_reference_compatibility_is_enforced_at_workflow_runtime_boundary() -> N
         ),
         activity_config=None,
     )
-    assert KinaseWorkflowValidator().run(request) is request
+    assert KinaseWorkflowValidator().run(request).request is request
     with pytest.raises(ReferenceCompatibilityError):
         KinaseWorkflow().run(request)
 
