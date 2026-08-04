@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.signalomes.constants import (
     LEGACY_PROTEIN_GROUP_ID_COLUMN,
     PROTEIN_GROUP_ID_COLUMN,
@@ -26,11 +24,11 @@ class SignalomeProteinResolver:
     def run(
         self,
         *,
-        dataset: AnalysisReadyPhosphoDataset,
+        site_metadata: pd.DataFrame,
         site_index: pd.Index,
         removed_by_score_preconditioning_count: int,
     ) -> pd.Series:
-        metadata = DatasetInternalView(dataset).site_metadata
+        metadata = site_metadata
         protein_grouping_column = self._resolve_grouping_column(metadata)
         if protein_grouping_column is None:
             raise_signalome_boundary_error(

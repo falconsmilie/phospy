@@ -2411,7 +2411,7 @@ def test_signalome_validator_read_path_does_not_mutate_internal_frames() -> None
     )
 
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
     dataset_phospho_after = fingerprint_table(
         dataset._borrow_phospho_frame(),

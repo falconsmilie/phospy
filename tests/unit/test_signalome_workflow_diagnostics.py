@@ -44,6 +44,7 @@ from phospy.errors import (
     WorkflowBoundaryError,
 )
 from phospy.errors.workflows import WorkflowStageError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.signalomes.clustering import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
@@ -1380,6 +1381,7 @@ def test_resolved_signalome_request_rejects_mismatched_site_indexes() -> None:
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         ResolvedSignalomeWorkflowRequest(
             dataset=dataset,
+            dataset_view=DatasetInternalView(dataset),
             kinase_result=_kinase_result(
                 dataset=dataset,
                 prediction_matrix=prediction_matrix,
@@ -2713,6 +2715,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     )
     resolved_missing_kinase = ResolvedSignalomeWorkflowRequest(
         dataset=dataset,
+        dataset_view=DatasetInternalView(dataset),
         kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
@@ -3115,6 +3118,7 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
     )
     resolved = ResolvedSignalomeWorkflowRequest(
         dataset=dataset,
+        dataset_view=DatasetInternalView(dataset),
         kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,

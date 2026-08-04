@@ -299,7 +299,7 @@ def test_protein_resolver_maps_retained_sites_to_explicit_protein_group_ids() ->
     )
 
     resolved = resolver.run(
-        dataset=dataset,
+        site_metadata=dataset.site_metadata,
         site_index=site_key_index_from_display_ids(["P3;S3;", "P1;S1;"]),
         removed_by_score_preconditioning_count=1,
     )

@@ -9,7 +9,6 @@ from phospy.contracts.configs import (
 )
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.internal_view import KinasePredictionInternalView
 from phospy.science.prediction.scoring import (
     select_downstream_score_matrix as _select_downstream_score_matrix,
@@ -39,6 +38,7 @@ from phospy.workflows.signalome.constants import (
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
+    ValidatedSignalomeWorkflowRequest,
 )
 from phospy.workflows.signalome.matrix_alignment import SignalomeMatrixAligner
 from phospy.workflows.signalome.protein_resolution import SignalomeProteinResolver
@@ -50,6 +50,9 @@ from phospy.workflows.signalome.score_matrix_selection import (
 )
 from phospy.workflows.signalome.score_preconditioning import (
     SignalomeScorePreconditioner,
+)
+from phospy.workflows.signalome.validator import (
+    _unchecked_signalome_workflow_request_boundary,  # pyright: ignore[reportPrivateUsage] - Interpreter keeps a legacy internal test seam while ordinary workflow runs receive the validator-produced boundary.
 )
 
 _SITE_KEY_COLUMN = "site_key"
@@ -89,22 +92,25 @@ class SignalomeWorkflowInterpreter:
         )
 
     def run(
-        self, request: SignalomeWorkflowRequest
+        self, request: SignalomeWorkflowRequest | ValidatedSignalomeWorkflowRequest
     ) -> ResolvedSignalomeWorkflowRequest:
-        dataset = request.kinase_result.dataset
-        dataset_view = DatasetInternalView(dataset)
+        if not isinstance(request, ValidatedSignalomeWorkflowRequest):
+            request = _unchecked_signalome_workflow_request_boundary(request)
+        public_request = request.request
+        dataset_view = request.dataset_view
+        dataset = public_request.kinase_result.dataset
         dataset_phospho = dataset_view.phospho
         dataset_site_metadata = dataset_view.site_metadata
         dataset_sites = pd.Index(
             index_as_strings(dataset_phospho.index),
             name=dataset_phospho.index.name,
         )
-        prediction_result = request.kinase_result.prediction_result
+        prediction_result = public_request.kinase_result.prediction_result
         prediction_matrix_input = KinasePredictionInternalView(
             prediction_result
         ).pred_mat
         score_selection = self._score_matrix_selector.run(
-            request.kinase_result.scoring_result
+            public_request.kinase_result.scoring_result
         )
         aligned_matrices = self._matrix_aligner.run(
             dataset_sites=dataset_sites,
@@ -112,7 +118,7 @@ class SignalomeWorkflowInterpreter:
             downstream_score_matrix=score_selection.downstream_score_matrix,
             downstream_score_source=score_selection.downstream_score_source,
         )
-        execution_config = self._resolve_execution_config(request)
+        execution_config = self._resolve_execution_config(public_request)
         preconditioning_result = self._score_preconditioner.run(
             score_matrix=aligned_matrices.aligned_downstream_score_matrix,
             policy=execution_config.score_preconditioning_policy,
@@ -194,7 +200,7 @@ class SignalomeWorkflowInterpreter:
         )
         downstream_score_matrix.index = downstream_output_index
         site_to_protein_group_id = self._protein_resolver.run(
-            dataset=dataset,
+            site_metadata=dataset_site_metadata,
             site_index=retained_site_index,
             removed_by_score_preconditioning_count=int(
                 aligned_matrices.aligned_site_index.size - retained_site_index.size
@@ -237,7 +243,8 @@ class SignalomeWorkflowInterpreter:
         )
         return ResolvedSignalomeWorkflowRequest(
             dataset=dataset,
-            kinase_result=request.kinase_result,
+            dataset_view=dataset_view,
+            kinase_result=public_request.kinase_result,
             execution_config=execution_config,
             downstream_score_matrix=downstream_score_matrix,
             downstream_score_source=score_selection.downstream_score_source,

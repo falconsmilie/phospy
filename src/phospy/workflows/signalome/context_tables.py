@@ -7,7 +7,6 @@ from collections.abc import Callable
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
-from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.signalomes.clustering import ClusterSitesResult
 from phospy.science.signalomes.context import (
     build_protein_site_context_table,
@@ -57,11 +56,10 @@ class SignalomeContextTableBuilder:
         execution_metadata: SignalomeExecutionMetadata,
     ) -> SignalomeContextTableBuildResult:
         try:
-            dataset_view = DatasetInternalView(request.dataset)
             site_membership = self._build_site_membership(
                 module_assignments=module_assignments,
                 site_clusters=clustering_result.site_clusters,
-                site_metadata=dataset_view.site_metadata,
+                site_metadata=request.dataset_view.site_metadata,
                 prediction_matrix=request.prediction_matrix,
                 kinase_substrates=support_summary.kinase_substrates,
                 substrate_support_cutoff=config.substrate_support_cutoff,

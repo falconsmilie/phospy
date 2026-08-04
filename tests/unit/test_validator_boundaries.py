@@ -1465,7 +1465,7 @@ def test_signalome_validator_allows_mixed_total_protein_quantitative_meaning_wit
         allow_mixed_total_protein_quantitative_meaning=True
     )
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 @pytest.mark.parametrize(
@@ -1587,7 +1587,7 @@ def test_signalome_validator_accepts_complete_signalome_grouping_metadata() -> N
 
     validated = SignalomeWorkflowValidator().run(request)
 
-    assert validated is request
+    assert validated.request is request
     assert validated.kinase_result.dataset.site_metadata.loc[
         :, "protein_id"
     ].tolist() == ["MAPK14"]
@@ -1874,7 +1874,7 @@ def test_signalome_validator_allows_gapped_flanks_when_centre_is_valid() -> None
     )
 
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None:
@@ -1997,7 +1997,7 @@ def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> N
     )
 
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
     assert (
         validated.kinase_result.dataset._borrow_phospho_frame().index.tolist()
         == site_ids.tolist()
@@ -2021,7 +2021,7 @@ def test_signalome_validator_does_not_cast_numeric_matrices(
 
     monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_signalome_validator_uses_internal_borrowed_dataframe_access(
@@ -2065,7 +2065,7 @@ def test_signalome_validator_uses_internal_borrowed_dataframe_access(
     )
 
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
@@ -2084,7 +2084,7 @@ def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
     )
 
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_signalome_validator_allows_downstream_score_matrix_missingness() -> None:
@@ -2110,7 +2110,7 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
     )
 
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 def test_signalome_validator_rejects_missing_site_metadata_protein_values() -> None:

@@ -119,7 +119,7 @@ def test_signalome_accepts_valid_centered_sequence_context() -> None:
 
     validated = SignalomeWorkflowValidator().run(request)
 
-    assert validated is request
+    assert validated.request is request
 
 
 def test_signalome_requires_site_sequence_column() -> None:

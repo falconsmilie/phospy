@@ -286,7 +286,7 @@ def test_signalome_validator_accepts_log_abundance_input_meaning() -> None:
 
     validated = SignalomeWorkflowValidator().run(request)
 
-    assert validated is request
+    assert validated.request is request
 
 
 @pytest.mark.parametrize(

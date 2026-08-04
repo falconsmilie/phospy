@@ -52,6 +52,7 @@ from phospy.workflows.kinase.contracts import (
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
+    ValidatedSignalomeWorkflowRequest,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -609,6 +610,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     score_matrix = kinase_result.scoring_result.profile_scores
     interpreted = ResolvedSignalomeWorkflowRequest(
         dataset=kinase_result.dataset,
+        dataset_view=DatasetInternalView(kinase_result.dataset),
         kinase_result=kinase_result,
         execution_config=_resolved_signalome_execution_config(request.config),
         downstream_score_matrix=score_matrix,
@@ -681,15 +683,21 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     class ValidatorSpy:
         def run(
             self, workflow_request: SignalomeWorkflowRequest
-        ) -> SignalomeWorkflowRequest:
+        ) -> ValidatedSignalomeWorkflowRequest:
             calls.append("validator")
-            return workflow_request
+            return ValidatedSignalomeWorkflowRequest(
+                request=workflow_request,
+                dataset_view=DatasetInternalView(
+                    workflow_request.kinase_result.dataset
+                ),
+            )
 
     class InterpreterSpy:
         def run(
-            self, workflow_request: SignalomeWorkflowRequest
+            self, workflow_request: ValidatedSignalomeWorkflowRequest
         ) -> ResolvedSignalomeWorkflowRequest:
             calls.append("interpreter")
+            assert workflow_request.request is request
             return interpreted
 
     class ExecutorSpy:

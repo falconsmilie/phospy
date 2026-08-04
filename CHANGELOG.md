@@ -81,6 +81,11 @@ All notable changes to this project are documented here.
   kinase workflow interpretation, avoiding duplicate phospho and site-metadata
   internal snapshots within a single run while preserving independent snapshots
   across separate `KinaseWorkflow.run(...)` calls.
+- Reused one Signalome validator-owned immutable dataset view across ordinary
+  Signalome validation, interpretation, protein grouping, executor table
+  construction, and result identity validation. Standalone Signalome bundle
+  reconstruction still performs independent dataset identity validation from an
+  isolated snapshot.
 - Converted the 50,000-site by 48-sample release-scale workload from a
   release-blocking pytest/CI performance contract into an explicitly invoked
   local benchmark. The benchmark runs the full workflow once, reports runtime,

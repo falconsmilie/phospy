@@ -343,7 +343,7 @@ def test_kinase_validator_accepts_valid_site_key_dataset() -> None:
 def test_signalome_validator_accepts_valid_site_key_dataset() -> None:
     request = _signalome_request(dataset=_kinase_dataset())
     validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    assert validated.request is request
 
 
 @pytest.mark.parametrize(
@@ -534,7 +534,7 @@ def test_signalome_validator_accepts_legacy_protein_id_grouping_alias() -> None:
 
     validated = SignalomeWorkflowValidator().run(request)
 
-    assert validated is request
+    assert validated.request is request
 
 
 def test_signalome_validator_rejects_conflicting_grouping_alias_values() -> None:

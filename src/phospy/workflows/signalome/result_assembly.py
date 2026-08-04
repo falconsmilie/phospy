@@ -109,10 +109,10 @@ class SignalomeResultAssembler:
     ) -> SignalomeWorkflowResult:
         try:
             validate_signalome_result_site_level_identity(
-                dataset=request.dataset,
                 module_assignments=module_assignments,
                 expanded_signalome=expanded_signalome,
                 site_membership=site_membership,
+                site_metadata=request.dataset_view.site_metadata,
             )
         except WorkflowStageError as exc:
             raise_boundary_error(

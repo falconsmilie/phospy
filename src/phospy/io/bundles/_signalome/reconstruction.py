@@ -17,6 +17,7 @@ from phospy.contracts.results import (
     SignalomeWorkflowResult,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.errors.workflows import WorkflowStageError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
 )
@@ -51,10 +52,14 @@ from phospy.io.bundles._signalome.tables import (
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
+from phospy.science.signalomes._result_validation import (
+    validate_signalome_result_site_level_identity,
+)
 from phospy.science.signalomes.constants import (
     LEGACY_PROTEIN_GROUP_ID_COLUMN,
     PROTEIN_GROUP_ID_COLUMN,
@@ -197,41 +202,40 @@ def reconstruct_signalome_result(
         bundle_root=bundle_root,
         sections=sections,
     )
-
-    return SignalomeWorkflowResult._from_owned(
+    module_assignments = normalize_module_assignments_table(
+        read_required_table(
+            bundle_root=bundle_root,
+            tables=sections.signalome_tables,
+            table_key="module_assignments",
+            field_name="bundle manifest.signalome_outputs.tables.module_assignments",
+        )
+    )
+    signalome_modules = read_required_table(
+        bundle_root=bundle_root,
+        tables=sections.signalome_tables,
+        table_key="signalome_modules",
+        field_name="bundle manifest.signalome_outputs.tables.signalome_modules",
+    )
+    network_edges = read_required_table(
+        bundle_root=bundle_root,
+        tables=sections.signalome_tables,
+        table_key="kinase_network_edges",
+        field_name="bundle manifest.signalome_outputs.tables.kinase_network_edges",
+    )
+    network_nodes = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.signalome_tables,
+        table_key="kinase_network_nodes",
+        field_name="bundle manifest.signalome_outputs.tables.kinase_network_nodes",
+    )
+    result = SignalomeWorkflowResult._from_owned(
         dataset=dataset,
         kinase_result=kinase_result,
-        module_assignments=SignalomeAssignments._from_owned(
-            table=normalize_module_assignments_table(
-                read_required_table(
-                    bundle_root=bundle_root,
-                    tables=sections.signalome_tables,
-                    table_key="module_assignments",
-                    field_name="bundle manifest.signalome_outputs.tables.module_assignments",
-                )
-            )
-        ),
-        signalome_modules=SignalomeModules._from_owned(
-            table=read_required_table(
-                bundle_root=bundle_root,
-                tables=sections.signalome_tables,
-                table_key="signalome_modules",
-                field_name="bundle manifest.signalome_outputs.tables.signalome_modules",
-            )
-        ),
+        module_assignments=SignalomeAssignments._from_owned(table=module_assignments),
+        signalome_modules=SignalomeModules._from_owned(table=signalome_modules),
         kinase_network=KinaseNetwork._from_owned(
-            edges=read_required_table(
-                bundle_root=bundle_root,
-                tables=sections.signalome_tables,
-                table_key="kinase_network_edges",
-                field_name="bundle manifest.signalome_outputs.tables.kinase_network_edges",
-            ),
-            nodes=read_optional_table(
-                bundle_root=bundle_root,
-                tables=sections.signalome_tables,
-                table_key="kinase_network_nodes",
-                field_name="bundle manifest.signalome_outputs.tables.kinase_network_nodes",
-            ),
+            edges=network_edges,
+            nodes=network_nodes,
             candidate_correlations=optional_tables.candidate_correlations,
             correlation_diagnostics=diagnostics.network_correlation,
         ),
@@ -245,6 +249,18 @@ def reconstruct_signalome_result(
         provenance=provenances.signalome,
         caveats=result_caveats_from_payloads(sections.signalome_caveats_payload),
     )
+    try:
+        validate_signalome_result_site_level_identity(
+            module_assignments=result.module_assignments.table,
+            expanded_signalome=result.expanded_signalome,
+            site_membership=result.site_membership,
+            site_metadata=DatasetInternalView(dataset).site_metadata,
+        )
+    except WorkflowStageError as exc:
+        raise PhosPyInputError(
+            f"bundle signalome result identity validation failed: {exc}"
+        ) from exc
+    return result
 
 
 def _parse_bundle_provenances(

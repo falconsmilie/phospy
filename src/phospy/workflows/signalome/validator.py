@@ -52,6 +52,7 @@ from phospy.validation.workflows.quantitative import (
     WorkflowQuantitativeInputValidator,
     signalome_workflow_input_contract,
 )
+from phospy.workflows.signalome.contracts import ValidatedSignalomeWorkflowRequest
 
 SIGNALOME_PROTEIN_GROUP_ID_COLUMN = PROTEIN_GROUP_ID_COLUMN
 SIGNALOME_LEGACY_PROTEIN_GROUP_ID_COLUMN = LEGACY_PROTEIN_GROUP_ID_COLUMN
@@ -91,7 +92,9 @@ class SignalomeWorkflowValidator:
             quantitative_input_validator or WorkflowQuantitativeInputValidator()
         )
 
-    def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowRequest:
+    def run(
+        self, request: SignalomeWorkflowRequest
+    ) -> ValidatedSignalomeWorkflowRequest:
         if not isinstance(request, SignalomeWorkflowRequest):
             raise WorkflowValidationError(
                 "signalome workflow input must be a SignalomeWorkflowRequest"
@@ -124,6 +127,7 @@ class SignalomeWorkflowValidator:
                 )
             ),
             context="signalome workflow request kinase_result.dataset",
+            dataset_view=dataset_view,
         )
 
         prediction_matrix = require_dataframe(
@@ -238,7 +242,10 @@ class SignalomeWorkflowValidator:
             localisation_requirement=config.validation.localisation_requirement,
             allow_opaque_site_values=dataset.opaque_site_values_allowed,
         )
-        return request
+        return ValidatedSignalomeWorkflowRequest(
+            request=request,
+            dataset_view=dataset_view,
+        )
 
     @staticmethod
     def _require_network_min_paired_observations_compatible(
@@ -352,6 +359,32 @@ class SignalomeWorkflowValidator:
                 "signalome protein grouping metadata requirement failed: "
                 f"{exc}. {SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE}"
             ) from exc
+
+
+def _unchecked_signalome_workflow_request_boundary(
+    request: object,
+) -> ValidatedSignalomeWorkflowRequest:
+    """Wrap an internal interpreter-only request without rerunning validation.
+
+    Ordinary `SignalomeWorkflow.run(...)` calls must use
+    `SignalomeWorkflowValidator.run(...)`. This compatibility seam exists for
+    focused interpreter tests and internal collaborators that intentionally
+    exercise interpreter boundary errors before full workflow validation would
+    accept the public request.
+    """
+
+    if not isinstance(request, SignalomeWorkflowRequest):
+        raise WorkflowValidationError(
+            "signalome workflow input must be a SignalomeWorkflowRequest"
+        )
+    if not isinstance(request.kinase_result, KinaseWorkflowResult):
+        raise WorkflowValidationError(
+            "signalome workflow request kinase_result must be KinaseWorkflowResult"
+        )
+    return ValidatedSignalomeWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.kinase_result.dataset),
+    )
 
 
 def _resolve_signalome_protein_grouping_column(

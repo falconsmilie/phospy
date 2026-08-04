@@ -127,6 +127,14 @@ sharing mutable frames across independent runs. Representative differential
 workflow tests bound full phospho-matrix `DataFrame.copy(deep=True)` calls to no
 more than three for the validation/interpreter/execution handoff.
 
+Implementation note (2026-08-04): ordinary Signalome workflow execution threads
+one validator-owned `DatasetInternalView` from the private validated request
+through interpretation, protein-group resolution, executor table construction,
+and result identity validation. Signalome result reconstruction from persisted
+bundles is intentionally separate: bundle loading builds an isolated validation
+snapshot so standalone reconstruction remains safe without a workflow-scoped
+view.
+
 ### Provenance
 
 Provenance fields describe owned state at creation time. Caller mutation of

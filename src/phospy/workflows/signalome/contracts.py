@@ -21,6 +21,7 @@ from phospy.contracts.results import KinaseWorkflowResult, SignalomeWorkflowResu
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.models import RowAttritionRecord
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.scoring import DownstreamScoreSelectionPolicy
 from phospy.science.scoring.policy_models import DownstreamScoreSource
@@ -74,6 +75,19 @@ class ResolvedSignalomeExecutionConfig:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class ValidatedSignalomeWorkflowRequest:
+    """Validated signalome request passed to interpretation."""
+
+    request: SignalomeWorkflowRequest
+    dataset_view: DatasetInternalView = field(repr=False, compare=False)
+
+    def __getattr__(self, name: str) -> object:
+        """Delegate legacy internal read access to the wrapped public request."""
+
+        return getattr(self.request, name)
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class ResolvedSignalomeWorkflowRequest:
     """Interpreter output for signalome workflow execution.
@@ -93,6 +107,7 @@ class ResolvedSignalomeWorkflowRequest:
     """
 
     dataset: AnalysisReadyPhosphoDataset
+    dataset_view: DatasetInternalView = field(repr=False, compare=False)
     kinase_result: KinaseWorkflowResult
     execution_config: ResolvedSignalomeExecutionConfig
     downstream_score_matrix: pd.DataFrame
@@ -122,6 +137,7 @@ class ResolvedSignalomeWorkflowRequest:
         self,
         *,
         dataset: AnalysisReadyPhosphoDataset,
+        dataset_view: DatasetInternalView,
         kinase_result: KinaseWorkflowResult,
         execution_config: ResolvedSignalomeExecutionConfig,
         downstream_score_matrix: pd.DataFrame,
@@ -158,6 +174,7 @@ class ResolvedSignalomeWorkflowRequest:
         if alignment_diagnostics is None:
             alignment_diagnostics = default_signalome_alignment_diagnostics()
         object.__setattr__(self, "dataset", dataset)
+        object.__setattr__(self, "dataset_view", dataset_view)
         object.__setattr__(self, "kinase_result", kinase_result)
         object.__setattr__(self, "execution_config", execution_config)
         object.__setattr__(self, "downstream_score_matrix", downstream_score_matrix)
@@ -179,6 +196,14 @@ class ResolvedSignalomeWorkflowRequest:
         self.__post_init__()
 
     def __post_init__(self) -> None:
+        if not isinstance(self.dataset_view, DatasetInternalView):
+            raise WorkflowBoundaryError(
+                "signalome workflow boundary validation failed at seam="
+                "signalome.contracts.dataset_view_type; "
+                "dataset_view must be DatasetInternalView; "
+                "next_action=ensure signalome validation passes the workflow-scoped "
+                "dataset view into interpretation and resolved execution"
+            )
         downstream_score_source = DownstreamScoreSource.parse(
             self.downstream_score_source,
             field_name="signalome_request.downstream_score_source",
@@ -258,14 +283,16 @@ class ResolvedSignalomeWorkflowRequest:
 class SignalomeWorkflowValidatorContract(Protocol):
     """Internal contract for signalome workflow request validation."""
 
-    def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowRequest: ...
+    def run(
+        self, request: SignalomeWorkflowRequest
+    ) -> ValidatedSignalomeWorkflowRequest: ...
 
 
 class SignalomeWorkflowInterpreterContract(Protocol):
     """Internal contract for signalome workflow request interpretation."""
 
     def run(
-        self, request: SignalomeWorkflowRequest
+        self, request: ValidatedSignalomeWorkflowRequest
     ) -> ResolvedSignalomeWorkflowRequest: ...
 
 
