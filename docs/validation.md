@@ -192,7 +192,9 @@ Common cross-field checks:
   missing `batch_column`, missing protected `condition_columns`, confounded or
   rank-inadequate batch/condition designs, too few eligible caller-supplied
   control sites, incompatible control-site metadata, caller controls missing
-  audit metadata without explicit `metadata_missing_reason`, incomplete
+  audit metadata without explicit `metadata_missing_reason`, conflicting
+  control-source declarations such as disagreeing `source_type`/`source`,
+  incomplete
   packaged-control metadata, duplicate or ambiguous accepted-control metadata,
   missing values without a supported `CorrectionMissingnessPolicy`, unsupported
   temporary-imputation policies, missing observation masks when temporary

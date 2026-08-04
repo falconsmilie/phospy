@@ -6,10 +6,13 @@ import pytest
 from phospy.errors import PhosPyInputError
 from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.validation.datasets.batch_correction import (
+from phospy.validation.datasets.batch_correction_design import (
     BatchCorrectionAdequacyValidator,
     BatchDesignMetadataValidator,
+    BatchStructureValidator,
+    ConditionStructureValidator,
     DesignRankValidator,
+    ReplicateStructureDiagnosticHelper,
     ReplicateStructureValidator,
     SampleMetadataAlignmentValidator,
 )
@@ -115,6 +118,21 @@ def test_sample_metadata_alignment_validator_rejects_misaligned_metadata() -> No
         )
 
 
+def test_sample_metadata_alignment_validator_accepts_reordered_metadata() -> None:
+    sample_metadata = _batch_design_sample_metadata()
+    sample_metadata = sample_metadata.loc[
+        ["sample_3", "sample_1", "sample_4", "sample_2"]
+    ]
+
+    sample_order = SampleMetadataAlignmentValidator().run(
+        phospho=_phospho(),
+        sample_metadata=sample_metadata,
+        required_columns=("batch", "condition"),
+    )
+
+    assert sample_order == ("sample_1", "sample_2", "sample_3", "sample_4")
+
+
 def test_sample_metadata_alignment_validator_rejects_duplicated_metadata() -> None:
     with pytest.raises(
         PhosPyInputError,
@@ -125,6 +143,23 @@ def test_sample_metadata_alignment_validator_rejects_duplicated_metadata() -> No
             sample_metadata=_batch_design_sample_metadata(
                 index=("sample_1", "sample_2", "sample_2", "sample_4")
             ),
+            required_columns=("batch", "condition"),
+        )
+
+
+def test_sample_metadata_alignment_validator_rejects_duplicated_matrix_columns() -> (
+    None
+):
+    phospho = _phospho()
+    phospho.columns = pd.Index(["sample_1", "sample_2", "sample_2", "sample_4"])
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="phospho.columns contains duplicate sample labels.*sample_2",
+    ):
+        SampleMetadataAlignmentValidator().run(
+            phospho=phospho,
+            sample_metadata=_batch_design_sample_metadata(),
             required_columns=("batch", "condition"),
         )
 
@@ -142,6 +177,33 @@ def test_design_metadata_validator_rejects_missing_condition_columns() -> None:
         )
 
 
+def test_batch_structure_validator_rejects_blank_batch_labels() -> None:
+    sample_metadata = _batch_design_sample_metadata()
+    sample_metadata.loc["sample_2", "batch"] = " "
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="column 'batch' contains blank batch labels.*sample_2",
+    ):
+        BatchStructureValidator().run(
+            sample_metadata=sample_metadata,
+            sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
+            batch_column="batch",
+        )
+
+
+def test_condition_structure_validator_rejects_duplicate_condition_columns() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="condition_columns must not contain duplicates",
+    ):
+        ConditionStructureValidator().run(
+            sample_metadata=_batch_design_sample_metadata(),
+            sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
+            condition_columns=("condition", "condition"),
+        )
+
+
 def test_replicate_structure_validator_rejects_missing_required_column() -> None:
     with pytest.raises(
         PhosPyInputError,
@@ -153,6 +215,37 @@ def test_replicate_structure_validator_rejects_missing_required_column() -> None
             replicate_column=None,
             required=True,
         )
+
+
+def test_replicate_structure_diagnostics_report_singletons_and_partitions() -> None:
+    diagnostics = ReplicateStructureDiagnosticHelper().run(
+        replicate_column="replicate",
+        replicate_by_sample={
+            "sample_1": "r1",
+            "sample_2": "r1",
+            "sample_3": "r2",
+            "sample_4": "r3",
+        },
+        batch_by_sample={
+            "sample_1": "run_1",
+            "sample_2": "run_1",
+            "sample_3": "run_2",
+            "sample_4": "run_3",
+        },
+        condition_by_sample={
+            "sample_1": "control",
+            "sample_2": "control",
+            "sample_3": "treated",
+            "sample_4": "treated",
+        },
+        sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
+    )
+
+    assert diagnostics is not None
+    assert diagnostics.singleton_replicates == ("r2", "r3")
+    assert diagnostics.perfectly_confounded_with_batch is True
+    assert diagnostics.perfectly_confounded_with_condition is False
+    assert "batch_confounded_replicate_labels" in diagnostics.diagnostic_flags
 
 
 def test_design_rank_validator_rejects_rank_deficient_matrix() -> None:
@@ -169,6 +262,37 @@ def test_design_rank_validator_rejects_rank_deficient_matrix() -> None:
         match="rank-deficient.*condition_A.*duplicated_condition_A",
     ):
         DesignRankValidator().run(design, context="test design")
+
+
+def test_batch_validation_rejects_singleton_batch_level() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="singleton batch levels.*run_2",
+    ):
+        BatchCorrectionAdequacyValidator().run(
+            batch_by_sample={
+                "sample_1": "run_1",
+                "sample_2": "run_1",
+                "sample_3": "run_2",
+                "sample_4": "run_3",
+                "sample_5": "run_3",
+            },
+            condition_by_sample={
+                "sample_1": "control",
+                "sample_2": "treated",
+                "sample_3": "control",
+                "sample_4": "control",
+                "sample_5": "treated",
+            },
+            sample_order=(
+                "sample_1",
+                "sample_2",
+                "sample_3",
+                "sample_4",
+                "sample_5",
+            ),
+            preserve_condition_effects=True,
+        )
 
 
 def test_batch_validation_rejects_perfectly_confounding_batch_and_condition() -> None:

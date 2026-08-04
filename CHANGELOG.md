@@ -77,6 +77,10 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- Decomposed internal batch-correction dataset validation into focused design,
+  applied-provenance, and control-site modules. Applied
+  `BatchCorrectionProvenance.control_site_source` validation now rejects
+  conflicting `source_type`/`source` declarations deterministically.
 - Reused the kinase validator-owned immutable dataset view during ordinary
   kinase workflow interpretation, avoiding duplicate phospho and site-metadata
   internal snapshots within a single run while preserving independent snapshots

@@ -1,20 +1,17 @@
-"""Preprocessing-domain checks for applied batch-correction provenance."""
+"""Preprocessing provenance construction and legacy validation import routes."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
 from phospy.provenance import fingerprint_matrix
 from phospy.provenance.environment import (
-    BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES,
     collect_batch_correction_environment_provenance,
 )
 from phospy.provenance.models import (
-    BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS,
     BatchCorrectionProvenance,
     JsonValue,
 )
@@ -22,34 +19,7 @@ from phospy.science.configs.preprocessing.internal_batch_correction import (
     SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
 )
 
-_APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style"})
-_UNSUPPORTED_SPS_RUV_METHODS = frozenset({"ruv_iii_style"})
-_MISSING_PROVENANCE_MESSAGE = (
-    "corrected_preprocessing_output with applied native SPS/RUV-style correction "
-    "requires typed BatchCorrectionProvenance"
-)
-_NOT_PROVIDED_VALUES = frozenset({"not_provided", "not provided"})
-_MISSING_ENVIRONMENT_VALUES = _NOT_PROVIDED_VALUES | frozenset({"unknown"})
-_SELECTED_SITE_KEY_ROW_SENTINELS = (
-    BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS | _NOT_PROVIDED_VALUES
-)
-_STRICT_CONTROL_SOURCE_TYPE_MARKERS = frozenset({"packaged", "reference", "external"})
-_CALLER_CONTROL_SOURCE_AUDIT_FIELDS = (
-    "organism",
-    "identifier_namespace",
-    "source_version",
-    "license",
-    "redistribution",
-)
-_STRICT_CONTROL_SOURCE_REQUIRED_FIELDS = (
-    "organism",
-    "identifier_namespace",
-    "source_name",
-    "source_version",
-    "license",
-    "redistribution",
-    "selection_method",
-)
+_VALIDATION_DATASET_MODULE_PARTS = ("phospy", "validation", "datasets")
 _MISSING = object()
 
 
@@ -183,548 +153,42 @@ def build_native_batch_correction_provenance(
     )
 
 
-def validate_applied_native_sps_ruv_correction_provenance(
-    *,
-    method: object,
-    status: object,
-    provenance: object,
-) -> None:
-    """Require complete typed provenance for applied SPS/RUV-style outputs."""
-
-    if str(status).strip() != "applied":
-        return
-    normalized_method = _normalise_method(method)
-    if normalized_method in _UNSUPPORTED_SPS_RUV_METHODS:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output declares unsupported SPS/RUV-style "
-            f"batch correction method {normalized_method!r}; regenerate with a "
-            "supported native method and complete BatchCorrectionProvenance"
-        )
-    if not _is_sps_ruv_style_label(normalized_method):
-        return
-    if normalized_method not in _APPLIED_NATIVE_SPS_RUV_METHODS:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output declares ambiguous or unsupported "
-            f"SPS/RUV-style batch correction method {normalized_method!r}; "
-            "applied corrected outputs require a supported native method and "
-            "typed BatchCorrectionProvenance"
-        )
-    if provenance is None:
-        raise PhosPyInputError(_MISSING_PROVENANCE_MESSAGE)
-    if not isinstance(provenance, BatchCorrectionProvenance):
-        raise PhosPyInputError(
-            _MISSING_PROVENANCE_MESSAGE
-            + "; untyped provenance payloads are not accepted for applied "
-            "SPS/RUV-style corrected outputs"
-        )
-    _validate_complete_sps_ruv_provenance(
-        provenance,
-        expected_method=normalized_method,
+def _validation_provenance_module() -> object:
+    # Dynamic import avoids a static science->validation package cycle while keeping
+    # applied-output validation implementation in validation.datasets.
+    return __import__(
+        ".".join((*_VALIDATION_DATASET_MODULE_PARTS, "batch_correction_provenance")),
+        fromlist=("validate_applied_native_sps_ruv_correction_provenance",),
     )
 
 
-def normalize_applied_selected_site_key_rows(rows: Sequence[object]) -> tuple[str, ...]:
-    """Normalize and validate applied selected control row identifiers."""
-
-    if not rows:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls/control provenance must include selected_site_key_rows"
-        )
-
-    normalized_rows: list[str] = []
-    missing_rows: list[int] = []
-    blank_rows: list[int] = []
-    sentinel_rows: list[int] = []
-    for position, row in enumerate(tuple(rows)):
-        if _is_missing_value(row):
-            missing_rows.append(position)
-            continue
-        normalized = str(row).strip()
-        if normalized == "":
-            blank_rows.append(position)
-            continue
-        if _is_selected_site_key_row_sentinel(normalized):
-            sentinel_rows.append(position)
-            continue
-        normalized_rows.append(normalized)
-
-    if missing_rows:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls/control provenance selected_site_key_rows contains missing "
-            f"site_key rows at positions {_format_positions(missing_rows)}"
-        )
-    if blank_rows:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls/control provenance selected_site_key_rows contains blank "
-            f"site_key rows at positions {_format_positions(blank_rows)}"
-        )
-    if sentinel_rows:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls/control provenance selected_site_key_rows contains sentinel "
-            f"site_key rows at positions {_format_positions(sentinel_rows)}"
-        )
-
-    return tuple(normalized_rows)
-
-
-def _validate_complete_sps_ruv_provenance(
-    provenance: BatchCorrectionProvenance,
-    *,
-    expected_method: str,
-) -> None:
-    requested_method = _normalise_method(provenance.requested_method)
-    if requested_method != expected_method:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance method must "
-            f"match the applied correction method; expected {expected_method!r}, "
-            f"observed {requested_method!r}"
-        )
-    if requested_method in _UNSUPPORTED_SPS_RUV_METHODS:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance declares "
-            f"unsupported method {requested_method!r}"
-        )
-    _require_environment_provenance(provenance)
-    selected_site_key_rows = normalize_applied_selected_site_key_rows(
-        provenance.selected_site_key_rows
+def _validation_controls_module() -> object:
+    # Dynamic import avoids a static science->validation package cycle while keeping
+    # selected-control normalization implementation in validation.datasets.
+    return __import__(
+        ".".join((*_VALIDATION_DATASET_MODULE_PARTS, "batch_correction_controls")),
+        fromlist=("normalize_applied_selected_site_key_rows",),
     )
-    n_unwanted_factors = _extract_sps_ruv_n_unwanted_factors(provenance)
-    _require_selected_control_count_for_unwanted_factors(
-        selected_site_key_rows=selected_site_key_rows,
-        n_unwanted_factors=n_unwanted_factors,
-    )
-    _require_unique_selected_control_site_rows(selected_site_key_rows)
-    _require_control_site_source_metadata(
-        provenance.control_site_source,
-        selected_site_key_rows=selected_site_key_rows,
-    )
-    _require_non_empty_mapping(
-        provenance.batch_metadata,
-        field_name="BatchCorrectionProvenance.batch_metadata",
-    )
-    _require_non_empty_mapping(
-        provenance.design_metadata,
-        field_name="BatchCorrectionProvenance.design_metadata",
-    )
-    _require_non_empty_mapping(
-        provenance.missing_value_policy,
-        field_name="BatchCorrectionProvenance.missing_value_policy",
-    )
-    if not provenance.observation_masks:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance must include "
-            "observation mask fingerprints for SPS/RUV-style missingness provenance"
-        )
-    input_matrix_fingerprint = getattr(provenance, "input_matrix_fingerprint", None)
-    if input_matrix_fingerprint is None:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance is missing "
-            "input/output matrix fingerprints: input_matrix_fingerprint is required"
-        )
-    if provenance.output_matrix_fingerprint is None:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance is missing "
-            "input/output matrix fingerprints: output_matrix_fingerprint is required"
-        )
-    _require_supported_stage_order(provenance.preprocessing_stage_order)
-    _require_non_empty_mapping(
-        provenance.diagnostics,
-        field_name="BatchCorrectionProvenance.diagnostics",
-    )
-    _reject_not_provided_required_mapping(
-        provenance.resolved_parameters,
-        field_name="BatchCorrectionProvenance.resolved_parameters",
-    )
-    _reject_not_provided_required_mapping(
-        provenance.batch_metadata,
-        field_name="BatchCorrectionProvenance.batch_metadata",
-    )
-    _reject_not_provided_required_mapping(
-        provenance.design_metadata,
-        field_name="BatchCorrectionProvenance.design_metadata",
-    )
-    _reject_not_provided_required_mapping(
-        provenance.missing_value_policy,
-        field_name="BatchCorrectionProvenance.missing_value_policy",
-    )
-
-
-def _require_environment_provenance(provenance: BatchCorrectionProvenance) -> None:
-    if _is_missing_environment_text(provenance.phospy_version):
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance must include "
-            "non-empty phospy_version for applied SPS/RUV-style corrected output"
-        )
-    if _is_missing_environment_text(provenance.python_version):
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance must include "
-            "non-empty python_version for applied SPS/RUV-style corrected output"
-        )
-    dependency_versions = provenance.dependency_versions
-    if not isinstance(dependency_versions, Mapping) or not dependency_versions:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance must include "
-            "non-empty dependency_versions for applied SPS/RUV-style corrected output"
-        )
-
-    missing_dependencies = tuple(
-        dependency
-        for dependency in BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES
-        if _is_missing_environment_text(dependency_versions.get(dependency))
-    )
-    if missing_dependencies:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance "
-            "dependency_versions must include versions for native "
-            "batch-correction dependencies: "
-            f"{_format_labels(missing_dependencies)}"
-        )
-
-
-def _extract_sps_ruv_n_unwanted_factors(
-    provenance: BatchCorrectionProvenance,
-) -> int:
-    resolved_parameters = provenance.resolved_parameters
-    value = resolved_parameters.get("n_unwanted_factors", _MISSING)
-    if value is _MISSING:
-        config = resolved_parameters.get("config")
-        if isinstance(config, Mapping):
-            value = cast(Mapping[str, object], config).get(
-                "n_unwanted_factors",
-                _MISSING,
-            )
-    if value is _MISSING:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls cannot be validated against unwanted-factor count because "
-            "resolved_parameters.n_unwanted_factors is missing"
-        )
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls require a positive integer unwanted-factor count; "
-            f"observed n_unwanted_factors={value!r}"
-        )
-    if value < 1:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls require unwanted-factor count n_unwanted_factors >= 1; "
-            f"observed n_unwanted_factors={value}"
-        )
-    return value
-
-
-def _require_selected_control_count_for_unwanted_factors(
-    *,
-    selected_site_key_rows: Sequence[str],
-    n_unwanted_factors: int,
-) -> None:
-    duplicates = _duplicates_in_order(selected_site_key_rows)
-    selected_count = len(_unique_in_order(selected_site_key_rows))
-    required_count = n_unwanted_factors + 1
-    if selected_count < required_count:
-        duplicate_detail = (
-            ""
-            if not duplicates
-            else "; selected_site_key_rows duplicate identifiers: "
-            f"{_format_labels(duplicates)}"
-        )
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls are too few for unwanted-factor count; "
-            f"unique_selected_controls={selected_count}, "
-            f"n_unwanted_factors={n_unwanted_factors}, "
-            f"required_selected_controls={required_count}"
-            f"{duplicate_detail}"
-        )
-
-
-def _normalise_method(method: object) -> str:
-    normalized = str(method).strip().lower()
-    if not normalized:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output applied batch correction method is "
-            "missing or empty"
-        )
-    return normalized
 
 
 def _is_sps_ruv_style_label(method: str) -> bool:
     return "ruv" in method or method.startswith("sps_") or "_sps_" in method
 
 
-def _is_selected_site_key_row_sentinel(value: object) -> bool:
-    return str(value).strip().lower() in _SELECTED_SITE_KEY_ROW_SENTINELS
-
-
-def _require_unique_selected_control_site_rows(rows: Sequence[str]) -> None:
-    duplicates = _duplicates_in_order(rows)
-    if duplicates:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance "
-            "selected_site_key_rows contains duplicate selected control row "
-            f"identifiers: {_format_labels(duplicates)}"
-        )
-
-
-def _require_control_site_source_metadata(
-    source: Mapping[str, object],
-    *,
-    selected_site_key_rows: Sequence[str],
-) -> None:
-    _require_non_empty_mapping(
-        source,
-        field_name="BatchCorrectionProvenance.control_site_source",
-    )
-    _reject_not_provided_required_mapping(
-        source,
-        field_name="BatchCorrectionProvenance.control_site_source",
-    )
-    source_type = _source_type(source)
-    if source_type is None or _is_not_provided(source_type):
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls/control provenance must include control source metadata"
-        )
-
-    if _has_strict_control_source_type(source):
-        missing = tuple(
-            field_name
-            for field_name in _STRICT_CONTROL_SOURCE_REQUIRED_FIELDS
-            if not _has_non_missing_text(source.get(field_name))
-        )
-        if missing:
-            raise PhosPyInputError(
-                "corrected_preprocessing_output BatchCorrectionProvenance "
-                "packaged/reference/external control-source metadata is "
-                f"incomplete; missing {_format_labels(missing)}"
-            )
-        return
-
-    missing_without_reason = tuple(
-        field_name
-        for field_name in _CALLER_CONTROL_SOURCE_AUDIT_FIELDS
-        if not _has_non_missing_text(source.get(field_name))
-        and not _has_metadata_missing_reason(
-            source,
-            field_name,
-            selected_site_key_rows=selected_site_key_rows,
-        )
-    )
-    if missing_without_reason:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance control "
-            "source is missing "
-            f"{_format_labels(missing_without_reason)} without explicit rationale"
-        )
-
-    has_source_name = _has_non_missing_text(source.get("source_name"))
-    has_source_version = _has_non_missing_text(source.get("source_version"))
-    has_unavailable_reason = _has_non_missing_text(
-        source.get("source_version_unavailable_reason")
-    )
-    has_missing_reason = _has_metadata_missing_reason(
-        source,
-        "source_version",
-        selected_site_key_rows=selected_site_key_rows,
-    )
-    if has_source_name and not (
-        has_source_version or has_unavailable_reason or has_missing_reason
-    ):
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance control "
-            "source declares source_name without source_version or explicit "
-            "source_version_unavailable_reason"
-        )
-    if source_type == "caller_supplied" and not (
-        has_source_version or has_unavailable_reason or has_missing_reason
-    ):
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance "
-            "caller_supplied control source must record source_version or "
-            "source_version_unavailable_reason"
-        )
-
-
-def _source_type(source: Mapping[str, object]) -> str | None:
-    for key in ("source_type", "source"):
-        value = source.get(key)
-        if _has_non_missing_text(value):
-            return str(value).strip().lower()
-    return None
-
-
-def _has_strict_control_source_type(source: Mapping[str, object]) -> bool:
-    for key in (
-        "source_type",
-        "source",
-        "control_site_set_source_type",
-        "source_name",
-    ):
-        value = source.get(key)
-        if _has_non_missing_text(value) and _is_strict_control_source_type(
-            str(value).strip().lower()
-        ):
-            return True
-    return False
-
-
-def _is_strict_control_source_type(source_type: str | None) -> bool:
-    if source_type is None:
-        return False
-    tokens = frozenset(source_type.replace("-", "_").split("_"))
-    return bool(tokens & _STRICT_CONTROL_SOURCE_TYPE_MARKERS)
-
-
-def _has_metadata_missing_reason(
-    source: Mapping[str, object],
-    field_name: str,
-    *,
-    selected_site_key_rows: Sequence[str],
-) -> bool:
-    reasons = source.get("metadata_missing_reason")
-    if isinstance(reasons, Mapping) and _has_non_missing_text(
-        cast(Mapping[str, object], reasons).get(field_name)
-    ):
-        return True
-    if _has_non_missing_text(source.get(f"{field_name}_missing_reason")):
-        return True
-    if field_name == "source_version" and _has_non_missing_text(
-        source.get("source_version_unavailable_reason")
-    ):
-        return True
-    return _has_metadata_missing_reason_by_site_key(
-        source,
-        field_name,
-        selected_site_key_rows=selected_site_key_rows,
-    )
-
-
-def _has_metadata_missing_reason_by_site_key(
-    source: Mapping[str, object],
-    field_name: str,
-    *,
-    selected_site_key_rows: Sequence[str],
-) -> bool:
-    reasons_by_site_key = source.get("metadata_missing_reason_by_site_key")
-    if not isinstance(reasons_by_site_key, Mapping):
-        return False
-    selected = tuple(str(site_key) for site_key in selected_site_key_rows)
-    if not selected:
-        return False
-    by_site_key = cast(Mapping[str, object], reasons_by_site_key)
-    for site_key in selected:
-        site_reasons = by_site_key.get(site_key)
-        if not isinstance(site_reasons, Mapping):
-            return False
-        if not _has_non_missing_text(
-            cast(Mapping[str, object], site_reasons).get(field_name)
-        ):
-            return False
-    return True
-
-
-def _require_supported_stage_order(stage_order: Sequence[str]) -> None:
-    normalized = tuple(str(stage).strip() for stage in tuple(stage_order))
-    if not normalized:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance stage order "
-            "is missing"
-        )
-    if normalized != SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER:
-        supported = " -> ".join(
-            SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER
-        )
-        observed = " -> ".join(normalized)
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance stage order "
-            f"is unsupported; observed {observed!r}; supported stage order is "
-            f"{supported}"
-        )
-
-
-def _require_non_empty_mapping(
-    value: Mapping[str, object],
-    *,
-    field_name: str,
-) -> None:
-    if not isinstance(value, Mapping) or not value:
-        raise PhosPyInputError(f"{field_name} must be a non-empty object")
-
-
-def _reject_not_provided_required_mapping(
-    value: Mapping[str, object],
-    *,
-    field_name: str,
-) -> None:
-    for key, item in value.items():
-        if _is_not_provided(item):
-            raise PhosPyInputError(
-                f"{field_name}.{key} must not be recorded as not_provided for "
-                "applied SPS/RUV-style corrected output"
-            )
-
-
-def _has_non_missing_text(value: object) -> bool:
-    return not _is_missing_required_text(value) and not _is_not_provided(value)
-
-
-def _is_missing_environment_text(value: object) -> bool:
-    return (
-        _is_missing_required_text(value)
-        or str(value).strip().lower() in _MISSING_ENVIRONMENT_VALUES
-    )
-
-
-def _is_missing_required_text(value: object) -> bool:
-    return value is None or str(value).strip() == ""
-
-
-def _is_not_provided(value: object) -> bool:
-    return str(value).strip().lower() in _NOT_PROVIDED_VALUES
-
-
-def _levels_in_order(labels: Sequence[str]) -> tuple[str, ...]:
-    levels: list[str] = []
-    seen: set[str] = set()
-    for label in labels:
-        if label in seen:
-            continue
-        seen.add(label)
-        levels.append(label)
-    return tuple(levels)
-
-
-def _unique_in_order(labels: Sequence[str]) -> tuple[str, ...]:
-    return _levels_in_order(labels)
-
-
-def _duplicates_in_order(labels: Sequence[str]) -> tuple[str, ...]:
-    counts: dict[str, int] = {}
-    for label in labels:
-        counts[label] = counts.get(label, 0) + 1
-    return tuple(label for label in _levels_in_order(labels) if counts[label] > 1)
-
-
-def _is_missing_value(value: object) -> bool:
-    return bool(pd.Series((value,), dtype="object").isna().iat[0])
-
-
-def _format_positions(positions: Sequence[int]) -> str:
-    preview = ", ".join(str(position) for position in tuple(positions)[:8])
-    suffix = "" if len(positions) <= 8 else ", ..."
-    return f"[{preview}{suffix}]"
-
-
-def _format_labels(labels: Sequence[str]) -> str:
-    preview = ", ".join(repr(value) for value in tuple(labels)[:5])
-    suffix = "" if len(labels) <= 5 else " ..."
-    return f"{preview}{suffix}"
-
+validate_applied_native_sps_ruv_correction_provenance = cast(
+    Callable[..., None],
+    cast(
+        Any,
+        _validation_provenance_module(),
+    ).validate_applied_native_sps_ruv_correction_provenance,
+)
+normalize_applied_selected_site_key_rows = cast(
+    Callable[[Sequence[object]], tuple[str, ...]],
+    cast(
+        Any,
+        _validation_controls_module(),
+    ).normalize_applied_selected_site_key_rows,
+)
 
 __all__ = [
     "build_native_batch_correction_provenance",

@@ -13,7 +13,7 @@ from phospy.provenance import (
     batch_correction_provenance_to_payload,
     fingerprint_matrix,
 )
-from phospy.validation.datasets.batch_correction import (
+from phospy.validation.datasets.batch_correction_provenance import (
     validate_applied_native_sps_ruv_correction_provenance,
 )
 
@@ -233,6 +233,14 @@ def test_matrix_fingerprint_changes_when_column_order_changes() -> None:
     )
 
 
+def test_applied_provenance_accepts_complete_native_sps_ruv_provenance() -> None:
+    validate_applied_native_sps_ruv_correction_provenance(
+        method="sps_ruv_style",
+        status="applied",
+        provenance=_complete_applied_sps_ruv_provenance(),
+    )
+
+
 def test_applied_provenance_rejects_duplicate_selected_site_key_rows() -> None:
     provenance = _complete_applied_sps_ruv_provenance(
         selected_site_key_rows=("AKT1_S473", "GSK3B_S9", "AKT1_S473"),
@@ -295,6 +303,112 @@ def test_applied_provenance_counts_unique_selected_controls_for_factor_count() -
             method="sps_ruv_style",
             status="applied",
             provenance=provenance,
+        )
+
+
+def test_applied_provenance_rejects_missing_environment_fields() -> None:
+    provenance = replace(
+        _complete_applied_sps_ruv_provenance(),
+        python_version="unknown",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="non-empty python_version",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def test_applied_provenance_rejects_missing_selected_control_count() -> None:
+    provenance = _complete_applied_sps_ruv_provenance()
+    resolved_parameters = dict(provenance.resolved_parameters)
+    resolved_parameters.pop("n_unwanted_factors")
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="resolved_parameters.n_unwanted_factors is missing",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=replace(
+                provenance,
+                resolved_parameters=resolved_parameters,
+            ),
+        )
+
+
+def test_applied_provenance_rejects_inconsistent_unwanted_factor_count() -> None:
+    provenance = _complete_applied_sps_ruv_provenance(
+        selected_site_key_rows=("AKT1_S473", "GSK3B_S9"),
+        n_unwanted_factors=2,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="unique_selected_controls=2.*required_selected_controls=3",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def test_applied_provenance_rejects_unsupported_stage_order() -> None:
+    provenance = replace(
+        _complete_applied_sps_ruv_provenance(),
+        preprocessing_stage_order=("batch_correction", "missing_data"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="stage order is unsupported",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def test_applied_provenance_rejects_missing_observation_mask_provenance() -> None:
+    provenance = replace(
+        _complete_applied_sps_ruv_provenance(),
+        observation_masks=(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="observation mask fingerprints",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def test_applied_provenance_rejects_incomplete_source_metadata() -> None:
+    provenance = _complete_applied_sps_ruv_provenance()
+    control_site_source = dict(provenance.control_site_source)
+    control_site_source.pop("license")
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="control source is missing 'license' without explicit rationale",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=replace(
+                provenance,
+                control_site_source=control_site_source,
+            ),
         )
 
 

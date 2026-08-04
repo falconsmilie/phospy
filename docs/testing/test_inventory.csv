@@ -1,6 +1,7 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_analysis_ready_construction_paths.py,architecture,53,2,false,false,,,,,,
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
+tests/architecture/test_batch_correction_validation_decomposition.py,architecture,96,5,false,false,,,,,,
 tests/architecture/test_bundle_filesystem_lifecycle_ownership.py,architecture,33,1,false,false,,,,,,
 tests/architecture/test_config_ownership.py,architecture,279,6,false,false,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -95,14 +96,15 @@ tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchest
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,884,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,77,5,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1143,14,false,false,,,,,,
+tests/unit/test_batch_correction_control_validation.py,unit,124,8,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
 tests/unit/test_batch_correction_plan_interpreter.py,unit,351,7,false,false,,,,,,
 tests/unit/test_batch_correction_pre_execution_validation.py,unit,430,8,false,false,,,,,,
 tests/unit/test_batch_correction_preprocessing_config.py,unit,453,25,false,false,,,,,,
-tests/unit/test_batch_correction_provenance.py,unit,385,11,false,false,,,,,,
+tests/unit/test_batch_correction_provenance.py,unit,499,18,false,false,,,,,,
 tests/unit/test_batch_correction_reports.py,unit,329,9,false,false,,,,,,
 tests/unit/test_batch_correction_residualize.py,unit,150,7,false,false,,,,,,
-tests/unit/test_batch_correction_validation.py,unit,462,20,false,false,,,,,,
+tests/unit/test_batch_correction_validation.py,unit,586,26,false,false,,,,,,
 tests/unit/test_batch_correction_workflow_orchestrator.py,unit,906,12,false,false,,,,,,[auto-orchestration] 24 hit(s); indicators: private_member_access
 tests/unit/test_benchmark_scripts_smoke.py,unit,205,11,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_boundary_constructor_no_repair.py,unit,37,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 2 hit(s); indicators: private_member_access
