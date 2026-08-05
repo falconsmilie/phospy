@@ -63,3 +63,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0044 | Differential Replicate Reliability Policy | Accepted | 2026-08-02 | [adr_0044_differential_replicate_reliability_policy.md](adr_0044_differential_replicate_reliability_policy.md) |
 | ADR-0045 | Enrichment Derived Identifier-Set Provenance | Accepted | 2026-08-03 | [adr_0045_enrichment_derived_identifier_set_provenance.md](adr_0045_enrichment_derived_identifier_set_provenance.md) |
 | ADR-0046 | Kinase Activity Inferential Eligibility | Accepted | 2026-08-05 | [adr_0046_kinase_activity_inferential_eligibility.md](adr_0046_kinase_activity_inferential_eligibility.md) |
+| ADR-0047 | ssGSEA Tie-Block Policy | Accepted | 2026-08-05 | [adr_0047_ssgsea_tie_block_policy.md](adr_0047_ssgsea_tie_block_policy.md) |

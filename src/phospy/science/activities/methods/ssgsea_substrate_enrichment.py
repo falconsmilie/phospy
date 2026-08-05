@@ -31,6 +31,7 @@ from phospy.science.activities.models import (
 from phospy.science.activities.scientific_policies import (
     SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
+    SSGSEA_TIE_POLICY,
     build_ssgsea_substrate_enrichment_activity_policy,
 )
 from phospy.science.activities.semantics import (
@@ -73,6 +74,42 @@ _SUBSTRATE_COLUMN = "substrate_site"
 _SSGSEA_PERMUTATION_STREAM_NAME = "substrate_label_permutation"
 _SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES = 16
 _SSGSEA_PERMUTATION_RNG_SEED_HASH_POLICY_TOKEN = "stable_by_method_condition_kinase"
+
+
+@dataclass(frozen=True, slots=True)
+class _RankedTieBlocks:
+    site_labels: np.ndarray
+    block_starts: np.ndarray
+    block_sizes: np.ndarray
+
+    @property
+    def n_background(self) -> int:
+        return int(self.site_labels.size)
+
+    @property
+    def n_blocks(self) -> int:
+        return int(self.block_sizes.size)
+
+    @property
+    def has_ties(self) -> bool:
+        return bool((self.block_sizes > 1).any())
+
+    @property
+    def n_tie_blocks(self) -> int:
+        return int((self.block_sizes > 1).sum())
+
+    @property
+    def n_tied_sites(self) -> int:
+        tie_mask = self.block_sizes > 1
+        if not bool(tie_mask.any()):
+            return 0
+        return int(self.block_sizes[tie_mask].sum())
+
+    @property
+    def max_tie_block_size(self) -> int:
+        if not self.has_ties:
+            return 0
+        return int(self.block_sizes.max())
 
 
 @dataclass(frozen=True, slots=True)
@@ -239,22 +276,29 @@ class SsgseaSubstrateEnrichmentActivityMethod:
         for profile_position, profile_id in enumerate(profile_index):
             profile_values = effect_values[:, profile_position]
             finite_positions = np.flatnonzero(np.isfinite(profile_values))
-            ranked_site_labels = _rank_sites(
+            ranked_blocks = _rank_site_blocks(
                 site_labels=site_labels,
                 values=profile_values,
                 finite_positions=finite_positions,
                 ranking_direction=str(self.ranking_direction),
             )
-            n_background = int(ranked_site_labels.size)
+            n_background = ranked_blocks.n_background
 
             for kinase_position, kinase_name in enumerate(kinase_index):
                 substrate_sites = membership_by_kinase[str(kinase_name)]
                 hit_mask = np.fromiter(
-                    (str(site_id) in substrate_sites for site_id in ranked_site_labels),
+                    (
+                        str(site_id) in substrate_sites
+                        for site_id in ranked_blocks.site_labels
+                    ),
                     dtype=bool,
                     count=n_background,
                 )
                 n_substrates = int(hit_mask.sum())
+                tie_diagnostics = _build_kinase_tie_diagnostics(
+                    ranked_blocks=ranked_blocks,
+                    hit_mask=hit_mask,
+                )
                 substrate_count_table.iat[kinase_position, profile_position] = (
                     n_substrates
                 )
@@ -267,7 +311,10 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                 enrichment_score = np.nan
                 p_value = np.nan
                 if status == SSGSEA_STATUS_COMPUTED:
-                    enrichment_score = _score_from_hit_mask(hit_mask)
+                    enrichment_score = _score_from_ranked_hit_mask(
+                        hit_mask=hit_mask,
+                        ranked_blocks=ranked_blocks,
+                    )
                     if not np.isfinite(enrichment_score):
                         status = SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
                         reason = "enrichment score is not finite"
@@ -284,7 +331,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                             )
                             p_value = _permutation_p_value(
                                 observed_score=float(enrichment_score),
-                                n_background=n_background,
+                                ranked_blocks=ranked_blocks,
                                 n_substrates=n_substrates,
                                 permutation_count=int(self.permutation_count),
                                 rng=permutation_rng,
@@ -322,6 +369,19 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                         ),
                         "min_substrates": int(self.min_substrates),
                         "ranking_direction": str(self.ranking_direction),
+                        "tie_policy": SSGSEA_TIE_POLICY,
+                        "n_tie_blocks": ranked_blocks.n_tie_blocks,
+                        "n_tied_sites": ranked_blocks.n_tied_sites,
+                        "max_tie_block_size": ranked_blocks.max_tie_block_size,
+                        "substrate_only_tie_blocks": tie_diagnostics[
+                            "substrate_only_tie_blocks"
+                        ],
+                        "non_substrate_only_tie_blocks": tie_diagnostics[
+                            "non_substrate_only_tie_blocks"
+                        ],
+                        "mixed_substrate_tie_blocks": tie_diagnostics[
+                            "mixed_substrate_tie_blocks"
+                        ],
                         "permutation_count": int(self.permutation_count),
                         "random_seed": (
                             np.nan
@@ -350,6 +410,13 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                 "evidence_threshold_description",
                 "min_substrates",
                 "ranking_direction",
+                "tie_policy",
+                "n_tie_blocks",
+                "n_tied_sites",
+                "max_tie_block_size",
+                "substrate_only_tie_blocks",
+                "non_substrate_only_tie_blocks",
+                "mixed_substrate_tie_blocks",
                 "permutation_count",
                 "random_seed",
                 "computability_status",
@@ -494,21 +561,47 @@ def _build_membership_lookup(
     return result
 
 
-def _rank_sites(
+def _rank_site_blocks(
     *,
     site_labels: np.ndarray,
     values: np.ndarray,
     finite_positions: np.ndarray,
     ranking_direction: str,
-) -> np.ndarray:
+) -> _RankedTieBlocks:
     if finite_positions.size == 0:
-        return np.asarray([], dtype=object)
+        return _RankedTieBlocks(
+            site_labels=np.asarray([], dtype=object),
+            block_starts=np.asarray([], dtype=np.int64),
+            block_sizes=np.asarray([], dtype=np.int64),
+        )
     finite_values = values[finite_positions]
+    # Sorting establishes only the order of distinct value blocks. The order of
+    # rows inside an equal-value block is intentionally ignored by
+    # _score_from_ranked_hit_mask.
     if ranking_direction == SSGSEA_RANKING_DIRECTION_ASCENDING:
         order = np.argsort(finite_values, kind="mergesort")
     else:
         order = np.argsort(-finite_values, kind="mergesort")
-    return site_labels[finite_positions[order]]
+    ranked_positions = finite_positions[order]
+    ranked_values = values[ranked_positions]
+    block_starts = np.concatenate(
+        (
+            np.asarray([0], dtype=np.int64),
+            np.flatnonzero(ranked_values[1:] != ranked_values[:-1]).astype(np.int64)
+            + 1,
+        )
+    )
+    block_ends = np.concatenate(
+        (
+            block_starts[1:],
+            np.asarray([ranked_values.size], dtype=np.int64),
+        )
+    )
+    return _RankedTieBlocks(
+        site_labels=site_labels[ranked_positions],
+        block_starts=block_starts,
+        block_sizes=(block_ends - block_starts).astype(np.int64),
+    )
 
 
 def _resolve_status(
@@ -564,16 +657,108 @@ def _score_from_hit_mask(hit_mask: np.ndarray) -> float:
     return float(running.sum() / float(n_background))
 
 
+def _score_from_ranked_hit_mask(
+    *,
+    hit_mask: np.ndarray,
+    ranked_blocks: _RankedTieBlocks,
+) -> float:
+    if not ranked_blocks.has_ties:
+        return _score_from_hit_mask(hit_mask)
+    return _score_from_block_hit_counts(
+        block_hit_counts=_block_hit_counts(
+            ranked_blocks=ranked_blocks,
+            hit_mask=hit_mask,
+        ),
+        block_sizes=ranked_blocks.block_sizes,
+    )
+
+
+def _score_from_block_hit_counts(
+    *,
+    block_hit_counts: np.ndarray,
+    block_sizes: np.ndarray,
+) -> float:
+    n_background = int(block_sizes.sum())
+    n_substrates = int(block_hit_counts.sum())
+    n_misses = n_background - n_substrates
+    if n_background == 0 or n_substrates == 0 or n_misses == 0:
+        return np.nan
+
+    hit_increment = 1.0 / float(n_substrates)
+    miss_increment = 1.0 / float(n_misses)
+    running = 0.0
+    area = 0.0
+    for block_hits_raw, block_size_raw in zip(
+        block_hit_counts.tolist(),
+        block_sizes.tolist(),
+        strict=True,
+    ):
+        block_size = int(block_size_raw)
+        block_hits = int(block_hits_raw)
+        block_misses = block_size - block_hits
+        block_delta = (
+            float(block_hits) * hit_increment - float(block_misses) * miss_increment
+        )
+        area += (
+            float(block_size) * running
+            + ((float(block_size) + 1.0) / 2.0) * block_delta
+        )
+        running += block_delta
+    return float(area / float(n_background))
+
+
+def _block_hit_counts(
+    *,
+    ranked_blocks: _RankedTieBlocks,
+    hit_mask: np.ndarray,
+) -> np.ndarray:
+    if ranked_blocks.n_blocks == 0:
+        return np.asarray([], dtype=np.int64)
+    return np.add.reduceat(
+        hit_mask.astype(np.int64, copy=False),
+        ranked_blocks.block_starts,
+    ).astype(np.int64, copy=False)
+
+
+def _build_kinase_tie_diagnostics(
+    *,
+    ranked_blocks: _RankedTieBlocks,
+    hit_mask: np.ndarray,
+) -> dict[str, int]:
+    if not ranked_blocks.has_ties:
+        return {
+            "substrate_only_tie_blocks": 0,
+            "non_substrate_only_tie_blocks": 0,
+            "mixed_substrate_tie_blocks": 0,
+        }
+    block_hit_counts = _block_hit_counts(
+        ranked_blocks=ranked_blocks,
+        hit_mask=hit_mask,
+    )
+    tied = ranked_blocks.block_sizes > 1
+    tied_block_sizes = ranked_blocks.block_sizes[tied]
+    tied_hit_counts = block_hit_counts[tied]
+    substrate_only = tied_hit_counts == tied_block_sizes
+    non_substrate_only = tied_hit_counts == 0
+    mixed = (tied_hit_counts > 0) & (tied_hit_counts < tied_block_sizes)
+    return {
+        "substrate_only_tie_blocks": int(substrate_only.sum()),
+        "non_substrate_only_tie_blocks": int(non_substrate_only.sum()),
+        "mixed_substrate_tie_blocks": int(mixed.sum()),
+    }
+
+
 def _permutation_p_value(
     *,
     observed_score: float,
-    n_background: int,
+    ranked_blocks: _RankedTieBlocks,
     n_substrates: int,
     permutation_count: int,
     rng: np.random.Generator,
 ) -> float:
     extreme_count = 0
     observed_abs = abs(float(observed_score))
+    n_background = ranked_blocks.n_background
     for _ in range(int(permutation_count)):
         hit_positions = rng.choice(
             int(n_background),
@@ -582,7 +767,10 @@ def _permutation_p_value(
         )
         hit_mask = np.zeros(int(n_background), dtype=bool)
         hit_mask[hit_positions] = True
-        score = _score_from_hit_mask(hit_mask)
+        score = _score_from_ranked_hit_mask(
+            hit_mask=hit_mask,
+            ranked_blocks=ranked_blocks,
+        )
         if abs(float(score)) >= observed_abs:
             extreme_count += 1
     return float((extreme_count + 1) / (int(permutation_count) + 1))

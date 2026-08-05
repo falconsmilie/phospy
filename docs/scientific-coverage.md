@@ -420,8 +420,10 @@ packaged-reference validation. The maintained commands/workflows are:
 - ssGSEA-style activity-like score output
   (`ssgsea_substrate_enrichment_activity_v1`) applies a deterministic rank-walk
   enrichment score over phosphosite effect values using explicit
-  kinase-substrate membership and reports seeded empirical permutation p-values
-  when requested.
+  kinase-substrate membership. Equal-valued finite sites are handled as
+  method-owned tie blocks using the version-2 midrank block-expectation policy,
+  so row order and lexical site labels do not break ties. The method reports
+  seeded empirical permutation p-values when requested.
 - Activity scores depend on substrate coverage and reference evidence; missing
   or sparse substrate support weakens interpretation.
 - Causal kinase activity claims require external validation and study design
@@ -714,10 +716,13 @@ table-hash semantics are unchanged.
 - Assumptions:
   explicit kinase-substrate membership defines the tested set, and substrate
   concentration near one end of the ranked effect list summarizes candidate
-  kinase support.
+  kinase support. Equal-valued finite sites form tie blocks; mixed
+  substrate/non-substrate blocks contribute by the documented block expectation
+  rather than arbitrary row order.
 - Parameters:
   minimum substrates, ranking direction, optional seeded permutation count,
-  optional permutation random seed, and optional q-value adjustment.
+  optional permutation random seed, optional q-value adjustment, and the
+  method-versioned tie policy.
 - Output meaning:
   rank-based substrate-supported kinase scores with optional empirical
   permutation p-values.

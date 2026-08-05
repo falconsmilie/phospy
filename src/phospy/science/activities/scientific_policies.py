@@ -8,13 +8,21 @@ from phospy.provenance.scientific_policy_models import (
 )
 from phospy.science.scoring.policy_models import ThresholdMode
 
-SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "1"
+SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "2"
 KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "2"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_profile_kinase"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
 SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (
     "blake2b-128-json(method_id, method_version, seed_policy, "
     "seed_policy_version, random_seed, profile_id, kinase, stream)"
+)
+SSGSEA_TIE_POLICY = "midrank_block_expectation"
+SSGSEA_TIE_BLOCK_CONTRIBUTION_RULE = (
+    "Equal finite values form one tie block. A block with h substrates and m "
+    "non-substrates contributes the expected rank-walk area over all "
+    "within-block orders: b * running_before + ((b + 1) / 2) * "
+    "(h / n_substrates - m / n_non_substrates), where b = h + m. The walk then "
+    "advances by that same block delta."
 )
 
 
@@ -146,16 +154,20 @@ def build_ssgsea_substrate_enrichment_activity_policy(
         version=SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
         description=(
             "Computes a PhosPy ssGSEA-style kinase substrate-set enrichment "
-            "score over ranked phosphosite effect values."
+            "score over ranked phosphosite effect values with explicit "
+            "equal-value tie-block handling."
         ),
         parameters={
             "method_id": ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY.value,
             "method_version": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
             "min_substrates": int(min_substrates),
             "ranking_direction": str(ranking_direction),
+            "tie_policy": SSGSEA_TIE_POLICY,
+            "tie_block_contribution_rule": SSGSEA_TIE_BLOCK_CONTRIBUTION_RULE,
             "rank_walk_rule": (
-                "stable rank order; hits increment by 1/n_substrates and misses "
-                "decrement by 1/n_non_substrates"
+                "untied positions are walked in rank order; equal-valued positions "
+                "are walked as tie blocks with equivalent treatment for all sites "
+                "inside the block"
             ),
             "score_formula": "sum(cumulative_hit - cumulative_miss) / n_background",
             "membership_rule": "explicit kinase-substrate membership table",
@@ -182,10 +194,15 @@ def build_ssgsea_substrate_enrichment_activity_policy(
             "Kinase substrate membership defines the tested phosphosite set.",
             "Rank concentration of substrate effects summarizes candidate kinase "
             "support.",
+            "Equal-valued finite sites are not ordered by row position or lexical "
+            "site label; mixed substrate/non-substrate tie blocks contribute by "
+            "the explicit block expectation policy.",
             "Sparse or missing substrate support weakens interpretation.",
             "Permutation p-values, when requested, use seeded random substrate-set "
-            "label permutations with deterministic child RNG streams keyed by "
-            "method, profile, kinase, and user seed.",
+            "label permutations scored with the same tie-block policy and "
+            "deterministic child RNG streams keyed by method, profile, kinase, "
+            "and user seed. Version 2 changes the seeded stream identity because "
+            "the method version is part of the seed material.",
             "The enrichment score does not prove kinase activation or causal "
             "regulation; causal kinase activity claims require external validation.",
             "This is a validated PhosPy implementation and is not a PTM-SEA "
@@ -216,4 +233,6 @@ __all__ = [
     "SSGSEA_PERMUTATION_RNG_SEED_POLICY",
     "SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION",
     "SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION",
+    "SSGSEA_TIE_BLOCK_CONTRIBUTION_RULE",
+    "SSGSEA_TIE_POLICY",
 ]

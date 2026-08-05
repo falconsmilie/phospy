@@ -14,6 +14,9 @@ kinase activity execution opt-in.
 Amended 2026-08-02 to require method-owned quantitative input contracts for
 kinase scoring and kinase activity methods.
 
+Amended 2026-08-05 to make ssGSEA-style substrate enrichment equal-value ties
+method-owned and row-order invariant.
+
 ## Context
 
 Recent workflow work introduced explicit scientific state for quantitative
@@ -188,6 +191,18 @@ Kinase activity contracts are method-specific:
   pre-standardised effect semantics. It produces no p-values unless seeded
   permutations are explicitly requested, in which case p-values are empirical
   substrate-label permutation p-values with optional Benjamini-Hochberg q-values.
+  Equal finite effect values are handled inside the activity method as tie
+  blocks, never by dataset order, workflow pre-sorting, stable-sort accident, or
+  lexical site-label meaning. Version 2 uses a midrank block-expectation policy:
+  a block containing `h` substrates and `m` non-substrates contributes the
+  expected rank-walk area over all within-block orders,
+  `b * running_before + ((b + 1) / 2) * (h / n_substrates - m / n_non_substrates)`,
+  where `b = h + m`; the walk then advances by that same block delta. Blocks
+  containing only substrates or only non-substrates therefore contribute the
+  ordinary uninterrupted hit or miss segment, while mixed blocks give all
+  equal-valued sites equivalent treatment. Seeded permutation p-values use the
+  same tie-block score definition, and the method version is part of the
+  permutation RNG seed material.
 
 Invalid scale/meaning/typed activity-semantics combinations must fail before
 workflow execution. Activity methods also guard their direct method boundary so
@@ -485,3 +500,4 @@ Neutral consequences:
 - [ADR-0015: Reference and Fixture Data Policy for PhosPy](adr_0015_reference_and_fixture_data_policy.md)
 - [ADR-0024: Protein-Scoped Phosphosite Row Identity](adr_0024_protein_scoped_phosphosite_row_identity.md)
 - [ADR-0033: Result Caveats and Scientific Warning Ownership](adr_0033_result_caveats.md)
+- [ADR-0047: ssGSEA Tie-Block Policy](adr_0047_ssgsea_tie_block_policy.md)

@@ -164,7 +164,10 @@ def ssgsea_substrate_enrichment_activity_input_contract() -> (
         ),
         statistical_interpretation=(
             "Rank-walk substrate-set enrichment summary over ordered effect "
-            "values; not PTM-SEA parity and not causal kinase activity proof."
+            "values. Equal-valued finite sites are handled inside the method as "
+            "tie blocks using the documented block-expectation policy, not row "
+            "order or lexical site labels. Not PTM-SEA parity and not causal "
+            "kinase activity proof."
         ),
         p_value_interpretation=(
             "No p-values are produced unless seeded permutations are requested; "

@@ -229,6 +229,7 @@ def test_activity_policy_records_frame_scores_as_exploratory_support() -> None:
     assert ksea.parameters["min_substrates"] == 5
     assert ssgsea.name == "ssgsea_substrate_enrichment_activity_v1"
     assert ssgsea.parameters["min_substrates"] == 5
+    assert ssgsea.parameters["tie_policy"] == "midrank_block_expectation"
 
     for record in (weighted, ksea, ssgsea):
         generated_text = " ".join(

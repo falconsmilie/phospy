@@ -77,6 +77,11 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- Made ssGSEA-style substrate-enrichment activity method policy version 2
+  invariant to equal-valued row ordering by scoring ties as method-owned
+  midrank expectation blocks. Tied-input scores and seeded permutation p/q
+  values no longer depend on arbitrary row order; seeded permutation streams
+  change with the method version because the version is part of seed material.
 - Decomposed internal batch-correction dataset validation into focused design,
   applied-provenance, and control-site modules. Applied
   `BatchCorrectionProvenance.control_site_source` validation now rejects
