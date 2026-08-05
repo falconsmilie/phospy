@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.membership import ActivityMembershipSelection
 from phospy.science.activities.models import (
     KinaseActivityInputs,
     PredMatOverlapSummary,
@@ -36,6 +37,7 @@ class KinaseActivityInputValidator:
         min_substrates: object,
         top_n_substrates: object,
         activity_input: object | None = None,
+        membership_selection: object | None = None,
         min_overlap: int = DEFAULT_MIN_PRED_MAT_OVERLAP,
         min_fraction: float = DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
     ) -> KinaseActivityInputs:
@@ -140,6 +142,14 @@ class KinaseActivityInputValidator:
             min_overlap=min_overlap,
             min_fraction=normalized_min_fraction,
         )
+        if membership_selection is not None and not isinstance(
+            membership_selection,
+            ActivityMembershipSelection,
+        ):
+            raise WorkflowBoundaryError(
+                "activity membership_selection must be "
+                "ActivityMembershipSelection when provided"
+            )
         return KinaseActivityInputs(
             pred_mat=validated_pred_mat,
             phospho_matrix=validated_phospho,
@@ -148,6 +158,7 @@ class KinaseActivityInputValidator:
             top_n_substrates=normalized_top_n_substrates,
             overlap_summary=overlap_summary,
             activity_input=typed_activity_input,
+            membership_selection=membership_selection,
         )
 
     def _validate_overlap(

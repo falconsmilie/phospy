@@ -117,7 +117,11 @@ def ksea_zscore_activity_input_contract() -> MethodQuantitativeInputContract:
         ),
         p_value_interpretation=(
             "Two-sided normal-approximation p-values for computed z-scores; "
-            "q-values use Benjamini-Hochberg adjustment per profile when enabled."
+            "available only when typed substrate-membership provenance declares "
+            "the membership independent of the tested quantitative matrix. "
+            "Eligible p-values use Benjamini-Hochberg q-value adjustment per "
+            "profile when enabled; adaptive membership reports descriptive "
+            "z-scores with p/q unavailable."
         ),
     )
 

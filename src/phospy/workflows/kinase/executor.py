@@ -108,6 +108,7 @@ class KinaseWorkflowExecutor:
             request=request,
             config=config,
             prediction_result=prediction_result,
+            scoring_execution=scoring_execution,
         )
         site_attrition_summary = self._site_attrition_summary_composer.run(
             request=request,

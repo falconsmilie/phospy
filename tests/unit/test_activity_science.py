@@ -2,13 +2,22 @@ from __future__ import annotations
 
 from io import StringIO
 
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance.hashing import fingerprint_table_normalized_axes
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.science.activities.membership import (
+    ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
+    ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
+    KSEA_MEMBERSHIP_ELIGIBLE_REASON,
+    KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON,
+    ActivityMembershipSelection,
+)
 from phospy.science.activities.methods.ksea_zscore import (
     KSEA_STATUS_COMPUTED,
     KSEA_STATUS_INSUFFICIENT_SUBSTRATES,
@@ -51,7 +60,10 @@ from phospy.science.activities.semantics import (
     ActivityProfileMetadata,
     ActivityQuantitativeSemantics,
 )
-from phospy.science.activities.statistics import benjamini_hochberg_q_values
+from phospy.science.activities.statistics import (
+    benjamini_hochberg_q_values,
+    two_sided_normal_p_value,
+)
 from phospy.science.activities.threshold_membership import (
     THRESHOLD_MEMBERSHIP_DESCRIPTION,
     THRESHOLD_MEMBERSHIP_OPERATOR,
@@ -86,6 +98,7 @@ def _inputs(
     min_substrates: int,
     top_n_substrates: int,
     activity_input: ActivityInputMatrix | None = None,
+    membership_selection: ActivityMembershipSelection | None = None,
 ) -> KinaseActivityInputs:
     pred_mat = _with_site_key_index(pred_mat)
     phospho_matrix = _with_site_key_index(phospho_matrix)
@@ -107,6 +120,7 @@ def _inputs(
             phospho_rows=int(phospho_matrix.index.size),
         ),
         activity_input=activity_input,
+        membership_selection=membership_selection,
     )
 
 
@@ -118,6 +132,7 @@ def _ksea_result(
     min_substrates: int = 2,
     adjust_p_values: bool = True,
 ):
+    keyed_pred_mat = _with_site_key_index(pred_mat)
     effect_matrix = _with_site_key_index(phospho_matrix)
     return KseaZScoreActivityMethod(
         evidence_threshold=evidence_threshold,
@@ -125,7 +140,7 @@ def _ksea_result(
         adjust_p_values=adjust_p_values,
     ).run(
         _inputs(
-            pred_mat=pred_mat,
+            pred_mat=keyed_pred_mat,
             phospho_matrix=effect_matrix,
             threshold=evidence_threshold,
             min_substrates=min_substrates,
@@ -134,7 +149,44 @@ def _ksea_result(
                 effect_matrix,
                 _assume_owned=True,
             ),
+            membership_selection=_eligible_fixed_membership_selection(
+                keyed_pred_mat,
+                threshold=evidence_threshold,
+            ),
         )
+    )
+
+
+def _eligible_fixed_membership_selection(
+    pred_mat: pd.DataFrame,
+    *,
+    threshold: float,
+) -> ActivityMembershipSelection:
+    selected_substrates = pred_mat.loc[
+        pred_mat.ge(float(threshold)).any(axis=1)
+    ].index.astype(str)
+    return ActivityMembershipSelection(
+        source_category=ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
+        selection_method="unit_test_fixed_membership",
+        selection_method_version=ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
+        score_source="fixed_external_reference_membership_scores",
+        threshold_top_k_policy={
+            "evidence_threshold": float(threshold),
+            "evidence_threshold_operator": ">=",
+            "top_k": None,
+        },
+        source_reference_fingerprints=(
+            fingerprint_table_normalized_axes(
+                pred_mat,
+                name="tests.fixed_external_membership_scores",
+            ),
+        ),
+        quantitative_dataset_fingerprint=None,
+        consumed_tested_matrix=False,
+        selected_kinase_universe=pred_mat.columns.astype(str).tolist(),
+        selected_substrate_universe=selected_substrates.tolist(),
+        inferential_eligible=True,
+        inferential_eligibility_reason=KSEA_MEMBERSHIP_ELIGIBLE_REASON,
     )
 
 
@@ -923,6 +975,10 @@ def test_ksea_sample_statistics_use_profile_ids_and_adjust_p_values_per_profile(
                 phospho_rows=int(phospho.index.size),
             ),
             activity_input=activity_input,
+            membership_selection=_eligible_fixed_membership_selection(
+                pred_mat,
+                threshold=0.5,
+            ),
         )
     )
 
@@ -1261,6 +1317,82 @@ def test_ksea_p_value_uses_two_sided_normal_approximation() -> None:
     assert stats.at[0, "p_value"] == pytest.approx(0.27332167829229814)
 
 
+def test_ksea_fixed_external_membership_policy_allows_ordinary_p_q_values() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.8, 0.1, 0.2]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+
+    assert result.membership_selection is not None
+    assert result.membership_selection.source_category == (
+        ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE
+    )
+    assert result.membership_selection.consumed_tested_matrix is False
+    assert result.membership_selection.inferential_eligible is True
+    assert result.p_value_matrix is not None
+    assert result.q_value_matrix is not None
+    stats = result.statistics_table
+    assert stats is not None
+    assert stats.at[0, "p_value"] == pytest.approx(0.27332167829229814)
+    assert stats.at[0, "q_value"] == pytest.approx(0.27332167829229814)
+
+
+def test_ksea_missing_membership_provenance_downgrades_to_descriptive_z_scores() -> (
+    None
+):
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.8, 0.1, 0.2]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+    keyed_pred_mat = _with_site_key_index(pred_mat)
+    effect_matrix = _with_site_key_index(phospho)
+
+    result = KseaZScoreActivityMethod(
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    ).run(
+        _inputs(
+            pred_mat=keyed_pred_mat,
+            phospho_matrix=effect_matrix,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=1,
+            activity_input=ActivityInputMatrix.standardised_effect(
+                effect_matrix,
+                _assume_owned=True,
+            ),
+        )
+    )
+
+    assert result.activity_matrix.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+    assert result.membership_selection is not None
+    assert result.membership_selection.inferential_eligible is False
+    assert (
+        result.membership_selection.inferential_eligibility_reason
+        == KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON
+    )
+    stats = result.statistics_table
+    assert stats is not None
+    assert pd.isna(stats.at[0, "p_value"])
+    assert pd.isna(stats.at[0, "q_value"])
+    assert bool(stats.at[0, "inferential_eligible"]) is False
+    assert (
+        stats.at[0, "inferential_reason"] == KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON
+    )
+
+
 def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_profile() -> None:
     pred_mat = pd.DataFrame(
         {
@@ -1287,6 +1419,37 @@ def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_profile() -> None:
     assert q_values[0] == pytest.approx(0.4099825174384472)
     assert q_values[1] == pytest.approx(0.4099825174384472)
     assert q_values[2] == pytest.approx(1.0)
+
+
+def test_adaptive_same_matrix_membership_simulation_inflates_old_normal_p_values() -> (
+    None
+):
+    rng = np.random.default_rng(17)
+    replicates = 250
+    site_count = 160
+    selected_count = 12
+    nominal_alpha = 0.05
+    false_positive_count = 0
+
+    for _ in range(replicates):
+        values = rng.normal(size=site_count)
+        selected_positions = np.argpartition(-values, selected_count - 1)[
+            :selected_count
+        ]
+        mean_background = float(values.mean())
+        sd_background = float(values.std(ddof=1))
+        mean_selected = float(values[selected_positions].mean())
+        z_score = (
+            (mean_selected - mean_background)
+            * np.sqrt(float(selected_count))
+            / sd_background
+        )
+        p_value = two_sided_normal_p_value(float(z_score))
+        if p_value < nominal_alpha:
+            false_positive_count += 1
+
+    observed_rate = false_positive_count / replicates
+    assert observed_rate > 0.50
 
 
 def test_ksea_activity_substrate_counts_match_statistics_table_n_substrates() -> None:

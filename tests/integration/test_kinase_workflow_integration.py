@@ -34,6 +34,9 @@ from phospy.api.configs import (
 from phospy.errors import DatasetValidationError, WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
 from phospy.science.activities.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
+from phospy.workflows.kinase.caveats import (
+    KINASE_ACTIVITY_ADAPTIVE_MEMBERSHIP_CAVEAT_CODE,
+)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -543,6 +546,8 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         result.activity_result.activity_matrix,
     )
     assert result.activity_result.statistics_table is not None
+    assert result.activity_result.p_value_matrix is None
+    assert result.activity_result.q_value_matrix is None
     assert {
         "kinase",
         "profile_id",
@@ -557,7 +562,21 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         "min_substrates",
         "computability_status",
         "reason",
+        "inferential_eligible",
+        "inferential_status",
+        "inferential_reason",
     } <= set(result.activity_result.statistics_table.columns)
+    assert result.activity_result.statistics_table.loc[:, "p_value"].isna().all()
+    assert result.activity_result.statistics_table.loc[:, "q_value"].isna().all()
+    assert (
+        result.activity_result.statistics_table.loc[:, "inferential_eligible"]
+        .astype(bool)
+        .eq(False)
+        .all()
+    )
+    assert result.activity_result.membership_selection is not None
+    assert result.activity_result.membership_selection.consumed_tested_matrix is True
+    assert result.activity_result.membership_selection.inferential_eligible is False
     assert "condition" not in result.activity_result.statistics_table.columns
     assert result.activity_result.activity_substrate_counts is not None
     expected_counts = (
@@ -591,6 +610,11 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
     activity_config = result.provenance.workflow_parameters["activity_config"]
     assert isinstance(activity_config, Mapping)
     assert activity_config["method"] == "ksea_zscore"
+    membership_selection = activity_config["membership_selection"]
+    assert isinstance(membership_selection, Mapping)
+    assert membership_selection["consumed_tested_matrix"] is True
+    assert membership_selection["inferential_eligible"] is False
+    assert activity_config["ksea_inferential_eligible"] is False
     summary = activity_config["activity_method_summary"]
     assert isinstance(summary, Mapping)
     assert int(summary["kinases_evaluated"]) >= 1
@@ -604,6 +628,8 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
     scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
     assert isinstance(scoring_diagnostics, Mapping)
     assert "motif_site_sequence_coverage" in scoring_diagnostics
+    caveat_codes = {caveat.code for caveat in result.caveats}
+    assert KINASE_ACTIVITY_ADAPTIVE_MEMBERSHIP_CAVEAT_CODE in caveat_codes
 
 
 def test_weighted_and_ksea_activity_methods_are_independently_selectable() -> None:

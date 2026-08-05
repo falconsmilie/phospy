@@ -177,8 +177,13 @@ Kinase activity contracts are method-specific:
   p-values.
 - KSEA-style z-score activity accepts log2 sample abundance,
   total-corrected log-ratio, log2 contrast fold-change, or pre-standardised
-  effect semantics. It rejects linear abundance. Its p-values are two-sided
-  normal-approximation p-values with optional Benjamini-Hochberg q-values.
+  effect semantics. It rejects linear abundance. It computes z-scores for
+  eligible substrate sets, but ordinary normal-approximation p-values and
+  optional Benjamini-Hochberg q-values are emitted only when typed
+  substrate-membership provenance shows that membership was selected
+  independently of the tested quantitative matrix. Adaptive profile-derived,
+  fused profile/motif, and leave-one-out profile-derived membership reports
+  descriptive z-scores with p/q values unavailable.
 - ssGSEA-style substrate enrichment accepts only log2 contrast fold-change or
   pre-standardised effect semantics. It produces no p-values unless seeded
   permutations are explicitly requested, in which case p-values are empirical

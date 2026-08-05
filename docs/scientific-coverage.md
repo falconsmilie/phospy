@@ -341,7 +341,7 @@ claimed.
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` PhosR-inspired profile/motif scoring and rank-weighted fusion implemented by PhosPy | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py`, and sparse-support regression contracts in `tests/science/test_kinase_sparse_support_regression_fixtures.py` | Relative support scoring only; not calibrated causal inference. The mode is not an exact PhosR implementation and is not intended to provide numerical parity with PhosR. Sparse-support, leave-one-out, localisation attrition, production-threshold, and ssGSEA-permutation cases are PhosPy regression/science contracts unless an external expected output is documented. Kinase Library scoring is not the default parity lane. |
 | Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/unit/test_kinase_library_workflow_requirements.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Workflow mode still requires resolved `ReferenceBundle` context with `kinase_substrate_map` overlap, eligible kinases at `min_substrates`, and resolved site sequences. It also requires an explicit compatible local `KinaseLibraryResource`. Missing matching residue-class lanes fail validation; they do not fall back to PhosR-inspired motif scoring. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. No official Kinase Library parity claim is made. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
-| Kinase activity scoring | `validated PhosPy implementation` | Supported exploratory activity score methods: `simplified_weighted_substrate_activity_v1`, `ksea_zscore_activity_v1`, and `ssgsea_substrate_enrichment_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`), workflow activity tests (`tests/workflows/test_kinase_activity_ssgsea.py`), and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | Scores depend on substrate coverage and reference evidence; sparse support weakens interpretation. KSEA-style activity scores are not a claim of full PhosR kinase activity equivalence. ssGSEA-style activity-like scores are a PhosPy rank-walk implementation and are not a PTM-SEA parity claim. Causal kinase activity claims require external validation. |
+| Kinase activity scoring | `validated PhosPy implementation` | Supported exploratory activity score methods: `simplified_weighted_substrate_activity_v1`, `ksea_zscore_activity_v1`, and `ssgsea_substrate_enrichment_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`), workflow activity tests (`tests/workflows/test_kinase_activity_ssgsea.py`), and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | Scores depend on substrate coverage and reference evidence; sparse support weakens interpretation. KSEA-style ordinary p/q values are emitted only when typed substrate-membership provenance is independent of the tested matrix; adaptive profile-derived membership is descriptive z-score output only. KSEA-style activity scores are not a claim of full PhosR kinase activity equivalence. ssGSEA-style activity-like scores are a PhosPy rank-walk implementation and are not a PTM-SEA parity claim. Causal kinase activity claims require external validation. |
 | Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py`, and safety regression contracts in `tests/science/test_signalome_safety_regression_fixtures.py` | Derived summaries, not causal proof. Requires explicit signalome protein grouping metadata in `site_metadata.protein_group_id`; legacy `site_metadata.protein_id` is a migration alias. Small-sample network thresholds, missing-dimension handling, clustering invariance, and historical threshold-2 reconstruction are PhosPy regression/golden-style contracts, not external signalome parity. |
 | Signalome sampled candidate scoring policy | `experimental` | `SignalomeConfig.sampled_candidate_scoring()` approximates candidate module-count scoring | Parity/contract coverage through signalome parity tests and workflow contract checks | Approximation applies to candidate scoring only; tree generation remains exact-policy governed. |
 | Sequence context | `parity-gated` | `site_sequence` is required as analysis-ready sequence evidence, kinase/signalome validators separately enforce workflow-specific centered sequence-context readiness before sequence-aware scoring/prediction, and peptide evidence can be resolved into site-level rows under explicit multi-site policies. | `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py`, and peptide/site regression contracts in `tests/science/test_evidence_resolution_regression_fixtures.py` | Base dataset validation is plausibility-level and does not make every `site_sequence` motif-ready. Kinase Library-style motif scoring requires the exact centered window from the selected `KinaseLibraryResource`, with known source and compatible residue lane. Equal/unequal multi-site splitting, many-peptide-to-one-site resolution, sequence conflict rejection, mixed valid/invalid sequence contexts, and row-order invariance are PhosPy contract fixtures, not external parity. |
@@ -412,7 +412,11 @@ packaged-reference validation. The maintained commands/workflows are:
   predicted substrates above threshold/top-N support.
 - KSEA-style kinase activity score output (`ksea_zscore_activity_v1`) applies
   unweighted substrate-set enrichment z-scores after evidence thresholding and
-  reports p-values (and q-values when enabled).
+  reports p-values and q-values only when typed substrate-membership provenance
+  is inferentially eligible. When membership was selected using the tested
+  quantitative matrix, including default profile-derived prediction, combined
+  profile/motif selection, or leave-one-out profile scoring, output is
+  descriptive z-scores with p/q values unavailable.
 - ssGSEA-style activity-like score output
   (`ssgsea_substrate_enrichment_activity_v1`) applies a deterministic rank-walk
   enrichment score over phosphosite effect values using explicit
@@ -692,12 +696,15 @@ table-hash semantics are unchanged.
 - Assumptions:
   kinase substrate membership is unweighted after evidence thresholding.
 - Parameters:
-  evidence threshold, minimum substrates, z-score formula, p-value method, and
-  optional q-value adjustment.
+  evidence threshold, minimum substrates, z-score formula, typed
+  membership-selection provenance, p-value eligibility policy, p-value method,
+  and optional q-value adjustment for eligible tests only.
 - Output meaning:
-  substrate-set enrichment z-scores with accompanying p-values.
+  substrate-set enrichment z-scores; ordinary p/q values only for
+  test-matrix-independent membership under the documented approximation.
 - Output does not mean PhosR-equivalent kinase activity inference, validated
-  kinase activation, or causal pathway activity.
+  kinase activation, causal pathway activity, or valid ordinary null inference
+  when substrate membership was adaptively selected from the tested matrix.
 
 ### `ssgsea_substrate_enrichment_activity_v1`
 

@@ -12,7 +12,13 @@ import pytest
 
 from phospy.api import PhosPyInputError
 from phospy.api.requests import DATASET_MULTI_SITE_POLICY_SPLIT
-from phospy.science.evidence import PeptideEvidenceDatasetResolver, PeptideEvidenceTable
+from phospy.science.evidence import (
+    DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE,
+    DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED,
+    DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1,
+    PeptideEvidenceDatasetResolver,
+    PeptideEvidenceTable,
+)
 
 pytestmark = pytest.mark.release_gate
 
@@ -93,6 +99,17 @@ def test_checked_in_evidence_fixture_resolves_equal_unequal_and_many_to_one_case
     )
     assert resolved.site_metadata.loc["MAPK1;S10;", "site_sequence"] == "AAASAAA"
     assert pd.isna(resolved.site_metadata.loc["MAPK1;T12;", "site_sequence"])
+    payload = resolved.summary.to_payload()
+    assert payload["peptide_to_site_aggregation_policy_id"] == (
+        DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1
+    )
+    assert payload["allocation_domain"] == (
+        DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE
+    )
+    assert payload["signal_conservation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED
+    )
+    assert int(payload["fractional_mapping_rows"]) > 0
 
 
 def test_evidence_resolution_fixture_is_row_order_invariant() -> None:

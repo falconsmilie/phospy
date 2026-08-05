@@ -9,6 +9,10 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.science.evidence.dataset_resolution.allocation import AllocatedEvidence
 from phospy.science.evidence.dataset_resolution.contracts import (
+    DATASET_PEPTIDE_LOCALISATION_COMPATIBILITY_ALIAS_COLUMN,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN,
     SITE_SEQUENCE_SOURCE_MISSING,
     SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
     SITE_SEQUENCE_SOURCE_PROVIDED,
@@ -86,10 +90,17 @@ def aggregate_site_metadata_and_localisation(
             }
         )
         if include_localisation_confidence:
-            site_rows[-1]["localisation_confidence"] = (
-                aggregate_localisation_confidence(
-                    group.loc[:, "localisation_confidence"]
-                )
+            localisation_summary = aggregate_localisation_confidence(
+                group.loc[:, "localisation_confidence"]
+            )
+            site_rows[-1][DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN] = (
+                localisation_summary
+            )
+            site_rows[-1][DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN] = (
+                DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS
+            )
+            site_rows[-1][DATASET_PEPTIDE_LOCALISATION_COMPATIBILITY_ALIAS_COLUMN] = (
+                localisation_summary
             )
     site_metadata = pd.DataFrame(site_rows).set_index("site_id", drop=True)
     site_metadata.index = pd.Index(site_metadata.index.astype(str), name="site_id")

@@ -14,6 +14,7 @@ from phospy.science.evidence.dataset_resolution.contracts import (
     DATASET_MULTI_SITE_POLICY_SPLIT,
     PeptideEvidenceResolutionInputMetrics,
     PeptideEvidenceResolutionResult,
+    build_peptide_to_site_aggregation_policy,
     validate_dataset_multi_site_policy,
 )
 from phospy.science.evidence.dataset_resolution.mapping import (
@@ -42,6 +43,7 @@ class PeptideEvidenceDatasetResolver:
         evidence: PeptideEvidenceTable,
         multi_site_policy: str,
         input_intensity_scale: IntensityScaleKind | str | None,
+        input_quantitative_meaning: str | None = None,
     ) -> PeptideEvidenceResolutionResult:
         if not isinstance(evidence, PeptideEvidenceTable):
             raise PhosPyInputError(
@@ -79,10 +81,15 @@ class PeptideEvidenceDatasetResolver:
         resolved_mapping = resolve_and_validate_mapping_fractions(
             joined_mapping=joined_mapping
         )
+        aggregation_policy = build_peptide_to_site_aggregation_policy(
+            input_intensity_scale=input_intensity_scale_kind,
+            input_quantitative_meaning=input_quantitative_meaning,
+            mapping_rows=resolved_mapping.rows,
+        )
         allocated_evidence = allocate_peptide_signals_to_resolved_sites(
             resolved_mapping=resolved_mapping,
             sample_columns=evidence.sample_intensity_columns,
-            input_intensity_scale=input_intensity_scale_kind,
+            aggregation_policy=aggregation_policy,
         )
         site_signals = summarise_allocated_site_signals(
             allocated_evidence=allocated_evidence
@@ -96,6 +103,7 @@ class PeptideEvidenceDatasetResolver:
             multi_site_policy=multi_site_policy,
             input_metrics=input_metrics,
             resolved_mapping=resolved_mapping,
+            aggregation_policy=aggregation_policy,
             site_signals=site_signals,
             site_metadata_resolution=site_metadata_resolution,
         )
@@ -140,6 +148,9 @@ def _collect_input_metrics(
     )
     peptide_observations_received = int(evidence_frame.shape[0])
     ambiguous_observations = int(evidence_frame.loc[:, "multi_site"].astype(bool).sum())
+    unambiguous_observations = int(
+        peptide_observations_received - ambiguous_observations
+    )
     excluded_observations = (
         ambiguous_observations
         if multi_site_policy == DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
@@ -159,6 +170,7 @@ def _collect_input_metrics(
     return PeptideEvidenceResolutionInputMetrics(
         peptide_observations_received=peptide_observations_received,
         ambiguous_observations=ambiguous_observations,
+        unambiguous_observations=unambiguous_observations,
         excluded_observations=excluded_observations,
         split_observations=split_observations,
         duplicate_peptide_rows=duplicate_peptide_rows,

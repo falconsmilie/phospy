@@ -10,13 +10,21 @@ from phospy.api import PhosPyInputError
 from phospy.science.evidence.dataset_resolution import (
     DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
+    DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH,
+    DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_LOG2_ABUNDANCE,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL,
+    DATASET_PEPTIDE_MISSING_VALUE_POLICY_FINITE_MEAN,
     DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION,
+    DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED,
     DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR,
     DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS,
+    DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN,
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceResolutionResult,
@@ -33,6 +41,7 @@ from phospy.science.evidence.dataset_resolution.allocation import (
 from phospy.science.evidence.dataset_resolution.contracts import (
     MAPPING_FRACTION_COLUMN,
     PeptideEvidenceResolutionInputMetrics,
+    build_peptide_to_site_aggregation_policy,
 )
 from phospy.science.evidence.dataset_resolution.mapping import (
     JoinedMappingRows,
@@ -203,7 +212,10 @@ def test_allocation_applies_weights_and_site_summarisation_preserves_matrix_cont
     allocated = allocate_peptide_signals_to_resolved_sites(
         resolved_mapping=resolved_mapping,
         sample_columns=("sample_b", "sample_a"),
-        input_intensity_scale=IntensityScaleKind.LINEAR,
+        aggregation_policy=build_peptide_to_site_aggregation_policy(
+            input_intensity_scale=IntensityScaleKind.LINEAR,
+            mapping_rows=resolved_mapping.rows,
+        ),
     )
     site_signals = summarise_allocated_site_signals(
         allocated_evidence=allocated,
@@ -226,6 +238,66 @@ def test_allocation_applies_weights_and_site_summarisation_preserves_matrix_cont
         (7.5 + 14.0) / 2.0
     )
     assert pd.isna(site_signals.phospho.loc["AKT1;S473;", "sample_a"])
+
+
+def test_allocation_requires_typed_peptide_to_site_policy() -> None:
+    resolved_mapping = ResolvedMappingFractions(
+        rows=pd.DataFrame(
+            {
+                "peptide_row_id": ["pep_single"],
+                "site_id": ["AKT1;S473;"],
+                MAPPING_FRACTION_COLUMN: [1.0],
+                "sample_a": [7.0],
+            }
+        ),
+        mapping_weight_source=DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
+    )
+
+    with pytest.raises(PhosPyInputError, match="typed PeptideToSiteAggregationPolicy"):
+        allocate_peptide_signals_to_resolved_sites(
+            resolved_mapping=resolved_mapping,
+            sample_columns=("sample_a",),
+            aggregation_policy=object(),  # type: ignore[arg-type]
+        )
+
+
+def test_log2_unit_mapping_policy_is_typed_passthrough_not_fractional_inversion() -> (
+    None
+):
+    resolved_mapping = ResolvedMappingFractions(
+        rows=pd.DataFrame(
+            {
+                "peptide_row_id": ["pep_single"],
+                "site_id": ["AKT1;S473;"],
+                MAPPING_FRACTION_COLUMN: [1.0],
+                "sample_a": [3.0],
+            }
+        ),
+        mapping_weight_source=DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
+    )
+    policy = build_peptide_to_site_aggregation_policy(
+        input_intensity_scale=IntensityScaleKind.LOG2,
+        mapping_rows=resolved_mapping.rows,
+    )
+
+    allocated = allocate_peptide_signals_to_resolved_sites(
+        resolved_mapping=resolved_mapping,
+        sample_columns=("sample_a",),
+        aggregation_policy=policy,
+    )
+
+    assert allocated.rows.loc[0, "sample_a"] == pytest.approx(3.0)
+    payload = policy.to_payload()
+    assert payload["input_quantitative_meaning"] == (
+        DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_LOG2_ABUNDANCE
+    )
+    assert payload["allocation_domain"] == (
+        DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH
+    )
+    assert payload["output_intensity_scale"] == "log2"
+    assert payload["output_quantitative_meaning"] == "phosphosite_log_abundance"
+    assert payload["fractional_mapping_present"] is False
+    assert "2**" not in str(payload["aggregation_formula"])
 
 
 def test_metadata_aggregates_one_site_repeated_evidence_and_localisation() -> None:
@@ -258,6 +330,19 @@ def test_metadata_aggregates_one_site_repeated_evidence_and_localisation() -> No
     assert float(
         resolved.site_metadata.loc["MAPK1;S10;", "localisation_confidence"]
     ) == pytest.approx(0.6)
+    assert float(
+        resolved.site_metadata.loc[
+            "MAPK1;S10;",
+            DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
+        ]
+    ) == pytest.approx(0.6)
+    assert (
+        resolved.site_metadata.loc[
+            "MAPK1;S10;",
+            DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN,
+        ]
+        == DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS
+    )
     assert resolved.sequence_diagnostics.provided_site_sequence_used_count == 1
 
 
@@ -505,6 +590,7 @@ def test_summary_assembles_exact_fields_and_round_trips_payloads() -> None:
     input_metrics = PeptideEvidenceResolutionInputMetrics(
         peptide_observations_received=4,
         ambiguous_observations=2,
+        unambiguous_observations=2,
         excluded_observations=0,
         split_observations=2,
         duplicate_peptide_rows=2,
@@ -512,7 +598,12 @@ def test_summary_assembles_exact_fields_and_round_trips_payloads() -> None:
         provided_site_sequence_count=3,
     )
     resolved_mapping = ResolvedMappingFractions(
-        rows=pd.DataFrame({"peptide_row_id": ["pep_split"]}),
+        rows=pd.DataFrame(
+            {
+                "peptide_row_id": ["pep_split", "pep_split", "pep_single"],
+                MAPPING_FRACTION_COLUMN: [0.5, 0.5, 1.0],
+            }
+        ),
         mapping_weight_source=DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
     )
     site_signals = SiteSignalSummary(
@@ -540,6 +631,10 @@ def test_summary_assembles_exact_fields_and_round_trips_payloads() -> None:
         multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
         input_metrics=input_metrics,
         resolved_mapping=resolved_mapping,
+        aggregation_policy=build_peptide_to_site_aggregation_policy(
+            input_intensity_scale=IntensityScaleKind.LINEAR,
+            mapping_rows=resolved_mapping.rows,
+        ),
         site_signals=site_signals,
         site_metadata_resolution=site_metadata_resolution,
     )
@@ -548,21 +643,45 @@ def test_summary_assembles_exact_fields_and_round_trips_payloads() -> None:
     assert payload == {
         "input_mode": "peptide_evidence",
         "multi_site_policy": DATASET_MULTI_SITE_POLICY_SPLIT,
+        "peptide_to_site_aggregation_policy_id": (
+            DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1
+        ),
+        "supported_input_scales": ["linear", "log2"],
+        "supported_input_quantitative_meanings": [
+            "peptide_abundance",
+            "peptide_log2_abundance",
+        ],
+        "input_intensity_scale": "linear",
+        "input_quantitative_meaning": "peptide_abundance",
+        "output_intensity_scale": "linear",
+        "output_quantitative_meaning": "phosphosite_abundance",
+        "allocation_domain": "linear_abundance",
+        "fractional_mapping_present": True,
         "peptide_observations_received": 4,
+        "mapped_peptide_observations": 2,
+        "site_mapping_rows": 3,
+        "allocated_evidence_rows": 3,
         "unique_site_ids_produced": 3,
         "ambiguous_observations": 2,
+        "unambiguous_observations": 2,
         "excluded_observations": 0,
         "split_observations": 2,
+        "fractional_mapping_rows": 2,
+        "unit_mapping_rows": 1,
         "mapping_weight_source_policy": (
             DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL
         ),
         "mapping_weight_normalization_policy": "sum_to_one_per_peptide_evidence_row",
+        "mapping_weight_semantics": (
+            "unitless_fraction_of_one_peptide_evidence_row_allocated_to_each_resolved_site"
+        ),
         "signal_allocation_policy": (
             DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION
         ),
         "site_summarisation_policy": (
             DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS
         ),
+        "missing_value_policy": DATASET_PEPTIDE_MISSING_VALUE_POLICY_FINITE_MEAN,
         "duplicate_evidence_policy": (
             "retain_duplicate_peptide_evidence_rows_as_separate_observations"
         ),
@@ -572,11 +691,28 @@ def test_summary_assembles_exact_fields_and_round_trips_payloads() -> None:
         "localisation_aggregation_policy": (
             "arithmetic_mean_of_finite_reported_localisation_values"
         ),
+        "localisation_summary_policy": (
+            "descriptive_mean_of_finite_reported_localisation_confidence_values"
+        ),
+        "localisation_summary_semantics": (
+            "descriptive_arithmetic_mean_not_calibrated_posterior_probability"
+        ),
+        "localisation_output_column": "localisation_confidence_descriptive_mean",
+        "localisation_compatibility_alias_column": "localisation_confidence",
+        "signal_conservation_policy": (
+            DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED
+        ),
+        "uncertainty_limitations": [
+            "no_model_based_uncertainty_or_posterior_localisation_combination",
+            "peptide_evidence_rows_are_not_modelled_as_independent_replicates",
+        ],
         "aggregation_policy": DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS,
         "aggregation_formula": (
-            "a[p,s,j] = mapping_fraction[p,s] * peptide_signal[p,j]; "
-            "site_signal[s,j] = arithmetic_mean(a[p,s,j] for retained peptide rows "
-            "p mapped to s)"
+            "a[p,s,j] [linear abundance units] = w[p,s] [unitless allocation "
+            "fraction] * x[p,j] [linear peptide-abundance units]; y[s,j] "
+            "[linear phosphosite-abundance estimate units] = arithmetic_mean("
+            "a[p,s,j] over finite retained peptide evidence rows p mapped to "
+            "site s for sample j)"
         ),
         "mapping_weight_source": DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
         "mapping_weight_normalisation": "sum_to_one_per_peptide_evidence_row",

@@ -39,7 +39,9 @@ from phospy.io.bundles._shared.trusted_dataset_assertions import (
 )
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
+from phospy.science.activities.membership import ActivityMembershipSelection
 from phospy.science.activities.models import (
+    KSEA_ZSCORE_ACTIVITY_METHOD,
     ActivityMethodMetadata,
     ActivityMethodSummary,
     KinaseActivityResult,
@@ -323,6 +325,11 @@ def reconstruct_kinase_result(
         profile_metadata = _parse_activity_profile_metadata(
             sections.activity_profile_metadata
         )
+        membership_selection = _parse_activity_membership_selection(
+            sections.activity_membership_selection,
+            activity_method=activity_method,
+            weighted_activity=weighted_activity,
+        )
         _validate_activity_semantic_metadata(
             input_semantics=input_semantics,
             profile_metadata=profile_metadata,
@@ -347,6 +354,7 @@ def reconstruct_kinase_result(
                 activity_method=activity_method,
                 input_semantics=input_semantics,
                 profile_metadata=profile_metadata,
+                membership_selection=membership_selection,
             )
         except (WorkflowBoundaryError, PhosPyValidationError, ValueError) as exc:
             raise PhosPyInputError(
@@ -439,6 +447,32 @@ def _parse_activity_profile_metadata(
         raise PhosPyInputError(
             f"{field_name} is invalid: {exc}; correct the manifest or regenerate "
             "the bundle from the original KinaseActivityResult"
+        ) from exc
+
+
+def _parse_activity_membership_selection(
+    payload: Mapping[str, object] | None,
+    *,
+    activity_method: ActivityMethodMetadata,
+    weighted_activity: pd.DataFrame,
+) -> ActivityMembershipSelection | None:
+    if payload is None:
+        if (
+            str(activity_method.activity_method_id)
+            != KSEA_ZSCORE_ACTIVITY_METHOD.activity_method_id
+        ):
+            return None
+        return ActivityMembershipSelection.missing(
+            selected_kinase_universe=weighted_activity.index.astype(str).tolist(),
+            selected_substrate_universe=(),
+        )
+    try:
+        return ActivityMembershipSelection.from_payload(payload)
+    except (TypeError, ValueError, WorkflowBoundaryError) as exc:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity.membership_selection is invalid: "
+            f"{exc}; correct the manifest or regenerate the bundle from the "
+            "original KinaseActivityResult"
         ) from exc
 
 
@@ -724,6 +758,10 @@ def _normalise_activity_statistics_bundle_table(
         "computability_status",
         "reason",
         "significance_status",
+        "inferential_status",
+        "inferential_reason",
+        "membership_source_category",
+        "membership_selection_method",
     )
     normalized = table.copy(deep=True)
     for column_name in string_columns:

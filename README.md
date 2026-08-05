@@ -115,7 +115,11 @@ calibrated probabilities.
 Optional kinase activity outputs are exploratory kinase activity scores or
 activity-like substrate summaries. They depend on substrate coverage and
 reference evidence; they are not direct proof of kinase activation or causal
-pathway activity.
+pathway activity. KSEA-style outputs emit ordinary normal-approximation p-values
+and q-values only when typed substrate-membership provenance shows that
+membership was selected independently of the tested quantitative matrix; adaptive
+profile-derived membership reports descriptive z-scores with p/q values
+unavailable.
 
 Enrichment ORA results are overlap statistics under the caller-supplied
 background universe. They do not prove pathway activation, regulation, or

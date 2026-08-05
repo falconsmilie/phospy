@@ -461,6 +461,7 @@ def test_kinase_bundle_manifest_v3_is_explicit_and_content_addressed(
     assert manifest["outputs"]["activity"]["profile_metadata"] == (
         result.activity_result.profile_metadata.to_payload()
     )
+    assert manifest["outputs"]["activity"]["membership_selection"] is None
     assert _table_paths(manifest["outputs"]["activity"]["tables"]) == {
         "weighted_activity": "activity/weighted_activity.csv",
         "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
@@ -519,6 +520,7 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
         "summary": None,
         "input_semantics": None,
         "profile_metadata": None,
+        "membership_selection": None,
         "tables": {
             "weighted_activity": None,
             "thresholded_substrate_mean_activity": None,
@@ -1600,6 +1602,21 @@ def _provenance_with_activity_semantics(
         if activity_result.method_summary is None
         else activity_result.method_summary.to_payload()
     )
+    activity_config["membership_selection"] = (
+        None
+        if activity_result.membership_selection is None
+        else activity_result.membership_selection.to_payload()
+    )
+    activity_config["ksea_inferential_eligible"] = (
+        None
+        if activity_result.membership_selection is None
+        else activity_result.membership_selection.inferential_eligible
+    )
+    activity_config["ksea_inferential_status"] = (
+        None
+        if activity_result.membership_selection is None
+        else activity_result.membership_selection.inferential_status
+    )
     workflow_parameters["activity_config"] = activity_config
     return replace(provenance, workflow_parameters=workflow_parameters)
 
@@ -1710,6 +1727,7 @@ def _assert_activity_result_semantics_round_tripped(
     _assert_optional_frame_equal(loaded.statistics_table, original.statistics_table)
     assert loaded.activity_method == original.activity_method
     assert loaded.method_summary == original.method_summary
+    assert loaded.membership_selection == original.membership_selection
 
 
 def _assert_persisted_activity_statistics_table_uses_canonical_schema(
@@ -1773,6 +1791,16 @@ def _assert_activity_provenance_matches_result(
     assert method_contract["resolved_activity_quantitative_semantics"] == (
         quantity_value
     )
+    if result.activity_result.membership_selection is not None:
+        assert activity_config["membership_selection"] == (
+            result.activity_result.membership_selection.to_payload()
+        )
+        assert activity_config["ksea_inferential_eligible"] is (
+            result.activity_result.membership_selection.inferential_eligible
+        )
+        assert activity_config["ksea_inferential_status"] == (
+            result.activity_result.membership_selection.inferential_status
+        )
 
 
 def _mutate_activity_manifest(
@@ -2277,6 +2305,9 @@ def _assert_kinase_result_equal(left, right) -> None:
         right.activity_result.statistics_table,
     )
     assert left.activity_result.method_summary == right.activity_result.method_summary
+    assert left.activity_result.membership_selection == (
+        right.activity_result.membership_selection
+    )
 
 
 def _assert_optional_frame_equal(left, right) -> None:

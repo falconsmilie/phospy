@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.membership import ActivityMembershipSelection
 from phospy.science.activities.method_contracts import (
     ksea_zscore_activity_input_contract,
 )
@@ -41,6 +42,8 @@ KSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES = "no_finite_substrate_values"
 
 KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION = "normal_approximation"
 KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
+KSEA_INFERENTIAL_STATUS_ORDINARY_P_Q_AVAILABLE = "ordinary_p_q_available"
+KSEA_INFERENTIAL_STATUS_P_Q_UNAVAILABLE = "ordinary_p_q_unavailable"
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +92,8 @@ class KseaZScoreActivityMethod:
             evidence_values,
             threshold=float(self.evidence_threshold),
         )
+        membership_selection = _require_membership_selection(inputs)
+        inferential_policy = _resolve_inferential_policy(membership_selection)
         finite_phospho_mask = np.isfinite(phospho_values)
 
         z_scores = pd.DataFrame(
@@ -97,17 +102,25 @@ class KseaZScoreActivityMethod:
             columns=profile_index,
             dtype=float,
         )
-        p_value_matrix = pd.DataFrame(
-            np.nan,
-            index=kinase_index,
-            columns=profile_index,
-            dtype=float,
+        p_value_matrix = (
+            pd.DataFrame(
+                np.nan,
+                index=kinase_index,
+                columns=profile_index,
+                dtype=float,
+            )
+            if inferential_policy.p_values_available
+            else None
         )
-        q_value_matrix = pd.DataFrame(
-            np.nan,
-            index=kinase_index,
-            columns=profile_index,
-            dtype=float,
+        q_value_matrix = (
+            pd.DataFrame(
+                np.nan,
+                index=kinase_index,
+                columns=profile_index,
+                dtype=float,
+            )
+            if inferential_policy.p_values_available and self.adjust_p_values
+            else None
         )
         substrate_means = pd.DataFrame(
             np.nan,
@@ -194,9 +207,14 @@ class KseaZScoreActivityMethod:
                             * np.sqrt(float(n_substrates))
                             / float(sd_background)
                         )
-                        p_value = two_sided_normal_p_value(float(z_score))
                         z_scores.iat[kinase_position, profile_position] = z_score
-                        p_value_matrix.iat[kinase_position, profile_position] = p_value
+                        if inferential_policy.p_values_available:
+                            p_value = two_sided_normal_p_value(float(z_score))
+                            if p_value_matrix is not None:
+                                p_value_matrix.iat[
+                                    kinase_position,
+                                    profile_position,
+                                ] = p_value
 
                 counts[status] += 1
                 row = {
@@ -213,6 +231,15 @@ class KseaZScoreActivityMethod:
                     "min_substrates": int(self.min_substrates),
                     "computability_status": status,
                     "reason": reason,
+                    "inferential_eligible": bool(inferential_policy.p_values_available),
+                    "inferential_status": inferential_policy.status,
+                    "inferential_reason": inferential_policy.reason,
+                    "membership_source_category": (
+                        membership_selection.source_category
+                    ),
+                    "membership_selection_method": (
+                        membership_selection.selection_method
+                    ),
                 }
                 condition_id = condition_ids_by_profile.get(str(profile_id))
                 if condition_id is not None:
@@ -233,6 +260,11 @@ class KseaZScoreActivityMethod:
             "min_substrates",
             "computability_status",
             "reason",
+            "inferential_eligible",
+            "inferential_status",
+            "inferential_reason",
+            "membership_source_category",
+            "membership_selection_method",
         ]
         if condition_ids_by_profile:
             statistics_columns.insert(2, "condition")
@@ -240,7 +272,7 @@ class KseaZScoreActivityMethod:
             rows,
             columns=statistics_columns,
         )
-        if self.adjust_p_values:
+        if self.adjust_p_values and inferential_policy.p_values_available:
             for profile_id in profile_index:
                 profile_mask = statistics_table.loc[:, "profile_id"].astype(str) == str(
                     profile_id
@@ -255,6 +287,16 @@ class KseaZScoreActivityMethod:
                 profile_p_values = statistics_table.loc[selected, "p_value"].astype(
                     float
                 )
+                finite_p_values = np.isfinite(
+                    profile_p_values.to_numpy(dtype=float, copy=False)
+                )
+                if not bool(finite_p_values.all()):
+                    selected = selected & statistics_table.loc[:, "p_value"].notna()
+                    profile_p_values = statistics_table.loc[selected, "p_value"].astype(
+                        float
+                    )
+                if profile_p_values.empty:
+                    continue
                 q_values = benjamini_hochberg_q_values(profile_p_values)
                 statistics_table.loc[selected, "q_value"] = q_values.to_numpy(
                     dtype=float,
@@ -266,9 +308,10 @@ class KseaZScoreActivityMethod:
                     q_values.to_numpy(dtype=float, copy=False).tolist(),
                     strict=True,
                 ):
-                    q_value_matrix.at[str(kinase_name), str(profile_id)] = float(
-                        q_value
-                    )
+                    if q_value_matrix is not None:
+                        q_value_matrix.at[str(kinase_name), str(profile_id)] = float(
+                            q_value
+                        )
 
         target_counts = pd.Series(
             membership_mask.sum(axis=0).astype("int64"),
@@ -312,12 +355,13 @@ class KseaZScoreActivityMethod:
             p_value_method=str(self.p_value_method),
             adjust_p_values=bool(self.adjust_p_values),
             q_value_method=(str(self.q_value_method) if self.adjust_p_values else None),
+            membership_inferential_eligible=bool(inferential_policy.p_values_available),
         )
 
         return KinaseActivityResult._from_owned(
             weighted_activity=z_scores,
             p_value_matrix=p_value_matrix,
-            q_value_matrix=q_value_matrix if self.adjust_p_values else None,
+            q_value_matrix=q_value_matrix,
             thresholded_substrate_mean_activity=substrate_means,
             thresholded_substrate_counts=thresholded_substrate_counts,
             activity_substrate_counts=substrate_count_table,
@@ -332,6 +376,7 @@ class KseaZScoreActivityMethod:
             activity_method=KSEA_ZSCORE_ACTIVITY_METHOD,
             input_semantics=inputs.input_semantics,
             profile_metadata=inputs.profile_metadata,
+            membership_selection=membership_selection,
         )
 
 
@@ -359,6 +404,40 @@ def _align_activity_inputs(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     common_sites = pred_mat.index.intersection(phospho_matrix.index)
     return pred_mat.loc[common_sites], phospho_matrix.loc[common_sites]
+
+
+@dataclass(frozen=True, slots=True)
+class _KseaInferentialPolicy:
+    p_values_available: bool
+    status: str
+    reason: str
+
+
+def _require_membership_selection(
+    inputs: KinaseActivityInputs,
+) -> ActivityMembershipSelection:
+    membership_selection = inputs.membership_selection
+    if membership_selection is None:
+        raise WorkflowBoundaryError(
+            "KSEA-style activity requires typed membership_selection provenance"
+        )
+    return membership_selection
+
+
+def _resolve_inferential_policy(
+    membership_selection: ActivityMembershipSelection,
+) -> _KseaInferentialPolicy:
+    if membership_selection.inferential_eligible:
+        return _KseaInferentialPolicy(
+            p_values_available=True,
+            status=KSEA_INFERENTIAL_STATUS_ORDINARY_P_Q_AVAILABLE,
+            reason=membership_selection.inferential_eligibility_reason,
+        )
+    return _KseaInferentialPolicy(
+        p_values_available=False,
+        status=KSEA_INFERENTIAL_STATUS_P_Q_UNAVAILABLE,
+        reason=membership_selection.inferential_eligibility_reason,
+    )
 
 
 def _condition_ids_by_profile(
@@ -398,6 +477,8 @@ def _build_target_table(
 __all__ = [
     "KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION",
     "KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG",
+    "KSEA_INFERENTIAL_STATUS_ORDINARY_P_Q_AVAILABLE",
+    "KSEA_INFERENTIAL_STATUS_P_Q_UNAVAILABLE",
     "KSEA_STATUS_COMPUTED",
     "KSEA_STATUS_INSUFFICIENT_SUBSTRATES",
     "KSEA_STATUS_NO_FINITE_BACKGROUND_VALUES",

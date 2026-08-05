@@ -62,3 +62,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0043 | Result Bundle Integrity and Transactional Writes | Accepted | 2026-08-02 | [adr_0043_result_bundle_integrity_and_transactional_writes.md](adr_0043_result_bundle_integrity_and_transactional_writes.md) |
 | ADR-0044 | Differential Replicate Reliability Policy | Accepted | 2026-08-02 | [adr_0044_differential_replicate_reliability_policy.md](adr_0044_differential_replicate_reliability_policy.md) |
 | ADR-0045 | Enrichment Derived Identifier-Set Provenance | Accepted | 2026-08-03 | [adr_0045_enrichment_derived_identifier_set_provenance.md](adr_0045_enrichment_derived_identifier_set_provenance.md) |
+| ADR-0046 | Kinase Activity Inferential Eligibility | Accepted | 2026-08-05 | [adr_0046_kinase_activity_inferential_eligibility.md](adr_0046_kinase_activity_inferential_eligibility.md) |

@@ -19,18 +19,29 @@ from phospy.api.requests import (
 from phospy.provenance.serialization import from_payload
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.evidence import (
+    DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH,
+    DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE,
     DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS,
     DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS,
+    DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_ABUNDANCE,
+    DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_LOG2_ABUNDANCE,
     DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_POLICY_DESCRIPTIVE_MEAN,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS,
+    DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN,
     DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE,
     DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALIZATION_POLICY_SUM_TO_ONE_PER_PEPTIDE_ROW,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL,
+    DATASET_PEPTIDE_MISSING_VALUE_POLICY_FINITE_MEAN,
     DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_COMBINE_ALLOCATED_SIGNALS,
     DATASET_PEPTIDE_SIGNAL_ALLOCATION_POLICY_MULTIPLY_BY_MAPPING_FRACTION,
+    DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED,
     DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR,
     DATASET_PEPTIDE_SITE_SUMMARISATION_POLICY_ARITHMETIC_MEAN_OF_ALLOCATED_SIGNALS,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS,
+    DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN,
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceResolutionResult,
@@ -461,6 +472,19 @@ def test_public_builder_allows_log2_peptide_evidence_with_unit_mapping() -> None
     akt1_s473 = _site_key_for_display_id(built, "AKT1;S473;")
     assert float(built.phospho.loc[akt1_s473, "sample_a"]) == pytest.approx(7.0)
     assert built.intensity_scale_state.label == "log2"
+    assert built.provenance is not None
+    payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
+    assert isinstance(payload, Mapping)
+    assert payload["input_intensity_scale"] == "log2"
+    assert payload["input_quantitative_meaning"] == (
+        DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_LOG2_ABUNDANCE
+    )
+    assert payload["output_intensity_scale"] == "log2"
+    assert payload["output_quantitative_meaning"] == "phosphosite_log_abundance"
+    assert payload["allocation_domain"] == (
+        DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH
+    )
+    assert payload["fractional_mapping_present"] is False
 
 
 @pytest.mark.parametrize("accession_case", ("missing_column", "blank_value"))
@@ -1224,9 +1248,59 @@ def test_localisation_aggregation_uses_mean_of_finite_reported_values() -> None:
     assert float(
         resolved.site_metadata.loc["MAPK1;S10;", "localisation_confidence"]
     ) == pytest.approx(0.6)
+    assert float(
+        resolved.site_metadata.loc[
+            "MAPK1;S10;",
+            DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
+        ]
+    ) == pytest.approx(0.6)
+    assert (
+        resolved.site_metadata.loc[
+            "MAPK1;S10;",
+            DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN,
+        ]
+        == DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS
+    )
     assert resolved.summary.localisation_aggregation_policy == (
         DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES
     )
+    assert resolved.summary.localisation_summary_policy == (
+        DATASET_PEPTIDE_LOCALISATION_SUMMARY_POLICY_DESCRIPTIVE_MEAN
+    )
+
+
+def test_contradictory_localisation_evidence_is_descriptive_not_posterior() -> None:
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_low",
+                sample_a=10.0,
+                peptide_sequence="AAASAAA",
+                localisation_confidence=0.0,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_high",
+                sample_a=20.0,
+                peptide_sequence="CCCSCCC",
+                localisation_confidence=1.0,
+            ),
+        ]
+    )
+
+    assert float(
+        resolved.site_metadata.loc[
+            "MAPK1;S10;",
+            DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
+        ]
+    ) == pytest.approx(0.5)
+    assert (
+        resolved.site_metadata.loc[
+            "MAPK1;S10;",
+            DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN,
+        ]
+        == DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS
+    )
+    assert "posterior" in resolved.summary.localisation_summary_semantics
 
 
 def test_duplicate_peptide_rows_are_retained_as_independent_observations() -> None:
@@ -1288,6 +1362,81 @@ def test_explicit_mapping_weights_are_applied_deterministically() -> None:
     assert (
         payload["mapping_weight_source"]
         == DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT
+    )
+
+
+def test_fractional_linear_estimator_non_conservation_is_user_visible() -> None:
+    resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_split",
+                sample_a=10.0,
+                site_string="S10,T12",
+                peptide_sequence="AAASTTAAAA",
+                multi_site=True,
+            ),
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_single",
+                sample_a=30.0,
+                peptide_sequence="CCCSCCC",
+            ),
+        ],
+        split=True,
+    )
+
+    input_signal_total = 40.0
+    output_signal_total = float(resolved.phospho.loc[:, "sample_a"].sum())
+    assert output_signal_total == pytest.approx(22.5)
+    assert output_signal_total != pytest.approx(input_signal_total)
+    payload = resolved.summary.to_payload()
+    assert payload["signal_conservation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED
+    )
+    assert payload["fractional_mapping_present"] is True
+    assert int(payload["fractional_mapping_rows"]) == 2
+    assert payload["allocation_domain"] == (
+        DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE
+    )
+
+
+def test_log2_unit_mapping_round_trip_is_supported_only_for_known_unit_mapping() -> (
+    None
+):
+    linear_resolved = _run_policy_resolution(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=8.0,
+                peptide_sequence="AAASAAA",
+            )
+        ]
+    )
+    log2_evidence = _resolution_policy_evidence_table(
+        [
+            _resolution_policy_evidence_row(
+                peptide_row_id="pep_1",
+                sample_a=3.0,
+                peptide_sequence="AAASAAA",
+            )
+        ]
+    )
+    log2_resolved = PeptideEvidenceDatasetResolver().run(
+        evidence=log2_evidence,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        input_intensity_scale="log2",
+    )
+
+    log2_value = float(log2_resolved.phospho.loc["MAPK1;S10;", "sample_a"])
+    assert 2.0**log2_value == pytest.approx(
+        float(linear_resolved.phospho.loc["MAPK1;S10;", "sample_a"])
+    )
+    payload = log2_resolved.summary.to_payload()
+    assert payload["fractional_mapping_present"] is False
+    assert payload["allocation_domain"] == (
+        DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH
+    )
+    assert payload["input_quantitative_meaning"] == (
+        DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_LOG2_ABUNDANCE
     )
 
 
@@ -1386,6 +1535,35 @@ def test_new_resolution_summary_serializes_explicit_policy_identifiers_in_order(
     assert [key for key in payload if key in ordered_policy_keys] == (
         ordered_policy_keys
     )
+    assert payload["peptide_to_site_aggregation_policy_id"] == (
+        DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1
+    )
+    assert payload["input_intensity_scale"] == "linear"
+    assert payload["input_quantitative_meaning"] == (
+        DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_ABUNDANCE
+    )
+    assert payload["output_intensity_scale"] == "linear"
+    assert payload["output_quantitative_meaning"] == "phosphosite_abundance"
+    assert (
+        payload["allocation_domain"]
+        == DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE
+    )
+    assert (
+        payload["missing_value_policy"]
+        == DATASET_PEPTIDE_MISSING_VALUE_POLICY_FINITE_MEAN
+    )
+    assert payload["signal_conservation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED
+    )
+    assert payload["supported_input_scales"] == ["linear", "log2"]
+    assert payload["supported_input_quantitative_meanings"] == [
+        "peptide_abundance",
+        "peptide_log2_abundance",
+    ]
+    assert payload["uncertainty_limitations"] == [
+        "no_model_based_uncertainty_or_posterior_localisation_combination",
+        "peptide_evidence_rows_are_not_modelled_as_independent_replicates",
+    ]
     assert payload["mapping_weight_source_policy"] == (
         DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL
     )
@@ -1461,6 +1639,11 @@ def test_legacy_mapping_weighted_mean_provenance_reconstructs_policy_tuple() -> 
     assert summary.aggregation_policy == (
         DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS
     )
+    assert summary.input_intensity_scale == "not_recorded_legacy"
+    assert summary.unambiguous_observations == 0
+    assert summary.signal_conservation_policy == (
+        DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED
+    )
 
     restored = from_payload(
         {
@@ -1517,6 +1700,13 @@ def test_legacy_mapping_weighted_mean_provenance_reconstructs_policy_tuple() -> 
     assert restored_resolution["aggregation_policy"] == (
         DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS
     )
+    assert restored_resolution["peptide_to_site_aggregation_policy_id"] == (
+        DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1
+    )
+    assert restored_resolution["input_intensity_scale"] == "not_recorded_legacy"
+    assert restored_resolution["localisation_summary_policy"] == (
+        DATASET_PEPTIDE_LOCALISATION_SUMMARY_POLICY_DESCRIPTIVE_MEAN
+    )
 
 
 def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() -> None:
@@ -1533,6 +1723,33 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
     assert isinstance(payload, Mapping)
+    assert payload["peptide_to_site_aggregation_policy_id"] == (
+        DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1
+    )
+    assert payload["input_intensity_scale"] == "linear"
+    assert payload["input_quantitative_meaning"] == (
+        DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_ABUNDANCE
+    )
+    assert payload["output_intensity_scale"] == "linear"
+    assert payload["output_quantitative_meaning"] == "phosphosite_abundance"
+    assert (
+        payload["allocation_domain"]
+        == DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE
+    )
+    assert (
+        payload["missing_value_policy"]
+        == DATASET_PEPTIDE_MISSING_VALUE_POLICY_FINITE_MEAN
+    )
+    assert int(payload["mapped_peptide_observations"]) == 2
+    assert int(payload["site_mapping_rows"]) == 3
+    assert int(payload["allocated_evidence_rows"]) == 3
+    assert int(payload["ambiguous_observations"]) == 1
+    assert int(payload["unambiguous_observations"]) == 1
+    assert int(payload["fractional_mapping_rows"]) == 2
+    assert int(payload["unit_mapping_rows"]) == 1
+    assert payload["signal_conservation_policy"] == (
+        DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED
+    )
     assert payload["mapping_weight_source_policy"] == (
         DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY_EXPLICIT_OR_DERIVED_EQUAL
     )
@@ -1554,6 +1771,12 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
     )
     assert payload["localisation_aggregation_policy"] == (
         DATASET_PEPTIDE_LOCALISATION_AGGREGATION_POLICY_ARITHMETIC_MEAN_OF_FINITE_VALUES
+    )
+    assert payload["localisation_summary_policy"] == (
+        DATASET_PEPTIDE_LOCALISATION_SUMMARY_POLICY_DESCRIPTIVE_MEAN
+    )
+    assert payload["localisation_output_column"] == (
+        DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN
     )
     assert (
         payload["aggregation_policy"]

@@ -9,6 +9,7 @@ from phospy.provenance.scientific_policy_models import (
 from phospy.science.scoring.policy_models import ThresholdMode
 
 SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "1"
+KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "2"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_profile_kinase"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
 SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (
@@ -69,14 +70,18 @@ def build_ksea_zscore_activity_policy(
     p_value_method: str,
     adjust_p_values: bool,
     q_value_method: str | None,
+    membership_inferential_eligible: bool | None = None,
 ) -> ScientificPolicyRecord:
     return ScientificPolicyRecord(
         id=ScientificPolicyId.KSEA_ZSCORE_ACTIVITY,
         name="ksea_zscore_activity_v1",
-        version="1",
+        version=KSEA_ZSCORE_ACTIVITY_POLICY_VERSION,
         description=(
             "Computes KSEA-style inferred kinase activity z-scores using "
-            "unweighted substrate membership after evidence thresholding."
+            "unweighted substrate membership after evidence thresholding. "
+            "Ordinary normal-approximation p-values and BH q-values are emitted "
+            "only when typed membership-selection provenance declares the "
+            "membership independent of the tested quantitative matrix."
         ),
         parameters={
             "evidence_threshold": float(evidence_threshold),
@@ -92,9 +97,19 @@ def build_ksea_zscore_activity_policy(
             "p_value_method": str(p_value_method),
             "adjust_p_values": bool(adjust_p_values),
             "q_value_method": None if q_value_method is None else str(q_value_method),
+            "membership_selection_policy_version": ("activity_membership_selection_v1"),
+            "ordinary_p_q_requires_inferentially_eligible_membership": True,
+            "adaptive_membership_p_q_policy": ("unavailable_descriptive_z_scores_only"),
+            "membership_inferential_eligible": membership_inferential_eligible,
         },
         assumptions=(
             "Substrate evidence contributes as binary membership after thresholding.",
+            "Normal-approximation p-values assume substrate membership was fixed "
+            "independently of the tested quantitative values.",
+            "When membership was selected using the tested quantitative matrix, "
+            "the method reports descriptive z-scores and substrate counts only; "
+            "ordinary p-values and q-values are unavailable unless a valid nested "
+            "resampling or sample-splitting procedure is implemented.",
             "Background phosphosite values define per-profile mean and sample "
             "variance.",
             "Scores with insufficient substrates or invalid background variance "
@@ -108,7 +123,8 @@ def build_ksea_zscore_activity_policy(
         ),
         output_scale=(
             "Profile-by-kinase inferred kinase activity score matrix "
-            "(z-score substrate-set enrichment) with normal-approximation p-values."
+            "(z-score substrate-set enrichment); normal-approximation p-values "
+            "are present only for inferentially eligible membership."
         ),
         quantitative_meaning="substrate_set_enrichment_z_score",
     )
@@ -195,6 +211,7 @@ __all__ = [
     "build_ksea_zscore_activity_policy",
     "build_simplified_weighted_substrate_activity_policy",
     "build_ssgsea_substrate_enrichment_activity_policy",
+    "KSEA_ZSCORE_ACTIVITY_POLICY_VERSION",
     "SSGSEA_PERMUTATION_RNG_SEED_MATERIAL",
     "SSGSEA_PERMUTATION_RNG_SEED_POLICY",
     "SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION",

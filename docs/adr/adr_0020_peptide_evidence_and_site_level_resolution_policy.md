@@ -6,6 +6,7 @@
 - **Title:** Peptide Evidence and Site-Level Resolution Policy
 - **Status:** Accepted
 - **Date:** 2026-05-12
+- **Amended:** 2026-08-05
 - **Decision Type:** Architecture Decision Record
 
 ## Context
@@ -66,78 +67,179 @@ Scientific rationale:
 - multi-site allocation remains explicit provenance, not hidden statistical
   repair.
 
-### Explicit Aggregation Semantics
+### Explicit Sample-Level Peptide-to-Site Estimand
 
 The semantics in this section are dataset-construction signal-allocation and
 site-resolution semantics. They are not post-hoc differential statistic
 meta-analysis semantics.
 
-Peptide-to-site aggregation is scientifically explicit and owned by
-`phospy.science.evidence.dataset_resolution`:
+Peptide-to-site aggregation is a typed, run-specific quantitative policy owned
+by `phospy.science.evidence.dataset_resolution`. The dataset builder may
+orchestrate this policy and record its payload, but it must not duplicate or
+infer the peptide aggregation science. Downstream workflows consume the
+resulting site-level matrix and provenance.
 
+The supported production policy is
+`peptide_to_site_linear_abundance_fractional_allocation_arithmetic_mean_v1`.
+It defines these contract fields:
+
+- **Supported input scales:** `linear`, `log2`
+- **Supported input quantitative meanings:** `peptide_abundance` for `linear`,
+  `peptide_log2_abundance` for `log2`
+- **Output scales:** the declared input scale is preserved
+- **Output quantitative meanings:** `phosphosite_abundance` for `linear`,
+  `phosphosite_log_abundance` for unit-mapped `log2`
 - **Mapping-weight source policy:**
   `explicit_mapping_weight_when_supplied_else_equal_fraction_per_resolved_site`
 - **Mapping-weight normalisation policy:**
   `sum_to_one_per_peptide_evidence_row`
+- **Mapping-weight semantics:**
+  `unitless_fraction_of_one_peptide_evidence_row_allocated_to_each_resolved_site`
 - **Signal allocation policy:** `multiply_peptide_signal_by_mapping_fraction`
+- **Allocation domain:** `linear_abundance` when any non-unit fraction is
+  present; `declared_scale_unit_mapping_passthrough` for `log2` input only when
+  every mapping fraction is `1.0`
 - **Site summarisation policy:** `arithmetic_mean_of_allocated_signals`
+- **Missing-value policy:**
+  `mean_finite_allocated_values_per_site_sample_preserve_missing_if_none_finite`
 - **Duplicate evidence policy:**
   `retain_duplicate_peptide_evidence_rows_as_separate_observations`
 - **Mixed ambiguity policy:**
   `combine_ambiguous_and_unambiguous_allocated_signals_in_site_mean`
-- **Localisation aggregation policy:**
-  `arithmetic_mean_of_finite_reported_localisation_values`
+- **Localisation summary policy:**
+  `descriptive_mean_of_finite_reported_localisation_confidence_values`
+- **Localisation summary semantics:**
+  `descriptive_arithmetic_mean_not_calibrated_posterior_probability`
+- **Signal conservation policy:**
+  `not_signal_conserving_after_per_site_arithmetic_mean`
 - **Legacy aggregation-policy alias:**
   `legacy_alias_for_arithmetic_mean_of_allocated_signals`
-- **Mapping-fraction representation:** `site_mapping.mapping_weight`
-- **Weight normalisation contract:** mapping weights must sum to `1.0` per
-  `peptide_row_id`
-- **Derived default when absent:** equal weight per mapped site
 
-The current supported mathematics is:
+The mapping fraction column remains `site_mapping.mapping_weight`, exposed after
+validation as `mapping_fraction`. Mapping weights must be positive finite
+unitless values that sum to `1.0` for each `peptide_row_id`. When explicit
+weights are absent, equal unitless fractions are derived across the resolved
+sites for that peptide row.
+
+#### Linear-abundance allocation formula
+
+For a run with `input_intensity_scale="linear"` and
+`input_quantitative_meaning="peptide_abundance"`, fractional allocation is
+defined in linear abundance units:
 
 ```text
-a[p,s,j] = w[p,s] * x[p,j]
-y[s,j] = mean over retained evidence rows p mapped to s of a[p,s,j]
+a[p,s,j] [linear abundance units]
+  = w[p,s] [unitless peptide-row allocation fraction]
+    * x[p,j] [linear peptide-abundance units]
+
+y[s,j] [linear phosphosite-abundance estimate units]
+  = arithmetic_mean(
+      a[p,s,j] [linear abundance units]
+      over finite retained peptide evidence rows p mapped to site s for sample j
+    )
 ```
 
 where:
 
 - `p` is a retained peptide evidence row.
-- `s` is a resolved site.
+- `s` is a resolved phosphosite.
 - `j` is a sample.
-- `x[p,j]` is the peptide-row signal.
-- `w[p,s]` is the mapping allocation fraction for that peptide row and site.
-- `a[p,s,j]` is the allocated peptide-row signal.
-- `y[s,j]` is the site-level signal.
+- `x[p,j]` is the peptide-row abundance in linear abundance units for sample
+  `j`.
+- `w[p,s]` is the unitless allocation fraction for peptide row `p` and site
+  `s`.
+- `a[p,s,j]` is the allocated peptide-row abundance in linear abundance units.
+- `y[s,j]` is the site-level abundance estimate in linear phosphosite-abundance
+  estimate units.
 
-This formula is defined only in an explicitly supported quantitative domain.
-As of the emergency scale-safety amendment, fractional allocation
-(`w[p,s] != 1.0`) is supported only for peptide evidence declared on a linear
-intensity scale. Peptide evidence declared on a non-linear scale such as `log2`
-must fail closed before allocation whenever a non-unit mapping fraction would
-be applied, including derived equal split fractions and explicit
-`site_mapping.mapping_weight` values. Unit/unambiguous mappings may pass
-through on their declared scale because no fractional allocation is applied.
-A future scale-aware estimator requires separate scientific validation and an
-ADR update before non-linear fractional allocation can be supported.
+#### Log2 unit-mapping formula
 
-`w[p,s]` is an allocation fraction, not a statistical inverse-variance weight
-or localisation-confidence weight. The final arithmetic mean is taken over
-allocated evidence-row signals. This is not equivalent in general to either
-`sum(w * x)` or `sum(w * x) / sum(w)`.
+For a run with `input_intensity_scale="log2"` and
+`input_quantitative_meaning="peptide_log2_abundance"`, only unit mappings are
+supported. In that case there is no fractional allocation and no inverse
+transformation:
+
+```text
+a[p,s,j] [log2 peptide-abundance units]
+  = x[p,j] [log2 peptide-abundance units]
+    because w[p,s] = 1.0 [unitless peptide-row allocation fraction]
+
+y[s,j] [log2 phosphosite-abundance estimate units]
+  = arithmetic_mean(
+      a[p,s,j] [log2 peptide-abundance units]
+      over finite retained peptide evidence rows p mapped to site s for sample j
+    )
+```
+
+Peptide evidence declared on a non-linear scale such as `log2` must fail closed
+before allocation whenever a non-unit mapping fraction would be applied,
+including derived equal split fractions and explicit `site_mapping.mapping_weight`
+values. PhosPy does not assume `2**x` is an invertible recovery of linear
+abundance when pseudocount, transformation direction, censoring, or
+transformation provenance is unknown. A future scale-aware log-domain estimator
+requires an ADR update, complete typed transformation provenance, numerical
+round-trip tests, and scientific validation.
+
+`w[p,s]` is an allocation fraction, not an inverse-variance weight,
+localisation-confidence weight, posterior probability, or statistical evidence
+weight. The final arithmetic mean is taken over allocated evidence-row signals.
+This is not equivalent in general to `sum(w * x)` or
+`sum(w * x) / sum(w)` when `x` is in linear abundance units and `w` is
+unitless.
 
 This policy does not generally conserve total signal after site-level
 summarisation because the allocated signals are averaged per resolved site.
 Duplicate retained rows affect the arithmetic mean because they are treated as
 separate evidence observations. Ambiguous and unambiguous evidence rows mapped
 to the same site are summarised by the same arithmetic mean over allocated
-signals.
+signals. Non-conservation is intentional for this retained estimator and is
+recorded in provenance as
+`not_signal_conserving_after_per_site_arithmetic_mean`.
+
+Localisation output from peptide evidence is descriptive, not inferential. The
+site metadata includes `localisation_confidence_descriptive_mean` and
+`localisation_confidence_summary_semantics`. The legacy-compatible
+`localisation_confidence` alias may be retained for existing localisation
+threshold configuration, but provenance must state that the value is a
+descriptive arithmetic mean of finite reported confidence values and not a
+calibrated posterior localisation probability.
 
 This ADR documents the currently supported policy. It does not claim that this
-policy is universally optimal; alternatives such as summation, conventional
-normalised weighted means, robust medians, best-peptide methods, or hierarchical
-models require separate scientific review and a future ADR.
+policy is universally optimal.
+
+#### Evaluated estimator and rejected alternatives
+
+The selected estimator is evaluated by:
+
+- synthetic ground-truth fixtures covering unit, equal fractional, unequal
+  explicit fractional, duplicate, missing-value, mixed ambiguous/unambiguous,
+  contradictory-localisation, row-order-invariance, and log2 unit-mapping
+  round-trip cases; and
+- a checked-in realistic/reference regression fixture under
+  `tests/fixtures/release_validation_regression/evidence_resolution`, with an
+  independently generated expected site matrix.
+
+Rejected alternatives for the current production contract:
+
+- **Summation of allocated signals:** conserves allocated linear signal better
+  than per-site means, but changes the row statistic with peptide-evidence row
+  count and needs a separate abundance-estimand decision.
+- **Conventional normalized weighted mean (`sum(w * x) / sum(w)`, with `x` in
+  linear abundance units and `w` unitless):** has clearer weighted-estimator
+  semantics but would treat mapping fractions as estimator weights rather than
+  allocation fractions, conflicting with the current evidence-row contract.
+- **Arithmetic mean of unallocated peptide signals:** ignores explicit
+  fractional mapping and can overstate split ambiguous evidence.
+- **Best peptide / highest localisation confidence:** discards usable
+  quantitative evidence and would require a justified peptide-selection rule.
+- **Median or robust estimators:** may reduce outlier sensitivity but require a
+  defined minimum evidence count, uncertainty semantics, and validation.
+- **Hierarchical or mixture models:** scientifically preferable for some
+  ambiguous evidence settings, but no production model, priors, likelihood,
+  diagnostics, or uncertainty calibration is implemented.
+- **Log2 fractional allocation via `2**x`:** rejected because invertibility is
+  not guaranteed without complete transformation provenance including
+  pseudocount and prior transformations.
 
 ### Protein Identity Metadata
 
@@ -208,20 +310,35 @@ the repair decision.
 
 The dataset report/provenance includes:
 
+- peptide-to-site aggregation policy ID
+- supported input scales and quantitative meanings
+- input intensity scale and input quantitative meaning
+- output intensity scale and output quantitative meaning
+- allocation domain and whether fractional mappings were present
 - peptide observations received
+- mapped peptide observations
+- site-mapping rows and allocated evidence rows
 - unique analysis-ready `site_key` rows produced
 - ambiguous observations
+- unambiguous observations
 - excluded observations
 - split observations (when applicable)
+- fractional mapping row count and unit mapping row count
 - selected multi-site policy
 - mapping-weight source policy and actual source observed for the run
 - mapping-weight normalisation policy
+- mapping-weight semantics
 - signal allocation policy
 - site summarisation policy
+- missing-value policy
 - legacy aggregation-policy alias + formula
 - duplicate evidence policy + duplicate peptide row count
 - mixed-ambiguity handling policy
 - localisation aggregation policy
+- localisation summary policy, output column, compatibility alias, and
+  descriptive-not-posterior semantics
+- signal-conservation policy
+- uncertainty limitations
 
 ## Consequences
 

@@ -6,7 +6,7 @@
 - **Title:** Peptide-to-Site Differential Uncertainty Policy
 - **Status:** Accepted
 - **Date:** 2026-07-29
-- **Amended:** 2026-07-31
+- **Amended:** 2026-08-05
 - **Decision Type:** Architecture Decision Record
 
 ## Context
@@ -39,11 +39,17 @@ combination model requires a separate scientific design decision.
 The preferred and supported PhosPy-origin lane remains:
 
 1. `phospy.science.evidence` and dataset-building preprocessing resolve
-   peptide evidence into site-level sample-intensity rows.
+   peptide evidence into site-level sample-intensity rows using the
+   ADR-0020 production policy
+   `peptide_to_site_linear_abundance_fractional_allocation_arithmetic_mean_v1`.
 2. `DifferentialAnalysisWorkflow` fits the existing moderated fixed-effect
    model on those resolved site rows.
 3. Provenance records peptide mapping, multi-site handling, attrition, and the
    downstream differential model policy separately.
+
+ADR-0041 does not redefine sample-level site construction. Its supported input
+boundary is the final analysis-ready site matrix produced by ADR-0020 or an
+equivalent externally resolved site-level dataset with explicit provenance.
 
 The post-hoc peptide differential estimate-combination lane is withdrawn from
 public support. It must not be exported as production functionality from

@@ -308,6 +308,14 @@ class ActivityStatisticsTable(TableSchema):
             string_columns = (*string_columns, "condition")
         if "significance_status" in frame.columns:
             string_columns = (*string_columns, "significance_status")
+        for optional_column in (
+            "inferential_status",
+            "inferential_reason",
+            "membership_source_category",
+            "membership_selection_method",
+        ):
+            if optional_column in frame.columns:
+                string_columns = (*string_columns, optional_column)
         for column_name in string_columns:
             values = _column_series(frame, column_name)
             if values.isna().any():

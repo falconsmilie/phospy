@@ -15,6 +15,7 @@ from phospy.contracts.configs import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.contracts.result_caveats import ResultCaveat
+from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.prediction.models import KinaseScoringResult
 from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
@@ -56,12 +57,16 @@ KINASE_LIBRARY_MOTIF_ONLY_CAVEAT_CODE = "kinase_library_motif_only_sequence_evid
 KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE = "kinase_profile_self_inclusion_allowed"
 KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE = "kinase_profile_leave_one_out"
 KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE = "kinase_direct_trusted_dataset_construction"
+KINASE_ACTIVITY_ADAPTIVE_MEMBERSHIP_CAVEAT_CODE = (
+    "kinase_activity_adaptive_membership_inference_unavailable"
+)
 
 
 def build_kinase_result_caveats(
     *,
     request: ResolvedKinaseWorkflowRequest,
     scoring_result: KinaseScoringResult,
+    activity_result: KinaseActivityResult | None = None,
 ) -> tuple[ResultCaveat, ...]:
     """Build compact machine-readable caveats for kinase workflow results."""
 
@@ -111,6 +116,9 @@ def build_kinase_result_caveats(
     self_inclusion = _profile_self_inclusion_caveat(request, scoring_result)
     if self_inclusion is not None:
         caveats.append(self_inclusion)
+    adaptive_membership = _adaptive_membership_activity_caveat(activity_result)
+    if adaptive_membership is not None:
+        caveats.append(adaptive_membership)
     caveats.append(_scoring_limitation_caveat(request, scoring_result))
     return deduplicate_caveats(caveats)
 
@@ -443,6 +451,31 @@ def _profile_self_inclusion_caveat(
     return None
 
 
+def _adaptive_membership_activity_caveat(
+    activity_result: KinaseActivityResult | None,
+) -> ResultCaveat | None:
+    if activity_result is None or not activity_result.activity_method.is_ksea:
+        return None
+    membership_selection = activity_result.membership_selection
+    if membership_selection is None or membership_selection.inferential_eligible:
+        return None
+    return ResultCaveat(
+        code=KINASE_ACTIVITY_ADAPTIVE_MEMBERSHIP_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "KSEA-style activity used substrate membership that is not eligible "
+            "for ordinary normal-approximation inference under the documented "
+            "null. Z-scores are descriptive; p-values and q-values are unavailable."
+        ),
+        details={
+            "activity_method_id": activity_result.activity_method.activity_method_id,
+            "p_values_available": False,
+            "q_values_available": False,
+            "membership_selection": membership_selection.to_payload(),
+        },
+    )
+
+
 def _scoring_limitation_caveat(
     request: ResolvedKinaseWorkflowRequest,
     scoring_result: KinaseScoringResult,
@@ -592,6 +625,7 @@ __all__ = [
     "KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE",
     "KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE",
     "KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE",
+    "KINASE_ACTIVITY_ADAPTIVE_MEMBERSHIP_CAVEAT_CODE",
     "KINASE_LOW_SUBSTRATE_FLOOR_CAVEAT_CODE",
     "KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE",
     "KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE",

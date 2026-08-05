@@ -151,14 +151,20 @@ also records resolved activity profile-axis or quantitative-semantics values,
 the loader checks that provenance agrees with the manifest result semantics.
 
 Within `outputs.activity`, schema version 3 uses the fields `enabled`, `method`,
-`summary`, `input_semantics`, `profile_metadata`, and `tables`. Enabled activity
-requires `input_semantics` and `profile_metadata` objects. Disabled activity
-requires both fields to be `null`.
+`summary`, `input_semantics`, `profile_metadata`, `membership_selection`, and
+`tables`. Enabled KSEA activity persists typed membership-selection provenance
+and its inferential eligibility state. Enabled activity requires
+`input_semantics` and `profile_metadata` objects. Disabled activity requires
+those fields and `membership_selection` to be `null`.
 
 KSEA-style and ssGSEA-style runs also emit an activity `statistics_table` with
 method statistics, p-values when available, optional q-values, substrate counts,
 background counts, and computability statuses. The statistics-table row
 identity is `profile_id`.
+For KSEA-style runs whose substrate membership consumed the tested quantitative
+matrix, `p_value_matrix` and `q_value_matrix` are absent and `statistics_table`
+uses missing `p_value`/`q_value` cells with structured inferential-status
+columns. Benjamini-Hochberg adjustment is run only over eligible finite p-values.
 For `ActivityProfileAxis.SAMPLE`, `profile_id` contains sample IDs; for
 `ActivityProfileAxis.CONDITION_SUMMARY`, it contains condition-summary profile
 IDs and an optional `condition` column may also be present with the same values;

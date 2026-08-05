@@ -25,11 +25,11 @@ tests/integration/test_differential_with_technical_replicates.py,integration,201
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,478,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/integration/test_kinase_bundle_integration.py,integration,2292,18,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/integration/test_kinase_bundle_integration.py,integration,2323,18,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/integration/test_kinase_library_workflow_scoring.py,integration,260,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,304,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,288,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
-tests/integration/test_kinase_workflow_integration.py,integration,1237,17,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/integration/test_kinase_workflow_integration.py,integration,1265,17,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_localisation_policy_integration.py,integration,191,4,true,false,,,,,,
 tests/integration/test_maxquant_importer_dataset_integration.py,integration,78,2,true,false,,,,,,
 tests/integration/test_public_examples_smoke.py,integration,52,1,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples smoke and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
@@ -73,7 +73,7 @@ tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,172,6,true,false,,,,,,
 tests/science/test_differential_adverse_design_contracts.py,science,369,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
-tests/science/test_evidence_resolution_regression_fixtures.py,science,136,5,true,false,,,,,,
+tests/science/test_evidence_resolution_regression_fixtures.py,science,153,5,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_kinase_sparse_support_regression_fixtures.py,science,317,5,true,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
@@ -89,7 +89,7 @@ tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,
 tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
-tests/unit/test_activity_science.py,unit,1984,54,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_activity_science.py,unit,2147,57,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,386,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -121,7 +121,7 @@ tests/unit/test_dataset_builders_site_key_indexing.py,unit,485,14,true,true,,,,,
 tests/unit/test_dataset_normalizer_collaborators.py,unit,161,9,false,false,,,,,,
 tests/unit/test_dataset_normalizer_identity.py,unit,369,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset normalizer identity, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_dataset_organism_coherence.py,unit,208,6,false,false,,,,,,
-tests/unit/test_dataset_peptide_evidence_resolution.py,unit,1596,46,true,true,,,,,,
+tests/unit/test_dataset_peptide_evidence_resolution.py,unit,1819,49,true,true,,,,,,
 tests/unit/test_dataset_preprocessing_collaborators.py,unit,633,20,true,true,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in dataset preprocessing collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for collaborator/orchestration rewrite planning with explicit boundary-contract replacements before consolidation.
 tests/unit/test_dataset_preprocessing_subsystem.py,unit,2934,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset preprocessing subsystem and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_dataset_run_provenance.py,unit,877,19,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for dataset run provenance, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
@@ -190,7 +190,7 @@ tests/unit/test_kinase_science.py,unit,474,12,false,false,scientific invariant,k
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,409,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions. | [auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_kinase_substrate_contributions.py,unit,514,6,false,false,,,,,,
-tests/unit/test_kinase_workflow_components.py,unit,1592,35,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 22 hit(s); indicators: private_member_access
+tests/unit/test_kinase_workflow_components.py,unit,1781,39,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 30 hit(s); indicators: private_member_access
 tests/unit/test_kinase_workflow_diagnostics.py,unit,948,16,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow diagnostics and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_localisation_policy_preprocessing.py,unit,185,6,true,true,,,,,,
 tests/unit/test_log2_transformer.py,unit,185,6,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
@@ -198,7 +198,7 @@ tests/unit/test_maintainer_scripts_smoke.py,unit,344,9,true,true,provenance/gold
 tests/unit/test_maxquant_phosphosite_importer.py,unit,315,10,false,false,,,,,,
 tests/unit/test_missing_data_split_modules.py,unit,848,26,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_multiple_testing_correction.py,unit,159,7,true,true,,,,,,
-tests/unit/test_peptide_evidence_dataset_resolution_components.py,unit,691,19,true,true,,,,,,
+tests/unit/test_peptide_evidence_dataset_resolution_components.py,unit,827,21,true,true,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,162,6,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_peptide_to_site_aggregation.py,unit,351,8,true,true,scientific invariant,keep,Loss of this file would remove typed uncertainty/dependence protection for peptide-to-site differential evidence.,codex-audit,,Updated after typed peptide-to-site uncertainty redesign.
 tests/unit/test_performance_contract_helpers.py,unit,19,1,false,false,,,,,,

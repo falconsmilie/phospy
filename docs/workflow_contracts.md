@@ -289,6 +289,11 @@ Important user-facing assumptions:
   `activity_config` defaults to `None`.
   `activity_result.activity_matrix` is the preferred method-neutral kinase
   activity score matrix.
+- KSEA-style ordinary p-values and q-values require typed
+  `membership_selection` provenance showing that substrate membership was
+  selected independently of the tested quantitative matrix. The activity science
+  domain owns this eligibility decision. Workflow code supplies provenance, and
+  executors must not infer eligibility from raw matrices or method-name strings.
 - Activity scores depend on substrate coverage and reference evidence; sparse
   support weakens interpretation.
 - KSEA-style activity scores are not equivalent to PhosR kinase activity

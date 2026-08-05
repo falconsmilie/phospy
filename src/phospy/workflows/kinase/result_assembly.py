@@ -76,6 +76,7 @@ class KinaseResultAssembler:
             caveats=build_kinase_result_caveats(
                 request=request,
                 scoring_result=scoring_result,
+                activity_result=activity_result,
             ),
         )
 

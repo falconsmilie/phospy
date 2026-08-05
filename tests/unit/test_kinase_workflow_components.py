@@ -26,6 +26,11 @@ from phospy.api.results import (
     KinaseWorkflowSiteAttritionSummary,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.membership import (
+    ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
+    ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+    ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
+)
 from phospy.science.activities.methods import SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
 from phospy.science.activities.scientific_policies import (
     SSGSEA_PERMUTATION_RNG_SEED_POLICY,
@@ -551,11 +556,13 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             request: object,
             config: object,
             prediction_result: object,
+            scoring_execution: object,
         ) -> object:
             events.append("activity")
             assert request is resolved
             assert config is resolved.execution_config
             assert prediction_result is expected_prediction_result
+            assert scoring_execution is expected_scoring_execution
             return expected_activity_result
 
     class _SiteAttritionSummaryComposer:
@@ -1345,6 +1352,188 @@ def test_activity_runner_selects_ksea_method_from_config() -> None:
     assert result is not None
     assert result.activity_method.activity_method_id == "ksea_zscore_v1"
     assert result.statistics_table is not None
+
+
+def test_ksea_profile_derived_membership_is_descriptive_only_in_workflow() -> None:
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE)
+        ),
+        dataset=_effect_dataset(),
+    )
+    pred_mat = pd.DataFrame(
+        {"MAP2K6": [0.7, 0.6]},
+        index=request.scoring_site_index.copy(),
+    )
+    scoring_execution = KinaseScoringRunResult(
+        scoring_result=KinaseScoringResult._from_owned(
+            profile_scores=pred_mat.copy(deep=True),
+            score_source="profile_scores",
+        ),
+        downstream_score_matrix=pred_mat.copy(deep=True),
+        downstream_score_source="profile_scores",
+        quantified_substrates={
+            "MAP2K6": [str(value) for value in request.scoring_site_index]
+        },
+    )
+    prediction_result = KinasePredictionResult._from_owned(pred_mat=pred_mat)
+
+    result = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+        scoring_execution=scoring_execution,
+    )
+
+    assert result is not None
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+    assert result.membership_selection is not None
+    assert result.membership_selection.source_category == (
+        ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED
+    )
+    assert result.membership_selection.consumed_tested_matrix is True
+    assert result.membership_selection.inferential_eligible is False
+    stats = result.statistics_table
+    assert stats is not None
+    assert stats.loc[:, "p_value"].isna().all()
+    assert stats.loc[:, "q_value"].isna().all()
+
+
+def test_ksea_motif_only_membership_can_emit_ordinary_p_q_values() -> None:
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE)
+        ),
+        dataset=_effect_dataset(),
+    )
+    motif_scores = pd.DataFrame(
+        {"MAP2K6": [0.7, 0.6]},
+        index=request.scoring_site_index.copy(),
+    )
+    scoring_execution = KinaseScoringRunResult(
+        scoring_result=KinaseScoringResult._from_owned(
+            profile_scores=pd.DataFrame(index=request.scoring_site_index.copy()),
+            kinase_library_motif_scores=motif_scores.copy(deep=True),
+            score_source="kinase_library_motif_scores",
+            score_scale="kinase_library_motif_minmax_unit_interval",
+            score_scale_metadata={
+                "uses_profile_correlation": False,
+                "uses_reference_substrate_profiles": False,
+                "uses_sequence_motif_resource": True,
+            },
+        ),
+        downstream_score_matrix=motif_scores.copy(deep=True),
+        downstream_score_source="kinase_library_motif_scores",
+        quantified_substrates={},
+    )
+    prediction_result = KinasePredictionResult._from_owned(pred_mat=motif_scores)
+
+    result = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+        scoring_execution=scoring_execution,
+    )
+
+    assert result is not None
+    assert result.p_value_matrix is not None
+    assert result.q_value_matrix is not None
+    assert result.membership_selection is not None
+    assert result.membership_selection.source_category == (
+        ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF
+    )
+    assert result.membership_selection.consumed_tested_matrix is False
+    assert result.membership_selection.inferential_eligible is True
+    stats = result.statistics_table
+    assert stats is not None
+    assert stats.loc[:, "p_value"].notna().all()
+    assert stats.loc[:, "q_value"].notna().all()
+
+
+def test_ksea_combined_profile_motif_membership_is_inferentially_ineligible() -> None:
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE)
+        ),
+        dataset=_effect_dataset(),
+    )
+    combined_scores = pd.DataFrame(
+        {"MAP2K6": [0.7, 0.6]},
+        index=request.scoring_site_index.copy(),
+    )
+    scoring_execution = KinaseScoringRunResult(
+        scoring_result=KinaseScoringResult._from_owned(
+            profile_scores=combined_scores.copy(deep=True),
+            combined_profile_motif_scores=combined_scores.copy(deep=True),
+            score_source="combined_profile_motif_scores",
+            score_scale="combined_profile_kinase_library_motif_unit_interval",
+        ),
+        downstream_score_matrix=combined_scores.copy(deep=True),
+        downstream_score_source="combined_profile_motif_scores",
+        quantified_substrates={
+            "MAP2K6": [str(value) for value in request.scoring_site_index]
+        },
+    )
+    prediction_result = KinasePredictionResult._from_owned(pred_mat=combined_scores)
+
+    result = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+        scoring_execution=scoring_execution,
+    )
+
+    assert result is not None
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+    assert result.membership_selection is not None
+    assert result.membership_selection.source_category == (
+        ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF
+    )
+    assert result.membership_selection.consumed_tested_matrix is True
+    assert result.membership_selection.inferential_eligible is False
+
+
+def test_ksea_leave_one_out_profile_membership_remains_inferentially_ineligible() -> (
+    None
+):
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE)
+        ),
+        dataset=_effect_dataset(),
+    )
+    pred_mat = pd.DataFrame(
+        {"MAP2K6": [0.7, 0.6]},
+        index=request.scoring_site_index.copy(),
+    )
+    scoring_execution = KinaseScoringRunResult(
+        scoring_result=KinaseScoringResult._from_owned(
+            profile_scores=pred_mat.copy(deep=True),
+            profile_self_inclusion_policy="leave_one_out",
+            score_source="profile_scores",
+        ),
+        downstream_score_matrix=pred_mat.copy(deep=True),
+        downstream_score_source="profile_scores",
+        quantified_substrates={
+            "MAP2K6": [str(value) for value in request.scoring_site_index]
+        },
+    )
+    prediction_result = KinasePredictionResult._from_owned(pred_mat=pred_mat)
+
+    result = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+        scoring_execution=scoring_execution,
+    )
+
+    assert result is not None
+    assert result.p_value_matrix is None
+    assert result.membership_selection is not None
+    assert result.membership_selection.consumed_tested_matrix is True
+    assert result.membership_selection.inferential_eligible is False
 
 
 def test_activity_runner_selects_ssgsea_method_from_config() -> None:

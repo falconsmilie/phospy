@@ -22,10 +22,12 @@ from phospy.science.prediction.internal_view import KinasePredictionInternalView
 from phospy.science.prediction.models import KinasePredictionResult
 from phospy.science.transformations.models import QuantitativeMeaning
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
+from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.membership import build_ksea_membership_selection
 
 
 class KinaseActivityRunner:
@@ -46,6 +48,7 @@ class KinaseActivityRunner:
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
         prediction_result: KinasePredictionResult,
+        scoring_execution: KinaseScoringRunResult | None = None,
     ) -> KinaseActivityResult | None:
         activity_config = config.activity
         if activity_config is None:
@@ -79,6 +82,17 @@ class KinaseActivityRunner:
                 site_identity_map=site_identity_map,
             )
         if activity_config.method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+            membership_selection = (
+                None
+                if scoring_execution is None
+                else build_ksea_membership_selection(
+                    request=request,
+                    config=config,
+                    scoring_execution=scoring_execution,
+                    prediction_result=prediction_result,
+                    evidence_threshold=float(activity_config.ksea_evidence_threshold),
+                )
+            )
             validated_inputs = self._activity_input_validator.run(
                 pred_mat=prediction_view.pred_mat,
                 phospho_matrix=request.activity_phospho_matrix,
@@ -89,6 +103,7 @@ class KinaseActivityRunner:
                     request=request,
                     method=activity_config.method,
                 ),
+                membership_selection=membership_selection,
             )
             result = KseaZScoreActivityMethod(
                 evidence_threshold=float(activity_config.ksea_evidence_threshold),
@@ -172,6 +187,7 @@ class KinaseActivityRunner:
             activity_method=activity_result.activity_method,
             input_semantics=activity_result.input_semantics,
             profile_metadata=activity_result.profile_metadata,
+            membership_selection=activity_result.membership_selection,
         )
 
 

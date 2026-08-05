@@ -48,6 +48,7 @@ class KinaseManifestSections:
     activity_method_summary: Mapping[str, object] | None
     activity_input_semantics: Mapping[str, object] | None
     activity_profile_metadata: Mapping[str, object] | None
+    activity_membership_selection: Mapping[str, object] | None
     activity_tables: Mapping[str, object]
     provenance_payload: Mapping[str, object]
     config_snapshot_entry: Mapping[str, object]
@@ -115,9 +116,19 @@ _SCORING_TABLE_REQUIRED_KEYS = frozenset(
 _PREDICTION_ALLOWED_FIELDS = frozenset({"tables"})
 _PREDICTION_TABLE_KEYS = frozenset({"pred_mat", "substrate_list"})
 _ACTIVITY_ALLOWED_FIELDS = frozenset(
-    {"enabled", "method", "summary", "input_semantics", "profile_metadata", "tables"}
+    {
+        "enabled",
+        "method",
+        "summary",
+        "input_semantics",
+        "profile_metadata",
+        "membership_selection",
+        "tables",
+    }
 )
-_ACTIVITY_REQUIRED_FIELDS = _ACTIVITY_ALLOWED_FIELDS
+_ACTIVITY_REQUIRED_FIELDS = _ACTIVITY_ALLOWED_FIELDS - frozenset(
+    {"membership_selection"}
+)
 _ACTIVITY_TABLE_KEYS = frozenset(
     {
         "weighted_activity",
@@ -205,6 +216,12 @@ def build_manifest(
                     None
                     if result.activity_result is None
                     else result.activity_result.profile_metadata.to_payload()
+                ),
+                "membership_selection": (
+                    None
+                    if result.activity_result is None
+                    or result.activity_result.membership_selection is None
+                    else result.activity_result.membership_selection.to_payload()
                 ),
                 "tables": dict(activity_tables),
             },
@@ -390,6 +407,15 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
             field_name="bundle manifest.outputs.activity.profile_metadata",
         )
     )
+    activity_membership_selection_raw = activity_payload.get("membership_selection")
+    activity_membership_selection = (
+        None
+        if activity_membership_selection_raw is None
+        else require_mapping(
+            activity_membership_selection_raw,
+            field_name="bundle manifest.outputs.activity.membership_selection",
+        )
+    )
     if activity_enabled and activity_method_metadata is None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.method is required when activity is enabled"
@@ -425,6 +451,12 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
             "bundle manifest.outputs.activity.profile_metadata must be null when "
             "activity is disabled; remove the semantic payload or regenerate the "
             "bundle"
+        )
+    if not activity_enabled and activity_membership_selection is not None:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.outputs.activity.membership_selection must be null "
+            "when activity is disabled; remove the membership payload or "
+            "regenerate the bundle"
         )
     if payload.get("provenance") is None:
         _raise_unsupported_manifest_shape("bundle manifest.provenance is required")
@@ -571,6 +603,7 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         activity_method_summary=activity_method_summary,
         activity_input_semantics=activity_input_semantics,
         activity_profile_metadata=activity_profile_metadata,
+        activity_membership_selection=activity_membership_selection,
         activity_tables=activity_tables,
         provenance_payload=provenance_payload,
         config_snapshot_entry=config_snapshot_entry,

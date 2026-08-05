@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import cast
+from collections.abc import Mapping, Sequence
+from typing import Any, cast
 
 from phospy.provenance.models import RunProvenance
 from phospy.provenance.reference_context import ReferenceContext
@@ -73,6 +73,37 @@ _CURRENT_PEPTIDE_LOCALISATION_AGGREGATION_POLICY = (
 _CURRENT_PEPTIDE_LEGACY_AGGREGATION_ALIAS = (
     "legacy_alias_for_arithmetic_mean_of_allocated_signals"
 )
+
+_CURRENT_PEPTIDE_TO_SITE_AGGREGATION_POLICY_ID = (
+    "peptide_to_site_linear_abundance_fractional_allocation_arithmetic_mean_v1"
+)
+_CURRENT_PEPTIDE_SUPPORTED_INPUT_SCALES = ["linear", "log2"]
+_CURRENT_PEPTIDE_SUPPORTED_INPUT_QUANTITATIVE_MEANINGS = [
+    "peptide_abundance",
+    "peptide_log2_abundance",
+]
+_LEGACY_NOT_RECORDED = "not_recorded_legacy"
+_CURRENT_PEPTIDE_MAPPING_WEIGHT_SEMANTICS = (
+    "unitless_fraction_of_one_peptide_evidence_row_allocated_to_each_resolved_site"
+)
+_CURRENT_PEPTIDE_MISSING_VALUE_POLICY = (
+    "mean_finite_allocated_values_per_site_sample_preserve_missing_if_none_finite"
+)
+_CURRENT_PEPTIDE_LOCALISATION_SUMMARY_POLICY = (
+    "descriptive_mean_of_finite_reported_localisation_confidence_values"
+)
+_CURRENT_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS = (
+    "descriptive_arithmetic_mean_not_calibrated_posterior_probability"
+)
+_CURRENT_PEPTIDE_LOCALISATION_OUTPUT_COLUMN = "localisation_confidence_descriptive_mean"
+_CURRENT_PEPTIDE_LOCALISATION_COMPATIBILITY_ALIAS_COLUMN = "localisation_confidence"
+_CURRENT_PEPTIDE_SIGNAL_CONSERVATION_POLICY = (
+    "not_signal_conserving_after_per_site_arithmetic_mean"
+)
+_CURRENT_PEPTIDE_UNCERTAINTY_LIMITATIONS = [
+    "no_model_based_uncertainty_or_posterior_localisation_combination",
+    "peptide_evidence_rows_are_not_modelled_as_independent_replicates",
+]
 
 
 def to_payload(provenance: RunProvenance) -> dict[str, object]:
@@ -228,6 +259,29 @@ def _normalise_peptide_evidence_resolution_workflow_parameter(
     payload: Mapping[str, object],
 ) -> dict[str, object]:
     normalized = dict(payload)
+    if "input_scale" in normalized and "input_intensity_scale" not in normalized:
+        normalized["input_intensity_scale"] = normalized["input_scale"]
+    if "output_scale" in normalized and "output_intensity_scale" not in normalized:
+        normalized["output_intensity_scale"] = normalized["output_scale"]
+    normalized.setdefault(
+        "peptide_to_site_aggregation_policy_id",
+        _CURRENT_PEPTIDE_TO_SITE_AGGREGATION_POLICY_ID,
+    )
+    normalized.setdefault(
+        "supported_input_scales",
+        list(_CURRENT_PEPTIDE_SUPPORTED_INPUT_SCALES),
+    )
+    normalized.setdefault(
+        "supported_input_quantitative_meanings",
+        list(_CURRENT_PEPTIDE_SUPPORTED_INPUT_QUANTITATIVE_MEANINGS),
+    )
+    normalized.setdefault("input_intensity_scale", _LEGACY_NOT_RECORDED)
+    normalized.setdefault("input_quantitative_meaning", _LEGACY_NOT_RECORDED)
+    normalized.setdefault("output_intensity_scale", _LEGACY_NOT_RECORDED)
+    normalized.setdefault("output_quantitative_meaning", _LEGACY_NOT_RECORDED)
+    normalized.setdefault("allocation_domain", _LEGACY_NOT_RECORDED)
+    normalized.setdefault("fractional_mapping_present", False)
+
     normalized["mapping_weight_source_policy"] = str(
         normalized.get("mapping_weight_source_policy")
         or _CURRENT_PEPTIDE_MAPPING_WEIGHT_SOURCE_POLICY
@@ -264,6 +318,13 @@ def _normalise_peptide_evidence_resolution_workflow_parameter(
     normalized["site_summarisation_policy"] = str(
         normalized.get("site_summarisation_policy")
         or _CURRENT_PEPTIDE_SITE_SUMMARISATION_POLICY
+    )
+    normalized["mapping_weight_semantics"] = str(
+        normalized.get("mapping_weight_semantics")
+        or _CURRENT_PEPTIDE_MAPPING_WEIGHT_SEMANTICS
+    )
+    normalized["missing_value_policy"] = str(
+        normalized.get("missing_value_policy") or _CURRENT_PEPTIDE_MISSING_VALUE_POLICY
     )
 
     legacy_duplicate_policy = normalized.get("duplicate_peptide_policy")
@@ -302,6 +363,34 @@ def _normalise_peptide_evidence_resolution_workflow_parameter(
         normalized.get("localisation_aggregation_policy")
         or _CURRENT_PEPTIDE_LOCALISATION_AGGREGATION_POLICY
     )
+    normalized["localisation_summary_policy"] = str(
+        normalized.get("localisation_summary_policy")
+        or _CURRENT_PEPTIDE_LOCALISATION_SUMMARY_POLICY
+    )
+    normalized["localisation_summary_semantics"] = str(
+        normalized.get("localisation_summary_semantics")
+        or _CURRENT_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS
+    )
+    normalized["localisation_output_column"] = str(
+        normalized.get("localisation_output_column")
+        or _CURRENT_PEPTIDE_LOCALISATION_OUTPUT_COLUMN
+    )
+    normalized["localisation_compatibility_alias_column"] = str(
+        normalized.get("localisation_compatibility_alias_column")
+        or _CURRENT_PEPTIDE_LOCALISATION_COMPATIBILITY_ALIAS_COLUMN
+    )
+    normalized["signal_conservation_policy"] = str(
+        normalized.get("signal_conservation_policy")
+        or _CURRENT_PEPTIDE_SIGNAL_CONSERVATION_POLICY
+    )
+    normalized["uncertainty_limitations"] = list(
+        _string_sequence(
+            normalized.get(
+                "uncertainty_limitations",
+                _CURRENT_PEPTIDE_UNCERTAINTY_LIMITATIONS,
+            )
+        )
+    )
 
     aggregation_policy = normalized.get("aggregation_policy")
     normalized["aggregation_policy"] = (
@@ -322,4 +411,58 @@ def _normalise_peptide_evidence_resolution_workflow_parameter(
             "rows p mapped to s)"
         )
     )
+    unambiguous_observations = normalized.get("unambiguous_observations")
+    normalized["unambiguous_observations"] = (
+        _payload_int(unambiguous_observations)
+        if unambiguous_observations is not None
+        else (
+            _payload_int(normalized["peptide_observations_received"])
+            - _payload_int(normalized["ambiguous_observations"])
+        )
+    )
+    mapped_peptide_observations = normalized.get("mapped_peptide_observations")
+    normalized["mapped_peptide_observations"] = (
+        _payload_int(mapped_peptide_observations)
+        if mapped_peptide_observations is not None
+        else _payload_int(normalized["peptide_observations_received"])
+    )
+    site_mapping_rows = normalized.get("site_mapping_rows")
+    normalized["site_mapping_rows"] = (
+        _payload_int(site_mapping_rows)
+        if site_mapping_rows is not None
+        else _payload_int(normalized["unique_site_ids_produced"])
+    )
+    allocated_evidence_rows = normalized.get("allocated_evidence_rows")
+    normalized["allocated_evidence_rows"] = (
+        _payload_int(allocated_evidence_rows)
+        if allocated_evidence_rows is not None
+        else _payload_int(normalized["site_mapping_rows"])
+    )
+    fractional_mapping_rows = normalized.get("fractional_mapping_rows")
+    normalized["fractional_mapping_rows"] = (
+        _payload_int(fractional_mapping_rows)
+        if fractional_mapping_rows is not None
+        else 0
+    )
+    unit_mapping_rows = normalized.get("unit_mapping_rows")
+    normalized["unit_mapping_rows"] = (
+        _payload_int(unit_mapping_rows)
+        if unit_mapping_rows is not None
+        else (
+            _payload_int(normalized["allocated_evidence_rows"])
+            - _payload_int(normalized["fractional_mapping_rows"])
+        )
+    )
     return normalized
+
+
+def _payload_int(value: object) -> int:
+    return int(cast(Any, value))
+
+
+def _string_sequence(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, Sequence):
+        return tuple(str(item) for item in cast(Sequence[object], value))
+    return (str(value),)

@@ -80,6 +80,7 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.membership import membership_selection_payload
 from phospy.workflows.kinase.row_attrition import (
     build_kinase_row_attrition_provenance,
 )
@@ -130,6 +131,7 @@ class KinaseProvenanceBuilder:
             config=config,
             scoring_result=scoring_result,
             duplicate_site_policy=duplicate_site_policy,
+            activity_result=activity_result,
         )
 
         return RunProvenance(
@@ -470,6 +472,21 @@ def _build_activity_config_payload(
             if activity_result is None or activity_result.method_summary is None
             else activity_result.method_summary.to_payload()
         ),
+        "membership_selection": (
+            None
+            if activity_result is None
+            else membership_selection_payload(activity_result.membership_selection)
+        ),
+        "ksea_inferential_eligible": (
+            None
+            if activity_result is None or activity_result.membership_selection is None
+            else bool(activity_result.membership_selection.inferential_eligible)
+        ),
+        "ksea_inferential_status": (
+            None
+            if activity_result is None or activity_result.membership_selection is None
+            else activity_result.membership_selection.inferential_status
+        ),
         "threshold_membership_diagnostics": (
             None
             if activity_result is None
@@ -782,6 +799,7 @@ def _build_scientific_policy_records(
     config: ResolvedKinaseExecutionConfig,
     scoring_result: KinaseScoringResult,
     duplicate_site_policy: ScientificPolicyRecord | None,
+    activity_result: KinaseActivityResult | None,
 ) -> tuple[ScientificPolicyRecord, ...]:
     scientific_policies: list[ScientificPolicyRecord] = []
     if str(config.scoring_mode) != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY:
@@ -827,7 +845,7 @@ def _build_scientific_policy_records(
         scientific_policies.append(config.prediction_sampling_policy.record)
     if duplicate_site_policy is not None:
         scientific_policies.append(duplicate_site_policy)
-    activity_policy = _build_activity_policy_record(config)
+    activity_policy = _build_activity_policy_record(config, activity_result)
     if activity_policy is not None:
         scientific_policies.append(activity_policy)
     return tuple(scientific_policies)
@@ -869,6 +887,7 @@ def _build_kinase_library_scoring_policy(
 
 def _build_activity_policy_record(
     config: ResolvedKinaseExecutionConfig,
+    activity_result: KinaseActivityResult | None = None,
 ) -> ScientificPolicyRecord | None:
     if config.activity is None:
         return None
@@ -891,6 +910,12 @@ def _build_activity_policy_record(
                 KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
                 if config.activity.ksea_adjust_p_values
                 else None
+            ),
+            membership_inferential_eligible=(
+                None
+                if activity_result is None
+                or activity_result.membership_selection is None
+                else bool(activity_result.membership_selection.inferential_eligible)
             ),
         )
     if config.activity.method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:

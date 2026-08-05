@@ -17,6 +17,7 @@ from phospy.frames.ownership import (
     export_series,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
+from phospy.science.activities.membership import ActivityMembershipSelection
 from phospy.science.activities.semantics import (
     ActivityInputMatrix,
     ActivityInputSemantics,
@@ -441,6 +442,7 @@ class KinaseActivityInputs:
     top_n_substrates: int
     overlap_summary: PredMatOverlapSummary
     activity_input: ActivityInputMatrix | None = None
+    membership_selection: ActivityMembershipSelection | None = None
 
     def __post_init__(self) -> None:
         if self.activity_input is None:
@@ -489,6 +491,18 @@ class KinaseActivityInputs:
             raise WorkflowBoundaryError(
                 "activity input overlap_summary must be PredMatOverlapSummary"
             )
+        if self.membership_selection is None:
+            membership_selection = ActivityMembershipSelection.missing(
+                selected_kinase_universe=pred_mat.columns.astype(str).tolist(),
+                selected_substrate_universe=pred_mat.index.astype(str).tolist(),
+            )
+        elif isinstance(self.membership_selection, ActivityMembershipSelection):
+            membership_selection = self.membership_selection
+        else:
+            raise WorkflowBoundaryError(
+                "activity input membership_selection must be "
+                "ActivityMembershipSelection or None"
+            )
         object.__setattr__(self, "pred_mat", pred_mat)
         object.__setattr__(self, "phospho_matrix", phospho_matrix)
         object.__setattr__(
@@ -502,6 +516,7 @@ class KinaseActivityInputs:
                 _assume_owned=True,
             ),
         )
+        object.__setattr__(self, "membership_selection", membership_selection)
 
     @property
     def input_semantics(self) -> ActivityInputSemantics:
@@ -667,6 +682,7 @@ class KinaseActivityResult:
     method_summary: ActivityMethodSummary | None
     input_semantics: ActivityInputSemantics
     profile_metadata: ActivityProfileMetadata
+    membership_selection: ActivityMembershipSelection | None
 
     def __init__(
         self,
@@ -696,6 +712,7 @@ class KinaseActivityResult:
         | None = None,
         input_semantics: ActivityInputSemantics | None = None,
         profile_metadata: ActivityProfileMetadata | None = None,
+        membership_selection: ActivityMembershipSelection | None = None,
     ) -> None:
         self._init_activity_result(
             weighted_activity=weighted_activity,
@@ -718,6 +735,7 @@ class KinaseActivityResult:
             policy_provenance=policy_provenance,
             input_semantics=input_semantics,
             profile_metadata=profile_metadata,
+            membership_selection=membership_selection,
             assume_owned=False,
         )
 
@@ -750,6 +768,7 @@ class KinaseActivityResult:
         | None = None,
         input_semantics: ActivityInputSemantics | None = None,
         profile_metadata: ActivityProfileMetadata | None = None,
+        membership_selection: ActivityMembershipSelection | None = None,
         assume_owned: bool,
     ) -> None:
         if not isinstance(activity_method, ActivityMethodMetadata):
@@ -920,6 +939,14 @@ class KinaseActivityResult:
                 statistics_table=statistics_table,
             )
         policy_provenance_tuple = _coerce_policy_provenance(policy_provenance)
+        if membership_selection is not None and not isinstance(
+            membership_selection,
+            ActivityMembershipSelection,
+        ):
+            raise WorkflowBoundaryError(
+                "activity_result.membership_selection must be "
+                "ActivityMembershipSelection or None"
+            )
 
         object.__setattr__(self, "_activity_matrix", activity_matrix)
         object.__setattr__(self, "_p_value_matrix", p_value_matrix)
@@ -964,6 +991,7 @@ class KinaseActivityResult:
         object.__setattr__(self, "method_summary", method_summary)
         object.__setattr__(self, "input_semantics", input_semantics)
         object.__setattr__(self, "profile_metadata", profile_metadata)
+        object.__setattr__(self, "membership_selection", membership_selection)
 
     @property
     def activity_matrix(self) -> pd.DataFrame:
@@ -1136,6 +1164,7 @@ class KinaseActivityResult:
         | None = None,
         input_semantics: ActivityInputSemantics | None = None,
         profile_metadata: ActivityProfileMetadata | None = None,
+        membership_selection: ActivityMembershipSelection | None = None,
     ) -> KinaseActivityResult:
         result = object.__new__(cls)
         KinaseActivityResult._init_activity_result(
@@ -1160,6 +1189,7 @@ class KinaseActivityResult:
             policy_provenance=policy_provenance,
             input_semantics=input_semantics,
             profile_metadata=profile_metadata,
+            membership_selection=membership_selection,
             assume_owned=True,
         )
         return result
