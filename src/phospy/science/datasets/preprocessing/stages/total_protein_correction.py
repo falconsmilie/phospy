@@ -84,6 +84,13 @@ class TotalProteinCorrectionStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         requested_policy = state.plan.total_protein_correction_policy
         identity_policy = state.plan.total_protein_correction_identity_policy

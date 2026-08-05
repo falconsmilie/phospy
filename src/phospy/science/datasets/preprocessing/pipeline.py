@@ -27,6 +27,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageExecution,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
 )
 from phospy.science.datasets.preprocessing.quantitative_evidence import (
     QuantitativeOperationEvidenceContext,
@@ -38,6 +39,7 @@ from phospy.science.datasets.preprocessing.report_rows import (
 from phospy.science.datasets.preprocessing.stage_contract import (
     InterpretedPreprocessingStageContract,
     PreprocessingStageFactoryContext,
+    validate_preprocessing_stage_instance,
 )
 from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
@@ -101,14 +103,27 @@ class PreprocessingPipeline:
             resolved_metadata_registry,
             context=factory_context,
         )
-        self._stages_by_key = {stage.stage_key: stage for stage in stages}
-        if len(self._stages_by_key) != len(stages):
-            raise DatasetBuildError(
-                "dataset preprocessing stage registry contains duplicate stage keys"
+        validated_stages = tuple(
+            validate_preprocessing_stage_instance(
+                stage,
+                context="dataset preprocessing stage registry",
             )
+            for stage in stages
+        )
         self._stage_contract_by_key = {
             metadata.stage_key: metadata for metadata in resolved_metadata_registry
         }
+        self._stages_by_key = {stage.stage_key: stage for stage in validated_stages}
+        if len(self._stages_by_key) != len(validated_stages):
+            raise DatasetBuildError(
+                "dataset preprocessing stage registry contains duplicate stage keys"
+            )
+        for stage in validated_stages:
+            if stage.stage_key not in self._stage_contract_by_key:
+                raise DatasetBuildError(
+                    "dataset preprocessing stage registry contains stage "
+                    f"{stage.stage_key!r} without registered stage contract"
+                )
 
     def run(
         self,
@@ -150,12 +165,13 @@ class PreprocessingPipeline:
             )
         )
 
-        for stage_key in current.plan.stage_order:
+        interpreted_stage_contracts = self._interpret_stage_contracts_for_plan(
+            current.plan
+        )
+        for stage_key, contract, interpreted_contract in interpreted_stage_contracts:
             stage = self._resolve_stage(stage_key)
-            contract = self._resolve_stage_contract(stage_key)
             previous = current
             stage_input_quantitative_state = quantitative_state
-            interpreted_contract = contract.interpret(previous.plan)
             _run_stage_pre_quantitative_contract_validation(
                 stage=stage,
                 state=previous,
@@ -255,9 +271,11 @@ class PreprocessingPipeline:
             declared_input_scale_kind=initial_quantitative_scale_kind,
             explicit_quantitative_meaning=initial_quantitative_meaning,
         )
-        for stage_key in plan.stage_order:
-            contract = self._resolve_stage_contract(stage_key)
-            interpreted_contract = contract.interpret(plan)
+        for (
+            stage_key,
+            _contract,
+            interpreted_contract,
+        ) in self._interpret_stage_contracts_for_plan(plan):
             quantitative_state = _validate_quantitative_contract_before_execution(
                 quantitative_state=quantitative_state,
                 stage_key=stage_key,
@@ -281,6 +299,35 @@ class PreprocessingPipeline:
             "dataset preprocessing stage metadata is not registered for "
             f"stage {stage_key!r}"
         )
+
+    def _interpret_stage_contracts_for_plan(
+        self,
+        plan: PreprocessingPlan,
+    ) -> tuple[
+        tuple[str, PreprocessingStageMetadata, InterpretedPreprocessingStageContract],
+        ...,
+    ]:
+        available_tables = set(_INITIAL_PREPROCESSING_STATE_TABLES)
+        interpreted_stage_contracts: list[
+            tuple[
+                str,
+                PreprocessingStageMetadata,
+                InterpretedPreprocessingStageContract,
+            ]
+        ] = []
+        for stage_key in plan.stage_order:
+            contract = self._resolve_stage_contract(stage_key)
+            interpreted_contract = contract.interpret(plan)
+            _validate_declared_table_dependencies(
+                stage_key=stage_key,
+                consumed_input_tables=interpreted_contract.consumed_input_tables,
+                available_tables=available_tables,
+            )
+            available_tables.update(interpreted_contract.produced_output_tables)
+            interpreted_stage_contracts.append(
+                (stage_key, contract, interpreted_contract)
+            )
+        return tuple(interpreted_stage_contracts)
 
 
 def _resolve_stage_contract_overrides(
@@ -326,6 +373,35 @@ def _validate_quantitative_contract_before_execution(
     )
 
 
+_INITIAL_PREPROCESSING_STATE_TABLES: frozenset[PreprocessingStateTableKey] = frozenset(
+    {
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
+        PreprocessingStateTableKey.DATASET_TOTAL,
+        PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK,
+    }
+)
+
+
+def _validate_declared_table_dependencies(
+    *,
+    stage_key: str,
+    consumed_input_tables: tuple[PreprocessingStateTableKey, ...],
+    available_tables: set[PreprocessingStateTableKey],
+) -> None:
+    missing_tables = tuple(
+        table for table in consumed_input_tables if table not in available_tables
+    )
+    if not missing_tables:
+        return
+    raise DatasetBuildError(
+        "dataset preprocessing plan has invalid stage table dependencies: "
+        f"stage={stage_key!r} consumes tables before they are available: "
+        + ", ".join(table.value for table in missing_tables)
+    )
+
+
 def _initial_quantitative_meaning_evidence_mode(
     *,
     initial_quantitative_meaning: QuantitativeMeaning | None,
@@ -351,9 +427,7 @@ def _run_stage_pre_quantitative_contract_validation(
     stage: PreprocessingStage,
     state: PreprocessingState,
 ) -> None:
-    validator = getattr(stage, "validate_before_quantitative_contract", None)
-    if callable(validator):
-        validator(state)
+    stage.validate_before_quantitative_contract(state)
 
 
 __all__ = ["PreprocessingPipeline", "_resolve_state_table"]

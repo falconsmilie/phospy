@@ -80,6 +80,13 @@ class NormalisationStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_NORMALISATION
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.normalisation_policy
         method_parameters = _resolve_method_parameters(policy)

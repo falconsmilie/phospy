@@ -77,6 +77,13 @@ class SiteMatrixStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_SITE_MATRIX
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def __init__(
         self,
         *,

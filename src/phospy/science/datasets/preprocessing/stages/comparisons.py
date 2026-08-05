@@ -50,6 +50,13 @@ class ComparisonsStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_COMPARISONS
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.comparison_building_policy
         if policy is ComparisonBuildingPolicy.NONE:

@@ -174,6 +174,13 @@ def test_stage_trace_builder_reproduces_pipeline_trace_payload() -> None:
     class FakeStage:
         stage_key = "fake_stage"
 
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
+
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             return PreprocessingStageResult(
                 state=state,

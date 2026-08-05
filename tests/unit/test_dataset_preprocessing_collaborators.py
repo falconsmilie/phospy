@@ -388,6 +388,13 @@ def test_pipeline_rejects_malformed_stage_diagnostics_before_trace_is_recorded()
     class MalformedMissingDataStage:
         stage_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
 
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
+
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             return PreprocessingStageResult(
                 state=state,

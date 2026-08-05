@@ -77,6 +77,13 @@ class MissingDataStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         input_profile = build_input_profile(state.phospho)
         policy = state.plan.missing_data_policy

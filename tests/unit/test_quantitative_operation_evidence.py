@@ -111,6 +111,13 @@ class _IdentityStage:
         self._diagnostics = diagnostics or {}
         self._add_observation_mask = add_observation_mask
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         next_state = state
         if self._add_observation_mask:

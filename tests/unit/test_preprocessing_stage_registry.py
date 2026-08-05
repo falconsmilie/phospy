@@ -7,6 +7,7 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
+import phospy.science.datasets.preprocessing.pipeline as pipeline_module
 import phospy.science.datasets.preprocessing.stage_registry as stage_registry_module
 from phospy.api.configs import (
     DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
@@ -41,6 +42,8 @@ from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageFactoryContext,
+    PreprocessingStagePlanInterpreter,
+    PreprocessingStageRegistrationMetadata,
 )
 from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
@@ -99,6 +102,15 @@ def _sample_metadata(columns: pd.Index) -> pd.DataFrame:
         {"comparison_group": ["group_a", "group_b"]},
         index=columns.copy(),
     )
+
+
+class _NoOpPreQuantitativeContractStage:
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
 
 
 def _plan_with_multiple_stages() -> PreprocessingPlan:
@@ -181,6 +193,21 @@ def test_every_registered_stage_has_required_metadata_contract_fields() -> None:
         assert contract.required_evidence
 
 
+def test_stage_contract_separates_static_metadata_from_plan_interpretation() -> None:
+    contract = get_preprocessing_stage_metadata(
+        DATASET_PREPROCESSING_STAGE_MISSING_DATA
+    )
+
+    static_metadata = contract.registration_metadata
+    plan_interpreter = contract.plan_interpreter
+
+    assert isinstance(static_metadata, PreprocessingStageRegistrationMetadata)
+    assert static_metadata.stage_key == DATASET_PREPROCESSING_STAGE_MISSING_DATA
+    assert static_metadata.consumed_input_tables == contract.consumed_input_tables
+    assert isinstance(plan_interpreter, PreprocessingStagePlanInterpreter)
+    assert plan_interpreter.operation_name is contract.operation_name
+
+
 def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
     duplicate_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
     duplicate_entries = (
@@ -256,7 +283,7 @@ def test_stage_metadata_rejects_unknown_produced_table_key() -> None:
 
 
 def test_known_optional_missing_table_is_skipped_in_trace_fingerprints() -> None:
-    class _OptionalSampleMetadataStage:
+    class _OptionalSampleMetadataStage(_NoOpPreQuantitativeContractStage):
         stage_key = "optional_sample_metadata_stage"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -358,7 +385,7 @@ def test_provenance_operations_are_resolved_from_registry_metadata() -> None:
 
 
 def test_unknown_stage_metadata_fails_with_clear_error() -> None:
-    class _UnknownStage:
+    class _UnknownStage(_NoOpPreQuantitativeContractStage):
         stage_key = "unknown_stage"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -375,9 +402,178 @@ def test_unknown_stage_metadata_fails_with_clear_error() -> None:
 
     with pytest.raises(
         DatasetBuildError,
-        match="metadata is not registered for stage 'unknown_stage'",
+        match="without registered stage contract",
     ):
         PreprocessingPipeline(stage_registry=(_UnknownStage(),)).run_with_trace(state)
+
+
+def test_custom_stage_valid_only_under_non_default_plan() -> None:
+    observed_plans: list[tuple[str, ...]] = []
+
+    class NonDefaultOnlyStage(_NoOpPreQuantitativeContractStage):
+        stage_key = "non_default_only_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={"diagnostics": {"policy": "non_default_only"}},
+            )
+
+    def _require_actual_custom_plan(plan: PreprocessingPlan) -> None:
+        observed_plans.append(tuple(plan.stage_order))
+        if tuple(plan.stage_order) != ("non_default_only_stage",):
+            raise AssertionError("custom stage was interpreted with an unrelated plan")
+
+    def _operation(plan: PreprocessingPlan) -> str:
+        _require_actual_custom_plan(plan)
+        return "non_default_only"
+
+    def _parameters(plan: PreprocessingPlan) -> dict[str, object]:
+        _require_actual_custom_plan(plan)
+        return {"stage_order": list(plan.stage_order)}
+
+    def _contract(plan: PreprocessingPlan) -> QuantitativeOperationContract:
+        _require_actual_custom_plan(plan)
+        return _preserve_quantitative_contract()
+
+    def _build_stage(
+        _context: PreprocessingStageFactoryContext,
+    ) -> NonDefaultOnlyStage:
+        return NonDefaultOnlyStage()
+
+    contract = PreprocessingStageMetadata(
+        stage_key="non_default_only_stage",
+        display_label="non_default_only_stage",
+        operation_name=_operation,
+        serialize_parameters=_parameters,
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=_build_stage,
+        quantitative_contract=_contract,
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+
+    _, trace = PreprocessingPipeline(
+        stage_contract_registry=(contract,)
+    ).run_with_trace(_fake_stage_state("non_default_only_stage"))
+
+    assert trace[0].operation == "non_default_only"
+    assert observed_plans
+    assert set(observed_plans) == {("non_default_only_stage",)}
+
+
+def test_stage_pre_quantitative_contract_validator_is_invoked_explicitly() -> None:
+    calls: list[str] = []
+
+    class ExplicitValidatorStage:
+        stage_key = "explicit_validator_stage"
+
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            calls.append("validate_before_quantitative_contract")
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            calls.append("run")
+            return PreprocessingStageResult(state=state)
+
+    def _build_stage(
+        _context: PreprocessingStageFactoryContext,
+    ) -> ExplicitValidatorStage:
+        return ExplicitValidatorStage()
+
+    contract = PreprocessingStageMetadata(
+        stage_key="explicit_validator_stage",
+        display_label="explicit_validator_stage",
+        operation_name=lambda _plan: "explicit_validator_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=_build_stage,
+        quantitative_contract=_preserve_quantitative_contract(),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+
+    PreprocessingPipeline(stage_contract_registry=(contract,)).run_with_trace(
+        _fake_stage_state("explicit_validator_stage")
+    )
+
+    assert calls == ["validate_before_quantitative_contract", "run"]
+
+
+def test_missing_required_lifecycle_method_fails_at_composition() -> None:
+    class MissingPreContractValidatorStage:
+        stage_key = "missing_pre_contract_validator_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    def _build_stage(
+        _context: PreprocessingStageFactoryContext,
+    ) -> MissingPreContractValidatorStage:
+        return MissingPreContractValidatorStage()
+
+    contract = PreprocessingStageMetadata(
+        stage_key="missing_pre_contract_validator_stage",
+        display_label="missing_pre_contract_validator_stage",
+        operation_name=lambda _plan: "missing_pre_contract_validator_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=_build_stage,
+        quantitative_contract=_preserve_quantitative_contract(),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+
+    with pytest.raises(
+        DatasetBuildError,
+        match="validate_before_quantitative_contract.*run",
+    ):
+        PreprocessingPipeline(stage_contract_registry=(contract,))
+
+
+def test_plan_table_dependency_validation_uses_actual_stage_order() -> None:
+    calls: list[str] = []
+
+    class RowAuditConsumerStage(_NoOpPreQuantitativeContractStage):
+        stage_key = "row_audit_consumer_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            calls.append("run")
+            return PreprocessingStageResult(state=state)
+
+    def _build_stage(
+        _context: PreprocessingStageFactoryContext,
+    ) -> RowAuditConsumerStage:
+        return RowAuditConsumerStage()
+
+    contract = PreprocessingStageMetadata(
+        stage_key="row_audit_consumer_stage",
+        display_label="row_audit_consumer_stage",
+        operation_name=lambda _plan: "row_audit_consumer_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("report.row_audit",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=_build_stage,
+        quantitative_contract=_preserve_quantitative_contract(),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+
+    with pytest.raises(DatasetBuildError, match="invalid stage table dependencies"):
+        PreprocessingPipeline(stage_contract_registry=(contract,)).run_with_trace(
+            _fake_stage_state("row_audit_consumer_stage")
+        )
+
+    assert calls == []
+
+
+def test_pipeline_uses_explicit_pre_contract_hook_without_hidden_getattr() -> None:
+    source = inspect.getsource(pipeline_module)
+
+    assert "getattr(" not in source
+    assert "validate_before_quantitative_contract" in source
 
 
 def test_registered_stage_factories_expose_run_method() -> None:
@@ -386,14 +582,14 @@ def test_registered_stage_factories_expose_run_method() -> None:
         if metadata.stage_factory is None:
             continue
         stage = metadata.stage_factory(context)
-        run_method = getattr(stage, "run", None)
-        assert callable(run_method)
+        assert callable(stage.validate_before_quantitative_contract)
+        assert callable(stage.run)
 
 
 def test_dependency_free_stage_factory_receives_uniform_context() -> None:
     observed_contexts: list[PreprocessingStageFactoryContext] = []
 
-    class ContextFreeStage:
+    class ContextFreeStage(_NoOpPreQuantitativeContractStage):
         stage_key = "context_free_stage"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -432,7 +628,7 @@ def test_dependency_bearing_stage_receives_collaborator_from_uniform_context() -
     class FakeCollaborator:
         marker = "from_context"
 
-    class CollaboratorStage:
+    class CollaboratorStage(_NoOpPreQuantitativeContractStage):
         stage_key = "collaborator_stage"
 
         def __init__(self, collaborator: object) -> None:
@@ -476,7 +672,7 @@ def test_pipeline_builds_dependency_bearing_custom_stage_without_registry_branch
     class FakeCollaborator:
         marker = "future_collaborator"
 
-    class CollaboratorStage:
+    class CollaboratorStage(_NoOpPreQuantitativeContractStage):
         stage_key = "future_dependency_stage"
 
         def __init__(self, collaborator: FakeCollaborator) -> None:
@@ -575,7 +771,7 @@ def test_pipeline_rejects_both_registry_aliases() -> None:
 
 
 def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
-    class FakeStage:
+    class FakeStage(_NoOpPreQuantitativeContractStage):
         stage_key = "legacy_alias_stage"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -605,7 +801,7 @@ def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
 
 
 def test_custom_stage_registration_is_stage_owned() -> None:
-    class FakeStage:
+    class FakeStage(_NoOpPreQuantitativeContractStage):
         stage_key = "fake_stage"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -682,7 +878,7 @@ def _fake_stage_contract(
 
 
 def test_deterministic_stage_contract_runs_without_seed() -> None:
-    class FakeDeterministicStage:
+    class FakeDeterministicStage(_NoOpPreQuantitativeContractStage):
         stage_key = "fake_deterministic"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -704,7 +900,7 @@ def test_deterministic_stage_contract_runs_without_seed() -> None:
 
 
 def test_seeded_stochastic_stage_contract_runs_with_explicit_seed() -> None:
-    class FakeSeededStage:
+    class FakeSeededStage(_NoOpPreQuantitativeContractStage):
         stage_key = "fake_seeded"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -729,7 +925,7 @@ def test_seeded_stochastic_stage_contract_runs_with_explicit_seed() -> None:
 
 
 def test_seeded_stochastic_stage_contract_without_seed_fails() -> None:
-    class FakeSeededStage:
+    class FakeSeededStage(_NoOpPreQuantitativeContractStage):
         stage_key = "fake_seeded_without_seed"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -750,7 +946,7 @@ def test_seeded_stochastic_stage_contract_without_seed_fails() -> None:
 
 
 def test_externally_nondeterministic_stage_records_reproducibility_caveat() -> None:
-    class FakeExternalStage:
+    class FakeExternalStage(_NoOpPreQuantitativeContractStage):
         stage_key = "fake_external"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:

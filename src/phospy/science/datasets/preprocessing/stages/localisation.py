@@ -61,6 +61,13 @@ class LocalisationConfidenceStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_LOCALISATION
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         mode = state.plan.localisation_mode
         column_name = state.plan.localisation_confidence_column

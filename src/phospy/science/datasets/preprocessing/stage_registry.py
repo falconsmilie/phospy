@@ -9,12 +9,10 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStage,
 )
-from phospy.science.datasets.preprocessing.quantitative_evidence import (
-    QuantitativeOperationEvidenceValidator,
-)
 from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
     PreprocessingStageFactoryContext,
+    validate_preprocessing_stage_instance,
 )
 from phospy.science.datasets.preprocessing.stages import (
     BATCH_CORRECTION_STAGE_CONTRACT,
@@ -27,6 +25,9 @@ from phospy.science.datasets.preprocessing.stages import (
     SITE_MATRIX_STAGE_CONTRACT,
     SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT,
     TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeOperationContract,
 )
 
 # Backward-compatible alias for existing imports/tests.
@@ -75,6 +76,10 @@ def _build_stage_metadata_by_key(
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without plan validator"
             )
+        if not callable(metadata.include_when):
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} without include predicate"
+            )
         if not callable(metadata.resolve_random_seed):
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without random-seed resolver"
@@ -83,20 +88,20 @@ def _build_stage_metadata_by_key(
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without determinism resolver"
             )
-        try:
-            contract = metadata.resolve_quantitative_contract(PreprocessingPlan())
-        except DatasetBuildError:
-            raise
-        except Exception as exc:
+        quantitative_contract = metadata.quantitative_contract
+        if quantitative_contract is None:
             raise DatasetBuildError(
-                f"{context} contains stage {stage_key!r} with invalid "
-                "quantitative semantic contract"
-            ) from exc
-        QuantitativeOperationEvidenceValidator.require_supported_contract(
-            contract,
-            stage=stage_key,
-            operation=metadata.operation_name(PreprocessingPlan()),
-        )
+                "dataset preprocessing stage metadata is missing quantitative "
+                f"semantic contract: stage={stage_key!r}"
+            )
+        if not callable(quantitative_contract) and not isinstance(
+            quantitative_contract,
+            QuantitativeOperationContract,
+        ):
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} with invalid static "
+                "quantitative semantic contract declaration"
+            )
         if not isinstance(metadata.diagnostics_metadata, Mapping):
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} with invalid diagnostics metadata"
@@ -183,8 +188,17 @@ def build_registered_preprocessing_stage_instances(
     for metadata in metadata_registry:
         factory = metadata.stage_factory
         if not callable(factory):
-            continue
-        instances.append(factory(factory_context))
+            raise DatasetBuildError(
+                "dataset preprocessing stage registry contains stage "
+                f"{metadata.stage_key!r} without a stage_factory; stage "
+                "construction must use the contract factory path"
+            )
+        instances.append(
+            validate_preprocessing_stage_instance(
+                factory(factory_context),
+                context="dataset preprocessing stage factory",
+            )
+        )
     return tuple(instances)
 
 

@@ -641,6 +641,13 @@ def test_pipeline_uses_stage_owned_diagnostics_and_report_rows() -> None:
     class FakeStage:
         stage_key = "fake_stage"
 
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
+
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             return PreprocessingStageResult(
                 state=state,
@@ -786,6 +793,13 @@ def test_pipeline_rejects_conflicting_intensity_transformation_events() -> None:
     class Log2EventStage:
         stage_key = "log2_event"
 
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
+
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             return PreprocessingStageResult(
                 state=state,
@@ -794,6 +808,13 @@ def test_pipeline_rejects_conflicting_intensity_transformation_events() -> None:
 
     class LinearIdentityEventStage:
         stage_key = "linear_identity_event"
+
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             return PreprocessingStageResult(
@@ -863,6 +884,13 @@ def test_pipeline_rejects_unsupported_stage_report_rows() -> None:
     class FakeStage:
         stage_key = "fake_stage"
 
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
+
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             return PreprocessingStageResult(
                 state=state,
@@ -907,6 +935,13 @@ def test_pipeline_rejects_unsupported_stage_report_rows() -> None:
 def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> None:
     class FakeStage:
         stage_key = "fake_stage"
+
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             return PreprocessingStageResult(

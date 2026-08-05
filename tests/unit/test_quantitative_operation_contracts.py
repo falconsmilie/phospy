@@ -254,6 +254,13 @@ def test_pipeline_rejects_unsupported_transition_before_numerical_execution() ->
         stage_key = DATASET_PREPROCESSING_STAGE_NORMALISATION
         ran = False
 
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
+
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             self.ran = True
             raise AssertionError("stage numerical execution should not run")
@@ -279,6 +286,13 @@ def test_pipeline_rejects_unsupported_meaning_before_numerical_execution() -> No
     class ExplodingTotalProteinStage:
         stage_key = DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION
         ran = False
+
+        def validate_before_quantitative_contract(
+            self,
+            state: PreprocessingState,
+        ) -> None:
+            del state
+            return None
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             self.ran = True

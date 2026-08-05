@@ -45,6 +45,13 @@ class SiteSequenceResolutionStage:
     stage_key = DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION
     _RESOLVER_VERSION = "phospy.science.sequences.resolver.v1"
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def __init__(
         self,
         *,

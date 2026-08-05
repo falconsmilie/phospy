@@ -40,6 +40,14 @@ preprocessing planning, state trace, and stage-result DTOs are owned by
 `phospy.science.datasets.preprocessing.models` route is a compatibility facade
 only.
 
+Update note (2026-08-05, preprocessing stage extension contract):
+Preprocessing stage composition separates static registration metadata,
+plan-dependent contract interpretation, and executable stage behavior. This is
+an internal extension seam, not a supported third-party public API. The
+deprecated `PreprocessingStageMetadata` and `stage_metadata_registry` aliases
+remain temporary compatibility routes and keep their documented PhosPy 1.8.0
+removal target.
+
 ## Context and Problem Statement
 
 PhosPy has accumulated orchestration patterns that are more complex than necessary for the product it is intended to be. The current direction has shown signs of wrapper-heavy execution paths, repeated validation across multiple layers, duplicated accessors, loose helper composition, and abstractions that are more "smart" than useful.
@@ -246,6 +254,48 @@ consume when they need validation or external loading collaborators. Concrete
 validators remain private to `phospy.validation` and are wired by API/workflow
 adapter code. Local imports, dynamic imports, or service-locator style lookup
 must not be used to hide package edges.
+
+### Preprocessing Stage Extension Contract
+
+Dataset preprocessing stages are composed through one internal contract path:
+`PreprocessingStageContract` entries in
+`phospy.science.datasets.preprocessing.stage_registry`. Each contract provides:
+
+- static registration metadata: stage key, display label, provenance stage,
+  table inputs/outputs, diagnostics metadata, backend, provenance inclusion, and
+  a stage factory
+- plan-dependent interpretation: operation name, serialized parameter payload,
+  quantitative-operation contract, determinism declaration, inclusion predicate,
+  random-seed resolver, and plan-specific validation
+- executable behavior: a stage object implementing the explicit
+  `PreprocessingStage` protocol
+
+The executable stage protocol has two lifecycle hooks:
+
+- `validate_before_quantitative_contract(state) -> None`
+- `run(state) -> PreprocessingStageResult`
+
+The first hook is explicit even when a stage has no work to do. Stages that do
+not need data-dependent validation before quantitative contract enforcement must
+implement it as a no-op. The pipeline invokes this hook directly; it must not
+discover the hook through `getattr(...)`, `hasattr(...)`, or another
+attribute-presence capability probe.
+
+Registry construction validates only static structure: non-empty keys and
+labels, duplicate stage keys, declared table-key shape, contract declaration
+shape, callable contract fields, diagnostics metadata shape, and factory-backed
+construction. It must not resolve operation names, parameters, inclusion
+predicates, or quantitative contracts using `PreprocessingPlan.default()` or an
+unrelated `PreprocessingPlan()`.
+
+Plan-dependent validation runs against the actual `PreprocessingPlan` supplied
+to the pipeline or builder. The pipeline interprets each scheduled stage against
+that plan, validates declared stage-order table dependencies beyond initial
+dataset inputs and optional preprocessing state sidecars, checks the
+quantitative transition before numerical execution, validates emitted evidence
+after execution, and applies the quantitative state transition. Quantitative
+transition enforcement remains pipeline-owned; individual stage executors own
+only their operation and any explicit pre-contract data validation they require.
 
 ## Interface Rules
 

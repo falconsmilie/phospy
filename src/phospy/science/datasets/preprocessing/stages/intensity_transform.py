@@ -45,6 +45,13 @@ class IntensityTransformStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def _resolve_transformer(self, state: PreprocessingState) -> Transformer:
         policy = state.plan.intensity_transform_policy
         if policy is IntensityTransformPolicy.IDENTITY:

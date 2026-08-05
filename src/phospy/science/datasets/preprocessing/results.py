@@ -132,4 +132,9 @@ class PreprocessingStage(Protocol):
 
     stage_key: str
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None: ...
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult: ...

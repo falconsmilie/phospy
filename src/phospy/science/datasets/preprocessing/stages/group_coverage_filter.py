@@ -88,6 +88,13 @@ class GroupCoverageFilterStage:
             metadata_validator or GroupCoverageFilterMetadataValidator()
         )
 
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         if not state.plan.group_coverage_filter_enabled:
             diagnostics = _build_diagnostics(

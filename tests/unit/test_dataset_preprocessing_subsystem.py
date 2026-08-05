@@ -162,6 +162,15 @@ def _sample_metadata(columns: pd.Index) -> pd.DataFrame:
     )
 
 
+class _NoOpPreQuantitativeContractStage:
+    def validate_before_quantitative_contract(
+        self,
+        state: PreprocessingState,
+    ) -> None:
+        del state
+        return None
+
+
 def _comparison_sample_metadata(columns: pd.Index) -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -302,14 +311,14 @@ def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
 def test_preprocessing_pipeline_applies_plan_order() -> None:
     calls: list[str] = []
 
-    class StageA:
+    class StageA(_NoOpPreQuantitativeContractStage):
         stage_key = "stage_a"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             calls.append(self.stage_key)
             return PreprocessingStageResult(state=state)
 
-    class StageB:
+    class StageB(_NoOpPreQuantitativeContractStage):
         stage_key = "stage_b"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -347,7 +356,7 @@ def test_preprocessing_pipeline_applies_plan_order() -> None:
 def test_preprocessing_pipeline_passes_stage_state_forward() -> None:
     observed_first_value: list[float] = []
 
-    class AddOneStage:
+    class AddOneStage(_NoOpPreQuantitativeContractStage):
         stage_key = "add_one"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
@@ -355,7 +364,7 @@ def test_preprocessing_pipeline_passes_stage_state_forward() -> None:
                 state=replace(state, phospho=state.phospho + 1.0)
             )
 
-    class InspectStage:
+    class InspectStage(_NoOpPreQuantitativeContractStage):
         stage_key = "inspect"
 
         def run(self, state: PreprocessingState) -> PreprocessingStageResult:
