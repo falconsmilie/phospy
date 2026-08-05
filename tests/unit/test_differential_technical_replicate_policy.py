@@ -23,9 +23,11 @@ from phospy.provenance.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
 )
 from phospy.provenance.hashing import fingerprint_table
+from phospy.science.configs.differential import PairedDesignPolicy
 from phospy.science.datasets.derived_quantitative import (
     DerivedAnalysisReadyPhosphoDataset,
 )
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
@@ -33,7 +35,10 @@ from phospy.science.differential.executor import (
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as ComputationRequest,
 )
-from phospy.validation.workflows.differential import ExperimentalDesignContractValidator
+from phospy.validation.workflows.differential import (
+    ExperimentalDesignContractValidator,
+    ValidatedExperimentalDesignContract,
+)
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.replicates import (
@@ -750,12 +755,30 @@ def test_interpreter_consumes_derived_dataset_after_aggregation() -> None:
     real_validator = ExperimentalDesignContractValidator()
 
     class _DesignValidatorSpy:
-        def run(self, **kwargs):
-            seen_dataset_types.append(type(kwargs["dataset"]))
-            return real_validator.run(**kwargs)
+        def run(
+            self,
+            *,
+            dataset: AnalysisReadyPhosphoDataset,
+            design: ExperimentalDesign,
+            contrasts: tuple[Contrast, ...],
+            allow_design_subset: bool,
+            minimum_condition_replicates: int,
+            paired_design_policy: PairedDesignPolicy,
+            dataset_view: DatasetInternalView,
+        ) -> ValidatedExperimentalDesignContract:
+            seen_dataset_types.append(type(dataset))
+            return real_validator.run(
+                dataset=dataset,
+                design=design,
+                contrasts=contrasts,
+                allow_design_subset=allow_design_subset,
+                minimum_condition_replicates=minimum_condition_replicates,
+                paired_design_policy=paired_design_policy,
+                dataset_view=dataset_view,
+            )
 
     DifferentialAnalysisInterpreter(
-        design_validator=_DesignValidatorSpy(),  # type: ignore[arg-type]
+        design_validator=_DesignValidatorSpy(),
     ).run(validated)
 
     assert DerivedAnalysisReadyPhosphoDataset in seen_dataset_types

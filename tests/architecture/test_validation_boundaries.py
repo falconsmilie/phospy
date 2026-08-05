@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import textwrap
 from pathlib import Path
 
 import pandas as pd
@@ -207,6 +208,17 @@ def _dotted_name(node: ast.AST) -> str | None:
             return None
         return f"{value_name}.{node.attr}"
     return None
+
+
+def _node_mentions_any_name(node: ast.AST, names: set[str]) -> bool:
+    dotted_name = _dotted_name(node)
+    if dotted_name in names or (
+        dotted_name is not None and dotted_name.rsplit(".", maxsplit=1)[-1] in names
+    ):
+        return True
+    return any(
+        _node_mentions_any_name(child, names) for child in ast.iter_child_nodes(node)
+    )
 
 
 def _has_dataclass_decorator(node: ast.ClassDef) -> bool:
@@ -496,6 +508,29 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
     assert "enforce_localisation_requirement(" in kinase_source
     assert "enforce_localisation_requirement(" in signalome_source
     assert "enforce_required_non_empty_string_column(" in signalome_grouping_source
+
+
+def test_differential_validator_collaborators_are_protocol_dispatched() -> None:
+    source = textwrap.dedent(inspect.getsource(DifferentialAnalysisValidator.run))
+    tree = ast.parse(source)
+    concrete_collaborators = {
+        "DifferentialDatasetEligibilityValidator",
+        "ExperimentalDesignContractValidator",
+        "TechnicalReplicateAggregationPlanner",
+    }
+    concrete_branches: list[str] = []
+
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and _dotted_name(node.func) == "isinstance"
+            and len(node.args) >= 2
+            and _node_mentions_any_name(node.args[1], concrete_collaborators)
+        ):
+            concrete_branches.append(f"line {node.lineno}")
+
+    assert concrete_branches == []
+    assert "cast(Any" not in source
 
 
 def test_additive_preprocessing_scale_policy_is_private_builder_owned() -> None:

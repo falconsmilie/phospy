@@ -25,6 +25,11 @@ from phospy.api.configs import (
 )
 from phospy.api.results import DifferentialAnalysisResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.science.configs.differential import (
+    DifferentialImputedValuePolicy,
+    PairedDesignPolicy,
+)
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.datasets.preprocessing.protein_aware_alignment import (
     ProteinAwarePreparationEligibility,
@@ -49,6 +54,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
+from phospy.validation.workflows.differential import (
+    ValidatedExperimentalDesignContract,
+)
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.models import (
@@ -58,6 +66,9 @@ from phospy.workflows.differential.models import (
 )
 from phospy.workflows.differential.provenance import (
     build_differential_policy_provenance,
+)
+from phospy.workflows.differential.replicates import (
+    TechnicalReplicateAggregationPlan,
 )
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.analysis_ready_dataset_factories import (
@@ -952,14 +963,38 @@ def test_differential_validator_rejects_non_multiple_testing_config() -> None:
 
 def test_differential_validator_passes_config_values_to_collaborators() -> None:
     calls: dict[str, object] = {}
+    call_order: list[str] = []
+    collaborator_views: list[DatasetInternalView] = []
     base_request = _request()
 
-    class _FakeTechnicalReplicatePlanner:
-        def run(self, *, dataset, design, technical_replicate_policy):
-            calls["technical_replicate_policy"] = technical_replicate_policy
-            from phospy.workflows.differential.replicates import (
-                TechnicalReplicateAggregationPlan,
+    class _FakeDatasetEligibilityValidator:
+        def run(
+            self,
+            *,
+            dataset: AnalysisReadyPhosphoDataset,
+            imputed_value_policy: DifferentialImputedValuePolicy,
+            allow_suspicious_declared_input_scale: bool,
+            dataset_view: DatasetInternalView,
+        ) -> None:
+            call_order.append("dataset_eligibility_validator")
+            collaborator_views.append(dataset_view)
+            calls["imputed_value_policy"] = imputed_value_policy
+            calls["allow_suspicious_declared_input_scale"] = (
+                allow_suspicious_declared_input_scale
             )
+
+    class _FakeTechnicalReplicatePlanner:
+        def run(
+            self,
+            *,
+            dataset: AnalysisReadyPhosphoDataset,
+            design: ExperimentalDesign,
+            technical_replicate_policy: TechnicalReplicatePolicy,
+            dataset_view: DatasetInternalView,
+        ) -> TechnicalReplicateAggregationPlan:
+            call_order.append("technical_replicate_planner")
+            collaborator_views.append(dataset_view)
+            calls["technical_replicate_policy"] = technical_replicate_policy
 
             return TechnicalReplicateAggregationPlan(
                 technical_replicate_policy=technical_replicate_policy,
@@ -972,22 +1007,19 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
         def run(
             self,
             *,
-            dataset,
-            design,
-            contrasts,
-            allow_design_subset,
-            minimum_condition_replicates,
-            paired_design_policy,
-        ):
+            dataset: AnalysisReadyPhosphoDataset,
+            design: ExperimentalDesign,
+            contrasts: tuple[Contrast, ...],
+            allow_design_subset: bool,
+            minimum_condition_replicates: int,
+            paired_design_policy: PairedDesignPolicy,
+            dataset_view: DatasetInternalView,
+        ) -> ValidatedExperimentalDesignContract:
+            call_order.append("design_validator")
+            collaborator_views.append(dataset_view)
             calls["allow_design_subset"] = allow_design_subset
             calls["minimum_condition_replicates"] = minimum_condition_replicates
             calls["paired_design_policy"] = paired_design_policy
-            from phospy.science.differential.linear_model import (
-                decompose_differential_design,
-            )
-            from phospy.validation.workflows.differential import (
-                ValidatedExperimentalDesignContract,
-            )
 
             design_frame = pd.DataFrame(
                 {
@@ -1028,11 +1060,20 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
             multiple_testing=MultipleTestingConfig(),
         ),
     )
-    DifferentialAnalysisValidator(
-        technical_replicate_planner=_FakeTechnicalReplicatePlanner(),  # type: ignore[arg-type]
-        design_validator=_FakeDesignValidator(),  # type: ignore[arg-type]
+    validated = DifferentialAnalysisValidator(
+        dataset_eligibility_validator=_FakeDatasetEligibilityValidator(),
+        technical_replicate_planner=_FakeTechnicalReplicatePlanner(),
+        design_validator=_FakeDesignValidator(),
     ).run(request)
 
+    assert call_order == [
+        "dataset_eligibility_validator",
+        "technical_replicate_planner",
+        "design_validator",
+    ]
+    assert all(view is validated.dataset_view for view in collaborator_views)
+    assert calls["imputed_value_policy"] == "reject"
+    assert calls["allow_suspicious_declared_input_scale"] is False
     assert calls["technical_replicate_policy"] is TechnicalReplicatePolicy.MEAN
     assert calls["allow_design_subset"] is True
     assert calls["minimum_condition_replicates"] == 1

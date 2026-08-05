@@ -45,6 +45,9 @@ from phospy.workflows.differential.replicates import (
 
 if TYPE_CHECKING:
     from phospy.science.datasets.internal_view import DatasetInternalView
+    from phospy.validation.workflows.differential import (
+        ValidatedExperimentalDesignContract,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -413,6 +416,48 @@ class DifferentialAnalysisValidatorContract(Protocol):
     def run(self, request: object) -> ValidatedDifferentialAnalysisRequest: ...
 
 
+class DifferentialDatasetEligibilityValidatorContract(Protocol):
+    """Internal collaborator contract for differential dataset eligibility."""
+
+    def run(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        imputed_value_policy: DifferentialImputedValuePolicy,
+        allow_suspicious_declared_input_scale: bool,
+        dataset_view: DatasetInternalView,
+    ) -> None: ...
+
+
+class DifferentialTechnicalReplicatePlannerContract(Protocol):
+    """Internal collaborator contract for differential replicate planning."""
+
+    def run(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        design: ExperimentalDesign,
+        technical_replicate_policy: TechnicalReplicatePolicy,
+        dataset_view: DatasetInternalView,
+    ) -> TechnicalReplicateAggregationPlan: ...
+
+
+class DifferentialDesignValidatorContract(Protocol):
+    """Internal collaborator contract for differential design validation."""
+
+    def run(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        design: ExperimentalDesign,
+        contrasts: tuple[Contrast, ...],
+        allow_design_subset: bool,
+        minimum_condition_replicates: int,
+        paired_design_policy: PairedDesignPolicy,
+        dataset_view: DatasetInternalView,
+    ) -> ValidatedExperimentalDesignContract: ...
+
+
 class DifferentialAnalysisInterpreterContract(Protocol):
     """Internal contract for differential workflow interpretation."""
 
@@ -438,7 +483,10 @@ __all__ = [
     "DifferentialImputationPolicyInputs",
     "ResolvedDifferentialExecutionConfig",
     "DifferentialAnalysisExecutorContract",
+    "DifferentialDatasetEligibilityValidatorContract",
+    "DifferentialDesignValidatorContract",
     "DifferentialAnalysisInterpreterContract",
+    "DifferentialTechnicalReplicatePlannerContract",
     "DifferentialAnalysisValidatorContract",
     "InterpretedDifferentialAnalysisRequest",
     "ValidatedDifferentialAnalysisRequest",

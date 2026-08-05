@@ -8,7 +8,7 @@ tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,f
 tests/architecture/test_package_dependency_dag.py,architecture,607,8,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_validation_boundaries.py,architecture,782,27,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
+tests/architecture/test_validation_boundaries.py,architecture,817,28,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/architecture/test_validation_componentization.py,architecture,150,2,false,false,,,,,,
 tests/architecture/test_validation_ownership_governance.py,architecture,589,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,371,3,true,false,,,,,,
@@ -146,9 +146,9 @@ tests/unit/test_differential_request_config_refactor.py,unit,60,6,false,false,,,
 tests/unit/test_differential_result_caveats.py,unit,353,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,999,33,false,false,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,144,10,false,false,,,,,,
-tests/unit/test_differential_technical_replicate_policy.py,unit,860,19,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_differential_technical_replicate_policy.py,unit,883,19,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_differential_workflow_components.py,unit,1039,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
+tests/unit/test_differential_workflow_components.py,unit,1080,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,828,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,
@@ -305,6 +305,7 @@ tests/unit/validation/test_phosphosite_identity_rule_families.py,validation,534,
 tests/unit/validation/test_reference_context_compatibility.py,validation,196,7,false,false,,,,,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,224,10,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,278,7,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/workflows/differential/test_differential_validator_collaborator_protocols.py,differential,178,2,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,317,6,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,563,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/workflows/kinase/test_kinase_dataset_view_reuse.py,kinase,520,7,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access

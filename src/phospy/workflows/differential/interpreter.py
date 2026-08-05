@@ -39,6 +39,7 @@ from phospy.workflows.differential.eligibility import (
     filter_matrix_for_feature_ids,
 )
 from phospy.workflows.differential.models import (
+    DifferentialDesignValidatorContract,
     InterpretedDifferentialAnalysisRequest,
     ResolvedDifferentialExecutionConfig,
     ValidatedDifferentialAnalysisRequest,
@@ -65,13 +66,13 @@ class DifferentialAnalysisInterpreter:
     def __init__(
         self,
         *,
-        design_validator: ExperimentalDesignContractValidator | None = None,
+        design_validator: DifferentialDesignValidatorContract | None = None,
         technical_replicate_aggregator: TechnicalReplicateAggregator | None = None,
         pre_fit_eligibility_resolver: DifferentialPreFitEligibilityResolver
         | None = None,
         execution_design_assembler: DifferentialExecutionDesignAssembler | None = None,
     ) -> None:
-        self._design_validator = (
+        self._design_validator: DifferentialDesignValidatorContract = (
             design_validator or ExperimentalDesignContractValidator()
         )
         self._technical_replicate_aggregator = (
@@ -110,6 +111,7 @@ class DifferentialAnalysisInterpreter:
             resolved_workflow_provenance = (
                 technical_replicate_resolution.workflow_provenance
             )
+            resolved_dataset_view = DatasetInternalView(resolved_dataset)
             resolved_design_contract = self._design_validator.run(
                 dataset=resolved_dataset,
                 design=resolved_design,
@@ -119,6 +121,7 @@ class DifferentialAnalysisInterpreter:
                     execution_config.minimum_condition_replicates
                 ),
                 paired_design_policy=execution_config.paired_design_policy,
+                dataset_view=resolved_dataset_view,
             )
             resolved_contrasts = resolved_design_contract.contrasts
             resolved_analysis_sample_ids = resolved_design_contract.analysis_sample_ids
@@ -130,13 +133,14 @@ class DifferentialAnalysisInterpreter:
                 resolved_design_contract.design_decomposition
             )
             resolved_design_build_result = resolved_design_contract.design_build_result
-
+        else:
+            resolved_dataset_view = (
+                request.dataset_view
+                if resolved_dataset is request.dataset
+                and request.dataset_view is not None
+                else DatasetInternalView(resolved_dataset)
+            )
         analysis_sample_ids = resolved_analysis_sample_ids
-        resolved_dataset_view = (
-            request.dataset_view
-            if resolved_dataset is request.dataset and request.dataset_view is not None
-            else DatasetInternalView(resolved_dataset)
-        )
         resolved_site_metadata = resolved_dataset_view.site_metadata
         matrix = dataframe_loc(
             resolved_dataset_view.phospho,
