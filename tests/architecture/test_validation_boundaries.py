@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import phospy
+import phospy.advanced as advanced_api
 import phospy.api as public_api
 import phospy.api.requests as public_request_api
 import phospy.api.workflows as public_workflow_api
@@ -77,7 +78,7 @@ VALIDATION_PREFIX = "phospy.validation"
 PRIVATE_IMPLEMENTATION_CLASS_SUFFIXES = ("Validator", "Interpreter", "Executor")
 IDENTITY_CONTRACT_CLASS_DEFINITION_OWNERS = {
     "PhosphositeIdentityContract": (
-        SRC_ROOT / "phospy" / "science" / "sites" / "identity_contracts.py"
+        SRC_ROOT / "phospy" / "science" / "sites" / "identity_rules" / "contracts.py"
     ),
     "SequenceContextContract": (
         SRC_ROOT / "phospy" / "science" / "sites" / "sequence_context.py"
@@ -563,15 +564,68 @@ def test_phosphosite_identity_contracts_are_science_owned_and_validation_reexpor
     None
 ):
     import phospy.science.sites.identity_contracts as science_identity_contracts
+    from phospy.science.sites.identity_rules import (
+        contracts,
+        dataset_identity,
+        reference_context,
+        result_identity,
+    )
 
     assert (
         identity_contracts.validate_reference_context_compatibility
         is science_identity_contracts.validate_reference_context_compatibility
     )
     assert (
-        validate_reference_context_compatibility.__module__
-        == "phospy.science.sites.identity_contracts"
+        identity_contracts.validate_reference_context_compatibility
+        is reference_context.validate_reference_context_compatibility
     )
+    assert (
+        validate_reference_context_compatibility.__module__
+        == "phospy.science.sites.identity_rules.reference_context"
+    )
+    assert (
+        science_identity_contracts.PhosphositeIdentityContract
+        is contracts.PhosphositeIdentityContract
+    )
+    assert (
+        science_identity_contracts.enforce_site_key_column
+        is dataset_identity.enforce_site_key_column
+    )
+    assert (
+        science_identity_contracts.enforce_result_identity_metadata_coherence
+        is result_identity.enforce_result_identity_metadata_coherence
+    )
+
+
+def test_phosphosite_identity_contract_facade_contains_no_hidden_implementation() -> (
+    None
+):
+    facade_path = SRC_ROOT / "phospy" / "science" / "sites" / "identity_contracts.py"
+    tree = ast.parse(facade_path.read_text(encoding="utf-8"), filename=str(facade_path))
+
+    implementation_nodes = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+    ]
+
+    assert implementation_nodes == []
+
+
+def test_identity_validators_are_not_exposed_from_advanced_api() -> None:
+    validator_names = {
+        "enforce_analysis_ready_site_key_index",
+        "enforce_display_id_column",
+        "enforce_phosphosite_identity_contract",
+        "enforce_result_identity_metadata_coherence",
+        "enforce_site_key_column",
+        "enforce_site_key_matches_metadata",
+        "validate_reference_context_compatibility",
+    }
+    exported_names = set(getattr(advanced_api, "__all__", ()))
+
+    assert validator_names.isdisjoint(exported_names)
+    assert not any(hasattr(advanced_api, name) for name in validator_names)
 
 
 def test_identity_contract_classes_have_single_concrete_owner() -> None:

@@ -8,7 +8,10 @@ from types import SimpleNamespace
 
 import phospy.frames.validation as frame_validation
 import phospy.science.sites.identity_columns as site_identity_column_compat
-import phospy.science.sites.identity_contracts as site_identity_contracts
+import phospy.science.sites.identity_rules.contracts as site_identity_contract_records
+import phospy.science.sites.identity_rules.dataset_identity as site_dataset_identity
+import phospy.science.sites.identity_rules.reference_context as site_reference_context
+import phospy.science.sites.identity_rules.result_identity as site_result_identity
 import phospy.science.sites.metadata_validation as site_metadata_validation
 import phospy.science.sites.sequence_context as site_sequence_context
 import phospy.validation.common.dataframes as validation_dataframe_compat
@@ -128,13 +131,40 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "science" / "sites" / "identity_contracts.py",
+            owner_path=(
+                PACKAGE_ROOT / "science" / "sites" / "identity_rules" / "contracts.py"
+            ),
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
             "PhosphositeIdentityContract",
             "ReferenceContextCompatibilityWarning",
-            "validate_reference_context_compatibility",
+        )
+    ),
+    ConcreteSymbolOwner(
+        symbol_name="validate_reference_context_compatibility",
+        owner_path=(
+            PACKAGE_ROOT
+            / "science"
+            / "sites"
+            / "identity_rules"
+            / "reference_context.py"
+        ),
+        search_roots=SITE_IDENTITY_SEARCH_ROOTS,
+    ),
+    *(
+        ConcreteSymbolOwner(
+            symbol_name=symbol_name,
+            owner_path=(
+                PACKAGE_ROOT
+                / "science"
+                / "sites"
+                / "identity_rules"
+                / "dataset_identity.py"
+            ),
+            search_roots=SITE_IDENTITY_SEARCH_ROOTS,
+        )
+        for symbol_name in (
             "enforce_phosphosite_identity_contract",
             "enforce_analysis_ready_site_key_index",
             "enforce_site_key_column",
@@ -143,6 +173,13 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
             "enforce_site_key_column_matches_index",
             "enforce_site_key_matches_metadata",
         )
+    ),
+    ConcreteSymbolOwner(
+        symbol_name="enforce_result_identity_metadata_coherence",
+        owner_path=(
+            PACKAGE_ROOT / "science" / "sites" / "identity_rules" / "result_identity.py"
+        ),
+        search_roots=SITE_IDENTITY_SEARCH_ROOTS,
     ),
 )
 
@@ -165,11 +202,22 @@ IDENTITY_PRESERVING_REEXPORT_ROUTES = (
     ),
     ReexportRoute(
         reexport_module=identity_contract_compat,
-        owner_module=site_identity_contracts,
+        owner_module=site_identity_contract_records,
         symbols=(
             "PhosphositeIdentityContract",
             "ReferenceContextCompatibilityWarning",
-            "validate_reference_context_compatibility",
+            "SequenceContextContract",
+        ),
+    ),
+    ReexportRoute(
+        reexport_module=identity_contract_compat,
+        owner_module=site_reference_context,
+        symbols=("validate_reference_context_compatibility",),
+    ),
+    ReexportRoute(
+        reexport_module=identity_contract_compat,
+        owner_module=site_dataset_identity,
+        symbols=(
             "enforce_phosphosite_identity_contract",
             "enforce_analysis_ready_site_key_index",
             "enforce_site_key_column",
@@ -177,12 +225,16 @@ IDENTITY_PRESERVING_REEXPORT_ROUTES = (
             "enforce_unique_site_key_identity",
             "enforce_site_key_column_matches_index",
             "enforce_site_key_matches_metadata",
-            "SequenceContextContract",
         ),
     ),
     ReexportRoute(
+        reexport_module=identity_contract_compat,
+        owner_module=site_result_identity,
+        symbols=("enforce_result_identity_metadata_coherence",),
+    ),
+    ReexportRoute(
         reexport_module=site_key_compat,
-        owner_module=site_identity_contracts,
+        owner_module=site_dataset_identity,
         symbols=(
             "enforce_analysis_ready_site_key_index",
             "enforce_site_key_column",
@@ -212,7 +264,7 @@ IDENTITY_PRESERVING_REEXPORT_ROUTES = (
     ),
     ReexportRoute(
         reexport_module=site_identity_column_compat,
-        owner_module=site_identity_contracts,
+        owner_module=site_dataset_identity,
         symbols=("enforce_display_id_column", "enforce_site_key_column"),
     ),
 )
@@ -335,11 +387,11 @@ def test_validation_ownership_map_assigns_frame_and_science_owners() -> None:
     )
     assert (
         _first_code_span(rows["Reusable phosphosite identity contracts"].owner)
-        == "phospy.science.sites.identity_contracts"
+        == "phospy.science.sites.identity_rules.contracts"
     )
     assert (
         _first_code_span(rows["Analysis-ready `site_key` row identity"].owner)
-        == "phospy.science.sites.identity_contracts"
+        == "phospy.science.sites.identity_rules.dataset_identity"
     )
     assert (
         _first_code_span(rows["Analysis-ready `site_sequence` evidence"].owner)

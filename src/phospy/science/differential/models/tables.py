@@ -19,12 +19,9 @@ from phospy.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.science.sites.identity_contracts import (
-    RESULT_IDENTITY_COLUMNS,
-    RESULT_TABLE_IDENTITY_CONTRACT,
-    enforce_phosphosite_identity_contract,
-    enforce_required_identity_text_columns,
-    enforce_result_identity_metadata_coherence,
+from phospy.science.sites.identity_contracts import RESULT_IDENTITY_COLUMNS
+from phospy.science.sites.identity_rules.result_identity import (
+    enforce_result_table_identity_contract,
 )
 
 _RESULT_STATISTIC_COLUMNS: tuple[str, ...] = ("logFC", "t", "P.Value", "adj.P.Val")
@@ -70,24 +67,12 @@ def validate_result_table_contract(
         field_name=field_name,
         allow_imputation_withheld_status=True,
     )
-    enforce_phosphosite_identity_contract(
-        site_metadata=table,
-        field_name=field_name,
-        contract=RESULT_TABLE_IDENTITY_CONTRACT,
-        error_type=PhosPyInputError,
-        compare_raw_site_key_column_before_decode=True,
-    )
-    enforce_required_identity_text_columns(
+    enforce_result_table_identity_contract(
         table=table,
         field_name=field_name,
-        columns=_PUBLIC_RESULT_IDENTITY_COLUMNS,
         error_type=PhosPyInputError,
-    )
-    enforce_result_identity_metadata_coherence(
-        table=table,
-        field_name=field_name,
         context_label="Differential result identity metadata",
-        error_type=PhosPyInputError,
+        identity_columns=_PUBLIC_RESULT_IDENTITY_COLUMNS,
     )
 
 

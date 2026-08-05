@@ -8,9 +8,9 @@ tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,f
 tests/architecture/test_package_dependency_dag.py,architecture,607,8,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_validation_boundaries.py,architecture,728,25,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
+tests/architecture/test_validation_boundaries.py,architecture,782,27,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/architecture/test_validation_componentization.py,architecture,145,2,false,false,,,,,,
-tests/architecture/test_validation_ownership_governance.py,architecture,537,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/architecture/test_validation_ownership_governance.py,architecture,589,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,371,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,120,4,true,false,,,,,,
@@ -198,6 +198,7 @@ tests/unit/test_maintainer_scripts_smoke.py,unit,344,9,true,true,provenance/gold
 tests/unit/test_maxquant_phosphosite_importer.py,unit,315,10,false,false,,,,,,
 tests/unit/test_missing_data_split_modules.py,unit,848,26,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_multiple_testing_correction.py,unit,159,7,true,true,,,,,,
+tests/unit/test_peptide_evidence_dataset_resolution_components.py,unit,688,19,true,true,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,162,6,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_peptide_to_site_aggregation.py,unit,351,8,true,true,scientific invariant,keep,Loss of this file would remove typed uncertainty/dependence protection for peptide-to-site differential evidence.,codex-audit,,Updated after typed peptide-to-site uncertainty redesign.
 tests/unit/test_performance_contract_helpers.py,unit,19,1,false,false,,,,,,
@@ -299,6 +300,7 @@ tests/unit/test_workflow_identity_contracts.py,unit,571,16,true,true,,,,,,[auto-
 tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_workflow_quantitative_input_contracts.py,unit,434,14,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_workflow_stage_decomposition.py,unit,633,15,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/validation/test_phosphosite_identity_rule_families.py,validation,534,26,true,true,,,,,,
 tests/unit/validation/test_reference_context_compatibility.py,validation,196,7,false,false,,,,,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,224,10,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,278,7,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
