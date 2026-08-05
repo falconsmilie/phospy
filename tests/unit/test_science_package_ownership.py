@@ -101,6 +101,9 @@ def test_representative_moved_object_ownership() -> None:
     from phospy.science.scoring.policy_models import ThresholdMode
     from phospy.science.sites.identifiers import canonicalize_site_identifier
     from phospy.science.transformations.models import IntensityScaleState
+    from phospy.science.transformations.scale_state import (
+        IntensityScaleState as OwnedIntensityScaleState,
+    )
 
     assert (
         AnalysisReadyPhosphoDataset.__module__
@@ -113,4 +116,7 @@ def test_representative_moved_object_ownership() -> None:
     )
     assert ThresholdMode.__module__ == "phospy.science.scoring.policy_models"
     assert canonicalize_site_identifier.__module__ == "phospy.science.sites.identifiers"
-    assert IntensityScaleState.__module__ == "phospy.science.transformations.models"
+    assert (
+        IntensityScaleState.__module__ == "phospy.science.transformations.scale_state"
+    )
+    assert IntensityScaleState is OwnedIntensityScaleState

@@ -210,11 +210,16 @@ compatibility behavior where historical names appear in non-contract internals.
 - Dataset boundary enforcement is in
   `src/phospy/science/datasets/models.py` and
   `src/phospy/validation/transformations/state.py`.
-- Intensity-scale establishment modes and structured establishment provenance
-  are defined in `src/phospy/science/transformations/models.py`.
+- Intensity-scale and quantitative-meaning policy enums are defined in
+  `src/phospy/science/transformations/policy.py`; immutable matrix/event value
+  models are defined in `src/phospy/science/transformations/scale_values.py`;
+  establishment and quantitative-meaning state transitions are defined in
+  `src/phospy/science/transformations/scale_state.py`. The historical
+  `src/phospy/science/transformations/models.py` route is identity-preserving
+  only.
 - Quantitative-meaning transition authority and provenance are defined in
   `src/phospy/science/transformations/_authority.py` and
-  `src/phospy/science/transformations/models.py`. Public DTOs may request a
+  `src/phospy/science/transformations/provenance.py`. Public DTOs may request a
   declaration, but they do not mint transition authority.
 - Operation-level quantitative contracts are defined in
   `src/phospy/science/transformations/quantitative_contracts.py`, declared by

@@ -26,6 +26,11 @@ the complete top-level `phospy` graph, not a curated subset. Architecture tests
 parse every source file and compare actual package edges with an explicit
 allowed-edge table.
 
+Update note (2026-08-05, scientific model decomposition): oversized
+transformation, activity, reference-manifest, and batch-correction model/helper
+modules are split by change reason. Historical aggregate routes remain only as
+identity-preserving imports; owner modules define the single class objects.
+
 ## Context and Problem Statement
 
 Internal workflow code has been split into focused modules (validators,
@@ -200,6 +205,27 @@ allowed.
 - `src/phospy/io/bundles/_signalome/{config,diagnostics,tables}.py`
 - `src/phospy/validation/references/compatibility.py`
 - `src/phospy/science/references/models.py`
+- `src/phospy/science/references/manifest.py`
+- `src/phospy/science/references/manifest_common.py`
+- `src/phospy/science/references/manifest_files.py`
+- `src/phospy/science/references/manifest_model.py`
+- `src/phospy/science/references/manifest_policy.py`
+- `src/phospy/science/references/redistribution.py`
+- `src/phospy/science/transformations/policy.py`
+- `src/phospy/science/transformations/provenance.py`
+- `src/phospy/science/transformations/scale_state.py`
+- `src/phospy/science/transformations/scale_values.py`
+- `src/phospy/science/activities/method_models.py`
+- `src/phospy/science/activities/inputs.py`
+- `src/phospy/science/activities/diagnostics.py`
+- `src/phospy/science/activities/results.py`
+- `src/phospy/science/activities/result_validation.py`
+- `src/phospy/science/datasets/preprocessing/batch_correction.py`
+- `src/phospy/science/datasets/preprocessing/batch_correction_models.py`
+- `src/phospy/science/datasets/preprocessing/batch_correction_engine.py`
+- `src/phospy/science/datasets/preprocessing/batch_correction_provenance.py`
+- `src/phospy/science/datasets/preprocessing/batch_correction_provenance_payloads.py`
+- `src/phospy/science/datasets/preprocessing/batch_correction_provenance_validation.py`
 - `src/phospy/science/references/kinase_library.py`
 - `src/phospy/io/readers/dataset_inputs.py`
 - `src/phospy/workflows/batch_correction/preprocessing_adapter.py`

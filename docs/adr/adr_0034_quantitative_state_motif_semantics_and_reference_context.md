@@ -493,7 +493,12 @@ Neutral consequences:
 ## Implementation Notes
 
 - Quantitative state and evidence enums:
-  `src/phospy/science/transformations/models.py`
+  `src/phospy/science/transformations/policy.py`
+- Transformation value models and state transitions:
+  `src/phospy/science/transformations/scale_values.py` and
+  `src/phospy/science/transformations/scale_state.py`; the historical
+  `src/phospy/science/transformations/models.py` route is identity-preserving
+  only.
 - Workflow-visible intensity-scale evidence and declared-scale caveats:
   `src/phospy/workflows/intensity_scale_evidence.py`
 - Provenance payload model:
@@ -517,7 +522,13 @@ Neutral consequences:
 - Protein-scoped `site_key` encoding:
   `src/phospy/science/sites/site_keys.py`
 - Reference context and reference bundle models:
-  `src/phospy/science/references/models.py`
+  `src/phospy/science/references/models.py`; reference manifest value models
+  are split across `src/phospy/science/references/manifest_policy.py`,
+  `src/phospy/science/references/manifest_files.py`,
+  `src/phospy/science/references/redistribution.py`, and
+  `src/phospy/science/references/manifest_model.py`, with
+  `src/phospy/science/references/manifest.py` retained as an identity-preserving
+  route.
 - Shared phosphosite identity and reference-context contract implementation:
   `src/phospy/science/sites/identity_contracts.py`; the validation-package
   route `src/phospy/validation/identity_contracts.py` is a compatibility
