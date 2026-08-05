@@ -117,6 +117,31 @@ def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> No
     assert dataset.phospho.notna().to_numpy(dtype=bool).all()
 
 
+def test_corrected_preprocessing_output_cannot_mask_log2_fractional_peptide_evidence() -> (
+    None
+):
+    dataset: object | None = None
+
+    with pytest.raises(PhosPyInputError, match="fractional allocation"):
+        dataset = AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                site_resolution_mode="peptide_evidence",
+                peptide_evidence=_fractional_peptide_evidence_for_correction(),
+                peptide_evidence_sample_intensity_columns=tuple(
+                    _phospho().columns.astype(str)
+                ),
+                multi_site_policy="split",
+                input_intensity_scale="log2",
+                organism=Organism.RAT,
+                corrected_preprocessing_output=_correction_output(
+                    _resolved_correction_matrix(_phospho() + 1.0)
+                ),
+            )
+        )
+
+    assert dataset is None
+
+
 def test_external_corrected_output_allowed_without_downstream_matrix_consuming_stages() -> (
     None
 ):
@@ -1557,6 +1582,24 @@ def _phospho() -> pd.DataFrame:
         },
         index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
     )
+
+
+def _fractional_peptide_evidence_for_correction() -> pd.DataFrame:
+    row: dict[str, object] = {
+        "peptide_row_id": "pep_split",
+        "site_id": "MAPK14;Y182;",
+        "unique_feature_id": "feat_split",
+        "gene_symbol": "MAPK14",
+        "protein_accession": "P28482",
+        "site_string": "Y182,T183",
+        "peptide_sequence": "AAAAYTAAAA",
+        "modified_peptide_sequence": "AAAA[pY]TAAAA",
+        "multi_site": True,
+        "provenance_source": "integration-test",
+    }
+    for sample_column in _phospho().columns.astype(str):
+        row[sample_column] = 10.0
+    return pd.DataFrame([row])
 
 
 def _site_metadata(phospho: pd.DataFrame) -> pd.DataFrame:

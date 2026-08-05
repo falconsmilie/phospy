@@ -99,7 +99,16 @@ class DatasetBuildSourceResolver:
     def run(
         self,
         request: DatasetBuildRequestProtocol,
+        *,
+        declared_input_intensity_scale_kind: IntensityScaleKind | None = None,
     ) -> ResolvedDatasetBuildSources:
+        resolved_input_intensity_scale_kind = (
+            declared_input_intensity_scale_kind
+            if declared_input_intensity_scale_kind is not None
+            else _resolve_request_input_intensity_scale_kind(
+                request.input_intensity_scale
+            )
+        )
         sample_metadata = self._read_optional(
             request.sample_metadata,
             field_name="sample_metadata",
@@ -131,7 +140,10 @@ class DatasetBuildSourceResolver:
                 site_metadata,
                 multi_site_policy,
                 peptide_evidence_resolution_summary,
-            ) = self._resolve_peptide_evidence_inputs(request)
+            ) = self._resolve_peptide_evidence_inputs(
+                request,
+                input_intensity_scale=resolved_input_intensity_scale_kind,
+            )
         else:  # pragma: no cover - validator owns this branch; keep defensive.
             raise PhosPyInputError(
                 "dataset build request site_resolution_mode is unsupported after "
@@ -188,6 +200,8 @@ class DatasetBuildSourceResolver:
     def _resolve_peptide_evidence_inputs(
         self,
         request: DatasetBuildRequestProtocol,
+        *,
+        input_intensity_scale: IntensityScaleKind | None,
     ) -> tuple[pd.DataFrame, pd.DataFrame, str, PeptideEvidenceResolutionSummary]:
         peptide_evidence = self._reader.run(
             _require_dataset_input(
@@ -217,6 +231,7 @@ class DatasetBuildSourceResolver:
             resolved = self._peptide_evidence_resolver.run(
                 evidence=evidence,
                 multi_site_policy=multi_site_policy,
+                input_intensity_scale=input_intensity_scale,
             )
         except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
             _raise_wrapped_input_error(
@@ -696,6 +711,22 @@ def _has_encoded_site_key_prefix(site_metadata: pd.DataFrame) -> bool:
         if isinstance(raw_value, str) and raw_value.strip().startswith("phospy:v1"):
             return True
     return False
+
+
+def _resolve_request_input_intensity_scale_kind(
+    input_intensity_scale: IntensityScaleKind | str | None,
+) -> IntensityScaleKind | None:
+    if input_intensity_scale is None:
+        return None
+    if isinstance(input_intensity_scale, IntensityScaleKind):
+        return input_intensity_scale
+    try:
+        return IntensityScaleKind(str(input_intensity_scale))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in IntensityScaleKind)
+        raise PhosPyInputError(
+            f"dataset build request input_intensity_scale must be one of: {supported}"
+        ) from exc
 
 
 def _has_complete_column(site_metadata: pd.DataFrame, column_name: str) -> bool:

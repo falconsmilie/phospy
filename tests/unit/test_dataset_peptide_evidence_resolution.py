@@ -183,6 +183,7 @@ def _run_policy_resolution(
             if split
             else DATASET_MULTI_SITE_POLICY_KEEP_JOINT
         ),
+        input_intensity_scale="linear",
     )
 
 
@@ -270,6 +271,14 @@ def _assert_site_sequence_conflict_message(message: str) -> None:
     assert "explicit upstream reference-resolution policy" in message
 
 
+def _assert_log2_fractional_allocation_message(message: str) -> None:
+    assert "peptide-evidence mode" in message
+    assert "input_intensity_scale='log2'" in message
+    assert "fractional allocation" in message
+    assert "non-unit" in message
+    assert "Supported corrective action" in message
+
+
 def test_site_level_input_works_with_safe_default_or_explicit_declaration() -> None:
     safe_default_request = DatasetBuildRequest(
         phospho=_site_level_phospho(),
@@ -310,6 +319,7 @@ def test_peptide_evidence_resolver_preserves_accession_identity_metadata() -> No
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        input_intensity_scale="linear",
     )
 
     assert "protein_accession" in resolved.site_metadata.columns
@@ -339,6 +349,7 @@ def test_peptide_evidence_rejects_conflicting_accessions_per_resolved_site() -> 
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
         )
     message = str(exc_info.value)
     assert "site_id='AKT1;S473;'" in message
@@ -394,6 +405,64 @@ def test_builder_uses_peptide_evidence_accession_for_site_key_identity() -> None
     assert decoded.position == 473
 
 
+def test_public_builder_rejects_log2_peptide_evidence_default_equal_split() -> None:
+    dataset: AnalysisReadyPhosphoDataset | None = None
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        dataset = AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+                peptide_evidence=_peptide_evidence_frame(include_single_site=False),
+                peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+                input_intensity_scale="log2",
+                organism=Organism.HUMAN,
+            )
+        )
+
+    assert dataset is None
+    _assert_log2_fractional_allocation_message(str(exc_info.value))
+
+
+def test_public_builder_keeps_linear_peptide_evidence_default_equal_split_behavior() -> (
+    None
+):
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=_peptide_evidence_frame(include_single_site=False),
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
+            organism=Organism.HUMAN,
+        )
+    )
+
+    mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
+    mapk1_t12 = _site_key_for_display_id(built, "MAPK1;T12;")
+    assert float(built.phospho.loc[mapk1_s10, "sample_a"]) == pytest.approx(5.0)
+    assert float(built.phospho.loc[mapk1_t12, "sample_a"]) == pytest.approx(5.0)
+    assert float(built.phospho.loc[mapk1_s10, "sample_b"]) == pytest.approx(6.0)
+    assert float(built.phospho.loc[mapk1_t12, "sample_b"]) == pytest.approx(6.0)
+
+
+def test_public_builder_allows_log2_peptide_evidence_with_unit_mapping() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=_single_site_peptide_evidence_frame(),
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="log2",
+            organism=Organism.HUMAN,
+        )
+    )
+
+    akt1_s473 = _site_key_for_display_id(built, "AKT1;S473;")
+    assert float(built.phospho.loc[akt1_s473, "sample_a"]) == pytest.approx(7.0)
+    assert built.intensity_scale_state.label == "log2"
+
+
 @pytest.mark.parametrize("accession_case", ("missing_column", "blank_value"))
 def test_peptide_evidence_requires_accession_before_resolution(
     accession_case: str,
@@ -419,6 +488,7 @@ def test_peptide_evidence_rejects_site_sequence_center_residue_mismatch() -> Non
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
         )
 
     _assert_site_sequence_center_mismatch_message(str(exc_info.value))
@@ -453,6 +523,7 @@ def test_peptide_evidence_rejects_conflicting_valid_site_sequences() -> None:
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
         )
 
     _assert_site_sequence_conflict_message(str(exc_info.value))
@@ -470,6 +541,7 @@ def test_peptide_evidence_conflicting_site_sequence_details_are_order_invariant(
                     sample_intensity_columns=("sample_a", "sample_b"),
                 ),
                 multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                input_intensity_scale="linear",
             )
         messages.append(str(exc_info.value))
 
@@ -484,6 +556,7 @@ def test_peptide_evidence_equivalent_site_sequences_normalize_to_one_value() -> 
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        input_intensity_scale="linear",
     )
 
     assert resolved.site_metadata.loc["AKT1;S473;", "site_sequence"] == "AAASAAA"
@@ -504,6 +577,7 @@ def test_peptide_evidence_rejects_mixed_valid_and_invalid_site_sequences() -> No
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
         )
 
     message = str(exc_info.value)
@@ -525,6 +599,7 @@ def test_peptide_evidence_ignores_blank_and_null_sequence_values_for_conflicts()
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        input_intensity_scale="linear",
     )
 
     assert resolved.site_metadata.loc["AKT1;S473;", "site_sequence"] == "AAASAAA"
@@ -585,6 +660,7 @@ def test_split_policy_rejects_non_unique_peptide_context_derivation() -> None:
                 ),
             ),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
         )
 
     message = str(exc_info.value)
@@ -606,6 +682,7 @@ def test_peptide_evidence_resolution_is_invariant_to_row_permutation() -> None:
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
         )
         payload = resolved.summary.to_payload()
         if expected_phospho is None:
@@ -627,6 +704,7 @@ def test_peptide_evidence_resolution_is_invariant_to_row_permutation() -> None:
                     sample_intensity_columns=("sample_a", "sample_b"),
                 ),
                 multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                input_intensity_scale="linear",
             )
         failure_messages.add(str(exc_info.value))
 
@@ -649,6 +727,7 @@ def test_peptide_evidence_preserves_matching_sequence_with_only_text_normalisati
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        input_intensity_scale="linear",
     )
 
     assert resolved.site_metadata.loc["AKT1;S473;", "site_sequence"] == "AAASAAA"
@@ -676,6 +755,7 @@ def test_peptide_evidence_resolution_records_absent_sequence_context() -> None:
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        input_intensity_scale="linear",
     )
 
     payload = resolved.summary.to_payload()
@@ -1200,6 +1280,7 @@ def test_explicit_mapping_weights_are_applied_deterministically() -> None:
             site_mapping=mapping,
         ),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+        input_intensity_scale="linear",
     )
     assert float(resolved.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(7.0)
     assert float(resolved.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(3.0)
@@ -1208,6 +1289,52 @@ def test_explicit_mapping_weights_are_applied_deterministically() -> None:
         payload["mapping_weight_source"]
         == DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT
     )
+
+
+def test_log2_peptide_evidence_rejects_explicit_fractional_mapping_weights() -> None:
+    evidence_frame = _peptide_evidence_frame(include_single_site=False)
+    mapping = pd.DataFrame(
+        {
+            "peptide_row_id": ["pep_joint", "pep_joint"],
+            "site_id": ["MAPK1;S10;", "MAPK1;T12;"],
+            "mapping_weight": [0.5, 0.5],
+        }
+    )
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=evidence_frame,
+                sample_intensity_columns=("sample_a", "sample_b"),
+                site_mapping=mapping,
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="log2",
+        )
+
+    _assert_log2_fractional_allocation_message(str(exc_info.value))
+
+
+def test_log2_peptide_evidence_rejects_former_ten_to_five_corruption_path() -> None:
+    evidence_frame = _peptide_evidence_frame(include_single_site=False)
+    evidence_frame.loc[:, "sample_a"] = 10.0
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=evidence_frame,
+                sample_intensity_columns=("sample_a",),
+                multi_site_handling_config=(
+                    build_multi_site_handling_config_for_dataset_policy(
+                        multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT
+                    )
+                ),
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="log2",
+        )
+
+    _assert_log2_fractional_allocation_message(str(exc_info.value))
 
 
 def test_mapping_weights_must_sum_to_one_per_peptide_row() -> None:
@@ -1227,6 +1354,7 @@ def test_mapping_weights_must_sum_to_one_per_peptide_row() -> None:
                 site_mapping=mapping,
             ),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
         )
 
 

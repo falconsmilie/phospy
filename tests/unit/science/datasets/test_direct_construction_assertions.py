@@ -329,6 +329,30 @@ def test_from_trusted_tables_rejects_stale_phospho_provenance() -> None:
     _assert_from_trusted_tables_rejects_stale_table("dataset.phospho")
 
 
+def test_from_trusted_tables_rejects_supplied_builder_claimed_provenance() -> None:
+    trusted = _trusted_dataset()
+    assert trusted.provenance is not None
+    assert trusted.trusted_construction_assertions is not None
+    construction = dict(
+        cast(
+            Mapping[str, object], trusted.provenance.workflow_parameters["construction"]
+        )
+    )
+    construction["method"] = "AnalysisReadyDatasetBuilder.run"
+    construction["builder_used"] = True
+    builder_claiming_provenance = replace(
+        trusted.provenance,
+        workflow_name="dataset_builder",
+        workflow_parameters={"construction": construction},
+    )
+
+    with pytest.raises(DatasetValidationError, match="builder-observed construction"):
+        _trusted_dataset(
+            assertions=trusted.trusted_construction_assertions,
+            provenance=builder_claiming_provenance,
+        )
+
+
 def test_from_trusted_tables_rejects_stale_site_metadata_provenance() -> None:
     _assert_from_trusted_tables_rejects_stale_table("dataset.site_metadata")
 

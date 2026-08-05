@@ -7,7 +7,7 @@ import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest, Organism
-from phospy.errors import DatasetValidationError
+from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -21,6 +21,27 @@ from tests.support.site_keys import protein_site_key_index, site_key_context_col
 pytestmark = pytest.mark.integration
 
 _CENTRED_Y_SEQUENCE = "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
+
+
+def _fractional_peptide_evidence() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "peptide_row_id": "pep_split",
+                "site_id": "MAPK14;Y182;",
+                "unique_feature_id": "feat_split",
+                "gene_symbol": "MAPK14",
+                "protein_accession": "P28482",
+                "site_string": "Y182,T183",
+                "sample_a": 10.0,
+                "sample_b": 12.0,
+                "peptide_sequence": "AAAAYTAAAA",
+                "modified_peptide_sequence": "AAAA[pY]TAAAA",
+                "multi_site": True,
+                "provenance_source": "integration-test",
+            }
+        ]
+    )
 
 
 def _direct_constructor_payload() -> dict[str, object]:
@@ -109,6 +130,29 @@ def test_trusted_factory_still_rejects_invalid_tables() -> None:
 
     with pytest.raises(DatasetValidationError, match="site_sequence"):
         trusted_analysis_ready_dataset_from_tables(**payload)
+
+
+def test_rejected_log2_fractional_peptide_evidence_emits_no_dataset_or_scale_state() -> (
+    None
+):
+    dataset: AnalysisReadyPhosphoDataset | None = None
+    emitted_scale_state: object | None = None
+
+    with pytest.raises(PhosPyInputError, match="fractional allocation"):
+        dataset = AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                site_resolution_mode="peptide_evidence",
+                peptide_evidence=_fractional_peptide_evidence(),
+                peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+                multi_site_policy="split",
+                input_intensity_scale="log2",
+                organism=Organism.RAT,
+            )
+        )
+        emitted_scale_state = dataset.intensity_scale_state
+
+    assert dataset is None
+    assert emitted_scale_state is None
 
 
 def test_trusted_factory_rejects_invalid_nested_processing_state() -> None:

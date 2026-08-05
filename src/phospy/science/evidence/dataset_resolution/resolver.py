@@ -30,6 +30,7 @@ from phospy.science.evidence.dataset_resolution.summary import (
     build_resolution_summary,
 )
 from phospy.science.evidence.models import PeptideEvidenceTable
+from phospy.science.transformations.models import IntensityScaleKind
 
 
 class PeptideEvidenceDatasetResolver:
@@ -40,11 +41,15 @@ class PeptideEvidenceDatasetResolver:
         *,
         evidence: PeptideEvidenceTable,
         multi_site_policy: str,
+        input_intensity_scale: IntensityScaleKind | str | None,
     ) -> PeptideEvidenceResolutionResult:
         if not isinstance(evidence, PeptideEvidenceTable):
             raise PhosPyInputError(
                 "dataset peptide evidence resolution requires a PeptideEvidenceTable"
             )
+        input_intensity_scale_kind = _require_input_intensity_scale_kind(
+            input_intensity_scale
+        )
         validate_dataset_multi_site_policy(
             multi_site_policy,
             field_name="dataset build request multi_site_policy",
@@ -77,6 +82,7 @@ class PeptideEvidenceDatasetResolver:
         allocated_evidence = allocate_peptide_signals_to_resolved_sites(
             resolved_mapping=resolved_mapping,
             sample_columns=evidence.sample_intensity_columns,
+            input_intensity_scale=input_intensity_scale_kind,
         )
         site_signals = summarise_allocated_site_signals(
             allocated_evidence=allocated_evidence
@@ -98,6 +104,27 @@ class PeptideEvidenceDatasetResolver:
             site_metadata=site_metadata_resolution.site_metadata,
             summary=summary,
         )
+
+
+def _require_input_intensity_scale_kind(
+    input_intensity_scale: IntensityScaleKind | str | None,
+) -> IntensityScaleKind:
+    if isinstance(input_intensity_scale, IntensityScaleKind):
+        return input_intensity_scale
+    if input_intensity_scale is None:
+        supported = ", ".join(member.value for member in IntensityScaleKind)
+        raise PhosPyInputError(
+            "dataset peptide-evidence mode requires declared input_intensity_scale "
+            "before peptide-to-site allocation; supported values: " + supported
+        )
+    try:
+        return IntensityScaleKind(str(input_intensity_scale))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in IntensityScaleKind)
+        raise PhosPyInputError(
+            "dataset peptide-evidence mode input_intensity_scale must be one of: "
+            f"{supported}"
+        ) from exc
 
 
 def _collect_input_metrics(

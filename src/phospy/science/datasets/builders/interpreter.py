@@ -60,9 +60,12 @@ class DatasetBuildRequestInterpreter:
         self,
         request: DatasetBuildRequestProtocol,
     ) -> InterpretedDatasetBuildRequest:
-        resolved_sources = self._source_resolver.run(request)
         declared_input_intensity_scale_kind = _resolve_input_intensity_scale_kind(
             request.input_intensity_scale
+        )
+        resolved_sources = self._source_resolver.run(
+            request,
+            declared_input_intensity_scale_kind=declared_input_intensity_scale_kind,
         )
         preprocessing_plan = self._preprocessing_planner.run(
             request,

@@ -56,6 +56,7 @@ def _run_resolution(
             site_mapping=site_mapping,
         ),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+        input_intensity_scale="linear",
     )
 
 

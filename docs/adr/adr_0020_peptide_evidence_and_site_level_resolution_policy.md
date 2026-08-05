@@ -111,6 +111,17 @@ where:
 - `a[p,s,j]` is the allocated peptide-row signal.
 - `y[s,j]` is the site-level signal.
 
+This formula is defined only in an explicitly supported quantitative domain.
+As of the emergency scale-safety amendment, fractional allocation
+(`w[p,s] != 1.0`) is supported only for peptide evidence declared on a linear
+intensity scale. Peptide evidence declared on a non-linear scale such as `log2`
+must fail closed before allocation whenever a non-unit mapping fraction would
+be applied, including derived equal split fractions and explicit
+`site_mapping.mapping_weight` values. Unit/unambiguous mappings may pass
+through on their declared scale because no fractional allocation is applied.
+A future scale-aware estimator requires separate scientific validation and an
+ADR update before non-linear fractional allocation can be supported.
+
 `w[p,s]` is an allocation fraction, not a statistical inverse-variance weight
 or localisation-confidence weight. The final arithmetic mean is taken over
 allocated evidence-row signals. This is not equivalent in general to either

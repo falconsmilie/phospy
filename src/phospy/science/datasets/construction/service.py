@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -213,6 +214,7 @@ class _AnalysisReadyDatasetConstructionService:
         provenance: RunProvenance | None = None,
         allow_opaque_site_values: bool = False,
     ) -> _ValidatedAnalysisReadyTables:
+        _reject_builder_provenance_for_trusted_tables(provenance)
         _require_instance(
             trusted_construction_assertions,
             expected_type=TrustedDatasetConstructionAssertions,
@@ -542,6 +544,29 @@ class _AnalysisReadyDatasetConstructionService:
             allow_opaque_site_values=allow_opaque_site_values,
             _authority=_VALIDATED_TABLES_AUTHORITY,
         )
+
+
+def _reject_builder_provenance_for_trusted_tables(
+    provenance: object,
+) -> None:
+    if provenance is None or not isinstance(provenance, RunProvenance):
+        return
+    construction = provenance.workflow_parameters.get("construction")
+    construction_payload = construction if isinstance(construction, Mapping) else {}
+    builder_claimed = (
+        provenance.workflow_name == "dataset_builder"
+        or construction_payload.get("method") == "AnalysisReadyDatasetBuilder.run"
+        or construction_payload.get("builder_used") is True
+    )
+    if not builder_claimed:
+        return
+    raise DatasetValidationError(
+        "AnalysisReadyPhosphoDataset.from_trusted_tables cannot accept supplied "
+        "provenance that claims builder-observed construction via "
+        "AnalysisReadyDatasetBuilder.run. Use AnalysisReadyDatasetBuilder.run to "
+        "produce builder provenance, or keep trusted-table reconstruction "
+        "provenance marked as direct_trusted_construction."
+    )
 
 
 __all__: list[str] = []

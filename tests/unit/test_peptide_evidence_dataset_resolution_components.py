@@ -55,6 +55,7 @@ from phospy.science.evidence.dataset_resolution.site_sequence import (
 from phospy.science.evidence.dataset_resolution.summary import (
     build_resolution_summary,
 )
+from phospy.science.transformations.models import IntensityScaleKind
 
 
 def _evidence_frame() -> pd.DataFrame:
@@ -202,6 +203,7 @@ def test_allocation_applies_weights_and_site_summarisation_preserves_matrix_cont
     allocated = allocate_peptide_signals_to_resolved_sites(
         resolved_mapping=resolved_mapping,
         sample_columns=("sample_b", "sample_a"),
+        input_intensity_scale=IntensityScaleKind.LINEAR,
     )
     site_signals = summarise_allocated_site_signals(
         allocated_evidence=allocated,
@@ -677,6 +679,7 @@ def test_resolver_outputs_are_isolated_from_input_frame_mutation() -> None:
     resolved = PeptideEvidenceDatasetResolver().run(
         evidence=evidence,
         multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        input_intensity_scale="linear",
     )
     original_phospho = resolved.phospho.copy(deep=True)
     original_metadata = resolved.site_metadata.copy(deep=True)
