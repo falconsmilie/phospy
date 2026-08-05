@@ -73,6 +73,15 @@ routes must re-export the exact object identity. Public transport DTO classes
 remain owned by `phospy.contracts.configs` and are translated by workflow
 interpreters into resolved execution models before numerical science code runs.
 
+Update note (2026-08-05, signalome request typing): `SignalomeWorkflowRequest`
+is a stable request DTO, and its `config` field is annotated directly against
+the single `SignalomeConfig` contract owned by `phospy.contracts.configs`.
+`phospy.advanced.configs` re-exports that exact class identity as the advanced
+public import route. Stable request modules must not import advanced API
+implementation modules or patch runtime annotations to change the apparent
+owner of the config type; compatibility adapters may still redirect historical
+advanced imports with deprecation warnings.
+
 ## Dataset Diagnostics Policy
 
 ADR-0031 chooses Option A: PhosPy does not provide a public diagnostic

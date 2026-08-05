@@ -164,13 +164,7 @@ def test_workflow_run_type_contracts_are_request_to_result() -> None:
 def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
     differential_request_hints = get_type_hints(DifferentialAnalysisRequest)
     kinase_request_hints = get_type_hints(KinaseWorkflowRequest)
-    signalome_request_hints = get_type_hints(
-        SignalomeWorkflowRequest,
-        globalns={
-            **request_models.__dict__,
-            "KinaseWorkflowResult": KinaseWorkflowResult,
-        },
-    )
+    signalome_request_hints = get_type_hints(SignalomeWorkflowRequest)
     assert differential_request_hints["design"] is ExperimentalDesign
     contrasts_hint = differential_request_hints["contrasts"]
     assert get_origin(contrasts_hint) is tuple
@@ -178,6 +172,7 @@ def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
     assert differential_request_hints["config"] is DifferentialAnalysisConfig
     assert kinase_request_hints["dataset"] is AnalysisReadyPhosphoDataset
     assert signalome_request_hints["kinase_result"] is KinaseWorkflowResult
+    assert signalome_request_hints["config"] is SignalomeConfig
     assert kinase_request_hints["dataset"] is not DatasetBuildRequest
     assert MultipleTestingConfig().method == "benjamini_hochberg"
 

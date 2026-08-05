@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from phospy._api_inventory import STABLE_REQUEST_API
-from phospy.advanced.configs import SignalomeConfig as _SIGNALOME_CONFIG_TYPE_HINT_ALIAS
 from phospy.api._compat import deprecated_request_export
 from phospy.contracts import requests as _request_contracts
 from phospy.contracts.requests import (
@@ -49,11 +48,6 @@ DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE = (
 DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
     _request_contracts.DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
 )
-
-SignalomeWorkflowRequest.__annotations__ = {
-    **SignalomeWorkflowRequest.__annotations__,
-    "config": _SIGNALOME_CONFIG_TYPE_HINT_ALIAS,
-}
 
 __all__ = STABLE_REQUEST_API
 
