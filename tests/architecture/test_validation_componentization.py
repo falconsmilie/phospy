@@ -35,7 +35,12 @@ COMPLEXITY_BUDGETS = {
         "__post_init__",
     ): 4,
     (
-        SRC_ROOT / "phospy" / "science" / "datasets" / "preprocessing" / "plan.py",
+        SRC_ROOT
+        / "phospy"
+        / "science"
+        / "datasets"
+        / "preprocessing"
+        / "plan_interpreter.py",
         "PreprocessingPlanInterpreter",
         "run",
     ): 4,

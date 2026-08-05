@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from phospy.errors.input import PhosPyInputError
 from phospy.science.configs.dataset import DatasetPreprocessingConfig
 from phospy.science.configs.preprocessing import (
     CorrectionMissingnessPolicy,
@@ -215,16 +214,8 @@ def _resolve_batch_preserve_condition_effects(
     return cast(bool, batch_correction.preserve_condition_effects)
 
 
-def reject_unknown_total_correction_identity_mode() -> None:
-    raise PhosPyInputError(
-        "dataset build request preprocessing_config.total_protein_correction."
-        "identity contains an unsupported mode"
-    )
-
-
 __all__ = [
     "PreprocessingConfigPolicyResolution",
     "PreprocessingConfigPolicyResolver",
-    "reject_unknown_total_correction_identity_mode",
     "resolve_site_sequence_resolution_conflict_policy",
 ]

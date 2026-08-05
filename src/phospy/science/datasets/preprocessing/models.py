@@ -63,9 +63,6 @@ from phospy.science.datasets.preprocessing.plan import (
     PreprocessingPlan as PreprocessingPlan,
 )
 from phospy.science.datasets.preprocessing.plan import (
-    PreprocessingPlanInterpreter as PreprocessingPlanInterpreter,
-)
-from phospy.science.datasets.preprocessing.plan import (
     PreprocessingStageOrderResolution as PreprocessingStageOrderResolution,
 )
 from phospy.science.datasets.preprocessing.plan import (
@@ -76,6 +73,9 @@ from phospy.science.datasets.preprocessing.plan import (
 )
 from phospy.science.datasets.preprocessing.plan import (
     reject_external_corrected_output_after_downstream_preprocessing as reject_external_corrected_output_after_downstream_preprocessing,
+)
+from phospy.science.datasets.preprocessing.plan_interpreter import (
+    PreprocessingPlanInterpreter as PreprocessingPlanInterpreter,
 )
 from phospy.science.datasets.preprocessing.results import (
     ComparisonBuildResult as ComparisonBuildResult,
