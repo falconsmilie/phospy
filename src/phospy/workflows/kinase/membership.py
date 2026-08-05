@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+import pandas as pd
+
 from phospy.provenance.hashing import fingerprint_optional_table_normalized_axes
 from phospy.provenance.models import TableFingerprint
 from phospy.science.activities.membership import (
@@ -36,6 +38,7 @@ def build_ksea_membership_selection(
     scoring_execution: KinaseScoringRunResult,
     prediction_result: KinasePredictionResult,
     evidence_threshold: float,
+    membership_matrix: pd.DataFrame | None = None,
 ) -> ActivityMembershipSelection:
     """Build KSEA membership provenance from resolved workflow stage outputs."""
 
@@ -47,11 +50,12 @@ def build_ksea_membership_selection(
     quantitative_fingerprint = (
         _activity_matrix_fingerprint(request) if consumed_tested_matrix else None
     )
-    selected_kinases = tuple(
-        str(value) for value in prediction_result.pred_mat.columns.tolist()
+    pred_mat = (
+        prediction_result.pred_mat if membership_matrix is None else membership_matrix
     )
+    selected_kinases = tuple(str(value) for value in pred_mat.columns.tolist())
     selected_substrates = selected_substrate_universe_from_prediction_matrix(
-        prediction_result.pred_mat,
+        pred_mat,
         threshold=float(evidence_threshold),
     )
     return ActivityMembershipSelection(

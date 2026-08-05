@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Final
+
 from phospy.science.activities.models import (
     KSEA_ZSCORE_ACTIVITY_METHOD,
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,
@@ -25,6 +28,98 @@ from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
 )
+
+ACTIVITY_SITE_UNIVERSE_MEASURED_QUANTITATIVE: Final = "measured_quantitative_sites"
+ACTIVITY_SITE_UNIVERSE_PREDICTED_MEMBERSHIP: Final = "predicted_membership_sites"
+ACTIVITY_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP: Final = (
+    "reference_supported_membership_sites"
+)
+ACTIVITY_SITE_UNIVERSE_KSEA_BACKGROUND: Final = "ksea_background_sites"
+ACTIVITY_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING: Final = "ssgsea_effect_ranking_sites"
+
+
+@dataclass(frozen=True, slots=True)
+class ActivityMethodUniverseContract:
+    """Method-owned site-universe requirements for activity calculations."""
+
+    method_id: str
+    quantitative_universe: str
+    membership_universe: str
+    background_universe: str | None
+    filtering_rules: tuple[str, ...]
+    requires_sequence_context: bool = False
+    contract_version: str = "1"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "method_id",
+            _require_non_empty_text(
+                self.method_id,
+                field_name="activity_method_universe_contract.method_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "quantitative_universe",
+            _require_non_empty_text(
+                self.quantitative_universe,
+                field_name="activity_method_universe_contract.quantitative_universe",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "membership_universe",
+            _require_non_empty_text(
+                self.membership_universe,
+                field_name="activity_method_universe_contract.membership_universe",
+            ),
+        )
+        if self.background_universe is not None:
+            object.__setattr__(
+                self,
+                "background_universe",
+                _require_non_empty_text(
+                    self.background_universe,
+                    field_name="activity_method_universe_contract.background_universe",
+                ),
+            )
+        filtering_rules = tuple(
+            _require_non_empty_text(
+                rule,
+                field_name="activity_method_universe_contract.filtering_rules[]",
+            )
+            for rule in self.filtering_rules
+        )
+        if not filtering_rules:
+            raise ValueError(
+                "activity_method_universe_contract.filtering_rules must not be empty"
+            )
+        object.__setattr__(self, "filtering_rules", filtering_rules)
+        if not isinstance(self.requires_sequence_context, bool):
+            raise ValueError(
+                "activity_method_universe_contract.requires_sequence_context "
+                "must be a bool"
+            )
+        object.__setattr__(
+            self,
+            "contract_version",
+            _require_non_empty_text(
+                self.contract_version,
+                field_name="activity_method_universe_contract.contract_version",
+            ),
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "contract_version": self.contract_version,
+            "method_id": self.method_id,
+            "quantitative_universe": self.quantitative_universe,
+            "membership_universe": self.membership_universe,
+            "background_universe": self.background_universe,
+            "filtering_rules": list(self.filtering_rules),
+            "requires_sequence_context": bool(self.requires_sequence_context),
+        }
 
 
 def simplified_weighted_substrate_activity_input_contract() -> (
@@ -194,6 +289,101 @@ def kinase_activity_method_quantitative_input_contract(
     raise ValueError(f"kinase activity method must be one of: {allowed}")
 
 
+def simplified_weighted_substrate_activity_universe_contract() -> (
+    ActivityMethodUniverseContract
+):
+    """Return site-universe requirements for weighted substrate activity."""
+
+    return ActivityMethodUniverseContract(
+        method_id=SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD.activity_method_id,
+        quantitative_universe=ACTIVITY_SITE_UNIVERSE_MEASURED_QUANTITATIVE,
+        membership_universe=ACTIVITY_SITE_UNIVERSE_PREDICTED_MEMBERSHIP,
+        background_universe=None,
+        filtering_rules=(
+            "Predicted kinase-substrate membership is explicitly intersected "
+            "with measured quantitative rows before substrate values are read.",
+            "Only finite substrate values contribute to per-profile weighted "
+            "and thresholded means; missing values are omitted without imputation.",
+            "No centered sequence context is required by the activity method.",
+        ),
+        requires_sequence_context=False,
+    )
+
+
+def ksea_zscore_activity_universe_contract() -> ActivityMethodUniverseContract:
+    """Return site-universe requirements for KSEA-style activity."""
+
+    return ActivityMethodUniverseContract(
+        method_id=KSEA_ZSCORE_ACTIVITY_METHOD.activity_method_id,
+        quantitative_universe=ACTIVITY_SITE_UNIVERSE_KSEA_BACKGROUND,
+        membership_universe=ACTIVITY_SITE_UNIVERSE_PREDICTED_MEMBERSHIP,
+        background_universe=ACTIVITY_SITE_UNIVERSE_KSEA_BACKGROUND,
+        filtering_rules=(
+            "KSEA background sites are the declared KSEA background universe, "
+            "not the motif-scoring sequence universe.",
+            "Prediction-derived membership is explicitly intersected with the "
+            "KSEA background universe before thresholding is consumed by KSEA.",
+            "Only finite values enter each profile's substrate and background "
+            "calculation; missing values are omitted without imputation.",
+            "No centered sequence context is required by the activity method.",
+        ),
+        requires_sequence_context=False,
+    )
+
+
+def ssgsea_substrate_enrichment_activity_universe_contract() -> (
+    ActivityMethodUniverseContract
+):
+    """Return site-universe requirements for ssGSEA-style activity."""
+
+    return ActivityMethodUniverseContract(
+        method_id=SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD.activity_method_id,
+        quantitative_universe=ACTIVITY_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING,
+        membership_universe=ACTIVITY_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP,
+        background_universe=ACTIVITY_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING,
+        filtering_rules=(
+            "Ranking uses the declared contrast/effect input universe, not "
+            "the motif-scoring sequence universe.",
+            "Reference-supported membership is explicitly intersected with "
+            "the ssGSEA effect-ranking universe before enrichment scoring.",
+            "Reference members outside the effect-ranking universe are counted "
+            "as membership attrition, not silently promoted into the ranking.",
+            "Only finite effect values enter each profile's ranked background; "
+            "missing values are omitted without imputation.",
+            "No centered sequence context is required by the activity method.",
+        ),
+        requires_sequence_context=False,
+    )
+
+
+def kinase_activity_method_universe_contract(
+    method: KinaseActivityMethod | str,
+) -> ActivityMethodUniverseContract:
+    """Return the method-owned site-universe contract for an activity method."""
+
+    method_text = str(method)
+    if method_text == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY:
+        return simplified_weighted_substrate_activity_universe_contract()
+    if method_text == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+        return ksea_zscore_activity_universe_contract()
+    if method_text == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+        return ssgsea_substrate_enrichment_activity_universe_contract()
+    allowed = ", ".join(sorted(KINASE_ACTIVITY_METHODS))
+    raise ValueError(f"kinase activity method must be one of: {allowed}")
+
+
+def all_kinase_activity_method_universe_contracts() -> tuple[
+    ActivityMethodUniverseContract,
+    ...,
+]:
+    """Return documentation-ready universe contracts for activity methods."""
+
+    return tuple(
+        kinase_activity_method_universe_contract(method)
+        for method in sorted(KINASE_ACTIVITY_METHODS)
+    )
+
+
 def all_kinase_activity_method_quantitative_contracts() -> tuple[
     MethodQuantitativeInputContract,
     ...,
@@ -206,10 +396,28 @@ def all_kinase_activity_method_quantitative_contracts() -> tuple[
     )
 
 
+def _require_non_empty_text(value: object, *, field_name: str) -> str:
+    text = str(value).strip()
+    if not text:
+        raise ValueError(f"{field_name} must be a non-empty string")
+    return text
+
+
 __all__ = [
+    "ACTIVITY_SITE_UNIVERSE_KSEA_BACKGROUND",
+    "ACTIVITY_SITE_UNIVERSE_MEASURED_QUANTITATIVE",
+    "ACTIVITY_SITE_UNIVERSE_PREDICTED_MEMBERSHIP",
+    "ACTIVITY_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP",
+    "ACTIVITY_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING",
+    "ActivityMethodUniverseContract",
     "all_kinase_activity_method_quantitative_contracts",
+    "all_kinase_activity_method_universe_contracts",
     "kinase_activity_method_quantitative_input_contract",
+    "kinase_activity_method_universe_contract",
     "ksea_zscore_activity_input_contract",
+    "ksea_zscore_activity_universe_contract",
     "simplified_weighted_substrate_activity_input_contract",
+    "simplified_weighted_substrate_activity_universe_contract",
     "ssgsea_substrate_enrichment_activity_input_contract",
+    "ssgsea_substrate_enrichment_activity_universe_contract",
 ]

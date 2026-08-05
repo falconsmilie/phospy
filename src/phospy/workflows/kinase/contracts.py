@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Final, Protocol
 
 import pandas as pd
 
@@ -84,6 +84,255 @@ if TYPE_CHECKING:
     from phospy.science.references.resolution import ReferenceResolverContract
 
 
+KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE: Final = "measured_quantitative_sites"
+KINASE_SITE_UNIVERSE_SEQUENCE_SUPPORTED_SCORING: Final = (
+    "sequence_supported_scoring_sites"
+)
+KINASE_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP: Final = (
+    "reference_supported_membership_sites"
+)
+KINASE_SITE_UNIVERSE_PREDICTED_MEMBERSHIP: Final = "predicted_membership_sites"
+KINASE_SITE_UNIVERSE_KSEA_BACKGROUND: Final = "ksea_background_sites"
+KINASE_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING: Final = "ssgsea_effect_ranking_sites"
+
+_UNIVERSE_ATTRITION_EXAMPLE_LIMIT: Final = 5
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseUniverseAttritionRecord:
+    """Independent site-universe attrition provenance for one explicit filter."""
+
+    attrition_type: str
+    stage: str
+    reason: str
+    input_universe: str
+    output_universe: str
+    input_sites: int
+    output_sites: int
+    removed_sites: int
+    examples: tuple[str, ...] = ()
+    method_id: str | None = None
+    profile_id: str | None = None
+
+    def __post_init__(self) -> None:
+        input_sites = _require_non_negative_int(
+            self.input_sites,
+            field_name="kinase_universe_attrition.input_sites",
+        )
+        output_sites = _require_non_negative_int(
+            self.output_sites,
+            field_name="kinase_universe_attrition.output_sites",
+        )
+        removed_sites = _require_non_negative_int(
+            self.removed_sites,
+            field_name="kinase_universe_attrition.removed_sites",
+        )
+        if output_sites > input_sites:
+            raise WorkflowBoundaryError(
+                "kinase universe attrition output_sites must be less than or "
+                "equal to input_sites"
+            )
+        if removed_sites != input_sites - output_sites:
+            raise WorkflowBoundaryError(
+                "kinase universe attrition removed_sites must equal "
+                "input_sites - output_sites"
+            )
+        object.__setattr__(
+            self,
+            "attrition_type",
+            _require_non_empty_text(
+                self.attrition_type,
+                field_name="kinase_universe_attrition.attrition_type",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "stage",
+            _require_non_empty_text(
+                self.stage,
+                field_name="kinase_universe_attrition.stage",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "reason",
+            _require_non_empty_text(
+                self.reason,
+                field_name="kinase_universe_attrition.reason",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "input_universe",
+            _require_non_empty_text(
+                self.input_universe,
+                field_name="kinase_universe_attrition.input_universe",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "output_universe",
+            _require_non_empty_text(
+                self.output_universe,
+                field_name="kinase_universe_attrition.output_universe",
+            ),
+        )
+        object.__setattr__(self, "input_sites", input_sites)
+        object.__setattr__(self, "output_sites", output_sites)
+        object.__setattr__(self, "removed_sites", removed_sites)
+        object.__setattr__(
+            self,
+            "examples",
+            tuple(
+                _require_non_empty_text(
+                    value,
+                    field_name="kinase_universe_attrition.examples[]",
+                )
+                for value in self.examples
+            ),
+        )
+        if self.method_id is not None:
+            object.__setattr__(
+                self,
+                "method_id",
+                _require_non_empty_text(
+                    self.method_id,
+                    field_name="kinase_universe_attrition.method_id",
+                ),
+            )
+        if self.profile_id is not None:
+            object.__setattr__(
+                self,
+                "profile_id",
+                _require_non_empty_text(
+                    self.profile_id,
+                    field_name="kinase_universe_attrition.profile_id",
+                ),
+            )
+
+    def to_payload(self) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "attrition_type": self.attrition_type,
+            "stage": self.stage,
+            "reason": self.reason,
+            "input_universe": self.input_universe,
+            "output_universe": self.output_universe,
+            "input_sites": int(self.input_sites),
+            "output_sites": int(self.output_sites),
+            "removed_sites": int(self.removed_sites),
+            "examples": list(self.examples),
+        }
+        if self.method_id is not None:
+            payload["method_id"] = self.method_id
+        if self.profile_id is not None:
+            payload["profile_id"] = self.profile_id
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedKinaseSiteUniverses:
+    """Typed site universes resolved by kinase workflow interpretation."""
+
+    measured_quantitative_sites: pd.Index
+    sequence_supported_scoring_sites: pd.Index
+    reference_supported_membership_sites: pd.Index
+    predicted_membership_sites: pd.Index
+    ksea_background_sites: pd.Index
+    ssgsea_effect_ranking_sites: pd.Index
+
+    def __post_init__(self) -> None:
+        measured = _validate_universe_index(
+            self.measured_quantitative_sites,
+            field_name="kinase_site_universes.measured_quantitative_sites",
+        )
+        sequence_supported = _validate_universe_index(
+            self.sequence_supported_scoring_sites,
+            field_name="kinase_site_universes.sequence_supported_scoring_sites",
+        )
+        reference_supported = _validate_universe_index(
+            self.reference_supported_membership_sites,
+            field_name="kinase_site_universes.reference_supported_membership_sites",
+        )
+        predicted = _validate_universe_index(
+            self.predicted_membership_sites,
+            field_name="kinase_site_universes.predicted_membership_sites",
+        )
+        ksea_background = _validate_universe_index(
+            self.ksea_background_sites,
+            field_name="kinase_site_universes.ksea_background_sites",
+        )
+        ssgsea_effect = _validate_universe_index(
+            self.ssgsea_effect_ranking_sites,
+            field_name="kinase_site_universes.ssgsea_effect_ranking_sites",
+        )
+        _require_subset_index(
+            sequence_supported,
+            parent=measured,
+            field_name="kinase_site_universes.sequence_supported_scoring_sites",
+            parent_name="kinase_site_universes.measured_quantitative_sites",
+        )
+        _require_subset_index(
+            reference_supported,
+            parent=measured,
+            field_name="kinase_site_universes.reference_supported_membership_sites",
+            parent_name="kinase_site_universes.measured_quantitative_sites",
+        )
+        _require_subset_index(
+            predicted,
+            parent=measured,
+            field_name="kinase_site_universes.predicted_membership_sites",
+            parent_name="kinase_site_universes.measured_quantitative_sites",
+        )
+        _require_subset_index(
+            ksea_background,
+            parent=measured,
+            field_name="kinase_site_universes.ksea_background_sites",
+            parent_name="kinase_site_universes.measured_quantitative_sites",
+        )
+        _require_subset_index(
+            ssgsea_effect,
+            parent=measured,
+            field_name="kinase_site_universes.ssgsea_effect_ranking_sites",
+            parent_name="kinase_site_universes.measured_quantitative_sites",
+        )
+        object.__setattr__(self, "measured_quantitative_sites", measured)
+        object.__setattr__(
+            self,
+            "sequence_supported_scoring_sites",
+            sequence_supported,
+        )
+        object.__setattr__(
+            self,
+            "reference_supported_membership_sites",
+            reference_supported,
+        )
+        object.__setattr__(self, "predicted_membership_sites", predicted)
+        object.__setattr__(self, "ksea_background_sites", ksea_background)
+        object.__setattr__(self, "ssgsea_effect_ranking_sites", ssgsea_effect)
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE: _universe_payload(
+                self.measured_quantitative_sites
+            ),
+            KINASE_SITE_UNIVERSE_SEQUENCE_SUPPORTED_SCORING: _universe_payload(
+                self.sequence_supported_scoring_sites
+            ),
+            KINASE_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP: _universe_payload(
+                self.reference_supported_membership_sites
+            ),
+            KINASE_SITE_UNIVERSE_PREDICTED_MEMBERSHIP: _universe_payload(
+                self.predicted_membership_sites
+            ),
+            KINASE_SITE_UNIVERSE_KSEA_BACKGROUND: _universe_payload(
+                self.ksea_background_sites
+            ),
+            KINASE_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING: _universe_payload(
+                self.ssgsea_effect_ranking_sites
+            ),
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class ValidatedKinaseWorkflowRequest:
     """Validated kinase request passed to interpretation."""
@@ -108,6 +357,7 @@ class ResolvedKinaseWorkflowRequest:
     scoring_site_index: pd.Index
     activity_phospho_matrix: pd.DataFrame
     execution_config: ResolvedKinaseExecutionConfig
+    site_universes: ResolvedKinaseSiteUniverses | None = None
     kinase_library_resource: KinaseLibraryResource | None = None
     attrition_metrics: KinaseAttritionMetrics | None = None
     attrition_policy_violations: tuple[KinaseAttritionPolicyViolation, ...] = ()
@@ -130,6 +380,16 @@ class ResolvedKinaseWorkflowRequest:
         repr=False,
         compare=False,
     )
+    _scoring_phospho_table: pd.DataFrame = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _scoring_kinase_substrate_reference: pd.DataFrame = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         kinase_substrate_map = self._validate_kinase_substrate_map(
@@ -140,6 +400,15 @@ class ResolvedKinaseWorkflowRequest:
         activity_phospho_matrix = self._validate_activity_phospho_table(
             self.activity_phospho_matrix
         )
+        if not activity_phospho_matrix.index.equals(self.dataset.phospho.index):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.measured_quantitative_site_alignment; "
+                "activity_phospho_matrix.index must exactly match "
+                "dataset.phospho.index; next_action=pass the full measured "
+                "quantitative site universe for activity/background methods, "
+                "and use scoring_phospho_matrix for sequence-supported scoring"
+            )
         if not isinstance(self.scoring_site_index, pd.Index):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
@@ -155,16 +424,14 @@ class ResolvedKinaseWorkflowRequest:
         )
         site_identity_map = self._validate_site_identity_map(
             self.site_identity_map,
-            scoring_site_index=self.scoring_site_index,
+            site_index=activity_phospho_matrix.index,
         )
-        if not activity_phospho_matrix.index.equals(self.scoring_site_index):
-            raise WorkflowBoundaryError(
-                "kinase workflow boundary validation failed at seam="
-                "kinase.contracts.activity_site_alignment; "
-                "activity_phospho_matrix.index must exactly match scoring_site_index; "
-                "next_action=ensure interpreted activity phospho rows are aligned "
-                "to the resolved scoring-site index"
-            )
+        site_universes = self._validate_site_universes(
+            self.site_universes,
+            measured_site_index=activity_phospho_matrix.index,
+            scoring_site_index=self.scoring_site_index,
+            kinase_substrate_map=kinase_substrate_map,
+        )
         if not self.scoring_site_index.equals(site_sequences.index):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
@@ -173,17 +440,21 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=ensure sequence support is projected onto the same "
                 "site_key rows selected for scoring"
             )
-        if not self.scoring_site_index.equals(site_identity_map.index):
+        if not set(self.scoring_site_index.astype(str)).issubset(
+            set(site_identity_map.index.astype(str))
+        ):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.scoring_site_identity_alignment; "
-                "scoring_site_index must exactly match site_identity_map.index; "
-                "next_action=ensure scoring site selection preserves "
-                "site_key/display_id identity mapping"
+                "site_identity_map.index must contain every scoring_site_index row; "
+                "next_action=ensure resolved site identity mapping covers both "
+                "activity and scoring universes"
             )
+        scoring_site_identity_map = site_identity_map.loc[self.scoring_site_index]
+        scoring_phospho_matrix = activity_phospho_matrix.loc[self.scoring_site_index]
         self._validate_sequence_context_contract(
             site_sequences=site_sequences,
-            site_identity_map=site_identity_map,
+            site_identity_map=scoring_site_identity_map,
             scoring_mode=self.execution_config.scoring_mode,
             kinase_library_resource=self.kinase_library_resource,
             references=self.references,
@@ -191,15 +462,19 @@ class ResolvedKinaseWorkflowRequest:
             merge_diagnostics=self.site_sequence_merge_diagnostics,
         )
         if not set(kinase_substrate_map.loc[:, "substrate_site"].astype(str)).issubset(
-            set(self.scoring_site_index.astype(str))
+            set(activity_phospho_matrix.index.astype(str))
         ):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.kinase_substrate_reference_alignment; "
-                "kinase_substrate_map.substrate_site must be projected to scoring "
-                "site_key rows; next_action=map reference display IDs onto "
-                "dataset site_key before scoring"
+                "kinase_substrate_map.substrate_site must be projected to measured "
+                "activity site_key rows; next_action=map reference display IDs "
+                "onto dataset site_key before workflow execution"
             )
+        scoring_kinase_substrate_map = _filter_kinase_substrate_map_to_site_index(
+            kinase_substrate_map,
+            self.scoring_site_index,
+        )
         attrition_metrics = self.attrition_metrics
         if attrition_metrics is None:
             attrition_metrics = build_kinase_attrition_metrics(
@@ -240,7 +515,7 @@ class ResolvedKinaseWorkflowRequest:
             )
         if not self._has_compatible_site_sequence_reference_alignment(
             merged_site_sequences=site_sequences,
-            site_identity_map=site_identity_map,
+            site_identity_map=scoring_site_identity_map,
             reference_site_sequences=self.references.site_sequences,
             merge_diagnostics=self.site_sequence_merge_diagnostics,
         ):
@@ -258,6 +533,7 @@ class ResolvedKinaseWorkflowRequest:
         object.__setattr__(self, "site_sequences", site_sequences)
         object.__setattr__(self, "site_identity_map", site_identity_map)
         object.__setattr__(self, "activity_phospho_matrix", activity_phospho_matrix)
+        object.__setattr__(self, "site_universes", site_universes)
         object.__setattr__(self, "attrition_metrics", attrition_metrics)
         object.__setattr__(
             self,
@@ -268,6 +544,12 @@ class ResolvedKinaseWorkflowRequest:
         object.__setattr__(self, "_kinase_substrate_reference", kinase_substrate_map)
         object.__setattr__(self, "_site_sequence_reference", site_sequences)
         object.__setattr__(self, "_activity_phospho_table", activity_phospho_matrix)
+        object.__setattr__(self, "_scoring_phospho_table", scoring_phospho_matrix)
+        object.__setattr__(
+            self,
+            "_scoring_kinase_substrate_reference",
+            scoring_kinase_substrate_map,
+        )
 
     @staticmethod
     def _validate_kinase_substrate_map(
@@ -415,7 +697,7 @@ class ResolvedKinaseWorkflowRequest:
 
     @staticmethod
     def _validate_site_identity_map(
-        value: object | None, *, scoring_site_index: pd.Index
+        value: object | None, *, site_index: pd.Index
     ) -> pd.DataFrame:
         try:
             if value is None:
@@ -468,10 +750,10 @@ class ResolvedKinaseWorkflowRequest:
                 error_type=WorkflowBoundaryError,
                 site_key_column="site_key",
             )
-            if list(site_keys.astype(str)) != list(scoring_site_index.astype(str)):
+            if list(site_keys.astype(str)) != list(site_index.astype(str)):
                 raise WorkflowBoundaryError(
                     "kinase_request.site_identity_map.site_key must exactly match "
-                    "kinase_request.scoring_site_index"
+                    "kinase_request.activity_phospho_matrix.index"
                 )
             _ = display_ids
             return frame
@@ -480,13 +762,77 @@ class ResolvedKinaseWorkflowRequest:
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.site_identity_map_schema; "
                 f"{exc}; "
-                "next_action=provide one row per scoring site_key with mapped "
-                "display_id values"
+                "next_action=provide one row per measured activity site_key with "
+                "mapped display_id values"
             ) from exc
+
+    @staticmethod
+    def _validate_site_universes(
+        value: object | None,
+        *,
+        measured_site_index: pd.Index,
+        scoring_site_index: pd.Index,
+        kinase_substrate_map: pd.DataFrame,
+    ) -> ResolvedKinaseSiteUniverses:
+        reference_supported = _reference_supported_membership_site_index(
+            kinase_substrate_map=kinase_substrate_map,
+            measured_site_index=measured_site_index,
+        )
+        if value is None:
+            return ResolvedKinaseSiteUniverses(
+                measured_quantitative_sites=measured_site_index.copy(),
+                sequence_supported_scoring_sites=scoring_site_index.copy(),
+                reference_supported_membership_sites=reference_supported,
+                predicted_membership_sites=scoring_site_index.copy(),
+                ksea_background_sites=measured_site_index.copy(),
+                ssgsea_effect_ranking_sites=measured_site_index.copy(),
+            )
+        if not isinstance(value, ResolvedKinaseSiteUniverses):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.site_universes_type; "
+                "site_universes must be ResolvedKinaseSiteUniverses; "
+                "next_action=ensure interpreter attaches typed resolved site "
+                "universes before execution"
+            )
+        if not value.measured_quantitative_sites.equals(measured_site_index):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.measured_universe_alignment; "
+                "site_universes.measured_quantitative_sites must exactly match "
+                "activity_phospho_matrix.index; next_action=do not substitute "
+                "the scoring-site universe for the measured activity universe"
+            )
+        if not value.sequence_supported_scoring_sites.equals(scoring_site_index):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.scoring_universe_alignment; "
+                "site_universes.sequence_supported_scoring_sites must exactly "
+                "match scoring_site_index; next_action=do not substitute the "
+                "measured activity universe for motif/profile scoring"
+            )
+        if not value.reference_supported_membership_sites.equals(reference_supported):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.reference_membership_universe_alignment; "
+                "site_universes.reference_supported_membership_sites must match "
+                "the projected kinase_substrate_map substrate_site rows; "
+                "next_action=derive membership universes from the projected "
+                "reference map before method-specific filtering"
+            )
+        return value
 
     @property
     def kinase_substrate_reference(self) -> pd.DataFrame:
         return self._kinase_substrate_reference
+
+    @property
+    def reference_membership_map(self) -> pd.DataFrame:
+        return self._kinase_substrate_reference
+
+    @property
+    def scoring_kinase_substrate_map(self) -> pd.DataFrame:
+        return self._scoring_kinase_substrate_reference
 
     @property
     def site_sequence_reference(self) -> pd.DataFrame:
@@ -495,6 +841,26 @@ class ResolvedKinaseWorkflowRequest:
     @property
     def activity_phospho_table(self) -> pd.DataFrame:
         return self._activity_phospho_table
+
+    @property
+    def scoring_phospho_matrix(self) -> pd.DataFrame:
+        return self._scoring_phospho_table
+
+    @property
+    def ksea_background_phospho_matrix(self) -> pd.DataFrame:
+        if self.site_universes is None:
+            raise RuntimeError("kinase site universes were not resolved")
+        return self._activity_phospho_table.loc[
+            self.site_universes.ksea_background_sites
+        ]
+
+    @property
+    def ssgsea_effect_matrix(self) -> pd.DataFrame:
+        if self.site_universes is None:
+            raise RuntimeError("kinase site universes were not resolved")
+        return self._activity_phospho_table.loc[
+            self.site_universes.ssgsea_effect_ranking_sites
+        ]
 
     @staticmethod
     def _has_compatible_site_sequence_reference_alignment(
@@ -640,6 +1006,96 @@ def _require_site_series_identity(
         field_name=field_name,
         error_type=error_type,
     )
+
+
+def _validate_universe_index(value: object, *, field_name: str) -> pd.Index:
+    if not isinstance(value, pd.Index):
+        raise WorkflowBoundaryError(f"{field_name} must be a pandas Index")
+    _require_site_index_identity(
+        value,
+        field_name=field_name,
+        error_type=WorkflowBoundaryError,
+    )
+    return value.copy()
+
+
+def _require_subset_index(
+    index: pd.Index,
+    *,
+    parent: pd.Index,
+    field_name: str,
+    parent_name: str,
+) -> None:
+    parent_values = set(parent.astype(str).tolist())
+    unexpected = [
+        str(value)
+        for value in index.astype(str).tolist()
+        if str(value) not in parent_values
+    ]
+    if unexpected:
+        raise WorkflowBoundaryError(
+            f"{field_name} must be a subset of {parent_name}; "
+            f"unexpected_site_examples={unexpected[:_UNIVERSE_ATTRITION_EXAMPLE_LIMIT]}"
+        )
+
+
+def _universe_payload(index: pd.Index) -> dict[str, object]:
+    values = tuple(str(value) for value in index.astype(str).tolist())
+    return {
+        "count": int(len(values)),
+        "index_name": None if index.name is None else str(index.name),
+        "examples": list(values[:_UNIVERSE_ATTRITION_EXAMPLE_LIMIT]),
+    }
+
+
+def _reference_supported_membership_site_index(
+    *,
+    kinase_substrate_map: pd.DataFrame,
+    measured_site_index: pd.Index,
+) -> pd.Index:
+    if "substrate_site" not in kinase_substrate_map.columns:
+        return pd.Index([], name=measured_site_index.name, dtype="object")
+    substrate_sites = set(kinase_substrate_map.loc[:, "substrate_site"].astype(str))
+    ordered_sites = [
+        str(site_id)
+        for site_id in measured_site_index.astype(str).tolist()
+        if str(site_id) in substrate_sites
+    ]
+    return pd.Index(ordered_sites, name=measured_site_index.name)
+
+
+def _filter_kinase_substrate_map_to_site_index(
+    kinase_substrate_map: pd.DataFrame,
+    site_index: pd.Index,
+) -> pd.DataFrame:
+    if "substrate_site" not in kinase_substrate_map.columns:
+        return kinase_substrate_map.iloc[0:0].copy(deep=True)
+    site_values = set(str(value) for value in site_index.astype(str).tolist())
+    substrate_sites = kinase_substrate_map.loc[:, "substrate_site"].astype(str)
+    return kinase_substrate_map.loc[substrate_sites.isin(site_values), :].copy(
+        deep=True
+    )
+
+
+def _require_non_empty_text(value: object, *, field_name: str) -> str:
+    text = str(value).strip()
+    if not text:
+        raise WorkflowBoundaryError(f"{field_name} must be a non-empty string")
+    return text
+
+
+def _require_non_negative_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise WorkflowBoundaryError(f"{field_name} must be a non-negative integer")
+    try:
+        normalized = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise WorkflowBoundaryError(
+            f"{field_name} must be a non-negative integer"
+        ) from exc
+    if normalized < 0:
+        raise WorkflowBoundaryError(f"{field_name} must be a non-negative integer")
+    return normalized
 
 
 def _site_token_from_display_id(display_id: object) -> str:
@@ -846,11 +1302,19 @@ class KinaseWorkflowExecutorContract(Protocol):
 
 
 __all__ = [
+    "KINASE_SITE_UNIVERSE_KSEA_BACKGROUND",
+    "KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE",
+    "KINASE_SITE_UNIVERSE_PREDICTED_MEMBERSHIP",
+    "KINASE_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP",
+    "KINASE_SITE_UNIVERSE_SEQUENCE_SUPPORTED_SCORING",
+    "KINASE_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING",
+    "KinaseUniverseAttritionRecord",
     "KinaseWorkflowExecutorContract",
     "KinaseWorkflowInterpreterContract",
     "KinaseWorkflowValidatorContract",
     "ResolvedKinaseActivityExecutionConfig",
     "ResolvedKinaseExecutionConfig",
+    "ResolvedKinaseSiteUniverses",
     "ResolvedKinaseWorkflowRequest",
     "ValidatedKinaseWorkflowRequest",
 ]

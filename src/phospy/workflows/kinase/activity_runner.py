@@ -10,6 +10,9 @@ from phospy.contracts.configs import (
     KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.method_contracts import (
+    kinase_activity_method_universe_contract,
+)
 from phospy.science.activities.methods import (
     KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
     KseaZScoreActivityMethod,
@@ -55,22 +58,37 @@ class KinaseActivityRunner:
             return None
         site_identity_map = _require_site_identity_map(request.site_identity_map)
         prediction_view = KinasePredictionInternalView(prediction_result)
+        universe_contract = kinase_activity_method_universe_contract(
+            activity_config.method
+        )
+        _validate_prediction_membership_universe(
+            pred_mat=prediction_view.pred_mat,
+            request=request,
+            method_id=universe_contract.method_id,
+        )
         if (
             activity_config.method
             == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
         ):
+            activity_matrix = request.activity_phospho_matrix
+            membership_pred_mat = _prediction_membership_matrix_for_site_universe(
+                pred_mat=prediction_view.pred_mat,
+                site_index=activity_matrix.index,
+            )
             # Prediction matrix kinase columns are expected to already be
             # normalized upstream by the reference-ingestion boundary.
             validated_inputs = self._activity_input_validator.run(
-                pred_mat=prediction_view.pred_mat,
-                phospho_matrix=request.activity_phospho_matrix,
+                pred_mat=membership_pred_mat,
+                phospho_matrix=activity_matrix,
                 threshold=activity_config.threshold,
                 min_substrates=activity_config.min_substrates,
                 top_n_substrates=activity_config.top_n_substrates,
                 activity_input=_activity_input_from_dataset(
                     request=request,
                     method=activity_config.method,
+                    matrix=activity_matrix,
                 ),
+                min_fraction=0.0,
             )
             result = SimplifiedWeightedSubstrateActivityMethod(
                 threshold=float(activity_config.threshold),
@@ -82,6 +100,11 @@ class KinaseActivityRunner:
                 site_identity_map=site_identity_map,
             )
         if activity_config.method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+            activity_matrix = request.ksea_background_phospho_matrix
+            membership_pred_mat = _prediction_membership_matrix_for_site_universe(
+                pred_mat=prediction_view.pred_mat,
+                site_index=activity_matrix.index,
+            )
             membership_selection = (
                 None
                 if scoring_execution is None
@@ -91,19 +114,22 @@ class KinaseActivityRunner:
                     scoring_execution=scoring_execution,
                     prediction_result=prediction_result,
                     evidence_threshold=float(activity_config.ksea_evidence_threshold),
+                    membership_matrix=membership_pred_mat,
                 )
             )
             validated_inputs = self._activity_input_validator.run(
-                pred_mat=prediction_view.pred_mat,
-                phospho_matrix=request.activity_phospho_matrix,
+                pred_mat=membership_pred_mat,
+                phospho_matrix=activity_matrix,
                 threshold=activity_config.ksea_evidence_threshold,
                 min_substrates=activity_config.ksea_min_substrates,
                 top_n_substrates=1,
                 activity_input=_activity_input_from_dataset(
                     request=request,
                     method=activity_config.method,
+                    matrix=activity_matrix,
                 ),
                 membership_selection=membership_selection,
+                min_fraction=0.0,
             )
             result = KseaZScoreActivityMethod(
                 evidence_threshold=float(activity_config.ksea_evidence_threshold),
@@ -117,6 +143,11 @@ class KinaseActivityRunner:
                 site_identity_map=site_identity_map,
             )
         if activity_config.method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+            activity_matrix = request.ssgsea_effect_matrix
+            membership = _kinase_substrate_membership_for_site_universe(
+                membership=request.reference_membership_map,
+                site_index=activity_matrix.index,
+            )
             result = SsgseaSubstrateEnrichmentActivityMethod(
                 min_substrates=int(activity_config.ssgsea_min_substrates),
                 ranking_direction=str(activity_config.ssgsea_ranking_direction),
@@ -127,8 +158,9 @@ class KinaseActivityRunner:
                 activity_input=_activity_input_from_dataset(
                     request=request,
                     method=activity_config.method,
+                    matrix=activity_matrix,
                 ),
-                kinase_substrate_membership=request.kinase_substrate_map,
+                kinase_substrate_membership=membership,
             )
             return self._annotate_activity_result(
                 activity_result=result,
@@ -205,6 +237,7 @@ def _activity_input_from_dataset(
     *,
     request: ResolvedKinaseWorkflowRequest,
     method: str,
+    matrix: pd.DataFrame,
 ) -> ActivityInputMatrix:
     quantity = request.dataset.intensity_scale_state.quantity
     if method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
@@ -213,19 +246,19 @@ def _activity_input_from_dataset(
             QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
         }:
             return ActivityInputMatrix.sample_level_abundance(
-                request.activity_phospho_matrix,
+                matrix,
                 field_name="kinase_request.activity_phospho_matrix",
                 _assume_owned=True,
             )
         if quantity is QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE:
             return ActivityInputMatrix.contrast_log_fold_change(
-                request.activity_phospho_matrix,
+                matrix,
                 field_name="kinase_request.activity_phospho_matrix",
                 _assume_owned=True,
             )
         if quantity is QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE:
             return ActivityInputMatrix.standardised_effect(
-                request.activity_phospho_matrix,
+                matrix,
                 field_name="kinase_request.activity_phospho_matrix",
                 _assume_owned=True,
             )
@@ -244,13 +277,13 @@ def _activity_input_from_dataset(
     if method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
         if quantity is QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE:
             return ActivityInputMatrix.contrast_log_fold_change(
-                request.activity_phospho_matrix,
+                matrix,
                 field_name="kinase_request.activity_phospho_matrix",
                 _assume_owned=True,
             )
         if quantity is QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE:
             return ActivityInputMatrix.standardised_effect(
-                request.activity_phospho_matrix,
+                matrix,
                 field_name="kinase_request.activity_phospho_matrix",
                 _assume_owned=True,
             )
@@ -266,10 +299,66 @@ def _activity_input_from_dataset(
             message_prefix="kinase workflow boundary validation failed",
         )
     return ActivityInputMatrix.sample_level_abundance(
-        request.activity_phospho_matrix,
+        matrix,
         field_name="kinase_request.activity_phospho_matrix",
         _assume_owned=True,
     )
+
+
+def _validate_prediction_membership_universe(
+    *,
+    pred_mat: pd.DataFrame,
+    request: ResolvedKinaseWorkflowRequest,
+    method_id: str,
+) -> None:
+    if request.site_universes is None:
+        raise WorkflowBoundaryError(
+            seam="kinase.activity.site_universes",
+            next_action="ensure interpreter resolves typed kinase site universes",
+            details={"method_id": method_id},
+            message_prefix="kinase workflow boundary validation failed",
+        )
+    allowed = set(
+        request.site_universes.predicted_membership_sites.astype(str).tolist()
+    )
+    unexpected = [
+        str(site_id)
+        for site_id in pred_mat.index.astype(str).tolist()
+        if str(site_id) not in allowed
+    ]
+    if unexpected:
+        raise WorkflowBoundaryError(
+            seam="kinase.activity.predicted_membership_universe",
+            next_action=(
+                "ensure prediction_result.pred_mat rows come from the resolved "
+                "predicted_membership_sites universe"
+            ),
+            details={
+                "method_id": method_id,
+                "unexpected_site_examples": unexpected[:5],
+            },
+            message_prefix="kinase workflow boundary validation failed",
+        )
+
+
+def _prediction_membership_matrix_for_site_universe(
+    *,
+    pred_mat: pd.DataFrame,
+    site_index: pd.Index,
+) -> pd.DataFrame:
+    return pred_mat.reindex(index=site_index.copy())
+
+
+def _kinase_substrate_membership_for_site_universe(
+    *,
+    membership: pd.DataFrame,
+    site_index: pd.Index,
+) -> pd.DataFrame:
+    if "substrate_site" not in membership.columns:
+        return membership.iloc[0:0].copy(deep=True)
+    site_values = set(str(value) for value in site_index.astype(str).tolist())
+    substrate_sites = membership.loc[:, "substrate_site"].astype(str)
+    return membership.loc[substrate_sites.isin(site_values), :].copy(deep=True)
 
 
 __all__ = ["KinaseActivityRunner"]

@@ -178,9 +178,7 @@ def _resolved_request(
         site_sequences=projected_sequences,
         site_identity_map=site_identity_map,
         scoring_site_index=scoring_site_index,
-        activity_phospho_matrix=dataset.phospho.loc[scoring_site_index, :].copy(
-            deep=True
-        ),
+        activity_phospho_matrix=dataset.phospho.copy(deep=True),
         execution_config=execution_config,
     )
 
@@ -225,9 +223,7 @@ def _project_reference_inputs(
                 "display_id": str(display_id),
             }
         )
-    site_identity_map = site_metadata.loc[
-        scoring_site_index, ["site_key", "display_id"]
-    ].copy(deep=True)
+    site_identity_map = site_metadata.loc[:, ["site_key", "display_id"]].copy(deep=True)
     return (
         pd.DataFrame(projected_rows),
         site_sequences,
@@ -747,14 +743,10 @@ def test_boundary_error_reports_activity_overlap_edge_case() -> None:
         )
 
     message = str(exc_info.value)
-    assert "seam=kinase.activity.input_overlap" in message
-    assert "overlap_sites=0" in message
-    assert "pred_mat_sites=1" in message
-    assert "phospho_sites=1" in message
-    assert "min_overlap=1" in message
-    assert "min_fraction=0.5" in message
+    assert "seam=kinase.activity.predicted_membership_universe" in message
+    assert "unexpected_site_examples" in message
     assert "prediction_result.pred_mat" in message
-    assert "dataset.phospho" in message
+    assert "predicted_membership_sites" in message
 
 
 def test_activity_inputs_reject_malformed_pred_mat_with_workflow_boundary_error() -> (
@@ -855,10 +847,13 @@ def test_activity_stage_returns_weighted_thresholded_mean_and_target_outputs() -
     prediction_result = KinasePredictionResult(
         pred_mat=pd.DataFrame(
             {
-                "MAP2K6": [0.9, 0.5, 0.0],
-                "AKT1": [0.4, 0.2, 0.1],
+                "MAP2K6": [0.9, 0.5],
+                "AKT1": [0.4, 0.2],
             },
-            index=dataset.phospho.index.copy(),
+            index=pd.Index(
+                site_key_index_from_display_ids(["MAPK14;Y182;", "GSK3B;S9;"]),
+                name=dataset.phospho.index.name,
+            ),
         ),
     )
 
@@ -892,7 +887,11 @@ def test_activity_stage_returns_weighted_thresholded_mean_and_target_outputs() -
 
 
 def test_weighted_activity_is_stable_under_zero_padding_matrix_growth() -> None:
-    dataset = _dataset(
+    compact_dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;"],
+        sample_names=["sample_a", "sample_b"],
+    )
+    expanded_dataset = _dataset(
         site_ids=[
             "MAPK14;Y182;",
             "GSK3B;S9;",
@@ -910,39 +909,42 @@ def test_weighted_activity_is_stable_under_zero_padding_matrix_growth() -> None:
             }
         )
     )
-    request = _resolved_request(dataset=dataset, references=references, threshold=0.5)
-    compact_predictions = KinasePredictionResult(
+    compact_request = _resolved_request(
+        dataset=compact_dataset,
+        references=references,
+        threshold=0.5,
+    )
+    expanded_request = _resolved_request(
+        dataset=expanded_dataset,
+        references=references,
+        threshold=0.5,
+    )
+    predictions = KinasePredictionResult(
         pred_mat=pd.DataFrame(
             {"MAP2K6": [0.8, 0.4]},
             index=pd.Index(
                 site_key_index_from_display_ids(["MAPK14;Y182;", "GSK3B;S9;"]),
-                name=dataset.phospho.index.name,
+                name=expanded_dataset.phospho.index.name,
             ),
-        ),
-    )
-    padded_predictions = KinasePredictionResult(
-        pred_mat=pd.DataFrame(
-            {"MAP2K6": [0.8, 0.4, 0.0, 0.0, 0.0]},
-            index=dataset.phospho.index.copy(),
         ),
     )
 
     compact = KinaseWorkflowExecutor()._run_activity_stage(
-        request=request,
-        config=request.execution_config,
-        prediction_result=compact_predictions,
+        request=compact_request,
+        config=compact_request.execution_config,
+        prediction_result=predictions,
     )
-    padded = KinaseWorkflowExecutor()._run_activity_stage(
-        request=request,
-        config=request.execution_config,
-        prediction_result=padded_predictions,
+    expanded = KinaseWorkflowExecutor()._run_activity_stage(
+        request=expanded_request,
+        config=expanded_request.execution_config,
+        prediction_result=predictions,
     )
 
     assert compact is not None
-    assert padded is not None
+    assert expanded is not None
     assert compact.activity_matrix.at["MAP2K6", "sample_a"] == pytest.approx(
-        padded.activity_matrix.at["MAP2K6", "sample_a"]
+        expanded.activity_matrix.at["MAP2K6", "sample_a"]
     )
     assert compact.activity_matrix.at["MAP2K6", "sample_b"] == pytest.approx(
-        padded.activity_matrix.at["MAP2K6", "sample_b"]
+        expanded.activity_matrix.at["MAP2K6", "sample_b"]
     )

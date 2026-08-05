@@ -38,9 +38,7 @@ from phospy.validation.workflows.method_quantitative import (
 from phospy.workflows._pandas_typing import (
     dataframe_column,
     dataframe_copy,
-    dataframe_loc,
     dataframe_reindex,
-    dataframe_reset_index,
     index_as_strings,
     series_as_strings,
 )
@@ -48,6 +46,7 @@ from phospy.workflows._row_attrition import make_row_attrition_record
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
+    ResolvedKinaseSiteUniverses,
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
@@ -192,14 +191,16 @@ class KinaseWorkflowInterpreter:
             )
             if record is not None
         )
-        activity_phospho_matrix = dataframe_loc(
-            dataset_phospho,
-            rows=scoring_site_index,
-        )
+        activity_phospho_matrix = dataframe_copy(dataset_phospho, deep=True)
         execution_config = self._resolve_execution_config(
             request,
             scoring_config=scoring_config,
             dataset_view=dataset_view,
+        )
+        site_universes = self._resolve_site_universes(
+            measured_site_index=activity_phospho_matrix.index,
+            scoring_site_index=scoring_site_index,
+            kinase_substrate_map=kinase_substrate_map,
         )
         resolved_inputs = ResolvedKinaseInputs(
             dataset=request.dataset,
@@ -213,22 +214,10 @@ class KinaseWorkflowInterpreter:
             execution_config=execution_config,
             reference_site_count=reference_site_count,
             kinase_library_resource=kinase_library_resource,
+            site_universes=site_universes,
         )
         self._resolved_validator.run(resolved_inputs)
-        scoring_site_keys = set(index_as_strings(scoring_site_index))
         site_sequences = dataframe_reindex(site_sequences, scoring_site_index)
-        site_identity_map = dataframe_reindex(site_identity_map, scoring_site_index)
-        substrate_sites = series_as_strings(
-            dataframe_column(kinase_substrate_map, "substrate_site")
-        )
-        substrate_site_mask = [site in scoring_site_keys for site in substrate_sites]
-        kinase_substrate_map = dataframe_copy(
-            dataframe_reset_index(
-                dataframe_loc(kinase_substrate_map, rows=substrate_site_mask),
-                drop=True,
-            ),
-            deep=True,
-        )
         return ResolvedKinaseWorkflowRequest(
             dataset=request.dataset,
             references=references,
@@ -238,6 +227,7 @@ class KinaseWorkflowInterpreter:
             scoring_site_index=scoring_site_index,
             activity_phospho_matrix=activity_phospho_matrix,
             execution_config=execution_config,
+            site_universes=site_universes,
             kinase_library_resource=kinase_library_resource,
             attrition_metrics=resolved_inputs.attrition_metrics,
             attrition_policy_violations=(resolved_inputs.attrition_policy_violations),
@@ -548,6 +538,26 @@ class KinaseWorkflowInterpreter:
         return pd.Index(scoring_sites, name=dataset.index.name)
 
     @staticmethod
+    def _resolve_site_universes(
+        *,
+        measured_site_index: pd.Index,
+        scoring_site_index: pd.Index,
+        kinase_substrate_map: pd.DataFrame,
+    ) -> ResolvedKinaseSiteUniverses:
+        reference_supported = _reference_membership_site_index(
+            measured_site_index=measured_site_index,
+            kinase_substrate_map=kinase_substrate_map,
+        )
+        return ResolvedKinaseSiteUniverses(
+            measured_quantitative_sites=measured_site_index.copy(),
+            sequence_supported_scoring_sites=scoring_site_index.copy(),
+            reference_supported_membership_sites=reference_supported,
+            predicted_membership_sites=scoring_site_index.copy(),
+            ksea_background_sites=measured_site_index.copy(),
+            ssgsea_effect_ranking_sites=measured_site_index.copy(),
+        )
+
+    @staticmethod
     def _raise_boundary_error(
         *,
         seam: str,
@@ -587,3 +597,19 @@ def _resolve_dataset_method_input_contract(
             details={"contract_error": str(exc)},
             message_prefix="kinase workflow boundary validation failed",
         ) from exc
+
+
+def _reference_membership_site_index(
+    *,
+    measured_site_index: pd.Index,
+    kinase_substrate_map: pd.DataFrame,
+) -> pd.Index:
+    if "substrate_site" not in kinase_substrate_map.columns:
+        return pd.Index([], name=measured_site_index.name, dtype="object")
+    substrate_sites = set(kinase_substrate_map.loc[:, "substrate_site"].astype(str))
+    ordered_sites = [
+        str(site_id)
+        for site_id in measured_site_index.astype(str).tolist()
+        if str(site_id) in substrate_sites
+    ]
+    return pd.Index(ordered_sites, name=measured_site_index.name)

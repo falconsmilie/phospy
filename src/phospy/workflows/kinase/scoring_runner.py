@@ -116,7 +116,7 @@ class KinaseScoringRunner:
     ) -> KinaseScoringRunResult:
         include_diagnostic_tables = config.include_diagnostic_scoring_tables
         scoring_min_substrates = int(config.scoring_min_substrates)
-        scoring_phospho = request.activity_phospho_matrix
+        scoring_phospho = request.scoring_phospho_matrix
         sequence_series = request.site_sequences.loc[:, "site_sequence"]
         site_identity_series = request.site_sequences.loc[:, "display_id"]
         mode_contract = kinase_scoring_mode_input_contract(config.scoring_mode)
@@ -129,7 +129,7 @@ class KinaseScoringRunner:
             )
         profile_build = self._build_profiles(
             phospho=scoring_phospho,
-            kinase_substrate_map=request.kinase_substrate_map,
+            kinase_substrate_map=request.scoring_kinase_substrate_map,
             min_substrates=scoring_min_substrates,
             allow_single_substrate_profiles=False,
             profile_missing_value_strategy=config.profile_missing_value_strategy,
@@ -185,10 +185,10 @@ class KinaseScoringRunner:
                 site_identity_series=site_identity_series,
             )
         eligible_kinases = set(profile_scores.columns.astype(str))
-        # `request.kinase_substrate_map` comes from ReferenceBundle and is
-        # already normalized at reference-ingestion time.
-        motif_kinase_substrate_map = request.kinase_substrate_map.loc[
-            request.kinase_substrate_map.loc[:, "kinase"]
+        # The workflow-level reference membership map is explicitly intersected
+        # with the sequence-supported scoring universe before motif scoring.
+        motif_kinase_substrate_map = request.scoring_kinase_substrate_map.loc[
+            request.scoring_kinase_substrate_map.loc[:, "kinase"]
             .astype(str)
             .isin(eligible_kinases)
         ]
@@ -528,7 +528,7 @@ class KinaseScoringRunner:
         if not collect:
             return None
         return build_kinase_substrate_contribution_table(
-            kinase_substrate_map=request.kinase_substrate_map,
+            kinase_substrate_map=request.scoring_kinase_substrate_map,
             scoring_values=scoring_values,
             score_component=score_component,
             quantified_substrates=profile_build.quantified_substrates,

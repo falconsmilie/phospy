@@ -211,6 +211,44 @@ input as abundance. Provenance must record the resolved method contract used by
 the run, including the observed scale, meaning, activity profile axis, and
 activity quantitative semantics when available.
 
+## Kinase Method-Specific Site Universes
+
+Kinase workflow interpretation must resolve named site universes instead of
+using one shared scoring index for all downstream methods. The typed resolved
+contract separates:
+
+- measured quantitative sites, which match `dataset.phospho.index` and define
+  the quantitative activity/background rows;
+- sequence-supported scoring sites, which are the only rows eligible for
+  centered-sequence motif/profile scoring;
+- reference-supported membership sites, which are projected reference
+  kinase-substrate rows in the measured site-key namespace;
+- predicted membership sites, which are the prediction matrix rows emitted by
+  the scoring/prediction stage or supplied by a typed fixed-membership source,
+  and are bounded by measured site identity rather than by sequence support;
+- KSEA background sites, which default to the measured quantitative universe
+  and are independent of sequence support unless a future explicit KSEA
+  background policy says otherwise;
+- ssGSEA effect-ranking sites, which are the declared contrast/effect input
+  rows and are not inherited from motif-scoring sequence support.
+
+Scoring science owns sequence eligibility and centered sequence-context
+validation. Motif scoring must continue to reject invalid centered sequence
+context before scoring. Activity science owns background, effect-ranking,
+membership-intersection, finite-value, and inferential-eligibility rules. KSEA
+and ssGSEA must not require sequence context or infer sequence eligibility.
+
+Workflow interpretation composes these contracts without conflating them.
+`activity_phospho_matrix.index` must match the measured quantitative universe
+and is not required to equal `scoring_site_index`. The executor must consume
+named resolved matrices/maps, such as scoring phospho rows for scoring, KSEA
+background rows for KSEA, and ssGSEA effect-ranking rows for ssGSEA; it must not
+silently choose a background by reusing the motif-scoring universe. Membership
+maps are explicitly intersected with the selected method universe before the
+activity method is called. Provenance must serialize separate attrition records
+for sequence support, membership intersection, per-profile finite values, and
+activity-background/effect-universe selection.
+
 ## Intensity-Scale Evidence
 
 Intensity-scale evidence is recorded separately from the numeric scale itself.

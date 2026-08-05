@@ -381,9 +381,9 @@ def _resolved_request(
         references=references,
         kinase_substrate_map=kinase_substrate_map,
         site_sequences=site_sequences,
-        site_identity_map=_site_identity_map(dataset).loc[scoring_site_index],
+        site_identity_map=_site_identity_map(dataset),
         scoring_site_index=scoring_site_index,
-        activity_phospho_matrix=dataset.phospho.loc[scoring_site_index].copy(deep=True),
+        activity_phospho_matrix=dataset.phospho.copy(deep=True),
         execution_config=config or _config(),
     )
 

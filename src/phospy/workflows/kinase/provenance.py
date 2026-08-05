@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 
+import numpy as np
 import pandas as pd
 
 from phospy.contracts.configs import (
@@ -32,6 +33,7 @@ from phospy.provenance.scientific_policy_models import (
 )
 from phospy.science.activities.method_contracts import (
     kinase_activity_method_quantitative_input_contract,
+    kinase_activity_method_universe_contract,
 )
 from phospy.science.activities.methods import (
     KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
@@ -77,6 +79,13 @@ from phospy.workflows.kinase.component_models import (
     CANDIDATE_SCORE_THRESHOLD,
 )
 from phospy.workflows.kinase.contracts import (
+    KINASE_SITE_UNIVERSE_KSEA_BACKGROUND,
+    KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE,
+    KINASE_SITE_UNIVERSE_PREDICTED_MEMBERSHIP,
+    KINASE_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP,
+    KINASE_SITE_UNIVERSE_SEQUENCE_SUPPORTED_SCORING,
+    KINASE_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING,
+    KinaseUniverseAttritionRecord,
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
@@ -122,6 +131,7 @@ class KinaseProvenanceBuilder:
             request=request,
             config=config,
             scoring_result=scoring_result,
+            prediction_result=prediction_result,
             activity_result=activity_result,
         )
         duplicate_site_policy = self._resolve_duplicate_site_resolution_policy(
@@ -340,6 +350,7 @@ def _build_workflow_parameters(
     request: ResolvedKinaseWorkflowRequest,
     config: ResolvedKinaseExecutionConfig,
     scoring_result: KinaseScoringResult,
+    prediction_result: KinasePredictionResult,
     activity_result: KinaseActivityResult | None,
 ) -> dict[str, object]:
     payload = input_intensity_scale_evidence_payload(request.dataset)
@@ -358,6 +369,16 @@ def _build_workflow_parameters(
             "attrition_provenance": _build_attrition_provenance_payload(
                 request=request,
                 config=config,
+            ),
+            "site_universes": (
+                None
+                if request.site_universes is None
+                else request.site_universes.to_payload()
+            ),
+            "universe_attrition": _build_universe_attrition_payload(
+                request=request,
+                config=config,
+                prediction_result=prediction_result,
             ),
             "scoring_diagnostics": _build_scoring_diagnostics_payload(
                 request=request,
@@ -462,6 +483,9 @@ def _build_activity_config_payload(
             config=config,
             activity_result=activity_result,
         ),
+        "method_universe_contract": kinase_activity_method_universe_contract(
+            config.activity.method
+        ).to_payload(),
         "activity_method": (
             None
             if activity_result is None
@@ -681,6 +705,248 @@ def _build_attrition_provenance_payload(
         metrics=metrics,
         policy=config.attrition_policy,
         violations=request.attrition_policy_violations,
+    )
+
+
+def _build_universe_attrition_payload(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    config: ResolvedKinaseExecutionConfig,
+    prediction_result: KinasePredictionResult,
+) -> dict[str, object]:
+    site_universes = request.site_universes
+    if site_universes is None:
+        return {
+            "sequence_attrition": [],
+            "membership_attrition": [],
+            "finite_value_attrition": [],
+            "activity_background_attrition": [],
+        }
+    sequence_attrition = [
+        _attrition_record_from_indexes(
+            attrition_type="sequence_attrition",
+            stage="sequence_supported_scoring_universe",
+            reason="sites_missing_valid_centered_sequence_context_for_scoring",
+            input_universe=KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE,
+            output_universe=KINASE_SITE_UNIVERSE_SEQUENCE_SUPPORTED_SCORING,
+            input_site_ids=site_universes.measured_quantitative_sites,
+            output_site_ids=site_universes.sequence_supported_scoring_sites,
+        ).to_payload()
+    ]
+    membership_attrition = [
+        _attrition_record_from_indexes(
+            attrition_type="membership_attrition",
+            stage="scoring_reference_membership_universe",
+            reason="reference_membership_sites_not_sequence_supported_for_scoring",
+            input_universe=KINASE_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP,
+            output_universe="scoring_reference_membership_sites",
+            input_site_ids=site_universes.reference_supported_membership_sites,
+            output_site_ids=_unique_membership_site_index(
+                request.scoring_kinase_substrate_map,
+                ordered_like=site_universes.sequence_supported_scoring_sites,
+            ),
+        ).to_payload()
+    ]
+    finite_value_attrition: list[dict[str, object]] = []
+    activity_background_attrition: list[dict[str, object]] = []
+    activity_config = config.activity
+    if activity_config is not None:
+        method_contract = kinase_activity_method_universe_contract(
+            activity_config.method
+        )
+        method_id = method_contract.method_id
+        method = str(activity_config.method)
+        if method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+            activity_background_attrition.append(
+                _attrition_record_from_indexes(
+                    attrition_type="activity_background_attrition",
+                    stage="ksea_background_universe",
+                    reason="ksea_background_policy_full_measured_quantitative_sites",
+                    input_universe=KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE,
+                    output_universe=KINASE_SITE_UNIVERSE_KSEA_BACKGROUND,
+                    input_site_ids=site_universes.measured_quantitative_sites,
+                    output_site_ids=site_universes.ksea_background_sites,
+                    method_id=method_id,
+                ).to_payload()
+            )
+            membership_attrition.append(
+                _attrition_record_from_indexes(
+                    attrition_type="membership_attrition",
+                    stage="ksea_predicted_membership_universe_intersection",
+                    reason="predicted_membership_sites_outside_ksea_background",
+                    input_universe=KINASE_SITE_UNIVERSE_PREDICTED_MEMBERSHIP,
+                    output_universe="ksea_predicted_membership_sites_in_background",
+                    input_site_ids=prediction_result.pred_mat.index,
+                    output_site_ids=_intersect_ordered_index(
+                        prediction_result.pred_mat.index,
+                        site_universes.ksea_background_sites,
+                    ),
+                    method_id=method_id,
+                ).to_payload()
+            )
+            finite_value_attrition.extend(
+                record.to_payload()
+                for record in _finite_value_attrition_records(
+                    matrix=request.ksea_background_phospho_matrix,
+                    universe=KINASE_SITE_UNIVERSE_KSEA_BACKGROUND,
+                    method_id=method_id,
+                )
+            )
+        elif method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+            activity_background_attrition.append(
+                _attrition_record_from_indexes(
+                    attrition_type="activity_background_attrition",
+                    stage="ssgsea_effect_ranking_universe",
+                    reason="ssgsea_background_policy_declared_effect_ranking_sites",
+                    input_universe=KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE,
+                    output_universe=KINASE_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING,
+                    input_site_ids=site_universes.measured_quantitative_sites,
+                    output_site_ids=site_universes.ssgsea_effect_ranking_sites,
+                    method_id=method_id,
+                ).to_payload()
+            )
+            membership_attrition.append(
+                _attrition_record_from_indexes(
+                    attrition_type="membership_attrition",
+                    stage="ssgsea_reference_membership_universe_intersection",
+                    reason="reference_membership_sites_outside_ssgsea_effect_ranking",
+                    input_universe=KINASE_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP,
+                    output_universe=(
+                        "ssgsea_reference_membership_sites_in_effect_ranking"
+                    ),
+                    input_site_ids=site_universes.reference_supported_membership_sites,
+                    output_site_ids=_intersect_ordered_index(
+                        site_universes.reference_supported_membership_sites,
+                        site_universes.ssgsea_effect_ranking_sites,
+                    ),
+                    method_id=method_id,
+                ).to_payload()
+            )
+            finite_value_attrition.extend(
+                record.to_payload()
+                for record in _finite_value_attrition_records(
+                    matrix=request.ssgsea_effect_matrix,
+                    universe=KINASE_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING,
+                    method_id=method_id,
+                )
+            )
+        else:
+            membership_attrition.append(
+                _attrition_record_from_indexes(
+                    attrition_type="membership_attrition",
+                    stage="weighted_predicted_membership_universe_intersection",
+                    reason="predicted_membership_sites_outside_measured_quantitative",
+                    input_universe=KINASE_SITE_UNIVERSE_PREDICTED_MEMBERSHIP,
+                    output_universe="weighted_predicted_membership_sites_measured",
+                    input_site_ids=prediction_result.pred_mat.index,
+                    output_site_ids=_intersect_ordered_index(
+                        prediction_result.pred_mat.index,
+                        site_universes.measured_quantitative_sites,
+                    ),
+                    method_id=method_id,
+                ).to_payload()
+            )
+            finite_value_attrition.extend(
+                record.to_payload()
+                for record in _finite_value_attrition_records(
+                    matrix=request.activity_phospho_matrix,
+                    universe=KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE,
+                    method_id=method_id,
+                )
+            )
+    return {
+        "sequence_attrition": sequence_attrition,
+        "membership_attrition": membership_attrition,
+        "finite_value_attrition": finite_value_attrition,
+        "activity_background_attrition": activity_background_attrition,
+    }
+
+
+def _attrition_record_from_indexes(
+    *,
+    attrition_type: str,
+    stage: str,
+    reason: str,
+    input_universe: str,
+    output_universe: str,
+    input_site_ids: pd.Index,
+    output_site_ids: pd.Index,
+    method_id: str | None = None,
+    profile_id: str | None = None,
+) -> KinaseUniverseAttritionRecord:
+    input_ids = tuple(str(value) for value in input_site_ids.astype(str).tolist())
+    output_values = set(str(value) for value in output_site_ids.astype(str).tolist())
+    removed = tuple(site_id for site_id in input_ids if site_id not in output_values)
+    return KinaseUniverseAttritionRecord(
+        attrition_type=attrition_type,
+        stage=stage,
+        reason=reason,
+        input_universe=input_universe,
+        output_universe=output_universe,
+        input_sites=len(input_ids),
+        output_sites=len(input_ids) - len(removed),
+        removed_sites=len(removed),
+        examples=removed[:5],
+        method_id=method_id,
+        profile_id=profile_id,
+    )
+
+
+def _finite_value_attrition_records(
+    *,
+    matrix: pd.DataFrame,
+    universe: str,
+    method_id: str,
+) -> tuple[KinaseUniverseAttritionRecord, ...]:
+    records: list[KinaseUniverseAttritionRecord] = []
+    for column in matrix.columns.tolist():
+        profile_id = str(column)
+        values = matrix.loc[:, column].to_numpy(dtype=float, copy=False)
+        finite_mask = np.isfinite(values)
+        output_site_ids = matrix.index[finite_mask]
+        records.append(
+            _attrition_record_from_indexes(
+                attrition_type="finite_value_attrition",
+                stage="activity_profile_finite_value_filter",
+                reason="activity_profile_values_missing_or_non_finite",
+                input_universe=universe,
+                output_universe=f"{universe}.finite_values",
+                input_site_ids=matrix.index,
+                output_site_ids=output_site_ids,
+                method_id=method_id,
+                profile_id=str(profile_id),
+            )
+        )
+    return tuple(records)
+
+
+def _unique_membership_site_index(
+    membership: pd.DataFrame,
+    *,
+    ordered_like: pd.Index,
+) -> pd.Index:
+    if "substrate_site" not in membership.columns:
+        return pd.Index([], name=ordered_like.name, dtype="object")
+    membership_sites = set(membership.loc[:, "substrate_site"].astype(str).tolist())
+    return pd.Index(
+        [
+            str(site_id)
+            for site_id in ordered_like.astype(str).tolist()
+            if str(site_id) in membership_sites
+        ],
+        name=ordered_like.name,
+    )
+
+
+def _intersect_ordered_index(left: pd.Index, right: pd.Index) -> pd.Index:
+    right_values = set(str(value) for value in right.astype(str).tolist())
+    return pd.Index(
+        [
+            str(site_id)
+            for site_id in left.astype(str).tolist()
+            if str(site_id) in right_values
+        ],
+        name=left.name,
     )
 
 

@@ -402,8 +402,7 @@ def _align_activity_inputs(
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    common_sites = pred_mat.index.intersection(phospho_matrix.index)
-    return pred_mat.loc[common_sites], phospho_matrix.loc[common_sites]
+    return pred_mat.reindex(index=phospho_matrix.index.copy()), phospho_matrix
 
 
 @dataclass(frozen=True, slots=True)

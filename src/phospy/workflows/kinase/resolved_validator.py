@@ -29,7 +29,10 @@ from phospy.workflows.kinase.attrition_metrics import (
     build_kinase_attrition_provenance_payload,
     evaluate_kinase_attrition_policy,
 )
-from phospy.workflows.kinase.contracts import ResolvedKinaseExecutionConfig
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseExecutionConfig,
+    ResolvedKinaseSiteUniverses,
+)
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,
 )
@@ -61,6 +64,7 @@ class ResolvedKinaseInputs:
     execution_config: ResolvedKinaseExecutionConfig
     reference_site_count: int
     kinase_library_resource: KinaseLibraryResource | None = None
+    site_universes: ResolvedKinaseSiteUniverses | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     attrition_metrics: KinaseAttritionMetrics | None = None
     attrition_policy_violations: tuple[KinaseAttritionPolicyViolation, ...] = ()
