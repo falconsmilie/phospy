@@ -33,6 +33,9 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseSiteUniverses,
 )
+from phospy.workflows.kinase.reference_projection import (
+    KinaseReferenceProjectionSummary,
+)
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,
 )
@@ -62,7 +65,7 @@ class ResolvedKinaseInputs:
     scoring_site_index: pd.Index
     activity_phospho_matrix: pd.DataFrame
     execution_config: ResolvedKinaseExecutionConfig
-    reference_site_count: int
+    reference_projection_summary: KinaseReferenceProjectionSummary
     kinase_library_resource: KinaseLibraryResource | None = None
     site_universes: ResolvedKinaseSiteUniverses | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
@@ -179,7 +182,9 @@ class ResolvedKinaseEligibilityValidator:
                 "or verify dataset site_key/display_id identity mapping"
             ),
             dataset_sites=overlap_counts["dataset_sites"],
-            reference_sites=int(resolved_inputs.reference_site_count),
+            reference_sites=int(
+                resolved_inputs.reference_projection_summary.unique_source_substrate_identifier_count
+            ),
             overlap_sites=overlap_sites,
             scoring_config_min_substrates=(
                 resolved_inputs.execution_config.scoring_min_substrates

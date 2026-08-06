@@ -17,6 +17,10 @@ kinase scoring and kinase activity methods.
 Amended 2026-08-05 to make ssGSEA-style substrate enrichment equal-value ties
 method-owned and row-order invariant.
 
+Amended 2026-08-06 to require distinct kinase reference-projection attrition
+before source substrate identifiers are projected into dataset `site_key`
+identity.
+
 ## Context
 
 Recent workflow work introduced explicit scientific state for quantitative
@@ -245,9 +249,28 @@ named resolved matrices/maps, such as scoring phospho rows for scoring, KSEA
 background rows for KSEA, and ssGSEA effect-ranking rows for ssGSEA; it must not
 silently choose a background by reusing the motif-scoring universe. Membership
 maps are explicitly intersected with the selected method universe before the
-activity method is called. Provenance must serialize separate attrition records
-for sequence support, membership intersection, per-profile finite values, and
-activity-background/effect-universe selection.
+activity method is called.
+
+Reference projection is a separate provenance transition that happens before
+`reference_supported_membership_sites` exists. The source universe is
+`references.kinase_substrate_map.substrate_site`, whose values may be reference
+display IDs, dataset `site_key` values, or unmatched source identifiers. The
+projected membership universe remains dataset `site_key` rows only. Provenance
+must therefore serialize source-reference projection attrition separately from
+later site-key universe filters; it must not infer projection loss from the
+already-projected membership universe.
+
+Kinase universe provenance must distinguish:
+
+- source-reference projection attrition;
+- sequence-support attrition;
+- membership intersection;
+- finite-value attrition; and
+- activity-background or effect-universe attrition.
+
+One-to-many display projection is projection ambiguity/diagnostic evidence, not
+attrition. A source display identifier that maps to multiple dataset `site_key`
+rows remains matched; it must not be counted as removed.
 
 ## Intensity-Scale Evidence
 

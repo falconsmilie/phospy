@@ -68,6 +68,9 @@ from phospy.workflows.kinase.attrition_metrics import (
     KinaseAttritionPolicyViolation,
     build_kinase_attrition_metrics,
 )
+from phospy.workflows.kinase.reference_projection import (
+    KinaseReferenceProjectionSummary,
+)
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,
 )
@@ -363,6 +366,7 @@ class ResolvedKinaseWorkflowRequest:
     attrition_policy_violations: tuple[KinaseAttritionPolicyViolation, ...] = ()
     row_attrition_records: tuple[RowAttritionRecord, ...] = ()
     site_identity_map: pd.DataFrame | None = None
+    reference_projection_summary: KinaseReferenceProjectionSummary | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     reference_resolution_details: dict[str, object] = field(default_factory=dict)
     _kinase_substrate_reference: pd.DataFrame = field(
@@ -475,6 +479,10 @@ class ResolvedKinaseWorkflowRequest:
             kinase_substrate_map,
             self.scoring_site_index,
         )
+        reference_projection_summary = self._validate_reference_projection_summary(
+            self.reference_projection_summary,
+            kinase_substrate_map=kinase_substrate_map,
+        )
         attrition_metrics = self.attrition_metrics
         if attrition_metrics is None:
             attrition_metrics = build_kinase_attrition_metrics(
@@ -534,6 +542,11 @@ class ResolvedKinaseWorkflowRequest:
         object.__setattr__(self, "site_identity_map", site_identity_map)
         object.__setattr__(self, "activity_phospho_matrix", activity_phospho_matrix)
         object.__setattr__(self, "site_universes", site_universes)
+        object.__setattr__(
+            self,
+            "reference_projection_summary",
+            reference_projection_summary,
+        )
         object.__setattr__(self, "attrition_metrics", attrition_metrics)
         object.__setattr__(
             self,
@@ -550,6 +563,37 @@ class ResolvedKinaseWorkflowRequest:
             "_scoring_kinase_substrate_reference",
             scoring_kinase_substrate_map,
         )
+
+    @staticmethod
+    def _validate_reference_projection_summary(
+        value: object,
+        *,
+        kinase_substrate_map: pd.DataFrame,
+    ) -> KinaseReferenceProjectionSummary | None:
+        if value is None:
+            return None
+        if not isinstance(value, KinaseReferenceProjectionSummary):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.reference_projection_summary_type; "
+                "reference_projection_summary must be "
+                "KinaseReferenceProjectionSummary or None; next_action=ensure "
+                "the interpreter attaches the typed reference-projection summary"
+            )
+        projected_sites = set(
+            str(site_id)
+            for site_id in kinase_substrate_map.loc[:, "substrate_site"].tolist()
+        )
+        if int(value.projected_dataset_site_key_count) != len(projected_sites):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.reference_projection_summary_alignment; "
+                "reference_projection_summary.projected_dataset_site_key_count "
+                "must match the projected kinase_substrate_map unique "
+                "substrate_site rows; next_action=derive projection summary "
+                "and projected membership from the same reference projection step"
+            )
+        return value
 
     @staticmethod
     def _validate_kinase_substrate_map(
@@ -1312,6 +1356,7 @@ __all__ = [
     "KinaseWorkflowExecutorContract",
     "KinaseWorkflowInterpreterContract",
     "KinaseWorkflowValidatorContract",
+    "KinaseReferenceProjectionSummary",
     "ResolvedKinaseActivityExecutionConfig",
     "ResolvedKinaseExecutionConfig",
     "ResolvedKinaseSiteUniverses",

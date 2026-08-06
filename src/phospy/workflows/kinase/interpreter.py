@@ -128,22 +128,13 @@ class KinaseWorkflowInterpreter:
             request=request,
             scoring_config=scoring_config,
         )
-        reference_site_count = len(
-            frozenset(
-                series_as_strings(
-                    dataframe_column(
-                        references.kinase_substrate_map,
-                        "substrate_site",
-                    )
-                )
-            )
-        )
         projection_result = self._reference_projector.run(
             reference_kinase_substrate_map=references.kinase_substrate_map,
             site_identity_map=site_identity_map,
             ambiguity_policy=request.reference_display_ambiguity_policy,
         )
         kinase_substrate_map = projection_result.kinase_substrate_map
+        reference_projection_summary = projection_result.projection_summary
         display_reference_matching = (
             projection_result.display_reference_matching_payload()
         )
@@ -212,7 +203,7 @@ class KinaseWorkflowInterpreter:
             scoring_site_index=scoring_site_index,
             activity_phospho_matrix=activity_phospho_matrix,
             execution_config=execution_config,
-            reference_site_count=reference_site_count,
+            reference_projection_summary=reference_projection_summary,
             kinase_library_resource=kinase_library_resource,
             site_universes=site_universes,
         )
@@ -229,6 +220,7 @@ class KinaseWorkflowInterpreter:
             execution_config=execution_config,
             site_universes=site_universes,
             kinase_library_resource=kinase_library_resource,
+            reference_projection_summary=reference_projection_summary,
             attrition_metrics=resolved_inputs.attrition_metrics,
             attrition_policy_violations=(resolved_inputs.attrition_policy_violations),
             row_attrition_records=row_attrition_records,

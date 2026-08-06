@@ -39,6 +39,9 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseWorkflowRequest,
 )
 from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
+from phospy.workflows.kinase.reference_projection import (
+    KinaseReferenceProjectionSummary,
+)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -311,6 +314,7 @@ def test_workflow_serializes_separate_universe_attrition_records() -> None:
 
     workflow_parameters = result.provenance.workflow_parameters
     universe_attrition = workflow_parameters["universe_attrition"]
+    assert universe_attrition["reference_attrition"] == []
     assert universe_attrition["sequence_attrition"][0]["removed_sites"] == 1
     assert universe_attrition["membership_attrition"]
     assert universe_attrition["finite_value_attrition"]
@@ -320,6 +324,145 @@ def test_workflow_serializes_separate_universe_attrition_records() -> None:
     activity_config = workflow_parameters["activity_config"]
     assert activity_config["method_universe_contract"]["background_universe"] == (
         "ksea_background_sites"
+    )
+
+
+def test_reference_projection_attrition_is_separate_from_membership_attrition() -> None:
+    dataset = _dataset_with_three_measured_sites()
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K_REF", "K_REF", "K_REF"],
+                "substrate_site": [
+                    "GENE1;S10;",
+                    "GENE2;T20;",
+                    "UNMATCHED;S1;",
+                ],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": [_window("S"), _window("T"), _window("S")]},
+            index=pd.Index(
+                ["GENE1;S10;", "GENE2;T20;", "UNMATCHED;S1;"],
+                name="site_id",
+            ),
+        ),
+    )
+    projected = pd.DataFrame(
+        {
+            "kinase": ["K_REF", "K_REF"],
+            "substrate_site": dataset.phospho.index.astype(str).tolist()[:2],
+            "display_id": ["GENE1;S10;", "GENE2;T20;"],
+        }
+    )
+    resolved = ResolvedKinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        kinase_substrate_map=projected,
+        site_sequences=_site_sequences_for(dataset, dataset.phospho.index[:2]),
+        site_identity_map=_site_identity_map(dataset),
+        scoring_site_index=dataset.phospho.index[:2].copy(),
+        activity_phospho_matrix=dataset.phospho.copy(deep=True),
+        row_attrition_records=tuple(
+            record
+            for record in (
+                make_row_attrition_record(
+                    workflow="kinase",
+                    stage="kinase_sequence_context",
+                    reason="sites_missing_valid_centered_sequence",
+                    input_site_ids=dataset.phospho.index,
+                    output_site_ids=dataset.phospho.index[:2],
+                ),
+            )
+            if record is not None
+        ),
+        reference_projection_summary=KinaseReferenceProjectionSummary(
+            source_reference_row_count=3,
+            matched_source_substrate_identifiers=("GENE1;S10;", "GENE2;T20;"),
+            unmatched_source_substrate_identifiers=("UNMATCHED;S1;",),
+            projected_dataset_site_key_count=2,
+            source_identifier_kinds=(
+                "dataset_display_id",
+                "unmatched_reference_substrate_identifier",
+            ),
+            one_to_many_display_reference_match_count=0,
+            one_to_many_display_reference_site_key_rows=0,
+        ),
+        execution_config=_execution_config(),
+    )
+    result = KinaseWorkflowExecutor().run(resolved)
+
+    universe_attrition = result.provenance.workflow_parameters["universe_attrition"]
+    reference_record = universe_attrition["reference_attrition"][0]
+    assert reference_record["attrition_type"] == "reference_attrition"
+    assert reference_record["input_sites"] == 3
+    assert reference_record["output_sites"] == 2
+    assert reference_record["removed_sites"] == 1
+    assert reference_record["examples"] == ["UNMATCHED;S1;"]
+    assert reference_record["input_identifier_namespace"] == (
+        "references.kinase_substrate_map.substrate_site"
+    )
+    assert reference_record["projected_output_identifier_namespace"] == (
+        "dataset.site_key"
+    )
+    membership_examples = [
+        example
+        for record in universe_attrition["membership_attrition"]
+        for example in record["examples"]
+    ]
+    assert "UNMATCHED;S1;" not in membership_examples
+
+
+def test_sequence_loss_for_projected_reference_site_is_not_reference_attrition() -> (
+    None
+):
+    dataset = _dataset_with_three_measured_sites()
+    projected = _projected_membership(dataset)
+    scoring_site_index = dataset.phospho.index[:2].copy()
+    resolved = ResolvedKinaseWorkflowRequest(
+        dataset=dataset,
+        references=_references_with_three_members(),
+        kinase_substrate_map=projected,
+        site_sequences=_site_sequences_for(dataset, scoring_site_index),
+        site_identity_map=_site_identity_map(dataset),
+        scoring_site_index=scoring_site_index,
+        activity_phospho_matrix=dataset.phospho.copy(deep=True),
+        row_attrition_records=tuple(
+            record
+            for record in (
+                make_row_attrition_record(
+                    workflow="kinase",
+                    stage="kinase_sequence_context",
+                    reason="sites_missing_valid_centered_sequence",
+                    input_site_ids=dataset.phospho.index,
+                    output_site_ids=scoring_site_index,
+                ),
+            )
+            if record is not None
+        ),
+        reference_projection_summary=KinaseReferenceProjectionSummary(
+            source_reference_row_count=3,
+            matched_source_substrate_identifiers=_display_ids(),
+            unmatched_source_substrate_identifiers=(),
+            projected_dataset_site_key_count=3,
+            source_identifier_kinds=("dataset_display_id",),
+            one_to_many_display_reference_match_count=0,
+            one_to_many_display_reference_site_key_rows=0,
+        ),
+        execution_config=_execution_config(),
+    )
+    result = KinaseWorkflowExecutor().run(resolved)
+
+    universe_attrition = result.provenance.workflow_parameters["universe_attrition"]
+    missing_sequence_site = str(dataset.phospho.index[2])
+    assert universe_attrition["reference_attrition"] == []
+    assert (
+        missing_sequence_site in universe_attrition["sequence_attrition"][0]["examples"]
+    )
+    assert (
+        missing_sequence_site
+        in universe_attrition["membership_attrition"][0]["examples"]
     )
 
 

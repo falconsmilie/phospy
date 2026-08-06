@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 
 import pandas as pd
 import pytest
@@ -58,7 +59,10 @@ from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
 from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
-from phospy.workflows.kinase.reference_projection import KinaseReferenceProjector
+from phospy.workflows.kinase.reference_projection import (
+    KinaseReferenceProjectionSummary,
+    KinaseReferenceProjector,
+)
 from phospy.workflows.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
 )
@@ -1041,6 +1045,104 @@ def test_site_key_based_reference_projection_is_not_ambiguous() -> None:
     ]
 
 
+def test_reference_projection_summary_captures_unmatched_sources_before_drop() -> None:
+    dataset = _dataset()
+    site_identity_map = _site_identity_map(dataset)
+    result = KinaseReferenceProjector().run(
+        reference_kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6", "MAP2K6"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "UNMATCHED;S1;",
+                    "UNMATCHED;S1;",
+                ],
+            }
+        ),
+        site_identity_map=site_identity_map,
+        ambiguity_policy=KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    )
+
+    summary = result.projection_summary
+    assert summary.source_reference_row_count == 3
+    assert summary.unique_source_substrate_identifier_count == 2
+    assert summary.matched_source_substrate_identifiers == ("MAPK14;Y182;",)
+    assert summary.unmatched_source_substrate_identifiers == ("UNMATCHED;S1;",)
+    assert summary.unmatched_source_substrate_identifier_count == 1
+    assert summary.unmatched_source_substrate_identifier_examples == ("UNMATCHED;S1;",)
+    assert summary.projected_dataset_site_key_count == 1
+    assert result.kinase_substrate_map.loc[:, "substrate_site"].nunique() == 1
+
+
+def test_reference_projection_summary_treats_one_to_many_display_as_matched() -> None:
+    dataset = _dataset_with_duplicate_display_ids()
+    result = KinaseReferenceProjector().run(
+        reference_kinase_substrate_map=pd.DataFrame(
+            {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
+        ),
+        site_identity_map=_site_identity_map(dataset),
+        ambiguity_policy=(
+            KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+        ),
+    )
+
+    summary = result.projection_summary
+    assert summary.matched_source_substrate_identifiers == ("MAPK14;Y182;",)
+    assert summary.unmatched_source_substrate_identifiers == ()
+    assert summary.projected_dataset_site_key_count == 2
+    assert summary.one_to_many_display_reference_match_count == 1
+    assert summary.one_to_many_display_reference_site_key_rows == 2
+
+
+def test_reference_projection_summary_is_stable_under_source_row_permutation() -> None:
+    dataset = _dataset()
+    site_identity_map = _site_identity_map(dataset)
+    first = pd.DataFrame(
+        {
+            "kinase": ["MAP2K6", "MAP2K6", "MAP2K6", "MAP2K6"],
+            "substrate_site": [
+                "UNMATCHED;S1;",
+                "GSK3B;S9;",
+                "MAPK14;Y182;",
+                "UNMATCHED;S1;",
+            ],
+        }
+    )
+    second = first.iloc[[2, 3, 0, 1], :].reset_index(drop=True)
+
+    left = KinaseReferenceProjector().run(
+        reference_kinase_substrate_map=first,
+        site_identity_map=site_identity_map,
+        ambiguity_policy=KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    )
+    right = KinaseReferenceProjector().run(
+        reference_kinase_substrate_map=second,
+        site_identity_map=site_identity_map,
+        ambiguity_policy=KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    )
+
+    assert left.projection_summary.to_payload() == right.projection_summary.to_payload()
+
+
+def test_reference_projection_summary_round_trips_from_payload() -> None:
+    dataset = _dataset()
+    result = KinaseReferenceProjector().run(
+        reference_kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "UNMATCHED;S1;"],
+            }
+        ),
+        site_identity_map=_site_identity_map(dataset),
+        ambiguity_policy=KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    )
+
+    payload = result.projection_summary.to_payload()
+    restored = KinaseReferenceProjectionSummary.from_payload(payload)
+
+    assert restored == result.projection_summary
+
+
 def test_scoring_runner_returns_expected_downstream_score_source() -> None:
     request = _resolved_request()
     result = KinaseScoringRunner().run(
@@ -1499,6 +1601,74 @@ def test_ksea_combined_profile_motif_membership_is_inferentially_ineligible() ->
     )
     assert result.membership_selection.consumed_tested_matrix is True
     assert result.membership_selection.inferential_eligible is False
+
+
+@pytest.mark.parametrize(
+    ("method", "activity"),
+    (
+        (
+            KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+            _activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE),
+        ),
+        (
+            KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+            _activity_config(
+                method=KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+                ssgsea_min_substrates=2,
+            ),
+        ),
+    ),
+)
+def test_activity_outputs_do_not_change_when_reference_projection_summary_is_attached(
+    method: str,
+    activity: ResolvedKinaseActivityExecutionConfig,
+) -> None:
+    _ = method
+    request = _resolved_request(
+        config=_config(activity=activity),
+        dataset=_effect_dataset(),
+    )
+    request_with_summary = replace(
+        request,
+        reference_projection_summary=KinaseReferenceProjectionSummary(
+            source_reference_row_count=3,
+            matched_source_substrate_identifiers=("GSK3B;S9;", "MAPK14;Y182;"),
+            unmatched_source_substrate_identifiers=("UNMATCHED;S1;",),
+            projected_dataset_site_key_count=2,
+            source_identifier_kinds=(
+                "dataset_display_id",
+                "unmatched_reference_substrate_identifier",
+            ),
+            one_to_many_display_reference_match_count=0,
+            one_to_many_display_reference_site_key_rows=0,
+        ),
+    )
+    pred_mat = pd.DataFrame(
+        {"MAP2K6": [0.7, 0.6]},
+        index=request.scoring_site_index.copy(),
+    )
+    prediction_result = KinasePredictionResult._from_owned(pred_mat=pred_mat)
+
+    baseline = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+    )
+    observed = KinaseActivityRunner().run(
+        request=request_with_summary,
+        config=request_with_summary.execution_config,
+        prediction_result=prediction_result,
+    )
+
+    assert baseline is not None
+    assert observed is not None
+    pd.testing.assert_frame_equal(observed.activity_matrix, baseline.activity_matrix)
+    if baseline.statistics_table is not None:
+        assert observed.statistics_table is not None
+        pd.testing.assert_frame_equal(
+            observed.statistics_table,
+            baseline.statistics_table,
+        )
 
 
 def test_ksea_leave_one_out_profile_membership_remains_inferentially_ineligible() -> (

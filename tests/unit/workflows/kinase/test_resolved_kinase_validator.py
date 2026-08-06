@@ -22,6 +22,9 @@ from phospy.workflows.kinase.contracts import (
     ValidatedKinaseWorkflowRequest,
 )
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.workflows.kinase.reference_projection import (
+    KinaseReferenceProjectionSummary,
+)
 from phospy.workflows.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
     ResolvedKinaseInputs,
@@ -161,7 +164,7 @@ def _resolved_inputs(
     kinase_substrate_map: pd.DataFrame | None = None,
     site_sequences: pd.DataFrame | None = None,
     min_substrates: int = 2,
-    reference_site_count: int = 2,
+    source_reference_identifiers: tuple[str, ...] | None = None,
 ) -> ResolvedKinaseInputs:
     dataset = dataset or _dataset()
     dataset_phospho = dataset.phospho
@@ -169,6 +172,38 @@ def _resolved_inputs(
         site_sequences if site_sequences is not None else _site_sequences(dataset)
     )
     scoring_site_index = site_sequences.index.copy()
+    source_reference_identifiers = source_reference_identifiers or tuple(
+        dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
+    )
+    projected_sites = tuple(
+        str(value)
+        for value in (
+            kinase_substrate_map
+            if kinase_substrate_map is not None
+            else pd.DataFrame(
+                {
+                    "kinase": ["K_REF", "K_REF"],
+                    "substrate_site": dataset_phospho.index.astype(str).tolist(),
+                }
+            )
+        )
+        .loc[:, "substrate_site"]
+        .astype(str)
+        .tolist()
+    )
+    projected_site_set = set(projected_sites)
+    matched_source = tuple(
+        identifier
+        for identifier in source_reference_identifiers
+        if identifier in projected_site_set
+        or identifier
+        in set(dataset.site_metadata.loc[:, "display_id"].astype(str).tolist())
+    )
+    unmatched_source = tuple(
+        identifier
+        for identifier in source_reference_identifiers
+        if identifier not in set(matched_source)
+    )
     return ResolvedKinaseInputs(
         dataset=dataset,
         dataset_phospho=dataset_phospho,
@@ -188,7 +223,15 @@ def _resolved_inputs(
         scoring_site_index=scoring_site_index,
         activity_phospho_matrix=dataset_phospho.reindex(index=scoring_site_index),
         execution_config=_execution_config(min_substrates=min_substrates),
-        reference_site_count=reference_site_count,
+        reference_projection_summary=KinaseReferenceProjectionSummary(
+            source_reference_row_count=len(source_reference_identifiers),
+            matched_source_substrate_identifiers=matched_source,
+            unmatched_source_substrate_identifiers=unmatched_source,
+            projected_dataset_site_key_count=len(projected_site_set),
+            source_identifier_kinds=("dataset_display_id",),
+            one_to_many_display_reference_match_count=0,
+            one_to_many_display_reference_site_key_rows=0,
+        ),
     )
 
 
@@ -197,7 +240,7 @@ def test_resolved_kinase_validator_rejects_no_reference_overlap() -> None:
         kinase_substrate_map=pd.DataFrame(
             {"kinase": ["K_REF"], "substrate_site": ["unmatched_site_key"]}
         ),
-        reference_site_count=1,
+        source_reference_identifiers=("unmatched_site_key",),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -215,7 +258,7 @@ def test_resolved_kinase_validator_rejects_no_eligible_kinases() -> None:
         kinase_substrate_map=pd.DataFrame(
             {"kinase": ["K_REF"], "substrate_site": [site_key]}
         ),
-        reference_site_count=1,
+        source_reference_identifiers=(site_key,),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:

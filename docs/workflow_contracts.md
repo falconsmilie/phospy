@@ -361,6 +361,13 @@ is not encoded as site-row loss. Invalid preconditions such as missing
 grouping metadata fail validation before execution rather than producing
 synthetic attrition records.
 
+Kinase `universe_attrition` is separate from row attrition. It records
+reference projection loss before source substrate identifiers are dropped, then
+keeps sequence support, membership intersection, finite-value filtering, and
+activity-background/effect-universe selection as distinct categories. Source
+reference identifiers are typed as `references.kinase_substrate_map.substrate_site`;
+method-consumable universes remain dataset `site_key` rows.
+
 Enrichment identifier-set provenance is role-specific. Selected and background
 sets use the same typed provenance model, and PhosPy-derived quantitative sets
 must carry typed derivation provenance plus typed input-intensity-scale

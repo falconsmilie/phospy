@@ -457,6 +457,16 @@ available for legacy compatibility diagnostics, including
 `site_kinase_pairs_considered`, `site_kinase_pairs_scored`, and unscored-pair
 counts.
 
+`workflow_parameters["reference_projection_summary"]` records the source
+kinase-substrate reference projection before unmatched substrate identifiers are
+dropped. `workflow_parameters["universe_attrition"]` always contains separate
+categories for `reference_attrition`, `sequence_attrition`,
+`membership_attrition`, `finite_value_attrition`, and
+`activity_background_attrition`. Reference attrition is expressed in the source
+`references.kinase_substrate_map.substrate_site` namespace and includes bounded
+examples of unmatched identifiers; projected scoring and activity universes
+remain in dataset `site_key` identity.
+
 `KinaseWorkflowAttritionProvenance` stores the workflow-calculated attrition
 metrics, configured policy payload, policy outcome, policy violations, and
 warning messages. The result contract does not calculate those values. It

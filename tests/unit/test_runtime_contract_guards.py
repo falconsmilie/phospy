@@ -20,6 +20,9 @@ from phospy.science.references.models import Organism, ReferenceBundle, Referenc
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.workflows.kinase.reference_projection import (
+    KinaseReferenceProjectionSummary,
+)
 from phospy.workflows.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
     ResolvedKinaseInputs,
@@ -215,6 +218,14 @@ def test_resolved_kinase_validator_rejects_invalid_overlap_summary_state() -> No
                     scoring_config=scoring_config,
                     dataset_view=DatasetInternalView(dataset),
                 ),
-                reference_site_count=0,
+                reference_projection_summary=KinaseReferenceProjectionSummary(
+                    source_reference_row_count=0,
+                    matched_source_substrate_identifiers=(),
+                    unmatched_source_substrate_identifiers=(),
+                    projected_dataset_site_key_count=0,
+                    source_identifier_kinds=(),
+                    one_to_many_display_reference_match_count=0,
+                    one_to_many_display_reference_site_key_rows=0,
+                ),
             ),
         )

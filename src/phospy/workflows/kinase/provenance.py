@@ -370,6 +370,11 @@ def _build_workflow_parameters(
                 request=request,
                 config=config,
             ),
+            "reference_projection_summary": (
+                None
+                if request.reference_projection_summary is None
+                else request.reference_projection_summary.to_payload()
+            ),
             "site_universes": (
                 None
                 if request.site_universes is None
@@ -717,11 +722,13 @@ def _build_universe_attrition_payload(
     site_universes = request.site_universes
     if site_universes is None:
         return {
+            "reference_attrition": [],
             "sequence_attrition": [],
             "membership_attrition": [],
             "finite_value_attrition": [],
             "activity_background_attrition": [],
         }
+    reference_attrition = _reference_attrition_records(request)
     sequence_attrition = [
         _attrition_record_from_indexes(
             attrition_type="sequence_attrition",
@@ -855,11 +862,74 @@ def _build_universe_attrition_payload(
                 )
             )
     return {
+        "reference_attrition": reference_attrition,
         "sequence_attrition": sequence_attrition,
         "membership_attrition": membership_attrition,
         "finite_value_attrition": finite_value_attrition,
         "activity_background_attrition": activity_background_attrition,
     }
+
+
+def _reference_attrition_records(
+    request: ResolvedKinaseWorkflowRequest,
+) -> list[dict[str, object]]:
+    summary = request.reference_projection_summary
+    if summary is None or summary.unmatched_source_substrate_identifier_count == 0:
+        return []
+    return [
+        {
+            "attrition_type": "reference_attrition",
+            "stage": "reference_projection_to_dataset_site_key",
+            "reason": (
+                "source_reference_substrate_identifier_has_no_dataset_site_key_"
+                "or_display_id_match"
+            ),
+            "input_universe": "source_reference_substrate_identifiers",
+            "output_universe": (
+                "source_reference_substrate_identifiers_with_dataset_projection"
+            ),
+            "input_identifier_namespace": summary.source_identifier_namespace,
+            "output_identifier_namespace": summary.source_identifier_namespace,
+            "projected_output_identifier_namespace": (
+                summary.output_identifier_namespace
+            ),
+            "input_identity_semantics": summary.source_identity_semantics,
+            "output_identity_semantics": (
+                "source reference substrate identifiers that have at least one "
+                "dataset projection; these are not dataset site_key rows"
+            ),
+            "projected_output_identity_semantics": (summary.output_identity_semantics),
+            "input_sites": int(summary.unique_source_substrate_identifier_count),
+            "output_sites": int(summary.matched_source_substrate_identifier_count),
+            "removed_sites": int(summary.unmatched_source_substrate_identifier_count),
+            "input_identifier_count": int(
+                summary.unique_source_substrate_identifier_count
+            ),
+            "output_identifier_count": int(
+                summary.matched_source_substrate_identifier_count
+            ),
+            "removed_identifier_count": int(
+                summary.unmatched_source_substrate_identifier_count
+            ),
+            "examples": list(summary.unmatched_source_substrate_identifier_examples),
+            "removed_identifier_examples": list(
+                summary.unmatched_source_substrate_identifier_examples
+            ),
+            "projected_dataset_site_key_count": int(
+                summary.projected_dataset_site_key_count
+            ),
+            "one_to_many_display_reference_match_count": int(
+                summary.one_to_many_display_reference_match_count
+            ),
+            "one_to_many_display_reference_site_key_rows": int(
+                summary.one_to_many_display_reference_site_key_rows
+            ),
+            "one_to_many_projection_diagnostics": (
+                "display_reference_matching.one_to_many_display_reference_matches"
+            ),
+            "interpreter_version": summary.interpreter_version,
+        }
+    ]
 
 
 def _attrition_record_from_indexes(

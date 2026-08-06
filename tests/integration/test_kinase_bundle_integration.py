@@ -237,6 +237,44 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     )
 
 
+def test_kinase_bundle_round_trip_preserves_reference_projection_summary(
+    tmp_path: Path,
+) -> None:
+    base_request = _build_request(activity=False)
+    references = _references_with_unmatched_projection(base_request.references)
+    request = replace(base_request, references=references)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_reference_projection"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    original_parameters = result.provenance.workflow_parameters
+    loaded_parameters = loaded.result.provenance.workflow_parameters
+    assert (
+        loaded_parameters["reference_projection_summary"]
+        == (original_parameters["reference_projection_summary"])
+    )
+    assert (
+        loaded_parameters["universe_attrition"]
+        == (original_parameters["universe_attrition"])
+    )
+    projection_summary = loaded_parameters["reference_projection_summary"]
+    assert isinstance(projection_summary, dict)
+    assert projection_summary["unmatched_source_substrate_identifier_examples"] == [
+        "UNMATCHED;S404;"
+    ]
+    universe_attrition = loaded_parameters["universe_attrition"]
+    assert isinstance(universe_attrition, dict)
+    reference_attrition = universe_attrition["reference_attrition"]
+    assert isinstance(reference_attrition, list)
+    assert reference_attrition[0]["examples"] == ["UNMATCHED;S404;"]
+
+
 def test_kinase_bundle_round_trip_preserves_adaptive_prediction_seed(
     tmp_path: Path,
 ) -> None:
@@ -2032,6 +2070,38 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
             if activity
             else None
         ),
+    )
+
+
+def _references_with_unmatched_projection(
+    references: ReferenceBundle,
+) -> ReferenceBundle:
+    kinase_substrate_map = pd.concat(
+        [
+            references.kinase_substrate_map,
+            pd.DataFrame(
+                {
+                    "kinase": ["MAP2K6"],
+                    "substrate_site": ["UNMATCHED;S404;"],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+    site_sequences = pd.concat(
+        [
+            references.site_sequences,
+            pd.DataFrame(
+                {"site_sequence": ["AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"]},
+                index=pd.Index(["UNMATCHED;S404;"], name="site_id"),
+            ),
+        ],
+        axis=0,
+    )
+    return ReferenceBundle(
+        organism=references.organism,
+        kinase_substrate_map=kinase_substrate_map,
+        site_sequences=site_sequences,
     )
 
 

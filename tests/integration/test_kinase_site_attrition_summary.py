@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import numpy as np
@@ -148,6 +149,118 @@ def _build_references() -> ReferenceBundle:
             ),
         ),
     )
+
+
+def _build_references_with_unmatched_projection() -> ReferenceBundle:
+    return ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K1", "K1", "K1", "K2", "K2", "K2", "K2"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "REF2;T1;",
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "REF2;T1;",
+                    "UNMATCHED;S404;",
+                ],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": [
+                    _centred_sequence("Y"),
+                    _centred_sequence("S"),
+                    _centred_sequence("T"),
+                    _centred_sequence("S"),
+                    _centred_sequence("S"),
+                    _centred_sequence("S"),
+                ]
+            },
+            index=pd.Index(
+                [
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "REF2;T1;",
+                    "BADID;123;",
+                    "NOREF;S1;",
+                    "UNMATCHED;S404;",
+                ],
+                name="site_id",
+            ),
+        ),
+    )
+
+
+def test_kinase_workflow_provenance_exposes_reference_projection_attrition() -> None:
+    dataset = _build_dataset_with_attrition_mix()
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=_build_references_with_unmatched_projection(),
+            scoring_config=KinaseScoringConfig(
+                reliability_profile="custom",
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
+            prediction_config=KinasePredictionConfig(
+                top_k=3,
+                deterministic_max_selected_kinases=3,
+                adaptive_ensemble_runs=3,
+            ),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                threshold=0.0,
+                min_substrates=1,
+                top_n_substrates=3,
+            ),
+        )
+    )
+
+    workflow_parameters = result.provenance.workflow_parameters
+    projection_summary = workflow_parameters["reference_projection_summary"]
+    assert isinstance(projection_summary, Mapping)
+    assert projection_summary["source_reference_row_count"] == 7
+    assert projection_summary["unique_source_substrate_identifier_count"] == 4
+    assert projection_summary["matched_source_substrate_identifier_count"] == 3
+    assert projection_summary["unmatched_source_substrate_identifier_count"] == 1
+    assert projection_summary["unmatched_source_substrate_identifier_examples"] == [
+        "UNMATCHED;S404;"
+    ]
+    assert projection_summary["projected_dataset_site_key_count"] == 3
+
+    universe_attrition = workflow_parameters["universe_attrition"]
+    assert isinstance(universe_attrition, Mapping)
+    assert set(universe_attrition) == {
+        "reference_attrition",
+        "sequence_attrition",
+        "membership_attrition",
+        "finite_value_attrition",
+        "activity_background_attrition",
+    }
+    reference_record = universe_attrition["reference_attrition"][0]
+    assert reference_record["attrition_type"] == "reference_attrition"
+    assert reference_record["stage"] == "reference_projection_to_dataset_site_key"
+    assert reference_record["input_sites"] == 4
+    assert reference_record["output_sites"] == 3
+    assert reference_record["removed_sites"] == 1
+    assert reference_record["examples"] == ["UNMATCHED;S404;"]
+    assert reference_record["input_identifier_namespace"] == (
+        "references.kinase_substrate_map.substrate_site"
+    )
+    assert reference_record["projected_output_identifier_namespace"] == (
+        "dataset.site_key"
+    )
+    membership_examples = [
+        example
+        for record in universe_attrition["membership_attrition"]
+        for example in record["examples"]
+    ]
+    assert "UNMATCHED;S404;" not in membership_examples
 
 
 def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
