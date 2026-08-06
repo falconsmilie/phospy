@@ -1141,6 +1141,186 @@ def test_reference_projection_summary_round_trips_from_payload() -> None:
     restored = KinaseReferenceProjectionSummary.from_payload(payload)
 
     assert restored == result.projection_summary
+    assert restored.to_payload() == payload
+
+
+def _valid_reference_projection_summary(
+    **overrides: object,
+) -> KinaseReferenceProjectionSummary:
+    parameters: dict[str, object] = {
+        "source_reference_row_count": 2,
+        "matched_source_substrate_identifiers": ("MAPK14;Y182;",),
+        "unmatched_source_substrate_identifiers": ("UNMATCHED;S1;",),
+        "projected_dataset_site_key_count": 1,
+        "source_identifier_kinds": (
+            "dataset_display_id",
+            "unmatched_reference_substrate_identifier",
+        ),
+        "one_to_many_display_reference_match_count": 0,
+        "one_to_many_display_reference_site_key_rows": 0,
+    }
+    parameters.update(overrides)
+    return KinaseReferenceProjectionSummary(**parameters)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    (
+        (
+            {"source_identifier_namespace": "dataset.site_key"},
+            "source_identifier_namespace",
+        ),
+        (
+            {
+                "output_identifier_namespace": (
+                    "references.kinase_substrate_map.substrate_site"
+                )
+            },
+            "output_identifier_namespace",
+        ),
+        (
+            {
+                "source_identifier_namespace": "dataset.site_key",
+                "output_identifier_namespace": "dataset.site_key",
+            },
+            "source_identifier_namespace",
+        ),
+        (
+            {"source_identity_semantics": "arbitrary source semantics"},
+            "source_identity_semantics",
+        ),
+        (
+            {"output_identity_semantics": "arbitrary output semantics"},
+            "output_identity_semantics",
+        ),
+        (
+            {"source_identifier_kinds": ("dataset_display_id", "invented_kind")},
+            "unsupported identifier kind",
+        ),
+        ({"schema_version": 2}, "schema_version"),
+        ({"interpreter_version": "projector.v2"}, "interpreter_version"),
+        ({"source_reference_row_count": 0}, "source_reference_row_count"),
+        ({"source_reference_row_count": 1}, "source_reference_row_count"),
+        ({"projected_dataset_site_key_count": 0}, "projected_dataset_site_key_count"),
+        (
+            {"source_identifier_kinds": ("dataset_display_id",)},
+            "unmatched source identifiers",
+        ),
+        (
+            {"source_identifier_kinds": ("unmatched_reference_substrate_identifier",)},
+            "matched identifier kind",
+        ),
+        (
+            {
+                "source_reference_row_count": 1,
+                "unmatched_source_substrate_identifiers": (),
+                "source_identifier_kinds": (
+                    "dataset_display_id",
+                    "unmatched_reference_substrate_identifier",
+                ),
+            },
+            "must not include",
+        ),
+        (
+            {
+                "source_reference_row_count": 1,
+                "matched_source_substrate_identifiers": (),
+                "unmatched_source_substrate_identifiers": ("UNMATCHED;S1;",),
+                "projected_dataset_site_key_count": 0,
+                "source_identifier_kinds": (
+                    "dataset_display_id",
+                    "unmatched_reference_substrate_identifier",
+                ),
+            },
+            "must not include matched",
+        ),
+        ({"one_to_many_display_reference_match_count": 1}, "one-to-many"),
+        ({"one_to_many_display_reference_site_key_rows": 2}, "one-to-many"),
+        (
+            {
+                "one_to_many_display_reference_match_count": 1,
+                "one_to_many_display_reference_site_key_rows": 1,
+            },
+            "at least two",
+        ),
+        (
+            {
+                "projected_dataset_site_key_count": 4,
+                "one_to_many_display_reference_match_count": 2,
+                "one_to_many_display_reference_site_key_rows": 4,
+            },
+            "cannot exceed the matched",
+        ),
+        (
+            {
+                "one_to_many_display_reference_match_count": 1,
+                "one_to_many_display_reference_site_key_rows": 2,
+            },
+            "cannot exceed projected_dataset_site_key_count",
+        ),
+        (
+            {"unmatched_identifier_example_limit": 50},
+            "unmatched_identifier_example_limit",
+        ),
+    ),
+)
+def test_reference_projection_summary_rejects_noncanonical_direct_construction(
+    overrides: Mapping[str, object],
+    match: str,
+) -> None:
+    with pytest.raises(WorkflowBoundaryError, match=match):
+        _valid_reference_projection_summary(**dict(overrides))
+
+
+def test_reference_projection_summary_rejects_unmatched_kind_without_sources() -> None:
+    with pytest.raises(WorkflowBoundaryError, match="matched identifier kinds"):
+        KinaseReferenceProjectionSummary(
+            source_reference_row_count=0,
+            matched_source_substrate_identifiers=(),
+            unmatched_source_substrate_identifiers=(),
+            projected_dataset_site_key_count=0,
+            source_identifier_kinds=("dataset_display_id",),
+            one_to_many_display_reference_match_count=0,
+            one_to_many_display_reference_site_key_rows=0,
+        )
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    (
+        ("unique_source_substrate_identifier_count", 99),
+        ("matched_source_substrate_identifier_count", 99),
+        ("unmatched_source_substrate_identifier_count", 99),
+        ("unmatched_source_substrate_identifier_examples", ["FORGED;S999;"]),
+        ("source_identifier_namespace", "dataset.site_key"),
+        (
+            "output_identifier_namespace",
+            "references.kinase_substrate_map.substrate_site",
+        ),
+        ("source_identity_semantics", "false source semantics"),
+        ("output_identity_semantics", "false output semantics"),
+        ("source_identifier_kinds", ["invented_kind"]),
+        ("schema_version", 2),
+        ("interpreter_version", "projector.v2"),
+        ("one_to_many_projection_diagnostics", "forged.diagnostics"),
+        ("one_to_many_display_reference_match_count", 1),
+        ("one_to_many_display_reference_site_key_rows", 2),
+    ),
+)
+def test_reference_projection_summary_from_payload_rejects_tampering(
+    key: str,
+    value: object,
+) -> None:
+    payload = _valid_reference_projection_summary().to_payload()
+    payload[key] = value
+
+    with pytest.raises(WorkflowBoundaryError):
+        KinaseReferenceProjectionSummary.from_payload(payload)
+
+
+def test_reference_projection_summary_from_payload_rejects_non_mapping() -> None:
+    with pytest.raises(WorkflowBoundaryError, match="must be a mapping"):
+        KinaseReferenceProjectionSummary.from_payload([])  # type: ignore[arg-type]
 
 
 def test_scoring_runner_returns_expected_downstream_score_source() -> None:

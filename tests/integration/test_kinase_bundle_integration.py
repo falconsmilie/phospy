@@ -277,14 +277,72 @@ def test_kinase_bundle_round_trip_preserves_reference_projection_summary(
     )
     projection_summary = loaded_parameters["reference_projection_summary"]
     assert isinstance(projection_summary, dict)
+    assert projection_summary["schema_version"] == 1
+    assert projection_summary["source_identifier_namespace"] == (
+        "references.kinase_substrate_map.substrate_site"
+    )
+    assert projection_summary["output_identifier_namespace"] == "dataset.site_key"
+    assert projection_summary["source_identifier_kinds"] == [
+        "dataset_display_id",
+        "unmatched_reference_substrate_identifier",
+    ]
     assert projection_summary["unmatched_source_substrate_identifier_examples"] == [
         "UNMATCHED;S404;"
     ]
+    assert projection_summary["one_to_many_projection_diagnostics"] == (
+        "display_reference_matching.one_to_many_display_reference_matches"
+    )
     universe_attrition = loaded_parameters["universe_attrition"]
     assert isinstance(universe_attrition, dict)
     reference_attrition = universe_attrition["reference_attrition"]
     assert isinstance(reference_attrition, list)
     assert reference_attrition[0]["examples"] == ["UNMATCHED;S404;"]
+    assert (
+        reference_attrition[0]["input_identifier_namespace"]
+        == (projection_summary["source_identifier_namespace"])
+    )
+    assert (
+        reference_attrition[0]["projected_output_identifier_namespace"]
+        == (projection_summary["output_identifier_namespace"])
+    )
+    assert (
+        reference_attrition[0]["removed_identifier_examples"]
+        == (projection_summary["unmatched_source_substrate_identifier_examples"])
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation_kind",
+    (
+        "summary_namespace",
+        "summary_invented_identifier_kind",
+        "summary_schema_version",
+        "summary_interpreter_version",
+        "summary_contradictory_count",
+        "summary_false_unmatched_examples",
+        "reference_attrition_count_disagreement",
+        "reference_attrition_false_examples",
+        "reference_attrition_empty_despite_unmatched_summary",
+        "missing_projection_summary",
+        "null_projection_summary",
+    ),
+)
+def test_kinase_bundle_loader_rejects_tampered_reference_projection_provenance(
+    tmp_path: Path,
+    mutation_kind: str,
+) -> None:
+    bundle_root, manifest = _save_reference_projection_bundle(tmp_path)
+    _mutate_reference_projection_provenance(manifest, mutation_kind)
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="reference_projection_summary|reference_attrition|universe_attrition",
+    ):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 def test_kinase_bundle_round_trip_preserves_adaptive_prediction_seed(
@@ -2331,6 +2389,77 @@ def _references_with_unmatched_projection(
         kinase_substrate_map=kinase_substrate_map,
         site_sequences=site_sequences,
     )
+
+
+def _save_reference_projection_bundle(
+    tmp_path: Path,
+) -> tuple[Path, dict[str, object]]:
+    base_request = _build_request(activity=False)
+    request = replace(
+        base_request,
+        references=_references_with_unmatched_projection(base_request.references),
+    )
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_tampered_reference_projection"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    return bundle_root, manifest
+
+
+def _reference_projection_workflow_parameters(
+    manifest: dict[str, object],
+) -> dict[str, object]:
+    provenance = manifest["provenance"]
+    assert isinstance(provenance, dict)
+    workflow_parameters = provenance["workflow_parameters"]
+    assert isinstance(workflow_parameters, dict)
+    return workflow_parameters
+
+
+def _mutate_reference_projection_provenance(
+    manifest: dict[str, object],
+    mutation_kind: str,
+) -> None:
+    workflow_parameters = _reference_projection_workflow_parameters(manifest)
+    if mutation_kind == "missing_projection_summary":
+        workflow_parameters.pop("reference_projection_summary", None)
+        return
+    if mutation_kind == "null_projection_summary":
+        workflow_parameters["reference_projection_summary"] = None
+        return
+    summary = workflow_parameters["reference_projection_summary"]
+    assert isinstance(summary, dict)
+    universe_attrition = workflow_parameters["universe_attrition"]
+    assert isinstance(universe_attrition, dict)
+    reference_attrition = universe_attrition["reference_attrition"]
+    assert isinstance(reference_attrition, list)
+    assert reference_attrition
+    reference_record = reference_attrition[0]
+    assert isinstance(reference_record, dict)
+    if mutation_kind == "summary_namespace":
+        summary["source_identifier_namespace"] = "dataset.site_key"
+    elif mutation_kind == "summary_invented_identifier_kind":
+        summary["source_identifier_kinds"] = ["invented_kind"]
+    elif mutation_kind == "summary_schema_version":
+        summary["schema_version"] = 2
+    elif mutation_kind == "summary_interpreter_version":
+        summary["interpreter_version"] = "projector.v2"
+    elif mutation_kind == "summary_contradictory_count":
+        summary["unique_source_substrate_identifier_count"] = 999
+    elif mutation_kind == "summary_false_unmatched_examples":
+        summary["unmatched_source_substrate_identifier_examples"] = ["FORGED;S999;"]
+    elif mutation_kind == "reference_attrition_count_disagreement":
+        reference_record["removed_sites"] = 0
+    elif mutation_kind == "reference_attrition_false_examples":
+        reference_record["removed_identifier_examples"] = ["FORGED;S999;"]
+    elif mutation_kind == "reference_attrition_empty_despite_unmatched_summary":
+        universe_attrition["reference_attrition"] = []
+    else:
+        raise AssertionError(f"unknown mutation_kind={mutation_kind!r}")
 
 
 def _build_request_with_subtract_log_total_and_uncorrected_rows(

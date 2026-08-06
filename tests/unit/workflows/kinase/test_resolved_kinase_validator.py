@@ -204,6 +204,17 @@ def _resolved_inputs(
         for identifier in source_reference_identifiers
         if identifier not in set(matched_source)
     )
+    display_identifiers = set(
+        dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
+    )
+    source_identifier_kinds: set[str] = set()
+    for identifier in matched_source:
+        if identifier in projected_site_set:
+            source_identifier_kinds.add("dataset_site_key")
+        if identifier in display_identifiers:
+            source_identifier_kinds.add("dataset_display_id")
+    if unmatched_source:
+        source_identifier_kinds.add("unmatched_reference_substrate_identifier")
     return ResolvedKinaseInputs(
         dataset=dataset,
         dataset_phospho=dataset_phospho,
@@ -228,7 +239,7 @@ def _resolved_inputs(
             matched_source_substrate_identifiers=matched_source,
             unmatched_source_substrate_identifiers=unmatched_source,
             projected_dataset_site_key_count=len(projected_site_set),
-            source_identifier_kinds=("dataset_display_id",),
+            source_identifier_kinds=tuple(sorted(source_identifier_kinds)),
             one_to_many_display_reference_match_count=0,
             one_to_many_display_reference_site_key_rows=0,
         ),

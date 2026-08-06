@@ -484,6 +484,14 @@ categories for `reference_attrition`, `sequence_attrition`,
 examples of unmatched identifiers; projected scoring and activity universes
 remain in dataset `site_key` identity.
 
+The reference-projection summary is strictly validated schema version 1 provenance.
+PhosPy owns and validates its source/output namespaces, identity-semantics text,
+identifier-kind vocabulary, projector version, count invariants, one-to-many
+diagnostic token, and the bounded unmatched-example policy. Bundle
+reconstruction rejects unsupported or contradictory projection-summary payloads
+and checks that `universe_attrition["reference_attrition"]` agrees with the
+typed summary instead of treating the two fields as independent authority.
+
 `KinaseWorkflowAttritionProvenance` stores the workflow-calculated attrition
 metrics, configured policy payload, policy outcome, policy violations, and
 warning messages. The result contract does not calculate those values. It

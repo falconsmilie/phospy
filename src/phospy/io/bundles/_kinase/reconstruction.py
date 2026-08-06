@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import NoReturn, cast
 
 import pandas as pd
 
+from phospy.contracts.kinase_reference_projection import (
+    KinaseReferenceProjectionSummary,
+)
 from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.contracts.results import (
     KinaseWorkflowAttritionProvenance,
@@ -72,6 +76,7 @@ def reconstruct_kinase_result(
     """Rebuild a KinaseWorkflowResult from already-validated manifest sections."""
 
     provenance = _parse_bundle_provenance(sections.provenance_payload)
+    provenance = _validate_kinase_reference_projection_provenance(provenance)
     processing_state_payload = require_mapping(
         sections.dataset_metadata.get("processing_state"),
         field_name="bundle manifest.dataset.metadata.processing_state",
@@ -775,6 +780,197 @@ def _parse_bundle_provenance(payload: Mapping[str, object]) -> RunProvenance:
         return provenance_from_payload(payload)
     except PhosPyInputError as exc:
         _raise_legacy_bundle_schema(exc)
+
+
+def _validate_kinase_reference_projection_provenance(
+    provenance: RunProvenance,
+) -> RunProvenance:
+    workflow_parameters = provenance.workflow_parameters
+    if "reference_projection_summary" not in workflow_parameters:
+        _raise_projection_manifest_error(
+            "bundle manifest.provenance.workflow_parameters.reference_projection_summary",
+            "is required for current kinase bundle reconstruction; regenerate the "
+            "bundle with the current PhosPy version",
+        )
+    raw_summary = workflow_parameters.get("reference_projection_summary")
+    if raw_summary is None:
+        _raise_projection_manifest_error(
+            "bundle manifest.provenance.workflow_parameters.reference_projection_summary",
+            "must be a current schema projection-summary object; null does not "
+            "prove zero reference attrition",
+        )
+    if not isinstance(raw_summary, Mapping):
+        _raise_projection_manifest_error(
+            "bundle manifest.provenance.workflow_parameters.reference_projection_summary",
+            "must be an object",
+        )
+    try:
+        projection_summary = KinaseReferenceProjectionSummary.from_payload(raw_summary)
+    except WorkflowBoundaryError as exc:
+        _raise_projection_manifest_error(
+            "bundle manifest.provenance.workflow_parameters.reference_projection_summary",
+            f"is invalid: {exc}",
+        )
+    if "universe_attrition" not in workflow_parameters:
+        _raise_projection_manifest_error(
+            "bundle manifest.provenance.workflow_parameters.universe_attrition",
+            "is required for current kinase bundle reconstruction",
+        )
+    raw_universe_attrition = workflow_parameters.get("universe_attrition")
+    if not isinstance(raw_universe_attrition, Mapping):
+        _raise_projection_manifest_error(
+            "bundle manifest.provenance.workflow_parameters.universe_attrition",
+            "must be an object",
+        )
+    canonical_reference_attrition = _validate_reference_attrition_agreement(
+        projection_summary=projection_summary,
+        universe_attrition=raw_universe_attrition,
+    )
+    canonical_universe_attrition = dict(raw_universe_attrition)
+    canonical_universe_attrition["reference_attrition"] = canonical_reference_attrition
+    canonical_workflow_parameters = dict(workflow_parameters)
+    canonical_workflow_parameters["reference_projection_summary"] = (
+        projection_summary.to_payload()
+    )
+    canonical_workflow_parameters["universe_attrition"] = canonical_universe_attrition
+    return replace(provenance, workflow_parameters=canonical_workflow_parameters)
+
+
+def _validate_reference_attrition_agreement(
+    *,
+    projection_summary: KinaseReferenceProjectionSummary,
+    universe_attrition: Mapping[str, object],
+) -> list[dict[str, object]]:
+    raw_reference_attrition = universe_attrition.get("reference_attrition")
+    field_name = (
+        "bundle manifest.provenance.workflow_parameters.universe_attrition."
+        "reference_attrition"
+    )
+    if not _is_sequence_payload(raw_reference_attrition):
+        _raise_projection_manifest_error(field_name, "must be an array")
+    reference_attrition = list(cast(Sequence[object], raw_reference_attrition))
+    expected_records = _canonical_reference_attrition_records(projection_summary)
+    if len(reference_attrition) != len(expected_records):
+        _raise_projection_manifest_error(
+            field_name,
+            "must contain exactly the reference-attrition record implied by "
+            "reference_projection_summary; expected "
+            f"{len(expected_records)} record(s), got {len(reference_attrition)}",
+        )
+    for index, (observed, expected) in enumerate(
+        zip(reference_attrition, expected_records, strict=True)
+    ):
+        record_field = f"{field_name}[{index}]"
+        if not isinstance(observed, Mapping):
+            _raise_projection_manifest_error(record_field, "must be an object")
+        _require_reference_attrition_record_matches(
+            observed=observed,
+            expected=expected,
+            field_name=record_field,
+        )
+    return expected_records
+
+
+def _canonical_reference_attrition_records(
+    summary: KinaseReferenceProjectionSummary,
+) -> list[dict[str, object]]:
+    if summary.unmatched_source_substrate_identifier_count == 0:
+        return []
+    return [
+        {
+            "attrition_type": "reference_attrition",
+            "stage": "reference_projection_to_dataset_site_key",
+            "reason": (
+                "source_reference_substrate_identifier_has_no_dataset_site_key_"
+                "or_display_id_match"
+            ),
+            "input_universe": "source_reference_substrate_identifiers",
+            "output_universe": (
+                "source_reference_substrate_identifiers_with_dataset_projection"
+            ),
+            "input_identifier_namespace": summary.source_identifier_namespace,
+            "output_identifier_namespace": summary.source_identifier_namespace,
+            "projected_output_identifier_namespace": (
+                summary.output_identifier_namespace
+            ),
+            "input_identity_semantics": summary.source_identity_semantics,
+            "output_identity_semantics": (
+                "source reference substrate identifiers that have at least one "
+                "dataset projection; these are not dataset site_key rows"
+            ),
+            "projected_output_identity_semantics": summary.output_identity_semantics,
+            "input_sites": int(summary.unique_source_substrate_identifier_count),
+            "output_sites": int(summary.matched_source_substrate_identifier_count),
+            "removed_sites": int(summary.unmatched_source_substrate_identifier_count),
+            "input_identifier_count": int(
+                summary.unique_source_substrate_identifier_count
+            ),
+            "output_identifier_count": int(
+                summary.matched_source_substrate_identifier_count
+            ),
+            "removed_identifier_count": int(
+                summary.unmatched_source_substrate_identifier_count
+            ),
+            "examples": list(summary.unmatched_source_substrate_identifier_examples),
+            "removed_identifier_examples": list(
+                summary.unmatched_source_substrate_identifier_examples
+            ),
+            "projected_dataset_site_key_count": int(
+                summary.projected_dataset_site_key_count
+            ),
+            "one_to_many_display_reference_match_count": int(
+                summary.one_to_many_display_reference_match_count
+            ),
+            "one_to_many_display_reference_site_key_rows": int(
+                summary.one_to_many_display_reference_site_key_rows
+            ),
+            "one_to_many_projection_diagnostics": (
+                "display_reference_matching.one_to_many_display_reference_matches"
+            ),
+            "interpreter_version": summary.interpreter_version,
+        }
+    ]
+
+
+def _require_reference_attrition_record_matches(
+    *,
+    observed: Mapping[str, object],
+    expected: Mapping[str, object],
+    field_name: str,
+) -> None:
+    unsupported = sorted(str(key) for key in observed if str(key) not in expected)
+    if unsupported:
+        _raise_projection_manifest_error(
+            field_name,
+            "contains unsupported field(s): " + ", ".join(unsupported),
+        )
+    missing = sorted(key for key in expected if key not in observed)
+    if missing:
+        _raise_projection_manifest_error(
+            field_name,
+            "is missing required field(s): " + ", ".join(missing),
+        )
+    for key, expected_value in expected.items():
+        observed_value = observed.get(key)
+        if observed_value != expected_value:
+            _raise_projection_manifest_error(
+                f"{field_name}.{key}",
+                "must agree with reference_projection_summary; "
+                f"expected={expected_value!r}, got={observed_value!r}",
+            )
+
+
+def _is_sequence_payload(value: object) -> bool:
+    return isinstance(value, Sequence) and not isinstance(
+        value, (str, bytes, bytearray)
+    )
+
+
+def _raise_projection_manifest_error(field_name: str, message: str) -> NoReturn:
+    raise PhosPyInputError(
+        f"{field_name} {message}; correct the manifest or regenerate the bundle "
+        "from the original KinaseWorkflowResult"
+    )
 
 
 def _profile_self_inclusion_policy_from_provenance(

@@ -21,6 +21,9 @@ Amended 2026-08-06 to require distinct kinase reference-projection attrition
 before source substrate identifiers are projected into dataset `site_key`
 identity.
 
+Amended 2026-08-06 to make kinase reference-projection summary provenance a
+strictly validated schema-1 contract.
+
 ## Context
 
 Recent workflow work introduced explicit scientific state for quantitative
@@ -272,6 +275,21 @@ Kinase universe provenance must distinguish:
 One-to-many display projection is projection ambiguity/diagnostic evidence, not
 attrition. A source display identifier that maps to multiple dataset `site_key`
 rows remains matched; it must not be counted as removed.
+
+`KinaseReferenceProjectionSummary` is the typed authority for the current
+reference projector schema. Its source namespace is
+`references.kinase_substrate_map.substrate_site`; its projected output
+namespace is `dataset.site_key`; and its supported source identifier kinds are
+`dataset_site_key`, `dataset_display_id`, and
+`unmatched_reference_substrate_identifier`. The projector owns these namespace,
+identity-semantics, version, one-to-many diagnostic, and bounded-example
+policy fields. Construction and deserialization must reject invented kinds,
+unsupported projector/schema versions, impossible count relationships, and
+serialized aggregate fields or bounded examples that disagree with the
+recomputed summary. Kinase bundle reconstruction must validate the
+typed summary and require agreement with
+`workflow_parameters["universe_attrition"]["reference_attrition"]`; missing
+legacy projection summaries must not be interpreted as zero reference attrition.
 
 ## Intensity-Scale Evidence
 
@@ -529,6 +547,9 @@ Neutral consequences:
   `src/phospy/provenance/models/workflows.py`
 - Kinase scoring config and public scoring-mode strings:
   `src/phospy/contracts/configs/kinase.py`
+- Kinase reference-projection summary contract:
+  `src/phospy/contracts/kinase_reference_projection.py`; projection execution
+  remains in `src/phospy/workflows/kinase/reference_projection.py`
 - Internal kinase scoring-mode input contracts:
   `src/phospy/workflows/kinase/scoring_mode_contracts.py`
 - Method quantitative input contract models:

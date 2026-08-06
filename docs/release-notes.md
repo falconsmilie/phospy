@@ -70,6 +70,10 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   sample-metadata rejection, duplicate site-key resolution policies,
   DataFrame/payload snapshot helper constraints, and output-table identity
   checks.
+- Kinase reference-projection provenance is now strictly validated and tamper-resistant:
+  schema-1 payloads validate projector-owned namespaces, identity semantics,
+  identifier-kind vocabulary, projector version, count invariants, bounded
+  unmatched examples, and agreement with bundle `reference_attrition` records.
 - `protein_group_id` is Signalome-owned grouping metadata. It is optional at
   the base dataset boundary, and Signalome enforces completeness when it needs
   protein grouping. Legacy `protein_id` remains a migration alias for that

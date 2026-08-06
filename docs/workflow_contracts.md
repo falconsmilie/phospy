@@ -378,6 +378,14 @@ activity-background/effect-universe selection as distinct categories. Source
 reference identifiers are typed as `references.kinase_substrate_map.substrate_site`;
 method-consumable universes remain dataset `site_key` rows.
 
+Kinase reference-projection provenance uses one supported schema-1 summary.
+The projector owns the source/output namespaces, identity-semantics strings,
+identifier-kind vocabulary, projector version, one-to-many diagnostic token, and
+unmatched-example bound. Construction and bundle reconstruction validate those
+facts, recompute serialized aggregate counts and bounded examples, and reject
+payloads whose `reference_projection_summary` disagrees with
+`universe_attrition.reference_attrition`.
+
 Enrichment identifier-set provenance is role-specific. Selected and background
 sets use the same typed provenance model, and PhosPy-derived quantitative sets
 must carry typed derivation provenance plus typed input-intensity-scale
