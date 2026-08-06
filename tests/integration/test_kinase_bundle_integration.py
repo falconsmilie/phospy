@@ -42,6 +42,7 @@ from phospy.io.bundles.kinase import (
     save_kinase_workflow_bundle,
 )
 from phospy.provenance.models import RunProvenance
+from phospy.science.activities.membership import KSEA_MEMBERSHIP_ELIGIBLE_REASON
 from phospy.science.activities.method_contracts import (
     kinase_activity_method_quantitative_input_contract,
 )
@@ -671,6 +672,57 @@ def test_kinase_bundle_round_trip_preserves_exact_activity_semantics(
     )
     assert loaded.result.provenance is not None
     _assert_activity_provenance_matches_result(loaded.result)
+
+
+def test_kinase_bundle_rejects_tampered_ksea_membership_eligibility(
+    tmp_path: Path,
+) -> None:
+    base_request = _build_request(activity=False)
+    base_result = KinaseWorkflow().run(base_request)
+    activity_result = _ksea_standardised_effect_activity_result()
+    assert activity_result.membership_selection is not None
+    assert activity_result.membership_selection.inferential_eligible is False
+    result = _replace_activity_result_with_semantic_provenance(
+        base_result,
+        activity_result=activity_result,
+        method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        resolved_scale="log2",
+        resolved_meaning="differential_effect_size",
+    )
+    request = replace(
+        base_request,
+        activity_config=_activity_config_for_method(KINASE_ACTIVITY_METHOD_KSEA_ZSCORE),
+    )
+    bundle_root = tmp_path / "kinase_bundle_tampered_ksea_membership"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    activity_payload = manifest["outputs"]["activity"]
+    assert isinstance(activity_payload, dict)
+    membership_payload = activity_payload["membership_selection"]
+    assert isinstance(membership_payload, dict)
+    membership_payload["inferential_eligible"] = True
+    membership_payload["inferential_status"] = "ordinary_p_q_available"
+    membership_payload["inferential_eligibility_reason"] = (
+        KSEA_MEMBERSHIP_ELIGIBLE_REASON
+    )
+    decision_payload = membership_payload["inferential_decision"]
+    assert isinstance(decision_payload, dict)
+    decision_payload["ordinary_p_q_available"] = True
+    decision_payload["status"] = "ordinary_p_q_available"
+    decision_payload["reason"] = KSEA_MEMBERSHIP_ELIGIBLE_REASON
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PhosPyInputError, match="inferential_eligible"):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 @pytest.mark.parametrize(

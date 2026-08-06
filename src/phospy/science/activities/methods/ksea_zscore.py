@@ -9,7 +9,12 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.activities.membership import ActivityMembershipSelection
+from phospy.science.activities.membership import (
+    ACTIVITY_MEMBERSHIP_SOURCE_UNKNOWN,
+    ActivityMembershipSelection,
+    fingerprint_ksea_tested_quantitative_matrix,
+    selected_substrate_universe_from_prediction_matrix,
+)
 from phospy.science.activities.method_contracts import (
     ksea_zscore_activity_input_contract,
 )
@@ -93,7 +98,13 @@ class KseaZScoreActivityMethod:
             threshold=float(self.evidence_threshold),
         )
         membership_selection = _require_membership_selection(inputs)
-        inferential_policy = _resolve_inferential_policy(membership_selection)
+        _validate_ksea_membership_boundary(
+            membership_selection=membership_selection,
+            aligned_pred_mat=aligned_pred_mat,
+            aligned_matrix=aligned_matrix,
+            evidence_threshold=float(self.evidence_threshold),
+        )
+        inferential_decision = membership_selection.inferential_decision
         finite_phospho_mask = np.isfinite(phospho_values)
 
         z_scores = pd.DataFrame(
@@ -109,7 +120,7 @@ class KseaZScoreActivityMethod:
                 columns=profile_index,
                 dtype=float,
             )
-            if inferential_policy.p_values_available
+            if inferential_decision.ordinary_p_q_available
             else None
         )
         q_value_matrix = (
@@ -119,7 +130,7 @@ class KseaZScoreActivityMethod:
                 columns=profile_index,
                 dtype=float,
             )
-            if inferential_policy.p_values_available and self.adjust_p_values
+            if inferential_decision.ordinary_p_q_available and self.adjust_p_values
             else None
         )
         substrate_means = pd.DataFrame(
@@ -208,7 +219,7 @@ class KseaZScoreActivityMethod:
                             / float(sd_background)
                         )
                         z_scores.iat[kinase_position, profile_position] = z_score
-                        if inferential_policy.p_values_available:
+                        if inferential_decision.ordinary_p_q_available:
                             p_value = two_sided_normal_p_value(float(z_score))
                             if p_value_matrix is not None:
                                 p_value_matrix.iat[
@@ -231,9 +242,11 @@ class KseaZScoreActivityMethod:
                     "min_substrates": int(self.min_substrates),
                     "computability_status": status,
                     "reason": reason,
-                    "inferential_eligible": bool(inferential_policy.p_values_available),
-                    "inferential_status": inferential_policy.status,
-                    "inferential_reason": inferential_policy.reason,
+                    "inferential_eligible": bool(
+                        inferential_decision.ordinary_p_q_available
+                    ),
+                    "inferential_status": inferential_decision.status,
+                    "inferential_reason": inferential_decision.reason,
                     "membership_source_category": (
                         membership_selection.source_category
                     ),
@@ -272,7 +285,7 @@ class KseaZScoreActivityMethod:
             rows,
             columns=statistics_columns,
         )
-        if self.adjust_p_values and inferential_policy.p_values_available:
+        if self.adjust_p_values and inferential_decision.ordinary_p_q_available:
             for profile_id in profile_index:
                 profile_mask = statistics_table.loc[:, "profile_id"].astype(str) == str(
                     profile_id
@@ -355,7 +368,9 @@ class KseaZScoreActivityMethod:
             p_value_method=str(self.p_value_method),
             adjust_p_values=bool(self.adjust_p_values),
             q_value_method=(str(self.q_value_method) if self.adjust_p_values else None),
-            membership_inferential_eligible=bool(inferential_policy.p_values_available),
+            membership_inferential_eligible=bool(
+                inferential_decision.ordinary_p_q_available
+            ),
         )
 
         return KinaseActivityResult._from_owned(
@@ -405,13 +420,6 @@ def _align_activity_inputs(
     return pred_mat.reindex(index=phospho_matrix.index.copy()), phospho_matrix
 
 
-@dataclass(frozen=True, slots=True)
-class _KseaInferentialPolicy:
-    p_values_available: bool
-    status: str
-    reason: str
-
-
 def _require_membership_selection(
     inputs: KinaseActivityInputs,
 ) -> ActivityMembershipSelection:
@@ -423,20 +431,49 @@ def _require_membership_selection(
     return membership_selection
 
 
-def _resolve_inferential_policy(
+def _validate_ksea_membership_boundary(
+    *,
     membership_selection: ActivityMembershipSelection,
-) -> _KseaInferentialPolicy:
-    if membership_selection.inferential_eligible:
-        return _KseaInferentialPolicy(
-            p_values_available=True,
-            status=KSEA_INFERENTIAL_STATUS_ORDINARY_P_Q_AVAILABLE,
-            reason=membership_selection.inferential_eligibility_reason,
+    aligned_pred_mat: pd.DataFrame,
+    aligned_matrix: pd.DataFrame,
+    evidence_threshold: float,
+) -> None:
+    tested_fingerprint = membership_selection.tested_quantitative_matrix_fingerprint
+    if tested_fingerprint is not None:
+        actual_fingerprint = fingerprint_ksea_tested_quantitative_matrix(aligned_matrix)
+        if tested_fingerprint != actual_fingerprint:
+            raise WorkflowBoundaryError(
+                "KSEA membership provenance tested_quantitative_matrix_fingerprint "
+                "does not match the actual KSEA background phospho matrix; "
+                "next_action=construct ActivityMembershipSelection with a "
+                "fingerprint of the exact phospho_matrix passed to "
+                "KseaZScoreActivityMethod.run"
+            )
+    expected_kinases = tuple(str(value) for value in aligned_pred_mat.columns.tolist())
+    if membership_selection.selected_kinase_universe != expected_kinases:
+        raise WorkflowBoundaryError(
+            "KSEA membership provenance selected_kinase_universe does not match "
+            "the effective prediction-matrix kinase columns; "
+            f"expected={expected_kinases!r}, got="
+            f"{membership_selection.selected_kinase_universe!r}; "
+            "next_action=rebuild membership provenance from the prediction matrix "
+            "used for KSEA"
         )
-    return _KseaInferentialPolicy(
-        p_values_available=False,
-        status=KSEA_INFERENTIAL_STATUS_P_Q_UNAVAILABLE,
-        reason=membership_selection.inferential_eligibility_reason,
+    if membership_selection.source_category == ACTIVITY_MEMBERSHIP_SOURCE_UNKNOWN:
+        return
+    expected_substrates = selected_substrate_universe_from_prediction_matrix(
+        aligned_pred_mat,
+        threshold=float(evidence_threshold),
     )
+    if membership_selection.selected_substrate_universe != expected_substrates:
+        raise WorkflowBoundaryError(
+            "KSEA membership provenance selected_substrate_universe does not "
+            "match thresholded membership after alignment to the KSEA background; "
+            f"expected={expected_substrates!r}, got="
+            f"{membership_selection.selected_substrate_universe!r}; "
+            "next_action=rebuild membership provenance from the aligned KSEA "
+            "prediction membership matrix"
+        )
 
 
 def _condition_ids_by_profile(

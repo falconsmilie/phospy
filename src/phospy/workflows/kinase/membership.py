@@ -13,9 +13,13 @@ from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
     ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
     ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
-    KSEA_MEMBERSHIP_CONSUMED_TESTED_MATRIX_REASON,
-    KSEA_MEMBERSHIP_ELIGIBLE_REASON,
+    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF,
+    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION,
+    KSEA_SELECTION_QUANTITATIVE_MATRIX_FINGERPRINT_NAME,
+    KSEA_TESTED_QUANTITATIVE_MATRIX_FINGERPRINT_NAME,
     ActivityMembershipSelection,
+    fingerprint_ksea_selection_quantitative_matrix,
+    fingerprint_ksea_tested_quantitative_matrix,
     selected_substrate_universe_from_prediction_matrix,
 )
 from phospy.science.prediction.models import KinasePredictionResult
@@ -47,9 +51,12 @@ def build_ksea_membership_selection(
         downstream_score_source
     )
     source_category = _source_category(downstream_score_source)
-    quantitative_fingerprint = (
-        _activity_matrix_fingerprint(request) if consumed_tested_matrix else None
+    selection_quantitative_fingerprint = (
+        _selection_quantitative_matrix_fingerprint(request)
+        if consumed_tested_matrix
+        else None
     )
+    tested_quantitative_fingerprint = _tested_quantitative_matrix_fingerprint(request)
     pred_mat = (
         prediction_result.pred_mat if membership_matrix is None else membership_matrix
     )
@@ -73,18 +80,30 @@ def build_ksea_membership_selection(
             "prediction_candidate_min_inclusion": int(CANDIDATE_MIN_INCLUSION),
             "ksea_evidence_threshold": float(evidence_threshold),
             "ksea_evidence_threshold_operator": ">=",
+            "data_adaptive_membership": bool(consumed_tested_matrix),
+            "selection_quantitative_input": (
+                KSEA_SELECTION_QUANTITATIVE_MATRIX_FINGERPRINT_NAME
+                if consumed_tested_matrix
+                else None
+            ),
+            "tested_quantitative_input": KSEA_TESTED_QUANTITATIVE_MATRIX_FINGERPRINT_NAME,
+            "independent_membership_policy": (
+                KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF
+                if source_category == ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF
+                else None
+            ),
+            "independent_membership_policy_version": (
+                KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION
+                if source_category == ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF
+                else None
+            ),
         },
         source_reference_fingerprints=_source_reference_fingerprints(request),
-        quantitative_dataset_fingerprint=quantitative_fingerprint,
+        selection_quantitative_matrix_fingerprint=selection_quantitative_fingerprint,
+        tested_quantitative_matrix_fingerprint=tested_quantitative_fingerprint,
         consumed_tested_matrix=consumed_tested_matrix,
         selected_kinase_universe=selected_kinases,
         selected_substrate_universe=selected_substrates,
-        inferential_eligible=not consumed_tested_matrix,
-        inferential_eligibility_reason=(
-            KSEA_MEMBERSHIP_CONSUMED_TESTED_MATRIX_REASON
-            if consumed_tested_matrix
-            else KSEA_MEMBERSHIP_ELIGIBLE_REASON
-        ),
     )
 
 
@@ -133,18 +152,20 @@ def _source_reference_fingerprints(
     )
 
 
-def _activity_matrix_fingerprint(
+def _selection_quantitative_matrix_fingerprint(
     request: ResolvedKinaseWorkflowRequest,
 ) -> TableFingerprint:
-    fingerprint = fingerprint_optional_table_normalized_axes(
-        request.activity_phospho_matrix,
-        name="dataset.activity_phospho_matrix",
+    return fingerprint_ksea_selection_quantitative_matrix(
+        request.scoring_phospho_matrix
     )
-    if fingerprint is None:
-        raise RuntimeError(
-            "kinase membership provenance requires activity matrix fingerprint"
-        )
-    return fingerprint
+
+
+def _tested_quantitative_matrix_fingerprint(
+    request: ResolvedKinaseWorkflowRequest,
+) -> TableFingerprint:
+    return fingerprint_ksea_tested_quantitative_matrix(
+        request.ksea_background_phospho_matrix
+    )
 
 
 def membership_selection_payload(

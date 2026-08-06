@@ -234,14 +234,35 @@ supported.
 KSEA-style p/q-value availability is gated by
 `KinaseActivityResult.membership_selection`. The record declares the membership
 source category, selection method/version, score source, threshold/top-k policy,
-reference fingerprints, quantitative dataset fingerprint when consumed, selected
-kinase/substrate universes, and inferential eligibility. Default
-`phosr_rank_weighted`, combined profile/motif, and leave-one-out
-profile-derived membership consume the tested matrix and therefore report
-descriptive z-scores with `p_value_matrix=None`, `q_value_matrix=None`, and
-missing `p_value`/`q_value` cells in `statistics_table`. Demonstrably
-test-matrix-independent motif-only or fixed external membership may emit
-ordinary p/q values under the documented approximation.
+reference fingerprints, selected kinase/substrate universes, and two separate
+matrix fingerprints: `selection_quantitative_matrix_fingerprint` for the
+quantitative matrix used during membership selection when applicable, and
+`tested_quantitative_matrix_fingerprint` for the exact KSEA background matrix.
+The activity science domain derives `inferential_decision`; workflow code does
+not supply final eligibility.
+
+| Membership source category | Ordinary KSEA p/q behavior |
+| --- | --- |
+| `profile_derived`, including leave-one-out profile scoring | Descriptive z-scores only. |
+| `fused_profile_motif` | Descriptive z-scores only. |
+| data-adaptive `prediction_selected` | Descriptive z-scores only. |
+| `unknown` or incomplete provenance | Descriptive z-scores only. |
+| `fixed_external_reference` | p/q values only when fixed-reference independence evidence, source fingerprints, tested-matrix fingerprint, and selected universes are present. |
+| `sequence_only_motif` | p/q values only when sequence-only independence evidence, source fingerprints, tested-matrix fingerprint, selected universes, and the motif score source are present. |
+
+For ineligible membership, KSEA reports `p_value_matrix=None`,
+`q_value_matrix=None`, missing `p_value`/`q_value` cells in
+`statistics_table`, and explicit inferential status/reason fields. Direct use
+of `KseaZScoreActivityMethod` applies the same science-domain policy and checks
+tested-matrix and selected-universe provenance before allocating p/q outputs.
+Legacy membership payloads are loaded only if serialized eligibility, status,
+and reason agree with the decision recomputed from the preserved facts; missing
+fingerprints are not fabricated or upgraded to eligibility.
+
+Ordinary KSEA normal-approximation assumptions remain scientific assumptions
+even after eligibility is established. Eligibility means the ordinary p/q
+output is permitted by the provenance gate, not that causal kinase activity has
+been proven.
 
 `KinaseActivityResult` also carries typed activity profile semantics through
 `input_semantics` and `profile_metadata`. These objects define the profile axis,

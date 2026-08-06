@@ -10,7 +10,6 @@ from phospy.api import (
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
-    KSEA_MEMBERSHIP_ELIGIBLE_REASON,
     ActivityMembershipSelection,
 )
 from phospy.science.activities.method_contracts import (
@@ -140,8 +139,6 @@ def test_ksea_background_uses_full_quantitative_universe_not_prediction_rows() -
             consumed_tested_matrix=False,
             selected_kinase_universe=("K1",),
             selected_substrate_universe=tuple(sites[:2].astype(str).tolist()),
-            inferential_eligible=True,
-            inferential_eligibility_reason=KSEA_MEMBERSHIP_ELIGIBLE_REASON,
         ),
     )
 

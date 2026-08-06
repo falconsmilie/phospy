@@ -139,6 +139,14 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - Differential result invariants and numerical edge cases were hardened,
   including public result identity coherence, finite-p-value BH adjustment
   semantics, and explicit infinite-value coverage.
+- KSEA ordinary normal-approximation p/q availability is now derived and
+  enforced by the activity science domain from typed membership provenance.
+  Profile-derived, fused profile/motif, data-adaptive prediction-selected,
+  leave-one-out, unknown, or incomplete membership is descriptive-only.
+  Selection quantitative fingerprints are separated from the exact KSEA
+  tested-background fingerprint, serialized eligibility cannot override the
+  recomputed decision, and tampered or contradictory membership payloads are
+  rejected before p/q output can be reconstructed.
 - Post-hoc peptide-to-site differential estimate combination no longer executes
   through public compatibility access. Mapping policies such as equal splitting
   or statistical-model exclusion must not silently execute as ordinary evidence.

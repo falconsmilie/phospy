@@ -30,6 +30,7 @@ from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
     ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
     ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
+    fingerprint_ksea_tested_quantitative_matrix,
 )
 from phospy.science.activities.methods import SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
 from phospy.science.activities.scientific_policies import (
@@ -1445,6 +1446,11 @@ def test_ksea_motif_only_membership_can_emit_ordinary_p_q_values() -> None:
     )
     assert result.membership_selection.consumed_tested_matrix is False
     assert result.membership_selection.inferential_eligible is True
+    assert result.membership_selection.tested_quantitative_matrix_fingerprint == (
+        fingerprint_ksea_tested_quantitative_matrix(
+            request.ksea_background_phospho_matrix
+        )
+    )
     stats = result.statistics_table
     assert stats is not None
     assert stats.loc[:, "p_value"].notna().all()

@@ -8,6 +8,10 @@ from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
     ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
     ActivityMembershipSelection,
+    KseaMembershipInferentialDecision,
+    derive_ksea_membership_inferential_decision,
+    fingerprint_ksea_selection_quantitative_matrix,
+    fingerprint_ksea_tested_quantitative_matrix,
 )
 from phospy.science.activities.models import (
     KSEA_ZSCORE_ACTIVITY_METHOD,
@@ -30,6 +34,10 @@ __all__ = [
     "ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED",
     "ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF",
     "ActivityMembershipSelection",
+    "derive_ksea_membership_inferential_decision",
+    "fingerprint_ksea_selection_quantitative_matrix",
+    "fingerprint_ksea_tested_quantitative_matrix",
+    "KseaMembershipInferentialDecision",
     "ActivityMethodDiagnostics",
     "ActivityMethodSummary",
     "ActivityMethodMetadata",

@@ -16,9 +16,20 @@ from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
     ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
+    ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
+    ACTIVITY_MEMBERSHIP_SOURCE_PREDICTION_SELECTED,
+    ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+    ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
     KSEA_MEMBERSHIP_ELIGIBLE_REASON,
+    KSEA_MEMBERSHIP_INCOMPLETE_INDEPENDENCE_EVIDENCE_REASON,
+    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE,
+    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF,
+    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION,
     KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON,
+    KSEA_MEMBERSHIP_PROFILE_DERIVED_REASON,
     ActivityMembershipSelection,
+    fingerprint_ksea_selection_quantitative_matrix,
+    fingerprint_ksea_tested_quantitative_matrix,
 )
 from phospy.science.activities.methods.ksea_zscore import (
     KSEA_STATUS_COMPUTED,
@@ -41,6 +52,7 @@ from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
     _SsgseaNullScoreCache,
 )
 from phospy.science.activities.models import (
+    KSEA_ZSCORE_ACTIVITY_METHOD,
     ActivityMethodSummary,
     KinaseActivityInputs,
     KinaseActivityResult,
@@ -158,6 +170,7 @@ def _ksea_result(
             ),
             membership_selection=_eligible_fixed_membership_selection(
                 keyed_pred_mat,
+                tested_matrix=effect_matrix,
                 threshold=evidence_threshold,
             ),
         )
@@ -167,6 +180,7 @@ def _ksea_result(
 def _eligible_fixed_membership_selection(
     pred_mat: pd.DataFrame,
     *,
+    tested_matrix: pd.DataFrame,
     threshold: float,
 ) -> ActivityMembershipSelection:
     selected_substrates = pred_mat.loc[
@@ -181,6 +195,12 @@ def _eligible_fixed_membership_selection(
             "evidence_threshold": float(threshold),
             "evidence_threshold_operator": ">=",
             "top_k": None,
+            "independent_membership_policy": (
+                KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE
+            ),
+            "independent_membership_policy_version": (
+                KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION
+            ),
         },
         source_reference_fingerprints=(
             fingerprint_table_normalized_axes(
@@ -188,13 +208,242 @@ def _eligible_fixed_membership_selection(
                 name="tests.fixed_external_membership_scores",
             ),
         ),
-        quantitative_dataset_fingerprint=None,
+        tested_quantitative_matrix_fingerprint=(
+            fingerprint_ksea_tested_quantitative_matrix(tested_matrix)
+        ),
         consumed_tested_matrix=False,
         selected_kinase_universe=pred_mat.columns.astype(str).tolist(),
         selected_substrate_universe=selected_substrates.tolist(),
-        inferential_eligible=True,
-        inferential_eligibility_reason=KSEA_MEMBERSHIP_ELIGIBLE_REASON,
     )
+
+
+def _membership_reference_fingerprint(
+    pred_mat: pd.DataFrame,
+    *,
+    name: str = "tests.membership_reference",
+):
+    return fingerprint_table_normalized_axes(pred_mat, name=name)
+
+
+def _base_membership_selection_kwargs(
+    *,
+    source_category: str,
+    pred_mat: pd.DataFrame,
+    tested_matrix: pd.DataFrame | None,
+    threshold: float = 0.5,
+) -> dict[str, object]:
+    selected_substrates = pred_mat.loc[
+        pred_mat.ge(float(threshold)).any(axis=1)
+    ].index.astype(str)
+    return {
+        "source_category": source_category,
+        "selection_method": "unit_test_membership",
+        "selection_method_version": ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
+        "score_source": "unit_test_scores",
+        "threshold_top_k_policy": {
+            "evidence_threshold": float(threshold),
+            "evidence_threshold_operator": ">=",
+        },
+        "source_reference_fingerprints": (_membership_reference_fingerprint(pred_mat),),
+        "tested_quantitative_matrix_fingerprint": (
+            None
+            if tested_matrix is None
+            else fingerprint_ksea_tested_quantitative_matrix(tested_matrix)
+        ),
+        "consumed_tested_matrix": False,
+        "selected_kinase_universe": pred_mat.columns.astype(str).tolist(),
+        "selected_substrate_universe": selected_substrates.tolist(),
+    }
+
+
+def _small_ksea_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
+    pred_mat = _with_site_key_index(
+        pd.DataFrame(
+            {"K1": [0.9, 0.8, 0.1, 0.2]},
+            index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+        )
+    )
+    phospho = _with_site_key_index(
+        pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+    )
+    return pred_mat, phospho
+
+
+def test_profile_derived_membership_cannot_be_constructed_as_eligible() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+
+    with pytest.raises(WorkflowBoundaryError, match="inferential_eligible"):
+        ActivityMembershipSelection(
+            **_base_membership_selection_kwargs(
+                source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+                pred_mat=pred_mat,
+                tested_matrix=phospho,
+            ),
+            inferential_eligible=True,
+        )
+
+    selection = ActivityMembershipSelection(
+        **_base_membership_selection_kwargs(
+            source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+            pred_mat=pred_mat,
+            tested_matrix=phospho,
+        )
+    )
+    assert selection.inferential_eligible is False
+    assert selection.inferential_eligibility_reason == (
+        KSEA_MEMBERSHIP_PROFILE_DERIVED_REASON
+    )
+
+
+def test_fused_profile_motif_membership_cannot_be_constructed_as_eligible() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+
+    with pytest.raises(WorkflowBoundaryError, match="inferential_eligible"):
+        ActivityMembershipSelection(
+            **_base_membership_selection_kwargs(
+                source_category=ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
+                pred_mat=pred_mat,
+                tested_matrix=phospho,
+            ),
+            inferential_eligible=True,
+        )
+
+
+def test_prediction_selected_adaptive_membership_cannot_be_eligible() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    kwargs = _base_membership_selection_kwargs(
+        source_category=ACTIVITY_MEMBERSHIP_SOURCE_PREDICTION_SELECTED,
+        pred_mat=pred_mat,
+        tested_matrix=phospho,
+    )
+    kwargs["threshold_top_k_policy"] = {
+        **dict(kwargs["threshold_top_k_policy"]),
+        "data_adaptive_membership": True,
+    }
+    kwargs["selection_quantitative_matrix_fingerprint"] = (
+        fingerprint_ksea_selection_quantitative_matrix(phospho)
+    )
+
+    with pytest.raises(WorkflowBoundaryError, match="inferential_eligible"):
+        ActivityMembershipSelection(**kwargs, inferential_eligible=True)
+
+    selection = ActivityMembershipSelection(**kwargs)
+    assert selection.inferential_eligible is False
+
+
+def test_unknown_or_incomplete_membership_provenance_is_ineligible() -> None:
+    selection = ActivityMembershipSelection.missing(
+        selected_kinase_universe=("K1",),
+        selected_substrate_universe=("S1",),
+    )
+
+    assert selection.inferential_eligible is False
+    assert (
+        selection.inferential_eligibility_reason
+        == KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON
+    )
+
+
+def test_leave_one_out_profile_membership_remains_ineligible() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    kwargs = _base_membership_selection_kwargs(
+        source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+        pred_mat=pred_mat,
+        tested_matrix=phospho,
+    )
+    kwargs["threshold_top_k_policy"] = {
+        **dict(kwargs["threshold_top_k_policy"]),
+        "profile_self_inclusion_policy": "leave_one_out",
+    }
+
+    selection = ActivityMembershipSelection(**kwargs)
+
+    assert selection.inferential_eligible is False
+
+
+def test_fixed_external_membership_requires_independence_evidence() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    incomplete = ActivityMembershipSelection(
+        **_base_membership_selection_kwargs(
+            source_category=ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
+            pred_mat=pred_mat,
+            tested_matrix=None,
+        )
+    )
+    assert incomplete.inferential_eligible is False
+    assert incomplete.inferential_eligibility_reason == (
+        KSEA_MEMBERSHIP_INCOMPLETE_INDEPENDENCE_EVIDENCE_REASON
+    )
+
+    eligible = _eligible_fixed_membership_selection(
+        pred_mat,
+        tested_matrix=phospho,
+        threshold=0.5,
+    )
+    assert eligible.inferential_eligible is True
+    assert eligible.inferential_eligibility_reason == KSEA_MEMBERSHIP_ELIGIBLE_REASON
+
+
+def test_sequence_only_motif_membership_follows_independence_policy() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    base = _base_membership_selection_kwargs(
+        source_category=ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
+        pred_mat=pred_mat,
+        tested_matrix=phospho,
+    )
+    base["score_source"] = "kinase_library_motif_scores"
+    missing_policy = ActivityMembershipSelection(**base)
+    assert missing_policy.inferential_eligible is False
+
+    base["threshold_top_k_policy"] = {
+        **dict(base["threshold_top_k_policy"]),
+        "independent_membership_policy": (
+            KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF
+        ),
+        "independent_membership_policy_version": (
+            KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION
+        ),
+    }
+    eligible = ActivityMembershipSelection(**base)
+    assert eligible.inferential_eligible is True
+
+
+def test_membership_payload_rejects_contradictory_serialized_eligibility() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    selection = ActivityMembershipSelection(
+        **_base_membership_selection_kwargs(
+            source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+            pred_mat=pred_mat,
+            tested_matrix=phospho,
+        )
+    )
+    payload = selection.to_payload()
+    payload["inferential_eligible"] = True
+
+    with pytest.raises(WorkflowBoundaryError, match="inferential_eligible"):
+        ActivityMembershipSelection.from_payload(payload)
+
+
+def test_membership_payload_cannot_override_science_derived_reason_or_status() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    selection = _eligible_fixed_membership_selection(
+        pred_mat,
+        tested_matrix=phospho,
+        threshold=0.5,
+    )
+    reason_payload = selection.to_payload()
+    reason_payload["inferential_eligibility_reason"] = (
+        KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON
+    )
+
+    with pytest.raises(WorkflowBoundaryError, match="inferential_eligibility_reason"):
+        ActivityMembershipSelection.from_payload(reason_payload)
+
+    status_payload = selection.to_payload()
+    status_payload["inferential_status"] = "ordinary_p_q_unavailable"
+
+    with pytest.raises(WorkflowBoundaryError, match="inferential_status"):
+        ActivityMembershipSelection.from_payload(status_payload)
 
 
 def _membership(kinase_to_sites: dict[str, list[str]]) -> pd.DataFrame:
@@ -1459,6 +1708,7 @@ def test_ksea_sample_statistics_use_profile_ids_and_adjust_p_values_per_profile(
             activity_input=activity_input,
             membership_selection=_eligible_fixed_membership_selection(
                 pred_mat,
+                tested_matrix=phospho,
                 threshold=0.5,
             ),
         )
@@ -1873,6 +2123,226 @@ def test_ksea_missing_membership_provenance_downgrades_to_descriptive_z_scores()
     assert (
         stats.at[0, "inferential_reason"] == KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON
     )
+
+
+def test_direct_ksea_profile_derived_membership_never_emits_ordinary_p_q() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    selection_kwargs = _base_membership_selection_kwargs(
+        source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+        pred_mat=pred_mat,
+        tested_matrix=phospho,
+    )
+    selection_kwargs["selection_quantitative_matrix_fingerprint"] = (
+        fingerprint_ksea_selection_quantitative_matrix(phospho)
+    )
+    selection = ActivityMembershipSelection(**selection_kwargs)
+
+    result = KseaZScoreActivityMethod(
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    ).run(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=1,
+            activity_input=ActivityInputMatrix.standardised_effect(
+                phospho,
+                _assume_owned=True,
+            ),
+            membership_selection=selection,
+        )
+    )
+
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+    assert result.statistics_table is not None
+    assert result.statistics_table.loc[:, "p_value"].isna().all()
+    assert result.statistics_table.loc[:, "q_value"].isna().all()
+
+
+def test_direct_ksea_cannot_bypass_policy_with_supplied_eligible_flag() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+
+    with pytest.raises(WorkflowBoundaryError, match="inferential_eligible"):
+        ActivityMembershipSelection(
+            **_base_membership_selection_kwargs(
+                source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+                pred_mat=pred_mat,
+                tested_matrix=phospho,
+            ),
+            inferential_eligible=True,
+        )
+
+
+def test_ksea_tested_matrix_fingerprint_mismatch_fails_before_p_q() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    mismatched = phospho.copy(deep=True)
+    mismatched.iloc[0, 0] = 999.0
+    selection = _eligible_fixed_membership_selection(
+        pred_mat,
+        tested_matrix=mismatched,
+        threshold=0.5,
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="tested_quantitative_matrix_fingerprint",
+    ):
+        KseaZScoreActivityMethod(evidence_threshold=0.5, min_substrates=2).run(
+            _inputs(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho,
+                threshold=0.5,
+                min_substrates=2,
+                top_n_substrates=1,
+                activity_input=ActivityInputMatrix.standardised_effect(
+                    phospho,
+                    _assume_owned=True,
+                ),
+                membership_selection=selection,
+            )
+        )
+
+
+def test_ksea_selected_kinase_universe_mismatch_fails() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    selection = _eligible_fixed_membership_selection(
+        pred_mat,
+        tested_matrix=phospho,
+        threshold=0.5,
+    )
+    tampered_payload = selection.to_payload()
+    tampered_payload["selected_kinase_universe"] = ["K2"]
+    tampered = ActivityMembershipSelection.from_payload(tampered_payload)
+
+    with pytest.raises(WorkflowBoundaryError, match="selected_kinase_universe"):
+        KseaZScoreActivityMethod(evidence_threshold=0.5, min_substrates=2).run(
+            _inputs(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho,
+                threshold=0.5,
+                min_substrates=2,
+                top_n_substrates=1,
+                activity_input=ActivityInputMatrix.standardised_effect(
+                    phospho,
+                    _assume_owned=True,
+                ),
+                membership_selection=tampered,
+            )
+        )
+
+
+def test_ksea_selected_substrate_universe_mismatch_fails() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    selection = _eligible_fixed_membership_selection(
+        pred_mat,
+        tested_matrix=phospho,
+        threshold=0.5,
+    )
+    tampered_payload = selection.to_payload()
+    tampered_payload["selected_substrate_universe"] = [
+        str(pred_mat.index.astype(str).tolist()[0])
+    ]
+    for field_name in (
+        "inferential_eligible",
+        "inferential_eligibility_reason",
+        "inferential_status",
+        "inferential_decision",
+    ):
+        tampered_payload.pop(field_name, None)
+    tampered = ActivityMembershipSelection.from_payload(tampered_payload)
+
+    with pytest.raises(WorkflowBoundaryError, match="selected_substrate_universe"):
+        KseaZScoreActivityMethod(evidence_threshold=0.5, min_substrates=2).run(
+            _inputs(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho,
+                threshold=0.5,
+                min_substrates=2,
+                top_n_substrates=1,
+                activity_input=ActivityInputMatrix.standardised_effect(
+                    phospho,
+                    _assume_owned=True,
+                ),
+                membership_selection=tampered,
+            )
+        )
+
+
+def test_ksea_missing_tested_matrix_evidence_never_produces_p_q() -> None:
+    pred_mat, phospho = _small_ksea_tables()
+    selection_kwargs = _base_membership_selection_kwargs(
+        source_category=ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
+        pred_mat=pred_mat,
+        tested_matrix=None,
+    )
+    selection_kwargs["threshold_top_k_policy"] = {
+        **dict(selection_kwargs["threshold_top_k_policy"]),
+        "independent_membership_policy": (
+            KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE
+        ),
+        "independent_membership_policy_version": (
+            KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION
+        ),
+    }
+    selection = ActivityMembershipSelection(**selection_kwargs)
+
+    result = KseaZScoreActivityMethod(
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    ).run(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=1,
+            activity_input=ActivityInputMatrix.standardised_effect(
+                phospho,
+                _assume_owned=True,
+            ),
+            membership_selection=selection,
+        )
+    )
+
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+
+
+def test_ksea_result_rejects_finite_p_q_statistics_when_membership_ineligible() -> None:
+    activity_matrix = pd.DataFrame(
+        {"c1": [1.0]},
+        index=pd.Index(["K1"], name="kinase"),
+        dtype=float,
+    )
+    substrate_count_matrix = pd.DataFrame(
+        {"c1": [2]},
+        index=pd.Index(["K1"], name="kinase"),
+        dtype="int64",
+    )
+    activity_input = ActivityInputMatrix.standardised_effect(
+        activity_matrix,
+        _assume_owned=True,
+    )
+    membership_selection = ActivityMembershipSelection.missing(
+        selected_kinase_universe=("K1",),
+        selected_substrate_universe=("S1",),
+    )
+
+    with pytest.raises(WorkflowBoundaryError, match="statistics_table p/q cells"):
+        KinaseActivityResult(
+            activity_matrix=activity_matrix,
+            substrate_count_matrix=substrate_count_matrix,
+            statistics_table=_statistics_table(["c1"]),
+            activity_method=KSEA_ZSCORE_ACTIVITY_METHOD,
+            input_semantics=activity_input.semantics,
+            profile_metadata=activity_input.profile_metadata,
+            membership_selection=membership_selection,
+        )
 
 
 def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_profile() -> None:

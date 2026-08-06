@@ -292,8 +292,16 @@ Important user-facing assumptions:
 - KSEA-style ordinary p-values and q-values require typed
   `membership_selection` provenance showing that substrate membership was
   selected independently of the tested quantitative matrix. The activity science
-  domain owns this eligibility decision. Workflow code supplies provenance, and
-  executors must not infer eligibility from raw matrices or method-name strings.
+  domain derives and enforces this eligibility decision from membership facts;
+  workflow code supplies source category, score source, threshold/top-k policy,
+  reference fingerprints, selection quantitative-matrix fingerprint when
+  applicable, exact KSEA tested-matrix fingerprint, and selected universes.
+  Profile-derived, fused profile/motif, data-adaptive prediction-selected,
+  leave-one-out, unknown, or incomplete membership remains descriptive-only.
+  Fixed-reference and sequence-only motif membership emit ordinary p/q values
+  only when their documented independence evidence is present. Direct
+  `KseaZScoreActivityMethod` use follows the same boundary checks, and legacy
+  payloads cannot override the recomputed decision.
 - Activity scores depend on substrate coverage and reference evidence; sparse
   support weakens interpretation.
 - KSEA-style activity scores are not equivalent to PhosR kinase activity

@@ -380,6 +380,13 @@ class KinaseActivityResult:
                 "activity_result.membership_selection must be "
                 "ActivityMembershipSelection or None"
             )
+        _validate_ksea_inferential_result_contract(
+            activity_method=activity_method,
+            membership_selection=membership_selection,
+            p_value_matrix=p_value_matrix,
+            q_value_matrix=q_value_matrix,
+            statistics_table=statistics_table,
+        )
 
         object.__setattr__(self, "_activity_matrix", activity_matrix)
         object.__setattr__(self, "_p_value_matrix", p_value_matrix)
@@ -716,6 +723,42 @@ def _coerce_policy_provenance(
                 "ScientificPolicyRecord objects"
             )
     return tuple(policy_provenance)
+
+
+def _validate_ksea_inferential_result_contract(
+    *,
+    activity_method: ActivityMethodMetadata,
+    membership_selection: ActivityMembershipSelection | None,
+    p_value_matrix: pd.DataFrame | None,
+    q_value_matrix: pd.DataFrame | None,
+    statistics_table: pd.DataFrame | None,
+) -> None:
+    if not activity_method.is_ksea:
+        return
+    if membership_selection is None or membership_selection.inferential_eligible:
+        return
+    if p_value_matrix is not None:
+        raise WorkflowBoundaryError(
+            "KSEA activity_result.p_value_matrix must be unavailable when "
+            "membership_selection is inferentially ineligible"
+        )
+    if q_value_matrix is not None:
+        raise WorkflowBoundaryError(
+            "KSEA activity_result.q_value_matrix must be unavailable when "
+            "membership_selection is inferentially ineligible"
+        )
+    if statistics_table is None:
+        return
+    for column_name in ("p_value", "q_value"):
+        if column_name not in statistics_table.columns:
+            continue
+        values = pd.to_numeric(statistics_table.loc[:, column_name], errors="coerce")
+        if bool(values.notna().any()):
+            raise WorkflowBoundaryError(
+                "KSEA activity_result.statistics_table p/q cells must be missing "
+                "when membership_selection is inferentially ineligible; "
+                f"found finite values in {column_name!r}"
+            )
 
 
 __all__ = [

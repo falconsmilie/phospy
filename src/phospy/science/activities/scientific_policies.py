@@ -6,10 +6,14 @@ from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )
+from phospy.science.activities.membership import (
+    ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
+    KSEA_MEMBERSHIP_INFERENTIAL_POLICY_VERSION,
+)
 from phospy.science.scoring.policy_models import ThresholdMode
 
 SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "2"
-KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "2"
+KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "3"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_profile_kinase"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
 SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (
@@ -105,8 +109,17 @@ def build_ksea_zscore_activity_policy(
             "p_value_method": str(p_value_method),
             "adjust_p_values": bool(adjust_p_values),
             "q_value_method": None if q_value_method is None else str(q_value_method),
-            "membership_selection_policy_version": ("activity_membership_selection_v1"),
+            "membership_selection_policy_version": (
+                "activity_membership_selection_v"
+                f"{ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION}"
+            ),
+            "ksea_membership_inferential_policy_version": (
+                KSEA_MEMBERSHIP_INFERENTIAL_POLICY_VERSION
+            ),
             "ordinary_p_q_requires_inferentially_eligible_membership": True,
+            "ordinary_p_q_availability_derivation": (
+                "science_domain_membership_policy_from_typed_provenance"
+            ),
             "adaptive_membership_p_q_policy": ("unavailable_descriptive_z_scores_only"),
             "membership_inferential_eligible": membership_inferential_eligible,
         },
