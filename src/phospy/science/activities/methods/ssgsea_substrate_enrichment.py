@@ -74,6 +74,7 @@ _SUBSTRATE_COLUMN = "substrate_site"
 _SSGSEA_PERMUTATION_STREAM_NAME = "substrate_label_permutation"
 _SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES = 16
 _SSGSEA_PERMUTATION_RNG_SEED_HASH_POLICY_TOKEN = "stable_by_method_condition_kinase"
+_SSGSEA_PERMUTATION_EXTREME_ATOL = 1e-12
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +111,158 @@ class _RankedTieBlocks:
         if not self.has_ties:
             return 0
         return int(self.block_sizes.max())
+
+
+@dataclass(frozen=True, slots=True)
+class _SsgseaNullScoreCacheKey:
+    n_background: int
+    n_substrates: int
+    tie_block_sizes: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _SsgseaNullScoreEngine:
+    """Reusable scoring constants for equivalent ssGSEA permutation nulls."""
+
+    n_background: int
+    n_substrates: int
+    has_ties: bool
+    rank_weights: np.ndarray | None
+    rank_weight_multiplier: float
+    rank_weight_constant: float
+    block_index_by_position: np.ndarray | None
+    block_hit_coefficients: np.ndarray | None
+    block_constant: float
+
+    @classmethod
+    def from_ranked_blocks(
+        cls,
+        *,
+        ranked_blocks: _RankedTieBlocks,
+        n_substrates: int,
+    ) -> _SsgseaNullScoreEngine:
+        n_background = int(ranked_blocks.n_background)
+        n_substrates = int(n_substrates)
+        n_misses = n_background - n_substrates
+        if n_background == 0 or n_substrates == 0 or n_misses == 0:
+            raise ValueError(
+                "ssgsea null score engine requires at least one background, "
+                "substrate, and non-substrate site"
+            )
+
+        multiplier = (1.0 / float(n_substrates)) + (1.0 / float(n_misses))
+        if not ranked_blocks.has_ties:
+            rank_weights = (n_background - np.arange(n_background, dtype=float)).astype(
+                float, copy=False
+            )
+            total_rank_weight = float(n_background * (n_background + 1) / 2)
+            return cls(
+                n_background=n_background,
+                n_substrates=n_substrates,
+                has_ties=False,
+                rank_weights=rank_weights,
+                rank_weight_multiplier=float(multiplier),
+                rank_weight_constant=float(total_rank_weight / float(n_misses)),
+                block_index_by_position=None,
+                block_hit_coefficients=None,
+                block_constant=0.0,
+            )
+
+        block_sizes = ranked_blocks.block_sizes.astype(float, copy=False)
+        suffix_site_counts = (
+            n_background - np.cumsum(ranked_blocks.block_sizes)
+        ).astype(float, copy=False)
+        block_area_coefficients = suffix_site_counts + ((block_sizes + 1.0) / 2.0)
+        block_index_by_position = np.empty(n_background, dtype=np.int64)
+        for block_index, block_start, block_size in zip(
+            range(ranked_blocks.n_blocks),
+            ranked_blocks.block_starts.tolist(),
+            ranked_blocks.block_sizes.tolist(),
+            strict=True,
+        ):
+            block_index_by_position[
+                int(block_start) : int(block_start) + int(block_size)
+            ] = int(block_index)
+
+        return cls(
+            n_background=n_background,
+            n_substrates=n_substrates,
+            has_ties=True,
+            rank_weights=None,
+            rank_weight_multiplier=0.0,
+            rank_weight_constant=0.0,
+            block_index_by_position=block_index_by_position,
+            block_hit_coefficients=(multiplier * block_area_coefficients).astype(
+                float,
+                copy=False,
+            ),
+            block_constant=float(
+                np.dot(block_sizes / float(n_misses), block_area_coefficients)
+            ),
+        )
+
+    def score_selected_positions(self, hit_positions: np.ndarray) -> float:
+        positions = np.asarray(hit_positions, dtype=np.int64)
+        if int(positions.size) != int(self.n_substrates):
+            return np.nan
+        if not self.has_ties:
+            if self.rank_weights is None:
+                raise RuntimeError("ssgsea untied null score engine is incomplete")
+            hit_weight_sum = float(self.rank_weights[positions].sum())
+            area = hit_weight_sum * float(self.rank_weight_multiplier) - float(
+                self.rank_weight_constant
+            )
+            return float(area / float(self.n_background))
+
+        if self.block_index_by_position is None or self.block_hit_coefficients is None:
+            raise RuntimeError("ssgsea tied null score engine is incomplete")
+        block_indices = self.block_index_by_position[positions]
+        block_hit_counts = np.bincount(
+            block_indices,
+            minlength=int(self.block_hit_coefficients.size),
+        )
+        area = float(np.dot(block_hit_counts, self.block_hit_coefficients)) - float(
+            self.block_constant
+        )
+        return float(area / float(self.n_background))
+
+
+class _SsgseaNullScoreCache:
+    """Cache null scoring engines for mathematically equivalent cases.
+
+    For untied profiles the permutation null depends only on the finite
+    background size and selected substrate count. When tied rank blocks are
+    present, the tie-block size sequence is part of the null definition.
+    """
+
+    def __init__(self) -> None:
+        self._engines: dict[
+            _SsgseaNullScoreCacheKey,
+            _SsgseaNullScoreEngine,
+        ] = {}
+
+    @property
+    def engine_count(self) -> int:
+        return len(self._engines)
+
+    def get(
+        self,
+        *,
+        ranked_blocks: _RankedTieBlocks,
+        n_substrates: int,
+    ) -> _SsgseaNullScoreEngine:
+        key = _null_score_cache_key(
+            ranked_blocks=ranked_blocks,
+            n_substrates=int(n_substrates),
+        )
+        engine = self._engines.get(key)
+        if engine is None:
+            engine = _SsgseaNullScoreEngine.from_ranked_blocks(
+                ranked_blocks=ranked_blocks,
+                n_substrates=int(n_substrates),
+            )
+            self._engines[key] = engine
+        return engine
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,6 +425,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             SSGSEA_STATUS_INSUFFICIENT_BACKGROUND_SITES: 0,
             SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES: 0,
         }
+        null_score_cache = _SsgseaNullScoreCache()
 
         for profile_position, profile_id in enumerate(profile_index):
             profile_values = effect_values[:, profile_position]
@@ -283,17 +437,23 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                 ranking_direction=str(self.ranking_direction),
             )
             n_background = ranked_blocks.n_background
+            ranked_position_by_site = {
+                str(site_id): int(position)
+                for position, site_id in enumerate(ranked_blocks.site_labels.tolist())
+            }
 
             for kinase_position, kinase_name in enumerate(kinase_index):
                 substrate_sites = membership_by_kinase[str(kinase_name)]
-                hit_mask = np.fromiter(
+                hit_positions = np.fromiter(
                     (
-                        str(site_id) in substrate_sites
-                        for site_id in ranked_blocks.site_labels
+                        ranked_position_by_site[site_id]
+                        for site_id in substrate_sites
+                        if site_id in ranked_position_by_site
                     ),
-                    dtype=bool,
-                    count=n_background,
+                    dtype=np.int64,
                 )
+                hit_mask = np.zeros(n_background, dtype=bool)
+                hit_mask[hit_positions] = True
                 n_substrates = int(hit_mask.sum())
                 tie_diagnostics = _build_kinase_tie_diagnostics(
                     ranked_blocks=ranked_blocks,
@@ -311,9 +471,12 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                 enrichment_score = np.nan
                 p_value = np.nan
                 if status == SSGSEA_STATUS_COMPUTED:
-                    enrichment_score = _score_from_ranked_hit_mask(
-                        hit_mask=hit_mask,
+                    null_score_engine = null_score_cache.get(
                         ranked_blocks=ranked_blocks,
+                        n_substrates=n_substrates,
+                    )
+                    enrichment_score = null_score_engine.score_selected_positions(
+                        hit_positions,
                     )
                     if not np.isfinite(enrichment_score):
                         status = SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
@@ -331,8 +494,7 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                             )
                             p_value = _permutation_p_value(
                                 observed_score=float(enrichment_score),
-                                ranked_blocks=ranked_blocks,
-                                n_substrates=n_substrates,
+                                null_score_engine=null_score_engine,
                                 permutation_count=int(self.permutation_count),
                                 rng=permutation_rng,
                             )
@@ -720,6 +882,22 @@ def _block_hit_counts(
     ).astype(np.int64, copy=False)
 
 
+def _null_score_cache_key(
+    *,
+    ranked_blocks: _RankedTieBlocks,
+    n_substrates: int,
+) -> _SsgseaNullScoreCacheKey:
+    return _SsgseaNullScoreCacheKey(
+        n_background=int(ranked_blocks.n_background),
+        n_substrates=int(n_substrates),
+        tie_block_sizes=(
+            tuple(int(value) for value in ranked_blocks.block_sizes.tolist())
+            if ranked_blocks.has_ties
+            else ()
+        ),
+    )
+
+
 def _build_kinase_tie_diagnostics(
     *,
     ranked_blocks: _RankedTieBlocks,
@@ -751,27 +929,28 @@ def _build_kinase_tie_diagnostics(
 def _permutation_p_value(
     *,
     observed_score: float,
-    ranked_blocks: _RankedTieBlocks,
-    n_substrates: int,
+    null_score_engine: _SsgseaNullScoreEngine,
     permutation_count: int,
     rng: np.random.Generator,
 ) -> float:
     extreme_count = 0
     observed_abs = abs(float(observed_score))
-    n_background = ranked_blocks.n_background
+    n_background = int(null_score_engine.n_background)
+    n_substrates = int(null_score_engine.n_substrates)
     for _ in range(int(permutation_count)):
         hit_positions = rng.choice(
             int(n_background),
             size=int(n_substrates),
             replace=False,
         )
-        hit_mask = np.zeros(int(n_background), dtype=bool)
-        hit_mask[hit_positions] = True
-        score = _score_from_ranked_hit_mask(
-            hit_mask=hit_mask,
-            ranked_blocks=ranked_blocks,
-        )
-        if abs(float(score)) >= observed_abs:
+        score = null_score_engine.score_selected_positions(hit_positions)
+        score_abs = abs(float(score))
+        if score_abs > observed_abs or np.isclose(
+            score_abs,
+            observed_abs,
+            rtol=0.0,
+            atol=_SSGSEA_PERMUTATION_EXTREME_ATOL,
+        ):
             extreme_count += 1
     return float((extreme_count + 1) / (int(permutation_count) + 1))
 

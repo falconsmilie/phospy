@@ -22,6 +22,7 @@ from scripts.verify_installed_distributions import (
     _probe_payload,
     _require_path_inside,
     _require_path_outside,
+    _sha256_file,
     _verify_one_artifact,
     find_distribution_artifacts,
 )
@@ -37,13 +38,26 @@ SDIST_DECLARED_RESOURCE_SUFFIX = (
     "/src/phospy/data/reference_bundles/rat/l6_native/substrate_map.csv"
 )
 DAMAGED_RESOURCE_SUFFIX = b"\n# deliberately damaged by release verifier test\n"
-ARTIFACT_REGRESSION_INSTALL_KWARGS = {
-    "use_system_site_packages": True,
-    "install_dependencies": False,
-    "build_isolation": False,
+ARTIFACT_REGRESSION_INSTALL_KWARGS = {}
+DAMAGED_ARTIFACT_INSTALL_KWARGS = {
     "install_packaging_tools": False,
-    "ignore_requires_python": True,
 }
+SUPPORTED_RELEASE_PYTHON_VERSIONS = frozenset(
+    tuple(int(part) for part in version.split("."))
+    for version in verifier.SUPPORTED_PYTHON_VERSIONS
+)
+RUNNING_SUPPORTED_RELEASE_PYTHON = (
+    sys.version_info.major,
+    sys.version_info.minor,
+) in SUPPORTED_RELEASE_PYTHON_VERSIONS
+requires_supported_release_python = pytest.mark.skipif(
+    not RUNNING_SUPPORTED_RELEASE_PYTHON,
+    reason=(
+        "installed distribution verification requires a supported release Python "
+        f"({', '.join(verifier.SUPPORTED_PYTHON_VERSIONS)}); running "
+        f"{sys.version_info.major}.{sys.version_info.minor}"
+    ),
+)
 
 
 @pytest.fixture(scope="session")
@@ -155,7 +169,7 @@ def _verify_single_artifact(
         repo_root=ROOT.resolve(),
         python_executable=sys.executable,
         constraint=CONSTRAINT,
-        **ARTIFACT_REGRESSION_INSTALL_KWARGS,
+        **DAMAGED_ARTIFACT_INSTALL_KWARGS,
     )
 
 
@@ -241,6 +255,7 @@ def test_verifier_dispatches_wheel_and_sdist_to_isolated_artifact_checks(
         return InstalledDistributionReport(
             artifact_kind=artifact_kind,
             artifact_path=artifact_path,
+            artifact_sha256="0" * 64,
             environment_root=environment_root,
             run_directory=work_root / f"{artifact_kind}-run",
             phospy_file=(
@@ -250,6 +265,8 @@ def test_verifier_dispatches_wheel_and_sdist_to_isolated_artifact_checks(
             requires_python=verifier.EXPECTED_REQUIRES_PYTHON,
             resource_count=5,
             ticket_1_boundary_status="withdrawn_asserted",
+            constraint_path=None if constraint is None else constraint.resolve(),
+            constraint_sha256=None if constraint is None else _sha256_file(constraint),
         )
 
     monkeypatch.setattr(verifier, "_verify_one_artifact", fake_verify_one_artifact)
@@ -268,6 +285,11 @@ def test_verifier_dispatches_wheel_and_sdist_to_isolated_artifact_checks(
     assert all(call[4] == "python-under-test" for call in calls)
     assert all(call[5] == constraint.resolve() for call in calls)
     assert [report.artifact_kind for report in reports] == ["wheel", "sdist"]
+
+
+def test_installed_artifact_regression_tests_keep_requires_python_enforced() -> None:
+    assert "ignore_requires_python" not in ARTIFACT_REGRESSION_INSTALL_KWARGS
+    assert "ignore_requires_python" not in DAMAGED_ARTIFACT_INSTALL_KWARGS
 
 
 def test_built_artifact_metadata_declares_supported_python_contract(
@@ -293,6 +315,7 @@ def test_built_artifact_metadata_declares_supported_python_contract(
     )
 
 
+@requires_supported_release_python
 def test_clean_wheel_and_sdist_install_and_execute_standalone_probe(
     tmp_path: Path,
     built_distribution_artifacts: DistributionArtifacts,
@@ -322,8 +345,12 @@ def test_clean_wheel_and_sdist_install_and_execute_standalone_probe(
         )
         assert report.resource_count >= 5
         assert report.ticket_1_boundary_status == "withdrawn_asserted"
+        assert report.artifact_sha256 == _sha256_file(report.artifact_path)
+        assert report.constraint_path == CONSTRAINT.resolve()
+        assert report.constraint_sha256 == _sha256_file(CONSTRAINT)
 
 
+@requires_supported_release_python
 def test_damaged_wheel_manifest_resource_fails_installed_probe(
     tmp_path: Path,
     built_distribution_artifacts: DistributionArtifacts,
@@ -344,6 +371,7 @@ def test_damaged_wheel_manifest_resource_fails_installed_probe(
         )
 
 
+@requires_supported_release_python
 def test_damaged_sdist_manifest_resource_fails_installed_probe(
     tmp_path: Path,
     built_distribution_artifacts: DistributionArtifacts,

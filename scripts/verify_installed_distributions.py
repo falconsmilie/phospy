@@ -9,6 +9,7 @@ temporary working directory so source-tree imports cannot satisfy the check.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shlex
@@ -501,6 +502,7 @@ class DistributionArtifacts:
 class InstalledDistributionReport:
     artifact_kind: str
     artifact_path: Path
+    artifact_sha256: str
     environment_root: Path
     run_directory: Path
     phospy_file: Path
@@ -508,6 +510,8 @@ class InstalledDistributionReport:
     requires_python: str
     resource_count: int
     ticket_1_boundary_status: str
+    constraint_path: Path | None
+    constraint_sha256: str | None
 
 
 def find_distribution_artifacts(dist_dir: str | Path) -> DistributionArtifacts:
@@ -680,6 +684,7 @@ def _verify_one_artifact(
     return InstalledDistributionReport(
         artifact_kind=artifact_kind,
         artifact_path=artifact_path,
+        artifact_sha256=_sha256_file(artifact_path),
         environment_root=environment_root.resolve(),
         run_directory=run_directory.resolve(),
         phospy_file=phospy_file,
@@ -687,6 +692,8 @@ def _verify_one_artifact(
         requires_python=requires_python,
         resource_count=int(resource_count),
         ticket_1_boundary_status=ticket_1_boundary_status,
+        constraint_path=None if constraint is None else constraint.resolve(),
+        constraint_sha256=None if constraint is None else _sha256_file(constraint),
     )
 
 
@@ -729,6 +736,14 @@ def _artifact_requires_python(*, artifact_kind: str, artifact_path: Path) -> str
 
 def _requires_python_specifiers(value: str) -> frozenset[str]:
     return frozenset(part.strip() for part in value.split(",") if part.strip())
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _wheel_metadata_text(artifact_path: Path) -> str:
@@ -985,15 +1000,30 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "status": "ok",
                 "supported_python_versions": SUPPORTED_PYTHON_VERSIONS,
+                "dependency_constraints": (
+                    None
+                    if args.constraint is None
+                    else {
+                        "path": str(Path(args.constraint).resolve()),
+                        "sha256": _sha256_file(Path(args.constraint).resolve()),
+                    }
+                ),
                 "verified": [
                     {
                         "artifact_kind": report.artifact_kind,
                         "artifact_path": str(report.artifact_path),
+                        "artifact_sha256": report.artifact_sha256,
                         "python": report.python_version,
                         "requires_python": report.requires_python,
                         "phospy_file": str(report.phospy_file),
                         "resource_count": report.resource_count,
                         "ticket_1_boundary_status": report.ticket_1_boundary_status,
+                        "constraint_path": (
+                            None
+                            if report.constraint_path is None
+                            else str(report.constraint_path)
+                        ),
+                        "constraint_sha256": report.constraint_sha256,
                     }
                     for report in reports
                 ],

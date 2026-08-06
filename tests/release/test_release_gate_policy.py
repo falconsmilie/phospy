@@ -2177,6 +2177,23 @@ def test_publish_workflow_builds_once_and_publishes_uploaded_dist() -> None:
     assert "id-token: write" in pypi
 
 
+def test_ci_testing_audit_freshness_commands_are_not_duplicated() -> None:
+    testing_audit = _workflow_job_block(
+        _read(".github/workflows/ci.yml"),
+        "testing-audit-freshness",
+    )
+    expected_commands = (
+        "python tools/testing/generate_test_inventory.py",
+        "python tools/testing/find_validator_test_patterns.py",
+        "python tools/testing/find_dataframe_ownership_tests.py",
+        "python tools/testing/find_diagnostic_assertion_clusters.py",
+        "python tools/testing/find_orchestration_test_candidates.py",
+    )
+
+    for command in expected_commands:
+        assert testing_audit.count(command) == 1
+
+
 def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None:
     workflow = _read(".github/workflows/ci.yml")
     unsupported_python_310 = "3." + "10"

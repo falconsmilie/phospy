@@ -212,11 +212,6 @@ jobs:
           python tools/testing/find_dataframe_ownership_tests.py
           python tools/testing/find_diagnostic_assertion_clusters.py
           python tools/testing/find_orchestration_test_candidates.py
-          python tools/testing/generate_test_inventory.py
-          python tools/testing/find_validator_test_patterns.py
-          python tools/testing/find_dataframe_ownership_tests.py
-          python tools/testing/find_diagnostic_assertion_clusters.py
-          python tools/testing/find_orchestration_test_candidates.py
       - name: Fail if generated testing audit docs are stale
         run: |
           git diff --exit-code -- \

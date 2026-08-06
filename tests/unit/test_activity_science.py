@@ -35,6 +35,10 @@ from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
     SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES,
     SsgseaSubstrateEnrichmentActivityMethod,
     _derive_ssgsea_permutation_seed,
+    _permutation_p_value,
+    _rank_site_blocks,
+    _score_from_ranked_hit_mask,
+    _SsgseaNullScoreCache,
 )
 from phospy.science.activities.models import (
     ActivityMethodSummary,
@@ -303,6 +307,33 @@ def _ssgsea_result(
 
 def _sort_named_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return frame.sort_index(axis=0).sort_index(axis=1)
+
+
+def _reference_ssgsea_permutation_p_value(
+    *,
+    observed_score: float,
+    ranked_blocks,
+    n_substrates: int,
+    permutation_count: int,
+    rng: np.random.Generator,
+) -> float:
+    extreme_count = 0
+    observed_abs = abs(float(observed_score))
+    for _ in range(int(permutation_count)):
+        hit_positions = rng.choice(
+            ranked_blocks.n_background,
+            size=int(n_substrates),
+            replace=False,
+        )
+        hit_mask = np.zeros(ranked_blocks.n_background, dtype=bool)
+        hit_mask[hit_positions] = True
+        score = _score_from_ranked_hit_mask(
+            hit_mask=hit_mask,
+            ranked_blocks=ranked_blocks,
+        )
+        if abs(float(score)) >= observed_abs:
+            extreme_count += 1
+    return float((extreme_count + 1) / (int(permutation_count) + 1))
 
 
 def _assert_optional_named_frame_equal(
@@ -827,6 +858,168 @@ def test_ssgsea_seed_reproducibility_for_permutation_p_values() -> None:
     pdt.assert_frame_equal(first.activity_matrix, second.activity_matrix)
     pdt.assert_frame_equal(first.p_value_matrix, second.p_value_matrix)
     pdt.assert_frame_equal(first.q_value_matrix, second.q_value_matrix)
+
+
+def test_ssgsea_null_cache_reuses_equivalent_untied_and_tied_null_engines() -> None:
+    site_labels = np.asarray([f"S{index};S{index};" for index in range(1, 7)])
+    finite_positions = np.arange(site_labels.size, dtype=np.int64)
+    cache = _SsgseaNullScoreCache()
+
+    untied_a = _rank_site_blocks(
+        site_labels=site_labels,
+        values=np.asarray([6.0, 5.0, 4.0, 3.0, 2.0, 1.0]),
+        finite_positions=finite_positions,
+        ranking_direction="descending",
+    )
+    untied_b = _rank_site_blocks(
+        site_labels=site_labels,
+        values=np.asarray([60.0, 50.0, 40.0, 30.0, 20.0, 10.0]),
+        finite_positions=finite_positions,
+        ranking_direction="descending",
+    )
+
+    assert cache.get(ranked_blocks=untied_a, n_substrates=3) is cache.get(
+        ranked_blocks=untied_b,
+        n_substrates=3,
+    )
+    assert cache.engine_count == 1
+    assert cache.get(ranked_blocks=untied_a, n_substrates=2) is not cache.get(
+        ranked_blocks=untied_a,
+        n_substrates=3,
+    )
+    assert cache.engine_count == 2
+
+    tied_a = _rank_site_blocks(
+        site_labels=site_labels,
+        values=np.asarray([4.0, 3.0, 3.0, 2.0, 2.0, 1.0]),
+        finite_positions=finite_positions,
+        ranking_direction="descending",
+    )
+    tied_b = _rank_site_blocks(
+        site_labels=site_labels,
+        values=np.asarray([40.0, 30.0, 30.0, 20.0, 20.0, 10.0]),
+        finite_positions=finite_positions,
+        ranking_direction="descending",
+    )
+    tied_different = _rank_site_blocks(
+        site_labels=site_labels,
+        values=np.asarray([4.0, 4.0, 3.0, 3.0, 2.0, 1.0]),
+        finite_positions=finite_positions,
+        ranking_direction="descending",
+    )
+
+    assert cache.get(ranked_blocks=tied_a, n_substrates=3) is cache.get(
+        ranked_blocks=tied_b,
+        n_substrates=3,
+    )
+    assert cache.get(ranked_blocks=tied_a, n_substrates=3) is not cache.get(
+        ranked_blocks=tied_different,
+        n_substrates=3,
+    )
+
+
+def test_ssgsea_cached_null_engine_matches_reference_permutation_calculation() -> None:
+    site_labels = np.asarray([f"S{index};S{index};" for index in range(1, 7)])
+    ranked_blocks = _rank_site_blocks(
+        site_labels=site_labels,
+        values=np.asarray([4.0, 3.0, 3.0, 2.0, 2.0, 1.0]),
+        finite_positions=np.arange(site_labels.size, dtype=np.int64),
+        ranking_direction="descending",
+    )
+    hit_mask = np.asarray([True, False, True, False, True, False], dtype=bool)
+    observed_score = _score_from_ranked_hit_mask(
+        hit_mask=hit_mask,
+        ranked_blocks=ranked_blocks,
+    )
+    cache = _SsgseaNullScoreCache()
+    engine = cache.get(ranked_blocks=ranked_blocks, n_substrates=3)
+
+    optimized = _permutation_p_value(
+        observed_score=observed_score,
+        null_score_engine=engine,
+        permutation_count=250,
+        rng=np.random.default_rng(12345),
+    )
+    reference = _reference_ssgsea_permutation_p_value(
+        observed_score=observed_score,
+        ranked_blocks=ranked_blocks,
+        n_substrates=3,
+        permutation_count=250,
+        rng=np.random.default_rng(12345),
+    )
+
+    assert optimized == reference
+
+
+def test_ssgsea_cached_null_optimisation_preserves_seeded_p_value_streams() -> None:
+    effect_matrix = _with_site_key_index(
+        pd.DataFrame(
+            {
+                "c1": [4.0, 3.0, 3.0, 2.0, 2.0, 1.0],
+                "c2": [1.0, 4.0, 2.0, 3.0, 3.0, 2.0],
+            },
+            index=[
+                "S1;S1;",
+                "S2;S2;",
+                "S3;S3;",
+                "S4;S4;",
+                "S5;S5;",
+                "S6;S6;",
+            ],
+        )
+    )
+    kinase_to_sites = {
+        "K_A": ["S1;S1;", "S3;S3;", "S5;S5;"],
+        "K_B": ["S2;S2;", "S4;S4;", "S6;S6;"],
+    }
+    membership = _membership(kinase_to_sites)
+    result = SsgseaSubstrateEnrichmentActivityMethod(
+        min_substrates=2,
+        permutation_count=75,
+        random_seed=911,
+    ).run(
+        activity_input=ActivityInputMatrix.standardised_effect(effect_matrix),
+        kinase_substrate_membership=membership,
+    )
+
+    assert result.p_value_matrix is not None
+    for profile_position, profile_id in enumerate(effect_matrix.columns):
+        ranked_blocks = _rank_site_blocks(
+            site_labels=np.asarray(effect_matrix.index.astype(str).tolist()),
+            values=effect_matrix.to_numpy(dtype=float, copy=False)[
+                :,
+                profile_position,
+            ],
+            finite_positions=np.arange(effect_matrix.shape[0], dtype=np.int64),
+            ranking_direction="descending",
+        )
+        ranked_position_by_site = {
+            str(site_id): int(position)
+            for position, site_id in enumerate(ranked_blocks.site_labels.tolist())
+        }
+        for kinase_name, display_sites in kinase_to_sites.items():
+            substrate_sites = set(_site_key_index(display_sites).astype(str).tolist())
+            hit_mask = np.zeros(ranked_blocks.n_background, dtype=bool)
+            for site_id in substrate_sites:
+                hit_mask[ranked_position_by_site[site_id]] = True
+            observed_score = _score_from_ranked_hit_mask(
+                hit_mask=hit_mask,
+                ranked_blocks=ranked_blocks,
+            )
+            expected = _reference_ssgsea_permutation_p_value(
+                observed_score=observed_score,
+                ranked_blocks=ranked_blocks,
+                n_substrates=int(hit_mask.sum()),
+                permutation_count=75,
+                rng=np.random.default_rng(
+                    _derive_ssgsea_permutation_seed(
+                        random_seed=911,
+                        profile_id=str(profile_id),
+                        kinase_name=str(kinase_name),
+                    )
+                ),
+            )
+            assert result.p_value_matrix.at[kinase_name, profile_id] == expected
 
 
 def test_ssgsea_permutation_results_are_kinase_order_invariant() -> None:

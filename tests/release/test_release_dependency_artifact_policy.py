@@ -351,6 +351,9 @@ def test_installed_distribution_verifier_reports_current_supported_versions() ->
     assert f'EXPECTED_REQUIRES_PYTHON = "{EXPECTED_REQUIRES_PYTHON}"' in source
     assert '"supported_python_versions": SUPPORTED_PYTHON_VERSIONS' in source
     assert '"requires_python": report.requires_python' in source
+    assert '"dependency_constraints": (' in source
+    assert '"artifact_sha256": report.artifact_sha256' in source
+    assert '"constraint_sha256": report.constraint_sha256' in source
 
 
 def test_active_support_files_do_not_reintroduce_python_310_contracts() -> None:
