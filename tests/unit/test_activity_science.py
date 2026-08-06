@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from io import StringIO
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,10 @@ from hypothesis import strategies as st
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.hashing import fingerprint_table_normalized_axes
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
     ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
@@ -49,6 +53,7 @@ from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
     _permutation_p_value,
     _rank_site_blocks,
     _score_from_ranked_hit_mask,
+    _ssgsea_permutation_seed_material,
     _SsgseaNullScoreCache,
 )
 from phospy.science.activities.models import (
@@ -62,6 +67,7 @@ from phospy.science.activities.models import (
     WeightedSubstrateActivityDiagnostics,
 )
 from phospy.science.activities.scientific_policies import (
+    SSGSEA_PERMUTATION_RNG_SEED_MATERIAL,
     SSGSEA_PERMUTATION_RNG_SEED_POLICY,
     SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
@@ -91,6 +97,8 @@ from phospy.science.activities.threshold_membership import (
     threshold_membership_mask_array,
 )
 from tests.support.site_keys import site_key_index_from_display_ids
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _site_key_index(display_ids: list[str]) -> pd.Index:
@@ -1417,6 +1425,44 @@ def test_ssgsea_permutation_seed_derivation_changes_with_global_seed() -> None:
     assert first_seed != second_seed
 
 
+def test_ssgsea_permutation_seed_derivation_uses_profile_identity_and_keeps_v1_stream() -> (
+    None
+):
+    seed_material = _ssgsea_permutation_seed_material(
+        random_seed=37,
+        profile_id="profile_alpha",
+        kinase_name="MAPK1",
+    )
+
+    assert seed_material["profile_id"] == "profile_alpha"
+    assert not {"condition", "condition_name"}.intersection(seed_material)
+    assert (
+        _derive_ssgsea_permutation_seed(
+            random_seed=37,
+            profile_id="profile_alpha",
+            kinase_name="MAPK1",
+        )
+        == 148612213888706365489122676393425420704
+    )
+    assert (
+        _derive_ssgsea_permutation_seed(
+            random_seed=37,
+            condition_name="profile_alpha",
+            kinase_name="MAPK1",
+        )
+        == 148612213888706365489122676393425420704
+    )
+    assert _derive_ssgsea_permutation_seed(
+        random_seed=37,
+        profile_id="profile_beta",
+        kinase_name="MAPK1",
+    ) != _derive_ssgsea_permutation_seed(
+        random_seed=37,
+        profile_id="profile_alpha",
+        kinase_name="MAPK1",
+    )
+
+
 def test_ssgsea_permutation_results_survive_input_serialization_round_trip() -> None:
     effect_matrix = _with_site_key_index(
         pd.DataFrame(
@@ -1511,7 +1557,26 @@ def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
     assert parameters["permutation_rng_seed_policy_version"] == (
         SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
     )
+    assert parameters["permutation_rng_seed_material"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_MATERIAL
+    )
+    assert "profile_id" in str(parameters["permutation_rng_seed_material"])
+    assert "condition" not in str(parameters["permutation_rng_seed_material"])
+    assert "stable_by_method_condition_kinase" not in repr(payload)
     assert parameters["q_value_method"] == SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+    restored_policy = ScientificPolicyRecord.from_payload(payload)
+    restored_payload = restored_policy.to_payload()
+    restored_parameters = restored_payload["parameters"]
+    assert isinstance(restored_parameters, dict)
+    assert restored_parameters["permutation_rng_seed_policy"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY
+    )
+    assert restored_parameters["permutation_rng_seed_policy_version"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
+    )
+    assert restored_parameters["permutation_rng_seed_material"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_MATERIAL
+    )
     stats = result.statistics_table
     assert stats is not None
     assert set(
@@ -1525,6 +1590,37 @@ def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
             "mixed_substrate_tie_blocks",
         ]
     ).issubset(stats.columns)
+
+
+def test_ssgsea_public_seed_policy_documentation_is_profile_based() -> None:
+    public_paths = (
+        Path("src/phospy/science/activities/scientific_policies.py"),
+        Path(
+            "docs/adr/adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md"
+        ),
+        Path(
+            "docs/adr/adr_0034_quantitative_state_motif_semantics_and_reference_context.md"
+        ),
+        Path("docs/adr/adr_0047_ssgsea_tie_block_policy.md"),
+        Path("docs/api/kinase.md"),
+        Path("docs/scientific-coverage.md"),
+    )
+    stale_public_terms = (
+        "stable_by_method_condition_kinase",
+        "condition/kinase/method permutation stream",
+        "condition name, kinase",
+        "condition reordering",
+    )
+
+    combined_text = ""
+    for relative_path in public_paths:
+        text = (_REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        combined_text += text
+        for stale_term in stale_public_terms:
+            assert stale_term not in text
+
+    assert "stable_by_method_profile_kinase" in combined_text
+    assert "profile_id" in combined_text
 
 
 def test_ssgsea_activity_input_requires_contrast_or_effect_semantics() -> None:

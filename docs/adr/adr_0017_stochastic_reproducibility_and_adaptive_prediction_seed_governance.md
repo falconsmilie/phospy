@@ -68,9 +68,12 @@ RNG streams from the user seed.
    sequential RNG shared by identity-indexed tests is not an acceptable stable
    seed strategy.
 10. The ssGSEA substrate enrichment permutation policy derives each
-    condition/kinase/method permutation stream from method ID, method version,
-    seed-policy ID, seed-policy version, user seed, condition name, kinase
-    name, and stream name.
+    profile/kinase/method permutation stream from method ID, method version,
+    profile ID, kinase name, stream name, and caller-supplied seed. Public
+    provenance reports the active seed policy
+    `stable_by_method_profile_kinase` and its version; the v1 hash encoding
+    retains a private compatibility salt solely to preserve existing
+    deterministic streams.
 
 ## Consequences
 
@@ -83,7 +86,7 @@ RNG streams from the user seed.
    imputation summary diagnostics.
 7. Deterministic imputation paths must keep tie-breaking deterministic and must
    be covered by replay-oriented tests even when no seed is recorded.
-8. Reordering kinases or conditions must not change named stochastic activity
+8. Reordering kinases or profiles must not change named stochastic activity
    results.
 9. Adding an unrelated kinase must not change existing named permutation
    p-values. Multiple-testing adjustments may legitimately change when the
@@ -125,7 +128,7 @@ Future changes must satisfy all of the following:
 5. Policy or version changes are reviewed as scientific-output changes.
 6. Identity-indexed stable stochastic tests use child RNG streams derived from
    semantic identifiers and the user seed.
-7. Reversed mapping order, condition reordering, unrelated-test insertion,
+7. Reversed mapping order, profile reordering, unrelated-test insertion,
    repeated runs, seed divergence, and input serialization round trips are
    covered for stochastic activity permutations.
 

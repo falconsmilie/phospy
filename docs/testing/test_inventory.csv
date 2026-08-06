@@ -94,7 +94,7 @@ tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,
 tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
-tests/unit/test_activity_science.py,unit,3099,82,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_activity_science.py,unit,3195,84,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,381,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -333,4 +333,4 @@ tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,
 tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,527,8,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/workflows/test_enrichment_workflow.py,workflows,949,29,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/workflows/test_identity_coherence.py,workflows,187,6,false,false,,,,,,
-tests/workflows/test_kinase_activity_ssgsea.py,workflows,225,1,false,false,,,,,,
+tests/workflows/test_kinase_activity_ssgsea.py,workflows,243,1,false,false,,,,,,

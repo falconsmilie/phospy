@@ -17,8 +17,8 @@ KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "3"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_profile_kinase"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
 SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (
-    "blake2b-128-json(method_id, method_version, seed_policy, "
-    "seed_policy_version, random_seed, profile_id, kinase, stream)"
+    "blake2b-128-json(method_id, method_version, profile_id, kinase, "
+    "stream, random_seed; v1 compatibility salt retained internally)"
 )
 SSGSEA_TIE_POLICY = "midrank_block_expectation"
 SSGSEA_TIE_BLOCK_CONTRIBUTION_RULE = (
@@ -213,9 +213,10 @@ def build_ssgsea_substrate_enrichment_activity_policy(
             "Sparse or missing substrate support weakens interpretation.",
             "Permutation p-values, when requested, use seeded random substrate-set "
             "label permutations scored with the same tie-block policy and "
-            "deterministic child RNG streams keyed by method, profile, kinase, "
-            "and user seed. Version 2 changes the seeded stream identity because "
-            "the method version is part of the seed material.",
+            "deterministic child RNG streams keyed by method, method version, "
+            "profile ID, kinase, stream, and caller-supplied seed. Version 2 "
+            "changes the seeded stream identity because the method version is "
+            "part of the seed material.",
             "The enrichment score does not prove kinase activation or causal "
             "regulation; causal kinase activity claims require external validation.",
             "This is a validated PhosPy implementation and is not a PTM-SEA "

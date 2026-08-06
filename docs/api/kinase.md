@@ -219,7 +219,7 @@ Important `KinaseActivityConfig` fields:
 | `top_n_substrates` | `20` | Weighted activity substrate cap. |
 | `ksea_min_substrates` | `5` | KSEA-style substrate floor. |
 | `ssgsea_min_substrates` | `5` | ssGSEA-style substrate floor. |
-| `ssgsea_random_seed` | `0` | Required when permutations are enabled. |
+| `ssgsea_random_seed` | `0` | Required when permutations are enabled; deterministic child streams are keyed by method, method version, `profile_id`, kinase, stream name, and caller-supplied seed under `stable_by_method_profile_kinase`. |
 
 Activity score substrate support is counted from prediction/activity inputs,
 not from the scoring profile count. For the simplified weighted and KSEA-style

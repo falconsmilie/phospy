@@ -47,6 +47,13 @@ material, version 2 may change permutation p-values and q-values even for
 non-tied inputs, while non-tied deterministic enrichment scores remain
 unchanged.
 
+The active ssGSEA permutation seed policy is
+`stable_by_method_profile_kinase`: the scientific stream identity is method ID,
+method version, `profile_id`, kinase name, stream name, and caller-supplied
+seed. The v1 hash encoding retains a private compatibility salt solely to avoid
+changing existing deterministic streams; public provenance does not report that
+salt as the active policy.
+
 ## Consequences
 
 Positive consequences:
@@ -64,6 +71,8 @@ Negative consequences:
   now the block expectation rather than one arbitrary within-tie order.
 - Seeded permutation p/q values can differ from version 1 because method version
   is part of the deterministic child RNG seed material.
+- Renaming private v1 compatibility salt terminology does not by itself change
+  deterministic seeded streams or p/q values.
 
 ## Implementation Notes
 

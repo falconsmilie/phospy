@@ -17,6 +17,10 @@ from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import KinaseLibraryResourceProvenance
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.science.activities.methods import SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
+from phospy.science.activities.scientific_policies import (
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY,
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
+)
 from phospy.science.prediction.motif_scoring.models import AMINO_ACIDS
 from phospy.science.references.kinase_library import (
     KinaseLibraryMatrix,
@@ -221,5 +225,19 @@ def test_kinase_workflow_runs_ssgsea_substrate_enrichment_activity() -> None:
     assert activity_payload["ssgsea_significance_status"] == (
         SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
     )
-    policy_ids = {policy.id for policy in result.provenance.scientific_policies}
-    assert ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY in policy_ids
+    policy_by_id = {
+        policy.id: policy for policy in result.provenance.scientific_policies
+    }
+    assert ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY in policy_by_id
+    policy_payload = policy_by_id[
+        ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY
+    ].to_payload()
+    policy_parameters = policy_payload["parameters"]
+    assert isinstance(policy_parameters, dict)
+    assert policy_parameters["permutation_rng_seed_policy"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY
+    )
+    assert policy_parameters["permutation_rng_seed_policy_version"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
+    )
+    assert "stable_by_method_condition_kinase" not in repr(policy_payload)

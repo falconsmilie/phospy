@@ -205,8 +205,9 @@ Kinase activity contracts are method-specific:
   containing only substrates or only non-substrates therefore contribute the
   ordinary uninterrupted hit or miss segment, while mixed blocks give all
   equal-valued sites equivalent treatment. Seeded permutation p-values use the
-  same tie-block score definition, and the method version is part of the
-  permutation RNG seed material.
+  same tie-block score definition. Their active deterministic RNG policy is
+  profile-based: method ID, method version, `profile_id`, kinase, stream name,
+  and caller-supplied seed define the scientific stream identity.
 
 Invalid scale/meaning/typed activity-semantics combinations must fail before
 workflow execution. Activity methods also guard their direct method boundary so

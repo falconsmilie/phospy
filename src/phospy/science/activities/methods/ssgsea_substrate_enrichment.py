@@ -73,7 +73,13 @@ _KINASE_COLUMN = "kinase"
 _SUBSTRATE_COLUMN = "substrate_site"
 _SSGSEA_PERMUTATION_STREAM_NAME = "substrate_label_permutation"
 _SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES = 16
-_SSGSEA_PERMUTATION_RNG_SEED_HASH_POLICY_TOKEN = "stable_by_method_condition_kinase"
+# Historical v1 salt retained solely to preserve the existing deterministic
+# ssGSEA permutation stream. The active public policy name is
+# ``stable_by_method_profile_kinase`` and is emitted from
+# ``scientific_policies.py``.
+_SSGSEA_PERMUTATION_RNG_SEED_V1_COMPATIBILITY_TOKEN = (
+    "stable_by_method_condition_kinase"
+)
 _SSGSEA_PERMUTATION_EXTREME_ATOL = 1e-12
 
 
@@ -977,6 +983,37 @@ def _derive_ssgsea_permutation_seed(
     condition_name: str | None = None,
     kinase_name: str,
 ) -> int:
+    """Derive the deterministic child RNG seed for one profile/kinase stream.
+
+    ``condition_name`` is retained only as a private compatibility alias for
+    ``profile_id``. The active scientific identity is profile-based.
+    """
+    seed_material = _ssgsea_permutation_seed_material(
+        random_seed=random_seed,
+        profile_id=profile_id,
+        condition_name=condition_name,
+        kinase_name=kinase_name,
+    )
+    encoded = json.dumps(
+        seed_material,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    digest = hashlib.blake2b(
+        encoded,
+        digest_size=_SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES,
+    ).digest()
+    return int.from_bytes(digest, "little")
+
+
+def _ssgsea_permutation_seed_material(
+    *,
+    random_seed: int,
+    profile_id: str | None = None,
+    condition_name: str | None = None,
+    kinase_name: str,
+) -> dict[str, object]:
+    """Return the v1-encoded seed material used for ssGSEA permutations."""
     if profile_id is not None and condition_name is not None:
         if str(profile_id) != str(condition_name):
             raise ValueError("profile_id conflicts with legacy condition_name")
@@ -993,20 +1030,14 @@ def _derive_ssgsea_permutation_seed(
         "method_version": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
         "profile_id": resolved_profile_id,
         "random_seed": int(random_seed),
-        "seed_policy": _SSGSEA_PERMUTATION_RNG_SEED_HASH_POLICY_TOKEN,
+        # Keep both the historical JSON key and value for byte-for-byte v1 stream
+        # compatibility. Public provenance reports the current profile-based
+        # policy, not this compatibility salt.
+        "seed_policy": _SSGSEA_PERMUTATION_RNG_SEED_V1_COMPATIBILITY_TOKEN,
         "seed_policy_version": SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
         "stream": _SSGSEA_PERMUTATION_STREAM_NAME,
     }
-    encoded = json.dumps(
-        seed_material,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    digest = hashlib.blake2b(
-        encoded,
-        digest_size=_SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES,
-    ).digest()
-    return int.from_bytes(digest, "little")
+    return seed_material
 
 
 def _apply_q_values(

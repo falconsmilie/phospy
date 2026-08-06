@@ -721,8 +721,9 @@ table-hash semantics are unchanged.
   rather than arbitrary row order.
 - Parameters:
   minimum substrates, ranking direction, optional seeded permutation count,
-  optional permutation random seed, optional q-value adjustment, and the
-  method-versioned tie policy.
+  optional permutation random seed, optional q-value adjustment, the
+  method-versioned tie policy, and the profile/kinase deterministic RNG seed
+  policy.
 - Output meaning:
   rank-based substrate-supported kinase scores with optional empirical
   permutation p-values.
