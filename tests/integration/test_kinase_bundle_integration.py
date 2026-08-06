@@ -42,7 +42,19 @@ from phospy.io.bundles.kinase import (
     save_kinase_workflow_bundle,
 )
 from phospy.provenance.models import RunProvenance
-from phospy.science.activities.membership import KSEA_MEMBERSHIP_ELIGIBLE_REASON
+from phospy.science.activities.membership import (
+    ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
+    ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
+    ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+    KSEA_MEMBERSHIP_ELIGIBLE_REASON,
+    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE,
+    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION,
+    KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON,
+    ActivityMembershipSelection,
+    fingerprint_ksea_selection_quantitative_matrix,
+    fingerprint_ksea_tested_quantitative_matrix,
+    selected_substrate_universe_from_prediction_matrix,
+)
 from phospy.science.activities.method_contracts import (
     kinase_activity_method_quantitative_input_contract,
 )
@@ -763,6 +775,167 @@ def test_kinase_bundle_rejects_tampered_ksea_membership_eligibility(
         load_kinase_workflow_bundle(bundle_root)
 
 
+def test_kinase_bundle_rejects_tampered_ksea_membership_source_facts(
+    tmp_path: Path,
+) -> None:
+    base_request = _build_request(activity=False)
+    base_result = KinaseWorkflow().run(base_request)
+    activity_result = _ksea_profile_derived_activity_result()
+    assert activity_result.membership_selection is not None
+    assert activity_result.membership_selection.inferential_eligible is False
+    result = _replace_activity_result_with_semantic_provenance(
+        base_result,
+        activity_result=activity_result,
+        method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        resolved_scale="log2",
+        resolved_meaning="differential_effect_size",
+    )
+    request = replace(
+        base_request,
+        activity_config=_activity_config_for_method(KINASE_ACTIVITY_METHOD_KSEA_ZSCORE),
+    )
+    bundle_root = tmp_path / "kinase_bundle_tampered_ksea_membership_source_facts"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    activity_payload = manifest["outputs"]["activity"]
+    assert isinstance(activity_payload, dict)
+    membership_payload = activity_payload["membership_selection"]
+    assert isinstance(membership_payload, dict)
+    membership_payload["source_category"] = (
+        ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE
+    )
+    threshold_policy = membership_payload["threshold_top_k_policy"]
+    assert isinstance(threshold_policy, dict)
+    threshold_policy["independent_membership_policy"] = (
+        KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE
+    )
+    threshold_policy["independent_membership_policy_version"] = (
+        KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION
+    )
+    membership_payload["inferential_eligible"] = True
+    membership_payload["inferential_status"] = "ordinary_p_q_available"
+    membership_payload["inferential_eligibility_reason"] = (
+        KSEA_MEMBERSHIP_ELIGIBLE_REASON
+    )
+    decision_payload = membership_payload["inferential_decision"]
+    assert isinstance(decision_payload, dict)
+    decision_payload["ordinary_p_q_available"] = True
+    decision_payload["status"] = "ordinary_p_q_available"
+    decision_payload["reason"] = KSEA_MEMBERSHIP_ELIGIBLE_REASON
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PhosPyInputError, match="source_category"):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_rejects_finite_ksea_p_q_without_membership_provenance(
+    tmp_path: Path,
+) -> None:
+    base_request = _build_request(activity=False)
+    base_result = KinaseWorkflow().run(base_request)
+    activity_result = _ksea_standardised_effect_activity_result()
+    assert activity_result.membership_selection is not None
+    assert activity_result.membership_selection.inferential_eligible is False
+    result = _replace_activity_result_with_semantic_provenance(
+        base_result,
+        activity_result=activity_result,
+        method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        resolved_scale="log2",
+        resolved_meaning="differential_effect_size",
+    )
+    request = replace(
+        base_request,
+        activity_config=_activity_config_for_method(KINASE_ACTIVITY_METHOD_KSEA_ZSCORE),
+    )
+    bundle_root = tmp_path / "kinase_bundle_finite_ksea_p_q_absent_membership"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    activity_payload = manifest["outputs"]["activity"]
+    assert isinstance(activity_payload, dict)
+    activity_payload["membership_selection"] = None
+    tables = activity_payload["tables"]
+    assert isinstance(tables, dict)
+    entry = tables["statistics_table"]
+    assert isinstance(entry, dict)
+    table_path = bundle_root / str(entry["path"])
+    statistics_table = pd.read_csv(table_path, index_col=0)
+    statistics_table.loc[:, "p_value"] = 0.01
+    statistics_table.loc[:, "q_value"] = 0.02
+    statistics_table.to_csv(table_path)
+    _refresh_manifest_table_entry(
+        entry,
+        bundle_root=bundle_root,
+        table=statistics_table,
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PhosPyInputError, match="statistics_table p/q cells"):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_legacy_missing_ksea_membership_loads_as_explicit_missing(
+    tmp_path: Path,
+) -> None:
+    base_request = _build_request(activity=False)
+    base_result = KinaseWorkflow().run(base_request)
+    activity_result = _ksea_standardised_effect_activity_result()
+    result = _replace_activity_result_with_semantic_provenance(
+        base_result,
+        activity_result=activity_result,
+        method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        resolved_scale="log2",
+        resolved_meaning="differential_effect_size",
+    )
+    request = replace(
+        base_request,
+        activity_config=_activity_config_for_method(KINASE_ACTIVITY_METHOD_KSEA_ZSCORE),
+    )
+    bundle_root = tmp_path / "kinase_bundle_legacy_missing_ksea_membership"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    activity_payload = manifest["outputs"]["activity"]
+    assert isinstance(activity_payload, dict)
+    activity_payload["membership_selection"] = None
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    assert loaded.result.activity_result is not None
+    loaded_selection = loaded.result.activity_result.membership_selection
+    assert loaded_selection is not None
+    assert loaded_selection.inferential_eligible is False
+    assert loaded_selection.inferential_eligibility_reason == (
+        KSEA_MEMBERSHIP_MISSING_PROVENANCE_REASON
+    )
+
+
 @pytest.mark.parametrize(
     ("scenario", "activity_factory_name", "mutation", "pattern"),
     [
@@ -1456,6 +1629,61 @@ def _ksea_standardised_effect_activity_result() -> KinaseActivityResult:
         pred_mat=pred_mat,
         matrix=matrix,
         activity_input=activity_input,
+    )
+
+
+def _ksea_profile_derived_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    matrix = _standardised_effect_activity_matrix()
+    activity_input = ActivityInputMatrix.standardised_effect(
+        matrix,
+        _assume_owned=True,
+    )
+    membership_selection = ActivityMembershipSelection(
+        source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+        selection_method="prediction_matrix_thresholded_membership",
+        selection_method_version=ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
+        score_source="profile_scores",
+        threshold_top_k_policy={
+            "evidence_threshold": 0.5,
+            "evidence_threshold_operator": ">=",
+            "data_adaptive_membership": True,
+        },
+        source_reference_fingerprints=(
+            fingerprint_ksea_selection_quantitative_matrix(pred_mat),
+        ),
+        selection_quantitative_matrix_fingerprint=(
+            fingerprint_ksea_selection_quantitative_matrix(matrix)
+        ),
+        tested_quantitative_matrix_fingerprint=(
+            fingerprint_ksea_tested_quantitative_matrix(matrix)
+        ),
+        consumed_tested_matrix=True,
+        selected_kinase_universe=pred_mat.columns.astype(str).tolist(),
+        selected_substrate_universe=selected_substrate_universe_from_prediction_matrix(
+            pred_mat,
+            threshold=0.5,
+        ),
+    )
+    return KseaZScoreActivityMethod(
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    ).run(
+        KinaseActivityInputs(
+            pred_mat=pred_mat,
+            phospho_matrix=matrix,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=1,
+            overlap_summary=PredMatOverlapSummary(
+                overlap_count=int(pred_mat.index.intersection(matrix.index).size),
+                pred_mat_rows=int(pred_mat.index.size),
+                phospho_rows=int(matrix.index.size),
+            ),
+            activity_input=activity_input,
+            membership_selection=membership_selection,
+        )
     )
 
 

@@ -30,6 +30,9 @@ enforces the final inferential-eligibility decision from those facts. Workflow
 code supplies facts only; it does not supply the final scientific conclusion.
 Executors must not infer eligibility from raw matrices, method names, or
 descriptive labels.
+Source category and supporting facts must form one coherent state before the
+eligibility decision is derived. Contradictory combinations are rejected rather
+than downgraded or caveated.
 
 The membership-selection record includes:
 
@@ -63,11 +66,30 @@ Missing source fingerprints, missing tested-matrix fingerprint evidence, or
 incomplete independence-policy evidence produce descriptive KSEA output only.
 They must not silently become eligible.
 
+The source-specific coherence gate rejects records such as
+`fixed_external_reference` combined with data-adaptive membership,
+`consumed_tested_matrix=True`, a selection quantitative-matrix fingerprint,
+known profile-derived or fused score sources, sequence-only motif score sources,
+or source-specific method/policy tokens from another category. Built-in score
+sources have one interpretation: `profile_scores` and
+`rank_weighted_fusion_scores` are profile-derived,
+`combined_profile_motif_scores` is fused profile/motif-derived, and
+`kinase_library_motif_scores` is sequence-only motif-derived. Arbitrary
+externally supplied method strings do not establish independence; fixed
+external eligibility requires the explicit fixed-reference independence-policy
+token plus supported version and complete evidence.
+
 For ineligible membership, KSEA computes descriptive z-scores and records
 missing p/q values. `p_value_matrix` and `q_value_matrix` are unavailable, and
 statistics tables use missing p/q cells plus structured inferential-status
 columns. Benjamini-Hochberg adjustment is run only over eligible finite
 p-values.
+
+Every constructed KSEA result carries an explicit membership-selection record.
+Missing or legacy membership provenance is represented by an explicit missing,
+ineligible record for descriptive-only output. Finite p/q matrices or finite
+statistics-table p/q cells without eligible membership provenance are rejected
+during result construction and bundle reconstruction.
 
 A future nested resampling or sample-splitting KSEA method may emit valid
 inferential values for adaptive membership only if substrate selection is
@@ -78,10 +100,12 @@ ordinary normal approximation.
 Serialized membership payloads are reconstructed from underlying facts, then
 the decision is recomputed. Serialized eligibility, reason, status, and nested
 decision fields are accepted only when they match the recomputed decision.
-Contradictory or tampered payloads are rejected. Legacy payloads that lack the
-new tested-matrix or independence evidence are not upgraded to ordinary
-inference eligibility, and missing fingerprints are not fabricated during
-migration.
+Contradictory or tampered payloads are rejected, including relabelling an
+adaptive record as `fixed_external_reference`, retaining adaptive facts under a
+fixed-external label, or adding favourable independence tokens to an adaptive
+record. Legacy payloads that lack the new tested-matrix or independence
+evidence are not upgraded to ordinary inference eligibility, and missing
+fingerprints are not fabricated during migration.
 
 The ordinary normal-approximation assumptions remain scientific assumptions
 even after membership eligibility is established; eligibility only establishes
@@ -130,8 +154,8 @@ p/q values are unavailable. Kinase bundle manifests persist
 `outputs.activity.membership_selection` so reload preserves eligibility state.
 
 The KSEA scientific policy record is versioned as
-`ksea_zscore_activity_v1` policy version `3`. The membership-selection policy
-version is `2`, and the KSEA membership inferential policy version is `2`.
+`ksea_zscore_activity_v1` policy version `4`. The membership-selection policy
+version is `3`, and the KSEA membership inferential policy version is `3`.
 
 ## Related Records
 

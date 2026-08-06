@@ -29,7 +29,7 @@ tests/integration/test_differential_with_technical_replicates.py,integration,201
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,478,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/integration/test_kinase_bundle_integration.py,integration,2445,20,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/integration/test_kinase_bundle_integration.py,integration,2673,23,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/integration/test_kinase_library_workflow_scoring.py,integration,260,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,304,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,401,3,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
@@ -94,7 +94,7 @@ tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,
 tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
-tests/unit/test_activity_science.py,unit,3195,84,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_activity_science.py,unit,3622,97,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,381,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access

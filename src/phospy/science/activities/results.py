@@ -380,6 +380,11 @@ class KinaseActivityResult:
                 "activity_result.membership_selection must be "
                 "ActivityMembershipSelection or None"
             )
+        membership_selection = _coerce_ksea_membership_selection(
+            activity_method=activity_method,
+            membership_selection=membership_selection,
+            activity_matrix=activity_matrix,
+        )
         _validate_ksea_inferential_result_contract(
             activity_method=activity_method,
             membership_selection=membership_selection,
@@ -735,7 +740,14 @@ def _validate_ksea_inferential_result_contract(
 ) -> None:
     if not activity_method.is_ksea:
         return
-    if membership_selection is None or membership_selection.inferential_eligible:
+    if membership_selection is None:
+        raise WorkflowBoundaryError(
+            "KSEA activity_result.membership_selection must carry explicit "
+            "membership-selection provenance; use "
+            "ActivityMembershipSelection.missing(...) for descriptive-only "
+            "legacy or missing provenance"
+        )
+    if membership_selection.inferential_eligible:
         return
     if p_value_matrix is not None:
         raise WorkflowBoundaryError(
@@ -759,6 +771,20 @@ def _validate_ksea_inferential_result_contract(
                 "when membership_selection is inferentially ineligible; "
                 f"found finite values in {column_name!r}"
             )
+
+
+def _coerce_ksea_membership_selection(
+    *,
+    activity_method: ActivityMethodMetadata,
+    membership_selection: ActivityMembershipSelection | None,
+    activity_matrix: pd.DataFrame,
+) -> ActivityMembershipSelection | None:
+    if not activity_method.is_ksea or membership_selection is not None:
+        return membership_selection
+    return ActivityMembershipSelection.missing(
+        selected_kinase_universe=activity_matrix.index.astype(str).tolist(),
+        selected_substrate_universe=(),
+    )
 
 
 __all__ = [

@@ -40,8 +40,8 @@ ACTIVITY_MEMBERSHIP_SOURCE_CATEGORIES: Final = frozenset(
     }
 )
 
-ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION: Final = "2"
-KSEA_MEMBERSHIP_INFERENTIAL_POLICY_VERSION: Final = "2"
+ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION: Final = "3"
+KSEA_MEMBERSHIP_INFERENTIAL_POLICY_VERSION: Final = "3"
 KSEA_TESTED_QUANTITATIVE_MATRIX_FINGERPRINT_NAME: Final = (
     "dataset.ksea_background_phospho_matrix"
 )
@@ -83,7 +83,56 @@ KSEA_MEMBERSHIP_QUANTITATIVE_SELECTION_REASON: Final = (
     "membership_selection_consumed_quantitative_data"
 )
 
+_KSEA_PROFILE_SCORE_SOURCE: Final = "profile_scores"
+_KSEA_RANK_WEIGHTED_FUSION_SCORE_SOURCE: Final = "rank_weighted_fusion_scores"
+_KSEA_COMBINED_PROFILE_MOTIF_SCORE_SOURCE: Final = "combined_profile_motif_scores"
 _KSEA_SEQUENCE_ONLY_MOTIF_SCORE_SOURCE: Final = "kinase_library_motif_scores"
+_KSEA_BUILT_IN_SCORE_SOURCE_CATEGORIES: Final = {
+    _KSEA_PROFILE_SCORE_SOURCE: ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+    _KSEA_RANK_WEIGHTED_FUSION_SCORE_SOURCE: (
+        ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED
+    ),
+    _KSEA_COMBINED_PROFILE_MOTIF_SCORE_SOURCE: (
+        ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF
+    ),
+    _KSEA_SEQUENCE_ONLY_MOTIF_SCORE_SOURCE: (
+        ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF
+    ),
+}
+_KSEA_THRESHOLDED_PREDICTION_MEMBERSHIP_METHOD: Final = (
+    "prediction_matrix_thresholded_membership"
+)
+_KSEA_MISSING_MEMBERSHIP_METHOD: Final = "missing_membership_selection_provenance"
+_KSEA_METHOD_ALLOWED_SOURCE_CATEGORIES: Final = {
+    _KSEA_THRESHOLDED_PREDICTION_MEMBERSHIP_METHOD: frozenset(
+        {
+            ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+            ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
+            ACTIVITY_MEMBERSHIP_SOURCE_PREDICTION_SELECTED,
+            ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
+        }
+    ),
+    _KSEA_MISSING_MEMBERSHIP_METHOD: frozenset({ACTIVITY_MEMBERSHIP_SOURCE_UNKNOWN}),
+}
+_KSEA_INDEPENDENCE_POLICY_FIELD: Final = "independent_membership_policy"
+_KSEA_INDEPENDENCE_POLICY_VERSION_FIELD: Final = "independent_membership_policy_version"
+_KSEA_DATA_ADAPTIVE_MEMBERSHIP_FIELD: Final = "data_adaptive_membership"
+_KSEA_SUPPORTED_INDEPENDENCE_POLICIES: Final = frozenset(
+    {
+        KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE,
+        KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF,
+    }
+)
+_KSEA_FIXED_EXTERNAL_FORBIDDEN_SCORE_SOURCES: Final = frozenset(
+    _KSEA_BUILT_IN_SCORE_SOURCE_CATEGORIES
+)
+_KSEA_ADAPTIVE_SOURCE_CATEGORIES: Final = frozenset(
+    {
+        ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+        ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
+        ACTIVITY_MEMBERSHIP_SOURCE_PREDICTION_SELECTED,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -318,6 +367,7 @@ class ActivityMembershipSelection:
             ),
         )
         object.__setattr__(self, "consumed_tested_matrix", consumed_tested_matrix)
+        _validate_membership_source_fact_coherence(self)
         decision = derive_ksea_membership_inferential_decision(self)
         _validate_requested_inferential_fields(
             requested_eligible=self.inferential_eligible,
@@ -614,6 +664,268 @@ def selected_substrate_universe_from_prediction_matrix(
     )
 
 
+def _validate_membership_source_fact_coherence(
+    selection: ActivityMembershipSelection,
+) -> None:
+    """Reject source-category states with contradictory membership facts."""
+
+    source_category = selection.source_category
+    _validate_builtin_score_source_category(selection)
+    _validate_selection_method_category(selection)
+    data_adaptive_membership = _optional_policy_bool(
+        selection.threshold_top_k_policy,
+        _KSEA_DATA_ADAPTIVE_MEMBERSHIP_FIELD,
+    )
+    independence_policy = _optional_policy_text(
+        selection.threshold_top_k_policy,
+        _KSEA_INDEPENDENCE_POLICY_FIELD,
+    )
+    independence_policy_version = _optional_policy_text(
+        selection.threshold_top_k_policy,
+        _KSEA_INDEPENDENCE_POLICY_VERSION_FIELD,
+    )
+
+    if source_category == ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE:
+        _validate_fixed_external_source_facts(
+            selection,
+            data_adaptive_membership=data_adaptive_membership,
+            independence_policy=independence_policy,
+            independence_policy_version=independence_policy_version,
+        )
+        return
+
+    if source_category == ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF:
+        _validate_sequence_only_source_facts(
+            selection,
+            data_adaptive_membership=data_adaptive_membership,
+            independence_policy=independence_policy,
+            independence_policy_version=independence_policy_version,
+        )
+        return
+
+    if source_category in _KSEA_ADAPTIVE_SOURCE_CATEGORIES:
+        _validate_adaptive_source_facts(
+            selection,
+            independence_policy=independence_policy,
+            independence_policy_version=independence_policy_version,
+        )
+        return
+
+    if source_category == ACTIVITY_MEMBERSHIP_SOURCE_UNKNOWN:
+        _validate_unknown_source_facts(
+            selection,
+            independence_policy=independence_policy,
+            independence_policy_version=independence_policy_version,
+        )
+
+
+def _validate_builtin_score_source_category(
+    selection: ActivityMembershipSelection,
+) -> None:
+    expected_category = _KSEA_BUILT_IN_SCORE_SOURCE_CATEGORIES.get(
+        selection.score_source
+    )
+    if expected_category is None or selection.source_category == expected_category:
+        return
+    _raise_membership_fact_contradiction(
+        "activity_membership_selection.score_source",
+        (
+            f"known score_source {selection.score_source!r} belongs to "
+            f"source_category {expected_category!r}, not "
+            f"{selection.source_category!r}"
+        ),
+    )
+
+
+def _validate_selection_method_category(
+    selection: ActivityMembershipSelection,
+) -> None:
+    allowed_categories = _KSEA_METHOD_ALLOWED_SOURCE_CATEGORIES.get(
+        selection.selection_method
+    )
+    if allowed_categories is None or selection.source_category in allowed_categories:
+        return
+    allowed = ", ".join(sorted(allowed_categories))
+    _raise_membership_fact_contradiction(
+        "activity_membership_selection.selection_method",
+        (
+            f"selection_method {selection.selection_method!r} is coherent only "
+            f"with source_category values {{{allowed}}}, not "
+            f"{selection.source_category!r}"
+        ),
+    )
+
+
+def _validate_fixed_external_source_facts(
+    selection: ActivityMembershipSelection,
+    *,
+    data_adaptive_membership: bool | None,
+    independence_policy: str | None,
+    independence_policy_version: str | None,
+) -> None:
+    if data_adaptive_membership is True:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_DATA_ADAPTIVE_MEMBERSHIP_FIELD}",
+            "fixed_external_reference membership cannot be data-adaptive",
+        )
+    if selection.consumed_tested_matrix:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.consumed_tested_matrix",
+            "fixed_external_reference membership cannot consume the tested matrix",
+        )
+    if selection.selection_quantitative_matrix_fingerprint is not None:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.selection_quantitative_matrix_fingerprint",
+            (
+                "fixed_external_reference membership cannot carry a selection "
+                "quantitative-matrix fingerprint"
+            ),
+        )
+    if selection.score_source in _KSEA_FIXED_EXTERNAL_FORBIDDEN_SCORE_SOURCES:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.score_source",
+            (
+                "fixed_external_reference membership requires an external "
+                "reference-derived score source, not known adaptive or "
+                f"motif-specific source {selection.score_source!r}"
+            ),
+        )
+    _validate_independence_policy_for_category(
+        source_category=selection.source_category,
+        expected_policy=KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE,
+        independence_policy=independence_policy,
+        independence_policy_version=independence_policy_version,
+    )
+
+
+def _validate_sequence_only_source_facts(
+    selection: ActivityMembershipSelection,
+    *,
+    data_adaptive_membership: bool | None,
+    independence_policy: str | None,
+    independence_policy_version: str | None,
+) -> None:
+    if selection.score_source != _KSEA_SEQUENCE_ONLY_MOTIF_SCORE_SOURCE:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.score_source",
+            (
+                "sequence_only_motif membership requires score_source "
+                f"{_KSEA_SEQUENCE_ONLY_MOTIF_SCORE_SOURCE!r}; got "
+                f"{selection.score_source!r}"
+            ),
+        )
+    if data_adaptive_membership is True:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_DATA_ADAPTIVE_MEMBERSHIP_FIELD}",
+            "sequence_only_motif membership cannot be data-adaptive",
+        )
+    if selection.consumed_tested_matrix:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.consumed_tested_matrix",
+            "sequence_only_motif membership cannot consume the tested matrix",
+        )
+    if selection.selection_quantitative_matrix_fingerprint is not None:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.selection_quantitative_matrix_fingerprint",
+            (
+                "sequence_only_motif membership cannot carry a selection "
+                "quantitative-matrix fingerprint"
+            ),
+        )
+    _validate_independence_policy_for_category(
+        source_category=selection.source_category,
+        expected_policy=KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF,
+        independence_policy=independence_policy,
+        independence_policy_version=independence_policy_version,
+    )
+
+
+def _validate_adaptive_source_facts(
+    selection: ActivityMembershipSelection,
+    *,
+    independence_policy: str | None,
+    independence_policy_version: str | None,
+) -> None:
+    if independence_policy in _KSEA_SUPPORTED_INDEPENDENCE_POLICIES:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_INDEPENDENCE_POLICY_FIELD}",
+            (
+                f"{selection.source_category} membership cannot carry "
+                "fixed-external or sequence-only independence-policy evidence"
+            ),
+        )
+    if independence_policy_version is not None and independence_policy is None:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_INDEPENDENCE_POLICY_VERSION_FIELD}",
+            (
+                f"{selection.source_category} membership cannot carry an "
+                "independence-policy version without an independence-policy token"
+            ),
+        )
+
+
+def _validate_unknown_source_facts(
+    selection: ActivityMembershipSelection,
+    *,
+    independence_policy: str | None,
+    independence_policy_version: str | None,
+) -> None:
+    if independence_policy in _KSEA_SUPPORTED_INDEPENDENCE_POLICIES:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_INDEPENDENCE_POLICY_FIELD}",
+            (
+                "unknown membership provenance cannot carry fixed-external or "
+                "sequence-only independence-policy evidence"
+            ),
+        )
+    if independence_policy_version is not None and independence_policy is None:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_INDEPENDENCE_POLICY_VERSION_FIELD}",
+            (
+                "unknown membership provenance cannot carry an "
+                "independence-policy version without an independence-policy token"
+            ),
+        )
+
+
+def _validate_independence_policy_for_category(
+    *,
+    source_category: str,
+    expected_policy: str,
+    independence_policy: str | None,
+    independence_policy_version: str | None,
+) -> None:
+    if independence_policy is not None and independence_policy != expected_policy:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_INDEPENDENCE_POLICY_FIELD}",
+            (
+                f"{source_category} membership cannot carry independence-policy "
+                f"token {independence_policy!r}; expected {expected_policy!r}"
+            ),
+        )
+    if independence_policy_version is None:
+        return
+    if independence_policy is None:
+        return
+    if independence_policy_version != KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION:
+        _raise_membership_fact_contradiction(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{_KSEA_INDEPENDENCE_POLICY_VERSION_FIELD}",
+            (
+                f"{source_category} membership carries unsupported "
+                f"independence-policy version {independence_policy_version!r}; "
+                f"expected {KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION!r}"
+            ),
+        )
+
+
 def _fingerprints_from_payload(
     payload: Mapping[str, object],
 ) -> tuple[TableFingerprint, ...]:
@@ -767,6 +1079,11 @@ def _validate_serialized_inferential_fields(
         key="reason",
         expected=selection.inferential_decision.reason,
     )
+    _compare_optional_decision_text(
+        decision_payload,
+        key="policy_version",
+        expected=selection.inferential_decision.policy_version,
+    )
     if "missing_evidence" in decision_payload:
         serialized_missing = _string_tuple(
             decision_payload.get("missing_evidence", ()),
@@ -856,19 +1173,20 @@ def _independent_reference_decision(
         missing.append("selected_kinase_universe")
     if not selection.selected_substrate_universe:
         missing.append("selected_substrate_universe")
-    independence_policy = str(
-        selection.threshold_top_k_policy.get("independent_membership_policy", "")
+    independence_policy = _optional_policy_text(
+        selection.threshold_top_k_policy,
+        _KSEA_INDEPENDENCE_POLICY_FIELD,
     )
     if independence_policy != expected_policy:
-        missing.append("threshold_top_k_policy.independent_membership_policy")
-    independence_policy_version = str(
-        selection.threshold_top_k_policy.get(
-            "independent_membership_policy_version",
-            "",
-        )
+        missing.append(f"threshold_top_k_policy.{_KSEA_INDEPENDENCE_POLICY_FIELD}")
+    independence_policy_version = _optional_policy_text(
+        selection.threshold_top_k_policy,
+        _KSEA_INDEPENDENCE_POLICY_VERSION_FIELD,
     )
     if independence_policy_version != KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION:
-        missing.append("threshold_top_k_policy.independent_membership_policy_version")
+        missing.append(
+            f"threshold_top_k_policy.{_KSEA_INDEPENDENCE_POLICY_VERSION_FIELD}"
+        )
     if missing:
         return _unavailable_decision(
             KSEA_MEMBERSHIP_INCOMPLETE_INDEPENDENCE_EVIDENCE_REASON,
@@ -898,8 +1216,48 @@ def _unavailable_decision(
 
 
 def _policy_bool(policy: Mapping[str, object], key: str) -> bool:
+    return _optional_policy_bool(policy, key) is True
+
+
+def _optional_policy_bool(
+    policy: Mapping[str, object],
+    key: str,
+) -> bool | None:
     value = policy.get(key)
-    return value if isinstance(value, bool) else False
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise WorkflowBoundaryError(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{key} must be a bool when supplied"
+        )
+    return value
+
+
+def _optional_policy_text(
+    policy: Mapping[str, object],
+    key: str,
+) -> str | None:
+    value = policy.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise WorkflowBoundaryError(
+            "activity_membership_selection.threshold_top_k_policy."
+            f"{key} must be a string when supplied"
+        )
+    text = value.strip()
+    return text if text else None
+
+
+def _raise_membership_fact_contradiction(
+    field_name: str,
+    detail: str,
+) -> None:
+    raise WorkflowBoundaryError(
+        f"{field_name} contradicts activity_membership_selection.source_category: "
+        f"{detail}"
+    )
 
 
 def _freeze_policy_mapping(value: object) -> FrozenJsonMapping:

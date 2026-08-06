@@ -145,8 +145,13 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   leave-one-out, unknown, or incomplete membership is descriptive-only.
   Selection quantitative fingerprints are separated from the exact KSEA
   tested-background fingerprint, serialized eligibility cannot override the
-  recomputed decision, and tampered or contradictory membership payloads are
-  rejected before p/q output can be reconstructed.
+  recomputed decision, source category and method/source/policy facts must be
+  coherent, and tampered or contradictory membership payloads are rejected
+  before p/q output can be reconstructed. KSEA results now always retain
+  explicit membership-selection provenance; finite p/q output with missing or
+  ineligible membership provenance is rejected. The KSEA activity policy is
+  version `4`, the membership-selection policy is version `3`, and the KSEA
+  membership inferential policy is version `3`.
 - Post-hoc peptide-to-site differential estimate combination no longer executes
   through public compatibility access. Mapping policies such as equal splitting
   or statistical-model exclusion must not silently execute as ordinary evidence.

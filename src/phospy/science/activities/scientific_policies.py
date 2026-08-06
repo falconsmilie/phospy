@@ -13,7 +13,7 @@ from phospy.science.activities.membership import (
 from phospy.science.scoring.policy_models import ThresholdMode
 
 SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "2"
-KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "3"
+KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "4"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_profile_kinase"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
 SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (

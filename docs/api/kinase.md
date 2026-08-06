@@ -239,7 +239,8 @@ matrix fingerprints: `selection_quantitative_matrix_fingerprint` for the
 quantitative matrix used during membership selection when applicable, and
 `tested_quantitative_matrix_fingerprint` for the exact KSEA background matrix.
 The activity science domain derives `inferential_decision`; workflow code does
-not supply final eligibility.
+not supply final eligibility. Source category and supporting facts must be
+coherent before that decision is derived; contradictory records are rejected.
 
 | Membership source category | Ordinary KSEA p/q behavior |
 | --- | --- |
@@ -250,14 +251,30 @@ not supply final eligibility.
 | `fixed_external_reference` | p/q values only when fixed-reference independence evidence, source fingerprints, tested-matrix fingerprint, and selected universes are present. |
 | `sequence_only_motif` | p/q values only when sequence-only independence evidence, source fingerprints, tested-matrix fingerprint, selected universes, and the motif score source are present. |
 
+Built-in score sources have fixed category semantics:
+`profile_scores` and `rank_weighted_fusion_scores` are profile-derived,
+`combined_profile_motif_scores` is fused profile/motif-derived, and
+`kinase_library_motif_scores` is sequence-only motif-derived. These built-in
+adaptive or motif-specific score sources cannot be relabelled as fixed external.
+External fixed-reference sources may keep provider-specific descriptive method
+or source identifiers, but arbitrary method strings do not establish
+independence; fixed external inference requires the explicit fixed-reference
+independence-policy token and supported version.
+
 For ineligible membership, KSEA reports `p_value_matrix=None`,
 `q_value_matrix=None`, missing `p_value`/`q_value` cells in
 `statistics_table`, and explicit inferential status/reason fields. Direct use
 of `KseaZScoreActivityMethod` applies the same science-domain policy and checks
 tested-matrix and selected-universe provenance before allocating p/q outputs.
-Legacy membership payloads are loaded only if serialized eligibility, status,
-and reason agree with the decision recomputed from the preserved facts; missing
-fingerprints are not fabricated or upgraded to eligibility.
+Every KSEA result carries explicit membership provenance. Missing or legacy
+membership provenance is represented as an explicit missing/ineligible record
+for descriptive-only output; finite p/q output without eligible membership
+provenance is rejected. Legacy membership payloads are loaded only if serialized
+eligibility, status, reason, and nested decision fields agree with the decision
+recomputed from the preserved facts. Serialized source-category relabelling,
+adaptive facts under a fixed-external label, and added favourable independence
+tokens on adaptive records are rejected. Missing fingerprints are not fabricated
+or upgraded to eligibility.
 
 Ordinary KSEA normal-approximation assumptions remain scientific assumptions
 even after eligibility is established. Eligibility means the ordinary p/q
