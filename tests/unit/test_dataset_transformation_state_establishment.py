@@ -66,6 +66,9 @@ from phospy.science.transformations.transformers import IdentityTransformer
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
+from tests.support.dataset_preprocessor_fakes import (
+    ConformingDatasetPreprocessorFake,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
@@ -681,24 +684,6 @@ def test_builder_succeeds_when_input_explicitly_declares_already_log2_values() -
 
 
 def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> None:
-    class NoopPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
-                preprocessing_trace=None,
-            )
-
     phospho = pd.DataFrame(
         {"sample_a": [1.0], "sample_b": [2.0]},
         index=pd.Index(["MAPK14;Y182;"], name="site_id"),
@@ -714,7 +699,7 @@ def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> No
         index=phospho.index.copy(),
     )
     builder = AnalysisReadyDatasetBuilder._with_components(
-        executor=DatasetBuildExecutor(preprocessor=NoopPreprocessor())
+        executor=DatasetBuildExecutor(preprocessor=ConformingDatasetPreprocessorFake())
     )
 
     with pytest.raises(
@@ -736,26 +721,18 @@ def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> No
 def test_builder_observed_typed_event_establishes_log2_before_declaration() -> None:
     event = _log2_event(pseudocount=0.5)
 
-    class EventPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
+    built = DatasetBuildExecutor(
+        preprocessor=ConformingDatasetPreprocessorFake(
+            result=PreprocessedDatasetBuildTables(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
                 preprocessing_trace=(_intensity_transform_execution(event=event),),
                 intensity_transformation_event=event,
             )
-
-    built = DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        )
+    ).run(
         InterpretedDatasetBuildRequest(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
@@ -799,28 +776,20 @@ def test_builder_deduplicates_identical_trace_and_top_level_transformation_event
     assert trace_event == top_level_event
     assert trace_event is not top_level_event
 
-    class EventPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
+    built = DatasetBuildExecutor(
+        preprocessor=ConformingDatasetPreprocessorFake(
+            result=PreprocessedDatasetBuildTables(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
                 preprocessing_trace=(
                     _intensity_transform_execution(event=trace_event),
                 ),
                 intensity_transformation_event=top_level_event,
             )
-
-    built = DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        )
+    ).run(
         InterpretedDatasetBuildRequest(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
@@ -847,32 +816,22 @@ def test_builder_rejects_conflicting_observed_transformation_events() -> None:
     trace_event = _log2_event(pseudocount=0.5)
     top_level_event = _log2_event(pseudocount=1.0)
 
-    class EventPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
-                preprocessing_trace=(
-                    _intensity_transform_execution(event=trace_event),
-                ),
-                intensity_transformation_event=top_level_event,
-            )
+    preprocessor = ConformingDatasetPreprocessorFake(
+        result=PreprocessedDatasetBuildTables(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            preprocessing_trace=(_intensity_transform_execution(event=trace_event),),
+            intensity_transformation_event=top_level_event,
+        )
+    )
 
     with pytest.raises(
         DatasetBuildError,
         match="evidence_level='observed_transformation'",
     ):
-        DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        DatasetBuildExecutor(preprocessor=preprocessor).run(
             InterpretedDatasetBuildRequest(
                 phospho=_phospho(),
                 site_metadata=_site_metadata(),
@@ -897,32 +856,22 @@ def test_builder_rejects_conflicting_declared_transformation_events() -> None:
         established_by="tests.declared.linear",
     )
 
-    class EventPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
-                preprocessing_trace=(
-                    _intensity_transform_execution(event=trace_event),
-                ),
-                intensity_transformation_event=top_level_event,
-            )
+    preprocessor = ConformingDatasetPreprocessorFake(
+        result=PreprocessedDatasetBuildTables(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            preprocessing_trace=(_intensity_transform_execution(event=trace_event),),
+            intensity_transformation_event=top_level_event,
+        )
+    )
 
     with pytest.raises(
         DatasetBuildError,
         match=("evidence_level='declared_by_user'.*different input_scale/output_scale"),
     ):
-        DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        DatasetBuildExecutor(preprocessor=preprocessor).run(
             InterpretedDatasetBuildRequest(
                 phospho=_phospho(),
                 site_metadata=_site_metadata(),
@@ -940,29 +889,19 @@ def test_builder_conflicting_event_error_identifies_sources_and_fields() -> None
         output_established_by="tests.other.log2",
     )
 
-    class EventPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
-                preprocessing_trace=(
-                    _intensity_transform_execution(event=trace_event),
-                ),
-                intensity_transformation_event=top_level_event,
-            )
+    preprocessor = ConformingDatasetPreprocessorFake(
+        result=PreprocessedDatasetBuildTables(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            preprocessing_trace=(_intensity_transform_execution(event=trace_event),),
+            intensity_transformation_event=top_level_event,
+        )
+    )
 
     with pytest.raises(DatasetBuildError) as exc_info:
-        DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        DatasetBuildExecutor(preprocessor=preprocessor).run(
             InterpretedDatasetBuildRequest(
                 phospho=_phospho(),
                 site_metadata=_site_metadata(),
@@ -991,25 +930,17 @@ def test_builder_observed_event_still_takes_priority_over_declared_input_scale()
 ):
     event = _log2_event(pseudocount=0.5)
 
-    class EventPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
+    built = DatasetBuildExecutor(
+        preprocessor=ConformingDatasetPreprocessorFake(
+            result=PreprocessedDatasetBuildTables(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
                 preprocessing_trace=(_intensity_transform_execution(event=event),),
             )
-
-    built = DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        )
+    ).run(
         InterpretedDatasetBuildRequest(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
@@ -1034,25 +965,7 @@ def test_builder_observed_event_still_takes_priority_over_declared_input_scale()
 
 
 def test_builder_declared_only_scale_records_declared_evidence() -> None:
-    class NoopPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
-                preprocessing_trace=None,
-            )
-
-    built = DatasetBuildExecutor(preprocessor=NoopPreprocessor()).run(
+    built = DatasetBuildExecutor(preprocessor=ConformingDatasetPreprocessorFake()).run(
         InterpretedDatasetBuildRequest(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
@@ -1084,32 +997,24 @@ def test_builder_declared_only_scale_records_declared_evidence() -> None:
 
 
 def test_builder_malformed_typed_event_fails_clearly() -> None:
-    class MalformedEventPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
-                preprocessing_trace=None,
-                intensity_transformation_event={  # type: ignore[arg-type]
-                    "evidence_level": "observed_transformation"
-                },
-            )
+    preprocessor = ConformingDatasetPreprocessorFake(
+        result=PreprocessedDatasetBuildTables(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            preprocessing_trace=None,
+            intensity_transformation_event={  # type: ignore[arg-type]
+                "evidence_level": "observed_transformation"
+            },
+        )
+    )
 
     with pytest.raises(
         DatasetBuildError,
         match="must be IntensityTransformationEvent or None",
     ):
-        DatasetBuildExecutor(preprocessor=MalformedEventPreprocessor()).run(
+        DatasetBuildExecutor(preprocessor=preprocessor).run(
             InterpretedDatasetBuildRequest(
                 phospho=_phospho(),
                 site_metadata=_site_metadata(),
@@ -1125,48 +1030,40 @@ def test_builder_malformed_typed_event_fails_clearly() -> None:
 
 
 def test_builder_rejects_old_diagnostics_only_intensity_state() -> None:
-    class DiagnosticsOnlyPreprocessor:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            diagnostics = {
-                "transformer_name": (
-                    "phospy.science.transformations.transformers.log2.Log2Transformer"
+    diagnostics = {
+        "transformer_name": (
+            "phospy.science.transformations.transformers.log2.Log2Transformer"
+        ),
+        "pseudocount": 1.0,
+        "transformer_state": {
+            "phospho": {
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "legacy.diagnostics",
+            },
+            "total": None,
+        },
+    }
+    preprocessor = ConformingDatasetPreprocessorFake(
+        result=PreprocessedDatasetBuildTables(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            preprocessing_trace=(
+                _intensity_transform_execution(
+                    event=None,
+                    diagnostics=diagnostics,
                 ),
-                "pseudocount": 1.0,
-                "transformer_state": {
-                    "phospho": {
-                        "kind": "log2",
-                        "transformed": True,
-                        "established_by": "legacy.diagnostics",
-                    },
-                    "total": None,
-                },
-            }
-            return PreprocessedDatasetBuildTables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                sample_metadata=sample_metadata,
-                total=total,
-                preprocessing_trace=(
-                    _intensity_transform_execution(
-                        event=None,
-                        diagnostics=diagnostics,
-                    ),
-                ),
-            )
+            ),
+        )
+    )
 
     with pytest.raises(
         TransformationStateEstablishmentError,
         match="did not emit a typed observed IntensityTransformationEvent",
     ):
-        DatasetBuildExecutor(preprocessor=DiagnosticsOnlyPreprocessor()).run(
+        DatasetBuildExecutor(preprocessor=preprocessor).run(
             InterpretedDatasetBuildRequest(
                 phospho=_phospho(),
                 site_metadata=_site_metadata(),

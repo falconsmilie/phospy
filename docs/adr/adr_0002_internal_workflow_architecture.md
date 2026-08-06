@@ -48,6 +48,14 @@ deprecated `PreprocessingStageMetadata` and `stage_metadata_registry` aliases
 remain temporary compatibility routes and keep their documented PhosPy 1.8.0
 removal target.
 
+Update note (2026-08-06, dataset preprocessor lifecycle):
+`DatasetBuildExecutor` composes one internal `DatasetPreprocessorContract`.
+Every collaborator on that seam exposes `validate_quantitative_contracts(...)`
+and `run(...)` with the same declared initial quantitative context. The builder
+does not discover optional hooks, inspect collaborator signatures, or traverse
+the preprocessing stage registry as a fallback; interpretation of preprocessing
+stage quantitative contracts remains owned by `PreprocessingPipeline`.
+
 ## Context and Problem Statement
 
 PhosPy has accumulated orchestration patterns that are more complex than necessary for the product it is intended to be. The current direction has shown signs of wrapper-heavy execution paths, repeated validation across multiple layers, duplicated accessors, loose helper composition, and abstractions that are more "smart" than useful.
@@ -296,6 +304,21 @@ quantitative transition before numerical execution, validates emitted evidence
 after execution, and applies the quantitative state transition. Quantitative
 transition enforcement remains pipeline-owned; individual stage executors own
 only their operation and any explicit pre-contract data validation they require.
+
+The dataset builder calls preprocessing through one fixed internal lifecycle:
+
+1. `validate_quantitative_contracts(...)` validates the actual plan's
+   quantitative transitions from the declared initial scale kind and
+   quantitative meaning.
+2. `run(...)` receives the phospho table, site metadata, sample metadata, total
+   table, actual plan, corrected preprocessing output including `None`, initial
+   quantitative scale kind including `None`, and initial quantitative meaning
+   including `None`.
+3. The preprocessor emits typed preprocessed tables, trace records, stage
+   evidence, and transformation events for downstream transformation-state and
+   provenance assembly.
+
+This is an internal maintenance seam. It is not a supported public extension API.
 
 ## Interface Rules
 

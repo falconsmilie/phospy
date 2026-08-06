@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import pandas as pd
 
@@ -44,6 +44,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     IntensityTransformationEvent,
     QuantitativeMeaning,
+)
+from phospy.science.transformations.quantitative_contracts import (
+    QuantitativeContractState,
 )
 
 DatasetInput = pd.DataFrame | str | Path | PathLike[str]
@@ -173,8 +176,17 @@ class DatasetBuildExecutorContract(Protocol):
     def run(self, request: InterpretedDatasetBuildRequest) -> object: ...
 
 
+@runtime_checkable
 class DatasetPreprocessorContract(Protocol):
     """Internal contract for dataset preprocessing before scale-state setup."""
+
+    def validate_quantitative_contracts(
+        self,
+        *,
+        plan: PreprocessingPlan,
+        initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+        initial_quantitative_meaning: QuantitativeMeaning | None = None,
+    ) -> QuantitativeContractState: ...
 
     def run(
         self,

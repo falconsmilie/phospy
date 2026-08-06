@@ -25,6 +25,7 @@ from phospy.api.configs import (
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import (
+    DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
@@ -36,6 +37,14 @@ from phospy.science.datasets.builders.preprocessing import (
 )
 from phospy.science.datasets.builders.transformation_resolver import (
     ResolvedIntensityScale,
+)
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
 )
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
@@ -64,6 +73,9 @@ from phospy.science.transformations.models import (
 )
 from phospy.science.transformations.quantitative_contracts import (
     preserve_quantitative_contract,
+)
+from tests.support.dataset_preprocessor_fakes import (
+    ConformingDatasetPreprocessorFake,
 )
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -305,6 +317,77 @@ def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
         quantitative_contract=preserve_quantitative_contract(),
+    )
+
+
+def _site_keyed_request_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
+    phospho = _phospho().iloc[:2].copy(deep=True)
+    site_metadata = _with_test_site_identity(_site_metadata().iloc[:2]).copy(deep=True)
+    site_metadata.index = pd.Index(
+        site_metadata.loc[:, "site_key"].astype(str).tolist(),
+        name="site_key",
+    )
+    phospho.index = site_metadata.index.copy()
+    return phospho, site_metadata
+
+
+def _external_corrected_output(phospho: pd.DataFrame) -> CorrectedPreprocessingOutput:
+    return CorrectedPreprocessingOutput(
+        corrected_matrix=phospho + 1.0,
+        output_observation_mask=pd.DataFrame(
+            True,
+            index=phospho.index.copy(),
+            columns=phospho.columns.copy(),
+        ),
+        corrected_cell_status=pd.DataFrame(
+            "corrected_observed",
+            index=phospho.index.copy(),
+            columns=phospho.columns.copy(),
+        ),
+        batch_correction_report=BatchCorrectionReport(
+            status="applied",
+            policy=BatchCorrectionPolicy(
+                method="sps_ruv_style",
+                batch_column="batch",
+                condition_column="condition",
+            ),
+            diagnostics=BatchCorrectionDiagnostics(
+                number_of_batches=2,
+                batch_levels=("run_1", "run_2"),
+                condition_levels=("control", "treated"),
+                matrix_shape_before=phospho.shape,
+                matrix_shape_after=phospho.shape,
+            ),
+        ),
+        diagnostics={"source": "unit-test"},
+    )
+
+
+def _analysis_ready_interpreted_request(
+    *,
+    preprocessing_plan: PreprocessingPlan | None = None,
+    corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None,
+    declared_input_intensity_scale_kind: IntensityScaleKind | None = (
+        IntensityScaleKind.LINEAR
+    ),
+    quantitative_meaning: QuantitativeMeaning | None = None,
+) -> InterpretedDatasetBuildRequest:
+    phospho, site_metadata = _site_keyed_request_tables()
+    return InterpretedDatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        organism=Organism.RAT,
+        preprocessing_plan=preprocessing_plan or PreprocessingPlan.default(),
+        corrected_preprocessing_output=corrected_preprocessing_output,
+        declared_input_intensity_scale_kind=declared_input_intensity_scale_kind,
+        declared_input_intensity_scale_source=(
+            None
+            if declared_input_intensity_scale_kind is None
+            else "dataset_build_request.input_intensity_scale"
+        ),
+        quantitative_meaning=quantitative_meaning,
     )
 
 
@@ -2242,23 +2325,7 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
         total=total + 5.0,
     )
 
-    class PreprocessorSpy:
-        def run(
-            self,
-            *,
-            phospho: pd.DataFrame,
-            site_metadata: pd.DataFrame,
-            sample_metadata: pd.DataFrame | None,
-            total: pd.DataFrame | None,
-            plan: PreprocessingPlan,
-        ) -> PreprocessedDatasetBuildTables:
-            calls.append("preprocessor")
-            assert phospho is interpreted.phospho
-            assert site_metadata is interpreted.site_metadata
-            assert sample_metadata is interpreted.sample_metadata
-            assert total is interpreted.total
-            assert plan is interpreted.preprocessing_plan
-            return preprocessed_tables
+    preprocessor_spy = ConformingDatasetPreprocessorFake(result=preprocessed_tables)
 
     class ResolverSpy:
         def run(
@@ -2312,16 +2379,126 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
             )
 
     built = DatasetBuildExecutor(
-        preprocessor=PreprocessorSpy(),
+        preprocessor=preprocessor_spy,
         intensity_scale_resolver=ResolverSpy(),
     ).run(interpreted)
 
+    assert preprocessor_spy.call_order == ["validate_quantitative_contracts", "run"]
+    assert len(preprocessor_spy.preflight_calls) == 1
+    preflight_call = preprocessor_spy.preflight_calls[0]
+    assert preflight_call.plan is interpreted.preprocessing_plan
+    assert preflight_call.initial_quantitative_scale_kind is IntensityScaleKind.LINEAR
+    assert preflight_call.initial_quantitative_meaning is None
+    assert len(preprocessor_spy.run_calls) == 1
+    run_call = preprocessor_spy.run_calls[0]
+    assert run_call.phospho is interpreted.phospho
+    assert run_call.site_metadata is interpreted.site_metadata
+    assert run_call.sample_metadata is interpreted.sample_metadata
+    assert run_call.total is interpreted.total
+    assert run_call.plan is interpreted.preprocessing_plan
+    assert run_call.corrected_preprocessing_output is None
+    assert run_call.initial_quantitative_scale_kind is IntensityScaleKind.LINEAR
+    assert run_call.initial_quantitative_meaning is None
     pdt.assert_frame_equal(built.phospho, preprocessed_tables.phospho)
     pdt.assert_frame_equal(built.site_metadata, preprocessed_tables.site_metadata)
     assert built.sample_metadata is not None
     pdt.assert_frame_equal(built.sample_metadata, preprocessed_tables.sample_metadata)
     pdt.assert_frame_equal(built.total, preprocessed_tables.total)
-    assert calls == ["preprocessor", "resolver"]
+    assert calls == ["resolver"]
+
+
+def test_production_dataset_preprocessor_satisfies_full_internal_contract() -> None:
+    assert isinstance(DatasetPreprocessor(), DatasetPreprocessorContract)
+
+
+def test_executor_rejects_preprocessor_without_quantitative_preflight() -> None:
+    class IncompletePreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+            corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None,
+            initial_quantitative_scale_kind: IntensityScaleKind | None = None,
+            initial_quantitative_meaning: QuantitativeMeaning | None = None,
+        ) -> PreprocessedDatasetBuildTables:
+            del corrected_preprocessing_output
+            del initial_quantitative_scale_kind
+            del initial_quantitative_meaning
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=None,
+            )
+
+    with pytest.raises(AttributeError, match="validate_quantitative_contracts"):
+        DatasetBuildExecutor(  # type: ignore[arg-type]
+            preprocessor=IncompletePreprocessor()
+        ).run(_analysis_ready_interpreted_request())
+
+
+def test_invalid_quantitative_preflight_prevents_preprocessing_run() -> None:
+    preprocessor = ConformingDatasetPreprocessorFake(
+        preflight_error=PhosPyInputError("preflight rejected by test")
+    )
+
+    with pytest.raises(PhosPyInputError, match="preflight rejected by test"):
+        DatasetBuildExecutor(preprocessor=preprocessor).run(
+            _analysis_ready_interpreted_request()
+        )
+
+    assert preprocessor.call_order == ["validate_quantitative_contracts"]
+    assert preprocessor.run_calls == []
+
+
+def test_executor_passes_corrected_output_and_initial_quantitative_context() -> None:
+    phospho, site_metadata = _site_keyed_request_tables()
+    corrected_output = _external_corrected_output(phospho)
+    preprocessor = ConformingDatasetPreprocessorFake(
+        result=PreprocessedDatasetBuildTables(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+        )
+    )
+
+    DatasetBuildExecutor(preprocessor=preprocessor).run(
+        InterpretedDatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            organism=Organism.RAT,
+            preprocessing_plan=PreprocessingPlan.default(),
+            corrected_preprocessing_output=corrected_output,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LOG2,
+            declared_input_intensity_scale_source=(
+                "dataset_build_request.input_intensity_scale"
+            ),
+            quantitative_meaning=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+        )
+    )
+
+    assert preprocessor.call_order == ["validate_quantitative_contracts", "run"]
+    preflight_call = preprocessor.preflight_calls[0]
+    assert preflight_call.initial_quantitative_scale_kind is IntensityScaleKind.LOG2
+    assert (
+        preflight_call.initial_quantitative_meaning
+        is QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+    )
+    run_call = preprocessor.run_calls[0]
+    assert run_call.corrected_preprocessing_output is corrected_output
+    assert run_call.initial_quantitative_scale_kind is IntensityScaleKind.LOG2
+    assert (
+        run_call.initial_quantitative_meaning
+        is QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+    )
 
 
 def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:

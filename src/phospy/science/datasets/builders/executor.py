@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import inspect
+# pyright: strict
 from dataclasses import replace
 
 import pandas as pd
@@ -51,14 +51,7 @@ from phospy.science.datasets.preprocessing.protein_aware_preparation import (
 from phospy.science.datasets.preprocessing.quantitative_scale_policy import (
     AdditivePreprocessingScaleGuard,
 )
-from phospy.science.datasets.preprocessing.stage_registry import (
-    get_preprocessing_stage_metadata,
-)
 from phospy.science.transformations.contracts import Transformer
-from phospy.science.transformations.quantitative_contracts import (
-    QuantitativeContractState,
-    initial_quantitative_contract_state,
-)
 from phospy.science.transformations.transformers import IdentityTransformer
 
 
@@ -165,25 +158,18 @@ class DatasetBuildExecutor:
         self,
         request: InterpretedDatasetBuildRequest,
     ) -> PreprocessedDatasetBuildTables:
-        preprocessor_kwargs = {
-            "phospho": request.phospho,
-            "site_metadata": request.site_metadata,
-            "sample_metadata": request.sample_metadata,
-            "total": request.total,
-            "plan": request.preprocessing_plan,
-        }
-        if _preprocessor_accepts_quantitative_contract_seed(self._preprocessor):
-            preprocessor_kwargs["initial_quantitative_scale_kind"] = (
+        return self._preprocessor.run(
+            phospho=request.phospho,
+            site_metadata=request.site_metadata,
+            sample_metadata=request.sample_metadata,
+            total=request.total,
+            plan=request.preprocessing_plan,
+            corrected_preprocessing_output=request.corrected_preprocessing_output,
+            initial_quantitative_scale_kind=(
                 request.declared_input_intensity_scale_kind
-            )
-            preprocessor_kwargs["initial_quantitative_meaning"] = (
-                request.quantitative_meaning
-            )
-        if request.corrected_preprocessing_output is not None:
-            preprocessor_kwargs["corrected_preprocessing_output"] = (
-                request.corrected_preprocessing_output
-            )
-        return self._preprocessor.run(**preprocessor_kwargs)
+            ),
+            initial_quantitative_meaning=request.quantitative_meaning,
+        )
 
     def _validate_additive_preprocessing_scale_policy(
         self,
@@ -198,9 +184,12 @@ class DatasetBuildExecutor:
             declared_input_scale_kind=request.declared_input_intensity_scale_kind,
             corrected_preprocessing_output=request.corrected_preprocessing_output,
         )
-        _validate_quantitative_operation_contracts_before_preprocessing(
-            request,
-            preprocessor=self._preprocessor,
+        self._preprocessor.validate_quantitative_contracts(
+            plan=request.preprocessing_plan,
+            initial_quantitative_scale_kind=(
+                request.declared_input_intensity_scale_kind
+            ),
+            initial_quantitative_meaning=request.quantitative_meaning,
         )
 
     def _validate_analysis_ready_site_sequences(
@@ -341,7 +330,7 @@ class DatasetBuildExecutor:
         protein_aware_preparation: ProteinAwarePreparationResult | None,
         provenance: RunProvenance,
     ) -> AnalysisReadyPhosphoDataset:
-        return AnalysisReadyPhosphoDataset._from_builder_output(
+        return AnalysisReadyPhosphoDataset._from_builder_output(  # pyright: ignore[reportPrivateUsage]
             phospho=transformed.phospho,
             site_metadata=validated_site_metadata,
             sample_metadata=preprocessed.sample_metadata,
@@ -368,55 +357,3 @@ def _declared_scale_diagnostic_policy_label(
     if request.declared_input_intensity_scale_kind.value == "log2":
         return "error"
     return "warn"
-
-
-def _validate_quantitative_operation_contracts_before_preprocessing(
-    request: InterpretedDatasetBuildRequest,
-    *,
-    preprocessor: DatasetPreprocessorContract,
-) -> QuantitativeContractState:
-    preprocessor_validator = getattr(
-        preprocessor,
-        "validate_quantitative_contracts",
-        None,
-    )
-    if callable(preprocessor_validator):
-        result = preprocessor_validator(
-            plan=request.preprocessing_plan,
-            initial_quantitative_scale_kind=(
-                request.declared_input_intensity_scale_kind
-            ),
-            initial_quantitative_meaning=request.quantitative_meaning,
-        )
-        if isinstance(result, QuantitativeContractState):
-            return result
-    quantitative_state = initial_quantitative_contract_state(
-        declared_input_scale_kind=request.declared_input_intensity_scale_kind,
-        explicit_quantitative_meaning=request.quantitative_meaning,
-    )
-    plan = request.preprocessing_plan
-    for stage_key in plan.stage_order:
-        metadata = get_preprocessing_stage_metadata(stage_key)
-        interpreted = metadata.interpret(plan)
-        quantitative_state = interpreted.quantitative_contract.validate_and_transition(
-            quantitative_state,
-            stage=stage_key,
-            operation=interpreted.operation,
-            evidence=None,
-        )
-    return quantitative_state
-
-
-def _preprocessor_accepts_quantitative_contract_seed(
-    preprocessor: DatasetPreprocessorContract,
-) -> bool:
-    try:
-        parameters = inspect.signature(preprocessor.run).parameters
-    except (TypeError, ValueError):
-        return False
-    if any(
-        parameter.kind is inspect.Parameter.VAR_KEYWORD
-        for parameter in parameters.values()
-    ):
-        return True
-    return "initial_quantitative_scale_kind" in parameters

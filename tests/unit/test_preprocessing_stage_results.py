@@ -56,6 +56,9 @@ from phospy.science.transformations.models import (
 from phospy.science.transformations.quantitative_contracts import (
     preserve_quantitative_contract,
 )
+from tests.support.dataset_preprocessor_fakes import (
+    ConformingDatasetPreprocessorFake,
+)
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
 from tests.support.site_keys import (
     site_key_context_columns,
@@ -759,17 +762,17 @@ def test_builder_uses_typed_event_without_intensity_diagnostics() -> None:
     site_metadata = _analysis_site_metadata(phospho.index)
     event = _log2_event()
 
-    class EventOnlyPreprocessor:
-        def run(self, **_kwargs: object) -> PreprocessedDatasetBuildTables:
-            return PreprocessedDatasetBuildTables(
+    built = DatasetBuildExecutor(
+        preprocessor=ConformingDatasetPreprocessorFake(
+            result=PreprocessedDatasetBuildTables(
                 phospho=phospho,
                 site_metadata=site_metadata,
                 sample_metadata=None,
                 total=None,
                 intensity_transformation_event=event,
             )
-
-    built = DatasetBuildExecutor(preprocessor=EventOnlyPreprocessor()).run(
+        )
+    ).run(
         InterpretedDatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,

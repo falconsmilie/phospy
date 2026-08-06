@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 import pandas as pd
 import pytest
 
@@ -34,6 +32,9 @@ from phospy.science.datasets.preprocessing.correction_output import (
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.transformations.models import IntensityScaleKind
+from tests.support.dataset_preprocessor_fakes import (
+    ConformingDatasetPreprocessorFake,
+)
 
 
 def test_public_builder_rejects_linear_median_centering() -> None:
@@ -197,7 +198,7 @@ def test_rejected_linear_additive_preprocessing_does_not_run_preprocessor(
     plan = PreprocessingPlan.from_config(
         _preprocessing_config_for_operation(operation_key)
     )
-    spy = _SpyPreprocessor()
+    spy = ConformingDatasetPreprocessorFake()
 
     with pytest.raises(PhosPyInputError, match=f"operation='{operation}'"):
         DatasetBuildExecutor(preprocessor=spy).run(
@@ -215,12 +216,13 @@ def test_rejected_linear_additive_preprocessing_does_not_run_preprocessor(
             )
         )
 
-    assert spy.called is False
+    assert spy.preflight_calls == []
+    assert spy.run_calls == []
 
 
 def test_rejected_linear_external_corrected_output_does_not_run_preprocessor() -> None:
     phospho = _sps_phospho()
-    spy = _SpyPreprocessor()
+    spy = ConformingDatasetPreprocessorFake()
 
     with pytest.raises(PhosPyInputError, match="operation='sps_ruv_style'"):
         DatasetBuildExecutor(preprocessor=spy).run(
@@ -241,15 +243,8 @@ def test_rejected_linear_external_corrected_output_does_not_run_preprocessor() -
             )
         )
 
-    assert spy.called is False
-
-
-class _SpyPreprocessor:
-    called: bool = False
-
-    def run(self, **_: Any) -> object:
-        self.called = True
-        raise AssertionError("preprocessor must not run for rejected scale policy")
+    assert spy.preflight_calls == []
+    assert spy.run_calls == []
 
 
 def _assert_additive_scale_error(message: str, *, operation: str) -> None:

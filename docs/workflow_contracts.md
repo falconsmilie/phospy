@@ -92,6 +92,16 @@ handling, site construction, site-sequence resolution, total-protein
 correction, protein-aware preparation, comparison building, and localisation
 policy.
 
+Internally, dataset preprocessing has one lifecycle. Before executing
+preprocessing, the builder calls the preprocessor to validate the actual plan's
+quantitative contracts from the declared initial quantitative scale and meaning.
+It then calls preprocessing with the same initial quantitative context, the
+input tables, the actual plan, and any corrected preprocessing output including
+`None`. The preprocessor emits typed tables, preprocessing trace records, stage
+evidence, and transformation events used for transformation-state and
+provenance assembly. These collaborators are private implementation details and
+are not supported public extension points.
+
 Imputation scale, imputation operation order, and observation-mask preservation
 are preprocessing-owned scientific policy. Downstream workflows, including
 differential analysis, consume the recorded dataset state and validate
