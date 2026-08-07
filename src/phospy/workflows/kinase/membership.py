@@ -13,8 +13,6 @@ from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
     ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
     ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
-    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF,
-    KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION,
     KSEA_SELECTION_QUANTITATIVE_MATRIX_FINGERPRINT_NAME,
     KSEA_TESTED_QUANTITATIVE_MATRIX_FINGERPRINT_NAME,
     ActivityMembershipSelection,
@@ -65,40 +63,53 @@ def build_ksea_membership_selection(
         pred_mat,
         threshold=float(evidence_threshold),
     )
-    return ActivityMembershipSelection(
-        source_category=source_category,
+    threshold_top_k_policy = {
+        "prediction_mode": str(config.prediction_mode),
+        "prediction_top_k": int(config.prediction_top_k),
+        "prediction_deterministic_max_selected_kinases": int(
+            config.prediction_deterministic_max_selected_kinases
+        ),
+        "prediction_score_threshold": float(CANDIDATE_SCORE_THRESHOLD),
+        "prediction_candidate_min_inclusion": int(CANDIDATE_MIN_INCLUSION),
+        "ksea_evidence_threshold": float(evidence_threshold),
+        "ksea_evidence_threshold_operator": ">=",
+        "selection_quantitative_input": (
+            KSEA_SELECTION_QUANTITATIVE_MATRIX_FINGERPRINT_NAME
+            if consumed_tested_matrix
+            else None
+        ),
+        "tested_quantitative_input": KSEA_TESTED_QUANTITATIVE_MATRIX_FINGERPRINT_NAME,
+    }
+    source_reference_fingerprints = _source_reference_fingerprints(request)
+    if source_category == ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF:
+        return ActivityMembershipSelection.sequence_only_motif(
+            provider_method_identifier="prediction_matrix_thresholded_membership",
+            provider_method_version=ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
+            threshold_top_k_policy=threshold_top_k_policy,
+            source_reference_fingerprints=source_reference_fingerprints,
+            tested_quantitative_matrix_fingerprint=tested_quantitative_fingerprint,
+            selected_kinase_universe=selected_kinases,
+            selected_substrate_universe=selected_substrates,
+        )
+    if source_category == ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF:
+        return ActivityMembershipSelection.fused_profile_motif(
+            selection_method="prediction_matrix_thresholded_membership",
+            score_source=downstream_score_source.value,
+            threshold_top_k_policy=threshold_top_k_policy,
+            source_reference_fingerprints=source_reference_fingerprints,
+            selection_quantitative_matrix_fingerprint=(
+                selection_quantitative_fingerprint
+            ),
+            tested_quantitative_matrix_fingerprint=tested_quantitative_fingerprint,
+            consumed_tested_matrix=consumed_tested_matrix,
+            selected_kinase_universe=selected_kinases,
+            selected_substrate_universe=selected_substrates,
+        )
+    return ActivityMembershipSelection.profile_derived(
         selection_method="prediction_matrix_thresholded_membership",
-        selection_method_version=ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
         score_source=downstream_score_source.value,
-        threshold_top_k_policy={
-            "prediction_mode": str(config.prediction_mode),
-            "prediction_top_k": int(config.prediction_top_k),
-            "prediction_deterministic_max_selected_kinases": int(
-                config.prediction_deterministic_max_selected_kinases
-            ),
-            "prediction_score_threshold": float(CANDIDATE_SCORE_THRESHOLD),
-            "prediction_candidate_min_inclusion": int(CANDIDATE_MIN_INCLUSION),
-            "ksea_evidence_threshold": float(evidence_threshold),
-            "ksea_evidence_threshold_operator": ">=",
-            "data_adaptive_membership": bool(consumed_tested_matrix),
-            "selection_quantitative_input": (
-                KSEA_SELECTION_QUANTITATIVE_MATRIX_FINGERPRINT_NAME
-                if consumed_tested_matrix
-                else None
-            ),
-            "tested_quantitative_input": KSEA_TESTED_QUANTITATIVE_MATRIX_FINGERPRINT_NAME,
-            "independent_membership_policy": (
-                KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_SEQUENCE_ONLY_MOTIF
-                if source_category == ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF
-                else None
-            ),
-            "independent_membership_policy_version": (
-                KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION
-                if source_category == ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF
-                else None
-            ),
-        },
-        source_reference_fingerprints=_source_reference_fingerprints(request),
+        threshold_top_k_policy=threshold_top_k_policy,
+        source_reference_fingerprints=source_reference_fingerprints,
         selection_quantitative_matrix_fingerprint=selection_quantitative_fingerprint,
         tested_quantitative_matrix_fingerprint=tested_quantitative_fingerprint,
         consumed_tested_matrix=consumed_tested_matrix,

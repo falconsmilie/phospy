@@ -29,7 +29,7 @@ tests/integration/test_differential_with_technical_replicates.py,integration,201
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,478,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/integration/test_kinase_bundle_integration.py,integration,2673,23,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/integration/test_kinase_bundle_integration.py,integration,2797,24,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/integration/test_kinase_library_workflow_scoring.py,integration,260,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,304,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,401,3,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
@@ -94,7 +94,7 @@ tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,
 tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
-tests/unit/test_activity_science.py,unit,3622,97,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_activity_science.py,unit,3774,100,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,381,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,194,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -195,7 +195,7 @@ tests/unit/test_kinase_science.py,unit,474,12,false,false,scientific invariant,k
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,409,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions. | [auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_kinase_substrate_contributions.py,unit,514,6,false,false,,,,,,
-tests/unit/test_kinase_workflow_components.py,unit,1957,44,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 31 hit(s); indicators: private_member_access
+tests/unit/test_kinase_workflow_components.py,unit,2137,48,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 31 hit(s); indicators: private_member_access
 tests/unit/test_kinase_workflow_diagnostics.py,unit,950,16,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow diagnostics and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_localisation_policy_preprocessing.py,unit,185,6,true,true,,,,,,
 tests/unit/test_log2_transformer.py,unit,185,6,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
@@ -322,7 +322,7 @@ tests/unit/workflows/kinase/test_kinase_scoring_mode_contracts.py,kinase,482,10,
 tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,310,6,true,true,,,,,,
 tests/unit/workflows/kinase/test_kinase_site_universes.py,kinase,612,9,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/workflows/kinase/test_profile_self_inclusion_policy.py,kinase,365,6,false,false,,,,,,
-tests/unit/workflows/kinase/test_resolved_kinase_validator.py,kinase,347,5,false,false,,,,,,
+tests/unit/workflows/kinase/test_resolved_kinase_validator.py,kinase,358,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,
 tests/unit/workflows/signalome/test_signalome_dataset_view_reuse.py,signalome,683,6,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/workflows/signalome/test_signalome_reference_context_policy.py,signalome,308,4,false,false,,,,,,

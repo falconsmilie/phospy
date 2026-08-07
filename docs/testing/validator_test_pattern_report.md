@@ -76,8 +76,8 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1479 | `module_count: object,` |
 | tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_replay_of_historical_network_threshold_two | 1516 | `"module_count": None,` |
 | tests/unit/validation/test_reference_context_compatibility.py | test_kinase_workflow_validator_rejects_mismatched_reference_context | 180 | `reliability_profile="custom", min_substrates=2` |
-| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_enforces_production_reliability_profile | 306 | `assert "min_substrates must be at least 5" in str(exc_info.value)` |
-| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_kinase_interpreter_delegates_resolved_validation | 325 | `min_substrates=2,` |
+| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_enforces_production_reliability_profile | 317 | `assert "min_substrates must be at least 5" in str(exc_info.value)` |
+| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_kinase_interpreter_delegates_resolved_validation | 336 | `min_substrates=2,` |
 
 ### Non-Empty String
 
@@ -219,9 +219,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/validation/test_phosphosite_identity_rule_families.py | test_dataset_identity_requires_protein_identity_metadata | 297 | `match="missing required columns: protein_identifier",` |
 | tests/unit/validation/test_phosphosite_identity_rule_families.py | test_dataset_identity_accepts_opaque_site_values_where_explicitly_permitted | 322 | `frame = pd.DataFrame(` |
 | tests/unit/validation/test_phosphosite_identity_rule_families.py | test_result_identity_rejects_missing_result_site_keys | 360 | `with pytest.raises(PhosPyInputError, match="missing required columns: site_key"):` |
-| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_reference_overlap | 240 | `kinase_substrate_map=pd.DataFrame(` |
-| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_eligible_kinases | 258 | `kinase_substrate_map=pd.DataFrame(` |
-| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_sequence_supported_sites | 274 | `empty_sequences = pd.DataFrame(` |
+| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_reference_overlap | 251 | `kinase_substrate_map=pd.DataFrame(` |
+| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_eligible_kinases | 269 | `kinase_substrate_map=pd.DataFrame(` |
+| tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_resolved_kinase_validator_rejects_no_sequence_supported_sites | 285 | `empty_sequences = pd.DataFrame(` |
 | tests/validation/test_shared_identity_contracts.py | test_boundaries_require_different_identity_strictness_without_duplicate_logic | 225 | `DatasetValidationError, match="missing required columns: site_sequence"` |
 
 ### Path-Like Value

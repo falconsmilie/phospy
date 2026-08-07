@@ -7,13 +7,14 @@ from phospy.provenance.scientific_policy_models import (
     ScientificPolicyRecord,
 )
 from phospy.science.activities.membership import (
+    ACTIVITY_MEMBERSHIP_SELECTION_PAYLOAD_SCHEMA_VERSION,
     ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
     KSEA_MEMBERSHIP_INFERENTIAL_POLICY_VERSION,
 )
 from phospy.science.scoring.policy_models import ThresholdMode
 
 SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "2"
-KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "4"
+KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "5"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_profile_kinase"
 SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
 SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (
@@ -112,6 +113,9 @@ def build_ksea_zscore_activity_policy(
             "membership_selection_policy_version": (
                 "activity_membership_selection_v"
                 f"{ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION}"
+            ),
+            "membership_selection_payload_schema_version": (
+                ACTIVITY_MEMBERSHIP_SELECTION_PAYLOAD_SCHEMA_VERSION
             ),
             "ksea_membership_inferential_policy_version": (
                 KSEA_MEMBERSHIP_INFERENTIAL_POLICY_VERSION

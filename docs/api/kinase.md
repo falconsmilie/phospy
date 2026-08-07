@@ -232,15 +232,22 @@ expose `method_summary`, `substrate_count_matrix`,
 supported.
 
 KSEA-style p/q-value availability is gated by
-`KinaseActivityResult.membership_selection`. The record declares the membership
-source category, selection method/version, score source, threshold/top-k policy,
-reference fingerprints, selected kinase/substrate universes, and two separate
-matrix fingerprints: `selection_quantitative_matrix_fingerprint` for the
-quantitative matrix used during membership selection when applicable, and
+`KinaseActivityResult.membership_selection`. Current payloads include
+`membership_selection_schema_version="2"` and closed `selection_evidence`.
+That evidence declares the scientific selection-process kind, score-source
+kind, adaptive state, tested-matrix consumption state, source-specific contract
+version, and typed independence evidence when applicable. The record also
+retains descriptive provider method/version and score-source labels,
+threshold/top-k parameters, reference fingerprints, selected kinase/substrate
+universes, and two separate matrix fingerprints:
+`selection_quantitative_matrix_fingerprint` for the quantitative matrix used
+during membership selection when applicable, and
 `tested_quantitative_matrix_fingerprint` for the exact KSEA background matrix.
-The activity science domain derives `inferential_decision`; workflow code does
-not supply final eligibility. Source category and supporting facts must be
-coherent before that decision is derived; contradictory records are rejected.
+The activity science domain derives `source_category` and
+`inferential_decision`; workflow code does not supply final eligibility.
+Serialized source category, status, reason, and missing-evidence fields are
+cross-validated against the reconstructed typed evidence. Contradictory records
+are rejected.
 
 | Membership source category | Ordinary KSEA p/q behavior |
 | --- | --- |
@@ -251,15 +258,17 @@ coherent before that decision is derived; contradictory records are rejected.
 | `fixed_external_reference` | p/q values only when fixed-reference independence evidence, source fingerprints, tested-matrix fingerprint, and selected universes are present. |
 | `sequence_only_motif` | p/q values only when sequence-only independence evidence, source fingerprints, tested-matrix fingerprint, selected universes, and the motif score source are present. |
 
-Built-in score sources have fixed category semantics:
-`profile_scores` and `rank_weighted_fusion_scores` are profile-derived,
-`combined_profile_motif_scores` is fused profile/motif-derived, and
-`kinase_library_motif_scores` is sequence-only motif-derived. These built-in
-adaptive or motif-specific score sources cannot be relabelled as fixed external.
-External fixed-reference sources may keep provider-specific descriptive method
-or source identifiers, but arbitrary method strings do not establish
-independence; fixed external inference requires the explicit fixed-reference
-independence-policy token and supported version.
+Provider-specific method names, provider versions, score-source labels, and
+reference descriptions are descriptive only. Arbitrary strings cannot establish
+fixed, external, sequence-only, or independent membership. Fixed-reference and
+motif-only inference require closed source-specific selection evidence,
+explicit `data_adaptive_membership=False`, `consumed_tested_matrix=False`, no
+selection quantitative-matrix fingerprint, supported contract versions,
+matching typed independence-policy evidence, the exact tested-matrix
+fingerprint, source-reference fingerprints, and non-empty selected universes.
+`threshold_top_k_policy` may retain numerical configuration such as top-k and
+thresholds, but current payloads must not rely on generic policy-map keys for
+adaptive state, independence policy, or source classification.
 
 For ineligible membership, KSEA reports `p_value_matrix=None`,
 `q_value_matrix=None`, missing `p_value`/`q_value` cells in
@@ -268,7 +277,9 @@ of `KseaZScoreActivityMethod` applies the same science-domain policy and checks
 tested-matrix and selected-universe provenance before allocating p/q outputs.
 Every KSEA result carries explicit membership provenance. Missing or legacy
 membership provenance is represented as an explicit missing/ineligible record
-for descriptive-only output; finite p/q output without eligible membership
+for descriptive-only output; legacy open-string evidence fails closed and is
+not migrated to ordinary inference unless it matches a reviewed closed rule.
+Finite p/q output without eligible membership
 provenance is rejected. Legacy membership payloads are loaded only if serialized
 eligibility, status, reason, and nested decision fields agree with the decision
 recomputed from the preserved facts. Serialized source-category relabelling,

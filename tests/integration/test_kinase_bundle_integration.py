@@ -43,9 +43,7 @@ from phospy.io.bundles.kinase import (
 )
 from phospy.provenance.models import RunProvenance
 from phospy.science.activities.membership import (
-    ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
     ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
-    ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
     KSEA_MEMBERSHIP_ELIGIBLE_REASON,
     KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE,
     KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_VERSION,
@@ -1697,15 +1695,12 @@ def _ksea_profile_derived_activity_result() -> KinaseActivityResult:
         matrix,
         _assume_owned=True,
     )
-    membership_selection = ActivityMembershipSelection(
-        source_category=ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
+    membership_selection = ActivityMembershipSelection.profile_derived(
         selection_method="prediction_matrix_thresholded_membership",
-        selection_method_version=ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
         score_source="profile_scores",
         threshold_top_k_policy={
             "evidence_threshold": 0.5,
             "evidence_threshold_operator": ">=",
-            "data_adaptive_membership": True,
         },
         source_reference_fingerprints=(
             fingerprint_ksea_selection_quantitative_matrix(pred_mat),

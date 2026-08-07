@@ -302,16 +302,24 @@ Important user-facing assumptions:
 - KSEA-style ordinary p-values and q-values require typed
   `membership_selection` provenance showing that substrate membership was
   selected independently of the tested quantitative matrix. The activity science
-  domain derives and enforces this eligibility decision from membership facts;
-  workflow code supplies source category, score source, threshold/top-k policy,
-  reference fingerprints, selection quantitative-matrix fingerprint when
-  applicable, exact KSEA tested-matrix fingerprint, and selected universes.
+  domain derives and enforces this eligibility decision from closed
+  `selection_evidence`; workflow code supplies facts only. Current payloads
+  include an explicit membership-selection schema version, a closed
+  selection-process kind, score-source kind, adaptive state, tested-matrix
+  consumption state, source-specific contract version, typed independence
+  evidence when applicable, reference fingerprints, selection
+  quantitative-matrix fingerprint when applicable, exact KSEA tested-matrix
+  fingerprint, and selected universes. Serialized `source_category` is derived
+  from and cross-validated against this evidence.
   Profile-derived, fused profile/motif, data-adaptive prediction-selected,
   leave-one-out, unknown, or incomplete membership remains descriptive-only.
   Fixed-reference and sequence-only motif membership emit ordinary p/q values
-  only when their documented independence evidence is present. Direct
-  `KseaZScoreActivityMethod` use follows the same boundary checks, and legacy
-  payloads cannot override the recomputed decision.
+  only when their documented typed independence evidence and explicit
+  non-adaptive state are present. Provider method/source strings are
+  descriptive only; arbitrary labels and generic policy-map keys cannot
+  establish independence. Direct `KseaZScoreActivityMethod` use follows the
+  same boundary checks, and legacy open-string payloads fail closed rather than
+  overriding the recomputed decision.
 - Activity scores depend on substrate coverage and reference evidence; sparse
   support weakens interpretation.
 - KSEA-style activity scores are not equivalent to PhosR kinase activity

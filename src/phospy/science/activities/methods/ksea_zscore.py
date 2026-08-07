@@ -10,6 +10,7 @@ import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.activities.membership import (
+    ACTIVITY_MEMBERSHIP_SOURCE_INCOMPLETE,
     ACTIVITY_MEMBERSHIP_SOURCE_UNKNOWN,
     ActivityMembershipSelection,
     fingerprint_ksea_tested_quantitative_matrix,
@@ -459,7 +460,10 @@ def _validate_ksea_membership_boundary(
             "next_action=rebuild membership provenance from the prediction matrix "
             "used for KSEA"
         )
-    if membership_selection.source_category == ACTIVITY_MEMBERSHIP_SOURCE_UNKNOWN:
+    if membership_selection.source_category in {
+        ACTIVITY_MEMBERSHIP_SOURCE_UNKNOWN,
+        ACTIVITY_MEMBERSHIP_SOURCE_INCOMPLETE,
+    }:
         return
     expected_substrates = selected_substrate_universe_from_prediction_matrix(
         aligned_pred_mat,

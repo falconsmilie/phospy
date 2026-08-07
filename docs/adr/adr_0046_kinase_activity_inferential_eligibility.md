@@ -34,12 +34,21 @@ Source category and supporting facts must form one coherent state before the
 eligibility decision is derived. Contradictory combinations are rejected rather
 than downgraded or caveated.
 
-The membership-selection record includes:
+The current membership-selection payload has explicit schema version `2` and
+includes a closed `selection_evidence` object. The evidence object, not provider
+labels, carries the decision-bearing facts:
 
-- source category;
-- selection method and version;
-- score source;
-- threshold/top-k policy;
+- closed selection-process kind (`fixed_external_reference`,
+  `sequence_only_motif`, `profile_derived`, `fused_profile_motif`,
+  `prediction_selected`, `unknown`, or `incomplete`);
+- source-specific selection-contract version;
+- closed score-source kind;
+- explicit data-adaptive membership state when the process kind is known;
+- explicit tested-matrix consumption state;
+- typed independence-policy evidence and version when applicable;
+- derived source category, cross-validated against the evidence;
+- descriptive provider selection method/version and score-source labels;
+- threshold/top-k descriptive policy parameters;
 - source reference fingerprint(s);
 - selection quantitative matrix fingerprint when quantitative data were
   consumed while deriving or selecting membership;
@@ -69,15 +78,27 @@ They must not silently become eligible.
 The source-specific coherence gate rejects records such as
 `fixed_external_reference` combined with data-adaptive membership,
 `consumed_tested_matrix=True`, a selection quantitative-matrix fingerprint,
-known profile-derived or fused score sources, sequence-only motif score sources,
-or source-specific method/policy tokens from another category. Built-in score
-sources have one interpretation: `profile_scores` and
-`rank_weighted_fusion_scores` are profile-derived,
-`combined_profile_motif_scores` is fused profile/motif-derived, and
-`kinase_library_motif_scores` is sequence-only motif-derived. Arbitrary
-externally supplied method strings do not establish independence; fixed
-external eligibility requires the explicit fixed-reference independence-policy
-token plus supported version and complete evidence.
+profile-derived, fused profile/motif, prediction-derived, or motif-only
+score-source kinds, source-specific method/policy evidence from another
+category, or unsupported source-specific contract versions. Provider-specific
+method names, method versions, score-source labels, and reference descriptions
+are descriptive only. Arbitrary externally supplied strings cannot establish
+fixed, external, sequence-only, or independent membership.
+
+`threshold_top_k_policy` is no longer a source of decisive scientific evidence.
+It may retain numerical/descriptive configuration such as prediction top-k,
+threshold, threshold operator, or evidence threshold. Current-schema payloads
+that put `data_adaptive_membership`, independence-policy kind/version, or
+source-specific process classification only in that mapping are rejected.
+
+Current fixed-external and sequence-only motif eligibility requires explicit
+`data_adaptive_membership=False`, `consumed_tested_matrix=False`, no selection
+quantitative-matrix fingerprint, a supported source-specific selection contract
+version, the exact KSEA tested-matrix fingerprint, source-reference
+fingerprints, non-empty selected kinase/substrate universes, and the matching
+typed independence-policy kind/version. Coherent current fixed-external records
+that are missing non-contradictory evidence such as fingerprints or universes
+remain constructible as descriptive-only; contradictory records are rejected.
 
 For ineligible membership, KSEA computes descriptive z-scores and records
 missing p/q values. `p_value_matrix` and `q_value_matrix` are unavailable, and
@@ -101,11 +122,16 @@ Serialized membership payloads are reconstructed from underlying facts, then
 the decision is recomputed. Serialized eligibility, reason, status, and nested
 decision fields are accepted only when they match the recomputed decision.
 Contradictory or tampered payloads are rejected, including relabelling an
-adaptive record as `fixed_external_reference`, retaining adaptive facts under a
-fixed-external label, or adding favourable independence tokens to an adaptive
-record. Legacy payloads that lack the new tested-matrix or independence
-evidence are not upgraded to ordinary inference eligibility, and missing
-fingerprints are not fabricated during migration.
+adaptive record as `fixed_external_reference` or `sequence_only_motif`, changing
+serialized source category and derived decision fields together while the
+underlying typed evidence remains adaptive, retaining adaptive facts under a
+fixed-external label, or adding favourable independence evidence to an adaptive
+record. Legacy open-string payloads that lack the closed evidence contract are
+not upgraded to ordinary inference eligibility, and missing fingerprints,
+adaptive state, independence evidence, or universes are not fabricated during
+migration. If a legacy or tampered bundle contains finite p/q values but
+reconstructs missing, incomplete, unknown, or ineligible membership evidence,
+the bundle is rejected.
 
 The ordinary normal-approximation assumptions remain scientific assumptions
 even after membership eligibility is established; eligibility only establishes
@@ -154,8 +180,10 @@ p/q values are unavailable. Kinase bundle manifests persist
 `outputs.activity.membership_selection` so reload preserves eligibility state.
 
 The KSEA scientific policy record is versioned as
-`ksea_zscore_activity_v1` policy version `4`. The membership-selection policy
-version is `3`, and the KSEA membership inferential policy version is `3`.
+`ksea_zscore_activity_v1` policy version `5`. The membership-selection policy
+version is `4`, the membership-selection payload schema version is `2`, the
+KSEA membership inferential policy version is `4`, and the KSEA membership
+independence-policy evidence version is `2`.
 
 ## Related Records
 

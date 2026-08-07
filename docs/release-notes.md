@@ -91,6 +91,19 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   `unsupported_withdrawn_posthoc_estimate_combination_v1`; its retained
   compatibility shell fails closed because coherent combined effect/inference
   and executable mapping semantics are not implemented.
+- KSEA membership-selection inferential eligibility now uses a closed
+  science-owned evidence contract. Current payloads carry explicit membership
+  schema version `2`, membership-selection policy version `4`, inferential
+  policy version `4`, independence-evidence version `2`, and KSEA activity
+  policy version `5`. Source category is derived from typed
+  `selection_evidence`; arbitrary provider method/version/score-source labels
+  are descriptive only and cannot establish independence. Fixed-external and
+  sequence-only motif ordinary p/q output requires explicit non-adaptive state,
+  no tested-matrix consumption, supported source-specific contract versions,
+  typed independence evidence, the exact KSEA tested-matrix fingerprint,
+  source-reference fingerprints, and selected universes. Legacy open-string
+  evidence fails closed, and bundles with finite KSEA p/q values plus missing
+  or ineligible membership provenance are rejected.
 
 ## Deprecations
 
