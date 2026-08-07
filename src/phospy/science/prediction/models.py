@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
 from phospy.frames.ownership import (
     _borrow_dataframe,
     _borrow_optional_dataframe,
@@ -53,7 +54,7 @@ from phospy.science.tables.kinase import (
 )
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class KinaseScoringResult:
     """Scoring-stage outputs.
 
@@ -75,7 +76,12 @@ class KinaseScoringResult:
     as leave-one-out cells that could not be scored after self-exclusion.
     `profile_self_inclusion_policy` records whether known substrate sites were
     allowed to contribute to their own kinase profile scores.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit scoring-content comparison.
     """
+
+    __hash__ = object.__hash__
 
     motif_sequence_validation: SequenceValidationResult | None = None
     motif_library_validation: MotifLibraryValidationResult | None = None
@@ -648,6 +654,60 @@ class KinaseScoringResult:
 
         return export_dataframe(self._borrow_authoritative_scores_frame())
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another scoring result has the same content."""
+
+        if not isinstance(other, KinaseScoringResult):
+            return False
+        return (
+            self.motif_sequence_validation == other.motif_sequence_validation
+            and self.motif_library_validation == other.motif_library_validation
+            and self.scoring_mode == other.scoring_mode
+            and self.score_scale == other.score_scale
+            and self.score_scale_metadata == other.score_scale_metadata
+            and self.profile_self_inclusion_policy
+            == other.profile_self_inclusion_policy
+            and self._score_source == other._score_source
+            and dataframe_equals(self._profile_scores, other._profile_scores)
+            and optional_dataframe_equals(self._motif_scores, other._motif_scores)
+            and optional_dataframe_equals(
+                self._rank_weighted_fusion_scores,
+                other._rank_weighted_fusion_scores,
+            )
+            and optional_dataframe_equals(
+                self._kinase_library_motif_scores,
+                other._kinase_library_motif_scores,
+            )
+            and optional_dataframe_equals(
+                self._combined_profile_motif_scores,
+                other._combined_profile_motif_scores,
+            )
+            and optional_dataframe_equals(
+                self._score_fusion_weights,
+                other._score_fusion_weights,
+            )
+            and optional_dataframe_equals(
+                self._score_source_matrix,
+                other._score_source_matrix,
+            )
+            and optional_dataframe_equals(
+                self._score_source_summary,
+                other._score_source_summary,
+            )
+            and optional_dataframe_equals(
+                self._profile_score_diagnostics,
+                other._profile_score_diagnostics,
+            )
+            and optional_dataframe_equals(
+                self._kinase_library_site_diagnostics,
+                other._kinase_library_site_diagnostics,
+            )
+            and optional_dataframe_equals(
+                self._kinase_library_kinase_diagnostics,
+                other._kinase_library_kinase_diagnostics,
+            )
+        )
+
 
 def _validate_scoring_mode(value: object) -> str:
     text = normalize_kinase_scoring_mode(value, warn_on_deprecated_alias=True)
@@ -985,9 +1045,15 @@ def _validate_score_source_summary(
     return score_source_summary
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class KinasePredictionResult:
-    """Prediction-stage outputs."""
+    """Prediction-stage outputs.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit prediction-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     _pred_mat: pd.DataFrame = field(init=False, repr=False)
     _substrate_list: pd.DataFrame | None = field(init=False, repr=False)
@@ -1055,6 +1121,15 @@ class KinasePredictionResult:
         """Return an optional substrate-list snapshot isolated from this result."""
 
         return _export_public_substrate_list(self._substrate_list)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another prediction result has the same content."""
+
+        if not isinstance(other, KinasePredictionResult):
+            return False
+        return dataframe_equals(self._pred_mat, other._pred_mat) and (
+            optional_dataframe_equals(self._substrate_list, other._substrate_list)
+        )
 
 
 def _require_frame_type(value: object, *, field_name: str) -> None:

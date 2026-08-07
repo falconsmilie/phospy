@@ -94,7 +94,7 @@ _CONTRIBUTION_OPTIONAL_TEXT_COLUMNS = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseScoreMatrix(TableSchema):
     """Schema wrapper for kinase scoring matrices."""
 
@@ -130,7 +130,7 @@ class KinaseScoreMatrix(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinasePredictionMatrix(TableSchema):
     """Schema wrapper for ``prediction_result.pred_mat``."""
 
@@ -165,7 +165,7 @@ class KinasePredictionMatrix(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseSubstrateContributionTable(TableSchema):
     """Schema wrapper for optional substrate contribution rows."""
 
@@ -214,7 +214,7 @@ class KinaseSubstrateContributionTable(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseProfileScoreDiagnosticTable(TableSchema):
     """Schema wrapper for sparse profile-score diagnostic rows."""
 

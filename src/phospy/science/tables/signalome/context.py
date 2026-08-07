@@ -95,7 +95,7 @@ _PROTEIN_SITE_CONTEXT_REQUIRED_COLUMNS = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SignalomeSiteContext(TableSchema):
     """Schema wrapper for ``signalome_result.site_membership``."""
 
@@ -226,7 +226,7 @@ class SignalomeSiteContext(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SignalomeProteinSiteContext(TableSchema):
     """Schema wrapper for ``signalome_result.protein_site_context``."""
 

@@ -10,6 +10,7 @@ from typing import Literal
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
 from phospy.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
@@ -425,9 +426,15 @@ def default_signalome_network_correlation_diagnostics() -> (
     )
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class SignalomeAssignments:
-    """Score-derived signalome module assignment table."""
+    """Score-derived signalome module assignment table.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit table-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     _table: pd.DataFrame = field(init=False, repr=False)
 
@@ -459,10 +466,23 @@ class SignalomeAssignments:
     def table(self) -> pd.DataFrame:
         return export_dataframe(self._table)
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another assignment container has the same table."""
 
-@dataclass(frozen=True, slots=True, init=False)
+        if not isinstance(other, SignalomeAssignments):
+            return False
+        return dataframe_equals(self._table, other._table)
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class SignalomeModules:
-    """Candidate kinase-supported module summary table."""
+    """Candidate kinase-supported module summary table.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit table-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     _table: pd.DataFrame = field(init=False, repr=False)
 
@@ -494,10 +514,23 @@ class SignalomeModules:
     def table(self) -> pd.DataFrame:
         return export_dataframe(self._table)
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another module container has the same table."""
 
-@dataclass(frozen=True, slots=True, init=False)
+        if not isinstance(other, SignalomeModules):
+            return False
+        return dataframe_equals(self._table, other._table)
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class KinaseNetwork:
-    """Kinase score-profile association tables derived from signalome analysis."""
+    """Kinase score-profile association tables derived from signalome analysis.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit network-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics = field(
         default_factory=default_signalome_network_correlation_diagnostics
@@ -611,6 +644,21 @@ class KinaseNetwork:
         """Return optional candidate correlations isolated from this network."""
 
         return export_optional_dataframe(self._candidate_correlations)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another network has the same scientific content."""
+
+        if not isinstance(other, KinaseNetwork):
+            return False
+        return (
+            self.correlation_diagnostics == other.correlation_diagnostics
+            and dataframe_equals(self._edges, other._edges)
+            and optional_dataframe_equals(self._nodes, other._nodes)
+            and optional_dataframe_equals(
+                self._candidate_correlations,
+                other._candidate_correlations,
+            )
+        )
 
 
 __all__ = [

@@ -16,6 +16,7 @@ import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.comparison import dataframe_equals
 from phospy.frames.ownership import export_dataframe
 from phospy.science.tables.activity import ActivityMatrix
 
@@ -399,9 +400,15 @@ class ActivityProfileMetadata:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ActivityInputMatrix:
-    """Activity input matrix paired with explicit semantics."""
+    """Activity input matrix paired with explicit semantics.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit matrix-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     frame: pd.DataFrame
     semantics: ActivityInputSemantics
@@ -449,6 +456,17 @@ class ActivityInputMatrix:
         """Return a defensive matrix snapshot."""
 
         return export_dataframe(self.frame)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another activity input has the same content."""
+
+        if not isinstance(other, ActivityInputMatrix):
+            return False
+        return (
+            dataframe_equals(self.frame, other.frame)
+            and self.semantics == other.semantics
+            and self.profile_metadata == other.profile_metadata
+        )
 
     @classmethod
     def sample_level_abundance(

@@ -10,6 +10,7 @@ import pandas as pd
 
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.input import PhosPyInputError
+from phospy.frames.comparison import optional_dataframe_equals
 from phospy.frames.ownership import export_optional_dataframe
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.provenance.models import RunProvenance
@@ -159,7 +160,7 @@ class KinaseEligibilityReport:
     excluded_kinases_below_min_substrates: int
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class KinaseWorkflowResult:
     """Top-level public kinase workflow result.
 
@@ -169,7 +170,12 @@ class KinaseWorkflowResult:
     optional activity, eligibility, attrition, and provenance. The nested stage
     result objects own their public table schemas; this container keeps the
     workflow-assembled objects together without re-running workflow validation.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit workflow-content comparison.
     """
+
+    __hash__ = object.__hash__
 
     dataset: AnalysisReadyPhosphoDataset
     references: ReferenceBundle
@@ -184,7 +190,6 @@ class KinaseWorkflowResult:
     _substrate_contributions: pd.DataFrame | None = field(
         init=False,
         repr=False,
-        compare=False,
     )
 
     def __init__(
@@ -346,6 +351,46 @@ class KinaseWorkflowResult:
         )
         return result
 
+    def scientifically_equals(
+        self,
+        other: object,
+        *,
+        include_provenance: bool = True,
+    ) -> bool:
+        """Return ``True`` when another kinase result has the same content."""
+
+        if not isinstance(other, KinaseWorkflowResult):
+            return False
+        same_content = (
+            self.dataset.scientifically_equals(
+                other.dataset,
+                include_provenance=include_provenance,
+            )
+            and self.references.scientifically_equals(
+                other.references,
+                include_provenance=include_provenance,
+            )
+            and self.scoring_result.scientifically_equals(other.scoring_result)
+            and self.prediction_result.scientifically_equals(other.prediction_result)
+            and self.eligibility_report == other.eligibility_report
+            and self.site_attrition_summary == other.site_attrition_summary
+            and self.attrition_provenance == other.attrition_provenance
+            and _optional_activity_result_equals(
+                self.activity_result,
+                other.activity_result,
+            )
+            and self.caveats == other.caveats
+            and optional_dataframe_equals(
+                self._substrate_contributions,
+                other._substrate_contributions,
+            )
+        )
+        if not same_content:
+            return False
+        if include_provenance and self.provenance != other.provenance:
+            return False
+        return True
+
 
 def _own_optional_kinase_substrate_contributions(
     table: pd.DataFrame | None,
@@ -358,6 +403,15 @@ def _own_optional_kinase_substrate_contributions(
         frame=table,
         _assume_owned=assume_owned,
     ).frame
+
+
+def _optional_activity_result_equals(
+    left: KinaseActivityResult | None,
+    right: KinaseActivityResult | None,
+) -> bool:
+    if left is None or right is None:
+        return left is right
+    return left.scientifically_equals(right)
 
 
 def _own_workflow_caveats(

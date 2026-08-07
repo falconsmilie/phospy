@@ -8,6 +8,11 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.comparison import (
+    dataframe_equals,
+    optional_dataframe_equals,
+    series_equals,
+)
 from phospy.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
@@ -55,7 +60,7 @@ from phospy.science.tables.activity import (
 )
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class KinaseActivityResult:
     """Activity-like score stage outputs.
 
@@ -94,7 +99,12 @@ class KinaseActivityResult:
 
     Public DataFrame helpers are defensive in-memory snapshots. They do not
     write files, format reports, plot figures, or run additional science.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit activity-content comparison.
     """
+
+    __hash__ = object.__hash__
 
     activity_method: ActivityMethodMetadata
     _activity_matrix: pd.DataFrame = field(init=False, repr=False)
@@ -704,6 +714,59 @@ class KinaseActivityResult:
         legacy_table = table.copy(deep=True)
         legacy_table.loc[:, "condition"] = legacy_table.loc[:, "profile_id"]
         return legacy_table
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another activity result has the same content."""
+
+        if not isinstance(other, KinaseActivityResult):
+            return False
+        return (
+            self.activity_method == other.activity_method
+            and dataframe_equals(self._activity_matrix, other._activity_matrix)
+            and optional_dataframe_equals(
+                self._p_value_matrix,
+                other._p_value_matrix,
+            )
+            and optional_dataframe_equals(self._q_value_matrix, other._q_value_matrix)
+            and optional_dataframe_equals(
+                self._confidence_interval_low,
+                other._confidence_interval_low,
+            )
+            and optional_dataframe_equals(
+                self._confidence_interval_high,
+                other._confidence_interval_high,
+            )
+            and dataframe_equals(
+                self._substrate_count_matrix,
+                other._substrate_count_matrix,
+            )
+            and dataframe_equals(
+                self._thresholded_substrate_mean_activity,
+                other._thresholded_substrate_mean_activity,
+            )
+            and series_equals(
+                self._thresholded_substrate_counts,
+                other._thresholded_substrate_counts,
+            )
+            and optional_dataframe_equals(
+                self._activity_substrate_counts,
+                other._activity_substrate_counts,
+            )
+            and series_equals(self._target_counts, other._target_counts)
+            and dataframe_equals(self._target_table, other._target_table)
+            and optional_dataframe_equals(
+                self._statistics_table,
+                other._statistics_table,
+            )
+            and self.method_diagnostics.scientifically_equals(other.method_diagnostics)
+            and self.policy_provenance == other.policy_provenance
+            and self.threshold_membership_diagnostics
+            == other.threshold_membership_diagnostics
+            and self.method_summary == other.method_summary
+            and self.input_semantics == other.input_semantics
+            and self.profile_metadata == other.profile_metadata
+            and self.membership_selection == other.membership_selection
+        )
 
 
 def _coerce_policy_provenance(

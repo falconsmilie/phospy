@@ -10,6 +10,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
+from phospy.frames.comparison import dataframe_equals
 from phospy.frames.ownership import borrow_dataframe, export_dataframe, own_dataframe
 from phospy.frames.validation import (
     require_dataframe,
@@ -30,7 +31,7 @@ IMPUTATION_OBSERVATION_SUMMARY_COLUMNS = (
 )
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class ImputationObservationMetadata:
     """Dataset-owned originally-observed vs imputed-cell metadata.
 
@@ -38,6 +39,8 @@ class ImputationObservationMetadata:
     features, columns are samples, and True means the value was originally
     observed rather than imputed. Public accessors return defensive snapshots.
     """
+
+    __hash__ = object.__hash__
 
     _observed_mask: pd.DataFrame = field(init=False, repr=False)
     _feature_summary: pd.DataFrame = field(init=False, repr=False)
@@ -106,6 +109,19 @@ class ImputationObservationMetadata:
         """Return a defensive observed-cell mask snapshot."""
 
         return export_dataframe(self._observed_mask)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another metadata object owns the same tables."""
+
+        if not isinstance(other, ImputationObservationMetadata):
+            return False
+        return dataframe_equals(
+            self._observed_mask,
+            other._observed_mask,
+        ) and dataframe_equals(
+            self._feature_summary,
+            other._feature_summary,
+        )
 
     def feature_observation_summary_dataframe(
         self,

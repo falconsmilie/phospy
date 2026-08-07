@@ -31,7 +31,7 @@ DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
 DatasetInput = pd.DataFrame | str | Path | PathLike[str]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class DatasetBuildRequest:
     """Request for building an ``AnalysisReadyPhosphoDataset``.
 
@@ -51,7 +51,12 @@ class DatasetBuildRequest:
     must still converge on a strict, missing-value-free
     ``AnalysisReadyPhosphoDataset`` boundary. Opaque non-STY site tokens remain
     disallowed by default and require explicit ``allow_opaque_site_values=True``.
+
+    Python equality and hashing are identity-based. The builder owns semantic
+    request interpretation; this payload does not define content equality.
     """
+
+    __hash__ = object.__hash__
 
     phospho: DatasetInput | None = None
     site_metadata: DatasetInput | None = None

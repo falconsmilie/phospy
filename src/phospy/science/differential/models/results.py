@@ -13,6 +13,11 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.frames.comparison import (
+    dataframe_mapping_equals,
+    optional_dataframe_equals,
+    series_equals,
+)
 from phospy.frames.ownership import (
     export_dataframe,
     export_series,
@@ -38,14 +43,20 @@ if TYPE_CHECKING:
     from phospy.science.datasets.models import DatasetPreprocessingReport
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class DifferentialAnalysisResult:
     """Differential-analysis output with per-contrast moderated tables.
 
     Public contrast tables are indexed by protein-scoped ``site_key`` values and
     must include ``site_key``, ``display_id``, ``gene_symbol``, and ``site``
     columns.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit differential-result content
+    comparison.
     """
+
+    __hash__ = object.__hash__
 
     residual_variance: pd.Series
     posterior_residual_variance: pd.Series
@@ -411,6 +422,63 @@ class DifferentialAnalysisResult:
             ),
         }
 
+    def scientifically_equals(
+        self,
+        other: object,
+        *,
+        include_provenance: bool = True,
+    ) -> bool:
+        """Return ``True`` when another differential result has the same content."""
+
+        if not isinstance(other, DifferentialAnalysisResult):
+            return False
+        same_content = (
+            series_equals(self.residual_variance, other.residual_variance)
+            and series_equals(
+                self.posterior_residual_variance,
+                other.posterior_residual_variance,
+            )
+            and series_equals(
+                self.prior_residual_variance,
+                other.prior_residual_variance,
+            )
+            and series_equals(
+                self.prior_degrees_of_freedom_series_value,
+                other.prior_degrees_of_freedom_series_value,
+            )
+            and self.prior_variance == other.prior_variance
+            and self.prior_degrees_of_freedom == other.prior_degrees_of_freedom
+            and self.residual_degrees_of_freedom == other.residual_degrees_of_freedom
+            and self.empirical_bayes_method == other.empirical_bayes_method
+            and self.empirical_bayes_robust == other.empirical_bayes_robust
+            and self.empirical_bayes_trend == other.empirical_bayes_trend
+            and self.prior_diagnostics.scientifically_equals(other.prior_diagnostics)
+            and _optional_trend_diagnostics_equals(
+                self.mean_variance_trend_diagnostics,
+                other.mean_variance_trend_diagnostics,
+            )
+            and self.diagnostics == other.diagnostics
+            and self.policy_provenance == other.policy_provenance
+            and self.caveats == other.caveats
+            and _optional_preprocessing_report_equals(
+                self.input_dataset_preprocessing_report,
+                other.input_dataset_preprocessing_report,
+            )
+            and optional_dataframe_equals(
+                self._feature_eligibility,
+                other._feature_eligibility,
+            )
+            and dataframe_mapping_equals(
+                self._contrast_tables,
+                other._contrast_tables,
+            )
+        )
+        if not same_content:
+            return False
+        if include_provenance and self.workflow_provenance != other.workflow_provenance:
+            return False
+        return True
+
     @classmethod
     def _from_owned(
         cls,
@@ -473,6 +541,27 @@ def _is_dataset_preprocessing_report(value: object) -> bool:
         return False
 
     return isinstance(value, _DatasetPreprocessingReport)
+
+
+def _optional_trend_diagnostics_equals(
+    left: MeanVarianceTrendDiagnostics | None,
+    right: MeanVarianceTrendDiagnostics | None,
+) -> bool:
+    if left is None or right is None:
+        return left is right
+    return left.scientifically_equals(right)
+
+
+def _optional_preprocessing_report_equals(
+    left: object | None,
+    right: object | None,
+) -> bool:
+    if left is None or right is None:
+        return left is right
+    method = getattr(left, "scientifically_equals", None)
+    if callable(method):
+        return bool(method(right))
+    return left == right
 
 
 def _validate_feature_eligibility_table(

@@ -9,6 +9,7 @@ import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
+from phospy.frames.comparison import dataframe_equals
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.frames.validation import (
     require_columns,
@@ -155,9 +156,11 @@ class ProteinAwareSiteEligibility:
         }
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class ProteinAwareMappingDiagnostics:
     """Machine-readable mapping diagnostics for preparation audit."""
+
+    __hash__ = object.__hash__
 
     _missing_protein_abundance: pd.DataFrame = field(init=False, repr=False)
     _ambiguous_mapping: pd.DataFrame = field(init=False, repr=False)
@@ -216,6 +219,19 @@ class ProteinAwareMappingDiagnostics:
             "ambiguous_mapping": _dataframe_records_payload(self._ambiguous_mapping),
         }
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another diagnostics object owns the same tables."""
+
+        if not isinstance(other, ProteinAwareMappingDiagnostics):
+            return False
+        return dataframe_equals(
+            self._missing_protein_abundance,
+            other._missing_protein_abundance,
+        ) and dataframe_equals(
+            self._ambiguous_mapping,
+            other._ambiguous_mapping,
+        )
+
     @classmethod
     def _from_owned(
         cls,
@@ -230,7 +246,7 @@ class ProteinAwareMappingDiagnostics:
         )
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class ProteinAwarePreparationReport:
     """Protein-aware preparation audit report.
 
@@ -238,6 +254,8 @@ class ProteinAwarePreparationReport:
     alignment, and policy provenance only. It does not resolve mappings, subtract
     total protein, fit a model, or run differential analysis.
     """
+
+    __hash__ = object.__hash__
 
     site_eligibility: tuple[ProteinAwareSiteEligibility, ...]
     mapping_diagnostics: ProteinAwareMappingDiagnostics
@@ -440,8 +458,31 @@ class ProteinAwarePreparationReport:
         }
         return payload
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another report owns the same report content."""
 
-@dataclass(frozen=True, slots=True, init=False)
+        if not isinstance(other, ProteinAwarePreparationReport):
+            return False
+        return (
+            self.site_eligibility == other.site_eligibility
+            and self.mapping_diagnostics.scientifically_equals(
+                other.mapping_diagnostics
+            )
+            and self.sample_alignment == other.sample_alignment
+            and self.transformation_state == other.transformation_state
+            and self.preparation_policy == other.preparation_policy
+            and self.protein_mapping_policy == other.protein_mapping_policy
+            and self.policy_parameters == other.policy_parameters
+            and self.provenance == other.provenance
+            and self.schema_version == other.schema_version
+            and dataframe_equals(
+                self._site_eligibility_table,
+                other._site_eligibility_table,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class ProteinAwarePreparationResult:
     """Aligned protein-aware preparation inputs and audit report.
 
@@ -449,6 +490,8 @@ class ProteinAwarePreparationResult:
     modelling. Constructing this result does not run modelling and does not
     change `AnalysisReadyPhosphoDataset`.
     """
+
+    __hash__ = object.__hash__
 
     report: ProteinAwarePreparationReport
     _matched_pairs: pd.DataFrame = field(init=False, repr=False)
@@ -573,6 +616,20 @@ class ProteinAwarePreparationResult:
                 else provenance_to_payload(self.provenance)
             ),
         }
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another result owns the same preparation content."""
+
+        if not isinstance(other, ProteinAwarePreparationResult):
+            return False
+        return (
+            self.report.scientifically_equals(other.report)
+            and dataframe_equals(self._matched_pairs, other._matched_pairs)
+            and dataframe_equals(
+                self._protein_covariate_matrix,
+                other._protein_covariate_matrix,
+            )
+        )
 
     @classmethod
     def _from_owned(

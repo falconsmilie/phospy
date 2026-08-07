@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.comparison import series_equals
 from phospy.frames.ownership import own_dataframe, own_series
 from phospy.frames.table_schema import (
     TableSchema,
@@ -31,7 +32,7 @@ from phospy.science.sites.validation import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ActivityMatrix(TableSchema):
     """Schema wrapper for activity score matrices."""
 
@@ -94,7 +95,7 @@ class ActivityMatrix(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ActivityCountMatrix(TableSchema):
     """Schema wrapper for profile-specific activity count matrices."""
 
@@ -169,7 +170,7 @@ class ActivityCountMatrix(TableSchema):
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ActivityTargetTable(TableSchema):
     """Schema wrapper for ``activity_result.target_table``."""
 
@@ -243,7 +244,7 @@ class ActivityTargetTable(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ActivityStatisticsTable(TableSchema):
     """Schema wrapper for method-specific activity statistics tables."""
 
@@ -399,9 +400,16 @@ class ActivityStatisticsTable(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SeriesSchema:
-    """Base wrapper for one owned, validated Series contract."""
+    """Base wrapper for one owned, validated Series contract.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` when comparing the wrapped Series content is
+    the intended operation.
+    """
+
+    __hash__ = object.__hash__
 
     series: pd.Series
     _assume_owned: InitVar[bool] = False
@@ -422,12 +430,22 @@ class SeriesSchema:
     def _validate_series(self, series: pd.Series) -> pd.Series:
         return series
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another same-type wrapper owns the same Series."""
+
+        if type(self) is not type(other):
+            return False
+        other_schema = other
+        if not isinstance(other_schema, SeriesSchema):
+            return False
+        return series_equals(self.series, other_schema.series)
+
     @classmethod
     def _from_owned(cls, *, series: pd.Series) -> SeriesSchema:
         return cls(series=series, _assume_owned=True)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ActivityCountSeries(SeriesSchema):
     """Schema wrapper for activity count series."""
 

@@ -11,15 +11,22 @@ from typing import cast
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.frames.comparison import series_equals
 from phospy.frames.ownership import export_series, own_series
 from phospy.science.differential.models.provenance import (
     DifferentialContrastDefinition,
 )
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class EmpiricalBayesPriorDiagnostics:
-    """Diagnostics for prior-variance and prior-df estimation."""
+    """Diagnostics for prior-variance and prior-df estimation.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit diagnostics-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     method: str
     robust: bool
@@ -101,10 +108,40 @@ class EmpiricalBayesPriorDiagnostics:
     def prior_degrees_of_freedom_series(self) -> pd.Series:
         return export_series(self.prior_degrees_of_freedom)
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another prior diagnostics object has same content."""
 
-@dataclass(frozen=True, slots=True, init=False)
+        if not isinstance(other, EmpiricalBayesPriorDiagnostics):
+            return False
+        return (
+            self.method == other.method
+            and self.robust == other.robust
+            and self.trend == other.trend
+            and self.winsor_tail_p == other.winsor_tail_p
+            and self.base_prior_variance == other.base_prior_variance
+            and self.base_prior_degrees_of_freedom
+            == other.base_prior_degrees_of_freedom
+            and self.robust_outlier_count == other.robust_outlier_count
+            and self.robust_outlier_fraction == other.robust_outlier_fraction
+            and self.winsorized_low_count == other.winsorized_low_count
+            and self.winsorized_high_count == other.winsorized_high_count
+            and series_equals(self.prior_variance, other.prior_variance)
+            and series_equals(
+                self.prior_degrees_of_freedom,
+                other.prior_degrees_of_freedom,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class MeanVarianceTrendDiagnostics:
-    """Diagnostics payload for mean-intensity vs variance trend fitting."""
+    """Diagnostics payload for mean-intensity vs variance trend fitting.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit diagnostics-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     mean_intensity: pd.Series
     log_residual_variance: pd.Series
@@ -166,6 +203,23 @@ class MeanVarianceTrendDiagnostics:
 
     def fitted_log_prior_variance_series(self) -> pd.Series:
         return export_series(self.fitted_log_prior_variance)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another trend diagnostics object has same content."""
+
+        if not isinstance(other, MeanVarianceTrendDiagnostics):
+            return False
+        return (
+            series_equals(self.mean_intensity, other.mean_intensity)
+            and series_equals(
+                self.log_residual_variance,
+                other.log_residual_variance,
+            )
+            and series_equals(
+                self.fitted_log_prior_variance,
+                other.fitted_log_prior_variance,
+            )
+        )
 
 
 @dataclass(frozen=True, slots=True)

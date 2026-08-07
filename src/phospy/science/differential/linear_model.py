@@ -26,9 +26,15 @@ class DifferentialDesignDecompositionError(ValueError):
     """Raised when a differential design cannot support stable OLS fitting."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class DifferentialLinearFit:
-    """Feature-wise OLS fit returned by the shared design decomposition."""
+    """Feature-wise OLS fit returned by the shared design decomposition.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit numerical content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     coefficients: npt.NDArray[np.float64]
     fitted_values: npt.NDArray[np.float64]
@@ -36,10 +42,32 @@ class DifferentialLinearFit:
     residual_sum_of_squares: npt.NDArray[np.float64]
     residual_variance: npt.NDArray[np.float64]
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another fit has identical numeric arrays."""
 
-@dataclass(frozen=True, slots=True)
+        if not isinstance(other, DifferentialLinearFit):
+            return False
+        return (
+            np.array_equal(self.coefficients, other.coefficients)
+            and np.array_equal(self.fitted_values, other.fitted_values)
+            and np.array_equal(self.residuals, other.residuals)
+            and np.array_equal(
+                self.residual_sum_of_squares,
+                other.residual_sum_of_squares,
+            )
+            and np.array_equal(self.residual_variance, other.residual_variance)
+        )
+
+
+@dataclass(frozen=True, slots=True, eq=False)
 class DifferentialDesignDecomposition:
-    """Scaled-SVD decomposition owning differential linear-model numerics."""
+    """Scaled-SVD decomposition owning differential linear-model numerics.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit numerical content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     sample_count: int
     coefficient_count: int
@@ -64,6 +92,34 @@ class DifferentialDesignDecomposition:
         """Return the OLS coefficient covariance factor in original column units."""
 
         return np.array(self._coefficient_covariance, dtype=np.float64, copy=True)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another decomposition has the same content."""
+
+        if not isinstance(other, DifferentialDesignDecomposition):
+            return False
+        return (
+            self.sample_count == other.sample_count
+            and self.coefficient_count == other.coefficient_count
+            and self.rank == other.rank
+            and self.residual_degrees_of_freedom == other.residual_degrees_of_freedom
+            and self.singular_values == other.singular_values
+            and self.rank_tolerance == other.rank_tolerance
+            and self.condition_number == other.condition_number
+            and self.max_condition_number == other.max_condition_number
+            and self.decomposition_method == other.decomposition_method
+            and self.solver == other.solver
+            and self.column_scale_method == other.column_scale_method
+            and self.rank_tolerance_policy == other.rank_tolerance_policy
+            and np.array_equal(self._design_values, other._design_values)
+            and np.array_equal(self._column_scales, other._column_scales)
+            and np.array_equal(self._u, other._u)
+            and np.array_equal(self._vt, other._vt)
+            and np.array_equal(
+                self._coefficient_covariance,
+                other._coefficient_covariance,
+            )
+        )
 
     def assert_matches_design(
         self,

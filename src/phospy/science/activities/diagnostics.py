@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.comparison import optional_dataframe_equals
 from phospy.frames.ownership import export_optional_dataframe
 from phospy.science.activities.method_models import (
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,
@@ -20,9 +21,15 @@ from phospy.science.activities.threshold_membership import (
 from phospy.science.tables.activity import ActivityStatisticsTable
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class ActivityMethodDiagnostics:
-    """Typed method diagnostics carried alongside activity result matrices."""
+    """Typed method diagnostics carried alongside activity result matrices.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit diagnostics-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     method_summary: ActivityMethodSummary | None
     threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics | None
@@ -59,6 +66,21 @@ class ActivityMethodDiagnostics:
         """Return an optional statistics-table snapshot, not a report export."""
 
         return export_optional_dataframe(self._statistics_table)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another diagnostics object has the same content."""
+
+        if not isinstance(other, ActivityMethodDiagnostics):
+            return False
+        return (
+            self.method_summary == other.method_summary
+            and self.threshold_membership_diagnostics
+            == other.threshold_membership_diagnostics
+            and optional_dataframe_equals(
+                self._statistics_table,
+                other._statistics_table,
+            )
+        )
 
 
 class WeightedSubstrateActivityDiagnostics(ActivityMethodDiagnostics):

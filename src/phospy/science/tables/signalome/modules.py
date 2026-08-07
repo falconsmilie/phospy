@@ -22,7 +22,7 @@ _ROW_TOTAL_ATOL = 0.05
 _VALUE_BOUNDS_ATOL = 1e-6
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SignalomeModulesTable(TableSchema):
     """Schema wrapper for ``signalome_result.signalome_modules.table``."""
 

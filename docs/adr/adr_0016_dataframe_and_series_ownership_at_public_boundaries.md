@@ -32,6 +32,14 @@ dataset read paths use owner-detached immutable snapshots scoped to one
 thread that view through internal collaborators so repeated reads do not
 recreate full matrix deep copies. This does not change public export semantics.
 
+Update note (2026-08-07, public equality and hashing): public pandas-bearing
+containers must not rely on dataclass-generated equality. Stable dataset,
+result, table-wrapper, request, and provenance-bearing containers use explicit
+identity equality and identity hashing unless they define a named scientific
+content-comparison method. Those named methods compare owned pandas leaves with
+`Index.equals`, `DataFrame.equals`, `Series.equals`, typed scalar comparison, or
+stable fingerprints selected by the owning domain model.
+
 ## Context and Problem Statement
 
 PhosPy datasets and workflow results carry mutable pandas objects internally.
@@ -73,6 +81,11 @@ PhosPy adopts and enforces the following ownership rules:
 7. Defensive-copy cost at public boundaries is accepted by design.
 8. PhosPy must not change host-application pandas global options, including
    `mode.copy_on_write`.
+9. Dataclass-generated equality is forbidden for public containers that own or
+   may carry pandas/NumPy payloads. Table fields must not be hidden with
+   `compare=False` while retaining misleading partial value equality, and
+   `unsafe_hash=True` is forbidden. Scientific content equality belongs to the
+   owning domain model through a named method.
 
 ## Boundary Rules
 
@@ -228,6 +241,11 @@ but cannot claim deep immutability.
 - Workflow copy-count instrumentation must cover at least one representative
   differential run and assert the full phospho matrix is not repeatedly
   deep-copied by validator/interpreter handoffs.
+- API contract tests must statically audit public pandas/NumPy-bearing
+  dataclasses for implicit equality and `unsafe_hash=True`, and must exercise
+  same-instance comparison, independent equivalent objects, scientifically
+  different tables, different provenance over equal tables, bundle
+  reconstruction/round-trip comparison, and hash behavior.
 - Release-scale memory profiling remains an explicit local benchmark concern.
   The 50,000 x 48 builder+differential workload is measured by
   `make benchmark-release-scale` / `benchmarks/measure_release_scale_builder_differential.py`
@@ -255,6 +273,8 @@ Future changes must satisfy all of the following:
 5. Are high-throughput persistence paths kept in explicit publisher/export APIs?
 6. Are workflow-scoped immutable snapshots confined to one run and never reused
    as cross-run mutable caches?
+7. Do public pandas/NumPy-bearing containers avoid implicit dataclass equality,
+   pandas Boolean coercion, partial `compare=False` equality, and unsafe hashes?
 
 ## Relationship to Earlier ADRs
 

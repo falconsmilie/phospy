@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
+from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
 from phospy.frames.ownership import (
     borrow_dataframe,
     borrow_optional_dataframe,
@@ -38,7 +39,7 @@ from phospy.science.references.models import Organism
 from phospy.science.transformations.models import IntensityScaleState
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
 
@@ -82,7 +83,13 @@ class AnalysisReadyPhosphoDataset:
     mutate this owning dataset.
     Internal `_borrow_*` accessors are reserved for dataset-domain internal
     view construction and return mutation-isolated internal frame snapshots.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for an explicit comparison of owned
+    analysis-ready table content and declared scientific state.
     """
+
+    __hash__ = object.__hash__
 
     intensity_scale_state: IntensityScaleState
     processing_state: DatasetProcessingState
@@ -439,3 +446,58 @@ class AnalysisReadyPhosphoDataset:
         if metadata is None:
             return None
         return metadata.observed_mask_dataframe()
+
+    def scientifically_equals(
+        self,
+        other: object,
+        *,
+        include_provenance: bool = True,
+    ) -> bool:
+        """Return ``True`` when another dataset has the same scientific content.
+
+        The comparison covers the owned analysis-ready tables, imputation
+        observation metadata, declared analysis state, organism, opaque-site
+        policy, and trusted construction assertions. Run provenance is included
+        by default because it defines the audit identity of the represented
+        tables; pass ``include_provenance=False`` to compare only table/state
+        content.
+
+        Preprocessing and protein-aware report sidecars are not part of this
+        dataset-level content contract; compare those sidecars with their own
+        named methods when that report content matters.
+        """
+
+        if not isinstance(other, AnalysisReadyPhosphoDataset):
+            return False
+        same_content = (
+            dataframe_equals(self._phospho, other._phospho)
+            and dataframe_equals(self._site_metadata, other._site_metadata)
+            and optional_dataframe_equals(self._sample_metadata, other._sample_metadata)
+            and optional_dataframe_equals(self._total, other._total)
+            and optional_dataframe_equals(self._comparisons, other._comparisons)
+            and _optional_imputation_observation_metadata_equals(
+                self._imputation_observation_metadata,
+                other._imputation_observation_metadata,
+            )
+            and self.intensity_scale_state == other.intensity_scale_state
+            and self.processing_state == other.processing_state
+            and self.organism == other.organism
+            and self.trusted_construction_assertions
+            == other.trusted_construction_assertions
+            and self.allow_opaque_site_values == other.allow_opaque_site_values
+            and self._allow_opaque_site_values == other._allow_opaque_site_values
+        )
+        if not same_content:
+            return False
+        if include_provenance and self.provenance != other.provenance:
+            return False
+        return True
+
+
+def _optional_imputation_observation_metadata_equals(
+    left: ImputationObservationMetadata | None,
+    right: ImputationObservationMetadata | None,
+) -> bool:
+    if left is None or right is None:
+        return left is right
+    return left.scientifically_equals(right)

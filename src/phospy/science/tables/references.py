@@ -41,7 +41,7 @@ def _raise_with_identifier_normalisation_report(
     )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseSubstrateReference(TableSchema):
     """Schema wrapper for ``references.kinase_substrate_map``.
 
@@ -177,7 +177,7 @@ class KinaseSubstrateReference(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SiteSequenceReference(TableSchema):
     """Schema wrapper for ``references.site_sequences``."""
 
@@ -291,7 +291,7 @@ class SiteSequenceReference(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ProteinAccessionReference(TableSchema):
     """Schema wrapper for ``references.protein_accessions``."""
 

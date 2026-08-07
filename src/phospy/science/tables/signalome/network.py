@@ -65,7 +65,7 @@ _ALLOWED_CORRELATION_STATUSES = frozenset(
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseNetworkEdgesTable(TableSchema):
     """Schema wrapper for ``signalome_result.kinase_network.edges``."""
 
@@ -135,7 +135,7 @@ class KinaseNetworkEdgesTable(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseNetworkNodesTable(TableSchema):
     """Schema wrapper for ``signalome_result.kinase_network.nodes``."""
 
@@ -181,7 +181,7 @@ class KinaseNetworkNodesTable(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseNetworkCandidateCorrelationsTable(TableSchema):
     """Schema wrapper for ``signalome_result.kinase_network.candidate_correlations``."""
 

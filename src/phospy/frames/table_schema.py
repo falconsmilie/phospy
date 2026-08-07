@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.comparison import dataframe_equals
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.frames.validation import (
     require_no_duplicate_labels,
@@ -17,9 +18,16 @@ from phospy.frames.validation import (
 ValidationErrorType = type[PhosPyValidationError]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class TableSchema:
-    """Base wrapper for one owned, validated DataFrame contract."""
+    """Base wrapper for one owned, validated DataFrame contract.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` when comparing the wrapped table content is
+    the intended operation.
+    """
+
+    __hash__ = object.__hash__
 
     frame: pd.DataFrame
     _assume_owned: InitVar[bool] = False
@@ -47,6 +55,14 @@ class TableSchema:
         """Return a table snapshot; mutating it does not mutate this object."""
 
         return export_dataframe(self.frame)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another same-type wrapper owns the same table."""
+
+        if type(self) is not type(other):
+            return False
+        other_schema = cast(TableSchema, other)
+        return dataframe_equals(self.frame, other_schema.frame)
 
     @classmethod
     def _from_owned(cls, *, frame: pd.DataFrame) -> TableSchema:

@@ -11,6 +11,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.frames.comparison import dataframe_equals
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.frames.validation import (
     require_dataframe,
@@ -34,9 +35,15 @@ from phospy.science.statistics.multiple_testing import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class DesignMatrix:
-    """Validated design matrix with samples on rows and coefficients on columns."""
+    """Validated design matrix with samples on rows and coefficients on columns.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit matrix-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     frame: pd.DataFrame
 
@@ -55,10 +62,23 @@ class DesignMatrix:
     def to_dataframe(self) -> pd.DataFrame:
         return export_dataframe(self.frame)
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another design matrix has the same content."""
 
-@dataclass(frozen=True, slots=True)
+        if not isinstance(other, DesignMatrix):
+            return False
+        return dataframe_equals(self.frame, other.frame)
+
+
+@dataclass(frozen=True, slots=True, eq=False)
 class ContrastMatrix:
-    """Validated contrast matrix with design coefficients on rows."""
+    """Validated contrast matrix with design coefficients on rows.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit matrix-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     frame: pd.DataFrame
 
@@ -77,10 +97,23 @@ class ContrastMatrix:
     def to_dataframe(self) -> pd.DataFrame:
         return export_dataframe(self.frame)
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another contrast matrix has the same content."""
 
-@dataclass(frozen=True, slots=True)
+        if not isinstance(other, ContrastMatrix):
+            return False
+        return dataframe_equals(self.frame, other.frame)
+
+
+@dataclass(frozen=True, slots=True, eq=False)
 class DifferentialAnalysisRequest:
-    """Request payload for moderated OLS-style differential analysis."""
+    """Request payload for moderated OLS-style differential analysis.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit request-content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     matrix: pd.DataFrame
     design: DesignMatrix | pd.DataFrame
@@ -159,6 +192,42 @@ class DifferentialAnalysisRequest:
             "design_decomposition",
             design_decomposition,
         )
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another request has the same scientific content."""
+
+        if not isinstance(other, DifferentialAnalysisRequest):
+            return False
+        if not isinstance(self.design, DesignMatrix) or not isinstance(
+            other.design,
+            DesignMatrix,
+        ):
+            return False
+        if not isinstance(self.contrasts, ContrastMatrix) or not isinstance(
+            other.contrasts,
+            ContrastMatrix,
+        ):
+            return False
+        return (
+            dataframe_equals(self.matrix, other.matrix)
+            and self.design.scientifically_equals(other.design)
+            and self.contrasts.scientifically_equals(other.contrasts)
+            and _design_decomposition_equals(
+                self.design_decomposition,
+                other.design_decomposition,
+            )
+            and self.empirical_bayes == other.empirical_bayes
+            and self.multiple_testing_method == other.multiple_testing_method
+        )
+
+
+def _design_decomposition_equals(
+    left: DifferentialDesignDecomposition | None,
+    right: DifferentialDesignDecomposition | None,
+) -> bool:
+    if left is None or right is None:
+        return left is right
+    return left.scientifically_equals(right)
 
 
 def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:

@@ -9,6 +9,7 @@ import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.comparison import dataframe_equals
 from phospy.science.activities.membership import ActivityMembershipSelection
 from phospy.science.activities.semantics import (
     ActivityInputMatrix,
@@ -28,9 +29,15 @@ class PredMatOverlapSummary:
     phospho_rows: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseActivityInputs:
-    """Trusted activity-like score inputs resolved by workflow validation."""
+    """Trusted activity-like score inputs resolved by workflow validation.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit activity-input content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     pred_mat: pd.DataFrame
     phospho_matrix: pd.DataFrame
@@ -126,6 +133,28 @@ class KinaseActivityInputs:
         if self.activity_input is None:
             raise RuntimeError("KinaseActivityInputs.activity_input was not resolved")
         return self.activity_input.profile_metadata
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another validated input has the same content."""
+
+        if not isinstance(other, KinaseActivityInputs):
+            return False
+        if self.activity_input is None or other.activity_input is None:
+            same_activity_input = self.activity_input is other.activity_input
+        else:
+            same_activity_input = self.activity_input.scientifically_equals(
+                other.activity_input
+            )
+        return (
+            dataframe_equals(self.pred_mat, other.pred_mat)
+            and dataframe_equals(self.phospho_matrix, other.phospho_matrix)
+            and self.threshold == other.threshold
+            and self.min_substrates == other.min_substrates
+            and self.top_n_substrates == other.top_n_substrates
+            and self.overlap_summary == other.overlap_summary
+            and same_activity_input
+            and self.membership_selection == other.membership_selection
+        )
 
 
 __all__ = [

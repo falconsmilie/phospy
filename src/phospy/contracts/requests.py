@@ -80,7 +80,7 @@ DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class PhosphositeImportRequest:
     """Request for translating an upstream phosphosite table into builder inputs.
 
@@ -94,7 +94,12 @@ class PhosphositeImportRequest:
     column names, or a mapping of ``source_column -> sample_id``. Importers do
     not infer sample groups, contrasts, batches, or differential designs from
     these names.
+
+    Python equality and hashing are identity-based. The importer owns semantic
+    request interpretation; this payload does not define content equality.
     """
+
+    __hash__ = object.__hash__
 
     source: DatasetInput
     sample_intensity_columns: Mapping[str, str] | Sequence[str]
@@ -127,7 +132,7 @@ class PhosphositeImporter(Protocol):
     def run(self, request: PhosphositeImportRequest) -> object: ...
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class EnrichmentWorkflowRequest:
     """Request for native enrichment.
 
@@ -135,7 +140,12 @@ class EnrichmentWorkflowRequest:
     background compatibility, input-source selection, input emptiness, and
     config type are validated by ``EnrichmentWorkflow.run(...)`` before
     interpretation or execution.
+
+    Python equality and hashing are identity-based. The workflow owns semantic
+    request interpretation; this payload does not define content equality.
     """
+
+    __hash__ = object.__hash__
 
     identifier_column: str
     identifier_kind: EnrichmentIdentifierKind
@@ -148,7 +158,7 @@ class EnrichmentWorkflowRequest:
     background_identifier_provenance: EnrichmentIdentifierSetProvenance | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class KinaseWorkflowRequest:
     """Request for the public kinase workflow.
 
@@ -163,7 +173,12 @@ class KinaseWorkflowRequest:
     `reference_display_ambiguity_policy` controls whether display-level
     kinase-substrate reference rows may project to more than one dataset
     `site_key`. The default is conservative and rejects ambiguous projection.
+
+    Python equality and hashing are identity-based. The workflow owns semantic
+    request interpretation; this payload does not define content equality.
     """
+
+    __hash__ = object.__hash__
 
     dataset: AnalysisReadyPhosphoDataset
     references: ReferencePreset | ReferenceBundle = ReferencePreset.AUTO
@@ -181,7 +196,7 @@ class KinaseWorkflowRequest:
     kinase_library_resource: KinaseLibraryResource | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SignalomeWorkflowRequest:
     """Request for the public signalome workflow.
 
@@ -194,13 +209,18 @@ class SignalomeWorkflowRequest:
     interpreted site via ``dataset.site_metadata.protein_group_id``. The legacy
     ``dataset.site_metadata.protein_id`` column is accepted only as a migration
     alias.
+
+    Python equality and hashing are identity-based. The workflow owns semantic
+    request interpretation; this payload does not define content equality.
     """
+
+    __hash__ = object.__hash__
 
     kinase_result: KinaseWorkflowResult
     config: SignalomeConfig = field(default_factory=SignalomeConfig)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class DifferentialAnalysisRequest:
     """Request for the public differential workflow.
 
@@ -208,7 +228,12 @@ class DifferentialAnalysisRequest:
     alignment, contrast validity, replicate requirements, and config coherence
     are validated by ``DifferentialAnalysisWorkflow.run(...)`` before
     interpretation or statistical execution.
+
+    Python equality and hashing are identity-based. The workflow owns semantic
+    request interpretation; this payload does not define content equality.
     """
+
+    __hash__ = object.__hash__
 
     dataset: AnalysisReadyPhosphoDataset
     design: ExperimentalDesign

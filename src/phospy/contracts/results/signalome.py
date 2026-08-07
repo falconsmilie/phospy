@@ -10,6 +10,7 @@ import pandas as pd
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.contracts.results.kinase import KinaseWorkflowResult
 from phospy.errors.validation import ContractValidationError, PhosPyValidationError
+from phospy.frames.comparison import optional_dataframe_equals
 from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
 from phospy.provenance.models import RunProvenance
 from phospy.science.datasets.models import (
@@ -41,7 +42,7 @@ from phospy.science.tables.signalome import (
 )
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class SignalomeWorkflowResult:
     """Top-level public signalome workflow result.
 
@@ -60,6 +61,10 @@ class SignalomeWorkflowResult:
     `protein_site_context` provide optional signalome provenance sidecars for
     site-level and protein-level phosphosite context.
 
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit workflow-result content
+    comparison.
+
     Provenance in this object describes owned internal state at creation time.
     Public export helpers return defensive snapshots; mutating exported
     DataFrames does not mutate this owning result. Constructor validation is
@@ -68,6 +73,8 @@ class SignalomeWorkflowResult:
     resolution, dataset identity validation, dataset repair, file export,
     plotting, or report formatting.
     """
+
+    __hash__ = object.__hash__
 
     dataset: AnalysisReadyPhosphoDataset
     kinase_result: KinaseWorkflowResult
@@ -397,6 +404,54 @@ class SignalomeWorkflowResult:
         """Return a protein-site context snapshot, not an export."""
 
         return export_optional_dataframe(self._protein_site_context)
+
+    def scientifically_equals(
+        self,
+        other: object,
+        *,
+        include_provenance: bool = True,
+    ) -> bool:
+        """Return ``True`` when another signalome result has the same content."""
+
+        if not isinstance(other, SignalomeWorkflowResult):
+            return False
+        same_content = (
+            self.dataset.scientifically_equals(
+                other.dataset,
+                include_provenance=include_provenance,
+            )
+            and self.kinase_result.scientifically_equals(
+                other.kinase_result,
+                include_provenance=include_provenance,
+            )
+            and self.module_assignments.scientifically_equals(other.module_assignments)
+            and self.signalome_modules.scientifically_equals(other.signalome_modules)
+            and self.kinase_network.scientifically_equals(other.kinase_network)
+            and self.module_selection_diagnostics == other.module_selection_diagnostics
+            and self.clustering_preparation_diagnostics
+            == other.clustering_preparation_diagnostics
+            and self.score_preconditioning_diagnostics
+            == other.score_preconditioning_diagnostics
+            and self.alignment_diagnostics == other.alignment_diagnostics
+            and self.caveats == other.caveats
+            and optional_dataframe_equals(
+                self._expanded_signalome,
+                other._expanded_signalome,
+            )
+            and optional_dataframe_equals(
+                self._site_membership,
+                other._site_membership,
+            )
+            and optional_dataframe_equals(
+                self._protein_site_context,
+                other._protein_site_context,
+            )
+        )
+        if not same_content:
+            return False
+        if include_provenance:
+            return self.provenance == other.provenance
+        return True
 
 
 def _validate_expanded_signalome_shape(

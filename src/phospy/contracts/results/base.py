@@ -15,6 +15,7 @@ from phospy.contracts.dataset_build import (
     DatasetBuildRequest,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
 from phospy.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
@@ -559,7 +560,7 @@ class ImporterQualityReport:
         }
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class PhosphositeImportResult:
     """Candidate tables produced by an upstream phosphosite importer.
 
@@ -568,7 +569,13 @@ class PhosphositeImportResult:
     tables into ``AnalysisReadyDatasetBuilder`` without bypassing the builder's
     validation, preprocessing, site-key derivation, or peptide-evidence
     resolution responsibilities.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit importer-result content
+    comparison.
     """
+
+    __hash__ = object.__hash__
 
     _phospho_matrix_candidate: pd.DataFrame
     _site_metadata_candidate: pd.DataFrame
@@ -823,6 +830,33 @@ class PhosphositeImportResult:
         raise PhosPyInputError(
             "phosphosite import result site_resolution_mode must be one of: "
             "'site_level_resolved', 'peptide_evidence'"
+        )
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another import result owns the same content."""
+
+        if not isinstance(other, PhosphositeImportResult):
+            return False
+        return (
+            dataframe_equals(
+                self._phospho_matrix_candidate,
+                other._phospho_matrix_candidate,
+            )
+            and dataframe_equals(
+                self._site_metadata_candidate,
+                other._site_metadata_candidate,
+            )
+            and optional_dataframe_equals(
+                self._peptide_evidence,
+                other._peptide_evidence,
+            )
+            and self._sample_column_mapping == other._sample_column_mapping
+            and self.localisation_confidence_column
+            == other.localisation_confidence_column
+            and self.warnings == other.warnings
+            and self.diagnostics == other.diagnostics
+            and self.source_name == other.source_name
+            and self.quality_report == other.quality_report
         )
 
 

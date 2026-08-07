@@ -14,6 +14,7 @@ from phospy.contracts.enrichment_identifier_sets import (
 )
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.validation import ContractValidationError
+from phospy.frames.comparison import dataframe_equals
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.provenance.models import RunProvenance
@@ -27,7 +28,7 @@ from phospy.science.enrichment.models import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class EnrichmentWorkflowResult:
     """Top-level native enrichment result container.
 
@@ -38,7 +39,12 @@ class EnrichmentWorkflowResult:
     ``table``, ``result_table``, and ``to_dataframe()`` return in-memory
     defensive snapshots only. Exporting, formatting, plotting, and report
     generation belong to IO or presentation adapters.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit content comparison.
     """
+
+    __hash__ = object.__hash__
 
     identifier_kind: EnrichmentIdentifierKind
     set_collection: EnrichmentSetCollection
@@ -54,7 +60,7 @@ class EnrichmentWorkflowResult:
     selected_identifier_provenance: EnrichmentIdentifierSetProvenance | None = None
     background_identifier_provenance: EnrichmentIdentifierSetProvenance | None = None
     provenance: RunProvenance | None = None
-    _result_table: pd.DataFrame = field(init=False, repr=False, compare=False)
+    _result_table: pd.DataFrame = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         identifier_kind = _require_identifier_kind(
@@ -176,6 +182,40 @@ class EnrichmentWorkflowResult:
         """Return a defensive snapshot of the enrichment result table."""
 
         return export_dataframe(self._result_table)
+
+    def scientifically_equals(
+        self,
+        other: object,
+        *,
+        include_provenance: bool = True,
+    ) -> bool:
+        """Return ``True`` when another enrichment result has the same content."""
+
+        if not isinstance(other, EnrichmentWorkflowResult):
+            return False
+        same_content = (
+            self.identifier_kind == other.identifier_kind
+            and self.set_collection == other.set_collection
+            and self.config == other.config
+            and self.records == other.records
+            and self.unmatched_identifiers == other.unmatched_identifiers
+            and self.warnings == other.warnings
+            and self.caveats == other.caveats
+            and self.diagnostics == other.diagnostics
+            and self.method_metadata == other.method_metadata
+            and self.background_summary == other.background_summary
+            and self.set_collection_summary == other.set_collection_summary
+            and self.selected_identifier_provenance
+            == other.selected_identifier_provenance
+            and self.background_identifier_provenance
+            == other.background_identifier_provenance
+            and dataframe_equals(self._result_table, other._result_table)
+        )
+        if not same_content:
+            return False
+        if include_provenance and self.provenance != other.provenance:
+            return False
+        return True
 
 
 def _enrichment_records_to_dataframe(

@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
+from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
 from phospy.frames.ownership import (
     borrow_dataframe,
     borrow_optional_dataframe,
@@ -118,13 +119,15 @@ class SiteSequenceResolutionReport:
     final_sequence_complete_sites: int
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class DatasetPreprocessingReport:
     """Public provenance report for dataset preprocessing.
 
     Internal `_borrow_*` accessors return mutation-isolated internal table
     snapshots for trusted internal read paths only.
     """
+
+    __hash__ = object.__hash__
 
     _row_counts: pd.DataFrame = field(init=False, repr=False)
     _operations: pd.DataFrame = field(init=False, repr=False)
@@ -451,6 +454,41 @@ class DatasetPreprocessingReport:
 
         return self._intensity_transformation_event
 
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another report owns the same report content."""
+
+        if not isinstance(other, DatasetPreprocessingReport):
+            return False
+        return (
+            dataframe_equals(self._row_counts, other._row_counts)
+            and dataframe_equals(self._operations, other._operations)
+            and dataframe_equals(self._row_audit, other._row_audit)
+            and optional_dataframe_equals(
+                self._duplicate_site_resolution,
+                other._duplicate_site_resolution,
+            )
+            and optional_dataframe_equals(
+                self._metadata_conflicts,
+                other._metadata_conflicts,
+            )
+            and optional_dataframe_equals(
+                self._comparison_group_stats,
+                other._comparison_group_stats,
+            )
+            and optional_dataframe_equals(
+                self._comparison_pair_stats,
+                other._comparison_pair_stats,
+            )
+            and self._site_sequence_resolution == other._site_sequence_resolution
+            and self._batch_correction == other._batch_correction
+            and _optional_scientific_equals(
+                self._protein_aware_preparation,
+                other._protein_aware_preparation,
+            )
+            and self._intensity_transformation_event
+            == other._intensity_transformation_event
+        )
+
     def site_attrition_summary(self) -> PreprocessingSiteAttritionSummary:
         """Return compact preprocessing-owned site attrition counters."""
 
@@ -625,6 +663,15 @@ def _is_missing_value(value: object) -> bool:
         temporal_value = cast(object, value)
         return str(temporal_value) == "NaT"
     return False
+
+
+def _optional_scientific_equals(left: object | None, right: object | None) -> bool:
+    if left is None or right is None:
+        return left is right
+    method = getattr(left, "scientifically_equals", None)
+    if callable(method):
+        return bool(method(right))
+    return left == right
 
 
 def _require_instance(

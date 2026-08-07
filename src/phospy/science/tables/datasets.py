@@ -40,7 +40,7 @@ from phospy.science.sites.metadata_validation import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class PhosphoIntensityMatrix(TableSchema):
     """Schema wrapper for ``dataset.phospho``."""
 
@@ -80,7 +80,7 @@ class PhosphoIntensityMatrix(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SiteMetadataTable(TableSchema):
     """Schema wrapper for ``dataset.site_metadata``."""
 
@@ -204,7 +204,7 @@ class SiteMetadataTable(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SampleMetadataTable(TableSchema):
     """Schema wrapper for ``dataset.sample_metadata``.
 
@@ -245,7 +245,7 @@ class SampleMetadataTable(TableSchema):
         return frame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class TotalProteinMatrix(TableSchema):
     """Schema wrapper for ``dataset.total``."""
 

@@ -73,7 +73,7 @@ _SIGNALOME_ASSIGNMENTS_REQUIRED_COLUMNS = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class SignalomeAssignmentsTable(TableSchema):
     """Schema wrapper for ``signalome_result.module_assignments.table``."""
 

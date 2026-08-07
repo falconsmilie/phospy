@@ -13,6 +13,7 @@ from typing import cast
 import pandas as pd
 
 from phospy.errors.validation import ReferenceValidationError
+from phospy.frames.comparison import dataframe_equals
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import (
@@ -377,14 +378,35 @@ _SOURCE_FILE_ROLE_ALIASES: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ReferenceBundleValidationResult:
-    """Validated reference tables plus the public validation report."""
+    """Validated reference tables plus the public validation report.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit content comparison.
+    """
+
+    __hash__ = object.__hash__
 
     kinase_substrate_map: pd.DataFrame
     site_sequences: pd.DataFrame
     identifier_normalisation: ReferenceIdentifierNormalisationReport | None
     report: ReferenceBundleValidationReport
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another validation result has the same content."""
+
+        if not isinstance(other, ReferenceBundleValidationResult):
+            return False
+        return (
+            dataframe_equals(
+                self.kinase_substrate_map,
+                other.kinase_substrate_map,
+            )
+            and dataframe_equals(self.site_sequences, other.site_sequences)
+            and self.identifier_normalisation == other.identifier_normalisation
+            and self.report == other.report
+        )
 
 
 class ReferenceBundleValidator:
@@ -897,14 +919,19 @@ class BundledReferenceLane:
         }
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class ReferenceBundle:
     """Resolved workflow reference resources.
 
     Large kinase-substrate maps are supported. Runtime in downstream workflows
     is primarily controlled by dataset/reference overlap after interpreter and
     scoring-lane filtering, not only by raw map row count.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit reference-content comparison.
     """
+
+    __hash__ = object.__hash__
 
     organism: Organism
     kinase_substrate_map: pd.DataFrame
@@ -914,7 +941,6 @@ class ReferenceBundle:
     _validation_report: ReferenceBundleValidationReport = field(
         init=False,
         repr=False,
-        compare=False,
     )
 
     def __init__(
@@ -1101,3 +1127,30 @@ class ReferenceBundle:
         """Return the structured validation report for this bundle."""
 
         return self._validation_report
+
+    def scientifically_equals(
+        self,
+        other: object,
+        *,
+        include_provenance: bool = True,
+    ) -> bool:
+        """Return ``True`` when another reference bundle has the same content."""
+
+        if not isinstance(other, ReferenceBundle):
+            return False
+        same_content = (
+            self.organism == other.organism
+            and dataframe_equals(
+                self.kinase_substrate_map,
+                other.kinase_substrate_map,
+            )
+            and dataframe_equals(self.site_sequences, other.site_sequences)
+            and self._validation_report == other._validation_report
+        )
+        if not same_content:
+            return False
+        if include_provenance:
+            return (
+                self.provenance == other.provenance and self.manifest == other.manifest
+            )
+        return True
