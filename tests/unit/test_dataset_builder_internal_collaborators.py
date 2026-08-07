@@ -8,7 +8,7 @@ import pytest
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest
 from phospy.api.requests import (
-    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
 from phospy.errors.input import PhosPyInputError
@@ -97,7 +97,7 @@ def test_interpreter_keeps_audit_reports_typed_until_execution_boundary() -> Non
             site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
             peptide_evidence=_peptide_evidence(),
             peptide_evidence_sample_intensity_columns=("sample_a",),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             organism=Organism.HUMAN,
             input_intensity_scale="linear",
         )

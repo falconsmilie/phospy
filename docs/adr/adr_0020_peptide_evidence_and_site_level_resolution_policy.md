@@ -6,7 +6,7 @@
 - **Title:** Peptide Evidence and Site-Level Resolution Policy
 - **Status:** Accepted
 - **Date:** 2026-05-12
-- **Amended:** 2026-08-05
+- **Amended:** 2026-08-07
 - **Decision Type:** Architecture Decision Record
 
 ## Context
@@ -29,12 +29,35 @@ one of:
 
 - `reject`
 - `exclude_from_sequence_scoring`
-- `keep_joint`
 - `split`
 
 Policy mapping reuses the existing `phospy.science.evidence` models and multi-site
 resolution logic (`PeptideEvidenceTable`, `MultiSiteHandlingConfig`,
 `SiteEvidenceMapping`) instead of introducing parallel ambiguity models.
+
+## Amendment: Analysis-Ready Joint Evidence Policy Removal
+
+**Date:** 2026-08-07
+
+`keep_joint` is not a valid `AnalysisReadyDatasetBuilder` policy. A joint
+multi-site token preserves unresolved peptide ambiguity and therefore cannot
+satisfy the strict analysis-ready site identity contract, which requires one
+residue and one position per output row. Requests using
+`multi_site_policy="keep_joint"` fail during dataset-build request validation
+with migration guidance.
+
+Analysis-ready peptide-evidence requests must choose one of the policies that
+can produce strict site-level rows:
+
+- `split`: allocate ambiguous evidence to resolved site rows.
+- `reject`: fail when ambiguous peptide evidence is present.
+- `exclude_from_sequence_scoring`: exclude ambiguous peptide evidence from the
+  analysis-ready build.
+
+Unresolved joint evidence may remain in upstream or explicitly
+non-analysis-ready evidence models, but it is not an output shape for
+`AnalysisReadyPhosphoDataset` and must not be interpreted by downstream
+workflows.
 
 ## Amendment: Differential Uncertainty Scope
 
@@ -352,8 +375,9 @@ The dataset report/provenance includes:
 
 - Call sites that provide peptide evidence must now provide
   `peptide_evidence_sample_intensity_columns` and `multi_site_policy`.
-- `keep_joint` rows preserve ambiguous site tokens and must be interpreted as
-  ambiguous by consumers.
+- Unresolved joint evidence cannot be carried across the analysis-ready dataset
+  boundary; callers must choose `split`, `reject`, or
+  `exclude_from_sequence_scoring`.
 - Explicit mapping-weight contracts reject malformed mappings where per-peptide
   weights do not sum to `1.0`.
 

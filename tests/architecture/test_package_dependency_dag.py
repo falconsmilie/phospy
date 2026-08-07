@@ -291,6 +291,18 @@ def test_contracts_to_science_imports_match_module_allowlist() -> None:
     assert stale_allowed == []
 
 
+def test_workflows_do_not_import_unresolved_peptide_evidence_models() -> None:
+    graph = _build_import_graph()
+    offenders = sorted(
+        f"{record.source_module}:{record.line} -> {record.target}"
+        for record in graph.records
+        if record.source_module.startswith("phospy.workflows")
+        if record.target.startswith("phospy.science.evidence")
+    )
+
+    assert offenders == []
+
+
 def test_import_extractor_includes_all_static_import_forms() -> None:
     source = """
 from typing import TYPE_CHECKING

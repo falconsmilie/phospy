@@ -15,7 +15,7 @@ from phospy.api import (
 )
 from phospy.api.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
 from phospy.api.requests import (
-    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
 from phospy.errors.references import UnsupportedOrganismError
@@ -547,7 +547,7 @@ def test_builder_rejects_conflicting_peptide_site_sequences_before_construction(
                 site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
                 peptide_evidence=peptide_evidence,
                 peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
                 input_intensity_scale="linear",
                 organism=Organism.HUMAN,
             )

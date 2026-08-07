@@ -10,7 +10,6 @@ from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest, Organism, PhosPyInputError
 from phospy.api.requests import (
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
-    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
@@ -43,6 +42,7 @@ from phospy.science.evidence import (
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LEGACY_ALIAS,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN,
+    SUPPORTED_DATASET_MULTI_SITE_POLICIES,
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceResolutionResult,
     PeptideEvidenceResolutionSummary,
@@ -192,7 +192,7 @@ def _run_policy_resolution(
         multi_site_policy=(
             DATASET_MULTI_SITE_POLICY_SPLIT
             if split
-            else DATASET_MULTI_SITE_POLICY_KEEP_JOINT
+            else DATASET_MULTI_SITE_POLICY_REJECT
         ),
         input_intensity_scale="linear",
     )
@@ -323,13 +323,21 @@ def test_peptide_evidence_requires_multi_site_policy() -> None:
         DatasetBuildRequestValidator().run(request)
 
 
+def test_builder_supported_multi_site_policies_are_strict_site_level_only() -> None:
+    assert SUPPORTED_DATASET_MULTI_SITE_POLICIES == (
+        DATASET_MULTI_SITE_POLICY_REJECT,
+        DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
+        DATASET_MULTI_SITE_POLICY_SPLIT,
+    )
+
+
 def test_peptide_evidence_resolver_preserves_accession_identity_metadata() -> None:
     resolved = PeptideEvidenceDatasetResolver().run(
         evidence=PeptideEvidenceTable(
             frame=_single_site_peptide_evidence_frame(),
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="linear",
     )
 
@@ -359,7 +367,7 @@ def test_peptide_evidence_rejects_conflicting_accessions_per_resolved_site() -> 
                 frame=evidence,
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="linear",
         )
     message = str(exc_info.value)
@@ -387,7 +395,7 @@ def test_builder_uses_peptide_evidence_accession_for_site_key_identity() -> None
             site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
             peptide_evidence=_single_site_peptide_evidence_frame(),
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="linear",
             organism=Organism.HUMAN,
         )
@@ -463,7 +471,7 @@ def test_public_builder_allows_log2_peptide_evidence_with_unit_mapping() -> None
             site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
             peptide_evidence=_single_site_peptide_evidence_frame(),
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="log2",
             organism=Organism.HUMAN,
         )
@@ -511,7 +519,7 @@ def test_peptide_evidence_rejects_site_sequence_center_residue_mismatch() -> Non
                 frame=_peptide_evidence_center_residue_mismatch_frame(),
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="linear",
         )
 
@@ -527,7 +535,7 @@ def test_builder_rejects_peptide_evidence_sequence_center_residue_mismatch() -> 
                 site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
                 peptide_evidence=_peptide_evidence_center_residue_mismatch_frame(),
                 peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
                 input_intensity_scale="linear",
                 organism=Organism.HUMAN,
             )
@@ -546,7 +554,7 @@ def test_peptide_evidence_rejects_conflicting_valid_site_sequences() -> None:
                 frame=evidence,
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="linear",
         )
 
@@ -564,7 +572,7 @@ def test_peptide_evidence_conflicting_site_sequence_details_are_order_invariant(
                     frame=_same_resolved_site_evidence_frame(site_sequences),
                     sample_intensity_columns=("sample_a", "sample_b"),
                 ),
-                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
                 input_intensity_scale="linear",
             )
         messages.append(str(exc_info.value))
@@ -579,7 +587,7 @@ def test_peptide_evidence_equivalent_site_sequences_normalize_to_one_value() -> 
             frame=_same_resolved_site_evidence_frame((" aaAsaaa ", "AAASAAA")),
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="linear",
     )
 
@@ -600,7 +608,7 @@ def test_peptide_evidence_rejects_mixed_valid_and_invalid_site_sequences() -> No
                 frame=evidence,
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="linear",
         )
 
@@ -622,7 +630,7 @@ def test_peptide_evidence_ignores_blank_and_null_sequence_values_for_conflicts()
             frame=_same_resolved_site_evidence_frame(("AAASAAA", " ", pd.NA, None)),
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="linear",
     )
 
@@ -705,7 +713,7 @@ def test_peptide_evidence_resolution_is_invariant_to_row_permutation() -> None:
                 frame=_same_resolved_site_evidence_frame(tuple(site_sequences)),
                 sample_intensity_columns=("sample_a", "sample_b"),
             ),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="linear",
         )
         payload = resolved.summary.to_payload()
@@ -727,7 +735,7 @@ def test_peptide_evidence_resolution_is_invariant_to_row_permutation() -> None:
                     frame=_same_resolved_site_evidence_frame(tuple(site_sequences)),
                     sample_intensity_columns=("sample_a", "sample_b"),
                 ),
-                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
                 input_intensity_scale="linear",
             )
         failure_messages.add(str(exc_info.value))
@@ -750,7 +758,7 @@ def test_peptide_evidence_preserves_matching_sequence_with_only_text_normalisati
             frame=single_site.reset_index(drop=True),
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="linear",
     )
 
@@ -778,7 +786,7 @@ def test_peptide_evidence_resolution_records_absent_sequence_context() -> None:
             frame=single_site.reset_index(drop=True),
             sample_intensity_columns=("sample_a", "sample_b"),
         ),
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="linear",
     )
 
@@ -843,36 +851,44 @@ def test_exclude_policy_records_exclusions_in_report_and_provenance() -> None:
     )
 
 
-def test_keep_joint_policy_rejects_joint_ambiguous_site_representation() -> None:
-    with pytest.raises(PhosPyInputError, match="strict residue/position"):
+def test_keep_joint_policy_fails_request_validation_with_migration_message() -> None:
+    request = DatasetBuildRequest(
+        site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+        peptide_evidence=_peptide_evidence_frame(include_single_site=False),
+        peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+        multi_site_policy="keep_joint",
+        input_intensity_scale="linear",
+        organism=Organism.HUMAN,
+    )
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        DatasetBuildRequestValidator().run(request)
+
+    message = str(exc_info.value)
+    assert "multi_site_policy='keep_joint' is no longer supported" in message
+    assert "strict site-level identity contract" in message
+    assert "multi_site_policy='split'" in message
+    assert "'reject'" in message
+    assert "'exclude_from_sequence_scoring'" in message
+
+
+def test_public_builder_rejects_keep_joint_before_site_key_derivation() -> None:
+    with pytest.raises(PhosPyInputError) as exc_info:
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
                 site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
                 peptide_evidence=_peptide_evidence_frame(include_single_site=False),
                 peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                multi_site_policy="keep_joint",
                 input_intensity_scale="linear",
                 allow_opaque_site_values=True,
                 organism=Organism.HUMAN,
             )
         )
 
-
-def test_keep_joint_policy_without_opaque_opt_in_fails_dataset_validation() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="strict residue/position",
-    ):
-        AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(
-                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-                peptide_evidence=_peptide_evidence_frame(include_single_site=False),
-                peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
-                input_intensity_scale="linear",
-                organism=Organism.HUMAN,
-            )
-        )
+    message = str(exc_info.value)
+    assert "multi_site_policy='keep_joint' is no longer supported" in message
+    assert "strict residue/position" not in message
 
 
 def test_split_policy_applies_deterministic_equal_split() -> None:
@@ -966,7 +982,7 @@ def test_multiple_peptides_mapping_to_one_site_are_mean_aggregated() -> None:
             site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
             peptide_evidence=evidence,
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             input_intensity_scale="linear",
             organism=Organism.HUMAN,
         )
@@ -1422,7 +1438,7 @@ def test_log2_unit_mapping_round_trip_is_supported_only_for_known_unit_mapping()
     )
     log2_resolved = PeptideEvidenceDatasetResolver().run(
         evidence=log2_evidence,
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="log2",
     )
 

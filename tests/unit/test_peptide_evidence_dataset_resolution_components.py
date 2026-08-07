@@ -8,7 +8,7 @@ import pytest
 
 from phospy.api import PhosPyInputError
 from phospy.science.evidence.dataset_resolution import (
-    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
     DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH,
     DATASET_PEPTIDE_INPUT_QUANTITATIVE_MEANING_PEPTIDE_LOG2_ABUNDANCE,
@@ -320,7 +320,7 @@ def test_metadata_aggregates_one_site_repeated_evidence_and_localisation() -> No
     resolved = aggregate_site_metadata_and_localisation(
         allocated_evidence=allocated_evidence,
         site_ids=pd.Index(["MAPK1;S10;"], name="site_id"),
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
     )
 
     assert resolved.site_metadata.index.name == "site_id"
@@ -366,7 +366,7 @@ def test_metadata_records_missing_localisation_when_no_finite_values_exist() -> 
     resolved = aggregate_site_metadata_and_localisation(
         allocated_evidence=allocated_evidence,
         site_ids=pd.Index(["AKT1;S473;"], name="site_id"),
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
     )
 
     assert pd.isna(resolved.site_metadata.loc["AKT1;S473;", "localisation_confidence"])
@@ -392,7 +392,7 @@ def test_metadata_rejects_conflicting_metadata_for_resolved_site() -> None:
         aggregate_site_metadata_and_localisation(
             allocated_evidence=allocated_evidence,
             site_ids=pd.Index(["MAPK1;S10;"], name="site_id"),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         )
 
     message = str(exc_info.value)
@@ -441,7 +441,7 @@ def test_site_sequence_accepts_valid_supplied_sequence() -> None:
         ),
         site_id="MAPK1;S10;",
         resolved_site_token="S10",
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
     )
 
     assert resolved.site_sequence == "AAASAAA"
@@ -462,7 +462,7 @@ def test_site_sequence_rejects_invalid_supplied_sequence() -> None:
             ),
             site_id="MAPK1;S10;",
             resolved_site_token="S10",
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         )
 
     message = str(exc_info.value)
@@ -487,7 +487,7 @@ def test_site_sequence_rejects_conflicting_supplied_sequences_with_stable_previe
             ),
             site_id="MAPK1;S10;",
             resolved_site_token="S10",
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         )
 
     message = str(exc_info.value)
@@ -509,7 +509,7 @@ def test_site_sequence_rejects_mixed_valid_and_invalid_supplied_evidence() -> No
             ),
             site_id="MAPK1;S10;",
             resolved_site_token="S10",
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         )
 
     message = str(exc_info.value)
@@ -579,7 +579,7 @@ def test_site_sequence_records_missing_sequence_when_no_context_can_resolve() ->
         ),
         site_id="MAPK1;S10;",
         resolved_site_token="S10",
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
     )
 
     assert resolved.site_sequence is None
@@ -814,7 +814,7 @@ def test_resolver_outputs_are_isolated_from_input_frame_mutation() -> None:
     )
     resolved = PeptideEvidenceDatasetResolver().run(
         evidence=evidence,
-        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="linear",
     )
     original_phospho = resolved.phospho.copy(deep=True)

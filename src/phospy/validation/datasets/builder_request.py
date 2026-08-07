@@ -171,6 +171,16 @@ def _validate_site_resolution_mode(site_resolution_mode: object) -> str:
 
 
 def _validate_dataset_multi_site_policy(multi_site_policy: object) -> None:
+    if multi_site_policy == "keep_joint":
+        raise PhosPyInputError(
+            "dataset build request multi_site_policy='keep_joint' is no longer "
+            "supported for AnalysisReadyDatasetBuilder peptide-evidence requests "
+            "because unresolved joint evidence cannot satisfy the strict "
+            "site-level identity contract. Use multi_site_policy='split' to "
+            "allocate ambiguous evidence to strict site rows, 'reject' to fail "
+            "on ambiguous peptide rows, or 'exclude_from_sequence_scoring' to "
+            "remove ambiguous rows from the analysis-ready build."
+        )
     if (
         isinstance(multi_site_policy, str)
         and multi_site_policy in SUPPORTED_DATASET_MULTI_SITE_POLICIES

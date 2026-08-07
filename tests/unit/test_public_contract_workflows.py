@@ -43,7 +43,6 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS = {
     "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
-    "DATASET_MULTI_SITE_POLICY_KEEP_JOINT",
     "DATASET_MULTI_SITE_POLICY_REJECT",
     "DATASET_MULTI_SITE_POLICY_SPLIT",
     "DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE",
@@ -112,6 +111,8 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
 
 def test_request_compatibility_constants_are_public_exports() -> None:
     assert INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS <= set(request_models.__all__)
+    assert "DATASET_MULTI_SITE_POLICY_KEEP_JOINT" not in request_models.__all__
+    assert not hasattr(request_models, "DATASET_MULTI_SITE_POLICY_KEEP_JOINT")
 
 
 def test_request_star_import_exposes_public_contract_without_internals() -> None:

@@ -21,7 +21,7 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.api.requests import (
-    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
 from phospy.errors import PhosPyInputError
@@ -286,7 +286,7 @@ def test_preferred_lane_resolves_peptide_intensities_before_core_differential_mo
             site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
             peptide_evidence=peptide_evidence,
             peptide_evidence_sample_intensity_columns=("A_1", "A_2", "B_1", "B_2"),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
             organism=Organism.HUMAN,
             input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(

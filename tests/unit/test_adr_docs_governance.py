@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from phospy.science.evidence.dataset_resolution import (
+    SUPPORTED_DATASET_MULTI_SITE_POLICIES,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 ADR_ROOT = ROOT / "docs" / "adr"
 ADR_INDEX = ADR_ROOT / "index.md"
@@ -12,6 +16,7 @@ ADR_0034 = (
     ADR_ROOT / "adr_0034_quantitative_state_motif_semantics_and_reference_context.md"
 )
 ADR_0003 = ADR_ROOT / "adr_0003-analysis_ready_dataset_and_preprocessing_boundary.md"
+ADR_0020 = ADR_ROOT / "adr_0020_peptide_evidence_and_site_level_resolution_policy.md"
 
 _ADR_ID_PATTERN = re.compile(r"^- \*\*ADR ID:\*\*\s*(ADR-\d{4})\s*$", re.MULTILINE)
 _ADR_STATUS_PATTERN = re.compile(r"^- \*\*Status:\*\*\s*(.+?)\s*$", re.MULTILINE)
@@ -192,3 +197,18 @@ def test_dataset_boundary_adr_inventories_non_builder_construction_paths() -> No
     missing = [term for term in required_terms if term not in normalized]
 
     assert missing == []
+
+
+def test_adr_0020_multi_site_policy_list_matches_builder_contract() -> None:
+    text = _read_text(ADR_0020)
+    match = re.search(
+        r"When `peptide_evidence` is used, `multi_site_policy` is required and "
+        r"must be\s+one of:\n\n(?P<items>(?:- `[^`]+`\n)+)\nPolicy mapping",
+        text,
+    )
+    assert match is not None
+    documented = tuple(
+        item.strip()[3:-1] for item in match.group("items").strip().splitlines()
+    )
+
+    assert documented == SUPPORTED_DATASET_MULTI_SITE_POLICIES

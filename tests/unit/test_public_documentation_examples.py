@@ -4,6 +4,10 @@ import ast
 import re
 from pathlib import Path
 
+from phospy.science.evidence.dataset_resolution import (
+    SUPPORTED_DATASET_MULTI_SITE_POLICIES,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_GUIDE = ROOT / "docs" / "api" / "guide.md"
@@ -405,6 +409,46 @@ def test_readme_links_to_existing_api_workflow_docs() -> None:
     assert ENRICHMENT_WORKFLOW_DOC.exists()
     assert KINASE_WORKFLOW_DOC.exists()
     assert SIGNALOME_WORKFLOW_DOC.exists()
+
+
+def test_dataset_build_docs_document_keep_joint_replacement_guidance() -> None:
+    source = _read(DATASET_WORKFLOW_DOC)
+
+    _assert_statement_contains_all(
+        source,
+        ("keep_joint", "not supported", "AnalysisReadyDatasetBuilder"),
+        context="dataset-build keep_joint migration guidance",
+    )
+    _assert_statement_contains_all(
+        source,
+        ("strict", "residue/position", "AnalysisReadyPhosphoDataset"),
+        context="dataset-build strict site identity guidance",
+    )
+    _assert_python_call_keyword(
+        source,
+        "DatasetBuildRequest",
+        "multi_site_policy",
+        "split",
+        context="dataset-build keep_joint replacement example",
+    )
+    assert 'replaces the removed "keep_joint" builder policy' in source
+
+
+def test_dataset_build_docs_multi_site_policy_list_matches_builder_contract() -> None:
+    source = _read(DATASET_WORKFLOW_DOC)
+    match = re.search(
+        r"Supported analysis-ready policies are:\n\n"
+        r"(?P<items>(?:(?:- |  ).+\n)+)",
+        source,
+    )
+    assert match is not None
+    documented = tuple(
+        item.split("`", maxsplit=2)[1]
+        for item in match.group("items").strip().splitlines()
+        if item.startswith("- `")
+    )
+
+    assert documented == SUPPORTED_DATASET_MULTI_SITE_POLICIES
 
 
 def test_api_guide_differential_import_examples_match_supported_route() -> None:

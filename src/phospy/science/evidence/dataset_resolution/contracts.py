@@ -13,7 +13,6 @@ from phospy.errors.input import PhosPyInputError
 from phospy.science.evidence.multi_site import (
     MULTI_SITE_POLICY_ERROR,
     MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
-    MULTI_SITE_POLICY_KEEP_JOINT,
     MULTI_SITE_POLICY_SPLIT_EQUAL_WEIGHT,
     MultiSiteHandlingConfig,
 )
@@ -33,12 +32,11 @@ DATASET_MULTI_SITE_POLICY_REJECT = "reject"
 DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (
     "exclude_from_sequence_scoring"
 )
-DATASET_MULTI_SITE_POLICY_KEEP_JOINT = "keep_joint"
 DATASET_MULTI_SITE_POLICY_SPLIT = "split"
+_REMOVED_DATASET_MULTI_SITE_POLICY_KEEP_JOINT = "keep_joint"
 SUPPORTED_DATASET_MULTI_SITE_POLICIES: tuple[str, ...] = (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
-    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
 )
 
@@ -47,7 +45,6 @@ _POLICY_TO_MULTI_SITE_HANDLING_POLICY: dict[str, str] = {
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING: (
         MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
     ),
-    DATASET_MULTI_SITE_POLICY_KEEP_JOINT: MULTI_SITE_POLICY_KEEP_JOINT,
     DATASET_MULTI_SITE_POLICY_SPLIT: MULTI_SITE_POLICY_SPLIT_EQUAL_WEIGHT,
 }
 
@@ -1219,6 +1216,16 @@ def build_multi_site_handling_config_for_dataset_policy(
 
 
 def validate_dataset_multi_site_policy(policy: object, *, field_name: str) -> None:
+    if policy == _REMOVED_DATASET_MULTI_SITE_POLICY_KEEP_JOINT:
+        raise PhosPyInputError(
+            f"{field_name}='keep_joint' is no longer supported for "
+            "AnalysisReadyDatasetBuilder peptide-evidence requests because "
+            "unresolved joint evidence cannot satisfy the strict site-level "
+            "identity contract. Use multi_site_policy='split' to allocate "
+            "ambiguous evidence to strict site rows, 'reject' to fail on "
+            "ambiguous peptide rows, or 'exclude_from_sequence_scoring' to "
+            "remove ambiguous rows from the analysis-ready build."
+        )
     if (
         not isinstance(policy, str)
         or policy not in SUPPORTED_DATASET_MULTI_SITE_POLICIES
@@ -1232,7 +1239,6 @@ def validate_dataset_multi_site_policy(policy: object, *, field_name: str) -> No
 __all__ = [
     "CURRENT_RESOLUTION_POLICIES",
     "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
-    "DATASET_MULTI_SITE_POLICY_KEEP_JOINT",
     "DATASET_MULTI_SITE_POLICY_REJECT",
     "DATASET_MULTI_SITE_POLICY_SPLIT",
     "DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS",

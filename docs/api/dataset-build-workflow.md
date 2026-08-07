@@ -1138,6 +1138,34 @@ ruv_readiness = DatasetRuvReadinessConfig(
 )
 ```
 
+## Peptide-Evidence Multi-Site Policy
+
+When `site_resolution_mode="peptide_evidence"`, the builder requires an
+explicit `multi_site_policy`. Supported analysis-ready policies are:
+
+- `reject`: fail when ambiguous peptide evidence is present.
+- `exclude_from_sequence_scoring`: exclude ambiguous peptide evidence before the
+  analysis-ready dataset is built.
+- `split`: allocate ambiguous peptide evidence to strict site-level rows.
+
+The former `keep_joint` value is not supported by
+`AnalysisReadyDatasetBuilder`. Joint multi-site tokens keep unresolved peptide
+ambiguity and cannot produce the strict residue/position identity required by
+`AnalysisReadyPhosphoDataset`.
+
+Migration example:
+
+```python
+request = DatasetBuildRequest(
+    site_resolution_mode="peptide_evidence",
+    peptide_evidence=peptide_evidence,
+    peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+    multi_site_policy="split",  # replaces the removed "keep_joint" builder policy
+    organism=Organism.HUMAN,
+    input_intensity_scale="linear",
+)
+```
+
 ## Full Dataset-Build Example
 
 ```python
