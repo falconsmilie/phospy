@@ -18,10 +18,11 @@ Default `pytest` excludes parity tests for developer speed through the
 `tests/release`, `tests/golden`, and `tests/performance`. It is not sufficient
 for publishing. Public releases must run the maintainer command,
 `make release-check`; that command runs lint, type checking, the default
-non-parity suite, threshold-bearing parity tests excluding
-`parity_diagnostic`, performance contracts, release/golden/reproducibility
-gates, checked-in reference validation, a fresh build, metadata checks, and
-packaged-reference checks. `make release-check` also runs the standalone
+non-parity suite, public-consumer contract tests, threshold-bearing parity tests
+excluding `parity_diagnostic`, performance contracts, strict documentation
+build, release/golden/reproducibility gates, checked-in reference validation, a
+fresh build, metadata checks, and packaged-reference checks. `make
+release-check` also runs the standalone
 installed-distribution verifier, which installs the built wheel and sdist in
 temporary environments outside the checkout and executes public/scientific
 contracts from the installed package, including bundled-resource hash checks
@@ -36,14 +37,15 @@ promoted into the release selector. `make test-release-gates` selects
 `tests/release` and `tests/golden` explicitly with
 `release_gate or golden or reproducibility`.
 
-CI runs the non-parity, threshold-bearing parity, release/golden, and
-performance release-science selectors on Python 3.11 and 3.12. A separate
-Python 3.11 minimum-dependency lane uses `constraints/minimum.txt`, runs
-`pip check`, then runs the non-parity suite and release/golden selectors that
-do not require external scientific tools. Manifest-governed fixture byte
-integrity runs on both Ubuntu and Windows so release fixtures keep LF bytes
-across checkout platforms. The installed-distribution verifier also runs on
-Python 3.11 and 3.12 against the single uploaded wheel/sdist artifact set.
+CI runs the non-parity, public-consumer contract, threshold-bearing parity,
+release/golden, and performance release-science selectors on Python 3.11 and
+3.12, and gates documentation with `mkdocs build --strict`. A separate Python
+3.11 minimum-dependency lane uses `constraints/minimum.txt`, runs `pip check`,
+then runs the non-parity suite and release/golden selectors that do not require
+external scientific tools. Manifest-governed fixture byte integrity runs on both
+Ubuntu and Windows so release fixtures keep LF bytes across checkout platforms.
+The installed-distribution verifier also runs on Python 3.11 and 3.12 against
+the single uploaded wheel/sdist artifact set.
 
 The optional 50,000 x 48 release-scale builder+differential benchmark lives
 under `benchmarks/` and is invoked with `make benchmark-release-scale`. It is

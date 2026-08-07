@@ -4,7 +4,7 @@
 # Use with:
 #   python -m pip install -c constraints/ci.txt -e ".[test]"
 #   python -m pip install -c constraints/ci.txt -e ".[dev,test]"
-#   python -m pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+#   python -m pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 #
 # Policy:
 # - pyproject.toml keeps minimum supported versions for install flexibility.
@@ -23,6 +23,10 @@ pyright==1.1.410
 pandas-stubs==3.0.0.260204
 scipy-stubs==1.17.1.4
 ruff==0.15.7
+
+mkdocs==1.6.1
+mkdocs-material==9.5.49
+pymdown-extensions==10.12
 
 build==1.2.2.post1
 twine==6.1.0

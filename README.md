@@ -55,12 +55,13 @@ pytest tests/parity -m "parity and not parity_diagnostic" -s
 ```
 
 For public release checks, the maintainer command is `make release-check`. It
-runs the normal lint, type, unit, blocking parity, performance,
-release/golden/reproducibility, checked-in reference, distribution build, and
-installed wheel/sdist verification checks:
+runs the normal lint, type, unit, external-consumer contract, blocking parity,
+performance, strict documentation build, release/golden/reproducibility,
+checked-in reference, distribution build, and installed wheel/sdist verification
+checks:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 make release-check
 ```
 

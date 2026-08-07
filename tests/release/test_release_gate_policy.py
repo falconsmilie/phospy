@@ -29,8 +29,10 @@ RELEASE_CHECK_DEPENDENCIES = (
     "lint",
     "type-check",
     "test-unit",
+    "test-contract",
     "test-parity",
     "test-performance",
+    "docs-build",
     "validate-reference-bundles",
     "test-release-gates",
     "build",
@@ -50,6 +52,7 @@ REQUIRED_TEST_SOURCE_ROOTS = (
     Path("tests/validation"),
     Path("tests/science"),
     Path("tests/architecture"),
+    Path("tests/contract"),
     Path("tests/performance"),
     Path("tests/release"),
     Path("tests/golden"),
@@ -1627,6 +1630,7 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         "integration",
         "parity",
         "performance",
+        "contract",
         "slow",
         "release_gate",
         "reproducibility",
@@ -1636,10 +1640,20 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
     }
 
     makefile = _read("Makefile")
+    assert re.search(r"(?ms)^\.PHONY:.*test-contract", makefile) is not None
     assert re.search(r"(?ms)^\.PHONY:.*test-release-gates", makefile) is not None
+    assert re.search(r"(?ms)^\.PHONY:.*docs-build", makefile) is not None
+    assert "make test-contract" in _make_target_body("help")
     assert "make test-release-gates" in _make_target_body("help")
+    assert "make docs-build" in _make_target_body("help")
 
     assert '$(PYTEST) -m "not parity"' in _make_target_body("test-unit")
+    contract = _make_target_body("test-contract")
+    assert '$(MKDIR_P) "$(PYTEST_REPORT_DIR)"' in contract
+    assert (
+        "$(PYTEST) -o addopts= tests/contract --junitxml "
+        '"$(PYTEST_REPORT_DIR)/contract.xml"'
+    ) in contract
     assert (
         '$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s'
         in _make_target_body("test-parity")
@@ -1656,6 +1670,8 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         "$(PYTHON) scripts/validate_reference_bundle_index.py --repo-root ."
         in _make_target_body("validate-reference-bundles")
     )
+    assert "$(MKDOCS) build --strict" in _make_target_body("docs-build")
+    assert "strict: true" in _read("mkdocs.yml")
     assert (
         "$(PYTHON) scripts/verify_installed_distributions.py --dist-dir dist "
         "--repo-root . --constraint constraints/ci.txt"
@@ -2162,6 +2178,7 @@ def test_publish_workflow_builds_once_and_publishes_uploaded_dist() -> None:
     pypi = _workflow_job_block(workflow, "publish-to-pypi")
 
     assert "run: make release-check" in build
+    assert ".[dev,test,parquet,docs]" in build
     assert "name: python-package-distributions" in build
     assert _has_needs(verifier, "build")
     _assert_supported_python_matrix(verifier)
@@ -2203,6 +2220,8 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     benchmark = _workflow_job_block(workflow, "benchmark-smoke")
     testing_audit = _workflow_job_block(workflow, "testing-audit-freshness")
     default_suite = _workflow_job_block(workflow, "default-suite")
+    contract = _workflow_job_block(workflow, "public-consumer-contracts")
+    documentation = _workflow_job_block(workflow, "documentation")
     activity_parity = _workflow_job_block(workflow, "activity-parity-gate")
     hard_parity = _workflow_job_block(workflow, "parity-tests")
     diagnostics = _workflow_job_block(workflow, "parity-diagnostics")
@@ -2217,6 +2236,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert f"python-version: '{unsupported_python_310}'" not in workflow
     _assert_supported_python_matrix(clean_install)
     _assert_supported_python_matrix(default_suite)
+    _assert_supported_python_matrix(contract)
     _assert_supported_python_matrix(activity_parity)
     _assert_supported_python_matrix(hard_parity)
     _assert_supported_python_matrix(performance)
@@ -2227,11 +2247,17 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         minimum,
         benchmark,
         testing_audit,
+        documentation,
         reference_bundles,
         adaptive,
         diagnostics,
     ):
         assert "python-version: '3.11'" in lowest_supported_job
+    assert "make test-contract" in contract
+    assert "public-consumer-contracts-py${{ matrix.python-version }}" in contract
+    assert 'pip install -e ".[docs]"' in documentation
+    assert "make docs-build" in documentation
+    assert "$(MKDOCS) build --strict" in _make_target_body("docs-build")
     assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance
     assert "make validate-reference-bundles" in reference_bundles

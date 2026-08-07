@@ -46,6 +46,26 @@ Overwrite is explicit. Existing output directories are rejected unless callers
 pass `overwrite=True`. Replacement writes are still staged in a separate
 directory; the existing directory is not modified in place.
 
+Overwrite promotion is owned by
+`src/phospy/io/bundles/_shared/transactions.py` and follows an explicit
+directory transaction lifecycle:
+
+- `staged`: the new bundle has been serialized into a sibling temporary
+  directory and its manifest exists;
+- `original moved to backup`: for overwrites only, the previous target
+  directory has been moved to a sibling recovery backup;
+- `staged promoted`: the staged directory has been promoted to the requested
+  target path;
+- `rollback restored`: if staged promotion fails after the original was moved
+  to backup, the backup has been moved back to the target path;
+- `recovery backup retained`: if rollback cannot restore the target path, the
+  backup remains in place and the raised exception identifies its exact path.
+
+The recovery backup is deleted only after staged promotion succeeds. Rollback
+failures are not reported as ordinary promotion failures: the raised error must
+state that rollback failed and must include the retained recovery-backup path so
+the previous valid bundle can be recovered manually.
+
 Loaders parse the manifest, verify all declared file sizes and SHA-256 digests,
 and reject undeclared bundle-local files before reconstructing result models.
 Digest mismatches, missing files, and stale extra files are fatal.
@@ -63,6 +83,13 @@ the requested bundle root is not published.
 Failed overwrite attempts before promotion leave the previous target directory
 unchanged. Successful overwrite attempts replace the previous directory with a
 fresh staged tree, preventing stale files from surviving by accident.
+
+If staged promotion fails after the original target has been moved aside,
+rollback restores the original target before the error is raised. If rollback
+also fails, the recovery backup is retained and reported by exact path; cleanup
+must not remove that backup while it is the only known valid copy. If cleanup of
+a staged directory or obsolete backup fails, the cleanup failure is reported
+without deleting the successfully promoted bundle or restored original.
 
 The manifest cannot record its own digest without an external trust root or
 sidecar signature. This ADR scopes integrity to files addressed by the manifest;

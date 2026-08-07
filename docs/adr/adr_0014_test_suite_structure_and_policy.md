@@ -27,6 +27,7 @@ The codebase now includes:
 - provenance golden contracts
 - public-boundary adversarial gates for exported API signatures, provenance
   binding, DataFrame ownership, and recursive JSON immutability
+- external-consumer public API contract tests under `tests/contract/`
 - parity tests with distinct purpose from golden tests
 - dedicated performance contract tests under `tests/performance/`
 
@@ -51,13 +52,20 @@ PhosPy test categories remain:
 - `tests/integration`
 - `tests/parity`
 - `tests/architecture`
+- `tests/contract`
 - `tests/release`
 - `tests/golden`
 - `tests/performance`
 
-`parity`, `tests/release`, `tests/golden`, and `tests/performance` remain
-outside the default local pytest invocation and are selected by explicit release
-targets.
+`tests/contract` is an explicit external-consumer contract suite. It remains
+outside the default local pytest invocation and is selected by `make
+test-contract`, which is release-blocking. Contract tests must exercise public
+construction and workflow entrypoints rather than validation or construction
+internals.
+
+`parity`, `tests/contract`, `tests/release`, `tests/golden`, and
+`tests/performance` remain outside the default local pytest invocation and are
+selected by explicit release targets.
 PhosPy-owned release-validation science contracts that are not external parity
 may live under `tests/science` and carry `release_gate` when they protect
 adverse scientific cases.
@@ -78,6 +86,14 @@ adverse scientific cases.
    kinase, and supported public-boundary contracts without importing
    repository tests or fixtures.
 4. Installed public-boundary and resource failures block release.
+5. Source-tree external-consumer contracts in `tests/contract/` prove that a
+   separate-style consumer can build an analysis-ready dataset, run supported
+   workflows, receive typed results, and query result tables by `site_key` using
+   only supported imports.
+6. Architecture tests statically reject unsupported imports in
+   `tests/contract/`, including `phospy.science`, `phospy.validation`, private
+   `phospy` module segments, and workflow implementation modules such as
+   validators, interpreters, and executors.
 
 ### Golden and Provenance Regression Governance
 
@@ -132,10 +148,12 @@ adverse scientific cases.
 1. A documented release-gate command must run:
    - normal unit tests
    - integration tests
+   - external-consumer public API contract tests through `make test-contract`
    - release-gated reproducibility/golden tests through `make test-release-gates`
    - threshold-bearing parity tests through
      `pytest tests/parity -m "parity and not parity_diagnostic" -s`
    - performance contract tests
+   - strict documentation build through `make docs-build`
    - archive-level wheel/sdist metadata and packaged-reference checks
    - installed wheel/sdist verification outside the checkout
 2. Fast local defaults may keep parity, release/golden, and performance suites
@@ -148,9 +166,9 @@ adverse scientific cases.
    effective markers against the authoritative release targets so
    release-blocking tests cannot be missed silently.
 7. CI must run the release-science selectors on every supported Python version
-   for the non-parity suite, threshold-bearing parity suite, release/golden
-   gates, and bounded performance contracts unless a performance waiver is
-   documented.
+   for the non-parity suite, external-consumer contract suite,
+   threshold-bearing parity suite, release/golden gates, and bounded performance
+   contracts unless a performance waiver is documented.
 8. CI must include a maintained minimum-dependency lane that uses a dedicated
    lower-bound constraint file rather than the current pinned CI constraints,
    runs `pip check`, and executes the non-parity plus release/golden selectors
@@ -159,7 +177,10 @@ adverse scientific cases.
    machine-dependent and non-release-blocking.
 10. CI and publication workflows must run installed wheel/sdist verification
     against the single built artifact set on Python 3.11 and 3.12.
-11. Release-policy tests must audit the effective command and import closure of
+11. CI must run `mkdocs build --strict` or an equivalent strict documentation
+    build so documentation warnings, including broken internal links, fail the
+    build.
+12. Release-policy tests must audit the effective command and import closure of
     release Make targets and CI/publication workflow commands so the prohibited
     50,000 x 48 workload cannot become release-reachable through renaming,
     simple arithmetic, helper modules, configuration objects, or marker changes.
@@ -193,7 +214,9 @@ adverse scientific cases.
 - `tests/integration/test_signalome_workflow_integration.py`
 - `tests/unit/test_scientific_invariants.py`
 - `tests/parity/`
+- `tests/contract/`
 - `tests/architecture/test_public_boundary_integrity.py`
+- `tests/architecture/test_public_consumer_contract_imports.py`
 - `tests/unit/test_public_boundary_adversarial.py`
 - `tests/performance/test_performance_contracts.py`
 - `benchmarks/measure_release_scale_builder_differential.py`
@@ -209,11 +232,12 @@ adverse scientific cases.
 - `docs/maintenance.md`
 - `docs/testing/pytest_markers.md`
 - `Makefile` (`release-check`, `test-release-gates`, `test-performance`,
-  `verify-installed-distributions`)
+  `test-contract`, `docs-build`, `verify-installed-distributions`)
 - `.github/workflows/publish.yml` (release-gate enforcement)
 - `.github/workflows/ci.yml` (supported-version release-science matrix and
-  minimum-dependency lane)
+  minimum-dependency lane plus strict documentation gate)
 - `constraints/minimum.txt`
+- `mkdocs.yml`
 - `src/phospy/science/signalomes/clustering/scale_guards.py`
 - `pyproject.toml`
 
@@ -248,6 +272,11 @@ Future changes must satisfy all the following:
     outside the checkout, use isolated Python execution, verify bundled
     resources, exercise the supported public boundary, and avoid repository
     test helpers?
+12. Do `tests/contract/` tests still use public construction/workflow routes
+    only, avoid unsupported imports, receive typed results, and cover `site_key`
+    table lookup behavior?
+13. Does CI still run strict documentation builds so broken internal links fail
+    before release?
 
 ## Amendment: Optional Release-Scale Benchmark Ownership (2026-07-29)
 

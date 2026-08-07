@@ -68,6 +68,12 @@ test = [
   "pytest>=8.0",
 ]
 
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "pymdown-extensions>=10.0",
+]
+
 dev = [
   "hypothesis>=6",
   "pandas-stubs>=3.0.0.260204",
@@ -98,6 +104,7 @@ markers = [
   "unit: focused tests for a single module/function contract with isolated collaborators",
   "integration: multi-component rewrite workflow tests",
   "performance: lightweight performance contract tests for key scientific hot paths",
+  "contract: external-consumer public API contract tests that are release-blocking",
   "parity: compare Python outputs against R/PhosR reference fixtures",
   "slow: long-running tests that are useful for local confidence but not required in default fast loops",
   "release_gate: extended release-confidence tests (parity/performance/reproducibility and golden contracts)",

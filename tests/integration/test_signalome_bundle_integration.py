@@ -162,6 +162,65 @@ def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     _assert_signalome_result_equal(loaded.result, result)
 
 
+def test_signalome_bundle_overwrite_uses_shared_transaction_recovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.io.bundles._shared.transactions as transactions
+
+    request, result = _build_signalome_request_and_result()
+    config_snapshot = SignalomeWorkflowConfigSnapshot.from_request(request)
+    bundle_root = tmp_path / "signalome_overwrite"
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=config_snapshot,
+    )
+    original_manifest = (bundle_root / "manifest.json").read_bytes()
+    original_replace = transactions.Path.replace
+
+    def fail_staged_promotion(self: Path, target: str | Path) -> Path:
+        source = Path(self)
+        if (
+            source.name.startswith(f".{bundle_root.name}.tmp-")
+            and Path(target) == bundle_root
+        ):
+            raise PermissionError("simulated signalome staged promotion failure")
+        return original_replace(self, target)
+
+    monkeypatch.setattr(transactions.Path, "replace", fail_staged_promotion)
+    with pytest.raises(
+        PhosPyInputError,
+        match="rollback restored the original bundle",
+    ):
+        save_signalome_workflow_bundle(
+            result,
+            bundle_root,
+            config_snapshot=config_snapshot,
+            overwrite=True,
+        )
+
+    assert (bundle_root / "manifest.json").read_bytes() == original_manifest
+    assert not list(tmp_path.glob(".signalome_overwrite.tmp-*"))
+    assert not list(tmp_path.glob(".signalome_overwrite.previous-*"))
+    loaded_after_failure = load_signalome_workflow_bundle(bundle_root)
+    _assert_signalome_result_equal(loaded_after_failure.result, result)
+
+    monkeypatch.setattr(transactions.Path, "replace", original_replace)
+    stale_path = bundle_root / "stale.csv"
+    stale_path.write_text("stale", encoding="utf-8")
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=config_snapshot,
+        overwrite=True,
+    )
+
+    assert not stale_path.exists()
+    loaded_after_success = load_signalome_workflow_bundle(bundle_root)
+    _assert_signalome_result_equal(loaded_after_success.result, result)
+
+
 def test_signalome_bundle_manifest_v2_is_explicit_and_content_addressed(
     tmp_path: Path,
 ) -> None:

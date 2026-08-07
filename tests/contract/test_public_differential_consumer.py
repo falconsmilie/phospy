@@ -15,6 +15,8 @@ from phospy.api import (
     SampleDesignRecord,
 )
 
+pytestmark = pytest.mark.contract
+
 
 def test_public_consumer_builds_and_runs_differential_by_site_key() -> None:
     phospho = pd.DataFrame(

@@ -1313,6 +1313,53 @@ def test_kinase_bundle_overwrite_policy_is_explicit_and_transactional(
     _assert_kinase_result_equal(loaded.result, result)
 
 
+def test_kinase_bundle_overwrite_promotion_failure_restores_original(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.io.bundles._shared.transactions as transactions
+
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    config_snapshot = KinaseWorkflowConfigSnapshot.from_request(request)
+    bundle_root = tmp_path / "kinase_promotion_failure"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=config_snapshot,
+    )
+    original_manifest = (bundle_root / "manifest.json").read_bytes()
+    original_replace = transactions.Path.replace
+
+    def fail_staged_promotion(self: Path, target: str | Path) -> Path:
+        source = Path(self)
+        if (
+            source.name.startswith(f".{bundle_root.name}.tmp-")
+            and Path(target) == bundle_root
+        ):
+            raise PermissionError("simulated kinase staged promotion failure")
+        return original_replace(self, target)
+
+    monkeypatch.setattr(transactions.Path, "replace", fail_staged_promotion)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="rollback restored the original bundle",
+    ):
+        save_kinase_workflow_bundle(
+            result,
+            bundle_root,
+            config_snapshot=config_snapshot,
+            overwrite=True,
+        )
+
+    assert (bundle_root / "manifest.json").read_bytes() == original_manifest
+    assert not list(tmp_path.glob(".kinase_promotion_failure.tmp-*"))
+    assert not list(tmp_path.glob(".kinase_promotion_failure.previous-*"))
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    _assert_kinase_result_equal(loaded.result, result)
+
+
 def test_kinase_bundle_v1_manifest_is_rejected_with_migration_message(
     tmp_path: Path,
 ) -> None:

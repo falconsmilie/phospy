@@ -3,6 +3,7 @@ site_description: Python native implementation of selected PhosR style workflows
 site_url: https://phospy.com/docs/
 repo_url: https://github.com/falconsmilie/phospy
 docs_dir: docs
+strict: true
 
 theme:
   name: material

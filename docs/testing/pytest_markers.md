@@ -7,6 +7,7 @@ policy.
 
 - `unit`: Focused tests for a single module/function contract with isolated collaborators.
 - `integration`: Multi-component workflow tests across public boundaries.
+- `contract`: External-consumer public API contract tests.
 - `parity`: Python vs R/PhosR parity checks against approved reference fixtures.
 - `performance`: Performance contract checks for key scientific paths.
 - `slow`: Long-running tests that are useful for deeper local validation.
@@ -29,6 +30,7 @@ selected by explicit Makefile targets. The release check blocks release on:
 | Lint | Blocking through `ruff check .`. |
 | Type checking | Blocking through `python scripts/run_pyright.py`. |
 | Default non-parity suite | Blocking through `pytest -m "not parity"` over configured `testpaths`. |
+| `tests/contract` and `contract` | Blocking through `make test-contract`, which runs `pytest -o addopts= tests/contract`. |
 | Checked-in reference bundles | Blocking through `python scripts/validate_reference_bundle_index.py --repo-root .`. |
 | Built distributions | Blocking through `make build`, metadata checks, and packaged-reference validation. |
 | Installed distributions | Blocking through `make verify-installed-distributions`, which installs and executes the built wheel and sdist outside the checkout. |
@@ -36,6 +38,7 @@ selected by explicit Makefile targets. The release check blocks release on:
 | `parity` | Blocking through `pytest tests/parity -m "parity and not parity_diagnostic" -s`. |
 | `activity_parity` | Blocking because the activity parity file is also marked `parity` and is not marked `parity_diagnostic`; CI also has a dedicated activity parity gate. |
 | `performance` | Blocking through `pytest tests/performance -m "performance or release_gate"`. |
+| Documentation | Blocking through `make docs-build`, which runs `mkdocs build --strict` so warnings, including broken internal links, fail release checks. |
 | `parity_diagnostic` | Explicitly excluded from the blocking parity target unless intentionally promoted out of the exclusion. |
 | `slow` | Not selected solely by marker for release; it runs only when also collected by a blocking selector. |
 
@@ -44,11 +47,13 @@ The optional 50,000 x 48 release-scale benchmark lives under `benchmarks/`, not
 pytest marker category, is not collected by pytest, and is excluded from
 `make test-performance`, `make release-check`, and CI.
 
-CI runs the default non-parity suite, threshold-bearing parity suite, release
-and golden gates, and performance contracts on each supported Python version:
-3.11 and 3.12. Build and archive-level packaged-reference validation remain a
-dedicated single-build artifact job; the uploaded wheel and sdist are then
-installed and executed by a separate Python 3.11 and 3.12 verifier matrix.
+CI runs the default non-parity suite, public-consumer contract suite,
+threshold-bearing parity suite, release and golden gates, and performance
+contracts on each supported Python version: 3.11 and 3.12. CI also gates
+documentation with a strict MkDocs build. Build and archive-level
+packaged-reference validation remain a dedicated single-build artifact job; the
+uploaded wheel and sdist are then installed and executed by a separate Python
+3.11 and 3.12 verifier matrix.
 Manifest-governed fixture byte integrity also runs on both Ubuntu and Windows
 to catch checkout newline conversion regressions.
 
@@ -69,17 +74,19 @@ Based on that configuration:
 
 - Default local run: `pytest`
 - Blocking parity validation: `pytest tests/parity -m "parity and not parity_diagnostic" -s`
+- External-consumer public API validation: `make test-contract`
 - Exclude slow tests in local loops: `pytest -m "not parity and not slow"`
 - Performance-only validation: `pytest tests/performance -m "performance or release_gate"`
+- Strict documentation validation: `make docs-build`
 - Optional local release-scale benchmark: `make benchmark-release-scale`
 - Release/golden validation: `make test-release-gates`
 - Installed wheel/sdist validation: `make verify-installed-distributions`
 - Full release-check command: `make release-check`
 
-The default local run deliberately omits release tests, golden tests,
-threshold-bearing parity tests, and performance contracts unless they are
-selected separately through the release check. `make release-check` is the
-authoritative aggregate command. This process provides normal CI/build
+The default local run deliberately omits contract tests, release tests, golden
+tests, threshold-bearing parity tests, documentation builds, and performance
+contracts unless they are selected separately through the release check. `make
+release-check` is the authoritative aggregate command. This process provides normal CI/build
 confidence, not formal exact-source/exact-artifact attestation.
 
 The release policy test suite includes a collection-only selector audit using

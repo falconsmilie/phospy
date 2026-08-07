@@ -56,15 +56,17 @@ Run full release checks when changing scientific/parity/provenance/performance
 behavior or before preparing a release. The maintainer release command is
 `make release-check`; default `pytest` is not sufficient for publishing, and
 blocking parity tests, performance contracts, release/golden/reproducibility
-tests, checked-in reference validation, metadata checks, packaged-reference
-checks, and installed wheel/sdist verification are release-blocking. Default
-pytest `testpaths` omit `tests/release`, `tests/golden`, and `tests/performance`; the
-`test-release-gates` Make target selects release/golden tests explicitly. This
+tests, public-consumer contract tests, strict documentation build, checked-in
+reference validation, metadata checks, packaged-reference checks, and installed
+wheel/sdist verification are release-blocking. Default pytest `testpaths` omit
+`tests/contract`, `tests/release`, `tests/golden`, and `tests/performance`; the
+`test-contract` and `test-release-gates` Make targets select those suites
+explicitly. This
 provides normal CI/build confidence, not formal exact-source/exact-artifact
 attestation:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 make release-check
 ```
 

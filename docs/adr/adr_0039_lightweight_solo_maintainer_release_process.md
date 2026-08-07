@@ -27,13 +27,16 @@ make release-check
 ```
 
 That command runs lint, type checking, the default non-parity test suite,
-threshold-bearing parity tests excluding `parity_diagnostic`, performance
-contracts, release/golden/reproducibility tests, checked-in reference-bundle
+external-consumer public API contract tests, threshold-bearing parity tests
+excluding `parity_diagnostic`, performance contracts, strict documentation
+build, release/golden/reproducibility tests, checked-in reference-bundle
 validation, and a fresh distribution build.
 
 CI expands the release-science evidence beyond the single local aggregate
-command by running the non-parity suite, threshold-bearing parity suite, bounded
-performance contracts, and release/golden gates on Python 3.11 and 3.12.
+command by running the non-parity suite, external-consumer public API contract
+suite, threshold-bearing parity suite, bounded performance contracts, and
+release/golden gates on Python 3.11 and 3.12. CI also runs a strict MkDocs build
+so documentation warnings, including broken internal links, fail before release.
 Distribution building and archive-level packaged-reference validation remain a
 dedicated single-build job so wheel publication is not duplicated. The uploaded
 wheel and sdist from that job are then installed and executed by a separate
@@ -53,11 +56,13 @@ runs the non-parity suite plus release/golden/reproducibility selectors that do
 not require external scientific tools.
 
 Default `pytest` remains a local development command. Its configured
-`testpaths` omit `tests/release`, `tests/golden`, and `tests/performance`.
-`make test-release-gates` selects `tests/release` and `tests/golden` explicitly
-with the marker expression `release_gate or golden or reproducibility` and
-clears global pytest `addopts`, so global marker defaults cannot change the
-release-gate selector.
+`testpaths` omit `tests/contract`, `tests/release`, `tests/golden`, and
+`tests/performance`. `make test-contract` selects `tests/contract` explicitly
+and clears global pytest `addopts`, so the external-consumer public API contract
+does not depend on local default collection. `make test-release-gates` selects
+`tests/release` and `tests/golden` explicitly with the marker expression
+`release_gate or golden or reproducibility` and clears global pytest `addopts`,
+so global marker defaults cannot change the release-gate selector.
 
 `make build` starts from an empty `dist/`, builds one wheel and one sdist using
 the constrained no-isolation build policy, runs metadata checks, and validates
@@ -100,7 +105,8 @@ metadata and must not be weakened to simplify publishing.
 
 Release policy tests check the Makefile command flow, CI and publish workflow
 shape, dependency constraints, minimum-dependency lane, supported Python
-release-science and installed-distribution matrices, selector coverage,
+release-science and installed-distribution matrices, public-consumer contract
+reachability, strict documentation build reachability, selector coverage,
 archive-level packaged-reference build checks, and installed-distribution
 verifier source constraints. They also audit release-reachable Make/workflow
 command and local-helper import closure for effective 50,000 x 48 workload
@@ -109,11 +115,11 @@ and keyword aliases, dictionaries, and configuration objects.
 The selector coverage audit uses collection-only pytest subprocesses to compare
 actual node IDs and effective markers against the authoritative release targets.
 Scientific runtime invariants remain protected by focused unit, integration,
-parity, golden, release, validation, workflow, architecture, and bounded
-performance tests. Installed artifact behavior is checked by standalone release
-tooling rather than pytest source-tree behavior, with regression tests that
-damage manifest-declared resources in both wheel and sdist artifacts and assert
-clear installed-probe failures. Machine-dependent scale observations are
+contract, parity, golden, release, validation, workflow, architecture, and
+bounded performance tests. Installed artifact behavior is checked by standalone
+release tooling rather than pytest source-tree behavior, with regression tests
+that damage manifest-declared resources in both wheel and sdist artifacts and
+assert clear installed-probe failures. Machine-dependent scale observations are
 collected through explicit local benchmark scripts.
 
 ## Amendment: Release-Scale Scientific Summary Equality (2026-07-27)

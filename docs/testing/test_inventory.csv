@@ -2,19 +2,21 @@ path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrizat
 tests/architecture/test_analysis_ready_construction_paths.py,architecture,53,2,false,false,,,,,,
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
 tests/architecture/test_batch_correction_validation_decomposition.py,architecture,96,5,false,false,,,,,,
-tests/architecture/test_bundle_filesystem_lifecycle_ownership.py,architecture,33,1,false,false,,,,,,
+tests/architecture/test_bundle_filesystem_lifecycle_ownership.py,architecture,78,2,false,false,,,,,,
 tests/architecture/test_config_ownership.py,architecture,279,6,false,false,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/architecture/test_dataset_builder_preprocessor_contract.py,architecture,128,3,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_exported_json_state_immutability.py,architecture,288,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_package_dependency_dag.py,architecture,607,8,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
+tests/architecture/test_public_consumer_contract_imports.py,architecture,105,1,false,false,,,,,,
 tests/architecture/test_scientific_model_decomposition.py,architecture,196,6,false,false,,,,,,
 tests/architecture/test_table_compatibility.py,architecture,320,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/architecture/test_validation_boundaries.py,architecture,817,28,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/architecture/test_validation_componentization.py,architecture,150,2,false,false,,,,,,
 tests/architecture/test_validation_ownership_governance.py,architecture,589,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/contract/test_public_differential_consumer.py,contract,119,1,false,false,,,,,,
+tests/contract/test_public_differential_consumer.py,contract,121,1,true,false,,,,,,
+tests/contract/test_public_enrichment_consumer.py,contract,67,1,true,false,,,,,,
 tests/golden/test_differential_fixture_provenance_golden.py,golden,371,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,164,5,true,false,,,,,,
@@ -29,7 +31,7 @@ tests/integration/test_differential_with_technical_replicates.py,integration,201
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,478,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/integration/test_kinase_bundle_integration.py,integration,2797,24,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/integration/test_kinase_bundle_integration.py,integration,2844,25,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/integration/test_kinase_library_workflow_scoring.py,integration,260,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,304,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,401,3,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
@@ -40,7 +42,7 @@ tests/integration/test_public_examples_smoke.py,integration,52,1,true,true,publi
 tests/integration/test_quantitative_meaning_output_audit.py,integration,456,7,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for quantitative meaning output audit, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_readme_kinase_workflow_integration.py,integration,100,1,true,false,,,,,,
 tests/integration/test_reference_bundle_builder_integration.py,integration,130,2,true,false,,,,,,
-tests/integration/test_signalome_bundle_integration.py,integration,913,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/integration/test_signalome_bundle_integration.py,integration,972,9,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/integration/test_signalome_publishing_integration.py,integration,205,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome publishing integration and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_signalome_workflow_integration.py,integration,859,9,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/workflows/differential/test_differential_result_provenance.py,differential,275,3,false,false,,,,,,
@@ -73,7 +75,7 @@ tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
 tests/release/test_release_dependency_artifact_policy.py,release,401,11,true,false,,,,,,
-tests/release/test_release_gate_policy.py,release,2262,36,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
+tests/release/test_release_gate_policy.py,release,2288,36,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,172,6,true,false,,,,,,
 tests/science/test_differential_adverse_design_contracts.py,science,369,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -114,6 +116,7 @@ tests/unit/test_batch_correction_workflow_orchestrator.py,unit,906,12,false,fals
 tests/unit/test_benchmark_scripts_smoke.py,unit,205,11,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_boundary_constructor_no_repair.py,unit,37,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_builder_and_kinase_orchestration.py,unit,723,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts. | [auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_bundle_transactions.py,unit,424,11,true,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_config_validation_primitives.py,unit,144,7,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for config validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-INT,Validator pattern report maps this file to primitive int/range/enum families; track consolidation from optional-int matrix first.
 tests/unit/test_constructor_validation_policy.py,unit,58,2,false,false,,,,,,
 tests/unit/test_control_site_eligibility_validator.py,unit,679,24,false,false,,,,,,

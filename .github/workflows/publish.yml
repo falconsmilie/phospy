@@ -31,7 +31,7 @@ jobs:
       - name: Install constrained release dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+          python -m pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
           python -m pip install -c constraints/ci.txt build twine setuptools wheel
       - name: Run release checks and build distributions
         run: make release-check

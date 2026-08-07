@@ -6,9 +6,20 @@ import shutil
 import tempfile
 import uuid
 from collections.abc import Callable
+from enum import Enum
 from pathlib import Path
 
 from phospy.errors.input import PhosPyInputError
+
+
+class _BundleTransactionState(str, Enum):
+    """Internal transaction lifecycle checkpoints for directory promotion."""
+
+    STAGED = "staged"
+    ORIGINAL_MOVED_TO_BACKUP = "original moved to backup"
+    STAGED_PROMOTED = "staged promoted"
+    ROLLBACK_RESTORED = "rollback restored"
+    RECOVERY_BACKUP_RETAINED = "recovery backup retained"
 
 
 def write_bundle_atomically(
@@ -56,9 +67,8 @@ def write_bundle_atomically(
             overwrite=overwrite,
         )
         return final_written
-    except Exception:
-        if staged_root.exists():
-            shutil.rmtree(staged_root, ignore_errors=True)
+    except Exception as exc:
+        _cleanup_staged_after_failure(staged_root, original_error=exc)
         raise
 
 
@@ -82,13 +92,17 @@ def _promote_staged_bundle(
     final_root: Path,
     overwrite: bool,
 ) -> None:
+    state = _BundleTransactionState.STAGED
     if not final_root.exists():
         try:
             staged_root.replace(final_root)
+            state = _BundleTransactionState.STAGED_PROMOTED
             return
         except OSError as exc:
             raise PhosPyInputError(
-                f"failed to promote staged bundle '{staged_root}' to '{final_root}': {exc}"
+                "failed to promote staged bundle "
+                f"'{staged_root}' to '{final_root}' "
+                f"(transaction_state='{state.value}'): {exc}"
             ) from exc
 
     if not overwrite:
@@ -100,19 +114,106 @@ def _promote_staged_bundle(
     backup_root = final_root.parent / f".{final_root.name}.previous-{uuid.uuid4().hex}"
     try:
         final_root.replace(backup_root)
+        state = _BundleTransactionState.ORIGINAL_MOVED_TO_BACKUP
+    except OSError as exc:
+        raise PhosPyInputError(
+            "failed to move existing bundle "
+            f"'{final_root}' to recovery backup '{backup_root}' "
+            f"(transaction_state='{state.value}'): {exc}"
+        ) from exc
+
+    try:
         staged_root.replace(final_root)
+        state = _BundleTransactionState.STAGED_PROMOTED
     except OSError as exc:
         if not final_root.exists() and backup_root.exists():
-            try:
-                backup_root.replace(final_root)
-            except OSError:
-                pass
+            _restore_backup_after_failed_promotion(
+                backup_root=backup_root,
+                final_root=final_root,
+                staged_root=staged_root,
+                promotion_error=exc,
+                state=state,
+            )
+            state = _BundleTransactionState.ROLLBACK_RESTORED
+            raise PhosPyInputError(
+                "failed to promote staged bundle "
+                f"'{staged_root}' to '{final_root}', but rollback restored "
+                f"the original bundle from recovery backup '{backup_root}' "
+                f"(transaction_state='{state.value}'): {exc}"
+            ) from exc
         raise PhosPyInputError(
-            f"failed to promote staged bundle '{staged_root}' to '{final_root}': {exc}"
+            "failed to promote staged bundle "
+            f"'{staged_root}' to '{final_root}' after moving the original to "
+            f"recovery backup '{backup_root}'. The recovery backup was retained "
+            f"(transaction_state='"
+            f"{_BundleTransactionState.RECOVERY_BACKUP_RETAINED.value}'): {exc}"
         ) from exc
-    finally:
-        if backup_root.exists():
-            shutil.rmtree(backup_root, ignore_errors=True)
+
+    _remove_backup_after_success(
+        backup_root=backup_root,
+        final_root=final_root,
+        state=state,
+    )
+
+
+def _restore_backup_after_failed_promotion(
+    *,
+    backup_root: Path,
+    final_root: Path,
+    staged_root: Path,
+    promotion_error: OSError,
+    state: _BundleTransactionState,
+) -> None:
+    try:
+        backup_root.replace(final_root)
+    except OSError as rollback_error:
+        retained_state = _BundleTransactionState.RECOVERY_BACKUP_RETAINED
+        raise PhosPyInputError(
+            "failed to promote staged bundle "
+            f"'{staged_root}' to '{final_root}' after moving the original to "
+            f"recovery backup '{backup_root}', and rollback failed. Recovery "
+            f"backup retained at exact path '{backup_root}' "
+            f"(transaction_state='{retained_state.value}'; "
+            f"previous_state='{state.value}'; "
+            f"promotion_error='{promotion_error}'; "
+            f"rollback_error='{rollback_error}')"
+        ) from rollback_error
+
+
+def _remove_backup_after_success(
+    *,
+    backup_root: Path,
+    final_root: Path,
+    state: _BundleTransactionState,
+) -> None:
+    if not backup_root.exists():
+        return
+    try:
+        shutil.rmtree(backup_root)
+    except OSError as exc:
+        raise PhosPyInputError(
+            "staged bundle was promoted successfully, but obsolete recovery "
+            f"backup cleanup failed. Promoted bundle remains at '{final_root}', "
+            f"and the retained backup is at exact path '{backup_root}' "
+            f"(transaction_state='{state.value}'): {exc}"
+        ) from exc
+
+
+def _cleanup_staged_after_failure(
+    staged_root: Path,
+    *,
+    original_error: Exception,
+) -> None:
+    if not staged_root.exists():
+        return
+    try:
+        shutil.rmtree(staged_root)
+    except OSError as cleanup_error:
+        raise PhosPyInputError(
+            f"{original_error} Failed to clean staged bundle directory "
+            f"'{staged_root}'. The failed staged directory was retained for "
+            f"inspection (cleanup_error='{cleanup_error}')."
+        ) from original_error
 
 
 def _rebase_written_paths(

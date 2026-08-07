@@ -14,7 +14,7 @@ from typing import Any
 COLLECTION_OUTPUT_ENV = "PHOSPY_RELEASE_SELECTOR_COLLECTION_OUTPUT"
 
 RELEASE_BLOCKING_STANDALONE_MARKERS = frozenset(
-    {"release_gate", "golden", "reproducibility"}
+    {"contract", "release_gate", "golden", "reproducibility"}
 )
 PERFORMANCE_RELEASE_SELECTOR_MARKERS = frozenset({"performance", "release_gate"})
 
@@ -92,7 +92,8 @@ class ReleaseSelectorCoverage:
             [
                 "",
                 "Release-blocking inventory rules:",
-                "- any collected node marked release_gate, golden, or reproducibility",
+                "- any collected node marked contract, release_gate, golden, or reproducibility",
+                "- any tests/contract node",
                 "- any tests/parity node marked parity and not parity_diagnostic",
                 "- any tests/performance node selected by performance or release_gate",
                 f"- total_release_blocking_nodes={len(self.release_blocking_nodes)}",
@@ -115,6 +116,11 @@ AUTHORITATIVE_RELEASE_TARGETS = (
         name="default non-parity target",
         paths=(),
         marker_expression="not parity",
+    ),
+    CollectionTarget(
+        name="test-contract",
+        paths=("tests/contract",),
+        marker_expression=None,
     ),
     CollectionTarget(
         name="test-parity",
@@ -235,6 +241,9 @@ def is_release_blocking_node(node: CollectedNode) -> bool:
         return True
 
     node_path = _node_path(node.nodeid)
+    if node_path.startswith("tests/contract/"):
+        return True
+
     if (
         node_path.startswith("tests/parity/")
         and "parity" in node.markers

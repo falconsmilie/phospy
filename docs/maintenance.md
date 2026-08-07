@@ -12,7 +12,7 @@ pip install -e ".[dev,parquet]"  # optional parquet support
 For CI-aligned dependency resolution:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test]"
+pip install -c constraints/ci.txt -e ".[dev,test,docs]"
 ```
 
 For minimum supported dependency validation, use the dedicated lower-bound
@@ -27,12 +27,13 @@ pytest -o addopts= tests/release tests/golden -m "release_gate or golden or repr
 
 For full release checks, install the release extras first. The maintainer
 release command is `make release-check`; it runs normal lint, type, unit,
-parity, performance, release/golden/reproducibility, checked-in reference,
-metadata, archive-level packaged-reference, build, and installed wheel/sdist
-verification checks:
+public-consumer contract, parity, performance, strict documentation,
+release/golden/reproducibility, checked-in reference, metadata,
+archive-level packaged-reference, build, and installed wheel/sdist verification
+checks:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 ```
 
 If `make release-check` fails with import errors for optional engines, install
@@ -110,8 +111,10 @@ Release-blocking coverage in `make release-check` is:
 | Lint | `ruff check .` |
 | Type checking | `python scripts/run_pyright.py` |
 | Default non-parity suite | `pytest -m "not parity"` |
+| External-consumer public API contract | `pytest -o addopts= tests/contract` |
 | Threshold-bearing parity | `pytest tests/parity -m "parity and not parity_diagnostic" -s` |
 | Performance release contracts | `pytest tests/performance -m "performance or release_gate"` |
+| Strict documentation build | `mkdocs build --strict` |
 | Checked-in reference bundles | `python scripts/validate_reference_bundle_index.py --repo-root .` |
 | Release/golden/reproducibility gates | `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"` |
 | Distribution build and packaged-reference checks | `make build` |
