@@ -810,6 +810,41 @@ def test_dataset_missing_data_config_rejects_knn_unsupported_distance() -> None:
         )
 
 
+def test_dataset_missing_data_config_resolves_knn_no_overlap_policy_default() -> None:
+    config = DatasetMissingDataConfig(
+        policy="impute_knn",
+        k=1,
+        distance="nan_euclidean",
+        max_missing_fraction_per_row=0.5,
+        input_scale="linear",
+    )
+
+    assert config.no_overlap_policy == "column_mean_with_caveat"
+
+
+def test_dataset_missing_data_config_accepts_knn_error_no_overlap_policy() -> None:
+    config = DatasetMissingDataConfig(
+        policy="impute_knn",
+        k=1,
+        distance="nan_euclidean",
+        max_missing_fraction_per_row=0.5,
+        input_scale="linear",
+        no_overlap_policy="error",
+    )
+
+    assert config.no_overlap_policy == "error"
+
+
+def test_dataset_missing_data_config_rejects_no_overlap_policy_for_non_knn() -> None:
+    with pytest.raises(PhosPyInputError, match="no_overlap_policy must be None"):
+        DatasetMissingDataConfig(
+            policy="impute_row_median",
+            min_observed_values=1,
+            input_scale="linear",
+            no_overlap_policy="column_mean_with_caveat",
+        )
+
+
 def test_ruv_readiness_disabled_reports_not_configured() -> None:
     _, state = _build_processing_state_from_preprocessor(
         phospho=_phospho(),

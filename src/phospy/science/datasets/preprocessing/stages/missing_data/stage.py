@@ -71,6 +71,8 @@ from .models import (
 )
 from .row_median import run_row_median_policy
 
+KNN_COLUMN_MEAN_FALLBACK_CAVEAT_CODE = "knn_column_mean_fallback_used"
+
 
 class MissingDataStage:
     """Apply the configured missing-data policy to phospho/site tables."""
@@ -282,6 +284,8 @@ def _run_knn_policy(
             "k": int(outcome.k),
             "distance": outcome.distance,
             "max_missing_fraction_per_row": float(outcome.max_missing_fraction_per_row),
+            "no_overlap_policy": outcome.no_overlap_policy,
+            "no_overlap_policy_version": int(outcome.no_overlap_policy_version),
             "input_scale": imputation_input_scale,
             "imputation_operation_order": (
                 state.plan.missing_data_imputation_operation_order
@@ -301,6 +305,36 @@ def _run_knn_policy(
         neighbour_count=int(outcome.k),
         distance_metric=outcome.distance,
         imputation_mask_hash=imputation_mask_hash,
+        knn_no_overlap_policy=outcome.no_overlap_policy,
+        knn_no_overlap_policy_version=outcome.no_overlap_policy_version,
+        knn_nearest_neighbour_imputed_cell_count=(
+            outcome.nearest_neighbour_imputed_cell_count
+        ),
+        knn_nearest_neighbour_imputed_row_ids=(
+            outcome.nearest_neighbour_imputed_row_ids
+        ),
+        knn_nearest_neighbour_imputed_column_ids=(
+            outcome.nearest_neighbour_imputed_column_ids
+        ),
+        knn_column_mean_fallback_imputed_cell_count=(
+            outcome.column_mean_fallback_imputed_cell_count
+        ),
+        knn_column_mean_fallback_row_ids=outcome.column_mean_fallback_row_ids,
+        knn_column_mean_fallback_column_ids=outcome.column_mean_fallback_column_ids,
+        knn_nearest_neighbour_imputation_mask_hash=(
+            outcome.nearest_neighbour_imputation_mask_hash
+        ),
+        knn_column_mean_fallback_imputation_mask_hash=(
+            outcome.column_mean_fallback_imputation_mask_hash
+        ),
+        knn_fully_column_mean_fallback_row_ids=(
+            outcome.fully_column_mean_fallback_row_ids
+        ),
+        diagnostic_caveat_codes=(
+            (KNN_COLUMN_MEAN_FALLBACK_CAVEAT_CODE,)
+            if outcome.column_mean_fallback_imputed_cell_count > 0
+            else ()
+        ),
     )
     return _finalize_outcome(
         state=state,
@@ -488,6 +522,7 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
         "missing_data_max_missing_fraction_per_row": (
             plan.missing_data_max_missing_fraction_per_row
         ),
+        "missing_data_no_overlap_policy": plan.missing_data_no_overlap_policy,
         "missing_data_input_scale": (
             None
             if plan.missing_data_input_scale is None

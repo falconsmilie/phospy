@@ -47,6 +47,7 @@ class PreprocessingPlanAssembler:
             missing_data_max_missing_fraction_per_row=(
                 core.missing_data_max_missing_fraction_per_row
             ),
+            missing_data_no_overlap_policy=core.missing_data_no_overlap_policy,
             missing_data_input_scale=imputation.missing_data_input_scale,
             missing_data_input_scale_source=(
                 imputation.missing_data_input_scale_source

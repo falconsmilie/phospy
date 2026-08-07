@@ -260,6 +260,7 @@ class PreprocessingPlanInterpreter:
                     if config.missing_data.max_missing_fraction_per_row is None
                     else float(config.missing_data.max_missing_fraction_per_row)
                 ),
+                missing_data_no_overlap_policy=(config.missing_data.no_overlap_policy),
             ),
             imputation=ResolvedImputationScalePlanFields(
                 missing_data_input_scale=imputation_scale.input_scale,

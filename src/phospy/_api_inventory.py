@@ -87,6 +87,7 @@ ADVANCED_CONFIG_API = (
     "DatasetLocalisationMode",
     "DatasetMissingDataConfig",
     "DatasetMissingDataInputScale",
+    "DatasetMissingDataKnnNoOverlapPolicy",
     "DatasetMissingDataPolicy",
     "DatasetNormalisationConfig",
     "DatasetNormalisationPolicy",

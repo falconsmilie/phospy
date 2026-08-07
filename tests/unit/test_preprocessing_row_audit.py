@@ -161,6 +161,64 @@ def test_missing_data_stage_audits_row_median_imputation() -> None:
     )
 
 
+def test_missing_data_stage_audits_knn_column_mean_fallback_imputation() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [float("nan"), 2.0, 4.0],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [float("nan"), 30.0, 50.0],
+        },
+        index=pd.Index(["all_missing", "row_ref_1", "row_ref_2"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["A", "B", "C"],
+            "site": ["S1", "S2", "S3"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_knn",
+                    k=1,
+                    distance="nan_euclidean",
+                    max_missing_fraction_per_row=1.0,
+                    input_scale="linear",
+                )
+            )
+        ),
+    )
+
+    imputed = preprocessed.row_audit.loc[
+        (preprocessed.row_audit["stage"] == "missing_data")
+        & (preprocessed.row_audit["action"] == "imputed")
+    ]
+    assert imputed.shape[0] == 1
+    assert imputed.iloc[0]["source_row_id"] == "all_missing"
+    snapshot = imputed.iloc[0]["parameter_snapshot"]
+    assert isinstance(snapshot, dict)
+    assert snapshot["nearest_neighbour_imputed_columns"] == ()
+    assert snapshot["column_mean_fallback_columns"] == (
+        "sample_a",
+        "sample_b",
+        "sample_c",
+    )
+    assert snapshot["nearest_neighbour_imputed_cell_count"] == 0
+    assert snapshot["column_mean_fallback_imputed_cell_count"] == 3
+    assert snapshot["fully_column_mean_fallback_imputed"] is True
+    assert snapshot["no_overlap_policy"] == "column_mean_with_caveat"
+    assert snapshot["no_overlap_policy_version"] == 1
+
+
 def test_site_matrix_stage_audits_missing_sequence_drops() -> None:
     phospho = pd.DataFrame(
         {

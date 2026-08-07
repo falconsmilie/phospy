@@ -452,8 +452,10 @@ def validate_missing_data_config(
     distance: object | None,
     max_missing_fraction_per_row: object | None,
     input_scale: object | None,
+    no_overlap_policy: object | None,
     supported_policies: Collection[str],
     supported_input_scales: Collection[str],
+    supported_no_overlap_policies: Collection[str],
     policy_forbid: str,
     policy_impute_row_median: str,
     policy_impute_minprob: str,
@@ -496,12 +498,13 @@ def validate_missing_data_config(
             or k is not None
             or distance is not None
             or max_missing_fraction_per_row is not None
+            or no_overlap_policy is not None
         ):
             raise PhosPyInputError(
                 "dataset build request "
                 "preprocessing_config.missing_data.q, .width, .seed, .k, "
-                ".distance, and "
-                ".max_missing_fraction_per_row must be None when "
+                ".distance, .max_missing_fraction_per_row, and "
+                ".no_overlap_policy must be None when "
                 "missing_data.policy='forbid'"
             )
         return
@@ -529,12 +532,13 @@ def validate_missing_data_config(
             or k is not None
             or distance is not None
             or max_missing_fraction_per_row is not None
+            or no_overlap_policy is not None
         ):
             raise PhosPyInputError(
                 "dataset build request "
                 "preprocessing_config.missing_data.q, .width, .seed, .k, "
-                ".distance, and "
-                ".max_missing_fraction_per_row must be None when "
+                ".distance, .max_missing_fraction_per_row, and "
+                ".no_overlap_policy must be None when "
                 "missing_data.policy='impute_row_median'"
             )
         return
@@ -603,6 +607,12 @@ def validate_missing_data_config(
                 "preprocessing_config.missing_data.k and .distance "
                 "must be None when missing_data.policy='impute_minprob'"
             )
+        if no_overlap_policy is not None:
+            raise PhosPyInputError(
+                "dataset build request "
+                "preprocessing_config.missing_data.no_overlap_policy must be "
+                "None when missing_data.policy='impute_minprob'"
+            )
         return
 
     if resolved_policy == policy_impute_knn:
@@ -651,6 +661,15 @@ def validate_missing_data_config(
                 "max_missing_fraction_per_row must satisfy 0 < value <= 1 when "
                 "missing_data.policy='impute_knn'"
             )
+        require_supported_literal(
+            no_overlap_policy,
+            field_name=(
+                "dataset build request "
+                "preprocessing_config.missing_data.no_overlap_policy"
+            ),
+            supported_values=supported_no_overlap_policies,
+            error_type=PhosPyInputError,
+        )
         return
 
     raise PhosPyInputError(

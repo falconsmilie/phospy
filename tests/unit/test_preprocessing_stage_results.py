@@ -1508,6 +1508,82 @@ def test_missing_data_stage_knn_imputes_drops_and_reports_diagnostics() -> None:
     assert diagnostics["imputation_operation_order"] == "no_intensity_transform"
     assert diagnostics["left_censored_assumption"] is False
     assert isinstance(diagnostics["imputation_mask_hash"], str)
+    assert diagnostics["knn_no_overlap_policy"] == "column_mean_with_caveat"
+    assert diagnostics["knn_no_overlap_policy_version"] == 1
+    assert diagnostics["knn_nearest_neighbour_imputed_cell_count"] == 1
+    assert diagnostics["knn_column_mean_fallback_imputed_cell_count"] == 0
+    assert isinstance(diagnostics["knn_nearest_neighbour_imputation_mask_hash"], str)
+    assert isinstance(
+        diagnostics["knn_column_mean_fallback_imputation_mask_hash"],
+        str,
+    )
+
+
+def test_missing_data_stage_knn_reports_column_mean_fallback_provenance() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0, float("nan")],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [float("nan"), float("nan"), 30.0],
+        },
+        index=pd.Index(["target", "knn_ref", "fallback_ref"]),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+                "site": ["Y182", "T308", "S9"],
+                "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
+            },
+            index=phospho.index.copy(),
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_knn",
+            missing_data_input_scale="linear",
+            missing_data_k=1,
+            missing_data_distance="nan_euclidean",
+            missing_data_max_missing_fraction_per_row=1.0,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+    diagnostics = result.diagnostics["diagnostics"]
+
+    assert diagnostics["knn_no_overlap_policy"] == "column_mean_with_caveat"
+    assert diagnostics["knn_no_overlap_policy_version"] == 1
+    assert diagnostics["knn_nearest_neighbour_imputed_cell_count"] == 3
+    assert diagnostics["knn_column_mean_fallback_imputed_cell_count"] == 1
+    assert set(diagnostics["knn_nearest_neighbour_imputed_row_ids"]) == {
+        "target",
+        "knn_ref",
+        "fallback_ref",
+    }
+    assert diagnostics["knn_nearest_neighbour_imputed_column_ids"] == [
+        "sample_a",
+        "sample_b",
+        "sample_c",
+    ]
+    assert diagnostics["knn_column_mean_fallback_row_ids"] == ["target"]
+    assert diagnostics["knn_column_mean_fallback_column_ids"] == ["sample_c"]
+    assert diagnostics["diagnostic_caveat_codes"] == ["knn_column_mean_fallback_used"]
+    assert result.state.imputation_observation_mask is not None
+    assert not bool(result.state.imputation_observation_mask.loc["target", "sample_b"])
+    assert not bool(result.state.imputation_observation_mask.loc["target", "sample_c"])
+    assert bool(result.state.imputation_observation_mask.loc["target", "sample_a"])
+    assert result.state.row_audit is not None
+    imputed = result.state.row_audit.loc[
+        (result.state.row_audit["stage"] == "missing_data")
+        & (result.state.row_audit["action"] == "imputed")
+    ].iloc[0]
+    snapshot = imputed["parameter_snapshot"]
+    assert isinstance(snapshot, dict)
+    assert snapshot["nearest_neighbour_imputed_columns"] == ("sample_b",)
+    assert snapshot["column_mean_fallback_columns"] == ("sample_c",)
+    assert snapshot["fully_column_mean_fallback_imputed"] is False
 
 
 def test_missing_data_stage_knn_rejects_columns_without_observed_values() -> None:

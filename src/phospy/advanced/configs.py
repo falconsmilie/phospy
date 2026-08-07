@@ -24,6 +24,7 @@ from phospy.contracts.configs import (
     DatasetLocalisationMode,
     DatasetMissingDataConfig,
     DatasetMissingDataInputScale,
+    DatasetMissingDataKnnNoOverlapPolicy,
     DatasetMissingDataPolicy,
     DatasetNormalisationConfig,
     DatasetNormalisationPolicy,

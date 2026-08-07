@@ -88,6 +88,7 @@ class PreprocessingPlan:
     missing_data_k: int | None = None
     missing_data_distance: str | None = None
     missing_data_max_missing_fraction_per_row: float | None = None
+    missing_data_no_overlap_policy: str | None = None
     missing_data_input_scale: ImputationInputScale | None = None
     missing_data_input_scale_source: str | None = None
     missing_data_imputation_operation_order: str | None = None

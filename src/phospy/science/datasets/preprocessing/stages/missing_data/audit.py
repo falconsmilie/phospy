@@ -92,6 +92,20 @@ def build_knn_audit_records(
         k=outcome.k,
         distance=outcome.distance,
         max_missing_fraction_per_row=outcome.max_missing_fraction_per_row,
+        no_overlap_policy=outcome.no_overlap_policy,
+        no_overlap_policy_version=outcome.no_overlap_policy_version,
+        nearest_neighbour_imputed_cell_count=(
+            outcome.nearest_neighbour_imputed_cell_count
+        ),
+        column_mean_fallback_imputed_cell_count=(
+            outcome.column_mean_fallback_imputed_cell_count
+        ),
+        nearest_neighbour_imputation_mask_hash=(
+            outcome.nearest_neighbour_imputation_mask_hash
+        ),
+        column_mean_fallback_imputation_mask_hash=(
+            outcome.column_mean_fallback_imputation_mask_hash
+        ),
     )
     records: list[PreprocessingRowAuditRow] = []
     for source_row_id, missing_fraction_value in outcome.dropped_rows_missing_fraction:
@@ -131,6 +145,22 @@ def build_knn_audit_records(
                     **snapshot_base,
                     "imputed_columns": row.imputed_columns,
                     "imputed_cell_count": int(row.imputed_cell_count),
+                    "nearest_neighbour_imputed_columns": (
+                        row.nearest_neighbour_imputed_columns
+                    ),
+                    "nearest_neighbour_imputed_cell_count": int(
+                        len(row.nearest_neighbour_imputed_columns)
+                    ),
+                    "column_mean_fallback_columns": (row.column_mean_fallback_columns),
+                    "column_mean_fallback_imputed_cell_count": int(
+                        len(row.column_mean_fallback_columns)
+                    ),
+                    "fully_column_mean_fallback_imputed": bool(
+                        row.imputed_cell_count > 0
+                        and len(row.nearest_neighbour_imputed_columns) == 0
+                        and len(row.column_mean_fallback_columns)
+                        == int(row.imputed_cell_count)
+                    ),
                 },
             )
         )
@@ -250,6 +280,12 @@ def _build_knn_snapshot_base(
     k: int,
     distance: str,
     max_missing_fraction_per_row: float,
+    no_overlap_policy: str,
+    no_overlap_policy_version: int,
+    nearest_neighbour_imputed_cell_count: int,
+    column_mean_fallback_imputed_cell_count: int,
+    nearest_neighbour_imputation_mask_hash: str,
+    column_mean_fallback_imputation_mask_hash: str,
 ) -> dict[str, JsonValue]:
     return {
         "missing_data_policy": MissingDataPolicy.IMPUTE_KNN.value,
@@ -262,6 +298,20 @@ def _build_knn_snapshot_base(
         "k": int(k),
         "distance": str(distance),
         "max_missing_fraction_per_row": float(max_missing_fraction_per_row),
+        "no_overlap_policy": str(no_overlap_policy),
+        "no_overlap_policy_version": int(no_overlap_policy_version),
+        "nearest_neighbour_imputed_cell_count": int(
+            nearest_neighbour_imputed_cell_count
+        ),
+        "column_mean_fallback_imputed_cell_count": int(
+            column_mean_fallback_imputed_cell_count
+        ),
+        "nearest_neighbour_imputation_mask_hash": str(
+            nearest_neighbour_imputation_mask_hash
+        ),
+        "column_mean_fallback_imputation_mask_hash": str(
+            column_mean_fallback_imputation_mask_hash
+        ),
     }
 
 

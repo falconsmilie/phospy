@@ -56,6 +56,18 @@ V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS = frozenset(
         "dropped_rows_above_max_missing_fraction",
         "neighbour_count",
         "distance_metric",
+        "knn_no_overlap_policy",
+        "knn_no_overlap_policy_version",
+        "knn_nearest_neighbour_imputed_cell_count",
+        "knn_nearest_neighbour_imputed_row_ids",
+        "knn_nearest_neighbour_imputed_column_ids",
+        "knn_column_mean_fallback_imputed_cell_count",
+        "knn_column_mean_fallback_row_ids",
+        "knn_column_mean_fallback_column_ids",
+        "knn_nearest_neighbour_imputation_mask_hash",
+        "knn_column_mean_fallback_imputation_mask_hash",
+        "knn_fully_column_mean_fallback_row_ids",
+        "diagnostic_caveat_codes",
     )
 )
 

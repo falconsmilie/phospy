@@ -8,6 +8,8 @@ from typing import Any
 from phospy.errors.input import PhosPyInputError
 from phospy.science.configs.preprocessing import (
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES,
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
 )
 from phospy.science.datasets.preprocessing.imputation_scale_policy import (
     reject_incompatible_imputation_stage_order,
@@ -95,6 +97,35 @@ def _validate_imputation_fields(plan: _MutablePreprocessingPlan) -> None:
         stage_order=plan.stage_order,
         resolved_policy=imputation_scale,
     )
+    _validate_missing_data_no_overlap_policy(plan)
+
+
+def _validate_missing_data_no_overlap_policy(plan: _MutablePreprocessingPlan) -> None:
+    policy_value = plan.missing_data_policy.value
+    no_overlap_policy = plan.missing_data_no_overlap_policy
+    if policy_value != "impute_knn":
+        if no_overlap_policy is not None:
+            raise PhosPyInputError(
+                "dataset preprocessing plan missing_data_no_overlap_policy "
+                "(internal model) must be None unless "
+                "missing_data_policy='impute_knn'"
+            )
+        return
+    if no_overlap_policy is None:
+        _set(
+            plan,
+            "missing_data_no_overlap_policy",
+            DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
+        )
+        return
+    normalized = str(no_overlap_policy).strip()
+    if normalized not in DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES:
+        supported = ", ".join(sorted(DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES))
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_no_overlap_policy "
+            f"(internal model) must be one of: {supported}"
+        )
+    _set(plan, "missing_data_no_overlap_policy", normalized)
 
 
 def _reject_inconsistent_resolved_imputation_field(

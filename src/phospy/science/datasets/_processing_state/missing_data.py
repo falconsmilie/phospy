@@ -6,6 +6,10 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.configs.preprocessing import (
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES,
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION,
+)
 from phospy.science.datasets.preprocessing.imputation_scale_policy import (
     IMPUTATION_INPUT_SCALE_SOURCE_CALLER_SELECTED,
     IMPUTATION_INPUT_SCALE_SOURCE_METHOD_REQUIRED,
@@ -94,6 +98,18 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     dropped_rows_above_max_missing_fraction: tuple[str, ...] | None = None
     neighbour_count: int | None = None
     distance_metric: str | None = None
+    knn_no_overlap_policy: str | None = None
+    knn_no_overlap_policy_version: int | None = None
+    knn_nearest_neighbour_imputed_cell_count: int | None = None
+    knn_nearest_neighbour_imputed_row_ids: tuple[str, ...] | None = None
+    knn_nearest_neighbour_imputed_column_ids: tuple[str, ...] | None = None
+    knn_column_mean_fallback_imputed_cell_count: int | None = None
+    knn_column_mean_fallback_row_ids: tuple[str, ...] | None = None
+    knn_column_mean_fallback_column_ids: tuple[str, ...] | None = None
+    knn_nearest_neighbour_imputation_mask_hash: str | None = None
+    knn_column_mean_fallback_imputation_mask_hash: str | None = None
+    knn_fully_column_mean_fallback_row_ids: tuple[str, ...] | None = None
+    diagnostic_caveat_codes: tuple[str, ...] | None = None
     diagnostics_schema_version: int = MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
 
     @classmethod
@@ -266,6 +282,64 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             distance_metric=require_optional_str(
                 payload.get("distance_metric"),
                 field_name=f"{field_name}.distance_metric",
+            ),
+            knn_no_overlap_policy=require_optional_str(
+                payload.get("knn_no_overlap_policy"),
+                field_name=f"{field_name}.knn_no_overlap_policy",
+            ),
+            knn_no_overlap_policy_version=require_optional_non_negative_int(
+                payload.get("knn_no_overlap_policy_version"),
+                field_name=f"{field_name}.knn_no_overlap_policy_version",
+            ),
+            knn_nearest_neighbour_imputed_cell_count=(
+                require_optional_non_negative_int(
+                    payload.get("knn_nearest_neighbour_imputed_cell_count"),
+                    field_name=(
+                        f"{field_name}.knn_nearest_neighbour_imputed_cell_count"
+                    ),
+                )
+            ),
+            knn_nearest_neighbour_imputed_row_ids=require_optional_string_tuple(
+                payload.get("knn_nearest_neighbour_imputed_row_ids"),
+                field_name=f"{field_name}.knn_nearest_neighbour_imputed_row_ids",
+            ),
+            knn_nearest_neighbour_imputed_column_ids=require_optional_string_tuple(
+                payload.get("knn_nearest_neighbour_imputed_column_ids"),
+                field_name=(f"{field_name}.knn_nearest_neighbour_imputed_column_ids"),
+            ),
+            knn_column_mean_fallback_imputed_cell_count=(
+                require_optional_non_negative_int(
+                    payload.get("knn_column_mean_fallback_imputed_cell_count"),
+                    field_name=(
+                        f"{field_name}.knn_column_mean_fallback_imputed_cell_count"
+                    ),
+                )
+            ),
+            knn_column_mean_fallback_row_ids=require_optional_string_tuple(
+                payload.get("knn_column_mean_fallback_row_ids"),
+                field_name=f"{field_name}.knn_column_mean_fallback_row_ids",
+            ),
+            knn_column_mean_fallback_column_ids=require_optional_string_tuple(
+                payload.get("knn_column_mean_fallback_column_ids"),
+                field_name=f"{field_name}.knn_column_mean_fallback_column_ids",
+            ),
+            knn_nearest_neighbour_imputation_mask_hash=require_optional_str(
+                payload.get("knn_nearest_neighbour_imputation_mask_hash"),
+                field_name=f"{field_name}.knn_nearest_neighbour_imputation_mask_hash",
+            ),
+            knn_column_mean_fallback_imputation_mask_hash=require_optional_str(
+                payload.get("knn_column_mean_fallback_imputation_mask_hash"),
+                field_name=(
+                    f"{field_name}.knn_column_mean_fallback_imputation_mask_hash"
+                ),
+            ),
+            knn_fully_column_mean_fallback_row_ids=require_optional_string_tuple(
+                payload.get("knn_fully_column_mean_fallback_row_ids"),
+                field_name=f"{field_name}.knn_fully_column_mean_fallback_row_ids",
+            ),
+            diagnostic_caveat_codes=require_optional_string_tuple(
+                payload.get("diagnostic_caveat_codes"),
+                field_name=f"{field_name}.diagnostic_caveat_codes",
             ),
         )
 
@@ -454,6 +528,123 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.distance_metric,
             field_name="dataset processing state missing_data.diagnostics.distance_metric",
         )
+        knn_no_overlap_policy = require_optional_str(
+            self.knn_no_overlap_policy,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_no_overlap_policy"
+            ),
+        )
+        if (
+            knn_no_overlap_policy is not None
+            and knn_no_overlap_policy
+            not in DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES
+        ):
+            supported = ", ".join(sorted(DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES))
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics."
+                f"knn_no_overlap_policy must be one of: {supported}"
+            )
+        knn_no_overlap_policy_version = require_optional_non_negative_int(
+            self.knn_no_overlap_policy_version,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_no_overlap_policy_version"
+            ),
+        )
+        if (
+            knn_no_overlap_policy_version is not None
+            and knn_no_overlap_policy_version
+            != DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION
+        ):
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics."
+                "knn_no_overlap_policy_version is unsupported; expected "
+                f"{DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION}"
+            )
+        knn_nearest_neighbour_imputed_cell_count = require_optional_non_negative_int(
+            self.knn_nearest_neighbour_imputed_cell_count,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_nearest_neighbour_imputed_cell_count"
+            ),
+        )
+        knn_column_mean_fallback_imputed_cell_count = require_optional_non_negative_int(
+            self.knn_column_mean_fallback_imputed_cell_count,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_column_mean_fallback_imputed_cell_count"
+            ),
+        )
+        if (
+            knn_nearest_neighbour_imputed_cell_count is not None
+            and knn_column_mean_fallback_imputed_cell_count is not None
+            and (
+                knn_nearest_neighbour_imputed_cell_count
+                + knn_column_mean_fallback_imputed_cell_count
+                != imputed_cell_count
+            )
+        ):
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics KNN mechanism "
+                "cell counts must sum to imputed_cell_count"
+            )
+        knn_nearest_neighbour_imputed_row_ids = require_optional_string_tuple(
+            self.knn_nearest_neighbour_imputed_row_ids,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_nearest_neighbour_imputed_row_ids"
+            ),
+        )
+        knn_nearest_neighbour_imputed_column_ids = require_optional_string_tuple(
+            self.knn_nearest_neighbour_imputed_column_ids,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_nearest_neighbour_imputed_column_ids"
+            ),
+        )
+        knn_column_mean_fallback_row_ids = require_optional_string_tuple(
+            self.knn_column_mean_fallback_row_ids,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_column_mean_fallback_row_ids"
+            ),
+        )
+        knn_column_mean_fallback_column_ids = require_optional_string_tuple(
+            self.knn_column_mean_fallback_column_ids,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_column_mean_fallback_column_ids"
+            ),
+        )
+        knn_nearest_neighbour_imputation_mask_hash = require_optional_str(
+            self.knn_nearest_neighbour_imputation_mask_hash,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_nearest_neighbour_imputation_mask_hash"
+            ),
+        )
+        knn_column_mean_fallback_imputation_mask_hash = require_optional_str(
+            self.knn_column_mean_fallback_imputation_mask_hash,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_column_mean_fallback_imputation_mask_hash"
+            ),
+        )
+        knn_fully_column_mean_fallback_row_ids = require_optional_string_tuple(
+            self.knn_fully_column_mean_fallback_row_ids,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "knn_fully_column_mean_fallback_row_ids"
+            ),
+        )
+        diagnostic_caveat_codes = require_optional_string_tuple(
+            self.diagnostic_caveat_codes,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "diagnostic_caveat_codes"
+            ),
+        )
         object.__setattr__(self, "missing_data_policy", missing_data_policy)
         object.__setattr__(self, "imputation_method_id", imputation_method_id)
         object.__setattr__(self, "imputation_method_family", imputation_method_family)
@@ -502,6 +693,58 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         )
         object.__setattr__(self, "neighbour_count", neighbour_count)
         object.__setattr__(self, "distance_metric", distance_metric)
+        object.__setattr__(self, "knn_no_overlap_policy", knn_no_overlap_policy)
+        object.__setattr__(
+            self,
+            "knn_no_overlap_policy_version",
+            knn_no_overlap_policy_version,
+        )
+        object.__setattr__(
+            self,
+            "knn_nearest_neighbour_imputed_cell_count",
+            knn_nearest_neighbour_imputed_cell_count,
+        )
+        object.__setattr__(
+            self,
+            "knn_nearest_neighbour_imputed_row_ids",
+            knn_nearest_neighbour_imputed_row_ids,
+        )
+        object.__setattr__(
+            self,
+            "knn_nearest_neighbour_imputed_column_ids",
+            knn_nearest_neighbour_imputed_column_ids,
+        )
+        object.__setattr__(
+            self,
+            "knn_column_mean_fallback_imputed_cell_count",
+            knn_column_mean_fallback_imputed_cell_count,
+        )
+        object.__setattr__(
+            self,
+            "knn_column_mean_fallback_row_ids",
+            knn_column_mean_fallback_row_ids,
+        )
+        object.__setattr__(
+            self,
+            "knn_column_mean_fallback_column_ids",
+            knn_column_mean_fallback_column_ids,
+        )
+        object.__setattr__(
+            self,
+            "knn_nearest_neighbour_imputation_mask_hash",
+            knn_nearest_neighbour_imputation_mask_hash,
+        )
+        object.__setattr__(
+            self,
+            "knn_column_mean_fallback_imputation_mask_hash",
+            knn_column_mean_fallback_imputation_mask_hash,
+        )
+        object.__setattr__(
+            self,
+            "knn_fully_column_mean_fallback_row_ids",
+            knn_fully_column_mean_fallback_row_ids,
+        )
+        object.__setattr__(self, "diagnostic_caveat_codes", diagnostic_caveat_codes)
 
     def __getitem__(self, key: str) -> JsonValue:
         return self.to_payload()[key]
@@ -588,6 +831,58 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             )
         set_optional_payload_value(payload, "neighbour_count", self.neighbour_count)
         set_optional_payload_value(payload, "distance_metric", self.distance_metric)
+        set_optional_payload_value(
+            payload,
+            "knn_no_overlap_policy",
+            self.knn_no_overlap_policy,
+        )
+        set_optional_payload_value(
+            payload,
+            "knn_no_overlap_policy_version",
+            self.knn_no_overlap_policy_version,
+        )
+        set_optional_payload_value(
+            payload,
+            "knn_nearest_neighbour_imputed_cell_count",
+            self.knn_nearest_neighbour_imputed_cell_count,
+        )
+        if self.knn_nearest_neighbour_imputed_row_ids is not None:
+            payload["knn_nearest_neighbour_imputed_row_ids"] = list(
+                self.knn_nearest_neighbour_imputed_row_ids
+            )
+        if self.knn_nearest_neighbour_imputed_column_ids is not None:
+            payload["knn_nearest_neighbour_imputed_column_ids"] = list(
+                self.knn_nearest_neighbour_imputed_column_ids
+            )
+        set_optional_payload_value(
+            payload,
+            "knn_column_mean_fallback_imputed_cell_count",
+            self.knn_column_mean_fallback_imputed_cell_count,
+        )
+        if self.knn_column_mean_fallback_row_ids is not None:
+            payload["knn_column_mean_fallback_row_ids"] = list(
+                self.knn_column_mean_fallback_row_ids
+            )
+        if self.knn_column_mean_fallback_column_ids is not None:
+            payload["knn_column_mean_fallback_column_ids"] = list(
+                self.knn_column_mean_fallback_column_ids
+            )
+        set_optional_payload_value(
+            payload,
+            "knn_nearest_neighbour_imputation_mask_hash",
+            self.knn_nearest_neighbour_imputation_mask_hash,
+        )
+        set_optional_payload_value(
+            payload,
+            "knn_column_mean_fallback_imputation_mask_hash",
+            self.knn_column_mean_fallback_imputation_mask_hash,
+        )
+        if self.knn_fully_column_mean_fallback_row_ids is not None:
+            payload["knn_fully_column_mean_fallback_row_ids"] = list(
+                self.knn_fully_column_mean_fallback_row_ids
+            )
+        if self.diagnostic_caveat_codes is not None:
+            payload["diagnostic_caveat_codes"] = list(self.diagnostic_caveat_codes)
         return payload
 
 

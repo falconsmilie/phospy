@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.provenance.hashing import hash_table_tolerance
+from phospy.errors.provenance import ProvenanceFingerprintError
+from phospy.provenance.hashing import (
+    fingerprint_table_normalized_axes,
+    hash_table_tolerance,
+)
 from phospy.science.datasets.processing_state import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     JsonValue,
@@ -48,6 +52,20 @@ def hash_imputation_mask(mask: pd.DataFrame) -> str:
     )
 
 
+def hash_knn_mechanism_mask(mask: pd.DataFrame, *, mechanism_name: str) -> str:
+    """Return row/column-order-stable fingerprint for KNN mechanism masks."""
+
+    hash_name = f"missing_data.knn_{mechanism_name}_imputation_mask"
+    normalized_mask = mask.astype("int8")
+    try:
+        return fingerprint_table_normalized_axes(
+            normalized_mask,
+            name=hash_name,
+        ).tolerance_hash_value
+    except ProvenanceFingerprintError:
+        return hash_table_tolerance(normalized_mask, name=hash_name)
+
+
 def label_preview(values: list[object], *, max_items: int = 3) -> str:
     """Render a bounded preview of labels for human-facing error messages."""
 
@@ -89,6 +107,18 @@ def build_missing_data_diagnostics(
     neighbour_count: int | None,
     distance_metric: str | None,
     imputation_mask_hash: str | None,
+    knn_no_overlap_policy: str | None = None,
+    knn_no_overlap_policy_version: int | None = None,
+    knn_nearest_neighbour_imputed_cell_count: int | None = None,
+    knn_nearest_neighbour_imputed_row_ids: tuple[str, ...] = (),
+    knn_nearest_neighbour_imputed_column_ids: tuple[str, ...] = (),
+    knn_column_mean_fallback_imputed_cell_count: int | None = None,
+    knn_column_mean_fallback_row_ids: tuple[str, ...] = (),
+    knn_column_mean_fallback_column_ids: tuple[str, ...] = (),
+    knn_nearest_neighbour_imputation_mask_hash: str | None = None,
+    knn_column_mean_fallback_imputation_mask_hash: str | None = None,
+    knn_fully_column_mean_fallback_row_ids: tuple[str, ...] = (),
+    diagnostic_caveat_codes: tuple[str, ...] = (),
 ) -> dict[str, JsonValue]:
     diagnostics: dict[str, JsonValue] = {
         "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
@@ -130,6 +160,50 @@ def build_missing_data_diagnostics(
     }
     if imputation_mask_hash is not None:
         diagnostics["imputation_mask_hash"] = str(imputation_mask_hash)
+    if knn_no_overlap_policy is not None:
+        diagnostics["knn_no_overlap_policy"] = str(knn_no_overlap_policy)
+    if knn_no_overlap_policy_version is not None:
+        diagnostics["knn_no_overlap_policy_version"] = int(
+            knn_no_overlap_policy_version
+        )
+    if knn_nearest_neighbour_imputed_cell_count is not None:
+        diagnostics["knn_nearest_neighbour_imputed_cell_count"] = int(
+            knn_nearest_neighbour_imputed_cell_count
+        )
+    if knn_column_mean_fallback_imputed_cell_count is not None:
+        diagnostics["knn_column_mean_fallback_imputed_cell_count"] = int(
+            knn_column_mean_fallback_imputed_cell_count
+        )
+    if knn_nearest_neighbour_imputed_row_ids:
+        diagnostics["knn_nearest_neighbour_imputed_row_ids"] = list(
+            knn_nearest_neighbour_imputed_row_ids
+        )
+    if knn_nearest_neighbour_imputed_column_ids:
+        diagnostics["knn_nearest_neighbour_imputed_column_ids"] = list(
+            knn_nearest_neighbour_imputed_column_ids
+        )
+    if knn_column_mean_fallback_row_ids:
+        diagnostics["knn_column_mean_fallback_row_ids"] = list(
+            knn_column_mean_fallback_row_ids
+        )
+    if knn_column_mean_fallback_column_ids:
+        diagnostics["knn_column_mean_fallback_column_ids"] = list(
+            knn_column_mean_fallback_column_ids
+        )
+    if knn_nearest_neighbour_imputation_mask_hash is not None:
+        diagnostics["knn_nearest_neighbour_imputation_mask_hash"] = str(
+            knn_nearest_neighbour_imputation_mask_hash
+        )
+    if knn_column_mean_fallback_imputation_mask_hash is not None:
+        diagnostics["knn_column_mean_fallback_imputation_mask_hash"] = str(
+            knn_column_mean_fallback_imputation_mask_hash
+        )
+    if knn_fully_column_mean_fallback_row_ids:
+        diagnostics["knn_fully_column_mean_fallback_row_ids"] = list(
+            knn_fully_column_mean_fallback_row_ids
+        )
+    if diagnostic_caveat_codes:
+        diagnostics["diagnostic_caveat_codes"] = list(diagnostic_caveat_codes)
     if per_column_distribution_parameters is not None:
         per_column_distribution_payload: dict[str, JsonValue] = {
             str(column_name): dict(parameters)

@@ -15,6 +15,11 @@ DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB = "impute_minprob"
 DATASET_MISSING_DATA_POLICY_IMPUTE_KNN = "impute_knn"
 DATASET_MISSING_DATA_INPUT_SCALE_LINEAR = "linear"
 DATASET_MISSING_DATA_INPUT_SCALE_LOG2 = "log2"
+DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR = "error"
+DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT = (
+    "column_mean_with_caveat"
+)
+DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION = 1
 DatasetMissingDataPolicy = Literal[
     "forbid",
     "impute_row_median",
@@ -22,6 +27,7 @@ DatasetMissingDataPolicy = Literal[
     "impute_knn",
 ]
 DatasetMissingDataInputScale = Literal["linear", "log2"]
+DatasetMissingDataKnnNoOverlapPolicy = Literal["error", "column_mean_with_caveat"]
 DATASET_MISSING_DATA_POLICIES = frozenset(
     {
         DATASET_MISSING_DATA_POLICY_FORBID,
@@ -34,6 +40,12 @@ DATASET_MISSING_DATA_INPUT_SCALES = frozenset(
     {
         DATASET_MISSING_DATA_INPUT_SCALE_LINEAR,
         DATASET_MISSING_DATA_INPUT_SCALE_LOG2,
+    }
+)
+DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES = frozenset(
+    {
+        DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
+        DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
     }
 )
 
@@ -75,6 +87,9 @@ class DatasetMissingDataConfig:
     - `k` with integer `>= 1`
     - `distance` fixed to `"nan_euclidean"`
     - `max_missing_fraction_per_row` with `0 < value <= 1`
+    - `no_overlap_policy`, resolved to `"column_mean_with_caveat"` by default
+      for KNN; set `"error"` to reject missing cells whose eligible donors have
+      no shared observed columns.
 
     The KNN implementation is chunked and guarded for practical preprocessing
     scale. It drops rows above `max_missing_fraction_per_row`; for each
@@ -96,8 +111,18 @@ class DatasetMissingDataConfig:
     distance: str | None = None
     max_missing_fraction_per_row: float | None = None
     input_scale: DatasetMissingDataInputScale | None = None
+    no_overlap_policy: DatasetMissingDataKnnNoOverlapPolicy | None = None
 
     def __post_init__(self) -> None:
+        if (
+            self.policy == DATASET_MISSING_DATA_POLICY_IMPUTE_KNN
+            and self.no_overlap_policy is None
+        ):
+            object.__setattr__(
+                self,
+                "no_overlap_policy",
+                DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
+            )
         validate_missing_data_config(
             policy=self.policy,
             min_observed_values=self.min_observed_values,
@@ -108,8 +133,12 @@ class DatasetMissingDataConfig:
             distance=self.distance,
             max_missing_fraction_per_row=self.max_missing_fraction_per_row,
             input_scale=self.input_scale,
+            no_overlap_policy=self.no_overlap_policy,
             supported_policies=DATASET_MISSING_DATA_POLICIES,
             supported_input_scales=DATASET_MISSING_DATA_INPUT_SCALES,
+            supported_no_overlap_policies=(
+                DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES
+            ),
             policy_forbid=DATASET_MISSING_DATA_POLICY_FORBID,
             policy_impute_row_median=DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
             policy_impute_minprob=DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
@@ -121,6 +150,10 @@ __all__ = [
     "DATASET_MISSING_DATA_INPUT_SCALE_LINEAR",
     "DATASET_MISSING_DATA_INPUT_SCALE_LOG2",
     "DATASET_MISSING_DATA_INPUT_SCALES",
+    "DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES",
+    "DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT",
+    "DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR",
+    "DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION",
     "DATASET_MISSING_DATA_POLICIES",
     "DATASET_MISSING_DATA_POLICY_FORBID",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_KNN",
@@ -128,5 +161,6 @@ __all__ = [
     "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
     "DatasetMissingDataConfig",
     "DatasetMissingDataInputScale",
+    "DatasetMissingDataKnnNoOverlapPolicy",
     "DatasetMissingDataPolicy",
 ]

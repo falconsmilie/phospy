@@ -680,6 +680,87 @@ def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics(
     )
 
 
+def test_processing_state_payload_round_trip_preserves_knn_fallback_diagnostics() -> (
+    None
+):
+    missing_data_diagnostics = {
+        "diagnostics_schema_version": 1,
+        "missing_data_policy": "impute_knn",
+        "imputation_method_id": "knn",
+        "imputation_method_family": "nearest_neighbour",
+        "input_missing_cell_count": 2,
+        "output_missing_cell_count": 0,
+        "imputed_cell_count": 2,
+        "affected_row_count": 1,
+        "affected_column_count": 2,
+        "affected_row_ids": ["target"],
+        "affected_column_ids": ["sample_b", "sample_c"],
+        "imputed_row_ids": ["target"],
+        "imputed_column_ids": ["sample_b", "sample_c"],
+        "dropped_row_ids": [],
+        "random_seed": None,
+        "method_parameters": {
+            "k": 1,
+            "distance": "nan_euclidean",
+            "max_missing_fraction_per_row": 1.0,
+            "no_overlap_policy": "column_mean_with_caveat",
+            "no_overlap_policy_version": 1,
+            "input_scale": "linear",
+            "imputation_operation_order": "no_intensity_transform",
+        },
+        "matrix_scale_requirement": None,
+        "imputation_input_scale": "linear",
+        "imputation_input_scale_source": "caller_selected",
+        "imputation_operation_order": "no_intensity_transform",
+        "stage_order": ["missing_data"],
+        "missingness_mask_hash": "missingness-mask-hash",
+        "imputation_mask_hash": "aggregate-mask-hash",
+        "left_censored_assumption": False,
+        "rows_not_imputable": [],
+        "row_medians_used": {},
+        "dropped_rows_above_max_missing_fraction": [],
+        "neighbour_count": 1,
+        "distance_metric": "nan_euclidean",
+        "knn_no_overlap_policy": "column_mean_with_caveat",
+        "knn_no_overlap_policy_version": 1,
+        "knn_nearest_neighbour_imputed_cell_count": 1,
+        "knn_nearest_neighbour_imputed_row_ids": ["target"],
+        "knn_nearest_neighbour_imputed_column_ids": ["sample_b"],
+        "knn_column_mean_fallback_imputed_cell_count": 1,
+        "knn_column_mean_fallback_row_ids": ["target"],
+        "knn_column_mean_fallback_column_ids": ["sample_c"],
+        "knn_nearest_neighbour_imputation_mask_hash": "nearest-mask-hash",
+        "knn_column_mean_fallback_imputation_mask_hash": "fallback-mask-hash",
+        "knn_fully_column_mean_fallback_row_ids": [],
+        "diagnostic_caveat_codes": ["knn_column_mean_fallback_used"],
+    }
+    state = _processing_state_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        missing_data_diagnostics=missing_data_diagnostics,
+    )
+
+    payload = processing_state_to_payload(state)
+    restored = processing_state_from_payload(payload)
+
+    assert isinstance(restored.missing_data.diagnostics, MissingDataDiagnostics)
+    assert restored.missing_data.diagnostics is not None
+    assert (
+        restored.missing_data.diagnostics.to_payload()
+        == payload["missing_data"]["diagnostics"]
+    )
+    restored_payload = restored.missing_data.diagnostics.to_payload()
+    assert restored_payload["knn_column_mean_fallback_imputed_cell_count"] == 1
+    assert restored_payload["diagnostic_caveat_codes"] == [
+        "knn_column_mean_fallback_used"
+    ]
+
+
 def test_processing_state_payload_without_missing_data_diagnostics_deserializes() -> (
     None
 ):

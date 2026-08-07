@@ -9,6 +9,11 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.configs.preprocessing import (
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION,
+)
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
@@ -107,7 +112,12 @@ def _knn_tie_phospho(
     )
 
 
-def _knn_state(phospho: pd.DataFrame) -> PreprocessingState:
+def _knn_state(
+    phospho: pd.DataFrame,
+    *,
+    no_overlap_policy: str | None = None,
+    max_missing_fraction_per_row: float = 0.5,
+) -> PreprocessingState:
     return PreprocessingState(
         phospho=phospho,
         site_metadata=_site_metadata(phospho.index),
@@ -118,7 +128,8 @@ def _knn_state(phospho: pd.DataFrame) -> PreprocessingState:
             missing_data_input_scale="linear",
             missing_data_k=1,
             missing_data_distance="nan_euclidean",
-            missing_data_max_missing_fraction_per_row=0.5,
+            missing_data_max_missing_fraction_per_row=max_missing_fraction_per_row,
+            missing_data_no_overlap_policy=no_overlap_policy,
             stage_order=("missing_data",),
         ),
     )
@@ -273,6 +284,15 @@ def test_knn_policy_imputes_all_missing_retained_row_from_column_means() -> None
     assert float(outcome.phospho.loc["all_missing", "sample_b"]) == pytest.approx(15.0)
     assert float(outcome.phospho.loc["all_missing", "sample_c"]) == pytest.approx(40.0)
     assert outcome.dropped_row_ids == ()
+    assert outcome.nearest_neighbour_imputed_cell_count == 0
+    assert outcome.column_mean_fallback_imputed_cell_count == 3
+    assert outcome.column_mean_fallback_row_ids == ("all_missing",)
+    assert outcome.column_mean_fallback_column_ids == (
+        "sample_a",
+        "sample_b",
+        "sample_c",
+    )
+    assert outcome.fully_column_mean_fallback_row_ids == ("all_missing",)
 
 
 def test_knn_policy_ignores_donors_without_observed_overlap() -> None:
@@ -334,6 +354,131 @@ def test_knn_policy_falls_back_to_column_mean_when_no_donor_overlaps() -> None:
 
     assert float(outcome.phospho.loc["target", "sample_b"]) == pytest.approx(15.0)
     assert float(outcome.phospho.loc["target", "sample_c"]) == pytest.approx(4.0)
+    assert outcome.no_overlap_policy == (
+        DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT
+    )
+    assert (
+        outcome.no_overlap_policy_version
+        == DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION
+    )
+    assert outcome.nearest_neighbour_imputed_cell_count == 0
+    assert outcome.column_mean_fallback_imputed_cell_count == 4
+    assert set(outcome.column_mean_fallback_row_ids) == {
+        "target",
+        "row_ref_1",
+        "row_ref_2",
+    }
+    assert outcome.column_mean_fallback_column_ids == (
+        "sample_a",
+        "sample_b",
+        "sample_c",
+    )
+    assert bool(outcome.column_mean_fallback_imputed_mask.loc["target", "sample_b"])
+    assert bool(outcome.column_mean_fallback_imputed_mask.loc["target", "sample_c"])
+    assert not bool(outcome.nearest_neighbour_imputed_mask.to_numpy().any())
+    pdt.assert_frame_equal(
+        outcome.nearest_neighbour_imputed_mask
+        | outcome.column_mean_fallback_imputed_mask,
+        outcome.imputed_mask,
+    )
+    assert len(outcome.nearest_neighbour_imputation_mask_hash) == 64
+    assert len(outcome.column_mean_fallback_imputation_mask_hash) == 64
+    assert set(outcome.fully_column_mean_fallback_row_ids) == {
+        "target",
+        "row_ref_1",
+        "row_ref_2",
+    }
+
+
+def test_knn_policy_records_mixed_knn_and_fallback_cells_in_one_row() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0, float("nan")],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [float("nan"), float("nan"), 30.0],
+        },
+        index=pd.Index(["target", "knn_ref", "fallback_ref"]),
+    )
+
+    outcome = run_knn_policy(_knn_state(phospho, max_missing_fraction_per_row=1.0))
+
+    assert float(outcome.phospho.loc["target", "sample_b"]) == pytest.approx(10.0)
+    assert float(outcome.phospho.loc["target", "sample_c"]) == pytest.approx(30.0)
+    assert outcome.nearest_neighbour_imputed_cell_count == 3
+    assert outcome.column_mean_fallback_imputed_cell_count == 1
+    assert set(outcome.nearest_neighbour_imputed_row_ids) == {
+        "target",
+        "knn_ref",
+        "fallback_ref",
+    }
+    assert outcome.nearest_neighbour_imputed_column_ids == (
+        "sample_a",
+        "sample_b",
+        "sample_c",
+    )
+    assert outcome.column_mean_fallback_row_ids == ("target",)
+    assert outcome.column_mean_fallback_column_ids == ("sample_c",)
+    assert bool(outcome.nearest_neighbour_imputed_mask.loc["target", "sample_b"])
+    assert bool(outcome.column_mean_fallback_imputed_mask.loc["target", "sample_c"])
+    assert outcome.fully_column_mean_fallback_row_ids == ()
+    assert outcome.imputed_rows[0].nearest_neighbour_imputed_columns == ("sample_b",)
+    assert outcome.imputed_rows[0].column_mean_fallback_columns == ("sample_c",)
+
+
+def test_knn_policy_fallback_masks_are_deterministic_under_row_reordering() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0, float("nan")],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [float("nan"), float("nan"), 30.0],
+        },
+        index=pd.Index(["target", "knn_ref", "fallback_ref"]),
+    )
+    baseline = run_knn_policy(
+        _knn_state(phospho.copy(deep=True), max_missing_fraction_per_row=1.0)
+    )
+    reordered = run_knn_policy(
+        _knn_state(
+            phospho.loc[["fallback_ref", "target", "knn_ref"]].copy(deep=True),
+            max_missing_fraction_per_row=1.0,
+        )
+    )
+
+    pdt.assert_frame_equal(
+        baseline.nearest_neighbour_imputed_mask.sort_index(),
+        reordered.nearest_neighbour_imputed_mask.sort_index(),
+    )
+    pdt.assert_frame_equal(
+        baseline.column_mean_fallback_imputed_mask.sort_index(),
+        reordered.column_mean_fallback_imputed_mask.sort_index(),
+    )
+    assert (
+        baseline.nearest_neighbour_imputation_mask_hash
+        == reordered.nearest_neighbour_imputation_mask_hash
+    )
+    assert (
+        baseline.column_mean_fallback_imputation_mask_hash
+        == reordered.column_mean_fallback_imputation_mask_hash
+    )
+
+
+def test_knn_policy_errors_when_no_overlap_policy_is_error() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), float("nan")],
+            "sample_b": [float("nan"), 10.0, 20.0],
+        },
+        index=pd.Index(["target", "row_ref_1", "row_ref_2"]),
+    )
+
+    with pytest.raises(PhosPyInputError, match="no_overlap_policy='error'"):
+        run_knn_policy(
+            _knn_state(
+                phospho,
+                no_overlap_policy=DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
+                max_missing_fraction_per_row=1.0,
+            )
+        )
 
 
 def test_knn_policy_rejects_too_many_sample_columns() -> None:
@@ -421,6 +566,14 @@ def test_knn_imputation_is_reproducible_across_repeated_runs() -> None:
 
     pdt.assert_frame_equal(first.phospho, second.phospho)
     pdt.assert_frame_equal(first.imputed_mask, second.imputed_mask)
+    pdt.assert_frame_equal(
+        first.nearest_neighbour_imputed_mask,
+        second.nearest_neighbour_imputed_mask,
+    )
+    pdt.assert_frame_equal(
+        first.column_mean_fallback_imputed_mask,
+        second.column_mean_fallback_imputed_mask,
+    )
     assert first.imputed_rows == second.imputed_rows
     assert first.dropped_rows_missing_fraction == second.dropped_rows_missing_fraction
 
@@ -464,6 +617,14 @@ def test_knn_imputation_output_is_stable_across_distance_chunk_sizes(
 
     pdt.assert_frame_equal(chunked.phospho, unchunked.phospho)
     pdt.assert_frame_equal(chunked.imputed_mask, unchunked.imputed_mask)
+    pdt.assert_frame_equal(
+        chunked.nearest_neighbour_imputed_mask,
+        unchunked.nearest_neighbour_imputed_mask,
+    )
+    pdt.assert_frame_equal(
+        chunked.column_mean_fallback_imputed_mask,
+        unchunked.column_mean_fallback_imputed_mask,
+    )
     assert chunked.imputed_rows == unchunked.imputed_rows
 
 
@@ -480,6 +641,8 @@ def test_knn_imputation_diagnostics_are_reproducible() -> None:
         "k": 1,
         "distance": "nan_euclidean",
         "max_missing_fraction_per_row": 0.5,
+        "no_overlap_policy": "column_mean_with_caveat",
+        "no_overlap_policy_version": 1,
         "input_scale": "linear",
         "imputation_operation_order": "no_intensity_transform",
     }

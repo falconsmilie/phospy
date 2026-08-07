@@ -24,6 +24,7 @@ from phospy.advanced.configs import (
     DatasetLocalisationMode,
     DatasetMissingDataConfig,
     DatasetMissingDataInputScale,
+    DatasetMissingDataKnnNoOverlapPolicy,
     DatasetMissingDataPolicy,
     DatasetNormalisationConfig,
     DatasetNormalisationPolicy,
