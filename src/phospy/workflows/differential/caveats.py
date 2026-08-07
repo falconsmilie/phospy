@@ -16,6 +16,11 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DifferentialPolicyProvenance,
 )
+from phospy.workflows.differential.imputation_inference import (
+    DifferentialImputationInferenceSummary,
+    imputation_inference_summary_payload,
+    summarize_differential_imputation_inference,
+)
 from phospy.workflows.differential.models import (
     DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
@@ -112,32 +117,15 @@ def build_differential_result_caveats(
 
     if imputation_policy_inputs is not None:
         caveats.append(
-            ResultCaveat(
-                code=DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
-                severity="warning",
-                message=(
-                    "Differential analysis used the imputation-aware withholding "
-                    "policy; withheld features were excluded from model fitting "
-                    "and multiple-testing adjustment denominators."
-                ),
-                details=_imputation_policy_details(imputation_policy_inputs),
+            _imputation_policy_caveat(
+                imputation_policy_inputs=imputation_policy_inputs,
+                feature_eligibility_inputs=feature_eligibility_inputs,
             )
         )
 
     withheld_feature_details = _withheld_feature_details(feature_eligibility_inputs)
     if withheld_feature_details is not None:
-        caveats.append(
-            ResultCaveat(
-                code=DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE,
-                severity="warning",
-                message=(
-                    "One or more features were withheld from differential model "
-                    "fitting; result tables contain row-level status and reason "
-                    "columns."
-                ),
-                details=withheld_feature_details,
-            )
-        )
+        caveats.append(_withheld_feature_caveat(details=withheld_feature_details))
 
     parity_details = _narrow_parity_envelope_details(
         policy_provenance=policy_provenance,
@@ -161,6 +149,49 @@ def build_differential_result_caveats(
         )
 
     return tuple(caveats)
+
+
+def finalize_differential_result_caveats(
+    *,
+    caveats: tuple[ResultCaveat, ...],
+    imputation_policy_inputs: DifferentialImputationPolicyInputs | None,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None,
+) -> tuple[ResultCaveat, ...]:
+    """Refresh row-count caveats after final model-fit eligibility is known."""
+
+    finalized: list[ResultCaveat] = []
+    saw_imputation_caveat = False
+    saw_withheld_caveat = False
+    withheld_feature_details = _withheld_feature_details(feature_eligibility_inputs)
+    for caveat in caveats:
+        if caveat.code == DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE:
+            saw_imputation_caveat = True
+            if imputation_policy_inputs is not None:
+                finalized.append(
+                    _imputation_policy_caveat(
+                        imputation_policy_inputs=imputation_policy_inputs,
+                        feature_eligibility_inputs=feature_eligibility_inputs,
+                    )
+                )
+            continue
+        if caveat.code == DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE:
+            saw_withheld_caveat = True
+            if withheld_feature_details is not None:
+                finalized.append(
+                    _withheld_feature_caveat(details=withheld_feature_details)
+                )
+            continue
+        finalized.append(caveat)
+    if imputation_policy_inputs is not None and not saw_imputation_caveat:
+        finalized.append(
+            _imputation_policy_caveat(
+                imputation_policy_inputs=imputation_policy_inputs,
+                feature_eligibility_inputs=feature_eligibility_inputs,
+            )
+        )
+    if withheld_feature_details is not None and not saw_withheld_caveat:
+        finalized.append(_withheld_feature_caveat(details=withheld_feature_details))
+    return tuple(finalized)
 
 
 def _exploratory_single_replicate_details(
@@ -243,18 +274,90 @@ def _declared_scale_override_details(
 
 def _imputation_policy_details(
     inputs: DifferentialImputationPolicyInputs,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
 ) -> dict[str, object]:
-    total_feature_count = int(inputs.result_status.size)
-    testable_feature_count = len(inputs.testable_feature_ids)
+    summary = summarize_differential_imputation_inference(
+        imputation_policy_inputs=inputs,
+        feature_eligibility_inputs=feature_eligibility_inputs,
+    )
+    summary_payload = imputation_inference_summary_payload(summary)
     return {
         "policy": inputs.policy,
         "imputed_value_max_fraction": float(inputs.max_fraction),
-        "total_feature_count": total_feature_count,
-        "testable_feature_count": testable_feature_count,
-        "withheld_feature_count": total_feature_count - testable_feature_count,
-        "status_counts": _status_counts(inputs.result_status),
+        "testable_feature_count": int(summary.tested_feature_count),
         "result_status_column": DIFFERENTIAL_RESULT_STATUS_COLUMN,
+        "result_status_reason_column": DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+        **summary_payload,
     }
+
+
+def _imputation_policy_caveat(
+    *,
+    imputation_policy_inputs: DifferentialImputationPolicyInputs,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None,
+) -> ResultCaveat:
+    summary = summarize_differential_imputation_inference(
+        imputation_policy_inputs=imputation_policy_inputs,
+        feature_eligibility_inputs=feature_eligibility_inputs,
+    )
+    details = _imputation_policy_details(
+        imputation_policy_inputs,
+        feature_eligibility_inputs,
+    )
+    return ResultCaveat(
+        code=DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+        severity=(
+            "warning"
+            if summary.withheld_feature_count > 0
+            or summary.tested_imputed_feature_count > 0
+            else "info"
+        ),
+        message=_imputation_policy_message(summary),
+        details=details,
+    )
+
+
+def _imputation_policy_message(
+    summary: DifferentialImputationInferenceSummary,
+) -> str:
+    tested_imputed_feature_count = int(summary.tested_imputed_feature_count)
+    withheld_feature_count = int(summary.withheld_feature_count)
+    if tested_imputed_feature_count > 0:
+        return (
+            "Differential analysis retained tested rows that include imputed "
+            "values under the imputation-aware withholding policy. The fit used "
+            "analysis-ready values, not observed-only fitting, and residual "
+            "degrees of freedom were not adjusted for imputation. Withheld "
+            "features were excluded from model fitting and multiple-testing "
+            "adjustment denominators."
+        )
+    if withheld_feature_count > 0:
+        return (
+            "Differential analysis used the imputation-aware withholding policy; "
+            "no tested rows contained imputed values after withholding. Withheld "
+            "features were excluded from model fitting and multiple-testing "
+            "adjustment denominators."
+        )
+    return (
+        "Differential analysis used the imputation-aware withholding policy; no "
+        "analysed rows contained imputed values and no rows were withheld."
+    )
+
+
+def _withheld_feature_caveat(
+    *,
+    details: dict[str, object],
+) -> ResultCaveat:
+    return ResultCaveat(
+        code=DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "One or more features were withheld from differential model "
+            "fitting; result tables contain row-level status and reason "
+            "columns."
+        ),
+        details=details,
+    )
 
 
 def _withheld_feature_details(
@@ -328,4 +431,5 @@ __all__ = [
     "DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE",
     "DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE",
     "build_differential_result_caveats",
+    "finalize_differential_result_caveats",
 ]

@@ -270,6 +270,8 @@ class DifferentialAnalysisInterpreter:
         policy_provenance = build_differential_policy_provenance(
             request=provenance_request,
             design_decomposition=resolved_design_decomposition,
+            imputation_policy_inputs=imputation_policy_inputs,
+            feature_eligibility_inputs=feature_eligibility_inputs,
         )
         ruv_readiness_enabled = bool(
             resolved_dataset.processing_state.ruv_readiness.enabled

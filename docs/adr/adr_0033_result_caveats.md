@@ -112,6 +112,14 @@ envelope. Differential validators and interpreters own the design, contrast,
 scale, imputation, and eligibility facts. The differential caveat builder owns
 the public `DifferentialAnalysisResult.caveats` entries.
 
+For differential `withhold_imputed_features`, the top-level imputation caveat
+must state whether retained tested rows include imputed values. Its structured
+details must carry final tested-row counts, tested imputed-cell counts,
+withholding counts, `observed_only_fit`, residual-degree-of-freedom adjustment
+status, inferential status, and the adjusted-p-value denominator feature count.
+When final tested rows contain no imputed cells, the caveat must not imply that
+they do.
+
 Kinase workflow caveats include exploratory/custom reliability warnings
 for low substrate floors, self-inclusion, permissive localisation, zero
 attrition thresholds, warning-only attrition behavior, non-default reference

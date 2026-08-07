@@ -52,6 +52,10 @@ DIFFERENTIAL_IMPUTATION_RESULT_COLUMNS: tuple[str, ...] = (
     "imputed_fraction",
     "imputation_policy",
     "imputation_fraction_threshold",
+    "contains_imputed_cells",
+    "observed_only_fit",
+    "residual_df_adjusted_for_imputation",
+    "inferential_status",
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
 )

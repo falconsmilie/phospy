@@ -146,7 +146,7 @@ tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
 tests/unit/test_differential_feature_eligibility.py,unit,500,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_differential_fixed_effect_provenance.py,unit,375,5,false,false,,,,,,
-tests/unit/test_differential_imputation_policy.py,unit,321,8,false,false,,,,,,
+tests/unit/test_differential_imputation_policy.py,unit,539,12,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,1062,24,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,91,7,false,false,,,,,,
 tests/unit/test_differential_replicate_reliability_policy.py,unit,427,9,false,false,,,,,,

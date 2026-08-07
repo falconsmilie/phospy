@@ -182,10 +182,13 @@ total-protein correction diagnostics.
 Structured result caveats are persistence data, not display-only warnings.
 Current reloadable bundle services persist caveats for kinase and signalome
 results, and `DifferentialAnalysisResult.to_payload()` serializes differential
-caveats for handoff. Any future differential bundle writer must preserve the
-same `caveats` payload, including exploratory single-biological-replicate
-caveats that distinguish computable output from production-supported
-inferential support.
+caveats, differential policy provenance, workflow provenance, and
+feature-eligibility tables for handoff. Any future differential bundle writer
+must preserve those payloads, including exploratory
+single-biological-replicate caveats that distinguish computable output from
+production-supported inferential support and imputation inference fields that
+distinguish retained imputed-row analysis from ordinary fully observed
+inference.
 
 Version-1 kinase and signalome result bundles are rejected with a migration
 message. Kinase version-2 bundles are also rejected as legacy because they did

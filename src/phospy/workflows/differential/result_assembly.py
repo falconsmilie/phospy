@@ -20,17 +20,27 @@ from phospy.science.differential.models import (
     DifferentialComputationResult,
     DifferentialContrastDefinition,
     DifferentialModelDiagnostics,
+    DifferentialPolicyProvenance,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
 )
+from phospy.workflows.differential.caveats import (
+    finalize_differential_result_caveats,
+)
 from phospy.workflows.differential.eligibility import (
     DifferentialExecutionEligibilityResolution,
+)
+from phospy.workflows.differential.imputation_inference import (
+    imputation_inference_columns,
 )
 from phospy.workflows.differential.models import (
     DifferentialExecutionDesignInputs,
     DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
     InterpretedDifferentialAnalysisRequest,
+)
+from phospy.workflows.differential.provenance import (
+    finalize_differential_policy_provenance,
 )
 
 
@@ -107,9 +117,20 @@ class DifferentialResultAssembler:
             )
             for contrast_name, table in contrast_source_tables.items()
         }
+        policy_provenance = finalize_differential_policy_provenance(
+            policy_provenance=request.policy_provenance,
+            imputation_policy_inputs=request.imputation_policy_inputs,
+            feature_eligibility_inputs=eligibility.feature_eligibility_inputs,
+        )
         diagnostics = _build_model_diagnostics(
             request=request,
             result=computation_result,
+            policy_provenance=policy_provenance,
+        )
+        caveats = finalize_differential_result_caveats(
+            caveats=request.caveats,
+            imputation_policy_inputs=request.imputation_policy_inputs,
+            feature_eligibility_inputs=eligibility.feature_eligibility_inputs,
         )
         return DifferentialAnalysisResult._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal ownership-preserving constructor
             residual_variance=residual_variance,
@@ -127,10 +148,10 @@ class DifferentialResultAssembler:
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
             diagnostics=diagnostics,
-            policy_provenance=request.policy_provenance,
+            policy_provenance=policy_provenance,
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
-            caveats=request.caveats,
+            caveats=caveats,
             input_dataset_preprocessing_report=request.dataset_preprocessing_report,
             feature_eligibility=(
                 None
@@ -184,9 +205,12 @@ def _build_model_diagnostics(
     *,
     request: InterpretedDifferentialAnalysisRequest,
     result: DifferentialComputationResult,
+    policy_provenance: DifferentialPolicyProvenance | None = None,
 ) -> DifferentialModelDiagnostics:
     design_frame = request.computation_request.design.frame
-    policy = request.policy_provenance
+    policy = (
+        request.policy_provenance if policy_provenance is None else policy_provenance
+    )
     execution_design = request.execution_design
     design_columns = tuple(str(label) for label in design_frame.columns)
     contrast_definitions = (
@@ -433,6 +457,11 @@ def _attach_imputation_policy_metadata(
     enriched["result_status_reason"] = (
         imputation_policy_inputs.result_status_reason.astype(str).to_numpy()
     )
+    for column_name, values in imputation_inference_columns(
+        feature_metadata=feature_metadata,
+        result_status=result_status,
+    ).items():
+        enriched[column_name] = values
 
 
 def _attach_feature_eligibility_metadata(
@@ -465,6 +494,10 @@ def _attach_feature_eligibility_metadata(
         "imputed_fraction",
         "imputation_policy",
         "imputation_fraction_threshold",
+        "contains_imputed_cells",
+        "observed_only_fit",
+        "residual_df_adjusted_for_imputation",
+        "inferential_status",
         "result_status",
         "result_status_reason",
     )

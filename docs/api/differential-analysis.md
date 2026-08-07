@@ -174,6 +174,41 @@ indicate stronger evidence after accounting for the number of tested features in
 that contrast, but the adjusted value is not an effect size. Report the method
 and thresholds used in your analysis.
 
+## Imputed-Value Withholding and Inference Status
+
+The default imputed-value policy remains `"reject"`. To analyse an upstream
+imputed dataset, callers must explicitly set
+`imputed_value_policy="withhold_imputed_features"` and provide dataset-owned
+imputation observation metadata.
+
+The withhold policy does not perform observed-only fitting. Tested rows are fit
+on the analysis-ready matrix. If a retained tested row still contains imputed
+values within the configured threshold, PhosPy reports that fact explicitly
+rather than treating the row as ordinary fully observed inference. Residual
+degrees of freedom are not reduced by imputed-cell counts.
+
+With this policy, contrast tables and `result.feature_eligibility` include
+row-level fields such as:
+
+- `imputed_cell_count`, `observed_cell_count`, and `imputed_fraction`, computed
+  over the actual analysed sample subset;
+- `contains_imputed_cells`;
+- `observed_only_fit` (`False`);
+- `residual_df_adjusted_for_imputation` (`False`);
+- `inferential_status`, for example `tested_retained_imputed_values`,
+  `tested_fully_observed`, or `withheld_not_tested`; and
+- `result_status` and `result_status_reason`.
+
+The top-level `differential_imputation_withholding_policy` caveat summarizes
+the final tested-row state with `tested_feature_count`,
+`withheld_feature_count`, `tested_imputed_feature_count`,
+`tested_imputed_cell_count`, `observed_only_fit=False`,
+`residual_df_adjusted_for_imputation=False`, an inferential status, and the
+adjusted-p-value denominator feature count. If all imputed rows are withheld,
+the caveat states that no tested rows contained imputed values. If the analysed
+subset contains no imputed cells, the caveat is informational rather than a
+warning.
+
 ## Peptide-to-Site Differential Evidence
 
 Preferred PhosPy-origin lane:
@@ -367,8 +402,10 @@ assumptions, and unsupported-design rejection policy. Warnings are exposed on
 `result.diagnostics.warnings`; they are not only logged. Table exports return
 defensive in-memory snapshots; mutating them does not mutate the result object.
 `result.to_payload()` serializes structured caveats along with result tables and
-provenance, so downstream handoff code must preserve the `caveats` payload
-rather than treating warnings as display-only text.
+provenance, including differential imputation inference fields, so downstream
+handoff code must preserve the `caveats`, `policy_provenance`,
+`workflow_provenance`, and `feature_eligibility` payloads rather than treating
+warnings as display-only text.
 
 ## Limitations
 
@@ -384,7 +421,8 @@ rather than treating warnings as display-only text.
 - Exploratory single-biological-replicate output is computable model output, not
   production-supported inferential evidence.
 - Upstream-imputed datasets are rejected by default. The supported withhold
-  policy does not implement observed-only fitting.
+  policy does not implement observed-only fitting or residual degrees-of-freedom
+  correction for retained imputed cells.
 
 ## Minimal Example
 

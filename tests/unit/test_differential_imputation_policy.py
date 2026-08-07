@@ -13,6 +13,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.errors import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
@@ -21,6 +22,16 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
 )
 from phospy.science.statistics.multiple_testing import adjust_p_values
+from phospy.workflows.differential.caveats import (
+    DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+)
+from phospy.workflows.differential.imputation_inference import (
+    DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_NO_TESTED_IMPUTED_VALUES,
+    DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_RETAINED_IMPUTED_VALUES,
+    DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_FULLY_OBSERVED,
+    DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_RETAINED_IMPUTED_VALUES,
+    DIFFERENTIAL_ROW_INFERENCE_STATUS_WITHHELD_NOT_TESTED,
+)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -89,12 +100,20 @@ def _imputed_processing_state():
     return valid_imputed_processing_state(processing_state)
 
 
-def _imputed_dataset(*, with_metadata: bool = True) -> AnalysisReadyPhosphoDataset:
+def _imputed_dataset(
+    *,
+    with_metadata: bool = True,
+    observed_mask: pd.DataFrame | None = None,
+) -> AnalysisReadyPhosphoDataset:
     index = _site_index()
     return trusted_analysis_ready_dataset_from_tables(
         phospho=_phospho(index),
         site_metadata=_site_metadata(index),
-        imputation_observation_mask=(_observed_mask(index) if with_metadata else None),
+        imputation_observation_mask=(
+            observed_mask
+            if observed_mask is not None
+            else (_observed_mask(index) if with_metadata else None)
+        ),
         organism=Organism.RAT,
         intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
@@ -136,6 +155,12 @@ def _withhold_request() -> DifferentialAnalysisRequest:
             imputed_value_max_fraction=0.20,
         ),
     )
+
+
+def _caveat_by_code(result, code: str):
+    matches = [caveat for caveat in result.caveats if caveat.code == code]
+    assert len(matches) == 1
+    return matches[0]
 
 
 def test_differential_imputation_policy_reject_is_default() -> None:
@@ -187,18 +212,53 @@ def test_differential_withhold_policy_marks_high_imputation_features() -> None:
         "observed_cell_count",
         "imputed_fraction",
         "imputation_policy",
+        "contains_imputed_cells",
+        "observed_only_fit",
+        "residual_df_adjusted_for_imputation",
+        "inferential_status",
         "result_status",
     }.issubset(table.columns)
     assert table["imputed_cell_count"].tolist() == [0, 1, 2, 2]
     assert table["observed_cell_count"].tolist() == [6, 5, 4, 4]
     assert table["imputed_fraction"].tolist() == [0.0, 1 / 6, 2 / 6, 2 / 6]
     assert table["imputation_policy"].unique().tolist() == ["withhold_imputed_features"]
+    assert table["contains_imputed_cells"].tolist() == [False, True, True, True]
+    assert table["observed_only_fit"].unique().tolist() == [False]
+    assert table["residual_df_adjusted_for_imputation"].unique().tolist() == [False]
+    assert table["inferential_status"].tolist() == [
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_FULLY_OBSERVED,
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_RETAINED_IMPUTED_VALUES,
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_WITHHELD_NOT_TESTED,
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_WITHHELD_NOT_TESTED,
+    ]
     assert table["result_status"].tolist() == [
         DIFFERENTIAL_RESULT_STATUS_TESTED,
         DIFFERENTIAL_RESULT_STATUS_TESTED,
         DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
         DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
     ]
+    assert result.feature_eligibility is not None
+    assert result.feature_eligibility["inferential_status"].tolist() == (
+        table["inferential_status"].tolist()
+    )
+
+    caveat = _caveat_by_code(
+        result,
+        DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    )
+    assert caveat.severity == "warning"
+    assert "retained tested rows" in caveat.message
+    assert caveat.details["tested_feature_count"] == 2
+    assert caveat.details["testable_feature_count"] == 2
+    assert caveat.details["withheld_feature_count"] == 2
+    assert caveat.details["tested_imputed_feature_count"] == 1
+    assert caveat.details["tested_imputed_cell_count"] == 1
+    assert caveat.details["observed_only_fit"] is False
+    assert caveat.details["residual_df_adjusted_for_imputation"] is False
+    assert caveat.details["inferential_status"] == (
+        DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_RETAINED_IMPUTED_VALUES
+    )
+    assert caveat.details["adjusted_p_value_denominator_feature_count"] == 2
 
 
 def test_differential_imputation_subset_summary_uses_dataset_owned_summary_contract(
@@ -253,6 +313,16 @@ def test_differential_imputation_subset_summary_uses_dataset_owned_summary_contr
 
     assert table["imputed_cell_count"].tolist() == [0, 0, 0, 1]
     assert table["observed_cell_count"].tolist() == [4, 4, 4, 3]
+    caveat = _caveat_by_code(
+        result,
+        DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    )
+    assert caveat.details["tested_feature_count"] == 3
+    assert caveat.details["tested_imputed_feature_count"] == 0
+    assert caveat.details["tested_imputed_cell_count"] == 0
+    assert caveat.details["inferential_status"] == (
+        DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_NO_TESTED_IMPUTED_VALUES
+    )
     assert summary_calls
     assert summary_calls[0] == (tuple(_site_index()), analysis_sample_ids)
     assert (tuple(_site_index()), ("A_1", "A_2")) in summary_calls
@@ -299,6 +369,144 @@ def test_differential_withhold_policy_excludes_withheld_features_from_testing() 
         "sites_excluded_before_testing"
     ]
     assert [record["removed_rows"] for record in row_attrition["records"]] == [2]
+    assert (
+        result.workflow_provenance["imputation_inference"][
+            "adjusted_p_value_denominator_feature_count"
+        ]
+        == 2
+    )
+
+
+def test_differential_withhold_policy_reports_when_all_imputed_rows_are_withheld() -> (
+    None
+):
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_imputed_dataset(),
+            design=_design(),
+            contrasts=_contrasts(),
+            config=DifferentialAnalysisConfig(
+                imputed_value_policy="withhold_imputed_features",
+                imputed_value_max_fraction=0.0,
+            ),
+        )
+    )
+
+    table = result.table_for("B_vs_A")
+    caveat = _caveat_by_code(
+        result,
+        DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    )
+
+    assert table["result_status"].tolist() == [
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
+    ]
+    assert caveat.severity == "warning"
+    assert "no tested rows contained imputed values" in caveat.message
+    assert caveat.details["tested_feature_count"] == 1
+    assert caveat.details["withheld_feature_count"] == 3
+    assert caveat.details["tested_imputed_feature_count"] == 0
+    assert caveat.details["tested_imputed_cell_count"] == 0
+    assert caveat.details["inferential_status"] == (
+        DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_NO_TESTED_IMPUTED_VALUES
+    )
+
+
+def test_differential_withhold_policy_does_not_warn_when_no_analysed_cells_are_imputed() -> (
+    None
+):
+    index = _site_index()
+    fully_observed_mask = pd.DataFrame(
+        True, index=index.copy(), columns=pd.Index(_SAMPLES)
+    )
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_imputed_dataset(observed_mask=fully_observed_mask),
+            design=_design(),
+            contrasts=_contrasts(),
+            config=DifferentialAnalysisConfig(
+                imputed_value_policy="withhold_imputed_features",
+                imputed_value_max_fraction=0.20,
+            ),
+        )
+    )
+
+    table = result.table_for("B_vs_A")
+    caveat = _caveat_by_code(
+        result,
+        DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    )
+
+    assert table["imputed_cell_count"].tolist() == [0, 0, 0, 0]
+    assert table["contains_imputed_cells"].tolist() == [False, False, False, False]
+    assert caveat.severity == "info"
+    assert "no analysed rows contained imputed values" in caveat.message
+    assert caveat.details["tested_imputed_feature_count"] == 0
+    assert caveat.details["tested_imputed_cell_count"] == 0
+
+
+def test_differential_imputation_inference_metadata_serializes_and_reconstructs() -> (
+    None
+):
+    result = DifferentialAnalysisWorkflow().run(_withhold_request())
+    payload = result.to_payload()
+    restored_caveats = result_caveats_from_payloads(payload["caveats"])
+    restored = [
+        caveat
+        for caveat in restored_caveats
+        if caveat.code == DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE
+    ]
+
+    assert len(restored) == 1
+    assert restored[0].details["tested_imputed_feature_count"] == 1
+    policy_payload = payload["policy_provenance"]
+    assert policy_payload["missing_values"]["tested_feature_count"] == 2
+    assert policy_payload["missing_values"]["tested_imputed_feature_count"] == 1
+    assert policy_payload["missing_values"]["tested_imputed_cell_count"] == 1
+    assert policy_payload["missing_values"]["observed_only_fit"] is False
+    assert (
+        policy_payload["missing_values"]["residual_df_adjusted_for_imputation"] is False
+    )
+    assert policy_payload["missing_values"]["inferential_status"] == (
+        DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_RETAINED_IMPUTED_VALUES
+    )
+
+
+def test_differential_imputation_inference_metadata_applies_to_multiple_contrasts() -> (
+    None
+):
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_imputed_dataset(),
+            design=_design(),
+            contrasts=(
+                *_contrasts(),
+                Contrast(
+                    name="A_vs_B",
+                    numerator_condition="A",
+                    denominator_condition="B",
+                ),
+            ),
+            config=DifferentialAnalysisConfig(
+                imputed_value_policy="withhold_imputed_features",
+                imputed_value_max_fraction=0.20,
+            ),
+        )
+    )
+
+    first = result.table_for("B_vs_A")
+    second = result.table_for("A_vs_B")
+
+    assert first["inferential_status"].tolist() == second["inferential_status"].tolist()
+    caveat = _caveat_by_code(
+        result,
+        DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    )
+    assert caveat.details["tested_feature_count"] == 2
+    assert caveat.details["tested_imputed_feature_count"] == 1
 
 
 def test_differential_imputation_policy_is_recorded_in_provenance() -> None:
@@ -312,6 +520,16 @@ def test_differential_imputation_policy_is_recorded_in_provenance() -> None:
     assert missing_values.adjusted_p_value_scope == (
         "adjustment_over_tested_features_only_per_contrast"
     )
+    assert missing_values.tested_feature_count == 2
+    assert missing_values.withheld_feature_count == 2
+    assert missing_values.tested_imputed_feature_count == 1
+    assert missing_values.tested_imputed_cell_count == 1
+    assert missing_values.observed_only_fit is False
+    assert missing_values.residual_df_adjusted_for_imputation is False
+    assert missing_values.inferential_status == (
+        DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_RETAINED_IMPUTED_VALUES
+    )
+    assert missing_values.adjusted_p_value_denominator_feature_count == 2
 
 
 def test_differential_imputation_policy_output_is_reproducible() -> None:

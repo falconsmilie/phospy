@@ -528,6 +528,14 @@ class DifferentialMissingValuePolicyProvenance:
     imputed_value_max_fraction: float = 0.0
     imputation_metadata_required: bool = False
     adjusted_p_value_scope: str = "all_tested_features"
+    tested_feature_count: int = 0
+    withheld_feature_count: int = 0
+    tested_imputed_feature_count: int = 0
+    tested_imputed_cell_count: int = 0
+    observed_only_fit: bool = False
+    residual_df_adjusted_for_imputation: bool = False
+    inferential_status: str = "not_applicable"
+    adjusted_p_value_denominator_feature_count: int = 0
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -565,6 +573,89 @@ class DifferentialMissingValuePolicyProvenance:
             self,
             "adjusted_p_value_scope",
             str(self.adjusted_p_value_scope),
+        )
+        object.__setattr__(
+            self,
+            "tested_feature_count",
+            _require_non_negative_int(
+                self.tested_feature_count,
+                field_name=(
+                    "differential_policy_provenance.missing_values.tested_feature_count"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "withheld_feature_count",
+            _require_non_negative_int(
+                self.withheld_feature_count,
+                field_name=(
+                    "differential_policy_provenance.missing_values."
+                    "withheld_feature_count"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "tested_imputed_feature_count",
+            _require_non_negative_int(
+                self.tested_imputed_feature_count,
+                field_name=(
+                    "differential_policy_provenance.missing_values."
+                    "tested_imputed_feature_count"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "tested_imputed_cell_count",
+            _require_non_negative_int(
+                self.tested_imputed_cell_count,
+                field_name=(
+                    "differential_policy_provenance.missing_values."
+                    "tested_imputed_cell_count"
+                ),
+            ),
+        )
+        if not isinstance(cast(object, self.observed_only_fit), bool):
+            raise PhosPyInputError(
+                "differential_policy_provenance.missing_values.observed_only_fit "
+                "must be a bool"
+            )
+        if not isinstance(
+            cast(object, self.residual_df_adjusted_for_imputation),
+            bool,
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.missing_values."
+                "residual_df_adjusted_for_imputation must be a bool"
+            )
+        object.__setattr__(self, "observed_only_fit", self.observed_only_fit)
+        object.__setattr__(
+            self,
+            "residual_df_adjusted_for_imputation",
+            self.residual_df_adjusted_for_imputation,
+        )
+        if not self.inferential_status:
+            raise PhosPyInputError(
+                "differential_policy_provenance.missing_values."
+                "inferential_status must be non-empty"
+            )
+        object.__setattr__(
+            self,
+            "inferential_status",
+            str(self.inferential_status),
+        )
+        object.__setattr__(
+            self,
+            "adjusted_p_value_denominator_feature_count",
+            _require_non_negative_int(
+                self.adjusted_p_value_denominator_feature_count,
+                field_name=(
+                    "differential_policy_provenance.missing_values."
+                    "adjusted_p_value_denominator_feature_count"
+                ),
+            ),
         )
         object.__setattr__(
             self,
@@ -623,6 +714,14 @@ class DifferentialPolicyProvenance:
             raise PhosPyInputError(
                 "differential_policy_provenance.contrasts must be non-empty"
             )
+
+
+def _require_non_negative_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(f"{field_name} must be a non-negative integer")
+    if value < 0:
+        raise PhosPyInputError(f"{field_name} must be >= 0")
+    return int(value)
 
 
 __all__ = [

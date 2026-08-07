@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
@@ -380,6 +380,11 @@ class DifferentialAnalysisResult:
                 None
                 if self.workflow_provenance is None
                 else _json_payload(self.workflow_provenance)
+            ),
+            "policy_provenance": (
+                None
+                if self.policy_provenance is None
+                else _json_payload(asdict(self.policy_provenance))
             ),
             "empirical_bayes": {
                 "method": self.empirical_bayes_method,

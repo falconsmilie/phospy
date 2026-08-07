@@ -71,6 +71,8 @@ class DifferentialAnalysisExecutor:
             model_fit_feature_ids=eligibility.model_fit_feature_ids,
             failed_model_fit_feature_ids=eligibility.failed_model_fit_feature_ids,
             multiple_testing_feature_ids=eligibility.multiple_testing_feature_ids,
+            imputation_policy_inputs=request.imputation_policy_inputs,
+            feature_eligibility_inputs=eligibility.feature_eligibility_inputs,
         )
         return self._result_assembler.run(
             request=request,

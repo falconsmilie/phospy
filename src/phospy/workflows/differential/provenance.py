@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 
 from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
@@ -28,7 +29,15 @@ from phospy.science.differential.models import (
     DifferentialTechnicalReplicateGroup,
     DifferentialUnsupportedDesignPolicyProvenance,
 )
-from phospy.workflows.differential.models import ValidatedDifferentialAnalysisRequest
+from phospy.workflows.differential.imputation_inference import (
+    imputation_inference_summary_payload,
+    summarize_differential_imputation_inference,
+)
+from phospy.workflows.differential.models import (
+    DifferentialFeatureEligibilityInputs,
+    DifferentialImputationPolicyInputs,
+    ValidatedDifferentialAnalysisRequest,
+)
 from phospy.workflows.differential.reliability import (
     resolved_minimum_condition_replicates,
     resolved_reliability_profile,
@@ -121,10 +130,24 @@ _DIFFERENTIAL_FIXED_BLOCK_LIMITATIONS: tuple[str, ...] = (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class _ImputationInferenceProvenanceFields:
+    tested_feature_count: int
+    withheld_feature_count: int
+    tested_imputed_feature_count: int
+    tested_imputed_cell_count: int
+    observed_only_fit: bool
+    residual_df_adjusted_for_imputation: bool
+    inferential_status: str
+    adjusted_p_value_denominator_feature_count: int
+
+
 def build_differential_policy_provenance(
     *,
     request: ValidatedDifferentialAnalysisRequest,
     design_decomposition: DifferentialDesignDecomposition,
+    imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
 ) -> DifferentialPolicyProvenance:
     """Build deterministic structured differential-policy provenance records."""
 
@@ -151,6 +174,10 @@ def build_differential_policy_provenance(
     input_intensity_scale = _input_intensity_scale_label(request)
     input_intensity_scale_evidence = input_intensity_scale_evidence_from_dataset(
         request.dataset
+    )
+    imputation_inference = _imputation_inference_provenance_fields(
+        imputation_policy_inputs=imputation_policy_inputs,
+        feature_eligibility_inputs=feature_eligibility_inputs,
     )
 
     contrast_definitions: list[DifferentialContrastDefinition] = []
@@ -263,6 +290,20 @@ def build_differential_policy_provenance(
                 request.config.imputed_value_policy != IMPUTED_VALUE_POLICY_REJECT
             ),
             adjusted_p_value_scope=_DIFFERENTIAL_ADJUSTED_P_VALUE_SCOPE,
+            tested_feature_count=imputation_inference.tested_feature_count,
+            withheld_feature_count=imputation_inference.withheld_feature_count,
+            tested_imputed_feature_count=(
+                imputation_inference.tested_imputed_feature_count
+            ),
+            tested_imputed_cell_count=(imputation_inference.tested_imputed_cell_count),
+            observed_only_fit=imputation_inference.observed_only_fit,
+            residual_df_adjusted_for_imputation=(
+                imputation_inference.residual_df_adjusted_for_imputation
+            ),
+            inferential_status=imputation_inference.inferential_status,
+            adjusted_p_value_denominator_feature_count=(
+                imputation_inference.adjusted_p_value_denominator_feature_count
+            ),
             limitations=_imputation_policy_limitations(
                 request.config.imputed_value_policy
             ),
@@ -270,6 +311,42 @@ def build_differential_policy_provenance(
         unsupported_design=DifferentialUnsupportedDesignPolicyProvenance(
             intentionally_rejected_features=_DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES,
             enforcement_stage=_DIFFERENTIAL_UNSUPPORTED_ENFORCEMENT_STAGE,
+        ),
+    )
+
+
+def finalize_differential_policy_provenance(
+    *,
+    policy_provenance: DifferentialPolicyProvenance | None,
+    imputation_policy_inputs: DifferentialImputationPolicyInputs | None,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None,
+) -> DifferentialPolicyProvenance | None:
+    """Refresh imputation inference counts after final row eligibility."""
+
+    if policy_provenance is None:
+        return None
+    imputation_inference = _imputation_inference_provenance_fields(
+        imputation_policy_inputs=imputation_policy_inputs,
+        feature_eligibility_inputs=feature_eligibility_inputs,
+    )
+    return replace(
+        policy_provenance,
+        missing_values=replace(
+            policy_provenance.missing_values,
+            tested_feature_count=imputation_inference.tested_feature_count,
+            withheld_feature_count=imputation_inference.withheld_feature_count,
+            tested_imputed_feature_count=(
+                imputation_inference.tested_imputed_feature_count
+            ),
+            tested_imputed_cell_count=(imputation_inference.tested_imputed_cell_count),
+            observed_only_fit=imputation_inference.observed_only_fit,
+            residual_df_adjusted_for_imputation=(
+                imputation_inference.residual_df_adjusted_for_imputation
+            ),
+            inferential_status=imputation_inference.inferential_status,
+            adjusted_p_value_denominator_feature_count=(
+                imputation_inference.adjusted_p_value_denominator_feature_count
+            ),
         ),
     )
 
@@ -297,6 +374,42 @@ def _imputation_policy_limitations(policy: str) -> tuple[str, ...]:
     if policy == IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES:
         return _DIFFERENTIAL_WITHHOLD_IMPUTATION_LIMITATIONS
     return _DIFFERENTIAL_REJECT_IMPUTATION_LIMITATIONS
+
+
+def _imputation_inference_provenance_fields(
+    *,
+    imputation_policy_inputs: DifferentialImputationPolicyInputs | None,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None,
+) -> _ImputationInferenceProvenanceFields:
+    if imputation_policy_inputs is None:
+        return _ImputationInferenceProvenanceFields(
+            tested_feature_count=0,
+            withheld_feature_count=0,
+            tested_imputed_feature_count=0,
+            tested_imputed_cell_count=0,
+            observed_only_fit=False,
+            residual_df_adjusted_for_imputation=False,
+            inferential_status="not_applicable",
+            adjusted_p_value_denominator_feature_count=0,
+        )
+    summary = summarize_differential_imputation_inference(
+        imputation_policy_inputs=imputation_policy_inputs,
+        feature_eligibility_inputs=feature_eligibility_inputs,
+    )
+    return _ImputationInferenceProvenanceFields(
+        tested_feature_count=int(summary.tested_feature_count),
+        withheld_feature_count=int(summary.withheld_feature_count),
+        tested_imputed_feature_count=int(summary.tested_imputed_feature_count),
+        tested_imputed_cell_count=int(summary.tested_imputed_cell_count),
+        observed_only_fit=bool(summary.observed_only_fit),
+        residual_df_adjusted_for_imputation=bool(
+            summary.residual_df_adjusted_for_imputation
+        ),
+        inferential_status=summary.inferential_status,
+        adjusted_p_value_denominator_feature_count=int(
+            summary.adjusted_p_value_denominator_feature_count
+        ),
+    )
 
 
 def _block_levels(
@@ -484,6 +597,8 @@ class DifferentialWorkflowProvenanceAssembler:
         model_fit_feature_ids: tuple[str, ...],
         failed_model_fit_feature_ids: tuple[str, ...],
         multiple_testing_feature_ids: tuple[str, ...],
+        imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None,
+        feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
     ) -> Mapping[str, object]:
         payload: dict[str, object] = (
             {} if workflow_provenance is None else dict(workflow_provenance)
@@ -534,6 +649,14 @@ class DifferentialWorkflowProvenanceAssembler:
             payload["row_attrition"] = RowAttritionReport.from_records(
                 records
             ).to_payload()
+        if imputation_policy_inputs is not None:
+            summary = summarize_differential_imputation_inference(
+                imputation_policy_inputs=imputation_policy_inputs,
+                feature_eligibility_inputs=feature_eligibility_inputs,
+            )
+            payload["imputation_inference"] = imputation_inference_summary_payload(
+                summary
+            )
         return payload
 
 
@@ -544,4 +667,5 @@ def _row_examples(values: tuple[str, ...]) -> tuple[str, ...]:
 __all__ = [
     "DifferentialWorkflowProvenanceAssembler",
     "build_differential_policy_provenance",
+    "finalize_differential_policy_provenance",
 ]

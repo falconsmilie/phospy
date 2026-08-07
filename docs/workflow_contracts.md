@@ -219,6 +219,11 @@ Important user-facing assumptions:
 - Upstream-imputed datasets are rejected by default. The explicit
   `withhold_imputed_features` policy uses dataset-owned imputation observation
   metadata and excludes withheld rows from the Benjamini-Hochberg denominator.
+  Retained tested rows can still contain imputed cells below the configured
+  threshold; result tables, policy provenance, workflow provenance, and the
+  top-level caveat expose tested imputed-row counts and state that the fit is
+  not observed-only and residual degrees of freedom were not adjusted for
+  imputation.
 - Suspicious declared-only log2 intensity scale is rejected by default when
   declaration provenance records diagnostics. The explicit
   `allow_suspicious_declared_input_scale` differential override is recorded in

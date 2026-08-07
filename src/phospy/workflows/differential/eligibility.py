@@ -42,6 +42,9 @@ from phospy.workflows._pandas_typing import (
     index_snapshot,
     series_copy,
 )
+from phospy.workflows.differential.imputation_inference import (
+    imputation_inference_columns,
+)
 from phospy.workflows.differential.models import (
     DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
@@ -397,6 +400,11 @@ def _build_feature_eligibility_inputs(
         ]
         statuses = merged_statuses
         reasons = merged_reasons
+        for column_name, values in imputation_inference_columns(
+            feature_metadata=feature_metadata,
+            result_status=statuses,
+        ).items():
+            feature_metadata[column_name] = values
 
     feature_metadata[DIFFERENTIAL_RESULT_STATUS_COLUMN] = statuses.to_numpy(dtype=str)
     feature_metadata[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] = reasons.to_numpy(

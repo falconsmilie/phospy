@@ -60,13 +60,38 @@ imputed cells from residual degrees of freedom while still fitting imputed
 values and does not claim feature-specific residual degrees of freedom for this
 policy.
 
+### Update: explicit retained-imputed inference status
+
+When `"withhold_imputed_features"` is used, differential results must expose the
+interpretation status of retained tested rows as structured result data, not only
+as documentation. The workflow records counts over the actual analysed sample
+subset and final tested rows:
+
+- tested feature count;
+- withheld feature count;
+- tested features containing imputed cells, represented by row-level
+  `contains_imputed_cells` and bounded caveat examples;
+- tested imputed-cell count;
+- `observed_only_fit=False`;
+- `residual_df_adjusted_for_imputation=False`;
+- an imputation inferential status such as
+  `retained_imputed_values_without_observed_only_fit` or
+  `no_tested_imputed_values`; and
+- the adjusted-p-value denominator feature count.
+
+If all imputed rows are withheld, the caveat states that no tested rows contained
+imputed values. If the analysed rows contain no imputed cells, the policy caveat
+is informational rather than a warning. These fields do not change the default
+reject policy and do not implement observed-only fitting or feature-specific
+residual degrees of freedom.
+
 ## Consequences
 
 - **Positive**
   - Default behavior remains scientifically conservative.
   - Non-default imputed differential analysis is explicit and auditable.
   - Result tables expose imputation counts, fractions, policy, threshold, and
-    status.
+    status, including whether a tested row retained imputed cells.
   - Adjusted p-value behavior is deterministic and test-pinned.
 - **Negative**
   - Projects that want observed-only modelling still need a future
