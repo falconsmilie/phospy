@@ -36,6 +36,7 @@ from phospy.science.datasets.imputation_metadata import ImputationObservationMet
 from phospy.science.datasets.imputation_metadata import (
     build_imputation_observation_metadata_or_none as _build_imputation_observation_metadata_or_none,
 )
+from phospy.science.datasets.internal_frame_store import DatasetInternalFrameStore
 from phospy.science.datasets.organism_coherence import (
     normalize_dataset_organism_state,
     require_dataset_provenance_organism_coherence,
@@ -89,6 +90,7 @@ class _ValidatedAnalysisReadyTables:
         default=None,
         repr=False,
     )
+    internal_frame_store: DatasetInternalFrameStore = field(init=False, repr=False)
     organism: Organism | None = None
     preprocessing_report: DatasetPreprocessingReport | None = None
     protein_aware_preparation: ProteinAwarePreparationResult | None = None
@@ -112,6 +114,7 @@ class _ValidatedAnalysisReadyTables:
         total: pd.DataFrame | None,
         comparisons: pd.DataFrame | None,
         imputation_observation_metadata: ImputationObservationMetadata | None,
+        internal_frame_store: DatasetInternalFrameStore,
         organism: Organism | None,
         preprocessing_report: DatasetPreprocessingReport | None,
         protein_aware_preparation: ProteinAwarePreparationResult | None,
@@ -135,6 +138,7 @@ class _ValidatedAnalysisReadyTables:
             "imputation_observation_metadata",
             imputation_observation_metadata,
         )
+        object.__setattr__(tables, "internal_frame_store", internal_frame_store)
         object.__setattr__(tables, "organism", organism)
         object.__setattr__(tables, "preprocessing_report", preprocessing_report)
         object.__setattr__(
@@ -525,6 +529,15 @@ class _AnalysisReadyDatasetConstructionService:
             provenance=provenance,
             actual_fingerprints=actual_fingerprints,
         )
+        internal_frame_store = DatasetInternalFrameStore.from_frames(
+            phospho=phospho_table.frame,
+            site_metadata=site_metadata_table.frame,
+            sample_metadata=(
+                None if sample_metadata_table is None else sample_metadata_table.frame
+            ),
+            total=None if total_table is None else total_table.frame,
+            comparisons=comparisons,
+        )
         return _ValidatedAnalysisReadyTables._from_validated_parts(
             phospho=phospho_table.frame,
             site_metadata=site_metadata_table.frame,
@@ -536,6 +549,7 @@ class _AnalysisReadyDatasetConstructionService:
             total=None if total_table is None else total_table.frame,
             comparisons=comparisons,
             imputation_observation_metadata=imputation_observation_metadata,
+            internal_frame_store=internal_frame_store,
             organism=resolved_dataset_organism,
             preprocessing_report=preprocessing_report,
             protein_aware_preparation=protein_aware_preparation,

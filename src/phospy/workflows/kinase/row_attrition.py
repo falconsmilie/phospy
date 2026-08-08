@@ -48,7 +48,8 @@ def build_kinase_row_attrition_provenance(
 ) -> KinaseRowAttritionProvenance:
     """Build standardized row-attrition provenance for kinase scoring."""
 
-    input_site_ids = _index_values(request.dataset.phospho.index)
+    dataset_view = request.dataset_view
+    input_site_ids = _index_values(dataset_view.phospho.index)
     scoring_site_ids = _index_values(request.scoring_site_index)
     reference_supported_site_ids = _reference_supported_site_ids(request)
     scored_site_ids = _site_ids_with_any_score(scoring_result.authoritative_scores)
@@ -93,7 +94,7 @@ def build_kinase_row_attrition_provenance(
         row_attrition=reconcile_row_attrition_report(
             workflow="kinase",
             records=records,
-            initial_site_ids=request.dataset.phospho.index,
+            initial_site_ids=dataset_view.phospho.index,
             final_site_ids=scoring_result.authoritative_scores.index,
         ),
     )
@@ -149,7 +150,7 @@ def _sites_below_localisation_threshold(
     threshold = request.execution_config.localisation_requirement.minimum_probability
     if threshold is None:
         return 0
-    site_metadata = request.dataset.site_metadata
+    site_metadata = request.dataset_view.site_metadata
     column_name = next(
         (column for column in _LOCALISATION_COLUMNS if column in site_metadata.columns),
         None,

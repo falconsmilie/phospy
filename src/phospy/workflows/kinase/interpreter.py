@@ -37,7 +37,6 @@ from phospy.validation.workflows.method_quantitative import (
 )
 from phospy.workflows._pandas_typing import (
     dataframe_column,
-    dataframe_copy,
     dataframe_reindex,
     index_as_strings,
     series_as_strings,
@@ -182,7 +181,7 @@ class KinaseWorkflowInterpreter:
             )
             if record is not None
         )
-        activity_phospho_matrix = dataframe_copy(dataset_phospho, deep=True)
+        activity_phospho_matrix = dataset_view.phospho
         execution_config = self._resolve_execution_config(
             request,
             scoring_config=scoring_config,
@@ -211,6 +210,7 @@ class KinaseWorkflowInterpreter:
         site_sequences = dataframe_reindex(site_sequences, scoring_site_index)
         return ResolvedKinaseWorkflowRequest(
             dataset=request.dataset,
+            dataset_view=dataset_view,
             references=references,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,

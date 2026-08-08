@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Final, Protocol
+from typing import TYPE_CHECKING, Final, Protocol, cast
 
 import pandas as pd
 
@@ -369,6 +369,11 @@ class ResolvedKinaseWorkflowRequest:
     reference_projection_summary: KinaseReferenceProjectionSummary | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     reference_resolution_details: dict[str, object] = field(default_factory=dict)
+    dataset_view: DatasetInternalView = field(
+        default=cast(DatasetInternalView, None),
+        repr=False,
+        compare=False,
+    )
     _kinase_substrate_reference: pd.DataFrame = field(
         init=False,
         repr=False,
@@ -396,6 +401,19 @@ class ResolvedKinaseWorkflowRequest:
     )
 
     def __post_init__(self) -> None:
+        dataset_view = self.dataset_view
+        if dataset_view is None:
+            dataset_view = DatasetInternalView(self.dataset)
+            object.__setattr__(self, "dataset_view", dataset_view)
+        elif not isinstance(dataset_view, DatasetInternalView):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.dataset_view_type; "
+                "dataset_view must be DatasetInternalView; "
+                "next_action=ensure kinase validation passes the dataset-owned "
+                "internal view into resolved workflow execution"
+            )
+        dataset_phospho = dataset_view.phospho
         kinase_substrate_map = self._validate_kinase_substrate_map(
             self.kinase_substrate_map,
             scoring_mode=self.execution_config.scoring_mode,
@@ -404,7 +422,7 @@ class ResolvedKinaseWorkflowRequest:
         activity_phospho_matrix = self._validate_activity_phospho_table(
             self.activity_phospho_matrix
         )
-        if not activity_phospho_matrix.index.equals(self.dataset.phospho.index):
+        if not activity_phospho_matrix.index.equals(dataset_phospho.index):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.measured_quantitative_site_alignment; "
@@ -486,7 +504,7 @@ class ResolvedKinaseWorkflowRequest:
         attrition_metrics = self.attrition_metrics
         if attrition_metrics is None:
             attrition_metrics = build_kinase_attrition_metrics(
-                dataset_site_index=self.dataset.phospho.index,
+                dataset_site_index=dataset_phospho.index,
                 reference_site_index=kinase_substrate_map.loc[:, "substrate_site"],
                 sequence_supported_site_index=self.scoring_site_index,
             )

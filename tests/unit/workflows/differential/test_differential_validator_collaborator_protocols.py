@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.internal_view as internal_view_module
+import phospy.science.datasets.internal_frame_store as internal_frame_store_module
 import phospy.validation.workflows.differential as differential_validation_module
 import phospy.validation.workflows.differential_design_rules as design_rules_module
 import phospy.validation.workflows.quantitative as quantitative_module
@@ -48,9 +48,11 @@ def instrument_differential_dataset_view(
 ) -> _DatasetViewEvents:
     events = _DatasetViewEvents()
     original_view_class = DatasetInternalView
-    original_dataframe_snapshot = internal_view_module.immutable_dataframe_snapshot
+    original_dataframe_snapshot = (
+        internal_frame_store_module.immutable_dataframe_snapshot
+    )
     original_optional_dataframe_snapshot = (
-        internal_view_module.immutable_optional_dataframe_snapshot
+        internal_frame_store_module.immutable_optional_dataframe_snapshot
     )
 
     class _CountingDatasetInternalView(original_view_class):
@@ -98,12 +100,12 @@ def instrument_differential_dataset_view(
             _CountingDatasetInternalView,
         )
     monkeypatch.setattr(
-        internal_view_module,
+        internal_frame_store_module,
         "immutable_dataframe_snapshot",
         _counting_dataframe_snapshot,
     )
     monkeypatch.setattr(
-        internal_view_module,
+        internal_frame_store_module,
         "immutable_optional_dataframe_snapshot",
         _counting_optional_dataframe_snapshot,
     )

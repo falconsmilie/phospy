@@ -28,6 +28,7 @@ from phospy.science.datasets.construction.validation import (
     _DIRECT_CONSTRUCTION_ERROR_MESSAGE,
 )
 from phospy.science.datasets.imputation_metadata import ImputationObservationMetadata
+from phospy.science.datasets.internal_frame_store import DatasetInternalFrameStore
 from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwarePreparationResult,
 )
@@ -108,6 +109,7 @@ class AnalysisReadyPhosphoDataset:
         init=False,
         repr=False,
     )
+    _internal_frame_store: DatasetInternalFrameStore = field(init=False, repr=False)
     _allow_opaque_site_values: bool = field(init=False, repr=False, default=False)
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -152,6 +154,11 @@ class AnalysisReadyPhosphoDataset:
             self,
             "_imputation_observation_metadata",
             tables.imputation_observation_metadata,
+        )
+        object.__setattr__(
+            self,
+            "_internal_frame_store",
+            tables.internal_frame_store,
         )
         object.__setattr__(
             self,
@@ -201,6 +208,33 @@ class AnalysisReadyPhosphoDataset:
         if self.provenance is None:
             return None
         return self.provenance.reference_context
+
+    def _internal_frame_store_for_current_frames(self) -> DatasetInternalFrameStore:
+        """Return the dataset-owned internal store for current private frames.
+
+        Normal construction installs the store once. This freshness check keeps
+        package-private validator tests honest when they deliberately replace
+        private frame attributes to model malformed post-boundary objects.
+        """
+
+        store = self._internal_frame_store
+        if store.is_current_for(
+            phospho=self._phospho,
+            site_metadata=self._site_metadata,
+            sample_metadata=self._sample_metadata,
+            total=self._total,
+            comparisons=self._comparisons,
+        ):
+            return store
+        store = DatasetInternalFrameStore.from_frames(
+            phospho=self._phospho,
+            site_metadata=self._site_metadata,
+            sample_metadata=self._sample_metadata,
+            total=self._total,
+            comparisons=self._comparisons,
+        )
+        object.__setattr__(self, "_internal_frame_store", store)
+        return store
 
     def _borrow_phospho_frame(self) -> pd.DataFrame:
         """Package-private phospho snapshot for DatasetInternalView."""

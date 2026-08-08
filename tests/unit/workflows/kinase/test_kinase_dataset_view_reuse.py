@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.internal_view as internal_view_module
+import phospy.science.datasets.internal_frame_store as internal_frame_store_module
 import phospy.validation.workflows.method_quantitative as method_quantitative_module
 import phospy.workflows.kinase.interpreter as interpreter_module
 import phospy.workflows.kinase.validator as validator_module
@@ -57,15 +58,44 @@ class _SnapshotEvents:
     optional_dataframe_snapshots: Counter[str] = field(default_factory=Counter)
 
 
+@dataclass(slots=True)
+class _FullMatrixCopyCounts:
+    full_matrix_deep: int = 0
+
+
+@contextmanager
+def _count_full_matrix_deep_copies(
+    *,
+    shape: tuple[int, int],
+    columns: tuple[object, ...],
+) -> Iterator[_FullMatrixCopyCounts]:
+    counts = _FullMatrixCopyCounts()
+    original_copy = pd.DataFrame.copy
+
+    def wrapped_copy(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        deep = kwargs.get("deep", args[0] if args else True)
+        if bool(deep) and self.shape == shape and tuple(self.columns) == columns:
+            counts.full_matrix_deep += 1
+        return original_copy(self, *args, **kwargs)
+
+    pd.DataFrame.copy = wrapped_copy
+    try:
+        yield counts
+    finally:
+        pd.DataFrame.copy = original_copy
+
+
 @pytest.fixture
 def instrument_dataset_view(
     monkeypatch: pytest.MonkeyPatch,
 ) -> _SnapshotEvents:
     events = _SnapshotEvents()
     original_view_class = DatasetInternalView
-    original_dataframe_snapshot = internal_view_module.immutable_dataframe_snapshot
+    original_dataframe_snapshot = (
+        internal_frame_store_module.immutable_dataframe_snapshot
+    )
     original_optional_dataframe_snapshot = (
-        internal_view_module.immutable_optional_dataframe_snapshot
+        internal_frame_store_module.immutable_optional_dataframe_snapshot
     )
 
     class _CountingDatasetInternalView(original_view_class):
@@ -116,12 +146,12 @@ def instrument_dataset_view(
         _CountingDatasetInternalView,
     )
     monkeypatch.setattr(
-        internal_view_module,
+        internal_frame_store_module,
         "immutable_dataframe_snapshot",
         _counting_dataframe_snapshot,
     )
     monkeypatch.setattr(
-        internal_view_module,
+        internal_frame_store_module,
         "immutable_optional_dataframe_snapshot",
         _counting_optional_dataframe_snapshot,
     )
@@ -308,7 +338,12 @@ def test_full_kinase_run_creates_one_dataset_view_and_one_required_snapshot(
         ]
         == 1
     )
-    assert instrument_dataset_view.optional_dataframe_snapshots == Counter()
+    assert instrument_dataset_view.optional_dataframe_snapshots == Counter(
+        {
+            "dataset.sample_metadata internal snapshot": 1,
+            "dataset.comparisons internal snapshot": 1,
+        }
+    )
 
 
 def test_validator_and_interpreter_share_one_view_per_run_but_not_across_runs() -> None:
@@ -372,6 +407,48 @@ def test_repeated_view_access_within_run_reuses_required_snapshots(
         ]
         == 1
     )
+
+
+def test_repeated_kinase_runs_reuse_dataset_owned_snapshots(
+    instrument_dataset_view: _SnapshotEvents,
+) -> None:
+    request = _request()
+    workflow = KinaseWorkflow()
+
+    workflow.run(request)
+    workflow.run(request)
+
+    assert len(instrument_dataset_view.views) == 2
+    assert (
+        instrument_dataset_view.dataframe_snapshots["dataset.phospho internal snapshot"]
+        == 1
+    )
+    assert (
+        instrument_dataset_view.dataframe_snapshots[
+            "dataset.site_metadata internal snapshot"
+        ]
+        == 1
+    )
+    assert instrument_dataset_view.optional_dataframe_snapshots == Counter(
+        {
+            "dataset.sample_metadata internal snapshot": 1,
+            "dataset.comparisons internal snapshot": 1,
+        }
+    )
+
+
+def test_repeated_kinase_runs_do_not_repeat_full_dataset_matrix_deep_copies() -> None:
+    request = _request()
+
+    with _count_full_matrix_deep_copies(
+        shape=request.dataset._phospho.shape,
+        columns=tuple(request.dataset._phospho.columns),
+    ) as counts:
+        workflow = KinaseWorkflow()
+        workflow.run(request)
+        workflow.run(request)
+
+    assert counts.full_matrix_deep == 1
 
 
 def test_public_dataset_export_mutation_does_not_reach_workflow_inputs() -> None:

@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 import phospy.io.bundles._signalome.reconstruction as reconstruction_module
-import phospy.science.datasets.internal_view as internal_view_module
+import phospy.science.datasets.internal_frame_store as internal_frame_store_module
 import phospy.science.signalomes._result_validation as result_validation_module
 import phospy.workflows.signalome.result_assembly as result_assembly_module
 import phospy.workflows.signalome.validator as validator_module
@@ -78,9 +78,11 @@ def instrument_signalome_dataset_view(
 ) -> _SnapshotEvents:
     events = _SnapshotEvents()
     original_view_class = DatasetInternalView
-    original_dataframe_snapshot = internal_view_module.immutable_dataframe_snapshot
+    original_dataframe_snapshot = (
+        internal_frame_store_module.immutable_dataframe_snapshot
+    )
     original_optional_dataframe_snapshot = (
-        internal_view_module.immutable_optional_dataframe_snapshot
+        internal_frame_store_module.immutable_optional_dataframe_snapshot
     )
 
     class _CountingDatasetInternalView(original_view_class):
@@ -126,12 +128,12 @@ def instrument_signalome_dataset_view(
         _CountingDatasetInternalView,
     )
     monkeypatch.setattr(
-        internal_view_module,
+        internal_frame_store_module,
         "immutable_dataframe_snapshot",
         _counting_dataframe_snapshot,
     )
     monkeypatch.setattr(
-        internal_view_module,
+        internal_frame_store_module,
         "immutable_optional_dataframe_snapshot",
         _counting_optional_dataframe_snapshot,
     )
@@ -424,7 +426,9 @@ def test_full_signalome_run_creates_one_workflow_view_and_required_snapshots(
         ]
         == 1
     )
-    assert instrument_signalome_dataset_view.optional_dataframe_snapshots == Counter()
+    assert instrument_signalome_dataset_view.optional_dataframe_snapshots == Counter(
+        {"dataset.sample_metadata internal snapshot": 1}
+    )
 
 
 def test_signalome_view_identity_is_threaded_through_interpretation_and_execution(
@@ -552,6 +556,33 @@ def test_signalome_independent_runs_do_not_share_dataset_views() -> None:
     assert validator_views[0] is interpreter_views[0]
     assert validator_views[1] is interpreter_views[1]
     assert validator_views[0] is not validator_views[1]
+
+
+def test_repeated_signalome_runs_reuse_dataset_owned_snapshots(
+    instrument_signalome_dataset_view: _SnapshotEvents,
+) -> None:
+    request = _request()
+    workflow = SignalomeWorkflow()
+
+    workflow.run(request)
+    workflow.run(request)
+
+    assert len(instrument_signalome_dataset_view.views) == 2
+    assert (
+        instrument_signalome_dataset_view.dataframe_snapshots[
+            "dataset.phospho internal snapshot"
+        ]
+        == 1
+    )
+    assert (
+        instrument_signalome_dataset_view.dataframe_snapshots[
+            "dataset.site_metadata internal snapshot"
+        ]
+        == 1
+    )
+    assert instrument_signalome_dataset_view.optional_dataframe_snapshots == Counter(
+        {"dataset.sample_metadata internal snapshot": 1}
+    )
 
 
 def test_signalome_public_exports_are_mutation_isolated_across_runs() -> None:

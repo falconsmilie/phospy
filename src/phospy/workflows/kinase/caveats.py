@@ -252,7 +252,7 @@ def _permissive_localisation_caveat(
     if _meets_production_localisation_requirement(requirement):
         return None
     details = build_localisation_policy_details(
-        site_metadata=request.dataset.site_metadata,
+        site_metadata=request.dataset_view.site_metadata,
         requirement=requirement,
         workflow_scope="kinase_scoring",
     )

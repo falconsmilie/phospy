@@ -209,13 +209,14 @@ class KinaseProvenanceBuilder:
 def _build_input_table_fingerprints(
     request: ResolvedKinaseWorkflowRequest,
 ) -> tuple[TableFingerprint, ...]:
+    dataset_view = request.dataset_view
     return _collect_fingerprints(
         (
-            ("dataset.phospho", request.dataset.phospho),
-            ("dataset.site_metadata", request.dataset.site_metadata),
-            ("dataset.sample_metadata", request.dataset.sample_metadata),
-            ("dataset.total", request.dataset.total),
-            ("dataset.comparisons", request.dataset.comparisons),
+            ("dataset.phospho", dataset_view.phospho),
+            ("dataset.site_metadata", dataset_view.site_metadata),
+            ("dataset.sample_metadata", dataset_view.sample_metadata),
+            ("dataset.total", dataset_view.total),
+            ("dataset.comparisons", dataset_view.comparisons),
             (
                 "references.kinase_substrate_map",
                 request.references.kinase_substrate_map,

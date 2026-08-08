@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import warnings
+from collections import Counter
 from collections.abc import Callable, Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -17,6 +18,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import phospy.science.datasets.internal_frame_store as internal_frame_store_module
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -2207,7 +2209,9 @@ def test_dataset_internal_view_extension_dtype_metadata_is_owner_safe() -> None:
     )
 
 
-def test_independent_dataset_internal_views_do_not_share_snapshot_cache() -> None:
+def test_independent_dataset_internal_views_reuse_dataset_owned_snapshot_store() -> (
+    None
+):
     dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=_mixed_numeric_phospho(),
         site_metadata=_site_metadata(),
@@ -2222,10 +2226,70 @@ def test_independent_dataset_internal_views_do_not_share_snapshot_cache() -> Non
         first_run = DatasetInternalView(dataset).phospho
         second_run = DatasetInternalView(dataset).phospho
 
-    assert counts.dataframe_deep == 2
+    assert counts.dataframe_deep == 1
     assert first_run is not second_run
     _assert_numpy_blocks_readonly(first_run)
     _assert_numpy_blocks_readonly(second_run)
+
+
+def test_dataset_internal_view_optional_frames_use_dataset_owned_snapshots() -> None:
+    phospho = _mixed_numeric_phospho()
+    sample_metadata = pd.DataFrame(
+        {"batch": ["a", "a", "b"]},
+        index=phospho.columns.copy(),
+    )
+    total = pd.DataFrame(
+        {"sample_a": [10.0], "sample_b": [11.0], "sample_c": [12.0]},
+        index=pd.Index(["MAPK14"], name="protein_id"),
+    )
+    comparisons = pd.DataFrame(
+        {"group_b_vs_group_a": [1.0, -1.0]},
+        index=phospho.index.copy(),
+    )
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=phospho,
+        site_metadata=_site_metadata(),
+        sample_metadata=sample_metadata,
+        total=total,
+        comparisons=comparisons,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=True
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=True),
+    )
+    first_view = DatasetInternalView(dataset)
+    second_view = DatasetInternalView(dataset)
+
+    with _count_dataframe_deep_copies() as counts:
+        first_sample_metadata = first_view.sample_metadata
+        second_sample_metadata = second_view.sample_metadata
+        first_total = first_view.total
+        second_total = second_view.total
+        first_comparisons = first_view.comparisons
+        second_comparisons = second_view.comparisons
+        assert first_sample_metadata is not None
+        assert second_sample_metadata is not None
+        assert first_total is not None
+        assert second_total is not None
+        assert first_comparisons is not None
+        assert second_comparisons is not None
+        first_sample_metadata.loc[:, "local_only"] = ["x", "y", "z"]
+        try:
+            first_total.iloc[0, 0] = 999.0
+        except (TypeError, ValueError):
+            pass
+        try:
+            first_comparisons.loc[first_comparisons.index[0], "group_b_vs_group_a"] = (
+                999.0
+            )
+        except (TypeError, ValueError):
+            pass
+
+    assert counts.dataframe_deep == 3
+    assert "local_only" not in second_sample_metadata.columns
+    assert float(second_total.iloc[0, 0]) == 10.0
+    assert float(second_comparisons.iloc[0, 0]) == 1.0
 
 
 def test_representative_differential_workflow_bounds_full_matrix_copies() -> None:
@@ -2239,6 +2303,44 @@ def test_representative_differential_workflow_bounds_full_matrix_copies() -> Non
 
     assert isinstance(result, DifferentialAnalysisResult)
     assert counts.full_matrix_deep <= 3
+
+
+def test_repeated_differential_workflow_reuses_dataset_owned_snapshots(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _differential_workflow_request(n_sites=8)
+    snapshot_counts: Counter[str] = Counter()
+    original_dataframe_snapshot = (
+        internal_frame_store_module.immutable_dataframe_snapshot
+    )
+
+    def _counting_dataframe_snapshot(
+        value: pd.DataFrame,
+        *,
+        field_name: str,
+        error_type: type[Exception] = TypeError,
+    ):
+        snapshot_counts.update((field_name,))
+        return original_dataframe_snapshot(
+            value,
+            field_name=field_name,
+            error_type=error_type,
+        )
+
+    monkeypatch.setattr(
+        internal_frame_store_module,
+        "immutable_dataframe_snapshot",
+        _counting_dataframe_snapshot,
+    )
+
+    workflow = DifferentialAnalysisWorkflow()
+    first = workflow.run(request)
+    second = workflow.run(request)
+
+    assert isinstance(first, DifferentialAnalysisResult)
+    assert isinstance(second, DifferentialAnalysisResult)
+    assert snapshot_counts["dataset.phospho internal snapshot"] == 1
+    assert snapshot_counts["dataset.site_metadata internal snapshot"] == 1
 
 
 @pytest.mark.parametrize(

@@ -26,11 +26,12 @@ Update note (2026-07-16, pandas global option isolation): PhosPy frame ownership
 helpers must not set, restore, or otherwise mutate process-global pandas options.
 Borrowing semantics are local to PhosPy-owned objects.
 
-Update note (2026-08-02, workflow-scoped immutable snapshots): internal
-dataset read paths use owner-detached immutable snapshots scoped to one
-`DatasetInternalView` instance. Workflow validation and interpretation may
-thread that view through internal collaborators so repeated reads do not
-recreate full matrix deep copies. This does not change public export semantics.
+Update note (2026-08-02, dataset-owned immutable snapshots): internal dataset
+read paths use owner-detached immutable snapshots owned by the constructed
+dataset. `DatasetInternalView` instances return shallow read-only pandas
+wrappers over those private snapshots, so repeated workflow runs against an
+unchanged dataset do not recreate full matrix deep copies for internal reads.
+This does not change public export semantics.
 
 Update note (2026-08-07, public equality and hashing): public pandas-bearing
 containers must not rely on dataclass-generated equality. Stable dataset,
@@ -117,8 +118,11 @@ without relying on undocumented pandas copy-on-write behavior:
   nested `numpy.ndarray` values to non-writeable arrays), so workflow metadata
   reads do not recursively copy those cells on every access.
 - NumPy-backed pandas blocks are marked non-writeable on the detached snapshot.
-- `DatasetInternalView` caches those immutable snapshots for the life of the
-  view and returns shallow pandas wrappers over the read-only blocks on repeated
+- Validated dataset construction creates one private
+  `DatasetInternalFrameStore` owned by the dataset domain. The store lazily
+  constructs at most one immutable snapshot per dataset frame.
+- `DatasetInternalView` does not cache frames or snapshots. It returns shallow
+  pandas wrappers over the dataset-owned read-only snapshot blocks on each
   access. Mutating wrapper metadata such as adding columns is local to that
   wrapper and does not mutate the cached snapshot or dataset owner.
 - Unsupported pandas internals, including extension arrays that cannot be made
@@ -135,18 +139,19 @@ Implementation note (2026-08-02): the differential workflow threads one
 `DatasetInternalView` from request validation into interpretation when the
 validated dataset is unchanged. If technical-replicate aggregation produces a
 derived dataset, interpretation creates a new view for that independent derived
-workflow state. This keeps caches scoped to a single workflow run and avoids
-sharing mutable frames across independent runs. Representative differential
-workflow tests bound full phospho-matrix `DataFrame.copy(deep=True)` calls to no
-more than three for the validation/interpreter/execution handoff.
+workflow state. The views are run-scoped, but the immutable frame snapshots are
+dataset-scoped so repeated runs can reuse them without exposing mutable frames.
+Representative differential workflow tests bound full phospho-matrix
+`DataFrame.copy(deep=True)` calls and separately assert that repeated runs build
+the dataset phospho/site-metadata internal snapshots once.
 
 Implementation note (2026-08-04): ordinary Signalome workflow execution threads
 one validator-owned `DatasetInternalView` from the private validated request
 through interpretation, protein-group resolution, executor table construction,
 and result identity validation. Signalome result reconstruction from persisted
 bundles is intentionally separate: bundle loading builds an isolated validation
-snapshot so standalone reconstruction remains safe without a workflow-scoped
-view.
+view so standalone reconstruction remains safe without depending on a workflow
+instance cache.
 
 ### Provenance
 
@@ -180,9 +185,10 @@ not be reused as the derived object's own provenance.
   performance.
 - Extension-array-backed borrowed snapshots may allocate deep copies on pandas
   versions without native local copy-on-write guarantees.
-- Cached internal snapshots retain one owner-detached copy for the duration of a
-  workflow-scoped view. This is intentional and must not become a cross-run
-  cache.
+- Dataset-owned internal snapshots retain one owner-detached copy per accessed
+  frame for the lifetime of the dataset. This is intentional and must remain a
+  private dataset-domain store, not a workflow-instance cache, public borrow
+  path, global cache, or object-ID-keyed cache.
 
 ### Neutral Consequences
 
@@ -271,8 +277,8 @@ Future changes must satisfy all of the following:
 3. Do provenance-sensitive paths avoid aliasing with exported objects?
 4. Are new accessor behaviors covered by explicit boundary-mutation tests?
 5. Are high-throughput persistence paths kept in explicit publisher/export APIs?
-6. Are workflow-scoped immutable snapshots confined to one run and never reused
-   as cross-run mutable caches?
+6. Are dataset-owned immutable snapshots private, read-only, non-global, and
+   exposed to workflows only through `DatasetInternalView` wrappers?
 7. Do public pandas/NumPy-bearing containers avoid implicit dataclass equality,
    pandas Boolean coercion, partial `compare=False` equality, and unsafe hashes?
 

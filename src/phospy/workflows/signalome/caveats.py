@@ -233,7 +233,7 @@ def _permissive_localisation_caveat(
     if not is_permissive_localisation_requirement(requirement):
         return None
     details = build_localisation_policy_details(
-        site_metadata=request.dataset.site_metadata,
+        site_metadata=request.dataset_view.site_metadata,
         requirement=requirement,
         workflow_scope="signalome",
     )
@@ -263,7 +263,7 @@ def _protein_group_id_grouping_assumption_caveat(
     protein_group_ids = request.site_to_protein_group_id.astype(str)
     counts = protein_group_ids.value_counts(sort=False)
     multi_site_counts = counts.loc[counts > 1]
-    site_metadata = request.dataset.site_metadata
+    site_metadata = request.dataset_view.site_metadata
     source_column = (
         PROTEIN_GROUP_ID_COLUMN
         if PROTEIN_GROUP_ID_COLUMN in site_metadata.columns

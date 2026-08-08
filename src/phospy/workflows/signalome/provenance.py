@@ -151,13 +151,14 @@ class SignalomeProvenanceBuilder:
 def _build_input_table_fingerprints(
     request: ResolvedSignalomeWorkflowRequest,
 ) -> tuple[TableFingerprint, ...]:
+    dataset_view = request.dataset_view
     return _collect_fingerprints(
         (
-            ("dataset.phospho", request.dataset.phospho),
-            ("dataset.site_metadata", request.dataset.site_metadata),
-            ("dataset.sample_metadata", request.dataset.sample_metadata),
-            ("dataset.total", request.dataset.total),
-            ("dataset.comparisons", request.dataset.comparisons),
+            ("dataset.phospho", dataset_view.phospho),
+            ("dataset.site_metadata", dataset_view.site_metadata),
+            ("dataset.sample_metadata", dataset_view.sample_metadata),
+            ("dataset.total", dataset_view.total),
+            ("dataset.comparisons", dataset_view.comparisons),
             ("upstream.prediction.pred_mat", request.prediction_matrix),
             (
                 "upstream.scoring.downstream_score_matrix",
@@ -282,7 +283,7 @@ def _build_site_token_validation_payload(
 def _build_signalome_grouping_identity_payload(
     request: ResolvedSignalomeWorkflowRequest,
 ) -> dict[str, object]:
-    site_metadata = request.dataset.site_metadata
+    site_metadata = request.dataset_view.site_metadata
     source_column = None
     if PROTEIN_GROUP_ID_COLUMN in site_metadata.columns:
         source_column = PROTEIN_GROUP_ID_COLUMN

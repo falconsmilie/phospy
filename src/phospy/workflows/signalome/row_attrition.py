@@ -46,8 +46,8 @@ def build_signalome_row_attrition_provenance(
 ) -> SignalomeRowAttritionProvenance:
     """Build standardized row-attrition provenance for signalome execution."""
 
-    site_metadata = request.dataset.site_metadata
-    input_site_ids = _index_values(request.dataset.phospho.index)
+    site_metadata = request.dataset_view.site_metadata
+    input_site_ids = _index_values(request.dataset_view.phospho.index)
     final_site_index = (
         request.downstream_score_matrix.index
         if final_site_ids is None
@@ -99,7 +99,7 @@ def build_signalome_row_attrition_provenance(
         row_attrition=reconcile_row_attrition_report(
             workflow="signalome",
             records=records,
-            initial_site_ids=request.dataset.phospho.index,
+            initial_site_ids=request.dataset_view.phospho.index,
             final_site_ids=final_site_index,
         ),
     )
@@ -170,7 +170,7 @@ def _below_localisation_threshold_ids(
     threshold = request.execution_config.localisation_requirement.minimum_probability
     if threshold is None:
         return ()
-    site_metadata = request.dataset.site_metadata
+    site_metadata = request.dataset_view.site_metadata
     column_name = next(
         (column for column in _LOCALISATION_COLUMNS if column in site_metadata.columns),
         None,

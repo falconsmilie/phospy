@@ -63,7 +63,7 @@ class KinaseSiteAttritionSummaryComposer:
     ) -> KinaseWorkflowPreprocessingAttritionSummary:
         report = request.dataset.preprocessing_report
         if report is None:
-            output_rows = int(request.dataset.phospho.shape[0])
+            output_rows = int(request.dataset_view.phospho.shape[0])
             return KinaseWorkflowPreprocessingAttritionSummary(
                 input_rows=output_rows,
                 rows_removed_during_preprocessing=0,
@@ -147,7 +147,7 @@ class KinaseSiteAttritionSummaryComposer:
             }
 
         malformed_identifier_sites = self._find_malformed_site_identifiers(
-            request.dataset.phospho.index
+            request.dataset_view.phospho.index
         )
         invalid_or_missing_identifier_sites = set(malformed_identifier_sites)
         invalid_or_missing_identifier_sites.update(motif_invalid_site_ids)

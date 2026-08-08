@@ -180,7 +180,7 @@ tests/unit/test_experimental_design_contract.py,unit,1133,38,false,false,,,,,,[a
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_final_numeric_semantic_dataset_coherence.py,unit,418,9,true,true,,,,,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,379,14,false,false,,,,,,
-tests/unit/test_frame_ownership_policy.py,unit,3251,52,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 77 hit(s); indicators: private_member_access
+tests/unit/test_frame_ownership_policy.py,unit,3353,54,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 77 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
 tests/unit/test_group_coverage_filter_preprocessing.py,unit,261,7,false,false,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing_config.py,unit,193,10,true,true,,,,,,
@@ -317,10 +317,10 @@ tests/unit/validation/test_phosphosite_identity_rule_families.py,validation,534,
 tests/unit/validation/test_reference_context_compatibility.py,validation,196,7,false,false,,,,,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,224,10,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,278,7,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
-tests/unit/workflows/differential/test_differential_validator_collaborator_protocols.py,differential,178,2,false,false,,,,,,
+tests/unit/workflows/differential/test_differential_validator_collaborator_protocols.py,differential,180,2,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,319,6,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,565,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/workflows/kinase/test_kinase_dataset_view_reuse.py,kinase,522,7,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
+tests/unit/workflows/kinase/test_kinase_dataset_view_reuse.py,kinase,599,9,false,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/unit/workflows/kinase/test_kinase_method_quantitative_contracts.py,kinase,680,17,true,true,,,,,,
 tests/unit/workflows/kinase/test_kinase_reference_context_policy.py,kinase,208,4,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_row_attrition.py,kinase,76,2,false,false,,,,,,
@@ -330,7 +330,7 @@ tests/unit/workflows/kinase/test_kinase_site_universes.py,kinase,612,9,false,fal
 tests/unit/workflows/kinase/test_profile_self_inclusion_policy.py,kinase,365,6,false,false,,,,,,
 tests/unit/workflows/kinase/test_resolved_kinase_validator.py,kinase,360,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,
-tests/unit/workflows/signalome/test_signalome_dataset_view_reuse.py,signalome,683,6,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/unit/workflows/signalome/test_signalome_dataset_view_reuse.py,signalome,714,7,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/workflows/signalome/test_signalome_reference_context_policy.py,signalome,308,4,false,false,,,,,,
 tests/unit/workflows/signalome/test_signalome_row_attrition.py,signalome,232,3,false,false,,,,,,
 tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,162,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
