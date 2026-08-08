@@ -165,6 +165,7 @@ _OBJECT_PAYLOAD_STATE = {
     "nested_set": ("nested-set-start",),
     "nested_list": ("nested-list-start",),
 }
+_SHAREABLE_NUMPY_DTYPE_KINDS = frozenset(("b", "i", "u", "f", "c", "m", "M"))
 
 
 def _phospho() -> pd.DataFrame:
@@ -1163,7 +1164,7 @@ def test_public_series_exports_do_not_mutate_owned_state(
     pd.testing.assert_series_equal(case.observe(owner), before)
 
 
-def _kinase_result():
+def _kinase_workflow_request() -> KinaseWorkflowRequest:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0, 4.0],
@@ -1205,35 +1206,33 @@ def _kinase_result():
             index=pd.Index(_KINASE_DISPLAY_IDS, name="site_id"),
         ),
     )
-    return KinaseWorkflow().run(
-        KinaseWorkflowRequest(
-            dataset=trusted_analysis_ready_dataset_from_tables(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.RAT,
-                intensity_scale_state=supported_linear_intensity_scale_state(
-                    has_total_matrix=False
-                ),
-                processing_state=supported_linear_processing_state(
-                    has_total_matrix=False
-                ),
+    return KinaseWorkflowRequest(
+        dataset=trusted_analysis_ready_dataset_from_tables(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
             ),
-            references=references,
-            scoring_config=KinaseScoringConfig(
-                reliability_profile="custom",
-                min_substrates=2,
-                reference_context_compatibility_policy=(
-                    _ALLOW_UNKNOWN_REFERENCE_CONTEXT
-                ),
-            ),
-            prediction_config=KinasePredictionConfig(
-                top_k=1,
-                deterministic_max_selected_kinases=2,
-                adaptive_ensemble_runs=2,
-            ),
-            activity_config=None,
-        )
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        ),
+        references=references,
+        scoring_config=KinaseScoringConfig(
+            reliability_profile="custom",
+            min_substrates=2,
+            reference_context_compatibility_policy=(_ALLOW_UNKNOWN_REFERENCE_CONTEXT),
+        ),
+        prediction_config=KinasePredictionConfig(
+            top_k=1,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+        ),
+        activity_config=None,
     )
+
+
+def _kinase_result():
+    return KinaseWorkflow().run(_kinase_workflow_request())
 
 
 def _signalome_request_for_read_path_mutation_checks() -> SignalomeWorkflowRequest:
@@ -1332,9 +1331,23 @@ def _assert_numpy_blocks_readonly(frame: pd.DataFrame | pd.Series) -> None:
     blocks = frame._mgr.blocks
     for block in blocks:
         values = block.values
+        if not isinstance(values, np.ndarray):
+            continue
+        if values.dtype.kind not in _SHAREABLE_NUMPY_DTYPE_KINDS:
+            continue
         flags = getattr(values, "flags", None)
         if flags is not None and hasattr(flags, "writeable"):
             assert flags.writeable is False
+            with pytest.raises(ValueError):
+                values.setflags(write=True)
+        base = getattr(values, "base", None)
+        seen: set[int] = set()
+        while isinstance(base, np.ndarray) and id(base) not in seen:
+            seen.add(id(base))
+            assert base.flags.writeable is False
+            with pytest.raises(ValueError):
+                base.setflags(write=True)
+            base = getattr(base, "base", None)
 
 
 def _mutate_first_frame_cell(frame: pd.DataFrame) -> None:
@@ -1467,7 +1480,58 @@ def _mutate_numeric_blocks_and_bases(frame: pd.DataFrame) -> bool:
             value=777.0,
         ):
             mutated_count += 1
-    assert mutated_count == expected_count
+    return mutated_count > 0
+
+
+def _replace_first_object_block_cell(frame: pd.DataFrame, value: object) -> bool:
+    manager = getattr(frame, "_mgr", None)
+    blocks = getattr(manager, "blocks", ())
+    for block in blocks:
+        values = getattr(block, "values", None)
+        if not isinstance(values, np.ndarray) or values.dtype != object:
+            continue
+        values.setflags(write=True)
+        values.reshape(-1)[0] = value
+        return True
+    return False
+
+
+def _force_nested_numpy_payload_arrays_writeable_and_mutate(value: object) -> bool:
+    if isinstance(value, np.ndarray):
+        try:
+            value.setflags(write=True)
+        except ValueError:
+            pass
+        try:
+            value[...] = np.zeros(value.shape, dtype=value.dtype)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        return True
+    if isinstance(value, Mapping):
+        return any(
+            _force_nested_numpy_payload_arrays_writeable_and_mutate(item)
+            for item in value.values()
+        )
+    if isinstance(value, tuple | frozenset):
+        return any(
+            _force_nested_numpy_payload_arrays_writeable_and_mutate(item)
+            for item in value
+        )
+    return False
+
+
+def _force_axis_array_writeable_and_mutate(axis: pd.Index, value: object) -> bool:
+    values = axis.to_numpy(copy=False)
+    if not isinstance(values, np.ndarray) or values.size == 0:
+        return False
+    try:
+        values.setflags(write=True)
+    except ValueError:
+        pass
+    try:
+        values[0] = value
+    except (TypeError, ValueError, OverflowError):
+        return False
     return True
 
 
@@ -2360,6 +2424,240 @@ def test_repeated_differential_workflow_reuses_dataset_owned_snapshots(
         ),
     ],
 )
+def test_dataset_internal_view_numeric_storage_is_cross_view_safe(
+    surface_name: str,
+    mutator: Callable[[pd.DataFrame], bool],
+) -> None:
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_mixed_numeric_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    first = DatasetInternalView(dataset).phospho
+    second = DatasetInternalView(dataset).phospho
+    before_owner = dataset._phospho.copy(deep=True)
+    before_second = second.copy(deep=True)
+
+    mutator(first)
+    future = DatasetInternalView(dataset).phospho
+
+    pd.testing.assert_frame_equal(dataset._phospho, before_owner, obj=surface_name)
+    pd.testing.assert_frame_equal(second, before_second, obj=surface_name)
+    pd.testing.assert_frame_equal(future, before_owner, obj=surface_name)
+
+
+def test_dataset_internal_view_pandas_assignment_is_cross_view_safe() -> None:
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_mixed_numeric_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    first = DatasetInternalView(dataset).phospho
+    second = DatasetInternalView(dataset).phospho
+    before_second = second.copy(deep=True)
+
+    for mutate in (
+        lambda: first.iloc.__setitem__((0, 0), 999.0),
+        lambda: first.loc.__setitem__((first.index[1], "sample_b"), 888.0),
+    ):
+        try:
+            mutate()
+        except (TypeError, ValueError):
+            pass
+    first.loc[:, "local_only"] = [1.0, 2.0]
+    future = DatasetInternalView(dataset).phospho
+
+    pd.testing.assert_frame_equal(second, before_second)
+    pd.testing.assert_frame_equal(future, dataset._phospho)
+    assert "local_only" not in second.columns
+    assert "local_only" not in future.columns
+
+
+def test_dataset_internal_view_axes_are_cross_view_safe() -> None:
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_mixed_numeric_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    first = DatasetInternalView(dataset).phospho
+    second = DatasetInternalView(dataset).phospho
+    expected_index = dataset._phospho.index.copy(deep=True)
+    expected_columns = dataset._phospho.columns.copy(deep=True)
+
+    _force_axis_array_writeable_and_mutate(first.index, "corrupted-site")
+    _force_axis_array_writeable_and_mutate(first.columns, "corrupted-sample")
+    future = DatasetInternalView(dataset).phospho
+
+    assert second.index.equals(expected_index)
+    assert second.columns.equals(expected_columns)
+    assert future.index.equals(expected_index)
+    assert future.columns.equals(expected_columns)
+    assert dataset._phospho.index.equals(expected_index)
+    assert dataset._phospho.columns.equals(expected_columns)
+
+
+def test_dataset_internal_view_object_cells_and_blocks_are_cross_view_safe() -> None:
+    tuple_payload = (
+        ["tuple-list-start"],
+        {"array": np.asarray([5.0, 6.0])},
+        {"tuple-set-start"},
+    )
+    site_metadata = _object_payload_frame_from_site_metadata(tuple_payload)
+    site_metadata.loc[:, "extension_label"] = pd.Series(
+        ["alpha", "beta"],
+        index=site_metadata.index,
+        dtype="string",
+    )
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_phospho(),
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    first = DatasetInternalView(dataset).site_metadata
+    second = DatasetInternalView(dataset).site_metadata
+    row_label = first.index[0]
+    first_payload = first.loc[row_label, _OBJECT_PAYLOAD_COLUMN]
+    second_payload = second.loc[row_label, _OBJECT_PAYLOAD_COLUMN]
+
+    assert isinstance(first_payload, tuple)
+    assert isinstance(first_payload[0], tuple)
+    assert isinstance(first_payload[1], Mapping)
+    assert isinstance(first_payload[1]["array"], np.ndarray)
+    assert isinstance(first_payload[2], frozenset)
+    assert not _force_nested_numpy_payload_arrays_writeable_and_mutate(first_payload)
+    assert _replace_first_object_block_cell(first, "local-block-replacement")
+
+    future = DatasetInternalView(dataset).site_metadata
+    future_payload = future.loc[row_label, _OBJECT_PAYLOAD_COLUMN]
+    assert second.loc[row_label, _OBJECT_PAYLOAD_COLUMN] is second_payload
+    assert isinstance(future_payload, tuple)
+    assert isinstance(future_payload[1], Mapping)
+    future_array = future_payload[1]["array"]
+    second_array = second_payload[1]["array"]
+    assert isinstance(future_array, np.ndarray)
+    assert isinstance(second_array, np.ndarray)
+    np.testing.assert_array_equal(future_array, second_array)
+    assert str(second.loc[second.index[0], "gene_symbol"]) == "MAPK14"
+    assert str(future.loc[future.index[0], "gene_symbol"]) == "MAPK14"
+
+
+def test_dataset_internal_view_absent_optional_frames_return_none() -> None:
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    view = DatasetInternalView(dataset)
+
+    assert view.sample_metadata is None
+    assert view.total is None
+    assert view.comparisons is None
+
+
+def test_concurrent_dataset_internal_view_first_access_builds_one_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=_mixed_numeric_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    snapshot_counts: Counter[str] = Counter()
+    original_dataframe_snapshot = (
+        internal_frame_store_module.immutable_dataframe_snapshot
+    )
+
+    def _counting_dataframe_snapshot(
+        value: pd.DataFrame,
+        *,
+        field_name: str,
+        error_type: type[Exception] = TypeError,
+    ):
+        snapshot_counts.update((field_name,))
+        return original_dataframe_snapshot(
+            value,
+            field_name=field_name,
+            error_type=error_type,
+        )
+
+    monkeypatch.setattr(
+        internal_frame_store_module,
+        "immutable_dataframe_snapshot",
+        _counting_dataframe_snapshot,
+    )
+
+    def worker(_: int) -> float:
+        return float(DatasetInternalView(dataset).phospho.iloc[0, 0])
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        observed = tuple(executor.map(worker, range(32)))
+
+    assert observed == (1.0,) * 32
+    assert snapshot_counts["dataset.phospho internal snapshot"] == 1
+
+
+def test_repeated_workflows_do_not_repeat_full_numeric_input_deep_copies() -> None:
+    differential_request = _differential_workflow_request(n_sites=8)
+    with _count_full_matrix_deep_copies(
+        shape=differential_request.dataset._phospho.shape,
+        columns=tuple(differential_request.dataset._phospho.columns),
+    ) as differential_counts:
+        DifferentialAnalysisWorkflow().run(differential_request)
+        DifferentialAnalysisWorkflow().run(differential_request)
+
+    kinase_request = _kinase_workflow_request()
+    with _count_full_matrix_deep_copies(
+        shape=kinase_request.dataset._phospho.shape,
+        columns=tuple(kinase_request.dataset._phospho.columns),
+    ) as kinase_counts:
+        KinaseWorkflow().run(kinase_request)
+        KinaseWorkflow().run(kinase_request)
+
+    assert differential_counts.full_matrix_deep == 1
+    assert kinase_counts.full_matrix_deep == 1
+
+
+@pytest.mark.parametrize(
+    ("surface_name", "mutator"),
+    [
+        pytest.param("slice-values", _mutate_numeric_slice_values, id="slice-values"),
+        pytest.param("values", _mutate_numeric_values, id="values"),
+        pytest.param(
+            "to-numpy-copy-false",
+            _mutate_numeric_to_numpy_copy_false,
+            id="to-numpy-copy-false",
+        ),
+        pytest.param(
+            "blocks-and-bases",
+            _mutate_numeric_blocks_and_bases,
+            id="blocks-and-bases",
+        ),
+    ],
+)
 @pytest.mark.parametrize(
     ("access_name", "accessor"),
     [
@@ -2394,7 +2692,9 @@ def test_restoring_writeability_on_dataset_numeric_surfaces_cannot_mutate_owner(
     before = dataset._phospho.copy(deep=True)
     exposed = accessor(dataset)
 
-    assert mutator(exposed), f"{access_name}:{surface_name}"
+    mutated_exposed_storage = mutator(exposed)
+    if access_name == "public-export":
+        assert mutated_exposed_storage, f"{access_name}:{surface_name}"
     pd.testing.assert_frame_equal(dataset._phospho, before)
 
 

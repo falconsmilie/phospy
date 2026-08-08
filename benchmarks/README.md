@@ -16,15 +16,19 @@ This directory contains rewrite-native benchmark scripts that track active code 
 - `measure_dataframe_ownership_copy_policy.py`
   - Measures internal DataFrame borrow copy counts, mutation leaks, and runtime for NumPy-backed and extension-array-backed frames.
   - Targets `phospy.frames.ownership._borrow_dataframe`.
+- `measure_repeated_workflow_dataset_snapshot_reuse.py`
+  - Measures repeated differential and kinase workflow runtime, tracemalloc peak memory, full-frame deep-copy counts, and dataset internal snapshot construction counts for the same unchanged dataset.
+  - Targets `DifferentialAnalysisWorkflow.run`, `KinaseWorkflow.run`, and dataset-owned internal snapshot reuse.
 - `measure_signalome_clustering_contracts.py`
   - Measures exact clustering below the exact-tree guardrail, guard failure above `max_exact_tree_sites`, and candidate-scoring policy behavior (`full` vs `sampled`).
   - Targets `phospy.science.signalomes.clustering.run_signalome_clustering_engine` and scale-guard policy thresholds in `phospy.science.signalomes.clustering`.
 
 All benchmark scripts print plain `key=value` metrics for easy CI/log parsing.
-The optional release-scale builder+differential benchmark can also write a JSON
-report under `benchmarks/reports/`; that report includes Python, selected
-dependency versions, machine metadata, runtime timings, peak RSS when available,
-metrics, scientific-summary payload, and output fingerprints/digests.
+The optional release-scale builder+differential benchmark and repeated workflow
+snapshot reuse benchmark can also write JSON reports under
+`benchmarks/reports/`; those reports include Python, selected dependency
+versions, machine metadata, runtime timings, memory observations, metrics, and
+benchmark-specific copy/provenance or output evidence.
 
 ## Drift guard
 

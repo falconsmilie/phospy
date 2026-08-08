@@ -6,8 +6,9 @@ Ownership policy:
   them, unless an internal caller explicitly passes an already-owned object;
 - public exports always return detached snapshots;
 - internal borrow helpers return detached immutable snapshots; workflow-scoped
-  internal views may reuse one owner-detached snapshot and hand out read-only
-  shallow pandas wrappers.
+  internal views may reuse one owner-detached snapshot. Shareable NumPy-backed
+  columns are backed by immutable buffers; unshareable columns are copied per
+  returned wrapper.
 
 Pandas ``deep=True`` does not recursively copy mutable Python objects held in
 object-dtype cells. These helpers therefore isolate supported mutable object
@@ -18,6 +19,7 @@ rejected with a clear error instead of being stored or exported as aliases.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import MutableMapping, MutableSequence, MutableSet
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
@@ -59,6 +61,7 @@ _IMMUTABLE_OBJECT_TYPES = (
     pd.Interval,
     pd.Period,
 )
+_SHAREABLE_NUMPY_DTYPE_KINDS = frozenset(("b", "i", "u", "f", "c", "m", "M"))
 
 
 def _copy_pandas_object(
@@ -68,13 +71,14 @@ def _copy_pandas_object(
     error_type: ExceptionType,
 ) -> _PandasObject:
     copied = cast(_PandasObject, value.copy(deep=True))
+    _detach_pandas_axes(copied)
     _isolate_object_cells(copied, field_name=field_name, error_type=error_type)
     return copied
 
 
 @dataclass(frozen=True, slots=True)
 class ImmutableDataFrameSnapshot:
-    """Owner-detached internal DataFrame snapshot with read-only shareable blocks."""
+    """Owner-detached internal DataFrame snapshot with immutable shareable columns."""
 
     _frame: pd.DataFrame
     _unshareable_column_positions: tuple[int, ...]
@@ -84,26 +88,30 @@ class ImmutableDataFrameSnapshot:
     def dataframe(self, *, copy_unshareable: bool = True) -> pd.DataFrame:
         """Return workflow-local read access without repeating full deep copies."""
 
-        if not copy_unshareable and self._unshareable_column_positions:
-            return self._frame
         borrowed = cast(pd.DataFrame, self._frame.copy(deep=False))
-        _set_pandas_blocks_readonly(borrowed)
+        _detach_pandas_axes(borrowed)
         if copy_unshareable:
             for column_position in self._unshareable_column_positions:
                 column = cast(
                     pd.Series,
                     self._frame.iloc[:, int(column_position)],
                 )
+                copied_column = cast(pd.Series, column.copy(deep=True))
+                _freeze_object_cells(
+                    copied_column,
+                    field_name=self._field_name,
+                    error_type=self._error_type,
+                )
                 borrowed.isetitem(
                     int(column_position),
-                    cast(Any, column.copy(deep=True)),
+                    cast(Any, copied_column),
                 )
         return borrowed
 
 
 @dataclass(frozen=True, slots=True)
 class ImmutableSeriesSnapshot:
-    """Owner-detached internal Series snapshot with read-only shareable blocks."""
+    """Owner-detached internal Series snapshot with immutable shareable backing."""
 
     _series: pd.Series
     _shareable_readonly_blocks: bool
@@ -115,14 +123,16 @@ class ImmutableSeriesSnapshot:
 
         if not self._shareable_readonly_blocks:
             if not copy_unshareable:
-                return self._series
+                borrowed = cast(pd.Series, self._series.copy(deep=False))
+                _detach_pandas_axes(borrowed)
+                return borrowed
             return _copy_pandas_object(
                 self._series,
                 field_name=self._field_name,
                 error_type=self._error_type,
             )
         borrowed = cast(pd.Series, self._series.copy(deep=False))
-        _set_pandas_blocks_readonly(borrowed)
+        _detach_pandas_axes(borrowed)
         return borrowed
 
 
@@ -137,8 +147,11 @@ def immutable_dataframe_snapshot(
     if not isinstance(value, pd.DataFrame):
         raise error_type(f"{field_name} must be a pandas DataFrame")
     snapshot = cast(pd.DataFrame, value.copy(deep=True))
+    _detach_pandas_axes(snapshot)
     _freeze_object_cells(snapshot, field_name=field_name, error_type=error_type)
-    unshareable_column_positions = _set_pandas_blocks_readonly_columns(snapshot)
+    snapshot, unshareable_column_positions = (
+        _dataframe_with_immutable_shareable_backing(snapshot)
+    )
     return ImmutableDataFrameSnapshot(
         snapshot,
         unshareable_column_positions,
@@ -173,14 +186,101 @@ def immutable_series_snapshot(
     if not isinstance(value, pd.Series):
         raise error_type(f"{field_name} must be a pandas Series")
     snapshot = cast(pd.Series, value.copy(deep=True))
+    _detach_pandas_axes(snapshot)
     _freeze_object_cells(snapshot, field_name=field_name, error_type=error_type)
-    shareable_readonly_blocks = _set_pandas_blocks_readonly(snapshot)
+    snapshot, shareable_readonly_blocks = _series_with_immutable_shareable_backing(
+        snapshot
+    )
     return ImmutableSeriesSnapshot(
         snapshot,
         shareable_readonly_blocks,
         field_name,
         error_type,
     )
+
+
+def _detach_pandas_axes(value: pd.DataFrame | pd.Series) -> None:
+    """Give a pandas object independent axis objects.
+
+    Pandas treats ``Index`` containers as immutable at the public API level, but
+    their NumPy internals can still be reached in adversarial tests. Internal
+    workflow wrappers therefore receive independent axes so axis-level mutation
+    cannot contaminate another existing or future wrapper.
+    """
+
+    value.index = _copy_axis(value.index)
+    if isinstance(value, pd.DataFrame):
+        value.columns = _copy_axis(value.columns)
+    else:
+        value.name = copy.deepcopy(value.name)
+
+
+def _copy_axis(axis: pd.Index) -> pd.Index:
+    return cast(pd.Index, copy.deepcopy(axis))
+
+
+def _dataframe_with_immutable_shareable_backing(
+    value: pd.DataFrame,
+) -> tuple[pd.DataFrame, tuple[int, ...]]:
+    """Return a DataFrame whose shareable columns use immutable NumPy buffers."""
+
+    unshareable_positions: list[int] = []
+    data: dict[int, object] = {}
+    for column_position in range(len(value.columns)):
+        column = cast(pd.Series, value.iloc[:, column_position])
+        immutable_values = _immutable_numpy_backed_array(column)
+        if immutable_values is None:
+            unshareable_positions.append(column_position)
+            data[column_position] = column.copy(deep=True)
+        else:
+            data[column_position] = immutable_values
+
+    immutable_frame = pd.DataFrame(
+        data,
+        index=_copy_axis(value.index),
+        copy=False,
+    )
+    immutable_frame.columns = _copy_axis(value.columns)
+    return immutable_frame, tuple(unshareable_positions)
+
+
+def _series_with_immutable_shareable_backing(
+    value: pd.Series,
+) -> tuple[pd.Series, bool]:
+    immutable_values = _immutable_numpy_backed_array(value)
+    if immutable_values is None:
+        return value.copy(deep=True), False
+    immutable_series = pd.Series(
+        immutable_values,
+        index=_copy_axis(value.index),
+        name=copy.deepcopy(value.name),
+        copy=False,
+    )
+    return immutable_series, True
+
+
+def _immutable_numpy_backed_array(value: pd.Series) -> np.ndarray | None:
+    dtype = value.dtype
+    if not isinstance(dtype, np.dtype):
+        return None
+    if dtype.kind not in _SHAREABLE_NUMPY_DTYPE_KINDS:
+        return None
+
+    values = np.asarray(value.to_numpy(copy=True))
+    if values.ndim != 1:
+        return None
+    return _immutable_numpy_array(values)
+
+
+def _immutable_numpy_array(values: np.ndarray) -> np.ndarray:
+    contiguous = np.ascontiguousarray(values)
+    immutable_buffer = contiguous.tobytes(order="C")
+    immutable = np.frombuffer(
+        immutable_buffer,
+        dtype=contiguous.dtype,
+        count=contiguous.size,
+    )
+    return immutable.reshape(contiguous.shape)
 
 
 def _isolate_object_cells(
@@ -427,24 +527,28 @@ def _freeze_numpy_object_cell(
     memo: dict[int, object],
     active: set[int],
 ) -> np.ndarray:
+    if value.dtype != object:
+        frozen_non_object = _immutable_numpy_array(value)
+        memo[id(value)] = frozen_non_object
+        return frozen_non_object
+
     frozen = value.copy()
     memo[id(value)] = frozen
-    if value.dtype == object:
-        active.add(id(value))
-        try:
-            source_flat = value.reshape(-1)
-            frozen_flat = frozen.reshape(-1)
-            for position, item in enumerate(source_flat):
-                frozen_flat[position] = _freeze_object_cell_value(
-                    item,
-                    field_name=field_name,
-                    location=f"{location}.ndarray[{position}]",
-                    error_type=error_type,
-                    memo=memo,
-                    active=active,
-                )
-        finally:
-            active.discard(id(value))
+    active.add(id(value))
+    try:
+        source_flat = value.reshape(-1)
+        frozen_flat = frozen.reshape(-1)
+        for position, item in enumerate(source_flat):
+            frozen_flat[position] = _freeze_object_cell_value(
+                item,
+                field_name=field_name,
+                location=f"{location}.ndarray[{position}]",
+                error_type=error_type,
+                memo=memo,
+                active=active,
+            )
+    finally:
+        active.discard(id(value))
     frozen.setflags(write=False)
     return frozen
 
@@ -743,9 +847,9 @@ def _borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
     Internal mutation that should affect owned scientific state must happen on an
     explicitly owned frame, never through `_borrow_*` accessors. Restoring
     writeability on arrays exposed by the returned snapshot must not mutate the
-    owner. NumPy-backed snapshots expose read-only blocks; extension-backed
-    snapshots remain owner-detached even when pandas cannot expose read-only
-    block flags.
+    owner. Shareable NumPy-backed snapshots expose immutable-buffer arrays;
+    extension-backed and otherwise unshareable columns remain owner-detached
+    and are not shared between cached workflow wrappers.
     """
 
     if not isinstance(value, pd.DataFrame):

@@ -225,11 +225,36 @@ def filter_matrix_for_feature_ids(
     matrix: pd.DataFrame,
     feature_ids: tuple[str, ...],
 ) -> pd.DataFrame:
-    """Return a copy of the matrix restricted to resolved feature IDs."""
+    """Return a workflow-local matrix restricted to resolved feature IDs."""
 
-    return dataframe_copy(
-        dataframe_loc(matrix, rows=list(feature_ids)),
-        deep=True,
+    current_feature_ids = tuple(str(feature_id) for feature_id in matrix.index)
+    if current_feature_ids == tuple(feature_ids):
+        return dataframe_copy(matrix, deep=False)
+    row_positions_by_feature_id = {
+        str(feature_id): position for position, feature_id in enumerate(matrix.index)
+    }
+    missing_feature_ids = [
+        feature_id
+        for feature_id in feature_ids
+        if feature_id not in row_positions_by_feature_id
+    ]
+    if missing_feature_ids:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.feature_eligibility_alignment",
+            next_action=(
+                "ensure the interpreted differential matrix contains every "
+                "feature selected by pre-fit eligibility"
+            ),
+            details={"missing_feature_ids": missing_feature_ids[:5]},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    row_positions = [
+        row_positions_by_feature_id[feature_id] for feature_id in feature_ids
+    ]
+    return pd.DataFrame(
+        matrix.to_numpy(dtype=float)[row_positions, :],
+        index=pd.Index(feature_ids, name=matrix.index.name),
+        columns=index_snapshot(matrix.columns),
     )
 
 

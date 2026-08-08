@@ -125,10 +125,45 @@ class DifferentialAnalysisRequest:
     )
 
     def __post_init__(self) -> None:
+        self._validate_and_store(assume_matrix_owned=False)
+
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        matrix: pd.DataFrame,
+        design: DesignMatrix | pd.DataFrame,
+        contrasts: ContrastMatrix | pd.DataFrame,
+        design_decomposition: DifferentialDesignDecomposition | None = None,
+        empirical_bayes: EmpiricalBayesConfig | None = None,
+        multiple_testing_method: MultipleTestingCorrection = (
+            MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
+        ),
+    ) -> DifferentialAnalysisRequest:
+        request = object.__new__(cls)
+        object.__setattr__(request, "matrix", matrix)
+        object.__setattr__(request, "design", design)
+        object.__setattr__(request, "contrasts", contrasts)
+        object.__setattr__(request, "design_decomposition", design_decomposition)
+        object.__setattr__(
+            request,
+            "empirical_bayes",
+            empirical_bayes if empirical_bayes is not None else EmpiricalBayesConfig(),
+        )
+        object.__setattr__(
+            request,
+            "multiple_testing_method",
+            multiple_testing_method,
+        )
+        request._validate_and_store(assume_matrix_owned=True)
+        return request
+
+    def _validate_and_store(self, *, assume_matrix_owned: bool) -> None:
         matrix = own_dataframe(
             self.matrix,
             field_name="differential.matrix",
             error_type=PhosPyInputError,
+            assume_owned=assume_matrix_owned,
         )
         _validate_numeric_matrix(
             matrix,

@@ -237,7 +237,7 @@ class DifferentialAnalysisInterpreter:
             paired_design_policy=execution_config.paired_design_policy,
             design_decomposition=resolved_design_decomposition,
         )
-        computation_request = DifferentialComputationRequest(
+        computation_request = DifferentialComputationRequest._from_owned(  # pyright: ignore[reportPrivateUsage] - DifferentialAnalysisInterpreter owns the internal workflow handoff and can transfer an already workflow-local computation matrix without a second public-boundary copy.
             matrix=matrix_for_computation,
             design=execution_design.design_matrix,
             contrasts=execution_design.contrast_matrix,

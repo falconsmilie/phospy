@@ -39,6 +39,9 @@ REPORTS_DIRECTORY_TOKEN = "benchmarks/reports"
 RELEASE_SCALE_BENCHMARK_SCRIPT = (
     BENCHMARK_DIR / "measure_release_scale_builder_differential.py"
 )
+REPEATED_WORKFLOW_BENCHMARK_SCRIPT = (
+    BENCHMARK_DIR / "measure_repeated_workflow_dataset_snapshot_reuse.py"
+)
 
 
 def _read_source(path: Path) -> str:
@@ -240,3 +243,67 @@ def test_release_scale_benchmark_report_payload_records_environment_and_outputs(
         "differential_result_table_digest": "result-digest",
         "scientific_summary_digest": "summary-digest",
     }
+
+
+def test_repeated_workflow_snapshot_reuse_benchmark_schema() -> None:
+    module = _load_script_module(REPEATED_WORKFLOW_BENCHMARK_SCRIPT)
+    measurement = module.RunMeasurement(
+        runtime_seconds=0.25,
+        peak_tracemalloc_mib=12.5,
+        full_frame_deep_copies={"dataset.phospho": 1},
+        snapshot_constructions={"dataset.phospho internal snapshot": 1},
+    )
+    result = module.BenchmarkResult(
+        config=module.BenchmarkConfig(
+            n_sites=40,
+            n_samples=4,
+            n_kinases=3,
+            substrates_per_kinase=8,
+        ),
+        dataset_dimensions={
+            "phospho_rows": 40,
+            "phospho_columns": 4,
+            "site_metadata_rows": 40,
+            "site_metadata_columns": 10,
+        },
+        frame_dtypes={
+            "phospho": {"A_1": "float64"},
+            "site_metadata": {"site_key": "object"},
+        },
+        differential_first=measurement,
+        differential_repeated=measurement,
+        kinase_first=measurement,
+        kinase_repeated=measurement,
+        total_full_frame_deep_copies={"dataset.phospho": 1},
+        total_snapshot_constructions={"dataset.phospho internal snapshot": 1},
+        environment={"python_version": "3.x", "platform": "test"},
+        dependencies={"phospy": "test", "numpy": "test", "pandas": "test"},
+    )
+
+    payload = module.report_payload(result)
+
+    assert {
+        "dataset_phospho_rows",
+        "dataset_phospho_columns",
+        "frame_dtypes_json",
+        "differential_first_run_seconds",
+        "differential_repeated_run_seconds",
+        "kinase_first_run_seconds",
+        "kinase_repeated_run_seconds",
+        "full_frame_deep_copy_counts_json",
+        "snapshot_construction_counts_json",
+        "environment_json",
+        "dependency_versions_json",
+    }.issubset(set(module.DOCUMENTED_MAIN_METRIC_KEYS))
+    assert payload["benchmark"] == "repeated_workflow_dataset_snapshot_reuse"
+    assert payload["dataset"]["dimensions"]["phospho_rows"] == 40
+    assert payload["dataset"]["frame_dtypes"]["phospho"]["A_1"] == "float64"
+    assert payload["runs"]["differential"]["first"]["runtime_seconds"] == 0.25
+    assert payload["runs"]["kinase"]["repeated"]["peak_tracemalloc_mib"] == 12.5
+    assert payload["totals"]["full_frame_deep_copies"] == {"dataset.phospho": 1}
+    assert payload["totals"]["snapshot_constructions"] == {
+        "dataset.phospho internal snapshot": 1
+    }
+    assert payload["environment"]["python_version"] == "3.x"
+    assert payload["dependencies"]["pandas"] == "test"
+    assert "machine-specific" in payload["observation_scope"].lower()

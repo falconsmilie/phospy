@@ -14,9 +14,11 @@ not guarantees of identical runtime on every machine.
 Validated dataset construction installs one private dataset-owned immutable
 frame store. Ordinary kinase, differential, and Signalome workflow runs still
 receive independent `DatasetInternalView` instances, but those views return
-shallow read-only wrappers over the dataset-owned snapshots. Repeated runs
-against the same unchanged dataset therefore avoid rebuilding full internal
-numeric-table snapshots, while public exports remain detached copies.
+workflow-local wrappers over the dataset-owned snapshots. Shareable NumPy-backed
+columns use immutable backing buffers whose writeability cannot be restored;
+object, extension, and otherwise unshareable columns are copied per wrapper.
+Repeated runs against the same unchanged dataset therefore avoid rebuilding full
+internal numeric-table snapshots, while public exports remain detached copies.
 
 ## Target Dataset Scales
 
@@ -45,7 +47,7 @@ runner contention to serve as a release gate.
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
-| Repeated workflow internal dataset reads | unchanged validated dataset frames across repeated workflow runs | First internal access per frame pays one owner-detached snapshot copy; later views/runs use shallow read-only wrappers | Same dataset reused across differential/kinase/Signalome runs | Unit instrumentation asserts one phospho/site-metadata snapshot across repeated differential and kinase runs | Retains one private immutable copy per accessed dataset frame; optional frames are snapshotted only when internally read | No global cache and no workflow-instance mutable frame cache | Public exports still copy; workflow computation may still make explicit per-run derived/result tables when scientifically required |
+| Repeated workflow internal dataset reads | unchanged validated dataset frames across repeated workflow runs | First internal access per frame pays one owner-detached snapshot copy; later views/runs use immutable-buffer wrappers for shareable NumPy-backed columns and per-wrapper copies for unshareable columns | Same dataset reused across differential/kinase/Signalome runs | Unit instrumentation asserts one phospho/site-metadata snapshot across repeated differential and kinase runs | Retains one private immutable copy per accessed dataset frame; optional frames are snapshotted only when internally read; unshareable columns allocate per returned wrapper | No global cache and no workflow-instance mutable frame cache | Public exports still copy; workflow computation may still make explicit per-run derived/result tables when scientifically required |
 | Optional release-scale builder plus differential benchmark | 50,000 sites x 48 samples with realistic site/sample metadata, required `site_sequence`, log2 transform, median centering, row-median imputation, preprocessing provenance, table fingerprints, and one two-condition differential contrast | Sum of request preparation, public builder execution, preprocessing/provenance fingerprinting, differential fitting, result-table export, and benchmark summary generation | 50,000 x 48 | None; runtime and RSS are informational local observations | Dense input/output matrices, metadata tables, preprocessing reports, provenance fingerprints, and one full 50,000-row differential result table | No hidden approximation; this benchmark uses public builder/workflow entrypoints | Fails only when the scientific workflow errors, required invariants are violated, output dimensions are wrong, expected preprocessing/differential outputs are absent, or a requested report cannot be produced |
 | ssGSEA substrate enrichment activity | finite ranked sites x kinases x profiles x seeded permutations | Observed score pass is O(sites x kinases x profiles); permutation work is O(kinases x profiles x permutations x selected substrates), with reusable null-score constants cached by equivalent background size, substrate count, and tie-block structure | 720 sites x 32 kinases x 6 profiles x 48 permutations (CI contract fixture) | None | Does not materialize a sites x kinases x profiles x permutations cube; p/q matrices scale with kinases x profiles | No approximation; seeded per-kinase/profile permutation streams and tie-block midrank semantics are preserved | Validation/status diagnostics report insufficient substrates, empty finite background, or all-substrate backgrounds |
 | Motif scoring | dataset sites; eligible kinases; sequence window width | Approximately O(sites x eligible kinases) after reference filtering | 2,000 sites x 100 kinases | None | Motif-library and score matrices scale with kinase count | Kinases without valid motif support are naturally excluded | Validation errors for malformed sequence/reference inputs |
@@ -122,6 +124,58 @@ when its scientific semantics are acceptable.
 
 The 50,000 x 48 end-to-end workload is not owned by pytest, CI, or release
 checks. It is owned by the benchmark script described below.
+
+## Optional Repeated Workflow Snapshot Reuse Benchmark
+
+The explicit local command is:
+
+```bash
+python benchmarks/measure_repeated_workflow_dataset_snapshot_reuse.py
+```
+
+The benchmark builds one unchanged analysis-ready dataset, runs two
+differential workflow executions and two kinase workflow executions against
+that same dataset, and reports:
+
+- dataset dimensions
+- frame dtypes
+- first and repeated workflow runtime
+- tracemalloc peak memory
+- full-frame deep-copy counts for dataset-owned frames
+- dataset internal snapshot construction counts
+- Python/platform metadata
+- selected dependency versions
+
+It can also write a JSON report under `benchmarks/reports/`:
+
+```bash
+python benchmarks/measure_repeated_workflow_dataset_snapshot_reuse.py --write-report
+```
+
+Observed local run on 2026-08-08, Windows 11
+(`Windows-11-10.0.26200-SP0`), Python 3.13.12, NumPy 2.4.4, pandas 2.3.3,
+SciPy 1.17.1, and PhosPy 1.5.2:
+
+| Metric | Observed value |
+| --- | ---: |
+| Dataset phospho dimensions | 240 x 8 |
+| Dataset site-metadata columns | 10 |
+| Differential first run | 0.438641 s |
+| Differential repeated run | 0.327899 s |
+| Differential first-run tracemalloc peak | 0.670 MiB |
+| Differential repeated-run tracemalloc peak | 0.556 MiB |
+| Kinase first run | 1.486004 s |
+| Kinase repeated run | 1.479663 s |
+| Kinase first-run tracemalloc peak | 1.263 MiB |
+| Kinase repeated-run tracemalloc peak | 0.942 MiB |
+| Full-frame deep-copy counts | `{"dataset.phospho": 1, "dataset.site_metadata": 5}` |
+| Snapshot construction counts | `{"dataset.phospho internal snapshot": 1, "dataset.site_metadata internal snapshot": 1}` |
+
+The copy-count observation is the relevant ownership signal: the unchanged
+numeric phospho table is deep-copied once for the dataset-owned snapshot across
+all four workflow executions, and the dataset phospho/site-metadata snapshots
+are each constructed once. The runtime and memory values are local observations
+for this machine and dependency set, not portable performance guarantees.
 
 ## Optional Release-Scale Local Benchmark
 

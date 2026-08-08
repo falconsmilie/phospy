@@ -26,12 +26,15 @@ Update note (2026-07-16, pandas global option isolation): PhosPy frame ownership
 helpers must not set, restore, or otherwise mutate process-global pandas options.
 Borrowing semantics are local to PhosPy-owned objects.
 
-Update note (2026-08-02, dataset-owned immutable snapshots): internal dataset
-read paths use owner-detached immutable snapshots owned by the constructed
-dataset. `DatasetInternalView` instances return shallow read-only pandas
-wrappers over those private snapshots, so repeated workflow runs against an
-unchanged dataset do not recreate full matrix deep copies for internal reads.
-This does not change public export semantics.
+Update note (2026-08-02/2026-08-08, dataset-owned immutable snapshots):
+internal dataset read paths use owner-detached immutable snapshots owned by the
+constructed dataset. Shareable NumPy-backed columns are rebuilt over genuinely
+immutable buffers so writeability cannot be restored through NumPy or pandas
+block internals. Object, extension, and otherwise unshareable columns are copied
+per returned wrapper. `DatasetInternalView` instances therefore reuse the
+dataset-owned snapshots without allowing mutation through one workflow-local
+DataFrame to alter another existing or future workflow view. This does not
+change public export semantics.
 
 Update note (2026-08-07, public equality and hashing): public pandas-bearing
 containers must not rely on dataclass-generated equality. Stable dataset,
@@ -114,11 +117,10 @@ Package-private `_borrow_*` helpers are allowed for trusted internal
 collaboration only. They return owner-detached internal snapshots, are read-only
 by contract, are not part of the public contract, and must stay out of public
 API routes. Callers must not rely on successful mutation of a borrowed object;
-writes to NumPy-backed internal snapshots are expected to raise because PhosPy
-marks the detached snapshot blocks non-writeable. Extension-array-backed
-snapshots that cannot be made non-writeable through NumPy flags must remain
-owner-detached and may fall back to copying when exposed from a cached internal
-snapshot.
+writes to shareable NumPy-backed internal snapshots are expected to raise
+because PhosPy backs those arrays with immutable buffers. Extension-array,
+object-dtype, and otherwise unshareable columns remain owner-detached and are
+copied per returned wrapper when exposed from a cached internal snapshot.
 
 Borrowed snapshots are implemented without process-global pandas mutation and
 without relying on undocumented pandas copy-on-write behavior:
@@ -127,19 +129,29 @@ without relying on undocumented pandas copy-on-write behavior:
 - Internal immutable snapshots first make one owner-detached deep pandas copy.
 - Supported mutable object cells are frozen once for internal snapshots
   (`list` to `tuple`, `dict` to read-only mapping, `set` to `frozenset`, and
-  nested `numpy.ndarray` values to non-writeable arrays), so workflow metadata
-  reads do not recursively copy those cells on every access.
-- NumPy-backed pandas blocks are marked non-writeable on the detached snapshot.
+  nested non-object `numpy.ndarray` values to arrays backed by immutable
+  buffers), so workflow metadata reads do not recursively copy those cells on
+  every access.
+- Shareable NumPy-backed columns, including ordinary numeric, Boolean,
+  datetime, and timedelta dtypes, are reconstructed with supported pandas
+  constructors over NumPy arrays backed by immutable `bytes` buffers. Restoring
+  `flags.writeable` on those arrays or their base chains raises instead of
+  exposing mutable shared storage.
+- Object-dtype, pandas extension-array, and unrecognized columns are treated as
+  unshareable. They remain owner-detached in the cached snapshot, but each
+  `DatasetInternalView` wrapper receives its own column array for those
+  positions. This prevents object-block or extension-array mutation in one
+  wrapper from contaminating another wrapper or a later workflow run.
+- DataFrame axes are detached per returned wrapper so mutation through
+  `.index.values`, `.columns.values`, or related internals cannot alter another
+  view.
 - Validated dataset construction creates one private
   `DatasetInternalFrameStore` owned by the dataset domain. The store lazily
   constructs at most one immutable snapshot per dataset frame.
-- `DatasetInternalView` does not cache frames or snapshots. It returns shallow
-  pandas wrappers over the dataset-owned read-only snapshot blocks on each
-  access. Mutating wrapper metadata such as adding columns is local to that
-  wrapper and does not mutate the cached snapshot or dataset owner.
-- Unsupported pandas internals, including extension arrays that cannot be made
-  read-only through NumPy flags, stay owner-detached and fall back to detached
-  copies when exposed from a cached internal snapshot.
+- `DatasetInternalView` does not cache frames or snapshots. It returns
+  workflow-local pandas wrappers on each access. Mutating wrapper metadata such
+  as adding columns is local to that wrapper and does not mutate the cached
+  snapshot or dataset owner.
 
 Implementation note (2026-06-14): workflow dataset access is mediated by the
 dataset-owned `DatasetInternalView`. Workflows may depend on that defensive
@@ -195,8 +207,8 @@ not be reused as the derived object's own provenance.
 - Contributors must maintain stricter discipline around internal frame helpers.
 - Some high-throughput paths need explicit publisher/export APIs for
   performance.
-- Extension-array-backed borrowed snapshots may allocate deep copies on pandas
-  versions without native local copy-on-write guarantees.
+- Extension-array-backed and other unshareable borrowed columns allocate
+  per-wrapper column copies.
 - Dataset-owned internal snapshots retain one owner-detached copy per accessed
   frame for the lifetime of the dataset. This is intentional and must remain a
   private dataset-domain store, not a workflow-instance cache, public borrow
@@ -256,9 +268,14 @@ but cannot claim deep immutability.
   boundary.
 - `benchmarks/measure_dataframe_ownership_copy_policy.py` records representative
   shallow/deep copy counts for the internal borrow policy.
+- `benchmarks/measure_repeated_workflow_dataset_snapshot_reuse.py` is an
+  opt-in local benchmark for repeated differential and kinase workflow use of
+  the same dataset. It reports dataset dimensions, frame dtypes, first/repeated
+  workflow runtime, tracemalloc peak memory, full-frame deep-copy counts,
+  snapshot construction counts, environment details, and dependency versions.
 - Workflow copy-count instrumentation must cover at least one representative
-  differential run and assert the full phospho matrix is not repeatedly
-  deep-copied by validator/interpreter handoffs.
+  differential and kinase run pair and assert the full phospho matrix is not
+  repeatedly deep-copied by validator/interpreter handoffs.
 - API contract tests must statically audit public pandas/NumPy-bearing
   dataclasses for implicit equality and `unsafe_hash=True`, and must exercise
   same-instance comparison, independent equivalent objects, scientifically
@@ -289,8 +306,9 @@ Future changes must satisfy all of the following:
 3. Do provenance-sensitive paths avoid aliasing with exported objects?
 4. Are new accessor behaviors covered by explicit boundary-mutation tests?
 5. Are high-throughput persistence paths kept in explicit publisher/export APIs?
-6. Are dataset-owned immutable snapshots private, read-only, non-global, and
-   exposed to workflows only through `DatasetInternalView` wrappers?
+6. Are dataset-owned immutable snapshots private, non-global, genuinely
+   immutable for shareable NumPy-backed storage, and exposed to workflows only
+   through `DatasetInternalView` wrappers?
 7. Do public pandas/NumPy-bearing containers avoid implicit dataclass equality,
    pandas Boolean coercion, partial `compare=False` equality, and unsafe hashes?
 8. Does `DifferentialAnalysisResult.workflow_provenance` reject unsupported

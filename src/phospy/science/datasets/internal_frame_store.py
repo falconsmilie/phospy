@@ -18,8 +18,9 @@ class DatasetInternalFrameStore:
 
     The store keeps references to the dataset-owned frames but never returns
     them. First internal access to each frame builds one owner-detached immutable
-    snapshot; later workflow views receive shallow read-only wrappers over that
-    stored snapshot.
+    snapshot; later workflow views receive workflow-local wrappers over that
+    stored snapshot. Shareable NumPy-backed columns use immutable buffers, while
+    unshareable columns are copied per wrapper.
     """
 
     __slots__ = (
