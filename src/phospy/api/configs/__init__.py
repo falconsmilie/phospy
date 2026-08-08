@@ -5,7 +5,7 @@
 Only stable configuration objects are exported from this module. Advanced
 configuration and policy objects are supported from ``phospy.advanced.configs``.
 Historical imports from ``phospy.api.configs`` remain available during
-migration through module ``__getattr__`` and emit ``DeprecationWarning``.
+migration through module ``__getattr__`` and emit ``PhosPyDeprecationWarning``.
 """
 
 from __future__ import annotations

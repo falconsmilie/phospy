@@ -54,21 +54,33 @@ stable import targets under `phospy.api`.
 
 Historical advanced imports from `phospy.api`, `phospy.api.configs`,
 `phospy.api.requests`, and `phospy.api.results` are retained during migration
-as compatibility adapters. They emit `DeprecationWarning` and identify a
-replacement import, usually `phospy.advanced` or a `phospy.advanced.*`
-submodule. Internal compatibility imports, where retained, warn that they are
-unsupported compatibility routes.
+as compatibility adapters. They emit the package-specific
+`PhosPyDeprecationWarning` and identify a replacement import, usually
+`phospy.advanced` or a `phospy.advanced.*` submodule. Internal compatibility
+imports, where retained, warn that they are unsupported compatibility routes.
 
-Update note (2026-08-07, actionable deprecations): Compatibility adapters must
-be metadata-backed. Every retained compatibility export route records the old
-module, exported name, owner module, replacement module, introduction version,
-planned removal version, and stability classification. Ordinary tests and
-documentation examples must use supported stable or advanced imports.
-Dedicated compatibility tests are the only tests that should import deprecated
-API routes, and pytest treats unexpected `phospy.api` import deprecation
-warnings as errors. Retained compatibility routes introduced by this API
-reduction are planned for removal in PhosPy 2.0.0 unless a later release ADR
-changes the policy before removal.
+Update note (2026-08-08, package-wide actionable deprecations): Retained
+PhosPy deprecations must be metadata-backed in the shared package-private
+registry (`phospy._deprecations`). Each record identifies the deprecation ID,
+kind, owner module or domain, deprecated path/name/argument/value, actionable
+replacement, introduction version, planned removal version, and stability
+classification. API compatibility exports are a specialized view of that
+shared registry, not a separate deprecation metadata system.
+
+All retained user-facing PhosPy deprecations emit
+`PhosPyDeprecationWarning`, a subclass of `DeprecationWarning`. Pytest treats
+uncaptured `PhosPyDeprecationWarning` as an error in ordinary test runs.
+Compatibility-specific tests must capture intentional compatibility warnings
+with `pytest.warns(PhosPyDeprecationWarning)` and may inspect replacement and
+removal guidance. Ordinary tests and documentation examples must use supported
+stable or advanced imports and supported parameter or mode names.
+
+Retained API compatibility routes introduced by this API reduction are planned
+for removal in PhosPy 2.0.0 unless a later release ADR changes the policy
+before removal. Other retained deprecations keep their registered planned
+removal versions. When the current package version reaches or passes a
+registered planned removal version, the compatibility route must be removed or
+a policy test must fail until an ADR explicitly revises the removal plan.
 
 Update note (2026-07-22): `AnalysisReadyPhosphoDataset` remains a stable public
 result/domain type and import target. Its ordinary public constructor is sealed
@@ -182,8 +194,8 @@ scientific logic, validators, construction services, executors, duplicate
 policy definitions, or new public aliases created only to avoid updating
 internal tests. Unsupported compatibility constants and helpers remain owned by
 `phospy.contracts.*` or the original implementation module named in their
-warning text. Advanced compatibility names remain owned by `phospy.advanced`
-or its documented advanced submodule.
+deprecation metadata. Advanced compatibility names remain owned by
+`phospy.advanced` or its documented advanced submodule.
 
 The retained compatibility registry is the allowed compatibility surface.
 Unregistered cross-submodule dynamic lookups are treated as unowned orphan
@@ -502,7 +514,11 @@ Future API changes must satisfy these criteria:
    contract review and an ADR update.
 8. Every advanced name must have a stability justification in the implementation
    inventory.
-9. Every retained compatibility route must have owner, replacement,
-   introduction-version, and planned-removal metadata.
-10. Normal test collection must not emit PhosPy API deprecation warnings;
+9. Every retained user-facing deprecation must have owner, replacement,
+   introduction-version, planned-removal, kind, deprecated-target, and
+   stability metadata in the shared registry.
+10. Normal test collection must not emit uncaptured `PhosPyDeprecationWarning`;
     compatibility warnings are asserted only in compatibility-specific tests.
+11. Source modules must not call `warnings.warn(..., DeprecationWarning)` or
+    `warnings.warn(..., PhosPyDeprecationWarning)` directly outside
+    `phospy._deprecations`.

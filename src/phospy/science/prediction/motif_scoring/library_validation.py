@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import warnings
 from collections import Counter
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
 
+from phospy._deprecations import warn_deprecated
 from phospy.science.prediction.motif_scoring.frequency_matrices import (
     _build_frequency_matrix_from_windows,
 )
@@ -33,14 +33,6 @@ from phospy.science.prediction.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_VALID,
     MotifSequenceValidator,
     SequenceValidationInput,
-)
-
-_BARE_MOTIF_SEQUENCE_DEPRECATION_MESSAGE = (
-    "Bare motif sequence strings in motif_sequences are deprecated and will be "
-    "rejected in a future release because they omit stable reference and site "
-    "identity metadata needed for reproducible motif-library validation. Pass "
-    "ExplicitMotifSequence values or mapping entries with reference_id, site_id, "
-    "kinase, and sequence fields."
 )
 
 
@@ -100,7 +92,7 @@ def build_motif_library_from_sequences(
 
     Prefer structured metadata carrying `reference_id`, optional `site_id`,
     optional `kinase`, and `sequence`. Bare sequence strings remain accepted
-    during the deprecation window but emit `DeprecationWarning`.
+    during the deprecation window but emit `PhosPyDeprecationWarning`.
     """
 
     if flank_size < 0:
@@ -126,9 +118,8 @@ def build_motif_library_from_sequences(
                 )
             )
     if saw_bare_sequence:
-        warnings.warn(
-            _BARE_MOTIF_SEQUENCE_DEPRECATION_MESSAGE,
-            DeprecationWarning,
+        warn_deprecated(
+            "prediction.motif_library.bare_sequence",
             stacklevel=2,
         )
     frequency_matrices, size_series, validation = _build_motif_library_from_candidates(

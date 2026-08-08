@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import ast
 import importlib
+import os
 import re
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -57,14 +60,55 @@ def test_benchmarks_use_supported_api_import_routes() -> None:
     assert violations == []
 
 
-def test_pytest_errors_on_unexpected_phospy_api_deprecation_warnings() -> None:
+def test_pytest_errors_on_unexpected_phospy_deprecation_warnings(
+    tmp_path: Path,
+) -> None:
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     filterwarnings = config["tool"]["pytest"]["ini_options"]["filterwarnings"]
 
-    assert (
-        "error:^phospy\\.api(\\.|$).* is deprecated.*:DeprecationWarning"
-        in filterwarnings
+    assert "error::phospy._deprecations.PhosPyDeprecationWarning" in filterwarnings
+
+    test_file = tmp_path / "test_uncaptured_phospy_deprecation.py"
+    test_file.write_text(
+        "\n".join(
+            [
+                "from phospy._deprecations import warn_deprecated",
+                "",
+                "def test_uncaptured_phospy_deprecation_fails():",
+                "    warn_deprecated(",
+                "        'science.differential.DifferentialAnalysis',",
+                "        stacklevel=1,",
+                "    )",
+                "",
+            ]
+        ),
+        encoding="utf-8",
     )
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [str(ROOT / "src"), environment.get("PYTHONPATH", "")]
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-c",
+            str(ROOT / "pyproject.toml"),
+            str(test_file),
+            "-q",
+        ],
+        cwd=ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    output = f"{completed.stdout}\n{completed.stderr}"
+    assert completed.returncode != 0, output
+    assert "PhosPyDeprecationWarning" in output
+    assert "DifferentialAnalysis" in output
 
 
 def _python_code_blocks(source: str) -> tuple[tuple[int, str], ...]:

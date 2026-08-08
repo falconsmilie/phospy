@@ -15,6 +15,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
 )
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -414,7 +415,7 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     assert result.activity_result is not None
     assert not result.activity_result.activity_matrix.empty
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="KinaseActivityResult.activity_scores.*activity_matrix",
     ):
         activity_scores = result.activity_result.activity_scores
@@ -423,7 +424,7 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
         result.activity_result.activity_matrix,
     )
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="KinaseActivityResult.weighted_activity.*activity_matrix",
     ):
         weighted_activity = result.activity_result.weighted_activity

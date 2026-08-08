@@ -57,8 +57,8 @@ def test_api_tiers_are_explicit_disjoint_and_drive_all() -> None:
 
 
 def test_api_surface_counts_do_not_increase_without_contract_review() -> None:
-    assert len(public_api.__all__) <= STABLE_PUBLIC_API_BASELINE_COUNT
-    assert len(advanced_api.__all__) <= ADVANCED_PUBLIC_API_BASELINE_COUNT
+    assert len(public_api.__all__) == STABLE_PUBLIC_API_BASELINE_COUNT
+    assert len(advanced_api.__all__) == ADVANCED_PUBLIC_API_BASELINE_COUNT
 
 
 def test_advanced_api_names_have_stability_justifications() -> None:

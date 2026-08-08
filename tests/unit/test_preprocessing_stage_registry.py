@@ -9,6 +9,7 @@ import pytest
 
 import phospy.science.datasets.preprocessing.pipeline as pipeline_module
 import phospy.science.datasets.preprocessing.stage_registry as stage_registry_module
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
@@ -791,7 +792,7 @@ def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
     )
     state = _fake_stage_state("legacy_alias_stage")
 
-    with pytest.warns(DeprecationWarning, match="stage_metadata_registry"):
+    with pytest.warns(PhosPyDeprecationWarning, match="stage_metadata_registry"):
         pipeline = PreprocessingPipeline(
             stage_registry=(FakeStage(),),
             stage_metadata_registry=(contract,),

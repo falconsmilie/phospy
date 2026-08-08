@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import csv
-import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO, cast
 
+from phospy._deprecations import warn_deprecated
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
 from phospy.errors.validation import ContractValidationError, WorkflowValidationError
 from phospy.science.enrichment.collections import (
@@ -262,12 +262,8 @@ def load_enrichment_sets_tsv(
 
 
 def _warn_deprecated_load_alias(alias_name: str, replacement_name: str) -> None:
-    warnings.warn(
-        (
-            f"{alias_name} is deprecated and will be removed in a future release; "
-            f"use {replacement_name} instead."
-        ),
-        DeprecationWarning,
+    warn_deprecated(
+        f"io.enrichment.{alias_name}",
         stacklevel=3,
     )
 

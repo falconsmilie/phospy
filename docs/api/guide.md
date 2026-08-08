@@ -162,7 +162,7 @@ helpers, local Kinase Library-style resource loaders, and explicit result-table
 inspection helpers such as `filter_differential_results` and
 `rank_differential_results`. The supported import route is
 `phospy.advanced`; historical `phospy.api` advanced import routes are
-compatibility adapters that emit `DeprecationWarning` and identify the
+compatibility adapters that emit `PhosPyDeprecationWarning` and identify the
 replacement import. These warnings also include the compatibility-route
 introduction version and planned removal version; current retained API import
 compatibility routes introduced by the API reduction are planned for removal in

@@ -101,7 +101,7 @@ testpaths = [
 ]
 addopts = "-m \"not parity\""
 filterwarnings = [
-  "error:^phospy\\.api(\\.|$).* is deprecated.*:DeprecationWarning",
+  "error::phospy._deprecations.PhosPyDeprecationWarning",
 ]
 markers = [
   "unit: focused tests for a single module/function contract with isolated collaborators",

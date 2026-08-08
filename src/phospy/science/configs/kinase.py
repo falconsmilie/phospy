@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import Literal, cast
 
+from phospy._deprecations import warn_deprecated
 from phospy.policies import PolicyEnum
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
 
@@ -188,9 +188,8 @@ def normalize_kinase_scoring_mode(
     text = str(value)
     normalized = KINASE_SCORING_MODE_ALIASES.get(text, text)
     if text in KINASE_SCORING_MODE_ALIASES and warn_on_deprecated_alias:
-        warnings.warn(
-            KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
-            DeprecationWarning,
+        warn_deprecated(
+            "science.kinase.scoring_mode.kinase_library_motif",
             stacklevel=3,
         )
     return cast(KinaseScoringMode, normalized)

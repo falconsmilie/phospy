@@ -5,6 +5,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     DifferentialAnalysisConfig,
     TechnicalReplicatePolicy,
@@ -788,7 +789,7 @@ def test_interpreter_consumes_derived_dataset_after_aggregation() -> None:
 
 def test_technical_replicate_resolver_warns_and_preserves_wrapper_behaviour() -> None:
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="TechnicalReplicateResolver is deprecated",
     ) as construction_warnings:
         resolver = TechnicalReplicateResolver()
@@ -800,7 +801,7 @@ def test_technical_replicate_resolver_warns_and_preserves_wrapper_behaviour() ->
     dataset = _dataset_with_technical_replicates()
     design = _repeated_design()
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="TechnicalReplicateResolver is deprecated",
     ) as run_warnings:
         resolved = resolver.run(

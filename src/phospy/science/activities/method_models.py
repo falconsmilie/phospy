@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
+
+from phospy._deprecations import warn_deprecated
 
 
 @dataclass(frozen=True, slots=True)
@@ -379,14 +380,8 @@ def _warn_legacy_activity_summary_alias(
     legacy_field_name: str,
     field_name: str,
 ) -> None:
-    warnings.warn(
-        (
-            f"ActivityMethodSummary.{legacy_field_name} is deprecated; use "
-            f"{field_name}. The deprecated condition-named alias is only a "
-            "compatibility counter name and does not define biological "
-            "condition semantics."
-        ),
-        DeprecationWarning,
+    warn_deprecated(
+        f"activities.method_summary.{legacy_field_name}",
         stacklevel=3,
     )
 

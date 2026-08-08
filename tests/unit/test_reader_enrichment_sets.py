@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.errors import PhosPyInputError
 from phospy.io.readers.enrichment_sets import (
     load_enrichment_sets_csv,
@@ -143,7 +144,7 @@ def test_reader_enrichment_load_aliases_warn_and_forward(
     expected = reader(path, **kwargs)
 
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match=rf"{alias.__name__}.*{replacement_name}",
     ):
         observed = alias(path, **kwargs)

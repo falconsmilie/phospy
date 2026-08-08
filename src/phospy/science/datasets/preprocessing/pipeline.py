@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from dataclasses import replace
 
+from phospy._deprecations import warn_deprecated
 from phospy.errors.build import DatasetBuildError
 from phospy.science.datasets.preprocessing.diagnostics_normalization import (
     _StageDiagnosticsDefaultsResolver,
@@ -60,13 +60,6 @@ from phospy.science.transformations.models import (
 from phospy.science.transformations.quantitative_contracts import (
     QuantitativeContractState,
     initial_quantitative_contract_state,
-)
-
-_LEGACY_STAGE_METADATA_REGISTRY_DEPRECATION_MESSAGE = (
-    "PreprocessingPipeline(stage_metadata_registry=...) is deprecated because "
-    "stage_metadata_registry is a legacy alias for stage_contract_registry; use "
-    "stage_contract_registry instead. The legacy alias is planned for removal in "
-    "PhosPy 1.8.0."
 )
 
 
@@ -341,9 +334,8 @@ def _resolve_stage_contract_overrides(
             "stage_metadata_registry are aliases; only one may be passed"
         )
     if stage_metadata_registry is not None:
-        warnings.warn(
-            _LEGACY_STAGE_METADATA_REGISTRY_DEPRECATION_MESSAGE,
-            DeprecationWarning,
+        warn_deprecated(
+            "preprocessing.pipeline.stage_metadata_registry",
             stacklevel=3,
         )
         return stage_metadata_registry

@@ -11,6 +11,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 import phospy.science.activities.methods.ksea_zscore as ksea_zscore_module
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.hashing import fingerprint_table_normalized_axes
@@ -2115,7 +2116,7 @@ def test_activity_scores_compatibility_alias_matches_activity_matrix() -> None:
     assert result.activity_method.activity_method_id == "ksea_zscore_v1"
     assert result.activity_matrix.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="KinaseActivityResult.activity_scores.*activity_matrix",
     ):
         activity_scores = result.activity_scores
@@ -3180,7 +3181,7 @@ def test_weighted_activity_compatibility_alias_matches_activity_matrix() -> None
         (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8)
     )
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="KinaseActivityResult.weighted_activity.*activity_matrix",
     ):
         weighted_activity = result.weighted_activity
@@ -3352,7 +3353,7 @@ def test_activity_method_summary_accepts_legacy_payload_but_serializes_profile_f
     assert "kinase_profile_pairs_evaluated" in payload
     assert "kinase_condition_pairs_evaluated" not in payload
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="kinase_condition_pairs_evaluated.*kinase_profile_pairs_evaluated",
     ):
         assert summary.kinase_condition_pairs_evaluated == 2
@@ -3384,7 +3385,7 @@ def test_legacy_condition_statistics_table_adapter_is_deprecated_and_defensive()
     )
 
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="does not establish a biological condition contract",
     ):
         legacy = result.legacy_condition_statistics_table_dataframe()

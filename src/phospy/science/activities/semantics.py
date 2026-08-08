@@ -14,6 +14,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy._deprecations import warn_deprecated
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.frames.comparison import dataframe_equals
@@ -610,11 +611,8 @@ def normalize_activity_input_matrix(
             f"{field_name} must be ActivityInputMatrix with explicit semantics"
         )
     if legacy_dataframe_warning is not None:
-        import warnings
-
-        warnings.warn(
-            legacy_dataframe_warning,
-            DeprecationWarning,
+        warn_deprecated(
+            "activities.ssgsea.effect_matrix_dataframe",
             stacklevel=3,
         )
     quantity = cast(

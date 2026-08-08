@@ -5,6 +5,7 @@ import inspect
 import pandas as pd
 import pytest
 
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -103,7 +104,7 @@ def test_kinase_library_workflow_scoring_succeeds_with_all_required_inputs() -> 
 
 def test_kinase_library_motif_alias_warns_and_records_contextual_mode() -> None:
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match=KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
     ):
         request = _request(

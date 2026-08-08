@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import Protocol
 
+from phospy._deprecations import warn_deprecated
 from phospy.science.differential.models import DifferentialAnalysisResult
 
 
@@ -36,13 +36,8 @@ class DifferentialAnalysis:
         *,
         workflow: DifferentialAnalysisWorkflowContract,
     ) -> None:
-        warnings.warn(
-            (
-                "DifferentialAnalysis is deprecated; use "
-                "DifferentialAnalysisWorkflow from top-level phospy "
-                "(from phospy import DifferentialAnalysisWorkflow)."
-            ),
-            DeprecationWarning,
+        warn_deprecated(
+            "science.differential.DifferentialAnalysis",
             stacklevel=2,
         )
         self._workflow = workflow

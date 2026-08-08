@@ -13,6 +13,7 @@ import phospy.science.signalomes as public_signalomes
 import phospy.science.signalomes.clustering as signalome_clustering
 import phospy.science.signalomes.clustering.exact_python as exact_clustering
 import phospy.science.signalomes.clustering.protocol as clustering_protocol
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
 )
@@ -156,7 +157,7 @@ def test_deprecated_differential_analysis_shell_warns_and_delegates() -> None:
             return f"delegated:{request!r}"
 
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="DifferentialAnalysis is deprecated",
     ):
         shell = DifferentialAnalysis(workflow=_Workflow())  # type: ignore[arg-type]

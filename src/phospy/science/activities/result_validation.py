@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import warnings
-
 import numpy as np
 import pandas as pd
 
+from phospy._deprecations import warn_deprecated
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.frames.ownership import export_dataframe
@@ -27,13 +26,8 @@ def _resolve_activity_result_semantics(
 ) -> tuple[ActivityInputSemantics, ActivityProfileMetadata]:
     profile_ids = tuple(str(column) for column in activity_matrix.columns)
     if input_semantics is None and profile_metadata is None:
-        warnings.warn(
-            (
-                "KinaseActivityResult constructed without explicit activity input "
-                "semantics is deprecated; treating activity columns as "
-                "sample/profile labels with sample-level abundance semantics."
-            ),
-            DeprecationWarning,
+        warn_deprecated(
+            "activities.result.missing_semantics",
             stacklevel=3,
         )
         input_semantics = ActivityInputSemantics(

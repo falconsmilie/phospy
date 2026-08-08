@@ -5,6 +5,7 @@ import warnings
 import pandas as pd
 
 from phospy import KinaseWorkflow
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -980,7 +981,7 @@ def test_structured_explicit_sequences_do_not_emit_bare_string_warning() -> None
     assert validation is not None
     assert validation.accepted_reference_sequences == 1
     assert not any(
-        issubclass(item.category, DeprecationWarning)
+        issubclass(item.category, PhosPyDeprecationWarning)
         and "Bare motif sequence strings" in str(item.message)
         for item in caught
     )
@@ -1008,7 +1009,7 @@ def test_bare_explicit_sequences_warn_and_remain_supported_without_site_mismatch
         assert row.site_id is None
         assert row.expected_centre_residue is None
     assert any(
-        issubclass(item.category, DeprecationWarning)
+        issubclass(item.category, PhosPyDeprecationWarning)
         and "Bare motif sequence strings" in str(item.message)
         and "ExplicitMotifSequence" in str(item.message)
         for item in caught
@@ -1034,7 +1035,7 @@ def test_bare_explicit_invalid_sequence_is_rejected_and_reported() -> None:
         == SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
     )
     assert any(
-        issubclass(item.category, DeprecationWarning)
+        issubclass(item.category, PhosPyDeprecationWarning)
         and "Bare motif sequence strings" in str(item.message)
         for item in caught
     )

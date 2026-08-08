@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -10,6 +9,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy._deprecations import warn_deprecated
 from phospy.errors.validation import WorkflowValidationError
 from phospy.provenance.derived_quantitative import (
     TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE,
@@ -29,13 +29,6 @@ from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.models import ExperimentalDesign, SampleDesignRecord
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
-
-_TECHNICAL_REPLICATE_RESOLVER_DEPRECATION_MESSAGE = (
-    "TechnicalReplicateResolver is deprecated and will be removed in a future "
-    "release. Use TechnicalReplicateAggregationPlanner to create an explicit "
-    "TechnicalReplicateAggregationPlan, then apply it with "
-    "TechnicalReplicateAggregator."
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -586,9 +579,8 @@ class TechnicalReplicateResolver:
         planner: TechnicalReplicateAggregationPlanner | None = None,
         aggregator: TechnicalReplicateAggregator | None = None,
     ) -> None:
-        warnings.warn(
-            _TECHNICAL_REPLICATE_RESOLVER_DEPRECATION_MESSAGE,
-            DeprecationWarning,
+        warn_deprecated(
+            "workflows.differential.TechnicalReplicateResolver",
             stacklevel=2,
         )
         self._planner = planner or TechnicalReplicateAggregationPlanner()
@@ -601,9 +593,8 @@ class TechnicalReplicateResolver:
         design: ExperimentalDesign,
         technical_replicate_policy: TechnicalReplicatePolicy,
     ) -> TechnicalReplicateResolution:
-        warnings.warn(
-            _TECHNICAL_REPLICATE_RESOLVER_DEPRECATION_MESSAGE,
-            DeprecationWarning,
+        warn_deprecated(
+            "workflows.differential.TechnicalReplicateResolver",
             stacklevel=2,
         )
         plan = self._planner.run(

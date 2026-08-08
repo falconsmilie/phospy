@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy._deprecations import warn_deprecated
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.frames.comparison import dataframe_equals
@@ -50,13 +50,8 @@ class KinaseActivityInputs:
 
     def __post_init__(self) -> None:
         if self.activity_input is None:
-            warnings.warn(
-                (
-                    "KinaseActivityInputs constructed without typed activity_input "
-                    "semantics is deprecated; treating phospho_matrix columns as "
-                    "sample/profile labels with sample-level abundance semantics."
-                ),
-                DeprecationWarning,
+            warn_deprecated(
+                "activities.inputs.missing_activity_input",
                 stacklevel=2,
             )
             activity_input = ActivityInputMatrix.sample_level_abundance(

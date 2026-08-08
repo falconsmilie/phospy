@@ -11,7 +11,7 @@ default examples, and common exception types.
 Advanced supported API:
 Advanced supported objects live under ``phospy.advanced``. Historical advanced
 imports from this module remain temporarily available through a compatibility
-adapter that emits ``DeprecationWarning`` with the replacement import.
+adapter that emits ``PhosPyDeprecationWarning`` with the replacement import.
 
 Internal / experimental API:
 Internal and experimental objects remain unsupported and are not exported from

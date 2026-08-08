@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from phospy._deprecations import PhosPyDeprecationWarning, retained_deprecations
 from phospy.api._compat import compatibility_exports
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -59,7 +60,7 @@ def test_compatibility_imports_warn_with_actionable_replacement_path(
     namespace: dict[str, object] = {}
     replacement = importlib.import_module(replacement_module)
 
-    with pytest.warns(DeprecationWarning) as records:
+    with pytest.warns(PhosPyDeprecationWarning) as records:
         exec(statement, namespace)
 
     assert namespace[name] is getattr(replacement, name)
@@ -72,11 +73,7 @@ def test_compatibility_imports_warn_with_actionable_replacement_path(
 def test_every_compatibility_export_has_policy_metadata_and_live_owner() -> None:
     exports = compatibility_exports()
     keys = [(export.old_module, export.name) for export in exports]
-    current_version = _version_tuple(
-        tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
-            "version"
-        ]
-    )
+    current_version = _current_project_version()
 
     assert exports
     assert len(keys) == len(set(keys))
@@ -95,6 +92,40 @@ def test_every_compatibility_export_has_policy_metadata_and_live_owner() -> None
             owner,
             export.name,
         )
+
+
+def test_every_retained_deprecation_has_complete_unique_metadata_and_live_replacement() -> (
+    None
+):
+    records = retained_deprecations()
+    identifiers = [record.identifier for record in records]
+    deprecated_targets = [record.deprecated for record in records]
+    current_version = _current_project_version()
+
+    assert records
+    assert len(identifiers) == len(set(identifiers))
+    assert len(deprecated_targets) == len(set(deprecated_targets))
+
+    for record in records:
+        assert record.identifier
+        assert record.kind
+        assert record.owner_module
+        assert record.deprecated
+        assert record.replacement
+        assert record.introduced_version
+        assert record.planned_removal_version
+        assert _version_tuple(record.planned_removal_version) > current_version
+        assert record.stability in {"stable", "advanced", "unsupported", "internal"}
+        assert record.replacement_module
+        assert record.replacement_name
+
+        importlib.import_module(record.owner_module)
+        replacement_owner = importlib.import_module(record.replacement_module)
+        assert record.replacement_name in getattr(
+            replacement_owner,
+            "__all__",
+            (),
+        ) or hasattr(replacement_owner, record.replacement_name)
 
 
 def test_advanced_compatibility_exports_point_to_advanced_namespace() -> None:
@@ -116,3 +147,8 @@ def test_unregistered_cross_submodule_compatibility_route_fails_closed() -> None
 def _version_tuple(version: str) -> tuple[int, int, int]:
     major, minor, patch = version.split(".")
     return int(major), int(minor), int(patch)
+
+
+def _current_project_version() -> tuple[int, int, int]:
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    return _version_tuple(config["project"]["version"])

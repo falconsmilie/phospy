@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
@@ -532,7 +533,7 @@ def test_kinase_scoring_exploratory_matches_historical_default() -> None:
 
 
 def test_kinase_scoring_default_is_deprecated_exploratory_alias() -> None:
-    with pytest.warns(DeprecationWarning, match="exploratory"):
+    with pytest.warns(PhosPyDeprecationWarning, match="exploratory"):
         default = KinaseScoringConfig.default()
 
     assert default == KinaseScoringConfig.exploratory()

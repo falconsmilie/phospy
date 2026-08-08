@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass, field
 
 import pandas as pd
 
+from phospy._deprecations import warn_deprecated
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.frames.comparison import (
     dataframe_equals,
@@ -458,13 +458,8 @@ class KinaseActivityResult:
     def activity_scores(self) -> pd.DataFrame:
         """Deprecated compatibility alias for :attr:`activity_matrix`."""
 
-        warnings.warn(
-            (
-                "KinaseActivityResult.activity_scores is deprecated and will be "
-                "removed in a future release; use "
-                "KinaseActivityResult.activity_matrix instead."
-            ),
-            DeprecationWarning,
+        warn_deprecated(
+            "activities.result.activity_scores",
             stacklevel=2,
         )
         return self.activity_matrix
@@ -473,13 +468,8 @@ class KinaseActivityResult:
     def weighted_activity(self) -> pd.DataFrame:
         """Deprecated compatibility alias for :attr:`activity_matrix`."""
 
-        warnings.warn(
-            (
-                "KinaseActivityResult.weighted_activity is deprecated and will be "
-                "removed in a future release; use "
-                "KinaseActivityResult.activity_matrix instead."
-            ),
-            DeprecationWarning,
+        warn_deprecated(
+            "activities.result.weighted_activity",
             stacklevel=2,
         )
         return self.activity_matrix
@@ -755,15 +745,8 @@ class KinaseActivityResult:
     def legacy_condition_statistics_table_dataframe(self) -> pd.DataFrame | None:
         """Return an old condition-shaped statistics-table compatibility snapshot."""
 
-        warnings.warn(
-            (
-                "KinaseActivityResult.legacy_condition_statistics_table_dataframe() "
-                "is deprecated; use statistics_table_dataframe() or statistics_table "
-                "and the canonical profile_id column. This adapter adds "
-                "condition=profile_id only for compatibility and does not establish "
-                "a biological condition contract."
-            ),
-            DeprecationWarning,
+        warn_deprecated(
+            "activities.result.legacy_condition_statistics_table",
             stacklevel=2,
         )
         table = export_optional_dataframe(self._statistics_table)

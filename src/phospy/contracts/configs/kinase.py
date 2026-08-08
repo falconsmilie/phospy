@@ -5,10 +5,10 @@
 from __future__ import annotations
 
 import math
-import warnings
 from dataclasses import dataclass, field
 from typing import cast
 
+from phospy._deprecations import warn_deprecated
 from phospy.contracts.configs._validation import coerce_policy_enum
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
 from phospy.contracts.configs.localisation import LocalisationRequirement
@@ -427,13 +427,8 @@ class KinaseScoringConfig:
     @classmethod
     def default(cls) -> KinaseScoringConfig:
         """Deprecated alias for :meth:`exploratory`."""
-        warnings.warn(
-            (
-                "KinaseScoringConfig.default() is deprecated because the name is "
-                "ambiguous; use KinaseScoringConfig.exploratory() for the "
-                "historical exploratory behavior."
-            ),
-            DeprecationWarning,
+        warn_deprecated(
+            "contracts.kinase.KinaseScoringConfig.default",
             stacklevel=2,
         )
         return cls.exploratory()

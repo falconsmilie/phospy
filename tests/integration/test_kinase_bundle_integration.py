@@ -13,6 +13,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
 )
+from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -230,7 +231,7 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     _assert_kinase_result_equal(loaded.result, result)
     assert loaded.result.activity_result is not None
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="KinaseActivityResult.activity_scores.*activity_matrix",
     ):
         activity_scores = loaded.result.activity_result.activity_scores
@@ -239,7 +240,7 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
         loaded.result.activity_result.activity_matrix,
     )
     with pytest.warns(
-        DeprecationWarning,
+        PhosPyDeprecationWarning,
         match="KinaseActivityResult.weighted_activity.*activity_matrix",
     ):
         weighted_activity = loaded.result.activity_result.weighted_activity
@@ -751,7 +752,7 @@ def test_kinase_bundle_round_trip_preserves_exact_activity_semantics(
     bundle_root = tmp_path / f"kinase_bundle_{case['name']}"
     if activity_result.statistics_table is not None:
         with pytest.warns(
-            DeprecationWarning,
+            PhosPyDeprecationWarning,
             match="does not establish a biological condition contract",
         ):
             legacy_statistics = (
