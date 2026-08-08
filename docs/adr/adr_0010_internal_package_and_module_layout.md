@@ -31,6 +31,12 @@ transformation, activity, reference-manifest, and batch-correction model/helper
 modules are split by change reason. Historical aggregate routes remain only as
 identity-preserving imports; owner modules define the single class objects.
 
+Update note (2026-08-08, contracts facade dependency rule):
+`phospy.contracts` is a transport/public facade. It may re-export exact
+science-owned objects from designated public science modules, but it must not
+import private science modules, executors, construction services, internal
+views, or validation implementation modules.
+
 ## Context and Problem Statement
 
 Internal workflow code has been split into focused modules (validators,
@@ -122,7 +128,10 @@ Without governance:
 6. `phospy.frames` owns pandas frame ownership helpers and generic table-schema
    infrastructure.
 7. `phospy.data` owns packaged static resources only.
-8. Public contract ownership stays under `phospy.api`.
+8. `phospy.contracts` owns stable transport facade modules: passive request
+   DTOs, public result containers, and identity-preserving re-export routes for
+   science-owned domain values.
+9. `phospy.api` and `phospy.advanced` own aggregate public namespaces only.
 
 ### Enforceable Package Dependency DAG
 
@@ -138,11 +147,17 @@ The enforced package rules are:
    `phospy.workflows`.
 3. `phospy.science` must not import `phospy.contracts`, `phospy.io`,
    `phospy.tables`, `phospy.validation`, or `phospy.workflows`.
-4. Concrete local readers, reference source loaders, and nested workflow runners
+4. `phospy.contracts` may import `phospy.science` only through designated
+   public domain modules: public science config policy modules; science-owned
+   model/result/table-schema modules; and narrow reference, evidence,
+   transformation, and result-caveat domain modules listed in the architecture
+   test. It must not import private science modules, executors, construction
+   services, internal views, or validation implementation modules.
+5. Concrete local readers, reference source loaders, and nested workflow runners
    are injected by API/workflow orchestration adapters.
-5. Compatibility modules may re-export moved names, but they must not reintroduce
+6. Compatibility modules may re-export moved names, but they must not reintroduce
    reverse imports or own new behavior.
-6. API adapters may import private validation modules for composition, but those
+7. API adapters may import private validation modules for composition, but those
    validators must not be exported from public namespaces.
 
 The current top-level orientation is:

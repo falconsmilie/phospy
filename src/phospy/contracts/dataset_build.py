@@ -9,23 +9,17 @@ from pathlib import Path
 import pandas as pd
 
 from phospy.contracts.configs import DatasetPreprocessingConfig
-from phospy.science.evidence import dataset_resolution as _dataset_resolution
+from phospy.science.evidence.dataset_resolution.contracts import (
+    DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
+    DATASET_MULTI_SITE_POLICY_REJECT,
+    DATASET_MULTI_SITE_POLICY_SPLIT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+)
 from phospy.science.references.models import Organism
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
-)
-
-DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (
-    _dataset_resolution.DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
-)
-DATASET_MULTI_SITE_POLICY_REJECT = _dataset_resolution.DATASET_MULTI_SITE_POLICY_REJECT
-DATASET_MULTI_SITE_POLICY_SPLIT = _dataset_resolution.DATASET_MULTI_SITE_POLICY_SPLIT
-DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE = (
-    _dataset_resolution.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
-)
-DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
-    _dataset_resolution.DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
 )
 
 DatasetInput = pd.DataFrame | str | Path | PathLike[str]

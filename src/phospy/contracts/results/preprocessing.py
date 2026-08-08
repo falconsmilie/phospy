@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.science.datasets.preprocessing.batch_correction import (
+from phospy.science.datasets.preprocessing.batch_correction_models import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,

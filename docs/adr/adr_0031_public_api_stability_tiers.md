@@ -93,6 +93,34 @@ implementation modules or patch runtime annotations to change the apparent
 owner of the config type; compatibility adapters may still redirect historical
 advanced imports with deprecation warnings.
 
+Update note (2026-08-08, contracts facade dependency rule): `phospy.contracts`
+is a transport/public facade, not a science implementation package. It may
+import designated public science modules only to expose exact owner-defined
+object identities. It must not import private science modules, executors,
+construction services, internal views, or validation implementation modules.
+
+## Contract Facade Dependency and Ownership Audit
+
+The stable and advanced public facades can expose science-owned objects without
+moving their implementation ownership. The contract facade follows this rule:
+request DTOs remain passive transport, while science-owned enums, models,
+result records, table schemas, and policies remain with the modules that own
+their behaviour.
+
+| Retained or exposed route | Behaviour owner | Ownership reason |
+| --- | --- | --- |
+| Public request DTOs in `phospy.contracts.requests` and `phospy.contracts.dataset_build` | `phospy.contracts` | These classes record caller intent only. Workflow validators, dataset builders, and interpreters own contextual validation and resolution. |
+| Public config DTOs in `phospy.contracts.configs.*` | `phospy.contracts.configs` | These classes define public configuration shape and local scalar invariants. Workflow/science modules consume resolved execution models or science-owned policy values. |
+| Science policy enums/constants imported from `phospy.science.configs.*` | `phospy.science.configs.*` | The numerical and workflow science consumes these policy values directly, so contracts must re-export identity rather than duplicate definitions. |
+| Dataset and quantitative-state objects from `phospy.science.datasets.models` and `phospy.science.transformations.models` | `phospy.science.datasets` and `phospy.science.transformations` | Dataset identity, processing state, intensity scale, and quantitative meaning are scientific domain state, not transport-only request shape. |
+| Evidence and reference values from `phospy.science.evidence.dataset_resolution.contracts`, `phospy.science.references.models`, and `phospy.science.references.kinase_library` | `phospy.science.evidence` and `phospy.science.references` | Site-resolution policy, organism/reference bundle identity, presets, and Kinase Library resources drive builder and reference-domain behaviour. |
+| Experimental-design and differential objects from `phospy.science.design.*`, `phospy.science.differential.models`, and `phospy.science.differential.policy_models` | `phospy.science.design` and `phospy.science.differential` | Design matrices, contrasts, empirical Bayes configuration, result records, and replicate policies belong with statistical-design and differential-analysis behaviour. |
+| Enrichment values from `phospy.science.enrichment.models` | `phospy.science.enrichment` | Identifier kinds, set collections, and enrichment result records encode enrichment-domain compatibility and result semantics. |
+| Kinase/activity/prediction values from `phospy.science.activities.models`, `phospy.science.prediction.models`, and `phospy.science.tables.kinase` | `phospy.science.activities`, `phospy.science.prediction`, and `phospy.science.tables` | Stage result containers and table schemas validate kinase-scoring, activity, prediction, and substrate-contribution semantics. |
+| Signalome values from `phospy.science.signalomes.models`, `phospy.science.signalomes.constants`, and `phospy.science.tables.signalome` | `phospy.science.signalomes` and `phospy.science.tables.signalome` | Signalome modules, assignments, diagnostics, constants, and context table schemas are downstream signalome-domain state. |
+| Preprocessing result values from `phospy.science.datasets.preprocessing.batch_correction_models` and `phospy.science.datasets.preprocessing.protein_aware_preparation` | `phospy.science.datasets.preprocessing` | Batch-correction and protein-aware preparation reports carry preprocessing-stage scientific audit and validation semantics. |
+| Result caveats exposed through `phospy.contracts.result_caveats` | `phospy.science.result_caveats` | Caveats are workflow-science result payloads assembled from scientific validation/interpreter facts; contracts provides the stable facade route. |
+
 ## Dataset Diagnostics Policy
 
 ADR-0031 chooses Option A: PhosPy does not provide a public diagnostic

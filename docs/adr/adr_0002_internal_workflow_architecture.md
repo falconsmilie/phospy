@@ -56,6 +56,12 @@ does not discover optional hooks, inspect collaborator signatures, or traverse
 the preprocessing stage registry as a fallback; interpretation of preprocessing
 stage quantitative contracts remains owned by `PreprocessingPipeline`.
 
+Update note (2026-08-08, contracts facade dependency rule): Public request
+DTOs remain passive transport objects. `phospy.contracts` may expose exact
+science-owned domain values through stable facade routes, but contextual
+validation, execution, construction, internal views, and private validation
+implementations remain outside the contracts package.
+
 ## Context and Problem Statement
 
 PhosPy has accumulated orchestration patterns that are more complex than necessary for the product it is intended to be. The current direction has shown signs of wrapper-heavy execution paths, repeated validation across multiple layers, duplicated accessors, loose helper composition, and abstractions that are more "smart" than useful.
@@ -391,6 +397,12 @@ Public DTOs define the stable product contract. These include:
 - major public configuration DTOs
 
 Public DTOs should be small, explicit, and easy to validate.
+
+Request DTOs are passive. Their constructors store caller intent and may not
+call workflow validators, dataset validators, construction services, executors,
+or contextual scientific checks. When a request field needs a science-owned
+enum, model, or policy object, the contracts facade imports and re-exports the
+owned object identity instead of copying the definition into contracts.
 
 ### Internal DTOs
 

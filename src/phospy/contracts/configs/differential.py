@@ -29,7 +29,7 @@ from phospy.science.configs.differential import (
     MultipleTestingMethod,
     PairedDesignPolicy,
 )
-from phospy.science.differential.models.empirical_bayes_config import (
+from phospy.science.differential.models import (
     EmpiricalBayesConfig,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy

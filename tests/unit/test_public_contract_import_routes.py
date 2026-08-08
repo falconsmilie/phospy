@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 import phospy
@@ -137,7 +139,7 @@ def test_unsupported_sps_ruv_style_method_constants_are_not_public_api(
         wildcard_namespace: dict[str, object] = {}
 
         exec(f"import {module_name} as module", module_namespace)
-        module = module_namespace["module"]
+        module = cast(Any, module_namespace["module"])
         exec(f"from {module_name} import *", wildcard_namespace)
 
         assert symbol_name not in module.__all__
@@ -170,6 +172,46 @@ def test_differential_workflow_supported_import_routes() -> None:
 
     assert "DifferentialAnalysisWorkflow" in namespace
     assert "DifferentialAnalysisRequest" in namespace
+
+
+def test_contract_facade_reexports_science_owned_objects_by_identity() -> None:
+    import phospy.contracts.dataset_build as contract_dataset_build
+    import phospy.contracts.requests as contract_requests
+    import phospy.contracts.result_caveats as contract_caveats
+    import phospy.contracts.results.preprocessing as contract_preprocessing_results
+    from phospy.science import result_caveats as science_result_caveats
+    from phospy.science.datasets.preprocessing import (
+        batch_correction_models as science_batch_correction_models,
+    )
+    from phospy.science.design import models as science_design_models
+    from phospy.science.differential import models as science_differential_models
+    from phospy.science.enrichment import models as science_enrichment_models
+    from phospy.science.evidence.dataset_resolution import (
+        contracts as science_dataset_resolution_contracts,
+    )
+    from phospy.science.references import models as science_reference_models
+
+    assert (
+        contract_dataset_build.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+        is science_dataset_resolution_contracts.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+    )
+    assert (
+        contract_requests.ExperimentalDesign is science_design_models.ExperimentalDesign
+    )
+    assert (
+        contract_requests.EmpiricalBayesConfig
+        is science_differential_models.EmpiricalBayesConfig
+    )
+    assert (
+        contract_requests.EnrichmentSetCollection
+        is science_enrichment_models.EnrichmentSetCollection
+    )
+    assert contract_requests.ReferenceBundle is science_reference_models.ReferenceBundle
+    assert contract_caveats.ResultCaveat is science_result_caveats.ResultCaveat
+    assert (
+        contract_preprocessing_results.BatchCorrectionReport
+        is science_batch_correction_models.BatchCorrectionReport
+    )
 
 
 @pytest.mark.parametrize(("module_name", "symbol_name"), SEMI_PUBLIC_SCIENCE_IMPORTS)
@@ -238,7 +280,7 @@ def test_private_helpers_are_rejected_by_public_export_routes(
     wildcard_namespace: dict[str, object] = {}
 
     exec(f"import {module_name} as module", module_namespace)
-    module = module_namespace["module"]
+    module = cast(Any, module_namespace["module"])
     exec(f"from {module_name} import *", wildcard_namespace)
 
     for symbol_name in symbol_names:

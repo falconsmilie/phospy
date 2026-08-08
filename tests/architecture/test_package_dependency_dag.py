@@ -77,142 +77,50 @@ FORBIDDEN_PACKAGE_EDGES = frozenset(
     }
 )
 
-ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES = frozenset(
+CONTRACTS_PUBLIC_SCIENCE_PREFIXES = frozenset(
     {
-        ("phospy.contracts.configs.dataset", "phospy.science.configs.dataset"),
-        (
-            "phospy.contracts.configs.differential",
-            "phospy.science.configs.differential",
-        ),
-        (
-            "phospy.contracts.configs.differential",
-            "phospy.science.differential.models.empirical_bayes_config",
-        ),
-        (
-            "phospy.contracts.configs.differential",
-            "phospy.science.differential.policy_models",
-        ),
-        ("phospy.contracts.configs.enrichment", "phospy.science.configs.enrichment"),
-        ("phospy.contracts.configs.kinase", "phospy.science.configs.kinase"),
-        (
-            "phospy.contracts.configs.localisation",
-            "phospy.science.configs.localisation",
-        ),
-        ("phospy.contracts.configs.prediction", "phospy.science.configs.prediction"),
-        (
-            "phospy.contracts.configs.preprocessing",
-            "phospy.science.configs.preprocessing",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing._validation",
-            "phospy.science.configs.preprocessing.validation",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.batch_correction",
-            "phospy.science.configs.preprocessing.batch_correction",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.comparisons",
-            "phospy.science.configs.preprocessing.comparisons",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.control_sites",
-            "phospy.science.configs.preprocessing.control_sites",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.correction_missingness",
-            "phospy.science.configs.preprocessing.correction_missingness",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.coverage_filter",
-            "phospy.science.configs.preprocessing.coverage_filter",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.intensity_transform",
-            "phospy.science.configs.preprocessing.intensity_transform",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.internal_batch_correction",
-            "phospy.science.configs.preprocessing.internal_batch_correction",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.localisation",
-            "phospy.science.configs.preprocessing.localisation",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.missing_data",
-            "phospy.science.configs.preprocessing.missing_data",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.normalisation",
-            "phospy.science.configs.preprocessing.normalisation",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.site_matrix",
-            "phospy.science.configs.preprocessing.site_matrix",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.site_sequence",
-            "phospy.science.configs.preprocessing.site_sequence",
-        ),
-        (
-            "phospy.contracts.configs.preprocessing.total_protein",
-            "phospy.science.configs.preprocessing.total_protein",
-        ),
-        (
-            "phospy.contracts.configs.reference_context",
-            "phospy.science.configs.reference_context",
-        ),
-        ("phospy.contracts.configs.signalome", "phospy.science.configs.signalome"),
-        ("phospy.contracts.dataset_build", "phospy.science.evidence"),
-        (
-            "phospy.contracts.dataset_build",
-            "phospy.science.evidence.dataset_resolution",
-        ),
-        ("phospy.contracts.dataset_build", "phospy.science.references.models"),
-        ("phospy.contracts.dataset_build", "phospy.science.transformations.models"),
-        ("phospy.contracts.requests", "phospy.science.datasets.models"),
-        ("phospy.contracts.requests", "phospy.science.design.contrast_helpers"),
-        ("phospy.contracts.requests", "phospy.science.design.models"),
-        ("phospy.contracts.requests", "phospy.science.differential.models"),
-        ("phospy.contracts.requests", "phospy.science.enrichment.models"),
-        ("phospy.contracts.requests", "phospy.science.references.kinase_library"),
-        ("phospy.contracts.requests", "phospy.science.references.models"),
-        ("phospy.contracts.result_caveats", "phospy.science.result_caveats"),
-        (
-            "phospy.contracts.results.differential",
-            "phospy.science.differential.models",
-        ),
-        (
-            "phospy.contracts.results.enrichment",
-            "phospy.science.enrichment.models",
-        ),
-        ("phospy.contracts.results.kinase", "phospy.science.activities.models"),
-        ("phospy.contracts.results.kinase", "phospy.science.datasets.models"),
-        ("phospy.contracts.results.kinase", "phospy.science.prediction.models"),
-        ("phospy.contracts.results.kinase", "phospy.science.references.models"),
-        ("phospy.contracts.results.kinase", "phospy.science.tables.kinase"),
-        (
-            "phospy.contracts.results.preprocessing",
-            "phospy.science.datasets.preprocessing.batch_correction",
-        ),
-        (
-            "phospy.contracts.results.preprocessing",
-            "phospy.science.datasets.preprocessing.protein_aware_preparation",
-        ),
-        ("phospy.contracts.results.signalome", "phospy.science.datasets.models"),
-        ("phospy.contracts.results.signalome", "phospy.science.signalomes.constants"),
-        ("phospy.contracts.results.signalome", "phospy.science.signalomes.models"),
-        (
-            "phospy.contracts.results.signalome",
-            "phospy.science.tables.signalome",
-        ),
+        "phospy.science.configs",
+    }
+)
+
+CONTRACTS_PUBLIC_SCIENCE_MODULES = frozenset(
+    {
+        "phospy.science.activities.models",
+        "phospy.science.datasets.models",
+        "phospy.science.datasets.preprocessing.batch_correction_models",
+        "phospy.science.datasets.preprocessing.protein_aware_preparation",
+        "phospy.science.design.contrast_helpers",
+        "phospy.science.design.models",
+        "phospy.science.differential.models",
+        "phospy.science.differential.policy_models",
+        "phospy.science.enrichment.models",
+        "phospy.science.evidence.dataset_resolution.contracts",
+        "phospy.science.prediction.models",
+        "phospy.science.references.kinase_library",
+        "phospy.science.references.models",
+        "phospy.science.result_caveats",
+        "phospy.science.signalomes.constants",
+        "phospy.science.signalomes.models",
+        "phospy.science.tables.kinase",
+        "phospy.science.tables.signalome",
+        "phospy.science.transformations.models",
+    }
+)
+
+CONTRACTS_FORBIDDEN_SCIENCE_PREFIXES = frozenset(
+    {
+        "phospy.science.datasets.builders",
+        "phospy.science.datasets.construction",
+        "phospy.science.references.builder",
+        "phospy.science.references.validation",
     }
 )
 
 PRIVATE_SCIENCE_MODULES = frozenset(
     {
+        "phospy.science.differential.internal_view",
         "phospy.science.datasets.internal_view",
+        "phospy.science.prediction.internal_view",
     }
 )
 
@@ -266,7 +174,7 @@ def test_forbidden_package_edges_are_absent() -> None:
 def test_contracts_do_not_import_private_science_modules() -> None:
     graph = _build_import_graph()
     offenders = sorted(
-        f"{record.source_module} -> {record.target}"
+        f"{record.source_module}:{record.line} -> {record.target}"
         for record in graph.records
         if record.source_module.startswith("phospy.contracts")
         if _is_private_science_module(record.target)
@@ -275,20 +183,44 @@ def test_contracts_do_not_import_private_science_modules() -> None:
     assert offenders == []
 
 
-def test_contracts_to_science_imports_match_module_allowlist() -> None:
+def test_contracts_do_not_import_science_implementation_modules() -> None:
     graph = _build_import_graph()
-    observed = frozenset(
-        (record.source_module, record.target)
+
+    offenders = sorted(
+        f"{record.source_module}:{record.line} -> {record.target}"
         for record in graph.records
         if record.source_module.startswith("phospy.contracts")
         and record.target.startswith("phospy.science")
+        if _is_forbidden_contracts_science_implementation_module(record.target)
     )
 
-    unexpected = sorted(observed - ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES)
-    stale_allowed = sorted(ALLOWED_CONTRACTS_TO_SCIENCE_MODULE_EDGES - observed)
+    assert offenders == []
 
-    assert unexpected == []
-    assert stale_allowed == []
+
+def test_contracts_to_science_imports_match_public_facade_rules() -> None:
+    graph = _build_import_graph()
+    offenders = sorted(
+        f"{record.source_module}:{record.line} -> {record.target}"
+        for record in graph.records
+        if record.source_module.startswith("phospy.contracts")
+        and record.target.startswith("phospy.science")
+        if not _is_public_contracts_science_facade_import(record.target)
+    )
+
+    assert offenders == []
+
+
+def test_contracts_public_science_module_set_has_no_stale_entries() -> None:
+    graph = _build_import_graph()
+    observed = {
+        record.target
+        for record in graph.records
+        if record.source_module.startswith("phospy.contracts")
+        and record.target.startswith("phospy.science")
+    }
+    stale_modules = sorted(CONTRACTS_PUBLIC_SCIENCE_MODULES - observed)
+
+    assert stale_modules == []
 
 
 def test_workflows_do_not_import_unresolved_peptide_evidence_models() -> None:
@@ -516,6 +448,46 @@ def _is_private_science_module(module_name: str) -> bool:
     if not module_name.startswith("phospy.science."):
         return False
     return any(part.startswith("_") for part in module_name.split(".")[2:])
+
+
+def _is_forbidden_contracts_science_implementation_module(module_name: str) -> bool:
+    if any(
+        _module_is_or_under(module_name, forbidden_prefix)
+        for forbidden_prefix in CONTRACTS_FORBIDDEN_SCIENCE_PREFIXES
+    ):
+        return True
+    module_leaf = module_name.rsplit(".", maxsplit=1)[-1]
+    if module_leaf in {"executor", "execution", "internal_view"}:
+        return True
+    if module_leaf.endswith("_executor"):
+        return True
+    return _is_validation_implementation_module(module_name)
+
+
+def _is_validation_implementation_module(module_name: str) -> bool:
+    if _module_is_or_under(module_name, "phospy.science.configs"):
+        return False
+    module_leaf = module_name.rsplit(".", maxsplit=1)[-1]
+    return (
+        module_leaf in {"validation", "validator", "resolved_validator"}
+        or module_leaf.endswith("_validation")
+        or module_leaf.endswith("_validator")
+    )
+
+
+def _is_public_contracts_science_facade_import(module_name: str) -> bool:
+    if _is_private_science_module(module_name):
+        return False
+    if _is_forbidden_contracts_science_implementation_module(module_name):
+        return False
+    return module_name in CONTRACTS_PUBLIC_SCIENCE_MODULES or any(
+        _module_is_or_under(module_name, allowed_prefix)
+        for allowed_prefix in CONTRACTS_PUBLIC_SCIENCE_PREFIXES
+    )
+
+
+def _module_is_or_under(module_name: str, prefix: str) -> bool:
+    return module_name == prefix or module_name.startswith(f"{prefix}.")
 
 
 def _package_edges(
