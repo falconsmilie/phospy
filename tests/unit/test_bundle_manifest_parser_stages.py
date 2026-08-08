@@ -290,6 +290,80 @@ def test_manifest_file_record_stage_rejects_invalid_digest(
         (_signalome_manifest_payload, parse_signalome_manifest),
     ],
 )
+def test_manifest_table_section_stage_rejects_unsupported_table_key(
+    payload_factory: Callable[[], dict[str, object]],
+    parser: ManifestParser,
+) -> None:
+    mutated = deepcopy(payload_factory())
+    dataset = mutated["dataset"]
+    assert isinstance(dataset, dict)
+    tables = dataset["tables"]
+    assert isinstance(tables, dict)
+    tables["unexpected"] = _table_entry("tables/unexpected.csv")
+
+    with pytest.raises(PhosPyInputError, match="unsupported field\\(s\\): unexpected"):
+        parser(mutated)
+
+
+@pytest.mark.parametrize(
+    ("payload_factory", "parser"),
+    [
+        (_kinase_manifest_payload, parse_kinase_manifest),
+        (_signalome_manifest_payload, parse_signalome_manifest),
+    ],
+)
+def test_manifest_activity_metadata_stage_rejects_wrong_enabled_type(
+    payload_factory: Callable[[], dict[str, object]],
+    parser: ManifestParser,
+) -> None:
+    mutated = deepcopy(payload_factory())
+    if "outputs" in mutated:
+        outputs = mutated["outputs"]
+        assert isinstance(outputs, dict)
+        activity = outputs["activity"]
+    else:
+        upstream = mutated["upstream_kinase_outputs"]
+        assert isinstance(upstream, dict)
+        activity = upstream["activity"]
+    assert isinstance(activity, dict)
+    activity["enabled"] = "false"
+
+    with pytest.raises(PhosPyInputError, match="activity.enabled.*must be a bool"):
+        parser(mutated)
+
+
+@pytest.mark.parametrize(
+    ("payload_factory", "parser"),
+    [
+        (_kinase_manifest_payload, parse_kinase_manifest),
+        (_signalome_manifest_payload, parse_signalome_manifest),
+    ],
+)
+def test_manifest_file_record_stage_rejects_missing_required_table_record(
+    payload_factory: Callable[[], dict[str, object]],
+    parser: ManifestParser,
+) -> None:
+    mutated = deepcopy(payload_factory())
+    dataset = mutated["dataset"]
+    assert isinstance(dataset, dict)
+    tables = dataset["tables"]
+    assert isinstance(tables, dict)
+    tables["phospho"] = None
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="bundle manifest.dataset.tables.phospho must be an object",
+    ):
+        parser(mutated)
+
+
+@pytest.mark.parametrize(
+    ("payload_factory", "parser"),
+    [
+        (_kinase_manifest_payload, parse_kinase_manifest),
+        (_signalome_manifest_payload, parse_signalome_manifest),
+    ],
+)
 def test_manifest_model_assembly_stage_rejects_invalid_metadata_object(
     payload_factory: Callable[[], dict[str, object]],
     parser: ManifestParser,

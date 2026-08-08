@@ -61,11 +61,8 @@ class _KinaseManifestSchema:
     """Schema-parsed manifest payload before file-record validation."""
 
     manifest_version: int
-    dataset_payload: Mapping[str, object]
-    references_payload: Mapping[str, object]
-    scoring_payload: Mapping[str, object]
-    prediction_payload: Mapping[str, object]
-    activity_payload: Mapping[str, object]
+    dataset_metadata: Mapping[str, object]
+    references_metadata: Mapping[str, object]
     dataset_tables: Mapping[str, object]
     reference_tables: Mapping[str, object]
     scoring_tables: Mapping[str, object]
@@ -92,6 +89,59 @@ class _KinaseManifestFileRecords:
     prediction_tables: Mapping[str, object]
     activity_tables: Mapping[str, object]
     config_snapshot_entry: Mapping[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseManifestTopLevel:
+    """Top-level manifest fields after schema and version validation."""
+
+    manifest_version: int
+    dataset_payload: Mapping[str, object]
+    references_payload: Mapping[str, object]
+    outputs_payload: Mapping[str, object]
+    provenance_payload: Mapping[str, object]
+    config_snapshot_raw: object
+    caveats_payload: object
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseMetadataSections:
+    """Scientific metadata sections referenced by the manifest."""
+
+    dataset_metadata: Mapping[str, object]
+    references_metadata: Mapping[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseOutputPayloads:
+    """Output subsection payloads after output schema validation."""
+
+    scoring_payload: Mapping[str, object]
+    prediction_payload: Mapping[str, object]
+    activity_payload: Mapping[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseActivityMetadata:
+    """Activity semantic metadata after enabled/disabled consistency validation."""
+
+    enabled: bool
+    method_metadata: Mapping[str, object] | None
+    method_summary: Mapping[str, object] | None
+    input_semantics: Mapping[str, object] | None
+    profile_metadata: Mapping[str, object] | None
+    membership_selection: Mapping[str, object] | None
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseTableSections:
+    """Manifest table sections after table-key schema validation."""
+
+    dataset_tables: Mapping[str, object]
+    reference_tables: Mapping[str, object]
+    scoring_tables: Mapping[str, object]
+    prediction_tables: Mapping[str, object]
+    activity_tables: Mapping[str, object]
 
 
 _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
@@ -281,7 +331,41 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
 
 
 def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSchema:
-    """Parse manifest object schemas and semantic switches."""
+    """Parse manifest object schemas through typed section stages."""
+
+    top_level = _parse_top_level_schema(payload)
+    metadata = _parse_scientific_metadata_sections(top_level)
+    outputs = _parse_output_payloads(top_level.outputs_payload)
+    activity = _parse_activity_metadata(outputs.activity_payload)
+    tables = _parse_table_sections(
+        top_level=top_level,
+        outputs=outputs,
+    )
+    return _KinaseManifestSchema(
+        manifest_version=top_level.manifest_version,
+        dataset_metadata=metadata.dataset_metadata,
+        references_metadata=metadata.references_metadata,
+        dataset_tables=tables.dataset_tables,
+        reference_tables=tables.reference_tables,
+        scoring_tables=tables.scoring_tables,
+        prediction_tables=tables.prediction_tables,
+        activity_enabled=activity.enabled,
+        activity_method_metadata=activity.method_metadata,
+        activity_method_summary=activity.method_summary,
+        activity_input_semantics=activity.input_semantics,
+        activity_profile_metadata=activity.profile_metadata,
+        activity_membership_selection=activity.membership_selection,
+        activity_tables=tables.activity_tables,
+        provenance_payload=top_level.provenance_payload,
+        config_snapshot_raw=top_level.config_snapshot_raw,
+        caveats_payload=top_level.caveats_payload,
+    )
+
+
+def _parse_top_level_schema(
+    payload: Mapping[str, object],
+) -> _KinaseManifestTopLevel:
+    """Parse top-level manifest schema, kind, version, and JSON references."""
 
     _reject_unsupported_fields(
         payload,
@@ -308,25 +392,48 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         field_name="bundle manifest.manifest_version",
     )
     if manifest_version != KINASE_BUNDLE_MANIFEST_VERSION:
-        if manifest_version == 2:
-            _raise_unsupported_manifest_shape(
-                "bundle manifest.manifest_version=2 is a legacy kinase bundle "
-                "schema; activity input semantics, profile identity, and "
-                "condition-summary aggregation metadata were not part of schema "
-                "version 2, so the bundle must be regenerated with the current "
-                "PhosPy version"
-            )
-        _raise_unsupported_manifest_shape(
-            "unsupported bundle manifest version "
-            f"'{manifest_version}'; expected {KINASE_BUNDLE_MANIFEST_VERSION}"
-        )
+        _reject_unsupported_manifest_version(manifest_version)
     require_str(
         payload.get("table_format"),
         field_name="bundle manifest.table_format",
     )
+    provenance_raw = payload.get("provenance")
+    if provenance_raw is None:
+        _raise_unsupported_manifest_shape("bundle manifest.provenance is required")
+    return _KinaseManifestTopLevel(
+        manifest_version=manifest_version,
+        dataset_payload=_parse_dataset_payload(payload.get("dataset")),
+        references_payload=_parse_references_payload(
+            payload.get("resolved_references")
+        ),
+        outputs_payload=_parse_outputs_payload(payload.get("outputs")),
+        provenance_payload=require_mapping(
+            provenance_raw,
+            field_name="bundle manifest.provenance",
+        ),
+        config_snapshot_raw=payload.get("config_snapshot"),
+        caveats_payload=payload.get("caveats", []),
+    )
 
+
+def _reject_unsupported_manifest_version(manifest_version: int) -> NoReturn:
+    if manifest_version == 2:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.manifest_version=2 is a legacy kinase bundle "
+            "schema; activity input semantics, profile identity, and "
+            "condition-summary aggregation metadata were not part of schema "
+            "version 2, so the bundle must be regenerated with the current "
+            "PhosPy version"
+        )
+    _raise_unsupported_manifest_shape(
+        "unsupported bundle manifest version "
+        f"'{manifest_version}'; expected {KINASE_BUNDLE_MANIFEST_VERSION}"
+    )
+
+
+def _parse_dataset_payload(value: object) -> Mapping[str, object]:
     dataset_payload = require_mapping(
-        payload.get("dataset"),
+        value,
         field_name="bundle manifest.dataset",
     )
     _reject_unsupported_fields(
@@ -340,8 +447,12 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_DATASET_ALLOWED_FIELDS,
         unsupported_shape=True,
     )
+    return dataset_payload
+
+
+def _parse_references_payload(value: object) -> Mapping[str, object]:
     references_payload = require_mapping(
-        payload.get("resolved_references"),
+        value,
         field_name="bundle manifest.resolved_references",
     )
     _reject_unsupported_fields(
@@ -355,8 +466,12 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_REFERENCES_ALLOWED_FIELDS,
         unsupported_shape=True,
     )
+    return references_payload
+
+
+def _parse_outputs_payload(value: object) -> Mapping[str, object]:
     outputs_payload = require_mapping(
-        payload.get("outputs"),
+        value,
         field_name="bundle manifest.outputs",
     )
     _reject_unsupported_fields(
@@ -370,6 +485,27 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_OUTPUTS_ALLOWED_FIELDS,
         unsupported_shape=True,
     )
+    return outputs_payload
+
+
+def _parse_scientific_metadata_sections(
+    top_level: _KinaseManifestTopLevel,
+) -> _KinaseMetadataSections:
+    return _KinaseMetadataSections(
+        dataset_metadata=require_mapping(
+            top_level.dataset_payload.get("metadata"),
+            field_name="bundle manifest.dataset.metadata",
+        ),
+        references_metadata=require_mapping(
+            top_level.references_payload.get("metadata"),
+            field_name="bundle manifest.resolved_references.metadata",
+        ),
+    )
+
+
+def _parse_output_payloads(
+    outputs_payload: Mapping[str, object],
+) -> _KinaseOutputPayloads:
     scoring_payload = require_mapping(
         outputs_payload.get("scoring"),
         field_name="bundle manifest.outputs.scoring",
@@ -415,104 +551,170 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_ACTIVITY_REQUIRED_FIELDS,
         unsupported_shape=True,
     )
+    return _KinaseOutputPayloads(
+        scoring_payload=scoring_payload,
+        prediction_payload=prediction_payload,
+        activity_payload=activity_payload,
+    )
+
+
+def _parse_activity_metadata(
+    activity_payload: Mapping[str, object],
+) -> _KinaseActivityMetadata:
     activity_enabled = require_bool(
         activity_payload.get("enabled"),
         field_name="bundle manifest.outputs.activity.enabled",
     )
-    activity_method_raw = activity_payload.get("method")
-    activity_method_metadata = (
-        None
-        if activity_method_raw is None
-        else require_mapping(
-            activity_method_raw,
-            field_name="bundle manifest.outputs.activity.method",
-        )
+    activity_method_metadata = _optional_mapping_payload(
+        activity_payload.get("method"),
+        field_name="bundle manifest.outputs.activity.method",
     )
-    activity_summary_raw = activity_payload.get("summary")
-    activity_method_summary = (
-        None
-        if activity_summary_raw is None
-        else require_mapping(
-            activity_summary_raw,
-            field_name="bundle manifest.outputs.activity.summary",
-        )
+    activity_method_summary = _optional_mapping_payload(
+        activity_payload.get("summary"),
+        field_name="bundle manifest.outputs.activity.summary",
     )
-    activity_input_semantics_raw = activity_payload.get("input_semantics")
-    activity_input_semantics = (
-        None
-        if activity_input_semantics_raw is None
-        else require_mapping(
-            activity_input_semantics_raw,
-            field_name="bundle manifest.outputs.activity.input_semantics",
-        )
+    activity_input_semantics = _optional_mapping_payload(
+        activity_payload.get("input_semantics"),
+        field_name="bundle manifest.outputs.activity.input_semantics",
     )
-    activity_profile_metadata_raw = activity_payload.get("profile_metadata")
-    activity_profile_metadata = (
-        None
-        if activity_profile_metadata_raw is None
-        else require_mapping(
-            activity_profile_metadata_raw,
-            field_name="bundle manifest.outputs.activity.profile_metadata",
-        )
+    activity_profile_metadata = _optional_mapping_payload(
+        activity_payload.get("profile_metadata"),
+        field_name="bundle manifest.outputs.activity.profile_metadata",
     )
-    activity_membership_selection_raw = activity_payload.get("membership_selection")
-    activity_membership_selection = (
-        None
-        if activity_membership_selection_raw is None
-        else require_mapping(
-            activity_membership_selection_raw,
-            field_name="bundle manifest.outputs.activity.membership_selection",
-        )
+    activity_membership_selection = _optional_mapping_payload(
+        activity_payload.get("membership_selection"),
+        field_name="bundle manifest.outputs.activity.membership_selection",
     )
-    if activity_enabled and activity_method_metadata is None:
+    _validate_activity_metadata_switches(
+        activity_enabled=activity_enabled,
+        activity_method_metadata=activity_method_metadata,
+        activity_method_summary=activity_method_summary,
+        activity_input_semantics=activity_input_semantics,
+        activity_profile_metadata=activity_profile_metadata,
+        activity_membership_selection=activity_membership_selection,
+    )
+    return _KinaseActivityMetadata(
+        enabled=activity_enabled,
+        method_metadata=activity_method_metadata,
+        method_summary=activity_method_summary,
+        input_semantics=activity_input_semantics,
+        profile_metadata=activity_profile_metadata,
+        membership_selection=activity_membership_selection,
+    )
+
+
+def _optional_mapping_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object] | None:
+    if value is None:
+        return None
+    return require_mapping(value, field_name=field_name)
+
+
+def _validate_activity_metadata_switches(
+    *,
+    activity_enabled: bool,
+    activity_method_metadata: Mapping[str, object] | None,
+    activity_method_summary: Mapping[str, object] | None,
+    activity_input_semantics: Mapping[str, object] | None,
+    activity_profile_metadata: Mapping[str, object] | None,
+    activity_membership_selection: Mapping[str, object] | None,
+) -> None:
+    if activity_enabled:
+        _require_enabled_activity_metadata(
+            activity_method_metadata=activity_method_metadata,
+            activity_input_semantics=activity_input_semantics,
+            activity_profile_metadata=activity_profile_metadata,
+        )
+        return
+    _reject_disabled_activity_metadata(
+        activity_method_metadata=activity_method_metadata,
+        activity_method_summary=activity_method_summary,
+        activity_input_semantics=activity_input_semantics,
+        activity_profile_metadata=activity_profile_metadata,
+        activity_membership_selection=activity_membership_selection,
+    )
+
+
+def _require_enabled_activity_metadata(
+    *,
+    activity_method_metadata: Mapping[str, object] | None,
+    activity_input_semantics: Mapping[str, object] | None,
+    activity_profile_metadata: Mapping[str, object] | None,
+) -> None:
+    if activity_method_metadata is None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.method is required when activity is enabled"
         )
-    if activity_enabled and activity_input_semantics is None:
+    if activity_input_semantics is None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.input_semantics is required when "
             "activity is enabled; regenerate the bundle from the original "
             "KinaseActivityResult"
         )
-    if activity_enabled and activity_profile_metadata is None:
+    if activity_profile_metadata is None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.profile_metadata is required when "
             "activity is enabled; regenerate the bundle from the original "
             "KinaseActivityResult"
         )
-    if not activity_enabled and activity_method_metadata is not None:
+
+
+def _reject_disabled_activity_metadata(
+    *,
+    activity_method_metadata: Mapping[str, object] | None,
+    activity_method_summary: Mapping[str, object] | None,
+    activity_input_semantics: Mapping[str, object] | None,
+    activity_profile_metadata: Mapping[str, object] | None,
+    activity_membership_selection: Mapping[str, object] | None,
+) -> None:
+    if activity_method_metadata is not None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.method must be null when activity is disabled"
         )
-    if not activity_enabled and activity_method_summary is not None:
+    if activity_method_summary is not None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.summary must be null when activity is disabled"
         )
-    if not activity_enabled and activity_input_semantics is not None:
+    if activity_input_semantics is not None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.input_semantics must be null when "
             "activity is disabled; remove the semantic payload or regenerate the "
             "bundle"
         )
-    if not activity_enabled and activity_profile_metadata is not None:
+    if activity_profile_metadata is not None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.profile_metadata must be null when "
             "activity is disabled; remove the semantic payload or regenerate the "
             "bundle"
         )
-    if not activity_enabled and activity_membership_selection is not None:
+    if activity_membership_selection is not None:
         _raise_unsupported_manifest_shape(
             "bundle manifest.outputs.activity.membership_selection must be null "
             "when activity is disabled; remove the membership payload or "
             "regenerate the bundle"
         )
-    provenance_raw = payload.get("provenance")
-    if provenance_raw is None:
-        _raise_unsupported_manifest_shape("bundle manifest.provenance is required")
-    provenance_payload = require_mapping(
-        provenance_raw,
-        field_name="bundle manifest.provenance",
+
+
+def _parse_table_sections(
+    *,
+    top_level: _KinaseManifestTopLevel,
+    outputs: _KinaseOutputPayloads,
+) -> _KinaseTableSections:
+    return _KinaseTableSections(
+        dataset_tables=_parse_dataset_tables(top_level.dataset_payload),
+        reference_tables=_parse_reference_tables(top_level.references_payload),
+        scoring_tables=_parse_scoring_tables(outputs.scoring_payload),
+        prediction_tables=_parse_prediction_tables(outputs.prediction_payload),
+        activity_tables=_parse_activity_tables(outputs.activity_payload),
     )
+
+
+def _parse_dataset_tables(
+    dataset_payload: Mapping[str, object],
+) -> Mapping[str, object]:
     dataset_tables = require_mapping(
         dataset_payload.get("tables"),
         field_name="bundle manifest.dataset.tables",
@@ -528,6 +730,12 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_DATASET_TABLE_KEYS,
         unsupported_shape=True,
     )
+    return dataset_tables
+
+
+def _parse_reference_tables(
+    references_payload: Mapping[str, object],
+) -> Mapping[str, object]:
     reference_tables = require_mapping(
         references_payload.get("tables"),
         field_name="bundle manifest.resolved_references.tables",
@@ -543,6 +751,12 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_REFERENCE_TABLE_KEYS,
         unsupported_shape=True,
     )
+    return reference_tables
+
+
+def _parse_scoring_tables(
+    scoring_payload: Mapping[str, object],
+) -> Mapping[str, object]:
     scoring_tables = require_mapping(
         scoring_payload.get("tables"),
         field_name="bundle manifest.outputs.scoring.tables",
@@ -558,6 +772,12 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_SCORING_TABLE_REQUIRED_KEYS,
         unsupported_shape=True,
     )
+    return scoring_tables
+
+
+def _parse_prediction_tables(
+    prediction_payload: Mapping[str, object],
+) -> Mapping[str, object]:
     prediction_tables = require_mapping(
         prediction_payload.get("tables"),
         field_name="bundle manifest.outputs.prediction.tables",
@@ -573,6 +793,12 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_PREDICTION_TABLE_KEYS,
         unsupported_shape=True,
     )
+    return prediction_tables
+
+
+def _parse_activity_tables(
+    activity_payload: Mapping[str, object],
+) -> Mapping[str, object]:
     activity_tables = require_mapping(
         activity_payload.get("tables"),
         field_name="bundle manifest.outputs.activity.tables",
@@ -588,28 +814,7 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         required_fields=_ACTIVITY_TABLE_KEYS,
         unsupported_shape=True,
     )
-    return _KinaseManifestSchema(
-        manifest_version=manifest_version,
-        dataset_payload=dataset_payload,
-        references_payload=references_payload,
-        scoring_payload=scoring_payload,
-        prediction_payload=prediction_payload,
-        activity_payload=activity_payload,
-        dataset_tables=dataset_tables,
-        reference_tables=reference_tables,
-        scoring_tables=scoring_tables,
-        prediction_tables=prediction_tables,
-        activity_enabled=activity_enabled,
-        activity_method_metadata=activity_method_metadata,
-        activity_method_summary=activity_method_summary,
-        activity_input_semantics=activity_input_semantics,
-        activity_profile_metadata=activity_profile_metadata,
-        activity_membership_selection=activity_membership_selection,
-        activity_tables=activity_tables,
-        provenance_payload=provenance_payload,
-        config_snapshot_raw=payload.get("config_snapshot"),
-        caveats_payload=payload.get("caveats", []),
-    )
+    return activity_tables
 
 
 def _validate_manifest_paths(schema: _KinaseManifestSchema) -> None:
@@ -709,15 +914,9 @@ def _assemble_manifest_sections(
 
     return KinaseManifestSections(
         manifest_version=schema.manifest_version,
-        dataset_metadata=require_mapping(
-            schema.dataset_payload.get("metadata"),
-            field_name="bundle manifest.dataset.metadata",
-        ),
+        dataset_metadata=schema.dataset_metadata,
         dataset_tables=file_records.dataset_tables,
-        references_metadata=require_mapping(
-            schema.references_payload.get("metadata"),
-            field_name="bundle manifest.resolved_references.metadata",
-        ),
+        references_metadata=schema.references_metadata,
         reference_tables=file_records.reference_tables,
         scoring_tables=file_records.scoring_tables,
         prediction_tables=file_records.prediction_tables,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import NoReturn, TypeGuard
 
@@ -17,6 +17,7 @@ from phospy.contracts.results import (
     KinaseWorkflowAttritionProvenance,
     KinaseWorkflowCaveat,
     KinaseWorkflowResult,
+    ResultCaveat,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import PhosPyValidationError
@@ -62,13 +63,125 @@ from phospy.science.activities.semantics import (
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.science.references.models import ReferenceBundle
+from phospy.science.references.models import Organism, ReferenceBundle
 from phospy.science.transformations.models import IntensityScaleState
 
 _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
     "Legacy kinase bundle schemas are no longer supported. Regenerate the bundle "
     "with the current PhosPy version."
 )
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseDatasetTables:
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    sample_metadata: pd.DataFrame | None
+    total: pd.DataFrame | None
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseReferenceTables:
+    kinase_substrate_map: pd.DataFrame
+    site_sequences: pd.DataFrame
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseScoringTables:
+    profile_scores: pd.DataFrame
+    motif_scores: pd.DataFrame | None
+    rank_weighted_fusion_scores: pd.DataFrame | None
+    kinase_library_motif_scores: pd.DataFrame | None
+    combined_profile_motif_scores: pd.DataFrame | None
+    score_fusion_weights: pd.DataFrame | None
+    kinase_library_site_diagnostics: pd.DataFrame | None
+    kinase_library_kinase_diagnostics: pd.DataFrame | None
+    substrate_contributions: pd.DataFrame | None
+
+
+@dataclass(frozen=True, slots=True)
+class _KinasePredictionTables:
+    pred_mat: pd.DataFrame
+    substrate_list: pd.DataFrame | None
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseActivityTables:
+    weighted_activity: pd.DataFrame | None
+    thresholded_substrate_mean_activity: pd.DataFrame | None
+    thresholded_substrate_counts: pd.Series | None
+    activity_substrate_counts: pd.DataFrame | None
+    target_counts: pd.Series | None
+    target_table: pd.DataFrame | None
+    statistics_table: pd.DataFrame | None
+
+
+@dataclass(frozen=True, slots=True)
+class _LoadedKinaseBundleTables:
+    dataset: _KinaseDatasetTables
+    references: _KinaseReferenceTables
+    scoring: _KinaseScoringTables
+    prediction: _KinasePredictionTables
+    activity: _KinaseActivityTables
+
+
+@dataclass(frozen=True, slots=True)
+class _ParsedKinaseActivityPayloads:
+    enabled: bool
+    method: ActivityMethodMetadata | None
+    method_summary: ActivityMethodSummary | None
+    input_semantics: ActivityInputSemantics | None
+    profile_metadata: ActivityProfileMetadata | None
+    membership_selection: ActivityMembershipSelection | None
+    membership_selection_missing_from_manifest: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _ParsedKinasePayloads:
+    provenance: RunProvenance
+    processing_state: DatasetProcessingState
+    intensity_scale_state: IntensityScaleState
+    dataset_organism: Organism | None
+    references_organism: Organism
+    activity: _ParsedKinaseActivityPayloads
+    caveats: tuple[ResultCaveat, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _NormalizedKinaseBundleTables:
+    dataset: _KinaseDatasetTables
+    references: _KinaseReferenceTables
+    scoring: _KinaseScoringTables
+    prediction: _KinasePredictionTables
+    activity: _KinaseActivityTables
+
+
+@dataclass(frozen=True, slots=True)
+class _EnabledKinaseActivityState:
+    weighted_activity: pd.DataFrame
+    thresholded_substrate_mean_activity: pd.DataFrame
+    thresholded_substrate_counts: pd.Series
+    activity_substrate_counts: pd.DataFrame | None
+    target_counts: pd.Series
+    target_table: pd.DataFrame
+    statistics_table: pd.DataFrame | None
+    method_summary: ActivityMethodSummary | None
+    activity_method: ActivityMethodMetadata
+    input_semantics: ActivityInputSemantics
+    profile_metadata: ActivityProfileMetadata
+    membership_selection: ActivityMembershipSelection | None
+
+
+@dataclass(frozen=True, slots=True)
+class _ValidatedKinaseActivityState:
+    enabled_activity: _EnabledKinaseActivityState | None
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseReconstructionState:
+    tables: _NormalizedKinaseBundleTables
+    payloads: _ParsedKinasePayloads
+    activity: _ValidatedKinaseActivityState
 
 
 def reconstruct_kinase_result(
@@ -78,71 +191,80 @@ def reconstruct_kinase_result(
 ) -> KinaseWorkflowResult:
     """Rebuild a KinaseWorkflowResult from already-validated manifest sections."""
 
-    provenance = _parse_bundle_provenance(sections.provenance_payload)
-    provenance = _validate_kinase_reference_projection_provenance(provenance)
-    processing_state_payload = require_mapping(
-        sections.dataset_metadata.get("processing_state"),
-        field_name="bundle manifest.dataset.metadata.processing_state",
-    )
-    processing_state = _parse_bundle_processing_state(processing_state_payload)
-    intensity_scale_payload = require_mapping(
-        sections.dataset_metadata.get("intensity_scale_state"),
-        field_name="bundle manifest.dataset.metadata.intensity_scale_state",
-    )
-    site_metadata = read_required_table(
+    loaded_tables = _load_declared_bundle_tables(
         bundle_root=bundle_root,
-        tables=sections.dataset_tables,
-        table_key="site_metadata",
-        field_name="bundle manifest.dataset.tables.site_metadata",
+        sections=sections,
     )
-    site_metadata = _normalise_site_metadata_bundle_table(site_metadata)
-    phospho = read_required_table(
-        bundle_root=bundle_root,
-        tables=sections.dataset_tables,
-        table_key="phospho",
-        field_name="bundle manifest.dataset.tables.phospho",
+    parsed_payloads = _parse_manifest_and_json_payloads(sections)
+    normalized_tables = _normalize_loaded_tables(loaded_tables)
+    validated_activity = _validate_table_manifest_and_provenance_agreement(
+        sections=sections,
+        payloads=parsed_payloads,
+        tables=normalized_tables,
     )
-    sample_metadata = read_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.dataset_tables,
-        table_key="sample_metadata",
-        field_name="bundle manifest.dataset.tables.sample_metadata",
+    state = _assemble_validated_reconstruction_state(
+        tables=normalized_tables,
+        payloads=parsed_payloads,
+        activity=validated_activity,
     )
-    total = read_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.dataset_tables,
-        table_key="total",
-        field_name="bundle manifest.dataset.tables.total",
+    return _construct_kinase_result(state)
+
+
+def _load_declared_bundle_tables(
+    *,
+    bundle_root: Path,
+    sections: KinaseManifestSections,
+) -> _LoadedKinaseBundleTables:
+    """Load every table declared by current kinase manifest sections."""
+
+    return _LoadedKinaseBundleTables(
+        dataset=_load_dataset_tables(bundle_root=bundle_root, sections=sections),
+        references=_load_reference_tables(bundle_root=bundle_root, sections=sections),
+        scoring=_load_scoring_tables(bundle_root=bundle_root, sections=sections),
+        prediction=_load_prediction_tables(bundle_root=bundle_root, sections=sections),
+        activity=_load_activity_tables(bundle_root=bundle_root, sections=sections),
     )
-    intensity_scale_state = _parse_bundle_intensity_scale_state(intensity_scale_payload)
-    dataset = AnalysisReadyPhosphoDataset.from_trusted_tables(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        sample_metadata=sample_metadata,
-        total=total,
-        organism=parse_optional_organism(
-            sections.dataset_metadata.get("organism"),
-            field_name="bundle manifest.dataset.metadata.organism",
+
+
+def _load_dataset_tables(
+    *,
+    bundle_root: Path,
+    sections: KinaseManifestSections,
+) -> _KinaseDatasetTables:
+    return _KinaseDatasetTables(
+        phospho=read_required_table(
+            bundle_root=bundle_root,
+            tables=sections.dataset_tables,
+            table_key="phospho",
+            field_name="bundle manifest.dataset.tables.phospho",
         ),
-        intensity_scale_state=intensity_scale_state,
-        processing_state=processing_state,
-        trusted_construction_assertions=build_bundle_reconstruction_assertions(
-            bundle_kind="kinase_workflow_result",
-            phospho=phospho,
-            site_metadata=site_metadata,
-            sample_metadata=sample_metadata,
-            total=total,
-            intensity_scale_state=intensity_scale_state,
-            processing_state=processing_state,
-            provenance=provenance,
+        site_metadata=read_required_table(
+            bundle_root=bundle_root,
+            tables=sections.dataset_tables,
+            table_key="site_metadata",
+            field_name="bundle manifest.dataset.tables.site_metadata",
+        ),
+        sample_metadata=read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.dataset_tables,
+            table_key="sample_metadata",
+            field_name="bundle manifest.dataset.tables.sample_metadata",
+        ),
+        total=read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.dataset_tables,
+            table_key="total",
+            field_name="bundle manifest.dataset.tables.total",
         ),
     )
 
-    references = ReferenceBundle.from_trusted_owned(
-        organism=parse_required_organism(
-            sections.references_metadata.get("organism"),
-            field_name="bundle manifest.resolved_references.metadata.organism",
-        ),
+
+def _load_reference_tables(
+    *,
+    bundle_root: Path,
+    sections: KinaseManifestSections,
+) -> _KinaseReferenceTables:
+    return _KinaseReferenceTables(
         kinase_substrate_map=read_required_table(
             bundle_root=bundle_root,
             tables=sections.reference_tables,
@@ -157,7 +279,13 @@ def reconstruct_kinase_result(
         ),
     )
 
-    scoring_result = KinaseScoringResult.from_trusted_owned(
+
+def _load_scoring_tables(
+    *,
+    bundle_root: Path,
+    sections: KinaseManifestSections,
+) -> _KinaseScoringTables:
+    return _KinaseScoringTables(
         profile_scores=read_required_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
@@ -217,12 +345,21 @@ def reconstruct_kinase_result(
                 "kinase_library_kinase_diagnostics"
             ),
         ),
-        profile_self_inclusion_policy=_profile_self_inclusion_policy_from_provenance(
-            provenance
+        substrate_contributions=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="substrate_contributions",
+            field_name="bundle manifest.outputs.scoring.tables.substrate_contributions",
         ),
     )
 
-    prediction_result = KinasePredictionResult.from_trusted_owned(
+
+def _load_prediction_tables(
+    *,
+    bundle_root: Path,
+    sections: KinaseManifestSections,
+) -> _KinasePredictionTables:
+    return _KinasePredictionTables(
         pred_mat=read_required_table(
             bundle_root=bundle_root,
             tables=sections.prediction_tables,
@@ -236,176 +373,377 @@ def reconstruct_kinase_result(
             field_name="bundle manifest.outputs.prediction.tables.substrate_list",
         ),
     )
-    substrate_contributions = _read_absent_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.scoring_tables,
-        table_key="substrate_contributions",
-        field_name="bundle manifest.outputs.scoring.tables.substrate_contributions",
-    )
 
-    weighted_activity = read_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.activity_tables,
-        table_key="weighted_activity",
-        field_name="bundle manifest.outputs.activity.tables.weighted_activity",
-    )
-    thresholded_substrate_mean_activity = read_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.activity_tables,
-        table_key="thresholded_substrate_mean_activity",
-        field_name=(
-            "bundle manifest.outputs.activity.tables."
-            "thresholded_substrate_mean_activity"
+
+def _load_activity_tables(
+    *,
+    bundle_root: Path,
+    sections: KinaseManifestSections,
+) -> _KinaseActivityTables:
+    return _KinaseActivityTables(
+        weighted_activity=read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.activity_tables,
+            table_key="weighted_activity",
+            field_name="bundle manifest.outputs.activity.tables.weighted_activity",
+        ),
+        thresholded_substrate_mean_activity=read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.activity_tables,
+            table_key="thresholded_substrate_mean_activity",
+            field_name=(
+                "bundle manifest.outputs.activity.tables."
+                "thresholded_substrate_mean_activity"
+            ),
+        ),
+        thresholded_substrate_counts=read_optional_series(
+            bundle_root=bundle_root,
+            tables=sections.activity_tables,
+            table_key="thresholded_substrate_counts",
+            field_name=(
+                "bundle manifest.outputs.activity.tables.thresholded_substrate_counts"
+            ),
+            series_name="n_substrates",
+        ),
+        activity_substrate_counts=read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.activity_tables,
+            table_key="activity_substrate_counts",
+            field_name=(
+                "bundle manifest.outputs.activity.tables.activity_substrate_counts"
+            ),
+        ),
+        target_counts=read_optional_series(
+            bundle_root=bundle_root,
+            tables=sections.activity_tables,
+            table_key="target_counts",
+            field_name="bundle manifest.outputs.activity.tables.target_counts",
+            series_name="n_targets",
+        ),
+        target_table=read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.activity_tables,
+            table_key="target_table",
+            field_name="bundle manifest.outputs.activity.tables.target_table",
+        ),
+        statistics_table=read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.activity_tables,
+            table_key="statistics_table",
+            field_name="bundle manifest.outputs.activity.tables.statistics_table",
         ),
     )
-    thresholded_substrate_counts = read_optional_series(
-        bundle_root=bundle_root,
-        tables=sections.activity_tables,
-        table_key="thresholded_substrate_counts",
-        field_name="bundle manifest.outputs.activity.tables.thresholded_substrate_counts",
-        series_name="n_substrates",
+
+
+def _parse_manifest_and_json_payloads(
+    sections: KinaseManifestSections,
+) -> _ParsedKinasePayloads:
+    """Parse manifest JSON payloads before domain object construction begins."""
+
+    provenance = _parse_bundle_provenance(sections.provenance_payload)
+    provenance = _validate_kinase_reference_projection_provenance(provenance)
+    processing_state_payload = require_mapping(
+        sections.dataset_metadata.get("processing_state"),
+        field_name="bundle manifest.dataset.metadata.processing_state",
     )
-    activity_substrate_counts = read_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.activity_tables,
-        table_key="activity_substrate_counts",
-        field_name="bundle manifest.outputs.activity.tables.activity_substrate_counts",
+    intensity_scale_payload = require_mapping(
+        sections.dataset_metadata.get("intensity_scale_state"),
+        field_name="bundle manifest.dataset.metadata.intensity_scale_state",
     )
-    target_counts = read_optional_series(
-        bundle_root=bundle_root,
-        tables=sections.activity_tables,
-        table_key="target_counts",
-        field_name="bundle manifest.outputs.activity.tables.target_counts",
-        series_name="n_targets",
+    return _ParsedKinasePayloads(
+        provenance=provenance,
+        processing_state=_parse_bundle_processing_state(processing_state_payload),
+        intensity_scale_state=_parse_bundle_intensity_scale_state(
+            intensity_scale_payload
+        ),
+        dataset_organism=parse_optional_organism(
+            sections.dataset_metadata.get("organism"),
+            field_name="bundle manifest.dataset.metadata.organism",
+        ),
+        references_organism=parse_required_organism(
+            sections.references_metadata.get("organism"),
+            field_name="bundle manifest.resolved_references.metadata.organism",
+        ),
+        activity=_parse_activity_payloads(sections),
+        caveats=result_caveats_from_payloads(sections.caveats_payload),
     )
-    target_table = read_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.activity_tables,
-        table_key="target_table",
-        field_name="bundle manifest.outputs.activity.tables.target_table",
+
+
+def _parse_activity_payloads(
+    sections: KinaseManifestSections,
+) -> _ParsedKinaseActivityPayloads:
+    if not sections.activity_enabled:
+        return _ParsedKinaseActivityPayloads(
+            enabled=False,
+            method=None,
+            method_summary=None,
+            input_semantics=None,
+            profile_metadata=None,
+            membership_selection=None,
+            membership_selection_missing_from_manifest=(
+                sections.activity_membership_selection is None
+            ),
+        )
+    if sections.activity_method_metadata is None:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity.method is required when activity is enabled"
+        )
+    try:
+        activity_method = ActivityMethodMetadata.from_payload(
+            sections.activity_method_metadata
+        )
+    except ValueError as exc:
+        raise PhosPyInputError(
+            f"bundle manifest.outputs.activity.method is invalid: {exc}"
+        ) from exc
+    return _ParsedKinaseActivityPayloads(
+        enabled=True,
+        method=activity_method,
+        method_summary=_parse_activity_method_summary(sections.activity_method_summary),
+        input_semantics=_parse_activity_input_semantics(
+            sections.activity_input_semantics
+        ),
+        profile_metadata=_parse_activity_profile_metadata(
+            sections.activity_profile_metadata
+        ),
+        membership_selection=_parse_activity_membership_selection_payload(
+            sections.activity_membership_selection
+        ),
+        membership_selection_missing_from_manifest=(
+            sections.activity_membership_selection is None
+        ),
     )
-    statistics_table = read_optional_table(
-        bundle_root=bundle_root,
-        tables=sections.activity_tables,
-        table_key="statistics_table",
-        field_name="bundle manifest.outputs.activity.tables.statistics_table",
+
+
+def _parse_activity_method_summary(
+    payload: Mapping[str, object] | None,
+) -> ActivityMethodSummary | None:
+    if payload is None:
+        return None
+    try:
+        return ActivityMethodSummary.from_payload(payload)
+    except (TypeError, ValueError, PhosPyInputError) as exc:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity.summary is invalid: "
+            f"{exc}; regenerate the bundle from the original KinaseActivityResult"
+        ) from exc
+
+
+def _parse_activity_membership_selection_payload(
+    payload: Mapping[str, object] | None,
+) -> ActivityMembershipSelection | None:
+    if payload is None:
+        return None
+    try:
+        return ActivityMembershipSelection.from_payload(payload)
+    except (TypeError, ValueError, WorkflowBoundaryError) as exc:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity.membership_selection is invalid: "
+            f"{exc}; correct the manifest or regenerate the bundle from the "
+            "original KinaseActivityResult"
+        ) from exc
+
+
+def _normalize_loaded_tables(
+    loaded: _LoadedKinaseBundleTables,
+) -> _NormalizedKinaseBundleTables:
+    """Normalize bundle-table storage quirks before semantic validation."""
+
+    return _NormalizedKinaseBundleTables(
+        dataset=_KinaseDatasetTables(
+            phospho=loaded.dataset.phospho,
+            site_metadata=_normalise_site_metadata_bundle_table(
+                loaded.dataset.site_metadata
+            ),
+            sample_metadata=loaded.dataset.sample_metadata,
+            total=loaded.dataset.total,
+        ),
+        references=loaded.references,
+        scoring=loaded.scoring,
+        prediction=loaded.prediction,
+        activity=_KinaseActivityTables(
+            weighted_activity=loaded.activity.weighted_activity,
+            thresholded_substrate_mean_activity=(
+                loaded.activity.thresholded_substrate_mean_activity
+            ),
+            thresholded_substrate_counts=loaded.activity.thresholded_substrate_counts,
+            activity_substrate_counts=loaded.activity.activity_substrate_counts,
+            target_counts=loaded.activity.target_counts,
+            target_table=loaded.activity.target_table,
+            statistics_table=_normalise_activity_statistics_bundle_table(
+                loaded.activity.statistics_table
+            ),
+        ),
     )
-    statistics_table = _normalise_activity_statistics_bundle_table(statistics_table)
+
+
+def _validate_table_manifest_and_provenance_agreement(
+    *,
+    sections: KinaseManifestSections,
+    payloads: _ParsedKinasePayloads,
+    tables: _NormalizedKinaseBundleTables,
+) -> _ValidatedKinaseActivityState:
+    """Validate table/payload/provenance agreement before final construction."""
 
     if sections.activity_enabled:
-        if (
-            weighted_activity is None
-            or thresholded_substrate_mean_activity is None
-            or thresholded_substrate_counts is None
-            or target_counts is None
-            or target_table is None
-        ):
-            raise PhosPyInputError(
-                "bundle manifest outputs.activity.tables are incomplete for enabled activity outputs"
-            )
-        if sections.activity_method_metadata is None:
-            raise PhosPyInputError(
-                "bundle manifest.outputs.activity.method is required when activity is enabled"
-            )
-        try:
-            activity_method = ActivityMethodMetadata.from_payload(
-                sections.activity_method_metadata
-            )
-        except ValueError as exc:
-            raise PhosPyInputError(
-                f"bundle manifest.outputs.activity.method is invalid: {exc}"
-            ) from exc
-        activity_method_summary = None
-        if sections.activity_method_summary is not None:
-            try:
-                activity_method_summary = ActivityMethodSummary.from_payload(
-                    sections.activity_method_summary
-                )
-            except (TypeError, ValueError, PhosPyInputError) as exc:
-                raise PhosPyInputError(
-                    "bundle manifest.outputs.activity.summary is invalid: "
-                    f"{exc}; regenerate the bundle from the original "
-                    "KinaseActivityResult"
-                ) from exc
-        input_semantics = _parse_activity_input_semantics(
-            sections.activity_input_semantics
+        return _validate_enabled_activity_agreement(
+            payloads=payloads,
+            activity_tables=tables.activity,
         )
-        profile_metadata = _parse_activity_profile_metadata(
-            sections.activity_profile_metadata
-        )
-        membership_selection = _parse_activity_membership_selection(
-            sections.activity_membership_selection,
-            activity_method=activity_method,
-            weighted_activity=weighted_activity,
-        )
-        _validate_activity_semantic_metadata(
-            input_semantics=input_semantics,
-            profile_metadata=profile_metadata,
-            activity_matrix=weighted_activity,
-        )
-        _validate_activity_provenance_agreement(
-            provenance=provenance,
-            input_semantics=input_semantics,
-        )
-        try:
-            activity_result = KinaseActivityResult.from_trusted_owned(
-                weighted_activity=weighted_activity,
-                thresholded_substrate_mean_activity=(
-                    thresholded_substrate_mean_activity
-                ),
-                thresholded_substrate_counts=thresholded_substrate_counts,
-                activity_substrate_counts=activity_substrate_counts,
-                target_counts=target_counts,
-                target_table=target_table,
-                statistics_table=statistics_table,
-                method_summary=activity_method_summary,
-                activity_method=activity_method,
-                input_semantics=input_semantics,
-                profile_metadata=profile_metadata,
-                membership_selection=membership_selection,
-            )
-        except (WorkflowBoundaryError, PhosPyValidationError, ValueError) as exc:
-            raise PhosPyInputError(
-                "bundle manifest.outputs.activity semantic metadata is "
-                "inconsistent with activity tables: "
-                f"{exc}; correct the manifest or regenerate the bundle from the "
-                "original KinaseActivityResult"
-            ) from exc
-    else:
-        if (
-            weighted_activity is not None
-            or thresholded_substrate_mean_activity is not None
-            or thresholded_substrate_counts is not None
-            or activity_substrate_counts is not None
-            or target_counts is not None
-            or target_table is not None
-            or statistics_table is not None
-        ):
-            raise PhosPyInputError(
-                "bundle manifest outputs.activity.enabled=false must not declare populated activity tables"
-            )
-        if sections.activity_method_metadata is not None:
-            raise PhosPyInputError(
-                "bundle manifest outputs.activity.enabled=false must not declare activity method metadata"
-            )
-        if sections.activity_method_summary is not None:
-            raise PhosPyInputError(
-                "bundle manifest outputs.activity.enabled=false must not declare activity method summary metadata"
-            )
-        if sections.activity_input_semantics is not None:
-            raise PhosPyInputError(
-                "bundle manifest outputs.activity.enabled=false must not declare "
-                "activity input_semantics; remove the semantic payload or "
-                "regenerate the bundle"
-            )
-        if sections.activity_profile_metadata is not None:
-            raise PhosPyInputError(
-                "bundle manifest outputs.activity.enabled=false must not declare "
-                "activity profile_metadata; remove the semantic payload or "
-                "regenerate the bundle"
-            )
-        activity_result = None
+    _validate_disabled_activity_agreement(
+        sections=sections,
+        activity_tables=tables.activity,
+    )
+    return _ValidatedKinaseActivityState(enabled_activity=None)
 
+
+def _validate_enabled_activity_agreement(
+    *,
+    payloads: _ParsedKinasePayloads,
+    activity_tables: _KinaseActivityTables,
+) -> _ValidatedKinaseActivityState:
+    activity_payloads = payloads.activity
+    if (
+        activity_tables.weighted_activity is None
+        or activity_tables.thresholded_substrate_mean_activity is None
+        or activity_tables.thresholded_substrate_counts is None
+        or activity_tables.target_counts is None
+        or activity_tables.target_table is None
+    ):
+        raise PhosPyInputError(
+            "bundle manifest outputs.activity.tables are incomplete for enabled activity outputs"
+        )
+    if activity_payloads.method is None:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity.method is required when activity is enabled"
+        )
+    if activity_payloads.input_semantics is None:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity.input_semantics is required when "
+            "activity is enabled; regenerate the bundle from the original "
+            "KinaseActivityResult"
+        )
+    if activity_payloads.profile_metadata is None:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity.profile_metadata is required when "
+            "activity is enabled; regenerate the bundle from the original "
+            "KinaseActivityResult"
+        )
+    membership_selection = _resolve_activity_membership_selection(
+        payloads=activity_payloads,
+        weighted_activity=activity_tables.weighted_activity,
+    )
+    _validate_activity_semantic_metadata(
+        input_semantics=activity_payloads.input_semantics,
+        profile_metadata=activity_payloads.profile_metadata,
+        activity_matrix=activity_tables.weighted_activity,
+    )
+    _validate_activity_provenance_agreement(
+        provenance=payloads.provenance,
+        input_semantics=activity_payloads.input_semantics,
+    )
+    return _ValidatedKinaseActivityState(
+        enabled_activity=_EnabledKinaseActivityState(
+            weighted_activity=activity_tables.weighted_activity,
+            thresholded_substrate_mean_activity=(
+                activity_tables.thresholded_substrate_mean_activity
+            ),
+            thresholded_substrate_counts=activity_tables.thresholded_substrate_counts,
+            activity_substrate_counts=activity_tables.activity_substrate_counts,
+            target_counts=activity_tables.target_counts,
+            target_table=activity_tables.target_table,
+            statistics_table=activity_tables.statistics_table,
+            method_summary=activity_payloads.method_summary,
+            activity_method=activity_payloads.method,
+            input_semantics=activity_payloads.input_semantics,
+            profile_metadata=activity_payloads.profile_metadata,
+            membership_selection=membership_selection,
+        )
+    )
+
+
+def _resolve_activity_membership_selection(
+    *,
+    payloads: _ParsedKinaseActivityPayloads,
+    weighted_activity: pd.DataFrame,
+) -> ActivityMembershipSelection | None:
+    if (
+        not payloads.membership_selection_missing_from_manifest
+        or payloads.method is None
+    ):
+        return payloads.membership_selection
+    if (
+        str(payloads.method.activity_method_id)
+        != KSEA_ZSCORE_ACTIVITY_METHOD.activity_method_id
+    ):
+        return None
+    return ActivityMembershipSelection.missing(
+        selected_kinase_universe=weighted_activity.index.astype(str).tolist(),
+        selected_substrate_universe=(),
+    )
+
+
+def _validate_disabled_activity_agreement(
+    *,
+    sections: KinaseManifestSections,
+    activity_tables: _KinaseActivityTables,
+) -> None:
+    if (
+        activity_tables.weighted_activity is not None
+        or activity_tables.thresholded_substrate_mean_activity is not None
+        or activity_tables.thresholded_substrate_counts is not None
+        or activity_tables.activity_substrate_counts is not None
+        or activity_tables.target_counts is not None
+        or activity_tables.target_table is not None
+        or activity_tables.statistics_table is not None
+    ):
+        raise PhosPyInputError(
+            "bundle manifest outputs.activity.enabled=false must not declare populated activity tables"
+        )
+    if sections.activity_method_metadata is not None:
+        raise PhosPyInputError(
+            "bundle manifest outputs.activity.enabled=false must not declare activity method metadata"
+        )
+    if sections.activity_method_summary is not None:
+        raise PhosPyInputError(
+            "bundle manifest outputs.activity.enabled=false must not declare activity method summary metadata"
+        )
+    if sections.activity_input_semantics is not None:
+        raise PhosPyInputError(
+            "bundle manifest outputs.activity.enabled=false must not declare "
+            "activity input_semantics; remove the semantic payload or regenerate "
+            "the bundle"
+        )
+    if sections.activity_profile_metadata is not None:
+        raise PhosPyInputError(
+            "bundle manifest outputs.activity.enabled=false must not declare "
+            "activity profile_metadata; remove the semantic payload or regenerate "
+            "the bundle"
+        )
+
+
+def _assemble_validated_reconstruction_state(
+    *,
+    tables: _NormalizedKinaseBundleTables,
+    payloads: _ParsedKinasePayloads,
+    activity: _ValidatedKinaseActivityState,
+) -> _KinaseReconstructionState:
+    return _KinaseReconstructionState(
+        tables=tables,
+        payloads=payloads,
+        activity=activity,
+    )
+
+
+def _construct_kinase_result(state: _KinaseReconstructionState) -> KinaseWorkflowResult:
+    """Construct final domain objects from validated reconstruction state."""
+
+    dataset = _construct_dataset(state)
+    references = _construct_references(state)
+    scoring_result = _construct_scoring_result(state)
+    prediction_result = _construct_prediction_result(state)
+    activity_result = _construct_activity_result(state.activity)
+    provenance = state.payloads.provenance
     return KinaseWorkflowResult.from_trusted_owned(
         dataset=dataset,
         references=references,
@@ -413,13 +751,110 @@ def reconstruct_kinase_result(
         prediction_result=prediction_result,
         activity_result=activity_result,
         provenance=provenance,
-        substrate_contributions=substrate_contributions,
+        substrate_contributions=state.tables.scoring.substrate_contributions,
         attrition_provenance=_kinase_attrition_provenance_from_provenance(provenance),
-        caveats=(
-            result_caveats_from_payloads(sections.caveats_payload)
-            or _kinase_caveats_from_provenance(provenance)
+        caveats=(state.payloads.caveats or _kinase_caveats_from_provenance(provenance)),
+    )
+
+
+def _construct_dataset(
+    state: _KinaseReconstructionState,
+) -> AnalysisReadyPhosphoDataset:
+    dataset_tables = state.tables.dataset
+    payloads = state.payloads
+    return AnalysisReadyPhosphoDataset.from_trusted_tables(
+        phospho=dataset_tables.phospho,
+        site_metadata=dataset_tables.site_metadata,
+        sample_metadata=dataset_tables.sample_metadata,
+        total=dataset_tables.total,
+        organism=payloads.dataset_organism,
+        intensity_scale_state=payloads.intensity_scale_state,
+        processing_state=payloads.processing_state,
+        trusted_construction_assertions=build_bundle_reconstruction_assertions(
+            bundle_kind="kinase_workflow_result",
+            phospho=dataset_tables.phospho,
+            site_metadata=dataset_tables.site_metadata,
+            sample_metadata=dataset_tables.sample_metadata,
+            total=dataset_tables.total,
+            intensity_scale_state=payloads.intensity_scale_state,
+            processing_state=payloads.processing_state,
+            provenance=payloads.provenance,
         ),
     )
+
+
+def _construct_references(state: _KinaseReconstructionState) -> ReferenceBundle:
+    reference_tables = state.tables.references
+    return ReferenceBundle.from_trusted_owned(
+        organism=state.payloads.references_organism,
+        kinase_substrate_map=reference_tables.kinase_substrate_map,
+        site_sequences=reference_tables.site_sequences,
+    )
+
+
+def _construct_scoring_result(
+    state: _KinaseReconstructionState,
+) -> KinaseScoringResult:
+    scoring_tables = state.tables.scoring
+    return KinaseScoringResult.from_trusted_owned(
+        profile_scores=scoring_tables.profile_scores,
+        motif_scores=scoring_tables.motif_scores,
+        rank_weighted_fusion_scores=scoring_tables.rank_weighted_fusion_scores,
+        kinase_library_motif_scores=scoring_tables.kinase_library_motif_scores,
+        combined_profile_motif_scores=scoring_tables.combined_profile_motif_scores,
+        score_fusion_weights=scoring_tables.score_fusion_weights,
+        kinase_library_site_diagnostics=(
+            scoring_tables.kinase_library_site_diagnostics
+        ),
+        kinase_library_kinase_diagnostics=(
+            scoring_tables.kinase_library_kinase_diagnostics
+        ),
+        profile_self_inclusion_policy=_profile_self_inclusion_policy_from_provenance(
+            state.payloads.provenance
+        ),
+    )
+
+
+def _construct_prediction_result(
+    state: _KinaseReconstructionState,
+) -> KinasePredictionResult:
+    prediction_tables = state.tables.prediction
+    return KinasePredictionResult.from_trusted_owned(
+        pred_mat=prediction_tables.pred_mat,
+        substrate_list=prediction_tables.substrate_list,
+    )
+
+
+def _construct_activity_result(
+    activity: _ValidatedKinaseActivityState,
+) -> KinaseActivityResult | None:
+    enabled = activity.enabled_activity
+    if enabled is None:
+        return None
+    try:
+        return KinaseActivityResult.from_trusted_owned(
+            weighted_activity=enabled.weighted_activity,
+            thresholded_substrate_mean_activity=(
+                enabled.thresholded_substrate_mean_activity
+            ),
+            thresholded_substrate_counts=enabled.thresholded_substrate_counts,
+            activity_substrate_counts=enabled.activity_substrate_counts,
+            target_counts=enabled.target_counts,
+            target_table=enabled.target_table,
+            statistics_table=enabled.statistics_table,
+            method_summary=enabled.method_summary,
+            activity_method=enabled.activity_method,
+            input_semantics=enabled.input_semantics,
+            profile_metadata=enabled.profile_metadata,
+            membership_selection=enabled.membership_selection,
+        )
+    except (WorkflowBoundaryError, PhosPyValidationError, ValueError) as exc:
+        raise PhosPyInputError(
+            "bundle manifest.outputs.activity semantic metadata is "
+            "inconsistent with activity tables: "
+            f"{exc}; correct the manifest or regenerate the bundle from the "
+            "original KinaseActivityResult"
+        ) from exc
 
 
 def _parse_activity_input_semantics(
@@ -455,32 +890,6 @@ def _parse_activity_profile_metadata(
         raise PhosPyInputError(
             f"{field_name} is invalid: {exc}; correct the manifest or regenerate "
             "the bundle from the original KinaseActivityResult"
-        ) from exc
-
-
-def _parse_activity_membership_selection(
-    payload: Mapping[str, object] | None,
-    *,
-    activity_method: ActivityMethodMetadata,
-    weighted_activity: pd.DataFrame,
-) -> ActivityMembershipSelection | None:
-    if payload is None:
-        if (
-            str(activity_method.activity_method_id)
-            != KSEA_ZSCORE_ACTIVITY_METHOD.activity_method_id
-        ):
-            return None
-        return ActivityMembershipSelection.missing(
-            selected_kinase_universe=weighted_activity.index.astype(str).tolist(),
-            selected_substrate_universe=(),
-        )
-    try:
-        return ActivityMembershipSelection.from_payload(payload)
-    except (TypeError, ValueError, WorkflowBoundaryError) as exc:
-        raise PhosPyInputError(
-            "bundle manifest.outputs.activity.membership_selection is invalid: "
-            f"{exc}; correct the manifest or regenerate the bundle from the "
-            "original KinaseActivityResult"
         ) from exc
 
 
