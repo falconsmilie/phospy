@@ -830,8 +830,8 @@ def test_provenance_records_technical_replicate_lineage() -> None:
     assert result.workflow_provenance["technical_replicate_policy"] == "mean"
     assert result.workflow_provenance["aggregation_policy"] == "mean"
     assert result.workflow_provenance["aggregation_method"] == "mean"
-    assert result.workflow_provenance["grouped_samples"] == ["A1", "A2", "B1", "B2"]
-    assert result.workflow_provenance["source_samples"] == [
+    assert result.workflow_provenance["grouped_samples"] == ("A1", "A2", "B1", "B2")
+    assert result.workflow_provenance["source_samples"] == (
         "A1_T1",
         "A1_T2",
         "A2_T1",
@@ -840,18 +840,18 @@ def test_provenance_records_technical_replicate_lineage() -> None:
         "B1_T2",
         "B2_T1",
         "B2_T2",
-    ]
+    )
     groups = result.workflow_provenance["groups"]
-    assert isinstance(groups, list)
+    assert isinstance(groups, tuple)
     a1_group = next(
         group
         for group in groups
         if group["condition"] == "A" and group["biological_replicate_id"] == "A1"
     )
     assert a1_group["output_sample_id"] == "A1"
-    assert a1_group["input_sample_ids"] == ["A1_T1", "A1_T2"]
-    assert a1_group["source_sample_ids"] == ["A1_T1", "A1_T2"]
-    assert a1_group["technical_replicate_ids"] == ["T1", "T2"]
+    assert a1_group["input_sample_ids"] == ("A1_T1", "A1_T2")
+    assert a1_group["source_sample_ids"] == ("A1_T1", "A1_T2")
+    assert a1_group["technical_replicate_ids"] == ("T1", "T2")
     assert a1_group["n_technical_replicates"] == 2
     assert a1_group["aggregation_method"] == "mean"
     assert result.policy_provenance is not None

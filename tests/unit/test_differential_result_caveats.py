@@ -14,6 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.provenance.immutability import thaw_json_mapping
 from phospy.science.datasets.builders.preprocessing import (
     build_dataset_processing_state,
 )
@@ -317,7 +318,10 @@ def test_differential_result_provenance_includes_observed_transformation_evidenc
     )
     assert testing_policy.input_intensity_scale_source == "transformed_by_phospy"
     payload = result.to_payload()
-    assert payload["workflow_provenance"] == result.workflow_provenance
+    assert payload["workflow_provenance"] == thaw_json_mapping(
+        result.workflow_provenance,
+        field_name="differential_result.workflow_provenance",
+    )
     assert all(
         caveat.code != INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE
         for caveat in result.caveats

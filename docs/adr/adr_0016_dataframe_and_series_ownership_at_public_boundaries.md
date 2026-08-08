@@ -41,6 +41,14 @@ content-comparison method. Those named methods compare owned pandas leaves with
 `Index.equals`, `DataFrame.equals`, `Series.equals`, typed scalar comparison, or
 stable fingerprints selected by the owning domain model.
 
+Update note (2026-08-08, differential workflow provenance immutability):
+`DifferentialAnalysisResult.workflow_provenance` is constrained at the public
+result boundary to immutable JSON-compatible state. Construction rejects nested
+pandas, NumPy container, non-string-key, non-finite-number, and arbitrary-object
+values with field-path-specific `PhosPyInputError` messages. Named scientific
+comparison for differential results compares this normalized immutable JSON
+state and must not invoke pandas Boolean coercion.
+
 ## Context and Problem Statement
 
 PhosPy datasets and workflow results carry mutable pandas objects internally.
@@ -87,6 +95,10 @@ PhosPy adopts and enforces the following ownership rules:
    `compare=False` while retaining misleading partial value equality, and
    `unsafe_hash=True` is forbidden. Scientific content equality belongs to the
    owning domain model through a named method.
+10. Public differential workflow provenance is recursively frozen as
+    JSON-compatible state at `DifferentialAnalysisResult` construction. Payload
+    export thaws that stored state to ordinary JSON containers, but scientific
+    equality compares only the normalized immutable representation.
 
 ## Boundary Rules
 
@@ -281,6 +293,9 @@ Future changes must satisfy all of the following:
    exposed to workflows only through `DatasetInternalView` wrappers?
 7. Do public pandas/NumPy-bearing containers avoid implicit dataclass equality,
    pandas Boolean coercion, partial `compare=False` equality, and unsafe hashes?
+8. Does `DifferentialAnalysisResult.workflow_provenance` reject unsupported
+   nested values before storage, and can `scientifically_equals()` compare
+   accepted provenance without pandas or NumPy ambiguous-truth behavior?
 
 ## Relationship to Earlier ADRs
 

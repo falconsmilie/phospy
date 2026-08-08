@@ -34,8 +34,13 @@ from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwareSiteEligibility,
 )
 from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
+from phospy.science.differential.models import (
+    DifferentialAnalysisResult,
+    EmpiricalBayesPriorDiagnostics,
+)
 from phospy.science.enrichment.models import GeneSetCollection
 from phospy.science.prediction.models import KinaseScoringResult
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _IMMUTABLE_JSON_FIELDS = {
     "phospy.contracts.results.base.ImporterMissingIntensitySummary."
@@ -77,6 +82,10 @@ _IMMUTABLE_JSON_FIELDS = {
     "ProteinAwarePreparationReport.policy_parameters": (
         "protein-aware preprocessing policy JSON; recursively frozen"
     ),
+    "phospy.science.differential.models.results.DifferentialAnalysisResult."
+    "workflow_provenance": (
+        "differential workflow provenance; immutable JSON state at result boundary"
+    ),
     "phospy.science.prediction.models.KinaseScoringResult.score_scale_metadata": (
         "kinase score-scale evidence metadata; recursively frozen"
     ),
@@ -88,10 +97,6 @@ _IMMUTABLE_JSON_FIELDS = {
 _REVIEWED_JSON_FIELD_ALLOWLIST = {
     "phospy.contracts.results.base.PhosphositeImportResult._sample_column_mapping": (
         "private scalar str->str map; public sample_column_mapping returns a copy"
-    ),
-    "phospy.science.differential.models.results.DifferentialAnalysisResult."
-    "workflow_provenance": (
-        "PHOSPY-REV-003 domain inventory entry for differential provenance"
     ),
     "phospy.science.differential.models.results.DifferentialAnalysisResult."
     "_contrast_tables": "private DataFrame mapping; DataFrame ownership is PHOSPY-REV-002",
@@ -190,6 +195,85 @@ def _minimal_kinase_scoring_result() -> KinaseScoringResult:
     )
 
 
+def _minimal_differential_result() -> DifferentialAnalysisResult:
+    index = protein_site_key_index(
+        protein_identifiers=["MAPK14"],
+        sites=["Y182"],
+    )
+    context = site_key_context_columns(index)
+    table = pd.DataFrame(
+        {
+            "site_key": index.tolist(),
+            "display_id": ["MAPK14;Y182;"],
+            "organism": context["organism"],
+            "protein_namespace": context["protein_namespace"],
+            "protein_identifier": context["protein_identifier"],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "protein_id": ["MAPK14"],
+            "logFC": [1.0],
+            "t": [2.0],
+            "P.Value": [0.05],
+            "adj.P.Val": [0.10],
+        },
+        index=index.copy(),
+    )
+    prior_diagnostics = EmpiricalBayesPriorDiagnostics(
+        method="standard",
+        robust=False,
+        trend=False,
+        winsor_tail_p=(0.05, 0.1),
+        base_prior_variance=1.0,
+        base_prior_degrees_of_freedom=10.0,
+        robust_outlier_count=0,
+        robust_outlier_fraction=0.0,
+        winsorized_low_count=0,
+        winsorized_high_count=0,
+        prior_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom=pd.Series(
+            [10.0],
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+    )
+    return DifferentialAnalysisResult(
+        residual_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="residual_variance",
+        ),
+        posterior_residual_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="posterior_residual_variance",
+        ),
+        prior_residual_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom_series_value=pd.Series(
+            [10.0],
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+        prior_variance=1.0,
+        prior_degrees_of_freedom=10.0,
+        residual_degrees_of_freedom=4.0,
+        empirical_bayes_method="standard",
+        empirical_bayes_robust=False,
+        empirical_bayes_trend=False,
+        prior_diagnostics=prior_diagnostics,
+        mean_variance_trend_diagnostics=None,
+        contrast_tables={"B_vs_A": table},
+        workflow_provenance={"nested": {"items": [1]}},
+    )
+
+
 def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
     expected = set(_IMMUTABLE_JSON_FIELDS) | set(_REVIEWED_JSON_FIELD_ALLOWLIST)
 
@@ -203,6 +287,7 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
     import_result = _minimal_import_result(diagnostics={"nested": {"items": [1]}})
     enrichment_result = _minimal_enrichment_result()
     protein_aware_report = _minimal_protein_aware_report()
+    differential_result = _minimal_differential_result()
     kinase_scoring_result = _minimal_kinase_scoring_result()
     kinase_attrition = KinaseWorkflowAttritionProvenance(
         metrics={"nested": {"items": [1]}},
@@ -253,6 +338,8 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
         "ProteinAwarePreparationReport.policy_parameters": (
             protein_aware_report.policy_parameters
         ),
+        "phospy.science.differential.models.results.DifferentialAnalysisResult."
+        "workflow_provenance": differential_result.workflow_provenance,
         "phospy.science.prediction.models.KinaseScoringResult."
         "score_scale_metadata": kinase_scoring_result.score_scale_metadata,
         "phospy.science.result_caveats.ResultCaveat.details": caveat.details,

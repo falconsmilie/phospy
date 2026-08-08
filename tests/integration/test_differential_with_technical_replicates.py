@@ -182,7 +182,7 @@ def test_differential_workflow_runs_after_mean_technical_replicate_aggregation()
     }
     assert result.workflow_provenance["both_phospho_and_total_aggregated"] is False
     groups = result.workflow_provenance["groups"]
-    assert isinstance(groups, list)
+    assert isinstance(groups, tuple)
     assert len(groups) == 4
     assert result.policy_provenance is not None
     assert result.policy_provenance.replicates.technical_replicate_policy == "mean"

@@ -24,6 +24,10 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_series,
 )
+from phospy.provenance.immutability import (
+    freeze_optional_json_mapping,
+    thaw_json_mapping,
+)
 from phospy.science.differential.models.diagnostics import (
     DifferentialModelDiagnostics,
     EmpiricalBayesPriorDiagnostics,
@@ -237,12 +241,10 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.diagnostics must be DifferentialModelDiagnostics"
             )
-        if workflow_provenance is not None and not isinstance(
-            cast(object, workflow_provenance), Mapping
-        ):
-            raise PhosPyInputError(
-                "differential_result.workflow_provenance must be a mapping or None"
-            )
+        frozen_workflow_provenance = freeze_optional_json_mapping(
+            workflow_provenance,
+            field_name="differential_result.workflow_provenance",
+        )
         caveats = validate_result_caveats(
             caveats,
             field_name="differential_result.caveats",
@@ -329,11 +331,7 @@ class DifferentialAnalysisResult:
         object.__setattr__(
             self,
             "workflow_provenance",
-            (
-                None
-                if workflow_provenance is None
-                else {str(key): value for key, value in workflow_provenance.items()}
-            ),
+            frozen_workflow_provenance,
         )
         object.__setattr__(self, "caveats", caveats)
         object.__setattr__(
@@ -390,7 +388,10 @@ class DifferentialAnalysisResult:
             "workflow_provenance": (
                 None
                 if self.workflow_provenance is None
-                else _json_payload(self.workflow_provenance)
+                else thaw_json_mapping(
+                    self.workflow_provenance,
+                    field_name="differential_result.workflow_provenance",
+                )
             ),
             "policy_provenance": (
                 None

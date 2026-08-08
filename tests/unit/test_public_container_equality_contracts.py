@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from phospy.api import DatasetBuildRequest, Organism, ReferenceBundle
+from phospy.errors import PhosPyInputError
+from phospy.provenance.immutability import FrozenJsonMapping, thaw_json_mapping
 from phospy.provenance.models import RunProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
@@ -118,6 +123,162 @@ def test_differential_result_equality_hash_and_content_contract() -> None:
         provenance_b,
         include_provenance=False,
     )
+
+
+def test_differential_result_workflow_provenance_is_frozen_json_state() -> None:
+    source_provenance: dict[str, object] = {
+        "run_id": "a",
+        "nested": {"items": [1, {"enabled": True}], "tuple_items": ("x", "y")},
+    }
+    result = _differential_result(
+        _strict_result_table(),
+        workflow_provenance=source_provenance,
+    )
+
+    assert isinstance(result.workflow_provenance, FrozenJsonMapping)
+    nested = result.workflow_provenance["nested"]
+    assert isinstance(nested, FrozenJsonMapping)
+    assert nested["items"] == (1, FrozenJsonMapping({"enabled": True}))
+    assert nested["tuple_items"] == ("x", "y")
+
+    source_provenance["run_id"] = "mutated"
+    with pytest.raises(TypeError):
+        result.workflow_provenance["run_id"] = "mutated"  # type: ignore[index]
+    with pytest.raises(AttributeError):
+        nested["items"].append(2)  # type: ignore[attr-defined]
+
+    assert result.workflow_provenance["run_id"] == "a"
+    assert thaw_json_mapping(
+        result.workflow_provenance,
+        field_name="differential_result.workflow_provenance",
+    ) == {
+        "run_id": "a",
+        "nested": {"items": [1, {"enabled": True}], "tuple_items": ["x", "y"]},
+    }
+    payload = result.to_payload()
+    payload_provenance = cast(dict[str, object], payload["workflow_provenance"])
+    cast(dict[str, object], payload_provenance["nested"])["items"] = []
+    assert cast(FrozenJsonMapping, result.workflow_provenance)["nested"] == nested
+
+
+def test_differential_result_provenance_scientific_equality_uses_frozen_json() -> None:
+    list_provenance = {
+        "run_id": "a",
+        "nested": {"items": [1, {"threshold": 0.2}], "labels": ["x", "y"]},
+    }
+    tuple_provenance = {
+        "run_id": "a",
+        "nested": {"items": (1, {"threshold": 0.2}), "labels": ("x", "y")},
+    }
+    changed_provenance = {
+        "run_id": "a",
+        "nested": {"items": [1, {"threshold": 0.3}], "labels": ["x", "y"]},
+    }
+
+    list_result = _differential_result(
+        _strict_result_table(),
+        workflow_provenance=list_provenance,
+    )
+    tuple_result = _differential_result(
+        _strict_result_table(),
+        workflow_provenance=tuple_provenance,
+    )
+    changed_result = _differential_result(
+        _strict_result_table(),
+        workflow_provenance=changed_provenance,
+    )
+
+    assert list_result.scientifically_equals(tuple_result)
+    assert not list_result.scientifically_equals(changed_result)
+    assert list_result.scientifically_equals(
+        changed_result,
+        include_provenance=False,
+    )
+
+
+def test_differential_result_payload_provenance_round_trip_is_scientifically_equal() -> (
+    None
+):
+    result = _differential_result(
+        _strict_result_table(),
+        workflow_provenance={"nested": {"items": (1, {"label": "x"})}},
+    )
+    payload = result.to_payload()
+    reconstructed = _differential_result(
+        _strict_result_table(),
+        workflow_provenance=cast(
+            Mapping[str, object],
+            payload["workflow_provenance"],
+        ),
+    )
+
+    assert result.scientifically_equals(reconstructed)
+    assert payload["workflow_provenance"] == {"nested": {"items": [1, {"label": "x"}]}}
+
+
+class _UnsupportedProvenanceObject:
+    pass
+
+
+@pytest.mark.parametrize(
+    ("provenance_factory", "path_fragment", "message_fragment"),
+    (
+        (
+            lambda: {"outer": [{"bad": pd.DataFrame({"x": [1]})}]},
+            "differential_result.workflow_provenance.'outer'[0].'bad'",
+            "got DataFrame",
+        ),
+        (
+            lambda: {"outer": [{"bad": pd.Series([1])}]},
+            "differential_result.workflow_provenance.'outer'[0].'bad'",
+            "got Series",
+        ),
+        (
+            lambda: {"outer": [{"bad": pd.Index([1])}]},
+            "differential_result.workflow_provenance.'outer'[0].'bad'",
+            "got Index",
+        ),
+        (
+            lambda: {"outer": [{"bad": np.array([1])}]},
+            "differential_result.workflow_provenance.'outer'[0].'bad'",
+            "got ndarray",
+        ),
+        (
+            lambda: {"outer": [{"bad": _UnsupportedProvenanceObject()}]},
+            "differential_result.workflow_provenance.'outer'[0].'bad'",
+            "got _UnsupportedProvenanceObject",
+        ),
+        (
+            lambda: {"outer": {1: "bad"}},
+            "differential_result.workflow_provenance.'outer'",
+            "JSON object keys must be strings; got int",
+        ),
+        (
+            lambda: {"outer": [float("nan")]},
+            "differential_result.workflow_provenance.'outer'[0]",
+            "must be a finite JSON number",
+        ),
+        (
+            lambda: {"outer": [{"bad": np.int64(1)}]},
+            "differential_result.workflow_provenance.'outer'[0].'bad'",
+            "got int64",
+        ),
+    ),
+)
+def test_differential_result_rejects_unsupported_workflow_provenance_values(
+    provenance_factory: Callable[[], object],
+    path_fragment: str,
+    message_fragment: str,
+) -> None:
+    with pytest.raises(PhosPyInputError) as exc_info:
+        _differential_result(
+            _strict_result_table(),
+            workflow_provenance=cast(Mapping[str, object], provenance_factory()),
+        )
+
+    message = str(exc_info.value)
+    assert path_fragment in message
+    assert message_fragment in message
 
 
 def test_public_table_wrappers_and_requests_use_identity_equality() -> None:
@@ -301,7 +462,7 @@ def _prior_diagnostics(index: pd.Index) -> EmpiricalBayesPriorDiagnostics:
 def _differential_result(
     table: pd.DataFrame,
     *,
-    workflow_provenance: dict[str, object] | None = None,
+    workflow_provenance: Mapping[str, object] | None = None,
 ) -> DifferentialAnalysisResult:
     index = table.index.copy()
     return DifferentialAnalysisResult(

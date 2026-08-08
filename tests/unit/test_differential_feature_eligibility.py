@@ -17,6 +17,7 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.errors import WorkflowBoundaryError
+from phospy.provenance.immutability import thaw_json_mapping
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
@@ -380,7 +381,10 @@ def test_differential_provenance_counts_tested_and_failed_model_fit_sites() -> N
 
     payload = result.to_payload()
     payload_provenance = payload["workflow_provenance"]
-    assert payload_provenance["row_attrition"]["records"] == row_attrition["records"]
+    assert payload_provenance == thaw_json_mapping(
+        result.workflow_provenance,
+        field_name="differential_result.workflow_provenance",
+    )
 
 
 @pytest.mark.filterwarnings("ignore:overflow encountered in square:RuntimeWarning")
