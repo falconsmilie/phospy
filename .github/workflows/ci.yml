@@ -97,6 +97,7 @@ jobs:
         run: |
           source .venv/bin/activate
           export PHOSPY_PYRIGHT_PYTHON="$PWD/.venv/bin/python"
+          python tools/testing/pyright_strict_coverage.py --check
           python scripts/run_pyright.py --verbose
 
   clean-constrained-install:

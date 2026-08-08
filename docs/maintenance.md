@@ -44,7 +44,8 @@ the optional extras above and rerun.
 ```bash
 ruff check .
 ruff format --check .
-pyright
+python tools/testing/pyright_strict_coverage.py --check
+python scripts/run_pyright.py
 pytest -m "not parity"
 ```
 
@@ -138,6 +139,7 @@ Pyright is the configured type checker. The checked scope is listed in
 `pyproject.toml` under `[tool.pyright]` and includes:
 
 - `src/phospy/api`
+- `src/phospy/contracts`
 - `src/phospy/errors`
 - `src/phospy/frames`
 - `src/phospy/io`
@@ -150,8 +152,11 @@ Pyright is the configured type checker. The checked scope is listed in
 
 Strict checking is enabled for selected stable scientific/core modules listed
 under `[tool.pyright].strict`. This strict list currently includes
-`src/phospy/science/datasets/models.py`; that file is already strict-checked,
-not a future target. Strict scope can be expanded incrementally.
+`src/phospy/science/datasets/models.py` and
+`src/phospy/contracts/results`; those paths are already strict-checked, not
+future targets. Strict scope can be expanded incrementally. The strict coverage
+policy check fails if any declared strict path is missing or outside the
+configured Pyright include scope.
 
 Avoid suppressions by default. Use them only when Pyright cannot model correct
 runtime behaviour. Every suppression must be narrow, error-code-specific,

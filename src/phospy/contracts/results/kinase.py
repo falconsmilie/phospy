@@ -455,7 +455,7 @@ def _own_workflow_caveats(
 
 
 def _own_attrition_provenance(
-    value: KinaseWorkflowAttritionProvenance | None,
+    value: object | None,
 ) -> KinaseWorkflowAttritionProvenance | None:
     if value is None or isinstance(value, KinaseWorkflowAttritionProvenance):
         return value

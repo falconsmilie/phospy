@@ -100,16 +100,18 @@ For a deeper architecture rationale, review
 
 ## Type Checking
 
-Run Pyright locally with the same scope used in CI:
+Run type checking locally with the same scope and strict-coverage policy used in CI:
 
 ```bash
-pyright
+python tools/testing/pyright_strict_coverage.py --check
+python scripts/run_pyright.py
 ```
 
 The checked scope is explicitly configured in `pyproject.toml` under
 `[tool.pyright].include` and covers:
 
 - `src/phospy/api`
+- `src/phospy/contracts`
 - `src/phospy/errors`
 - `src/phospy/frames`
 - `src/phospy/io`
@@ -124,6 +126,8 @@ Expectations for typing changes:
 
 - `src/phospy/science/datasets/models.py` is listed under
   `[tool.pyright].strict` and is already strict-checked
+- declared strict paths must exist and remain inside `[tool.pyright].include`;
+  `python tools/testing/pyright_strict_coverage.py --check` enforces this
 - prefer precise public/model/protocol boundary types over `Any`
 - keep suppressions narrow and local
 - avoid broad ignores and config-wide suppression

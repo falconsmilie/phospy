@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Literal, TypeAlias
+from typing import Literal, TypeAlias, cast
 
 import pandas as pd
 
+from phospy.contracts.configs import DatasetPreprocessingConfig
 from phospy.contracts.dataset_build import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
     DatasetBuildRequest,
+    DatasetInput,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
@@ -25,6 +27,11 @@ from phospy.provenance.immutability import (
     freeze_json_mapping,
     thaw_json_mapping,
 )
+from phospy.science.references.models import Organism
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
 
 ImporterQualityStatus: TypeAlias = Literal[
     "reported",
@@ -35,6 +42,14 @@ ImporterQualityStatus: TypeAlias = Literal[
 IMPORTER_QUALITY_STATUS_REPORTED: Literal["reported"] = "reported"
 IMPORTER_QUALITY_STATUS_NOT_REPORTED: Literal["not_reported"] = "not_reported"
 IMPORTER_QUALITY_STATUS_NOT_APPLICABLE: Literal["not_applicable"] = "not_applicable"
+
+
+def _empty_quality_count_mapping() -> Mapping[str, int]:
+    return {}
+
+
+def _empty_json_mapping() -> Mapping[str, object]:
+    return {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,8 +155,12 @@ class ImporterMissingIntensitySummary:
     status: ImporterQualityStatus = IMPORTER_QUALITY_STATUS_NOT_REPORTED
     total_missing_values: int | None = None
     rows_with_any_missing_intensity: int | None = None
-    missing_values_by_sample_id: Mapping[str, int] = field(default_factory=dict)
-    missing_values_by_source_column: Mapping[str, int] = field(default_factory=dict)
+    missing_values_by_sample_id: Mapping[str, int] = field(
+        default_factory=_empty_quality_count_mapping
+    )
+    missing_values_by_source_column: Mapping[str, int] = field(
+        default_factory=_empty_quality_count_mapping
+    )
     reason: str | None = None
 
     def __post_init__(self) -> None:
@@ -360,11 +379,10 @@ class ImporterFlaggedRowSummary:
             ("reverse", self.reverse),
             ("decoy", self.decoy),
         ):
-            if not isinstance(value, ImporterQualityCount):
-                raise PhosPyInputError(
-                    f"importer_quality.flagged_rows.{field_name} must be "
-                    "ImporterQualityCount"
-                )
+            _validate_importer_quality_count(
+                value,
+                field_name=f"importer_quality.flagged_rows.{field_name}",
+            )
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible flagged-row payload."""
@@ -385,15 +403,22 @@ class ImporterDuplicateKeySummary:
     duplicate_site_candidate_rows: int | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.site_key, ImporterQualityCount):
-            raise PhosPyInputError(
-                "importer_quality.duplicate_keys.site_key must be ImporterQualityCount"
-            )
-        if not isinstance(self.display_key, ImporterQualityCount):
-            raise PhosPyInputError(
-                "importer_quality.duplicate_keys.display_key must be "
-                "ImporterQualityCount"
-            )
+        object.__setattr__(
+            self,
+            "site_key",
+            _validate_importer_quality_count(
+                self.site_key,
+                field_name="importer_quality.duplicate_keys.site_key",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "display_key",
+            _validate_importer_quality_count(
+                self.display_key,
+                field_name="importer_quality.duplicate_keys.display_key",
+            ),
+        )
         object.__setattr__(
             self,
             "duplicate_site_candidate_rows",
@@ -444,7 +469,7 @@ class ImporterQualityReport:
     duplicate_keys: ImporterDuplicateKeySummary = field(
         default_factory=ImporterDuplicateKeySummary
     )
-    format_specific: Mapping[str, object] = field(default_factory=dict)
+    format_specific: Mapping[str, object] = field(default_factory=_empty_json_mapping)
     warnings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -479,36 +504,32 @@ class ImporterQualityReport:
                         f"importer_quality.{field_name} must be provided when "
                         "row_count_status='reported'"
                     )
-        if not isinstance(self.missing_intensity, ImporterMissingIntensitySummary):
-            raise PhosPyInputError(
-                "importer_quality.missing_intensity must be "
-                "ImporterMissingIntensitySummary"
-            )
-        if not isinstance(
+        missing_intensity = _validate_missing_intensity_summary(
+            self.missing_intensity,
+            field_name="importer_quality.missing_intensity",
+        )
+        localisation_confidence = _validate_localisation_confidence_summary(
             self.localisation_confidence,
-            ImporterLocalisationConfidenceSummary,
-        ):
-            raise PhosPyInputError(
-                "importer_quality.localisation_confidence must be "
-                "ImporterLocalisationConfidenceSummary"
-            )
-        if not isinstance(self.flagged_rows, ImporterFlaggedRowSummary):
-            raise PhosPyInputError(
-                "importer_quality.flagged_rows must be ImporterFlaggedRowSummary"
-            )
-        if not isinstance(self.duplicate_keys, ImporterDuplicateKeySummary):
-            raise PhosPyInputError(
-                "importer_quality.duplicate_keys must be ImporterDuplicateKeySummary"
-            )
-        if not isinstance(self.format_specific, Mapping):
-            raise PhosPyInputError("importer_quality.format_specific must be a mapping")
+            field_name="importer_quality.localisation_confidence",
+        )
+        flagged_rows = _validate_flagged_row_summary(
+            self.flagged_rows,
+            field_name="importer_quality.flagged_rows",
+        )
+        duplicate_keys = _validate_duplicate_key_summary(
+            self.duplicate_keys,
+            field_name="importer_quality.duplicate_keys",
+        )
+        format_specific = freeze_json_mapping(
+            self.format_specific,
+            field_name="importer_quality.format_specific",
+        )
         detected_columns = tuple(self.detected_intensity_columns)
         for column in detected_columns:
-            if not isinstance(column, ImporterDetectedIntensityColumn):
-                raise PhosPyInputError(
-                    "importer_quality.detected_intensity_columns must contain "
-                    "ImporterDetectedIntensityColumn values"
-                )
+            _validate_detected_intensity_column(
+                column,
+                field_name="importer_quality.detected_intensity_columns",
+            )
         object.__setattr__(
             self,
             "source_name",
@@ -520,14 +541,15 @@ class ImporterQualityReport:
         object.__setattr__(self, "rows_dropped", rows_dropped)
         object.__setattr__(self, "intensity_column_status", intensity_column_status)
         object.__setattr__(self, "detected_intensity_columns", detected_columns)
+        object.__setattr__(self, "missing_intensity", missing_intensity)
         object.__setattr__(
             self,
-            "format_specific",
-            freeze_json_mapping(
-                self.format_specific,
-                field_name="importer_quality.format_specific",
-            ),
+            "localisation_confidence",
+            localisation_confidence,
         )
+        object.__setattr__(self, "flagged_rows", flagged_rows)
+        object.__setattr__(self, "duplicate_keys", duplicate_keys)
+        object.__setattr__(self, "format_specific", format_specific)
         object.__setattr__(
             self,
             "warnings",
@@ -645,40 +667,22 @@ class PhosphositeImportResult:
             assume_owned=assume_owned,
         )
         mapping = _validate_sample_column_mapping(sample_column_mapping)
-        if localisation_confidence_column is not None and not isinstance(
+        localisation_confidence_column = _validate_optional_non_empty_text(
             localisation_confidence_column,
-            str,
-        ):
-            raise PhosPyInputError(
-                "phosphosite_import_result.localisation_confidence_column must be "
-                "a string or None"
-            )
-        if (
-            isinstance(localisation_confidence_column, str)
-            and localisation_confidence_column.strip() == ""
-        ):
-            raise PhosPyInputError(
-                "phosphosite_import_result.localisation_confidence_column must be "
-                "non-empty when provided"
-            )
+            field_name="phosphosite_import_result.localisation_confidence_column",
+        )
         warning_values = tuple(_validate_warning(value) for value in warnings)
-        if diagnostics is not None and not isinstance(diagnostics, Mapping):
-            raise PhosPyInputError(
-                "phosphosite_import_result.diagnostics must be a mapping or None"
-            )
+        diagnostics_value = _validate_optional_json_mapping(
+            diagnostics,
+            field_name="phosphosite_import_result.diagnostics",
+        )
         source_name_value = _validate_source_name(source_name)
-        if quality_report is None:
-            quality_report_value = ImporterQualityReport(
-                source_name=source_name_value,
-                warnings=warning_values,
-            )
-        elif isinstance(quality_report, ImporterQualityReport):
-            quality_report_value = quality_report
-        else:
-            raise PhosPyInputError(
-                "phosphosite_import_result.quality_report must be "
-                "ImporterQualityReport or None"
-            )
+        quality_report_value = _validate_optional_quality_report(
+            quality_report,
+            source_name=source_name_value,
+            warnings=warning_values,
+            field_name="phosphosite_import_result.quality_report",
+        )
 
         object.__setattr__(self, "_phospho_matrix_candidate", phospho)
         object.__setattr__(self, "_site_metadata_candidate", site_metadata)
@@ -693,10 +697,7 @@ class PhosphositeImportResult:
         object.__setattr__(
             self,
             "diagnostics",
-            freeze_json_mapping(
-                diagnostics or {},
-                field_name="phosphosite_import_result.diagnostics",
-            ),
+            diagnostics_value,
         )
         object.__setattr__(self, "source_name", source_name_value)
         object.__setattr__(self, "quality_report", quality_report_value)
@@ -766,13 +767,13 @@ class PhosphositeImportResult:
         *,
         site_resolution_mode: str = "site_level_resolved",
         multi_site_policy: str | None = None,
-        sample_metadata: object | None = None,
-        total: object | None = None,
-        organism: object | None = None,
-        preprocessing_config: object | None = None,
+        sample_metadata: DatasetInput | None = None,
+        total: DatasetInput | None = None,
+        organism: Organism | None = None,
+        preprocessing_config: DatasetPreprocessingConfig | None = None,
         allow_opaque_site_values: bool = False,
-        input_intensity_scale: object | None = None,
-        quantitative_meaning: object | None = None,
+        input_intensity_scale: IntensityScaleKind | str | None = None,
+        quantitative_meaning: QuantitativeMeaning | str | None = None,
     ) -> DatasetBuildRequest:
         """Create a ``DatasetBuildRequest`` from importer candidates.
 
@@ -782,16 +783,7 @@ class PhosphositeImportResult:
         resolution.
         """
 
-        common_kwargs = {
-            "sample_metadata": sample_metadata,
-            "total": total,
-            "organism": organism,
-            "allow_opaque_site_values": allow_opaque_site_values,
-            "input_intensity_scale": input_intensity_scale,
-            "quantitative_meaning": quantitative_meaning,
-        }
-        if preprocessing_config is not None:
-            common_kwargs["preprocessing_config"] = preprocessing_config
+        preprocessing_config = preprocessing_config or DatasetPreprocessingConfig()
 
         if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED:
             if multi_site_policy is not None:
@@ -802,8 +794,14 @@ class PhosphositeImportResult:
             return DatasetBuildRequest(
                 phospho=self.phospho_matrix_candidate,
                 site_metadata=self.site_metadata_candidate,
+                sample_metadata=sample_metadata,
+                total=total,
                 site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
-                **common_kwargs,
+                allow_opaque_site_values=allow_opaque_site_values,
+                organism=organism,
+                preprocessing_config=preprocessing_config,
+                input_intensity_scale=input_intensity_scale,
+                quantitative_meaning=quantitative_meaning,
             )
 
         if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE:
@@ -822,8 +820,14 @@ class PhosphositeImportResult:
                 peptide_evidence_sample_intensity_columns=(
                     self.peptide_evidence_sample_intensity_columns
                 ),
+                sample_metadata=sample_metadata,
+                total=total,
                 multi_site_policy=multi_site_policy,
-                **common_kwargs,
+                allow_opaque_site_values=allow_opaque_site_values,
+                organism=organism,
+                preprocessing_config=preprocessing_config,
+                input_intensity_scale=input_intensity_scale,
+                quantitative_meaning=quantitative_meaning,
             )
 
         raise PhosPyInputError(
@@ -906,14 +910,15 @@ def _validate_optional_non_negative_quality_int(
 
 
 def _validate_quality_count_mapping(
-    value: Mapping[str, int],
+    value: object,
     *,
     field_name: str,
 ) -> dict[str, int]:
     if not isinstance(value, Mapping):
         raise PhosPyInputError(f"{field_name} must be a mapping")
+    mapping = cast(Mapping[object, object], value)
     counts: dict[str, int] = {}
-    for key, count in value.items():
+    for key, count in mapping.items():
         normalized_key = _validate_non_empty_quality_text(
             key,
             field_name=f"{field_name}.key",
@@ -928,7 +933,7 @@ def _validate_quality_count_mapping(
     return counts
 
 
-def _validate_sample_column_mapping(value: dict[str, str]) -> dict[str, str]:
+def _validate_sample_column_mapping(value: object) -> dict[str, str]:
     if not isinstance(value, dict):
         raise PhosPyInputError(
             "phosphosite_import_result.sample_column_mapping must be a dict"
@@ -937,8 +942,9 @@ def _validate_sample_column_mapping(value: dict[str, str]) -> dict[str, str]:
         raise PhosPyInputError(
             "phosphosite_import_result.sample_column_mapping must not be empty"
         )
+    mapping = cast(Mapping[object, object], value)
     normalized: dict[str, str] = {}
-    for source_column, sample_id in value.items():
+    for source_column, sample_id in mapping.items():
         if not isinstance(source_column, str) or source_column.strip() == "":
             raise PhosPyInputError(
                 "phosphosite_import_result.sample_column_mapping source columns "
@@ -971,6 +977,109 @@ def _validate_source_name(value: object) -> str:
             "phosphosite_import_result.source_name must be a non-empty string"
         )
     return value.strip()
+
+
+def _validate_optional_non_empty_text(
+    value: object | None,
+    *,
+    field_name: str,
+) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or value.strip() == "":
+        raise PhosPyInputError(f"{field_name} must be a non-empty string or None")
+    return value
+
+
+def _validate_optional_json_mapping(
+    value: object | None,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    if value is None:
+        return freeze_json_mapping({}, field_name=field_name)
+    return freeze_json_mapping(value, field_name=field_name)
+
+
+def _validate_importer_quality_count(
+    value: object,
+    *,
+    field_name: str,
+) -> ImporterQualityCount:
+    if not isinstance(value, ImporterQualityCount):
+        raise PhosPyInputError(f"{field_name} must be ImporterQualityCount")
+    return value
+
+
+def _validate_detected_intensity_column(
+    value: object,
+    *,
+    field_name: str,
+) -> ImporterDetectedIntensityColumn:
+    if not isinstance(value, ImporterDetectedIntensityColumn):
+        raise PhosPyInputError(
+            f"{field_name} must contain ImporterDetectedIntensityColumn values"
+        )
+    return value
+
+
+def _validate_missing_intensity_summary(
+    value: object,
+    *,
+    field_name: str,
+) -> ImporterMissingIntensitySummary:
+    if not isinstance(value, ImporterMissingIntensitySummary):
+        raise PhosPyInputError(f"{field_name} must be ImporterMissingIntensitySummary")
+    return value
+
+
+def _validate_localisation_confidence_summary(
+    value: object,
+    *,
+    field_name: str,
+) -> ImporterLocalisationConfidenceSummary:
+    if not isinstance(value, ImporterLocalisationConfidenceSummary):
+        raise PhosPyInputError(
+            f"{field_name} must be ImporterLocalisationConfidenceSummary"
+        )
+    return value
+
+
+def _validate_flagged_row_summary(
+    value: object,
+    *,
+    field_name: str,
+) -> ImporterFlaggedRowSummary:
+    if not isinstance(value, ImporterFlaggedRowSummary):
+        raise PhosPyInputError(f"{field_name} must be ImporterFlaggedRowSummary")
+    return value
+
+
+def _validate_duplicate_key_summary(
+    value: object,
+    *,
+    field_name: str,
+) -> ImporterDuplicateKeySummary:
+    if not isinstance(value, ImporterDuplicateKeySummary):
+        raise PhosPyInputError(f"{field_name} must be ImporterDuplicateKeySummary")
+    return value
+
+
+def _validate_optional_quality_report(
+    value: object | None,
+    *,
+    source_name: str,
+    warnings: tuple[str, ...],
+    field_name: str,
+) -> ImporterQualityReport:
+    if value is None:
+        return ImporterQualityReport(
+            source_name=source_name,
+            warnings=warnings,
+        )
+    if isinstance(value, ImporterQualityReport):
+        return value
+    raise PhosPyInputError(f"{field_name} must be ImporterQualityReport or None")
 
 
 __all__ = [

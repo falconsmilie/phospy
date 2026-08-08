@@ -1,6 +1,4 @@
 """Public signalome workflow configuration models."""
-# pyright: reportUnnecessaryIsInstance=false
-# Runtime boundary guards are intentionally retained for untyped external callers.
 
 from __future__ import annotations
 
@@ -173,11 +171,13 @@ class SignalomeValidationConfig:
     )
 
     def __post_init__(self) -> None:
-        if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
-            raise ContractValidationError(
+        allow_mixed_total_protein_quantitative_meaning = _require_bool(
+            self.allow_mixed_total_protein_quantitative_meaning,
+            field_name=(
                 "signalome workflow request config.validation."
-                "allow_mixed_total_protein_quantitative_meaning must be a bool"
-            )
+                "allow_mixed_total_protein_quantitative_meaning"
+            ),
+        )
         if (
             self.score_preconditioning_policy
             not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES
@@ -190,11 +190,12 @@ class SignalomeValidationConfig:
                 "score_preconditioning_policy "
                 f"must be one of: {allowed_policies}"
             )
-        if not isinstance(self.localisation_requirement, LocalisationRequirement):
-            raise ContractValidationError(
-                "signalome workflow request config.validation."
-                "localisation_requirement must be LocalisationRequirement"
-            )
+        localisation_requirement = _require_localisation_requirement(
+            self.localisation_requirement,
+            field_name=(
+                "signalome workflow request config.validation.localisation_requirement"
+            ),
+        )
         reference_context_compatibility_policy = coerce_policy_enum(
             ReferenceContextCompatibilityPolicy,
             self.reference_context_compatibility_policy,
@@ -208,6 +209,16 @@ class SignalomeValidationConfig:
             self,
             "reference_context_compatibility_policy",
             reference_context_compatibility_policy,
+        )
+        object.__setattr__(
+            self,
+            "allow_mixed_total_protein_quantitative_meaning",
+            allow_mixed_total_protein_quantitative_meaning,
+        )
+        object.__setattr__(
+            self,
+            "localisation_requirement",
+            localisation_requirement,
         )
 
 
@@ -300,30 +311,11 @@ class SignalomeConfig:
     mode: SignalomeMode = SIGNALOME_MODE_PRODUCTION
 
     def __post_init__(self) -> None:
-        if not isinstance(self.scientific, SignalomeScientificConfig):
-            raise ContractValidationError(
-                "signalome workflow request config.scientific must be "
-                "SignalomeScientificConfig"
-            )
-        if not isinstance(self.clustering, SignalomeClusteringConfig):
-            raise ContractValidationError(
-                "signalome workflow request config.clustering must be "
-                "SignalomeClusteringConfig"
-            )
-        if not isinstance(self.validation, SignalomeValidationConfig):
-            raise ContractValidationError(
-                "signalome workflow request config.validation must be "
-                "SignalomeValidationConfig"
-            )
-        if not isinstance(self.output, SignalomeOutputConfig):
-            raise ContractValidationError(
-                "signalome workflow request config.output must be SignalomeOutputConfig"
-            )
-        if not isinstance(self.performance, SignalomePerformanceConfig):
-            raise ContractValidationError(
-                "signalome workflow request config.performance must be "
-                "SignalomePerformanceConfig"
-            )
+        scientific = _require_signalome_scientific_config(self.scientific)
+        clustering = _require_signalome_clustering_config(self.clustering)
+        validation = _require_signalome_validation_config(self.validation)
+        output = _require_signalome_output_config(self.output)
+        performance = _require_signalome_performance_config(self.performance)
         if self.mode not in SIGNALOME_MODES:
             allowed_modes = ", ".join(sorted(SIGNALOME_MODES))
             raise ContractValidationError(
@@ -332,11 +324,16 @@ class SignalomeConfig:
             )
         if self.mode == SIGNALOME_MODE_PRODUCTION:
             _require_production_localisation_requirement(
-                self.validation.localisation_requirement
+                validation.localisation_requirement
             )
             _require_production_network_observation_minimum(
-                self.output.network_min_paired_finite_observations
+                output.network_min_paired_finite_observations
             )
+        object.__setattr__(self, "scientific", scientific)
+        object.__setattr__(self, "clustering", clustering)
+        object.__setattr__(self, "validation", validation)
+        object.__setattr__(self, "output", output)
+        object.__setattr__(self, "performance", performance)
 
     @classmethod
     def strict(cls) -> SignalomeConfig:
@@ -439,6 +436,66 @@ def _require_production_network_observation_minimum(
             "at least "
             f"{SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT}"
         )
+
+
+def _require_bool(value: object, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ContractValidationError(f"{field_name} must be a bool")
+    return value
+
+
+def _require_localisation_requirement(
+    value: object,
+    *,
+    field_name: str,
+) -> LocalisationRequirement:
+    if not isinstance(value, LocalisationRequirement):
+        raise ContractValidationError(f"{field_name} must be LocalisationRequirement")
+    return value
+
+
+def _require_signalome_scientific_config(value: object) -> SignalomeScientificConfig:
+    if not isinstance(value, SignalomeScientificConfig):
+        raise ContractValidationError(
+            "signalome workflow request config.scientific must be "
+            "SignalomeScientificConfig"
+        )
+    return value
+
+
+def _require_signalome_clustering_config(value: object) -> SignalomeClusteringConfig:
+    if not isinstance(value, SignalomeClusteringConfig):
+        raise ContractValidationError(
+            "signalome workflow request config.clustering must be "
+            "SignalomeClusteringConfig"
+        )
+    return value
+
+
+def _require_signalome_validation_config(value: object) -> SignalomeValidationConfig:
+    if not isinstance(value, SignalomeValidationConfig):
+        raise ContractValidationError(
+            "signalome workflow request config.validation must be "
+            "SignalomeValidationConfig"
+        )
+    return value
+
+
+def _require_signalome_output_config(value: object) -> SignalomeOutputConfig:
+    if not isinstance(value, SignalomeOutputConfig):
+        raise ContractValidationError(
+            "signalome workflow request config.output must be SignalomeOutputConfig"
+        )
+    return value
+
+
+def _require_signalome_performance_config(value: object) -> SignalomePerformanceConfig:
+    if not isinstance(value, SignalomePerformanceConfig):
+        raise ContractValidationError(
+            "signalome workflow request config.performance must be "
+            "SignalomePerformanceConfig"
+        )
+    return value
 
 
 __all__ = [

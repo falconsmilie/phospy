@@ -312,15 +312,14 @@ class SignalomeWorkflowResult:
                 ).frame
             except PhosPyValidationError as exc:
                 raise ContractValidationError(str(exc)) from exc
-        if self.provenance is not None and not isinstance(
-            self.provenance, RunProvenance
-        ):
-            raise ContractValidationError(
-                "signalome_result.provenance must be RunProvenance or None"
-            )
+        provenance = _validate_optional_run_provenance(
+            self.provenance,
+            field_name="signalome_result.provenance",
+        )
         object.__setattr__(self, "_expanded_signalome", expanded_signalome)
         object.__setattr__(self, "_site_membership", site_membership)
         object.__setattr__(self, "_protein_site_context", protein_site_context)
+        object.__setattr__(self, "provenance", provenance)
         object.__setattr__(self, "_init_payload", None)
 
     @property
@@ -552,6 +551,16 @@ def _require_instance(
 ) -> None:
     if not isinstance(value, expected_type):
         raise ContractValidationError(f"{field_name} must be {expected_type.__name__}")
+
+
+def _validate_optional_run_provenance(
+    value: object | None,
+    *,
+    field_name: str,
+) -> RunProvenance | None:
+    if value is None or isinstance(value, RunProvenance):
+        return value
+    raise ContractValidationError(f"{field_name} must be RunProvenance or None")
 
 
 __all__ = [

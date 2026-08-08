@@ -501,6 +501,7 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
 
     expected_include_paths = (
         "src/phospy/api",
+        "src/phospy/contracts",
         "src/phospy/errors",
         "src/phospy/frames",
         "src/phospy/io",

@@ -1,6 +1,4 @@
 """Public kinase workflow configuration models."""
-# pyright: reportUnnecessaryIsInstance=false
-# Runtime boundary guards are intentionally retained for untyped external callers.
 
 from __future__ import annotations
 
@@ -334,19 +332,20 @@ class KinaseScoringConfig:
         *,
         reliability_profile: KinaseReliabilityProfile | str | None | object,
     ) -> None:
-        if not isinstance(self.include_diagnostic_scoring_tables, bool):
-            raise ContractValidationError(
-                "scoring_config.include_diagnostic_scoring_tables must be a bool"
-            )
-        if not isinstance(self.include_substrate_contributions, bool):
-            raise ContractValidationError(
-                "scoring_config.include_substrate_contributions must be a bool"
-            )
-        if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
-            raise ContractValidationError(
-                "scoring_config.allow_mixed_total_protein_quantitative_meaning "
-                "must be a bool"
-            )
+        include_diagnostic_scoring_tables = _require_bool(
+            self.include_diagnostic_scoring_tables,
+            field_name="scoring_config.include_diagnostic_scoring_tables",
+        )
+        include_substrate_contributions = _require_bool(
+            self.include_substrate_contributions,
+            field_name="scoring_config.include_substrate_contributions",
+        )
+        allow_mixed_total_protein_quantitative_meaning = _require_bool(
+            self.allow_mixed_total_protein_quantitative_meaning,
+            field_name=(
+                "scoring_config.allow_mixed_total_protein_quantitative_meaning"
+            ),
+        )
         normalized_scoring_mode = normalize_kinase_scoring_mode(
             self.scoring_mode,
             warn_on_deprecated_alias=True,
@@ -372,6 +371,14 @@ class KinaseScoringConfig:
             field_name="scoring_config.profile_self_inclusion_policy",
             error_type=ContractValidationError,
         )
+        attrition_policy = _require_kinase_attrition_policy(
+            self.attrition_policy,
+            field_name="scoring_config.attrition_policy",
+        )
+        localisation_requirement = _require_localisation_requirement(
+            self.localisation_requirement,
+            field_name="scoring_config.localisation_requirement",
+        )
         object.__setattr__(
             self,
             "profile_self_inclusion_policy",
@@ -388,21 +395,29 @@ class KinaseScoringConfig:
             "reference_context_compatibility_policy",
             reference_context_compatibility_policy,
         )
-        if not isinstance(self.attrition_policy, KinaseAttritionPolicy):
-            raise ContractValidationError(
-                "scoring_config.attrition_policy must be KinaseAttritionPolicy"
-            )
+        object.__setattr__(
+            self,
+            "include_diagnostic_scoring_tables",
+            include_diagnostic_scoring_tables,
+        )
+        object.__setattr__(
+            self,
+            "include_substrate_contributions",
+            include_substrate_contributions,
+        )
+        object.__setattr__(
+            self,
+            "allow_mixed_total_protein_quantitative_meaning",
+            allow_mixed_total_protein_quantitative_meaning,
+        )
+        object.__setattr__(self, "attrition_policy", attrition_policy)
+        object.__setattr__(self, "localisation_requirement", localisation_requirement)
         _require_int_at_least(
             self.min_substrates,
             field_name="scoring_config.min_substrates",
             minimum=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
             error_type=ContractValidationError,
         )
-        if not isinstance(self.localisation_requirement, LocalisationRequirement):
-            raise ContractValidationError(
-                "scoring_config.localisation_requirement must be "
-                "LocalisationRequirement"
-            )
         requested_profile = _parse_requested_reliability_profile(
             reliability_profile,
             field_name="scoring_config.reliability_profile",
@@ -683,6 +698,32 @@ def _require_attrition_fraction(value: object, *, field_name: str) -> float:
     return fraction
 
 
+def _require_bool(value: object, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ContractValidationError(f"{field_name} must be a bool")
+    return value
+
+
+def _require_kinase_attrition_policy(
+    value: object,
+    *,
+    field_name: str,
+) -> KinaseAttritionPolicy:
+    if not isinstance(value, KinaseAttritionPolicy):
+        raise ContractValidationError(f"{field_name} must be KinaseAttritionPolicy")
+    return value
+
+
+def _require_localisation_requirement(
+    value: object,
+    *,
+    field_name: str,
+) -> LocalisationRequirement:
+    if not isinstance(value, LocalisationRequirement):
+        raise ContractValidationError(f"{field_name} must be LocalisationRequirement")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class KinaseActivityConfig:
     """Configuration for the supported kinase activity score stage.
@@ -727,8 +768,10 @@ class KinaseActivityConfig:
     ssgsea_adjust_p_values: bool = KINASE_ACTIVITY_SSGSEA_DEFAULT_ADJUST_P_VALUES
 
     def __post_init__(self) -> None:
-        if not isinstance(self.enabled, bool):
-            raise ContractValidationError("activity_config.enabled must be a bool")
+        enabled = _require_bool(
+            self.enabled,
+            field_name="activity_config.enabled",
+        )
         if self.method not in KINASE_ACTIVITY_METHODS:
             allowed_methods = ", ".join(sorted(KINASE_ACTIVITY_METHODS))
             raise ContractValidationError(
@@ -772,10 +815,10 @@ class KinaseActivityConfig:
             raise ContractValidationError(
                 f"activity_config.ksea_p_value_method must be one of: {allowed_methods}"
             )
-        if not isinstance(self.ksea_adjust_p_values, bool):
-            raise ContractValidationError(
-                "activity_config.ksea_adjust_p_values must be a bool"
-            )
+        ksea_adjust_p_values = _require_bool(
+            self.ksea_adjust_p_values,
+            field_name="activity_config.ksea_adjust_p_values",
+        )
         _require_int_at_least(
             self.ssgsea_min_substrates,
             field_name="activity_config.ssgsea_min_substrates",
@@ -808,10 +851,13 @@ class KinaseActivityConfig:
                 "activity_config.ssgsea_random_seed must be set when "
                 "activity_config.ssgsea_permutations is greater than 0"
             )
-        if not isinstance(self.ssgsea_adjust_p_values, bool):
-            raise ContractValidationError(
-                "activity_config.ssgsea_adjust_p_values must be a bool"
-            )
+        ssgsea_adjust_p_values = _require_bool(
+            self.ssgsea_adjust_p_values,
+            field_name="activity_config.ssgsea_adjust_p_values",
+        )
+        object.__setattr__(self, "enabled", enabled)
+        object.__setattr__(self, "ksea_adjust_p_values", ksea_adjust_p_values)
+        object.__setattr__(self, "ssgsea_adjust_p_values", ssgsea_adjust_p_values)
 
     @classmethod
     def ssgsea_with_permutation_significance(

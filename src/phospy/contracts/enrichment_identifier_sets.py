@@ -255,17 +255,64 @@ class EnrichmentDerivedQuantitativeSetProvenance:
                     ),
                 )
             ),
-            source_result_kind=mapping.get("source_result_kind"),  # type: ignore[arg-type]
-            source_profile_or_contrast=mapping.get(  # type: ignore[arg-type]
-                "source_profile_or_contrast"
+            source_result_kind=_coerce_enum(
+                mapping.get("source_result_kind"),
+                EnrichmentDerivedSetSourceResultKind,
+                field_name=(
+                    "enrichment derived quantitative set provenance source_result_kind"
+                ),
             ),
-            identifier_namespace=mapping.get("identifier_namespace"),  # type: ignore[arg-type]
-            threshold=mapping.get("threshold"),  # type: ignore[arg-type]
-            direction=mapping.get("direction"),  # type: ignore[arg-type]
-            missing_value_rule=mapping.get("missing_value_rule"),  # type: ignore[arg-type]
-            quantitative_scale=mapping.get("quantitative_scale"),  # type: ignore[arg-type]
-            quantitative_meaning=mapping.get("quantitative_meaning"),  # type: ignore[arg-type]
-            software_version=mapping.get("software_version"),  # type: ignore[arg-type]
+            source_profile_or_contrast=_require_non_empty_text(
+                mapping.get("source_profile_or_contrast"),
+                field_name=(
+                    "enrichment derived quantitative set provenance "
+                    "source_profile_or_contrast"
+                ),
+            ),
+            identifier_namespace=_require_non_empty_text(
+                mapping.get("identifier_namespace"),
+                field_name=(
+                    "enrichment derived quantitative set provenance "
+                    "identifier_namespace"
+                ),
+            ),
+            threshold=_require_finite_float(
+                mapping.get("threshold"),
+                field_name=("enrichment derived quantitative set provenance threshold"),
+            ),
+            direction=_coerce_enum(
+                mapping.get("direction"),
+                EnrichmentDerivedSetThresholdDirection,
+                field_name=("enrichment derived quantitative set provenance direction"),
+            ),
+            missing_value_rule=_coerce_enum(
+                mapping.get("missing_value_rule"),
+                EnrichmentDerivedSetMissingValueRule,
+                field_name=(
+                    "enrichment derived quantitative set provenance missing_value_rule"
+                ),
+            ),
+            quantitative_scale=_coerce_enum(
+                mapping.get("quantitative_scale"),
+                EnrichmentDerivedSetValueScale,
+                field_name=(
+                    "enrichment derived quantitative set provenance quantitative_scale"
+                ),
+            ),
+            quantitative_meaning=_coerce_enum(
+                mapping.get("quantitative_meaning"),
+                EnrichmentDerivedSetValueMeaning,
+                field_name=(
+                    "enrichment derived quantitative set provenance "
+                    "quantitative_meaning"
+                ),
+            ),
+            software_version=_require_non_empty_text(
+                mapping.get("software_version"),
+                field_name=(
+                    "enrichment derived quantitative set provenance software_version"
+                ),
+            ),
         )
 
 
@@ -387,16 +434,32 @@ class EnrichmentIdentifierSetProvenance:
             field_name="enrichment identifier-set provenance",
         )
         return cls(
-            source_type=mapping.get("source_type"),  # type: ignore[arg-type]
-            source_label=mapping.get("source_label"),  # type: ignore[arg-type]
-            identifier_count=mapping.get("identifier_count"),  # type: ignore[arg-type]
-            upstream_workflow_id=mapping.get("upstream_workflow_id"),  # type: ignore[arg-type]
-            upstream_result_id=mapping.get("upstream_result_id"),  # type: ignore[arg-type]
-            input_intensity_scale_evidence=mapping.get(  # type: ignore[arg-type]
-                "input_intensity_scale_evidence"
+            source_type=_coerce_enrichment_identifier_set_source_type(
+                mapping.get("source_type")
             ),
-            derived_quantitative_provenance=mapping.get(  # type: ignore[arg-type]
-                "derived_quantitative_provenance"
+            source_label=_require_non_empty_text(
+                mapping.get("source_label"),
+                field_name="enrichment identifier-set provenance source_label",
+            ),
+            identifier_count=_require_non_negative_int(
+                mapping.get("identifier_count"),
+                field_name="enrichment identifier-set provenance identifier_count",
+            ),
+            upstream_workflow_id=_normalise_optional_text(
+                mapping.get("upstream_workflow_id"),
+                field_name=(
+                    "enrichment identifier-set provenance upstream_workflow_id"
+                ),
+            ),
+            upstream_result_id=_normalise_optional_text(
+                mapping.get("upstream_result_id"),
+                field_name="enrichment identifier-set provenance upstream_result_id",
+            ),
+            input_intensity_scale_evidence=_coerce_input_intensity_scale_evidence(
+                mapping.get("input_intensity_scale_evidence")
+            ),
+            derived_quantitative_provenance=_coerce_derived_quantitative_provenance(
+                mapping.get("derived_quantitative_provenance")
             ),
         )
 

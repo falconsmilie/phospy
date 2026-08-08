@@ -48,7 +48,7 @@ help:
 	@printf '%s\n' '  make install-dev                   Install editable package with dev and test extras'
 	@printf '%s\n' '  make lint                          Run Ruff checks'
 	@printf '%s\n' '  make format                        Run Ruff formatter'
-	@printf '%s\n' '  make type-check                    Run the same Pyright entrypoint used by CI and pre-commit'
+	@printf '%s\n' '  make type-check                    Run strict Pyright coverage policy and Pyright'
 	@printf '%s\n' '  make pre-commit                    Run all pre-commit hooks'
 	@printf '%s\n' '  make test-unit                     Run the non-parity pytest suite'
 	@printf '%s\n' '  make test-contract                 Run external-consumer public API contract tests'
@@ -102,6 +102,7 @@ pre-commit: check-tools
 	$(PRE_COMMIT) run --all-files
 
 type-check: check-tools
+	$(PYTHON) tools/testing/pyright_strict_coverage.py --check
 	$(PYTHON) scripts/run_pyright.py
 
 test: test-unit test-contract test-parity

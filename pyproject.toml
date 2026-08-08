@@ -148,6 +148,7 @@ venv = ".venv"
 typeCheckingMode = "standard"
 include = [
   "src/phospy/api",
+  "src/phospy/contracts",
   "src/phospy/errors",
   "src/phospy/frames",
   "src/phospy/io",
