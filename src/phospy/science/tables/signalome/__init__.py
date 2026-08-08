@@ -1,5 +1,7 @@
 """Signalome sidecar table schema wrappers."""
 
+__phospy_contracts_facade_role__ = "science_owned_public_table_contract"
+
 from phospy.science.tables.signalome.assignments import SignalomeAssignmentsTable
 from phospy.science.tables.signalome.context import (
     SignalomeProteinSiteContext,

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__phospy_contracts_facade_role__ = "science_owned_public_model"
+
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__phospy_contracts_facade_role__ = "science_owned_public_helper"
+
 from collections import Counter
 from typing import cast
 

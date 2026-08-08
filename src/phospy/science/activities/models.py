@@ -5,6 +5,8 @@ module preserves the historical ``phospy.science.activities.models`` import path
 by re-exporting the same class and constant objects.
 """
 
+__phospy_contracts_facade_role__ = "science_owned_public_model"
+
 from phospy.science.activities.diagnostics import (
     ActivityMethodDiagnostics,
     KseaZScoreActivityDiagnostics,

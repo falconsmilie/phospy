@@ -4,9 +4,11 @@ import ast
 import os
 import subprocess
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -89,36 +91,37 @@ CONTRACTS_PUBLIC_SCIENCE_PREFIXES = frozenset(
     }
 )
 
-CONTRACTS_PUBLIC_SCIENCE_MODULES = frozenset(
+CONTRACTS_SCIENCE_FACADE_ROLE_MARKER = "__phospy_contracts_facade_role__"
+
+CONTRACTS_PUBLIC_SCIENCE_FACADE_ROLES = frozenset(
     {
-        "phospy.science.activities.models",
-        "phospy.science.datasets.models",
-        "phospy.science.datasets.preprocessing.batch_correction_models",
-        "phospy.science.datasets.preprocessing.protein_aware_preparation",
-        "phospy.science.design.contrast_helpers",
-        "phospy.science.design.models",
-        "phospy.science.differential.models",
-        "phospy.science.differential.policy_models",
-        "phospy.science.enrichment.models",
-        "phospy.science.evidence.dataset_resolution.contracts",
-        "phospy.science.prediction.models",
-        "phospy.science.references.kinase_library",
-        "phospy.science.references.models",
-        "phospy.science.result_caveats",
-        "phospy.science.signalomes.constants",
-        "phospy.science.signalomes.models",
-        "phospy.science.tables.kinase",
-        "phospy.science.tables.signalome",
-        "phospy.science.transformations.models",
+        "science_owned_public_constant",
+        "science_owned_public_enum",
+        "science_owned_public_helper",
+        "science_owned_public_model",
+        "science_owned_public_table_contract",
     }
 )
 
-CONTRACTS_FORBIDDEN_SCIENCE_PREFIXES = frozenset(
+CONTRACTS_FORBIDDEN_SCIENCE_STRUCTURE_SEGMENTS = frozenset(
     {
-        "phospy.science.datasets.builders",
-        "phospy.science.datasets.construction",
-        "phospy.science.references.builder",
-        "phospy.science.references.validation",
+        "builder",
+        "builders",
+        "construction",
+        "executor",
+        "executors",
+        "execution",
+    }
+)
+
+CONTRACTS_FORBIDDEN_SCIENCE_WORKFLOW_LEAVES = frozenset(
+    {
+        "assembler",
+        "interpreter",
+        "orchestrator",
+        "runner",
+        "workflow",
+        "workflows",
     }
 )
 
@@ -142,9 +145,18 @@ class ImportRecord:
 @dataclass(frozen=True, slots=True)
 class ImportGraph:
     modules: frozenset[str]
+    module_paths: Mapping[str, Path]
     module_edges: dict[str, frozenset[str]]
     package_edges: frozenset[tuple[str, str]]
     records: tuple[ImportRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ContractsScienceFacadeRoleMarker:
+    module_name: str
+    source_path: Path
+    role: str | None
+    line: int
 
 
 def test_package_dependency_graph_has_no_static_cycles() -> None:
@@ -210,13 +222,16 @@ def test_contracts_to_science_imports_match_public_facade_rules() -> None:
         for record in graph.records
         if record.source_module.startswith("phospy.contracts")
         and record.target.startswith("phospy.science")
-        if not _is_public_contracts_science_facade_import(record.target)
+        if not _is_public_contracts_science_facade_import(
+            record.target,
+            module_paths=graph.module_paths,
+        )
     )
 
     assert offenders == []
 
 
-def test_contracts_public_science_module_set_has_no_stale_entries() -> None:
+def test_contracts_science_facade_role_markers_are_used_and_valid() -> None:
     graph = _build_import_graph()
     observed = {
         record.target
@@ -224,9 +239,122 @@ def test_contracts_public_science_module_set_has_no_stale_entries() -> None:
         if record.source_module.startswith("phospy.contracts")
         and record.target.startswith("phospy.science")
     }
-    stale_modules = sorted(CONTRACTS_PUBLIC_SCIENCE_MODULES - observed)
+    problems = _contracts_science_facade_role_marker_problems(
+        module_paths=graph.module_paths,
+        observed_contracts_science_targets=observed,
+    )
 
-    assert stale_modules == []
+    assert problems == []
+
+
+def test_science_package_does_not_import_contracts() -> None:
+    graph = _build_import_graph()
+    offenders = sorted(
+        f"{record.source_module}:{record.line} -> {record.target}"
+        for record in graph.records
+        if record.source_module.startswith("phospy.science")
+        and record.target.startswith("phospy.contracts")
+    )
+
+    assert offenders == []
+
+
+def test_contracts_science_facade_rule_allows_config_prefix_without_marker() -> None:
+    assert _is_public_contracts_science_facade_import(
+        "phospy.science.configs.preprocessing.validation",
+        module_paths={},
+    )
+
+
+def test_contracts_science_facade_rule_rejects_unmarked_science_module(
+    tmp_path: Path,
+) -> None:
+    module_name = "phospy.science.public_unmarked.models"
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source='"""Public-looking but unmarked science module."""\n',
+    )
+
+    assert not _is_public_contracts_science_facade_import(
+        module_name,
+        module_paths=module_paths,
+    )
+
+
+def test_contracts_science_facade_rule_accepts_marked_public_owner(
+    tmp_path: Path,
+) -> None:
+    module_name = "phospy.science.public_marked.models"
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source=(
+            '"""Marked public science model owner."""\n'
+            f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} = "
+            '"science_owned_public_model"\n'
+        ),
+    )
+
+    assert _is_public_contracts_science_facade_import(
+        module_name,
+        module_paths=module_paths,
+    )
+
+
+@pytest.mark.parametrize(
+    "module_name",
+    (
+        "phospy.science.public_marked._private_model",
+        "phospy.science.datasets.builders.contracts",
+        "phospy.science.datasets.construction.service",
+        "phospy.science.public_marked.executor",
+        "phospy.science.public_marked.validation",
+        "phospy.science.references.builder",
+        "phospy.science.references.validation.manifest_schema",
+        "phospy.science.public_marked.interpreter",
+    ),
+)
+def test_contracts_science_facade_rule_rejects_forbidden_modules_even_when_marked(
+    tmp_path: Path,
+    module_name: str,
+) -> None:
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source=(
+            '"""Forbidden implementation module with a stale marker."""\n'
+            f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} = "
+            '"science_owned_public_model"\n'
+        ),
+    )
+
+    assert not _is_public_contracts_science_facade_import(
+        module_name,
+        module_paths=module_paths,
+    )
+
+
+def test_contracts_science_facade_role_marker_audit_detects_stale_marker(
+    tmp_path: Path,
+) -> None:
+    module_name = "phospy.science.stale_public.models"
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source=(
+            '"""No contracts module imports this science facade."""\n'
+            f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} = "
+            '"science_owned_public_model"\n'
+        ),
+    )
+
+    problems = _contracts_science_facade_role_marker_problems(
+        module_paths=module_paths,
+        observed_contracts_science_targets=frozenset(),
+    )
+
+    assert problems == [f"{module_name}: unused {CONTRACTS_SCIENCE_FACADE_ROLE_MARKER}"]
 
 
 def test_workflows_do_not_import_unresolved_peptide_evidence_models() -> None:
@@ -365,6 +493,7 @@ def _build_import_graph() -> ImportGraph:
     package_edges = frozenset(_package_edges(module_edges))
     return ImportGraph(
         modules=modules,
+        module_paths=paths,
         module_edges=module_edges,
         package_edges=package_edges,
         records=tuple(records),
@@ -457,39 +586,183 @@ def _is_private_science_module(module_name: str) -> bool:
 
 
 def _is_forbidden_contracts_science_implementation_module(module_name: str) -> bool:
+    if not module_name.startswith("phospy.science."):
+        return False
+    science_parts = module_name.split(".")[2:]
     if any(
-        _module_is_or_under(module_name, forbidden_prefix)
-        for forbidden_prefix in CONTRACTS_FORBIDDEN_SCIENCE_PREFIXES
+        part in CONTRACTS_FORBIDDEN_SCIENCE_STRUCTURE_SEGMENTS for part in science_parts
     ):
         return True
+    if any(
+        part.endswith("_builder") or part.endswith("_builders")
+        for part in science_parts
+    ):
+        return True
+    if any(part.endswith("_executor") for part in science_parts):
+        return True
+    if any(part in {"internal_view", "internal_views"} for part in science_parts):
+        return True
+    if science_parts[-1] == "internal_frame_store":
+        return True
+    if _is_reference_builder_or_validation_module(module_name):
+        return True
+    if _is_validation_implementation_module(module_name):
+        return True
+    return _is_workflow_implementation_module(module_name)
+
+
+def _is_reference_builder_or_validation_module(module_name: str) -> bool:
+    if not _module_is_or_under(module_name, "phospy.science.references"):
+        return False
+    reference_parts = module_name.split(".")[3:]
+    return any(
+        part in {"builder", "builders", "validation", "validators"}
+        or part.endswith("_builder")
+        for part in reference_parts
+    )
+
+
+def _is_workflow_implementation_module(module_name: str) -> bool:
     module_leaf = module_name.rsplit(".", maxsplit=1)[-1]
-    if module_leaf in {"executor", "execution", "internal_view"}:
-        return True
-    if module_leaf.endswith("_executor"):
-        return True
-    return _is_validation_implementation_module(module_name)
+    return (
+        module_leaf in CONTRACTS_FORBIDDEN_SCIENCE_WORKFLOW_LEAVES
+        or module_leaf.endswith("_assembler")
+        or module_leaf.endswith("_interpreter")
+        or module_leaf.endswith("_orchestrator")
+        or module_leaf.endswith("_runner")
+        or module_leaf.endswith("_workflow")
+    )
 
 
 def _is_validation_implementation_module(module_name: str) -> bool:
     if _module_is_or_under(module_name, "phospy.science.configs"):
         return False
-    module_leaf = module_name.rsplit(".", maxsplit=1)[-1]
-    return (
-        module_leaf in {"validation", "validator", "resolved_validator"}
-        or module_leaf.endswith("_validation")
-        or module_leaf.endswith("_validator")
+    science_parts = module_name.split(".")[2:]
+    return any(
+        part in {"validation", "validator", "validators", "resolved_validator"}
+        or part.endswith("_validation")
+        or part.endswith("_validator")
+        for part in science_parts
     )
 
 
-def _is_public_contracts_science_facade_import(module_name: str) -> bool:
+def _is_public_contracts_science_facade_import(
+    module_name: str,
+    *,
+    module_paths: Mapping[str, Path],
+) -> bool:
     if _is_private_science_module(module_name):
         return False
     if _is_forbidden_contracts_science_implementation_module(module_name):
         return False
-    return module_name in CONTRACTS_PUBLIC_SCIENCE_MODULES or any(
+    if any(
         _module_is_or_under(module_name, allowed_prefix)
         for allowed_prefix in CONTRACTS_PUBLIC_SCIENCE_PREFIXES
+    ):
+        return True
+    marker = _contracts_science_facade_role_marker(
+        module_name,
+        module_paths=module_paths,
     )
+    return marker is not None and marker.role in CONTRACTS_PUBLIC_SCIENCE_FACADE_ROLES
+
+
+def _contracts_science_facade_role_marker(
+    module_name: str,
+    *,
+    module_paths: Mapping[str, Path],
+) -> ContractsScienceFacadeRoleMarker | None:
+    path = module_paths.get(module_name)
+    if path is None:
+        return None
+    tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            if not any(
+                isinstance(target, ast.Name)
+                and target.id == CONTRACTS_SCIENCE_FACADE_ROLE_MARKER
+                for target in node.targets
+            ):
+                continue
+            return ContractsScienceFacadeRoleMarker(
+                module_name=module_name,
+                source_path=path,
+                role=_literal_string_value(node.value),
+                line=node.lineno,
+            )
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == CONTRACTS_SCIENCE_FACADE_ROLE_MARKER
+        ):
+            return ContractsScienceFacadeRoleMarker(
+                module_name=module_name,
+                source_path=path,
+                role=_literal_string_value(node.value),
+                line=node.lineno,
+            )
+    return None
+
+
+def _literal_string_value(node: ast.AST | None) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
+
+
+def _contracts_science_facade_role_markers(
+    *,
+    module_paths: Mapping[str, Path],
+) -> tuple[ContractsScienceFacadeRoleMarker, ...]:
+    markers: list[ContractsScienceFacadeRoleMarker] = []
+    for module_name in module_paths:
+        if not module_name.startswith("phospy.science"):
+            continue
+        marker = _contracts_science_facade_role_marker(
+            module_name,
+            module_paths=module_paths,
+        )
+        if marker is not None:
+            markers.append(marker)
+    return tuple(sorted(markers, key=lambda marker: marker.module_name))
+
+
+def _contracts_science_facade_role_marker_problems(
+    *,
+    module_paths: Mapping[str, Path],
+    observed_contracts_science_targets: Iterable[str],
+) -> list[str]:
+    observed = set(observed_contracts_science_targets)
+    problems: list[str] = []
+    for marker in _contracts_science_facade_role_markers(module_paths=module_paths):
+        if marker.role not in CONTRACTS_PUBLIC_SCIENCE_FACADE_ROLES:
+            problems.append(
+                f"{marker.module_name}:{marker.line}: invalid "
+                f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} {marker.role!r}"
+            )
+        if _is_private_science_module(
+            marker.module_name
+        ) or _is_forbidden_contracts_science_implementation_module(marker.module_name):
+            problems.append(
+                f"{marker.module_name}:{marker.line}: forbidden "
+                f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER}"
+            )
+        if marker.module_name not in observed:
+            problems.append(
+                f"{marker.module_name}: unused {CONTRACTS_SCIENCE_FACADE_ROLE_MARKER}"
+            )
+    return problems
+
+
+def _facade_rule_fixture_module_paths(
+    tmp_path: Path,
+    *,
+    module_name: str,
+    source: str,
+) -> dict[str, Path]:
+    path = tmp_path / f"{module_name.replace('.', '_')}.py"
+    path.write_text(source, encoding="utf-8")
+    return {module_name: path}
 
 
 def _module_is_or_under(module_name: str, prefix: str) -> bool:

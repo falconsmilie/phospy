@@ -8,7 +8,7 @@ tests/architecture/test_dataset_builder_preprocessor_contract.py,architecture,12
 tests/architecture/test_deprecation_governance.py,architecture,54,1,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_exported_json_state_immutability.py,architecture,377,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,597,11,false,false,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
+tests/architecture/test_package_dependency_dag.py,architecture,870,17,true,true,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_public_consumer_contract_imports.py,architecture,105,1,false,false,,,,,,
 tests/architecture/test_scientific_model_decomposition.py,architecture,196,6,false,false,,,,,,

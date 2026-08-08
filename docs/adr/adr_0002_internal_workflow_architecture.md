@@ -58,9 +58,16 @@ stage quantitative contracts remains owned by `PreprocessingPipeline`.
 
 Update note (2026-08-08, contracts facade dependency rule): Public request
 DTOs remain passive transport objects. `phospy.contracts` may expose exact
-science-owned domain values through stable facade routes, but contextual
-validation, execution, construction, internal views, and private validation
-implementations remain outside the contracts package.
+science-owned domain values through stable facade routes. The executable rule
+allows `phospy.science.configs.*` policy/configuration modules by prefix; other
+science modules must declare the private module marker
+`__phospy_contracts_facade_role__` with an approved role such as
+`science_owned_public_model`, `science_owned_public_enum`,
+`science_owned_public_constant`, `science_owned_public_table_contract`, or a
+narrow public helper role. Contextual validation, execution, construction,
+internal views, workflow implementation modules, reference builders/reference
+validation, and private validation implementations remain outside the contracts
+package even if a forbidden module declares that marker.
 
 ## Context and Problem Statement
 
@@ -403,6 +410,17 @@ call workflow validators, dataset validators, construction services, executors,
 or contextual scientific checks. When a request field needs a science-owned
 enum, model, or policy object, the contracts facade imports and re-exports the
 owned object identity instead of copying the definition into contracts.
+
+The contracts-to-science import boundary is rule based, not maintained as an
+exact exception list. `phospy.science.configs.*` is the only approved prefix
+because configuration policies are direct science-owned values consumed by
+workflow and numerical code. Other science owner modules opt in by declaring
+`__phospy_contracts_facade_role__` with a constrained public role. The marker
+means only that `phospy.contracts` may re-export the original object identity;
+it does not transfer behavioural ownership to contracts and it cannot legalize
+private modules, builders, construction services, executors, internal views,
+validation implementations, reference builders/reference validation, or
+workflow implementation modules.
 
 ### Internal DTOs
 

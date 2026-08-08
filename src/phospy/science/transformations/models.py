@@ -5,6 +5,8 @@ module preserves the historical ``phospy.science.transformations.models`` import
 path by re-exporting the same class and constant objects.
 """
 
+__phospy_contracts_facade_role__ = "science_owned_public_model"
+
 from phospy.science.transformations.policy import (
     CALLER_DECLARABLE_QUANTITATIVE_MEANINGS,
     IDENTITY_INTENSITY_SCALE_ESTABLISHER,

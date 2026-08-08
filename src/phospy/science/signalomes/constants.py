@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__phospy_contracts_facade_role__ = "science_owned_public_constant"
+
 SITE_ID_COLUMN = "site_id"
 SITE_KEY_COLUMN = "site_key"
 DISPLAY_ID_COLUMN = "display_id"

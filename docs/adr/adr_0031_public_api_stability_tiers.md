@@ -119,19 +119,47 @@ request DTOs remain passive transport, while science-owned enums, models,
 result records, table schemas, and policies remain with the modules that own
 their behaviour.
 
-| Retained or exposed route | Behaviour owner | Ownership reason |
-| --- | --- | --- |
-| Public request DTOs in `phospy.contracts.requests` and `phospy.contracts.dataset_build` | `phospy.contracts` | These classes record caller intent only. Workflow validators, dataset builders, and interpreters own contextual validation and resolution. |
-| Public config DTOs in `phospy.contracts.configs.*` | `phospy.contracts.configs` | These classes define public configuration shape and local scalar invariants. Workflow/science modules consume resolved execution models or science-owned policy values. |
-| Science policy enums/constants imported from `phospy.science.configs.*` | `phospy.science.configs.*` | The numerical and workflow science consumes these policy values directly, so contracts must re-export identity rather than duplicate definitions. |
-| Dataset and quantitative-state objects from `phospy.science.datasets.models` and `phospy.science.transformations.models` | `phospy.science.datasets` and `phospy.science.transformations` | Dataset identity, processing state, intensity scale, and quantitative meaning are scientific domain state, not transport-only request shape. |
-| Evidence and reference values from `phospy.science.evidence.dataset_resolution.contracts`, `phospy.science.references.models`, and `phospy.science.references.kinase_library` | `phospy.science.evidence` and `phospy.science.references` | Site-resolution policy, organism/reference bundle identity, presets, and Kinase Library resources drive builder and reference-domain behaviour. |
-| Experimental-design and differential objects from `phospy.science.design.*`, `phospy.science.differential.models`, and `phospy.science.differential.policy_models` | `phospy.science.design` and `phospy.science.differential` | Design matrices, contrasts, empirical Bayes configuration, result records, and replicate policies belong with statistical-design and differential-analysis behaviour. |
-| Enrichment values from `phospy.science.enrichment.models` | `phospy.science.enrichment` | Identifier kinds, set collections, and enrichment result records encode enrichment-domain compatibility and result semantics. |
-| Kinase/activity/prediction values from `phospy.science.activities.models`, `phospy.science.prediction.models`, and `phospy.science.tables.kinase` | `phospy.science.activities`, `phospy.science.prediction`, and `phospy.science.tables` | Stage result containers and table schemas validate kinase-scoring, activity, prediction, and substrate-contribution semantics. |
-| Signalome values from `phospy.science.signalomes.models`, `phospy.science.signalomes.constants`, and `phospy.science.tables.signalome` | `phospy.science.signalomes` and `phospy.science.tables.signalome` | Signalome modules, assignments, diagnostics, constants, and context table schemas are downstream signalome-domain state. |
-| Preprocessing result values from `phospy.science.datasets.preprocessing.batch_correction_models` and `phospy.science.datasets.preprocessing.protein_aware_preparation` | `phospy.science.datasets.preprocessing` | Batch-correction and protein-aware preparation reports carry preprocessing-stage scientific audit and validation semantics. |
-| Result caveats exposed through `phospy.contracts.result_caveats` | `phospy.science.result_caveats` | Caveats are workflow-science result payloads assembled from scientific validation/interpreter facts; contracts provides the stable facade route. |
+The executable import policy is:
+
+1. `phospy.contracts` may import modules under `phospy.science.configs.*`.
+   These modules own science policy enums, constants, and configuration values
+   that numerical and workflow code consume directly. Contracts re-export those
+   exact objects rather than copying their definitions.
+2. Any other science module imported by `phospy.contracts` must declare the
+   private module marker `__phospy_contracts_facade_role__` with one approved
+   role. Approved roles are constrained ownership categories:
+   `science_owned_public_model`, `science_owned_public_enum`,
+   `science_owned_public_constant`,
+   `science_owned_public_table_contract`, and a narrow
+   `science_owned_public_helper` role for public science helpers whose
+   behaviour must not be copied into transport DTOs.
+3. Generic forbidden categories override the prefix/marker rule. Contracts must
+   not import science modules with private path segments, builders,
+   construction services, executors, internal views, validation
+   implementations, reference builders/reference validation modules, or
+   workflow implementation modules. A marker on one of those implementation
+   modules is invalid and does not legalize the import.
+4. The architecture test rejects stale markers. A science module should carry a
+   contracts-facade role only while `phospy.contracts` actually imports that
+   exact module as an identity-preserving facade dependency.
+
+Public request DTOs in `phospy.contracts.requests` and
+`phospy.contracts.dataset_build` record caller intent only. Workflow
+validators, dataset builders, and interpreters own contextual validation,
+default resolution, dataset readiness checks, and scientific eligibility
+checks. Contracts-owned config DTOs define public configuration shape and local
+scalar invariants; workflow/science modules consume resolved execution models
+or science-owned policy values.
+
+Science models retain behavioural ownership because their invariants are not
+transport-only facts. Dataset identity, processing state, quantitative meaning,
+site-resolution policy, reference identity, experimental design, differential
+statistics, enrichment identifier semantics, kinase/activity/prediction
+results, signalome diagnostics, table schemas, preprocessing reports, and
+result caveats are interpreted and validated by their scientific domains.
+Contracts may provide stable import routes for the exact same objects, but it
+must not create duplicate contract-owned copies or move scientific logic into
+request DTOs, serializers, benchmarks, or generic utilities.
 
 ## Dataset Diagnostics Policy
 

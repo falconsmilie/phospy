@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__phospy_contracts_facade_role__ = "science_owned_public_table_contract"
+
 import math
 from dataclasses import dataclass, field
 from numbers import Real

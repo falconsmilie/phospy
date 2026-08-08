@@ -33,9 +33,11 @@ identity-preserving imports; owner modules define the single class objects.
 
 Update note (2026-08-08, contracts facade dependency rule):
 `phospy.contracts` is a transport/public facade. It may re-export exact
-science-owned objects from designated public science modules, but it must not
-import private science modules, executors, construction services, internal
-views, or validation implementation modules.
+science-owned objects from `phospy.science.configs.*` or from science owner
+modules that explicitly declare a contracts-facade role marker, but it must not
+import private science modules, builders, executors, construction services,
+internal views, reference builders/reference validation, workflow
+implementation modules, or validation implementation modules.
 
 ## Context and Problem Statement
 
@@ -147,12 +149,14 @@ The enforced package rules are:
    `phospy.workflows`.
 3. `phospy.science` must not import `phospy.contracts`, `phospy.io`,
    `phospy.tables`, `phospy.validation`, or `phospy.workflows`.
-4. `phospy.contracts` may import `phospy.science` only through designated
-   public domain modules: public science config policy modules; science-owned
-   model/result/table-schema modules; and narrow reference, evidence,
-   transformation, and result-caveat domain modules listed in the architecture
-   test. It must not import private science modules, executors, construction
-   services, internal views, or validation implementation modules.
+4. `phospy.contracts` may import `phospy.science` only through the rule
+   enforced by the architecture test: `phospy.science.configs.*` is the single
+   approved prefix, and every other science target must declare the private
+   `__phospy_contracts_facade_role__` marker with an approved public owner
+   role. Generic forbidden categories override that marker. Contracts must not
+   import private science modules, builders, construction services, executors,
+   internal views, reference builders/reference validation modules, workflow
+   implementation modules, or validation implementation modules.
 5. Concrete local readers, reference source loaders, and nested workflow runners
    are injected by API/workflow orchestration adapters.
 6. Compatibility modules may re-export moved names, but they must not reintroduce

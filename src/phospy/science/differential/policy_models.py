@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__phospy_contracts_facade_role__ = "science_owned_public_enum"
+
 from phospy.policies import PolicyEnum
 
 

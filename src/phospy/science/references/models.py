@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__phospy_contracts_facade_role__ = "science_owned_public_model"
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
