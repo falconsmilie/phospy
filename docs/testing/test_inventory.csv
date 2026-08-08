@@ -71,7 +71,7 @@ tests/performance/test_ssgsea_activity_performance.py,performance,123,2,true,fal
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
 tests/release/test_installed_distribution_verifier.py,release,474,12,true,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
-tests/release/test_manifest_fixture_byte_reproducibility.py,release,261,3,true,false,,,,,,
+tests/release/test_manifest_fixture_byte_reproducibility.py,release,277,4,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
@@ -84,7 +84,7 @@ tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,
 tests/science/test_evidence_resolution_regression_fixtures.py,science,153,5,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_kinase_sparse_support_regression_fixtures.py,science,319,5,true,false,,,,,,
-tests/science/test_release_scientific_validation_fixtures.py,science,463,6,true,true,,,,,,
+tests/science/test_release_scientific_validation_fixtures.py,science,468,6,true,true,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/science/test_signalome_safety_regression_fixtures.py,science,177,6,true,false,,,,,,
 tests/unit/api/test_api_compatibility_deprecations.py,api,154,5,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -182,6 +182,7 @@ tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific 
 tests/unit/test_experimental_design_contract.py,unit,1133,38,false,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_final_numeric_semantic_dataset_coherence.py,unit,418,9,true,true,,,,,,
+tests/unit/test_fixture_byte_policy.py,unit,121,5,true,true,,,,,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,379,14,false,false,,,,,,
 tests/unit/test_frame_ownership_policy.py,unit,3653,61,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 88 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.

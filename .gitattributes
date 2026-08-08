@@ -5,8 +5,14 @@ src/phospy/data/reference_bundles/** -diff
 
 # Manifest-governed text fixtures use one canonical byte policy:
 # UTF-8 text with LF line endings and a final newline.
-tests/fixtures/release_validation_regression/** text eol=lf
-tests/fixtures/rewrite_parity/differential_limma_trend_large/** text eol=lf
+# Keep this extension-specific so binary fixture assets are never promoted to text.
+tests/fixtures/**/*.csv text eol=lf
+tests/fixtures/**/*.json text eol=lf
+tests/fixtures/**/*.md text eol=lf
+tests/fixtures/**/*.txt text eol=lf
+tests/fixtures/**/*.tsv text eol=lf
+tests/fixtures/**/*.gmt text eol=lf
+tests/fixtures/**/*.R text eol=lf
 
 # These generators record their source SHA-256 in fixture manifests, so their
 # checked-out bytes must also be stable across platforms.

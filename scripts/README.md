@@ -27,7 +27,9 @@ provenance, and public-workflow reference generation.
 
 Generators that write manifest-governed text fixtures must emit UTF-8 bytes
 with LF line endings and a final newline. They must hash the exact bytes they
-write, not platform-translated text-mode output.
+write, not platform-translated text-mode output. The text fixture extensions
+under `tests/fixtures` are pinned to LF in `.gitattributes` so Git checkout and
+archive bytes match the manifest digests without marking binary assets as text.
 
 ## Support Modules
 

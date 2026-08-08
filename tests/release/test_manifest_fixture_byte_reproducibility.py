@@ -10,6 +10,14 @@ from typing import Any
 
 import pytest
 
+from tests.support.fixture_byte_policy import (
+    assert_canonical_text_bytes,
+    assert_lf_gitattributes_coverage,
+    assert_text_fixture_matches_sha256,
+    iter_importer_fixture_index_references,
+    iter_manifest_governed_text_fixture_references,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_ROOT = ROOT / "tests" / "fixtures"
 RELEASE_VALIDATION_ROOT = FIXTURE_ROOT / "release_validation_regression"
@@ -65,24 +73,6 @@ def _display_path(path: Path) -> Path:
         return path
 
 
-def _assert_canonical_text_bytes(path: Path, data: bytes, byte_policy: str) -> None:
-    try:
-        data.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        pytest.fail(
-            f"{path.as_posix()} violates manifest fixture byte policy "
-            f"{byte_policy!r}: invalid UTF-8 at byte {exc.start}"
-        )
-    assert b"\r" not in data, (
-        f"{path.as_posix()} violates manifest fixture byte policy {byte_policy!r}: "
-        "CR bytes are not allowed"
-    )
-    assert data.endswith(b"\n"), (
-        f"{path.as_posix()} violates manifest fixture byte policy {byte_policy!r}: "
-        "missing final LF"
-    )
-
-
 def _validate_manifest_hashes(fixture_dir: Path) -> None:
     manifest_path = fixture_dir / "MANIFEST.json"
     manifest_bytes = manifest_path.read_bytes()
@@ -90,8 +80,10 @@ def _validate_manifest_hashes(fixture_dir: Path) -> None:
     byte_policy = str(manifest.get("byte_policy"))
 
     assert byte_policy == CANONICAL_BYTE_POLICY
-    _assert_canonical_text_bytes(
-        _display_path(manifest_path), manifest_bytes, byte_policy
+    assert_canonical_text_bytes(
+        _display_path(manifest_path),
+        manifest_bytes,
+        byte_policy=byte_policy,
     )
 
     declared_paths = {
@@ -104,11 +96,15 @@ def _validate_manifest_hashes(fixture_dir: Path) -> None:
         relative_path = Path(str(file_entry["relative_path"]))
         path = fixture_dir / relative_path
         payload = path.read_bytes()
-        _assert_canonical_text_bytes(_display_path(path), payload, byte_policy)
+        assert_canonical_text_bytes(
+            _display_path(path),
+            payload,
+            byte_policy=byte_policy,
+        )
         actual = hashlib.sha256(payload).hexdigest()
         expected = str(file_entry["sha256"])
         assert actual == expected, (
-            "manifest fixture hash mismatch: "
+            "manifest fixture digest mismatch: "
             f"file={path.relative_to(ROOT).as_posix()} "
             f"byte_policy={byte_policy!r} expected={expected} actual={actual}"
         )
@@ -129,7 +125,11 @@ def _assert_generated_tree_matches_checked_in(
         checked_in_path = checked_in_root / relative_path
         generated = generated_path.read_bytes()
         checked_in = checked_in_path.read_bytes()
-        _assert_canonical_text_bytes(generated_path, generated, byte_policy)
+        assert_canonical_text_bytes(
+            generated_path,
+            generated,
+            byte_policy=byte_policy,
+        )
         if generated != checked_in:
             index = _first_differing_byte(generated, checked_in)
             assert index is not None
@@ -160,6 +160,22 @@ def _run_checked(command: list[str]) -> None:
 def test_manifest_governed_fixtures_use_canonical_lf_bytes_and_valid_hashes() -> None:
     for fixture_dir in MANIFEST_GOVERNED_FIXTURE_DIRS:
         _validate_manifest_hashes(fixture_dir)
+    for reference in iter_importer_fixture_index_references(ROOT):
+        assert reference.path.is_file()
+        assert_text_fixture_matches_sha256(
+            reference.path,
+            expected_sha256=reference.expected_sha256,
+            repo_root=ROOT,
+        )
+
+
+def test_manifest_governed_text_fixtures_have_lf_gitattributes_coverage() -> None:
+    references = iter_manifest_governed_text_fixture_references(ROOT)
+    assert references, "expected manifest-governed text fixture references"
+    assert_lf_gitattributes_coverage(
+        ROOT,
+        tuple(reference.path for reference in references),
+    )
 
 
 def test_release_validation_generator_reproduces_checked_in_bytes(

@@ -45,6 +45,7 @@ from phospy.science.signalomes.clustering import cluster_sites_with_diagnostics
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
 from phospy.workflows.batch_correction import BatchCorrectionPlanInterpreter
+from tests.support.fixture_byte_policy import assert_text_fixture_matches_sha256
 from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = pytest.mark.release_gate
@@ -258,7 +259,11 @@ def test_importer_edge_case_manifest_references_existing_fixture_bytes() -> None
     for file_entry in index["referenced_fixture_files"]:
         path = ROOT / str(file_entry["relative_path"])
         assert path.is_file()
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == file_entry["sha256"]
+        assert_text_fixture_matches_sha256(
+            path,
+            expected_sha256=str(file_entry["sha256"]),
+            repo_root=ROOT,
+        )
 
     coverage = index["edge_case_coverage"]
     assert "raw/LFQ intensity ambiguity" in coverage["maxquant"]
