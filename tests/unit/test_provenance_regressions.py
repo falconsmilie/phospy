@@ -6,23 +6,25 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
-    KinasePredictionResult,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,

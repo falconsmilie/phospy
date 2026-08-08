@@ -5,7 +5,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.api.configs import KinasePredictionConfig, KinaseScoringConfig
+from phospy.advanced.configs import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+)
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.errors import (
     PhosPyInputError,

@@ -10,14 +10,16 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
 )
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 from phospy.workflows.kinase.contracts import (

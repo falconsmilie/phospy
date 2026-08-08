@@ -10,18 +10,20 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
+from phospy.advanced import (
+    DatasetSiteMatrixConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
-    DatasetSiteMatrixConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SampleDesignRecord,
     SignalomeWorkflowRequest,

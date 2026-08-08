@@ -4,19 +4,21 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
+)
 from phospy.api import (
     BatchCovariate,
     ContinuousCovariate,
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
-    EmpiricalBayesConfig,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
 from phospy.errors import WorkflowValidationError

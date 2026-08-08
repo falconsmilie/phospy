@@ -5,13 +5,13 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.api.builders import AnalysisReadyDatasetBuilder
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
 )
+from phospy.api.builders import AnalysisReadyDatasetBuilder
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.build import DatasetBuildError
 from phospy.science.datasets.models import DatasetPreprocessingReport

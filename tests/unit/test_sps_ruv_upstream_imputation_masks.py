@@ -7,14 +7,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.advanced import (
+    ControlSiteSet,
+    DatasetMissingDataConfig,
+    SpsRuvBatchCorrectionConfig,
+)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
-    ControlSiteSet,
     DatasetBuildRequest,
-    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     Organism,
-    SpsRuvBatchCorrectionConfig,
 )
 from phospy.contracts.configs.preprocessing import (
     CorrectionMaskPolicy,

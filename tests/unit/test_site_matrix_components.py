@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,

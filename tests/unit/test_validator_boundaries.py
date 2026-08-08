@@ -5,14 +5,11 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api.configs import (
-    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
-    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+from phospy.advanced.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
@@ -29,12 +26,17 @@ from phospy.api.configs import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
 )
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.api.requests import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.configs import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+)
 from phospy.errors import (
     ContractValidationError,
     PhosPyInputError,

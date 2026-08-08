@@ -4,12 +4,14 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     DatasetTotalProteinCorrectionConfig,
+)
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
 )
 from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.errors.transformations import TransformationStateEstablishmentError

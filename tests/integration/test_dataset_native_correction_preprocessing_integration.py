@@ -9,24 +9,26 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import DifferentialAnalysisWorkflow
-from phospy.api import (
-    AnalysisReadyDatasetBuilder,
-    Contrast,
+from phospy.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
-    DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
+    SpsRuvBatchCorrectionConfig,
+)
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    Contrast,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
-    SpsRuvBatchCorrectionConfig,
 )
 from phospy.contracts.configs.preprocessing import InternalBatchCorrectionStageOrder
 from phospy.errors import PhosPyInputError

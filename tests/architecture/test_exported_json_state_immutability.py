@@ -10,8 +10,10 @@ import pandas as pd
 import phospy.api as public_api
 import phospy.api.results as public_results
 import phospy.contracts.results as contract_results
-from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
-from phospy.contracts.configs import EnrichmentConfig
+from phospy.contracts.configs import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    EnrichmentConfig,
+)
 from phospy.contracts.results import (
     EnrichmentWorkflowResult,
     ImporterMissingIntensitySummary,

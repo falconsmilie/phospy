@@ -6,12 +6,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -20,6 +19,7 @@ from phospy.api.configs import (
     ReferenceContextCompatibilityPolicy,
     SignalomeValidationConfig,
 )
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ContractValidationError
 from phospy.science.activities.threshold_membership import (

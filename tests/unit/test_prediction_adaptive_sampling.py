@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.api.configs import KinasePredictionConfig
+from phospy.advanced.configs import KinasePredictionConfig
 from phospy.errors import (
     ContractValidationError,
     WorkflowStageError,

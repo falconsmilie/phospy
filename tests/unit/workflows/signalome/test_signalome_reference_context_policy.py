@@ -5,6 +5,7 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
+from phospy.advanced.configs import ReferenceContextCompatibilityPolicy
 from phospy.api import (
     KinaseWorkflowResult,
     Organism,
@@ -12,7 +13,6 @@ from phospy.api import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import ReferenceContextCompatibilityPolicy
 from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.provenance.models import (

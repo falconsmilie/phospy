@@ -7,17 +7,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,

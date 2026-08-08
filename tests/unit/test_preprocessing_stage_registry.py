@@ -9,15 +9,17 @@ import pytest
 
 import phospy.science.datasets.preprocessing.pipeline as pipeline_module
 import phospy.science.datasets.preprocessing.stage_registry as stage_registry_module
-from phospy.api.configs import (
-    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+from phospy.advanced.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
-    DatasetLocalisationConfig,
     DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
 )
+from phospy.api.configs import (
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
+)
+from phospy.contracts.configs import DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER
 from phospy.errors.build import DatasetBuildError
 from phospy.provenance.models import (
     PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,

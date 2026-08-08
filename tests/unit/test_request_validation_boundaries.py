@@ -12,17 +12,19 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
+from phospy.advanced import (
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
     EnrichmentWorkflowRequest,
     ExperimentalDesign,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )

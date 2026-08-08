@@ -3,15 +3,15 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     DatasetProteinAwarePreparationConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
 )
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,

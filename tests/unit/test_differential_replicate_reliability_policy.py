@@ -7,16 +7,18 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    TechnicalReplicatePolicy,
+)
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
-    TechnicalReplicatePolicy,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
 )

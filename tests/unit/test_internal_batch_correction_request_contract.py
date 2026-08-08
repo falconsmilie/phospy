@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.api.configs import DATASET_BATCH_CORRECTION_METHODS
+from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHODS
 from phospy.contracts.configs.preprocessing import (
     InternalBatchCorrectionControlSiteMode,
     InternalBatchCorrectionControlSiteSource,

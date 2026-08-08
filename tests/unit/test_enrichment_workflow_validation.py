@@ -13,7 +13,7 @@ from phospy.api import (
     PtmSetCollection,
     WorkflowValidationError,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,

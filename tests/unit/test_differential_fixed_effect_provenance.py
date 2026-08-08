@@ -3,19 +3,19 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
+from phospy.contracts.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.contracts.results import DifferentialFixedEffectCovariateProvenance
 from phospy.science.differential.models import DifferentialPolicyProvenance
 from tests.support.analysis_ready_dataset_factories import (

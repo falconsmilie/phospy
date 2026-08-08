@@ -10,10 +10,10 @@ from scipy import stats
 import phospy.science.differential as differential_public
 import phospy.science.differential.aggregation as aggregation_public
 from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
-    DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,

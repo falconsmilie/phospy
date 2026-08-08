@@ -4,7 +4,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
 )

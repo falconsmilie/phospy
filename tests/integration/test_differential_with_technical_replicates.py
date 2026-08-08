@@ -4,14 +4,16 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    TechnicalReplicatePolicy,
+)
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
-    TechnicalReplicatePolicy,
 )
 from phospy.errors import WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (

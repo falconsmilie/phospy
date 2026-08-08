@@ -8,6 +8,11 @@ import pytest
 
 import phospy.advanced as advanced_api
 import phospy.api as public_api
+from phospy._api_inventory import (
+    ADVANCED_API_STABILITY_JUSTIFICATIONS,
+    ADVANCED_PUBLIC_API_BASELINE_COUNT,
+    STABLE_PUBLIC_API_BASELINE_COUNT,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 API_GUIDE = ROOT / "docs" / "api" / "guide.md"
@@ -31,18 +36,44 @@ DATASET_INTERNAL_DIAGNOSTIC_NAMES = frozenset(
 
 
 def test_api_tiers_are_explicit_disjoint_and_drive_all() -> None:
-    stable = set(public_api._STABLE_PUBLIC_API)
-    advanced = set(public_api._ADVANCED_SUPPORTED_API)
-    internal = set(public_api._INTERNAL_EXPERIMENTAL_API)
+    stable_inventory = public_api._STABLE_PUBLIC_API
+    advanced_inventory = public_api._ADVANCED_SUPPORTED_API
+    internal_inventory = public_api._INTERNAL_EXPERIMENTAL_API
+    stable = set(stable_inventory)
+    advanced = set(advanced_inventory)
+    internal = set(internal_inventory)
 
     assert stable
     assert advanced
     assert internal
+    assert len(stable_inventory) == len(stable)
+    assert len(advanced_inventory) == len(advanced)
+    assert len(internal_inventory) == len(internal)
     assert stable.isdisjoint(advanced)
     assert stable.isdisjoint(internal)
     assert advanced.isdisjoint(internal)
     assert set(public_api.__all__) == stable
     assert set(advanced_api.__all__) == advanced
+
+
+def test_api_surface_counts_do_not_increase_without_contract_review() -> None:
+    assert len(public_api.__all__) <= STABLE_PUBLIC_API_BASELINE_COUNT
+    assert len(advanced_api.__all__) <= ADVANCED_PUBLIC_API_BASELINE_COUNT
+
+
+def test_advanced_api_names_have_stability_justifications() -> None:
+    justifications = ADVANCED_API_STABILITY_JUSTIFICATIONS
+
+    assert set(justifications) == set(advanced_api.__all__)
+    assert all(justification.strip() for justification in justifications.values())
+
+
+def test_inventory_names_are_not_orphaned_from_public_facades() -> None:
+    for name in public_api.__all__:
+        assert getattr(public_api, name) is not None
+
+    for name in advanced_api.__all__:
+        assert getattr(advanced_api, name) is not None
 
 
 def test_advanced_exports_are_grouped_and_documented() -> None:
@@ -80,30 +111,6 @@ def test_advanced_exports_are_not_stable_api_exports() -> None:
 
     assert advanced.isdisjoint(public_api.__all__)
     assert not any(name.endswith("Validator") for name in advanced_api.__all__)
-
-
-def test_deprecated_aggregate_advanced_import_points_to_advanced_namespace() -> None:
-    namespace: dict[str, object] = {}
-
-    with pytest.warns(
-        DeprecationWarning,
-        match=r"from phospy\.advanced import KinaseScoringConfig",
-    ):
-        exec("from phospy.api import KinaseScoringConfig", namespace)
-
-    assert namespace["KinaseScoringConfig"] is advanced_api.KinaseScoringConfig
-
-
-def test_deprecated_config_wrapper_import_points_to_advanced_namespace() -> None:
-    namespace: dict[str, object] = {}
-
-    with pytest.warns(
-        DeprecationWarning,
-        match=r"from phospy\.advanced\.configs import KinaseScoringConfig",
-    ):
-        exec("from phospy.api.configs import KinaseScoringConfig", namespace)
-
-    assert namespace["KinaseScoringConfig"] is advanced_api.KinaseScoringConfig
 
 
 def test_internal_inventory_documents_removed_previous_exports() -> None:

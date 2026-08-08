@@ -9,21 +9,23 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    MultipleTestingConfig,
+    TechnicalReplicatePolicy,
+)
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
-    MultipleTestingConfig,
     Organism,
     SampleDesignRecord,
-    TechnicalReplicatePolicy,
-)
-from phospy.api.configs import (
-    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
 from phospy.api.results import DifferentialAnalysisResult
+from phospy.contracts.configs import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+)
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.science.configs.differential import (
     DifferentialImputedValuePolicy,

@@ -5,17 +5,19 @@ from typing import NoReturn, cast
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,

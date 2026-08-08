@@ -10,14 +10,16 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
 )
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
 from tests.support.rewrite_fixture_data import (
     load_public_predmat_historical_baseline_default,

@@ -6,8 +6,8 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
+from phospy.advanced.configs import KinaseScoringConfig
 from phospy.api import KinaseWorkflowRequest, Organism, ReferenceBundle
-from phospy.api.configs import KinaseScoringConfig
 from phospy.errors.validation import PhosPyValidationError, WorkflowValidationError
 from phospy.provenance.models import ReferenceProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset

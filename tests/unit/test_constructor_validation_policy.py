@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from phospy.advanced import KinaseScoringConfig
 from phospy.api import (
     ContractValidationError,
     EnrichmentIdentifierSetProvenance,
@@ -10,11 +11,10 @@ from phospy.api import (
     EnrichmentWorkflow,
     EnrichmentWorkflowRequest,
     GeneSetCollection,
-    KinaseScoringConfig,
     WorkflowValidationError,
 )
-from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 from phospy.api.results import ResultCaveat
+from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 
 
 def test_contract_value_object_constructor_failures_use_contract_error() -> None:

@@ -3,9 +3,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.advanced import DatasetBatchCorrectionConfig
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
-    DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,

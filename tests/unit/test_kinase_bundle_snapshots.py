@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     KinaseAttritionPolicy,
     KinaseReliabilityProfile,
     LocalisationRequirement,

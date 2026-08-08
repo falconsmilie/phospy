@@ -14,7 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
+from phospy.contracts.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.errors import ContractValidationError, WorkflowValidationError
 from phospy.science.design.matrix_builder import DesignMatrixBuilder
 from phospy.validation.workflows.differential import (

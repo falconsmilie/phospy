@@ -11,17 +11,19 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
+)
+from phospy.advanced.configs import SignalomeOutputConfig
+from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import SignalomeOutputConfig
 from phospy.science.signalomes.science import (
     build_kinase_network,
     build_module_assignments,

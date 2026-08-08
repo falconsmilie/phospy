@@ -3,14 +3,16 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.advanced import (
+    DatasetBatchCorrectionConfig,
+    DatasetNormalisationConfig,
+    SpsRuvBatchCorrectionConfig,
+)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
-    DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
-    DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     Organism,
-    SpsRuvBatchCorrectionConfig,
 )
 from phospy.errors import PhosPyInputError
 from phospy.science.configs.preprocessing.correction_missingness import (

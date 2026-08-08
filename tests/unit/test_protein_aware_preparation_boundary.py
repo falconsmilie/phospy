@@ -6,10 +6,10 @@ import pandas as pd
 import pandas.testing as pdt
 
 from phospy import AnalysisReadyDatasetBuilder
+from phospy.advanced import DatasetProteinAwarePreparationConfig
 from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
-    DatasetProteinAwarePreparationConfig,
     Organism,
 )
 

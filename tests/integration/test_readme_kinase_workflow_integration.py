@@ -8,14 +8,16 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
+from phospy.advanced import (
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 

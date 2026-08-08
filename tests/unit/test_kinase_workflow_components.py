@@ -7,8 +7,19 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced.configs import (
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.advanced.results import (
+    KinaseEligibilityReport,
+    KinaseWorkflowPreprocessingAttritionSummary,
+    KinaseWorkflowScoringAttritionSummary,
+    KinaseWorkflowSiteAttritionSummary,
+)
 from phospy.api import KinaseWorkflow, Organism, ReferenceBundle, ReferencePreset
-from phospy.api.configs import (
+from phospy.api.requests import KinaseWorkflowRequest
+from phospy.contracts.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
@@ -16,15 +27,6 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
-from phospy.api.requests import KinaseWorkflowRequest
-from phospy.api.results import (
-    KinaseEligibilityReport,
-    KinaseWorkflowPreprocessingAttritionSummary,
-    KinaseWorkflowScoringAttritionSummary,
-    KinaseWorkflowSiteAttritionSummary,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.activities.membership import (

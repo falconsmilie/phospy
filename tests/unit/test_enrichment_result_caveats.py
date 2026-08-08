@@ -7,7 +7,7 @@ from phospy.api import (
     GeneSetCollection,
     ResultCaveat,
 )
-from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 from phospy.workflows.enrichment.caveats import (
     ENRICHMENT_BACKGROUND_UNIVERSE_ASSUMPTION_CAVEAT_CODE,
     ENRICHMENT_IDENTIFIER_KIND_ASSUMPTION_CAVEAT_CODE,

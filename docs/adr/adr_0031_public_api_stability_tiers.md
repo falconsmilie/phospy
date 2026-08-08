@@ -59,6 +59,17 @@ replacement import, usually `phospy.advanced` or a `phospy.advanced.*`
 submodule. Internal compatibility imports, where retained, warn that they are
 unsupported compatibility routes.
 
+Update note (2026-08-07, actionable deprecations): Compatibility adapters must
+be metadata-backed. Every retained compatibility export route records the old
+module, exported name, owner module, replacement module, introduction version,
+planned removal version, and stability classification. Ordinary tests and
+documentation examples must use supported stable or advanced imports.
+Dedicated compatibility tests are the only tests that should import deprecated
+API routes, and pytest treats unexpected `phospy.api` import deprecation
+warnings as errors. Retained compatibility routes introduced by this API
+reduction are planned for removal in PhosPy 2.0.0 unless a later release ADR
+changes the policy before removal.
+
 Update note (2026-07-22): `AnalysisReadyPhosphoDataset` remains a stable public
 result/domain type and import target. Its ordinary public constructor is sealed
 and raises immediately; supported creation is through
@@ -137,6 +148,22 @@ configuration imports must use `phospy.advanced.configs`. Compatibility
 adapters must forward to the owning contract/science route and preserve
 constructor behavior, enum values, defaults, and deliberate object identity for
 science-owned policies.
+
+Compatibility adapters are not ownership modules. They must not contain
+scientific logic, validators, construction services, executors, duplicate
+policy definitions, or new public aliases created only to avoid updating
+internal tests. Unsupported compatibility constants and helpers remain owned by
+`phospy.contracts.*` or the original implementation module named in their
+warning text. Advanced compatibility names remain owned by `phospy.advanced`
+or its documented advanced submodule.
+
+The retained compatibility registry is the allowed compatibility surface.
+Unregistered cross-submodule dynamic lookups are treated as unowned orphan
+routes and fail closed. For example, a kinase configuration object is not a
+compatibility export from the localisation wrapper just because both wrappers
+live under `phospy.api.configs`. Future removals of registered compatibility
+routes require the route's planned removal version to be reached or a release
+ADR to amend the policy.
 
 No validators, workflow executors, workflow interpreters, private result
 assemblers, or reference manifest validation internals may be promoted into
@@ -219,7 +246,7 @@ of truth; this ADR records the policy classification for review.
 - WorkflowBoundaryError
 - SignalomeScaleError
 
-### Advanced Supported API (100 names)
+### Advanced Supported API (101 names)
 
 - ControlSiteAnnotation
 - ControlSiteSet
@@ -245,6 +272,7 @@ of truth; this ADR records the policy classification for review.
 - DatasetLocalisationMode
 - DatasetMissingDataConfig
 - DatasetMissingDataInputScale
+- DatasetMissingDataKnnNoOverlapPolicy
 - DatasetMissingDataPolicy
 - DatasetNormalisationConfig
 - DatasetNormalisationPolicy
@@ -442,3 +470,11 @@ Future API changes must satisfy these criteria:
    advanced or internal / experimental.
 6. Any promotion from internal / experimental to supported public API requires
    code, docs, and tests in the same change.
+7. Stable and advanced facade counts must not increase without explicit
+   contract review and an ADR update.
+8. Every advanced name must have a stability justification in the implementation
+   inventory.
+9. Every retained compatibility route must have owner, replacement,
+   introduction-version, and planned-removal metadata.
+10. Normal test collection must not emit PhosPy API deprecation warnings;
+    compatibility warnings are asserted only in compatibility-specific tests.

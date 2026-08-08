@@ -3,14 +3,16 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     KinaseAttritionPolicy,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView

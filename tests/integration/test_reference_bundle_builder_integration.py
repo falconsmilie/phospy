@@ -6,15 +6,17 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundleBuilder,
     ReferenceBundleBuildRequest,
-    ReferenceContextCompatibilityPolicy,
 )
 
 pytestmark = pytest.mark.integration

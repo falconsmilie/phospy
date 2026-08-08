@@ -15,18 +15,20 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
 )
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,

@@ -5,7 +5,7 @@ from typing import get_args
 
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
@@ -15,16 +15,18 @@ from phospy.api import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.api.configs import (
+from phospy.advanced.configs import (
+    DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
+    DatasetTotalProteinCorrectionConfig,
+    SpsRuvBatchCorrectionMethod,
+)
+from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
     SPS_RUV_BATCH_CORRECTION_METHODS,
-    DatasetIntensityTransformConfig,
-    DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
-    DatasetTotalProteinCorrectionConfig,
-    SpsRuvBatchCorrectionMethod,
     validate_native_executable_temporary_imputation_method,
 )
 from phospy.errors import PhosPyInputError

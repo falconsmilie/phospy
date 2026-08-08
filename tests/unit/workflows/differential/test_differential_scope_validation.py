@@ -6,17 +6,17 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     BatchCovariate,
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
 from phospy.errors import WorkflowValidationError

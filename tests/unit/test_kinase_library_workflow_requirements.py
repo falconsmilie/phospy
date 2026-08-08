@@ -5,15 +5,17 @@ import inspect
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.configs.kinase import (
+from phospy.contracts.configs.kinase import (
     KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,

@@ -18,17 +18,19 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.api.results import KinaseScoringResult
+from phospy.contracts.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.science.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,

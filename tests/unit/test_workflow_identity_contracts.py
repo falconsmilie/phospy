@@ -6,6 +6,11 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced.configs import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -16,11 +21,6 @@ from phospy.api import (
     ReferencePreset,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
-)
-from phospy.api.configs import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import (
     KinasePredictionResult,

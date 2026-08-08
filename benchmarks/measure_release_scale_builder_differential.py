@@ -34,18 +34,20 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     DifferentialAnalysisWorkflow,
 )
-from phospy.api import (
-    Contrast,
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
+)
+from phospy.api import (
+    Contrast,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisResult,
-    EmpiricalBayesConfig,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

@@ -10,22 +10,24 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
-from phospy.api import (
-    BatchCovariate,
-    Contrast,
+from phospy.advanced import (
     DifferentialAnalysisConfig,
-    DifferentialAnalysisRequest,
-    EnrichmentConfig,
-    EnrichmentWorkflowRequest,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    SignalomeConfig,
+)
+from phospy.api import (
+    BatchCovariate,
+    Contrast,
+    DifferentialAnalysisRequest,
+    EnrichmentConfig,
+    EnrichmentWorkflowRequest,
     KinaseWorkflowRequest,
     Organism,
     PtmSetCollection,
     ReferenceBundle,
     SampleDesignRecord,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.requests import ExperimentalDesign

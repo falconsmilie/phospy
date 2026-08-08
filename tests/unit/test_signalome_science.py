@@ -6,7 +6,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
 )

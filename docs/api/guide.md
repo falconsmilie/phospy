@@ -163,7 +163,10 @@ inspection helpers such as `filter_differential_results` and
 `rank_differential_results`. The supported import route is
 `phospy.advanced`; historical `phospy.api` advanced import routes are
 compatibility adapters that emit `DeprecationWarning` and identify the
-replacement import.
+replacement import. These warnings also include the compatibility-route
+introduction version and planned removal version; current retained API import
+compatibility routes introduced by the API reduction are planned for removal in
+PhosPy 2.0.0.
 
 Internal / experimental API is not exported through `phospy.api`. This includes
 validators, private result assemblers, internal scoring helpers, private

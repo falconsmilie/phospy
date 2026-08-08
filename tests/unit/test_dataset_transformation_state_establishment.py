@@ -8,9 +8,9 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
+from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     DatasetBuildRequest,
-    DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
 )
 from phospy.errors.build import DatasetBuildError

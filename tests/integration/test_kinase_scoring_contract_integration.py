@@ -7,14 +7,16 @@ import phospy.workflows.kinase.executor as kinase_executor
 from phospy import (
     KinaseWorkflow,
 )
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflowRequest,
     ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    KinaseWorkflowRequest,
     ReferencePreset,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )

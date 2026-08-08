@@ -8,15 +8,17 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 from phospy.errors import WorkflowBoundaryError

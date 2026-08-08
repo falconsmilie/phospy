@@ -5,18 +5,18 @@ import pandas as pd
 import pandas.testing as pdt
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
 )

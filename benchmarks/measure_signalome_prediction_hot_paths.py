@@ -497,7 +497,7 @@ def _build_adaptive_prediction_inputs(
 
 
 def main() -> None:
-    from phospy.api import KinasePredictionConfig
+    from phospy.advanced import KinasePredictionConfig
     from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
     from phospy.science.signalomes.science import (
         build_expanded_signalome_table,

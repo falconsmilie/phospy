@@ -5,10 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.api.configs import (
-    DatasetPreprocessingConfig,
-    DatasetSiteSequenceResolutionConfig,
-)
+from phospy.advanced.configs import DatasetSiteSequenceResolutionConfig
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,

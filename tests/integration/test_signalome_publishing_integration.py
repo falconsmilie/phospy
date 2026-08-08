@@ -9,11 +9,13 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflowRequest,
     ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    KinaseWorkflowRequest,
     ReferencePreset,
     SignalomeWorkflowRequest,
 )

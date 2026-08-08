@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.advanced import DatasetMissingDataConfig
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
-    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     Organism,
 )

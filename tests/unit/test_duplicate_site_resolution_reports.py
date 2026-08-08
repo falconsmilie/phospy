@@ -4,7 +4,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,

@@ -8,14 +8,16 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult

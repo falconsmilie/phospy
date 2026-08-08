@@ -7,15 +7,15 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     EnrichmentConfig,
     ExperimentalDesign,
     GeneSetCollection,
     SampleDesignRecord,
 )
-from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 from phospy.errors import WorkflowBoundaryError
 from phospy.science.design.models import PAIRED_DESIGN_POLICY_REJECT
 from phospy.science.differential.executor import (

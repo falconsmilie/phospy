@@ -4,7 +4,10 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api import filter_differential_results, rank_differential_results
+from phospy.advanced import (
+    filter_differential_results,
+    rank_differential_results,
+)
 from phospy.errors import PhosPyInputError
 
 

@@ -10,12 +10,14 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
+)
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
-    EmpiricalBayesConfig,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

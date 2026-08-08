@@ -9,16 +9,18 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.advanced.configs import ProfileSelfInclusionPolicy
+from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.configs import ProfileSelfInclusionPolicy
 from phospy.errors.validation import WorkflowValidationError
 from phospy.provenance.models import ReferenceProvenance
 from phospy.science.activities.methods import (

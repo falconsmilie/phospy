@@ -5,7 +5,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     LocalisationRequirement,

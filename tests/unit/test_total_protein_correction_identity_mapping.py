@@ -6,13 +6,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.api.configs import (
-    DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
-    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+from phospy.advanced.configs import (
     DatasetIntensityTransformConfig,
-    DatasetPreprocessingConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
+)
+from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.contracts.configs import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor

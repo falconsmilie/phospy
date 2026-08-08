@@ -53,6 +53,7 @@ def test_old_root_science_packages_are_removed(module_name: str) -> None:
 
 
 def test_public_api_contract_remains_stable() -> None:
+    from phospy.advanced import TechnicalReplicatePolicy
     from phospy.api import (
         AnalysisReadyDatasetBuilder,
         AnalysisReadyPhosphoDataset,
@@ -62,7 +63,6 @@ def test_public_api_contract_remains_stable() -> None:
         ReferenceBundle,
         ReferencePreset,
         SignalomeWorkflow,
-        TechnicalReplicatePolicy,
     )
 
     assert AnalysisReadyDatasetBuilder is not None
@@ -93,10 +93,10 @@ def test_root_convenience_contract_remains_stable() -> None:
 
 
 def test_representative_moved_object_ownership() -> None:
+    from phospy.advanced import TechnicalReplicatePolicy
     from phospy.api import (
         AnalysisReadyPhosphoDataset,
         ReferenceBundle,
-        TechnicalReplicatePolicy,
     )
     from phospy.science.scoring.policy_models import ThresholdMode
     from phospy.science.sites.identifiers import canonicalize_site_identifier

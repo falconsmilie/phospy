@@ -9,10 +9,10 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     DifferentialAnalysisWorkflow,
 )
+from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
-    DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,

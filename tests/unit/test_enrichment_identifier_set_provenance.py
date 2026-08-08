@@ -14,7 +14,7 @@ from phospy.api import (
     GeneSetCollection,
     WorkflowValidationError,
 )
-from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 from phospy.contracts.enrichment_identifier_sets import (
     EnrichmentDerivedQuantitativeSetProvenance,
     EnrichmentDerivedSetMissingValueRule,

@@ -5,7 +5,10 @@ import inspect
 import pandas as pd
 import pytest
 
-from phospy.api.configs import KinasePredictionConfig, KinaseScoringConfig
+from phospy.advanced.configs import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+)
 from phospy.api.requests import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,

@@ -4,13 +4,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    MultipleTestingConfig,
+)
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
-    MultipleTestingConfig,
     Organism,
     SampleDesignRecord,
 )

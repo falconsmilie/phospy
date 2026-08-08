@@ -4,10 +4,12 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetGroupCoverageFilterConfig,
     DatasetMissingDataConfig,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
 )

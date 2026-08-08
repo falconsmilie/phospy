@@ -3,14 +3,16 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
+)
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     Organism,
 )
 from phospy.provenance.hashing import fingerprint_optional_table, hash_table_tolerance

@@ -6,18 +6,18 @@ import pytest
 from phospy import (
     AnalysisReadyDatasetBuilder,
 )
+from phospy.advanced import DatasetSiteMatrixConfig
 from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
-    DatasetSiteMatrixConfig,
     Organism,
     PhosPyInputError,
 )
-from phospy.api.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
 from phospy.api.requests import (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
+from phospy.contracts.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
 from phospy.errors.references import UnsupportedOrganismError
 from phospy.errors.validation import DatasetValidationError
 from tests.support.site_keys import site_key_from_display_id

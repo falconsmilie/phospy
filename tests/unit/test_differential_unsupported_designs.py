@@ -5,17 +5,17 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     BatchCovariate,
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
 )

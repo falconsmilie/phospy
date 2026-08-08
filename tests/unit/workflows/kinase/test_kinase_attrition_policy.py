@@ -7,15 +7,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     KinaseAttritionPolicy,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import KinaseWorkflowResult
 from phospy.contracts.results import KinaseWorkflowAttritionProvenance

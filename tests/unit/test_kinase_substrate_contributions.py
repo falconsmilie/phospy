@@ -4,17 +4,19 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
-from phospy.api import (
+from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
 )
 from phospy.science.datasets.internal_view import DatasetInternalView

@@ -5,12 +5,14 @@ import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
-    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
-    DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
+from phospy.contracts.configs import (
+    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+    DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan

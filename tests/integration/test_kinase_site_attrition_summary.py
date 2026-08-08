@@ -9,18 +9,20 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
 from phospy.io.publishers.workflows import publish_kinase_workflow
 

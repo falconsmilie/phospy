@@ -85,21 +85,6 @@ def test_signalome_config_reexports_preserve_one_class_identity() -> None:
     assert advanced_api.SignalomeConfig is ContractSignalomeConfig
     assert advanced_configs.SignalomeConfig is ContractSignalomeConfig
 
-    with pytest.warns(
-        DeprecationWarning,
-        match=r"from phospy\.advanced import SignalomeConfig",
-    ):
-        from phospy.api.requests import SignalomeConfig as RequestCompatConfig
-
-    with pytest.warns(
-        DeprecationWarning,
-        match=r"from phospy\.advanced\.configs import SignalomeConfig",
-    ):
-        from phospy.api.configs import SignalomeConfig as CompatConfig
-
-    assert RequestCompatConfig is ContractSignalomeConfig
-    assert CompatConfig is ContractSignalomeConfig
-
 
 def test_stable_request_api_does_not_own_or_import_signalome_config() -> None:
     assert "SignalomeConfig" not in request_api.__dict__

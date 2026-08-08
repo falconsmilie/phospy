@@ -11,11 +11,11 @@ from phospy.api import (
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import (
+from phospy.api.results import KinasePredictionResult, KinaseScoringResult
+from phospy.contracts.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
-from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.workflows.signalome.alignment_diagnostics import (
     SignalomeAlignmentDiagnosticsBuilder,

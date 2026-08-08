@@ -5,12 +5,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.api.builders import AnalysisReadyDatasetBuilder
-from phospy.api.configs import (
-    DatasetPreprocessingConfig,
+from phospy.advanced.configs import (
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
 )
+from phospy.api.builders import AnalysisReadyDatasetBuilder
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.references.models import Organism

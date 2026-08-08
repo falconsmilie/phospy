@@ -5,10 +5,10 @@ import json
 import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     BatchCovariate,
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,

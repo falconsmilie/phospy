@@ -16,14 +16,15 @@ import phospy.io as phospy_io
 from phospy import (
     AnalysisReadyDatasetBuilder,
 )
+from phospy.advanced import DatasetSiteMatrixConfig
+from phospy.advanced.configs import DatasetMissingDataConfig
 from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
-    DatasetSiteMatrixConfig,
     Organism,
     PhosPyInputError,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
@@ -31,7 +32,6 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
-    DatasetMissingDataConfig,
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 

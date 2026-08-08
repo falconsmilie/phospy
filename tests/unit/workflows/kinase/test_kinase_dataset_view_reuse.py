@@ -12,14 +12,16 @@ import phospy.science.datasets.internal_view as internal_view_module
 import phospy.validation.workflows.method_quantitative as method_quantitative_module
 import phospy.workflows.kinase.interpreter as interpreter_module
 import phospy.workflows.kinase.validator as validator_module
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 from phospy.contracts.results import KinaseWorkflowResult

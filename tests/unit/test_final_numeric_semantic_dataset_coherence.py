@@ -7,10 +7,12 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
-from phospy.api import (
-    DatasetBuildRequest,
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetNormalisationConfig,
+)
+from phospy.api import (
+    DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
 )

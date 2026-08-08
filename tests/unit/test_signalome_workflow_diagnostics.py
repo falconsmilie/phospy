@@ -12,14 +12,23 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     SignalomeWorkflow,
 )
+from phospy.advanced import SignalomeConfig
+from phospy.advanced.configs import (
+    ReferenceContextCompatibilityPolicy,
+    SignalomeValidationConfig,
+)
 from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import (
+from phospy.api.results import (
+    KinasePredictionResult,
+    KinaseScoringResult,
+    SignalomeWorkflowResult,
+)
+from phospy.contracts.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
@@ -30,13 +39,6 @@ from phospy.api.configs import (
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
-    ReferenceContextCompatibilityPolicy,
-    SignalomeValidationConfig,
-)
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    SignalomeWorkflowResult,
 )
 from phospy.errors import (
     ContractValidationError,

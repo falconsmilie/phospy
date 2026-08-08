@@ -7,15 +7,17 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )

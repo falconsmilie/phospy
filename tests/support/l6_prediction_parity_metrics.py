@@ -8,11 +8,13 @@ import pandas as pd
 from phospy import (
     KinaseWorkflow,
 )
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflowRequest,
     ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    KinaseWorkflowRequest,
     ReferencePreset,
 )
 from tests.support.rewrite_fixture_data import (

@@ -5,17 +5,19 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    TechnicalReplicatePolicy,
+)
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
-    TechnicalReplicatePolicy,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
 from phospy.errors import WorkflowValidationError

@@ -6,21 +6,21 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, SignalomeWorkflow
+from phospy.advanced.configs import ReferenceContextCompatibilityPolicy
 from phospy.api import (
     Organism,
     SignalomeWorkflowRequest,
-)
-from phospy.api.configs import (
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
-    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
-    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
-    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
+)
+from phospy.contracts.configs import (
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
 )
 from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary

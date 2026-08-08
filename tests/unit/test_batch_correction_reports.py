@@ -5,9 +5,9 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.advanced import DatasetBatchCorrectionConfig
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
-    DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,

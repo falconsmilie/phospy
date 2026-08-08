@@ -5,13 +5,15 @@ import warnings
 import pandas as pd
 
 from phospy import KinaseWorkflow
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.motif_scoring import (

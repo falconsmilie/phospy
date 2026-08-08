@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 
 def test_stable_config_imports_remain_from_api_configs() -> None:
     from phospy.api.configs import (
@@ -51,18 +49,6 @@ def test_config_all_exports_public_api() -> None:
     }
     assert "DatasetPreprocessingConfig" in configs.__all__
     assert "EnrichmentConfig" in configs.__all__
-
-
-def test_api_config_advanced_compatibility_import_warns() -> None:
-    namespace: dict[str, object] = {}
-
-    with pytest.warns(
-        DeprecationWarning,
-        match=r"from phospy\.advanced\.configs import SignalomeConfig",
-    ):
-        exec("from phospy.api.configs import SignalomeConfig", namespace)
-
-    assert namespace["SignalomeConfig"] is not None
 
 
 def test_config_refactor_does_not_create_import_cycles() -> None:

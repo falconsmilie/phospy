@@ -42,10 +42,14 @@ API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
     Organism,
     ReferenceBundle,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
     UnsupportedInputFormatError,
     WorkflowValidationError,
+)
+"""
+
+API_GUIDE_ADVANCED_IMPORT_SNIPPET = """from phospy.advanced import (
+    SignalomeConfig,
 )
 """
 
@@ -289,6 +293,7 @@ def test_documented_public_imports_are_importable() -> None:
     exec(README_IMPORT_SNIPPET, namespace)
     exec(API_GUIDE_IMPORT_SNIPPET, namespace)
     exec(API_GUIDE_API_IMPORT_SNIPPET, namespace)
+    exec(API_GUIDE_ADVANCED_IMPORT_SNIPPET, namespace)
 
     assert "AnalysisReadyDatasetBuilder" in namespace
     assert "DifferentialAnalysisWorkflow" in namespace

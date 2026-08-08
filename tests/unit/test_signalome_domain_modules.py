@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
 )

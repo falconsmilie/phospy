@@ -4,7 +4,31 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from phospy.api.configs import (
+from phospy.advanced.configs import (
+    DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
+    DatasetSiteMatrixConfig,
+    DatasetSiteSequenceResolutionConfig,
+    DatasetTotalProteinCorrectionConfig,
+    KinaseActivityConfig,
+    KinaseAttritionPolicy,
+    KinasePredictionConfig,
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    LocalisationRequirement,
+    ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
+    SignalomeClusteringConfig,
+    SignalomeConfig,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
+)
+from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.contracts.configs import (
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
@@ -36,28 +60,6 @@ from phospy.api.configs import (
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
-    DatasetComparisonBuildingConfig,
-    DatasetIntensityTransformConfig,
-    DatasetMissingDataConfig,
-    DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
-    DatasetSiteMatrixConfig,
-    DatasetSiteSequenceResolutionConfig,
-    DatasetTotalProteinCorrectionConfig,
-    KinaseActivityConfig,
-    KinaseAttritionPolicy,
-    KinasePredictionConfig,
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
-    LocalisationRequirement,
-    ProfileSelfInclusionPolicy,
-    ReferenceContextCompatibilityPolicy,
-    SignalomeClusteringConfig,
-    SignalomeConfig,
-    SignalomeOutputConfig,
-    SignalomePerformanceConfig,
-    SignalomeScientificConfig,
-    SignalomeValidationConfig,
 )
 from phospy.errors import ContractValidationError, PhosPyInputError
 

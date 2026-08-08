@@ -4,10 +4,10 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced import ReferenceContextCompatibilityPolicy
 from phospy.api import (
     DatasetBuildRequest,
     Organism,
-    ReferenceContextCompatibilityPolicy,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (

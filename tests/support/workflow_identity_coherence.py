@@ -3,6 +3,12 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced.configs import (
+    KinasePredictionConfig,
+    KinaseReferenceDisplayAmbiguityPolicy,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -13,17 +19,13 @@ from phospy.api import (
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import (
-    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
-    KinasePredictionConfig,
-    KinaseReferenceDisplayAmbiguityPolicy,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
+)
+from phospy.contracts.configs import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

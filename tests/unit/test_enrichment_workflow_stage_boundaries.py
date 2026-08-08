@@ -8,9 +8,7 @@ from phospy.api import (
     EnrichmentWorkflowRequest,
     GeneSetCollection,
 )
-from phospy.api.configs import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-)
+from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 from phospy.errors import WorkflowBoundaryError
 from phospy.science.enrichment.ora import OraResult, OraResultRecord
 from phospy.workflows.enrichment.executor import EnrichmentWorkflowExecutor

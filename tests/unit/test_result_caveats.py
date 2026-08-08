@@ -7,28 +7,30 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.advanced import (
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EnrichmentConfig,
     ExperimentalDesign,
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
     SampleDesignRecord,
 )
-from phospy.api.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 from phospy.api.results import (
     EnrichmentWorkflowResult,
     KinaseWorkflowResult,
     ResultCaveat,
 )
+from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
 from phospy.errors import ContractValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.enrichment.models import GeneSetCollection

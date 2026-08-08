@@ -4,14 +4,16 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
+from phospy.advanced import (
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
-    ReferenceContextCompatibilityPolicy,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )

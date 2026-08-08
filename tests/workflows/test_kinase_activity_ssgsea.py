@@ -4,15 +4,15 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, KinaseWorkflow
-from phospy.api import Organism, ReferenceBundle
-from phospy.api.configs import (
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+from phospy.advanced.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.api import Organism, ReferenceBundle
 from phospy.api.requests import KinaseWorkflowRequest
+from phospy.contracts.configs import KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import KinaseLibraryResourceProvenance
 from phospy.provenance.scientific_policy_models import ScientificPolicyId

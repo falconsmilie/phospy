@@ -4,7 +4,8 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api.configs import DatasetMissingDataConfig, DatasetPreprocessingConfig
+from phospy.advanced.configs import DatasetMissingDataConfig
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.preprocessing import (

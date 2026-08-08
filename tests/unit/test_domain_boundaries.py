@@ -9,12 +9,12 @@ import pandas as pd
 import pytest
 
 import phospy.io as phospy_io
-from phospy.api import AnalysisReadyDatasetBuilder
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
 )
+from phospy.api import AnalysisReadyDatasetBuilder
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.api.requests import DatasetBuildRequest
 from phospy.api.results import KinasePredictionResult
 from phospy.errors import (

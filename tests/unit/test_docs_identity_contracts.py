@@ -5,12 +5,14 @@ from pathlib import Path
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetSiteMatrixConfig,
+)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
-    DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
-    DatasetSiteMatrixConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,

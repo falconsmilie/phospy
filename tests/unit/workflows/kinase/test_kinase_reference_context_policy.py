@@ -5,12 +5,12 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy.api import KinaseWorkflow, KinaseWorkflowRequest, Organism, ReferenceBundle
-from phospy.api.configs import (
+from phospy.advanced.configs import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.api import KinaseWorkflow, KinaseWorkflowRequest, Organism, ReferenceBundle
 from phospy.errors.validation import WorkflowValidationError
 from phospy.provenance.models import ReferenceProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset

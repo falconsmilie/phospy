@@ -5,9 +5,9 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
+from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,

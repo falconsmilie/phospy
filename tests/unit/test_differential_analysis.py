@@ -7,21 +7,23 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.advanced import (
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
+    MultipleTestingConfig,
+    MultipleTestingMethod,
+)
 from phospy.api import (
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
-    EmpiricalBayesConfig,
     ExperimentalDesign,
-    MultipleTestingConfig,
-    MultipleTestingMethod,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
 )

@@ -5,16 +5,18 @@ from dataclasses import dataclass
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.configs.kinase import (
+from phospy.contracts.configs.kinase import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,

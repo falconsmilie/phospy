@@ -9,20 +9,22 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api.configs import (
-    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+from phospy.advanced.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
-    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
-    DatasetPreprocessingConfig,
     DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
 )
+from phospy.api.configs import (
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
+)
 from phospy.api.requests import DatasetBuildRequest
+from phospy.contracts.configs import DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import (
     DatasetPreprocessorContract,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.api import DatasetProteinAwarePreparationConfig
+from phospy.advanced import DatasetProteinAwarePreparationConfig
 from phospy.science.datasets.preprocessing.protein_aware_alignment import (
     PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
     PROTEIN_AWARE_REASON_INCOMPATIBLE_TRANSFORMATION_STATE,

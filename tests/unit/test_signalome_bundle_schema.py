@@ -3,17 +3,19 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.api import SignalomeConfig
-from phospy.api.configs import (
-    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
-    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
-    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
-    SIGNALOME_MODE_PRODUCTION,
+from phospy.advanced import SignalomeConfig
+from phospy.advanced.configs import (
     LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
     SignalomeOutputConfig,
     SignalomeScientificConfig,
     SignalomeValidationConfig,
+)
+from phospy.contracts.configs import (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    SIGNALOME_MODE_PRODUCTION,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._signalome.diagnostics import (
