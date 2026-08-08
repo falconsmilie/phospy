@@ -1,0 +1,9 @@
+regime,site_id,sample_id,true_site_abundance,resolved_site_abundance,signed_bias,absolute_bias,mapping_weight,localisation_confidence,bias_source
+duplicate_discordant,DUP;S1;,sample_1,100.0,115.0,15.0,15.0,1.0,0.98,duplicate peptide mean
+duplicate_discordant,DUP;S1;,sample_2,100.0,115.0,15.0,15.0,1.0,0.98,duplicate peptide mean
+ambiguous_equal_split,AMB;S1;,sample_1,100.0,50.0,-50.0,50.0,0.5,0.7,ambiguous equal split
+ambiguous_equal_split,AMB;T2;,sample_1,0.0,50.0,50.0,50.0,0.5,0.7,ambiguous equal split
+missing_observation,MISS;S1;,sample_1,100.0,80.0,-20.0,20.0,1.0,0.95,missing observation
+missing_observation,MISS;S1;,sample_2,100.0,80.0,-20.0,20.0,1.0,0.95,missing observation
+localisation_error,LOC_TRUE;S1;,sample_1,100.0,0.0,-100.0,100.0,0.0,0.2,localisation error
+localisation_error,LOC_FALSE;T2;,sample_1,0.0,100.0,100.0,100.0,1.0,0.8,localisation error

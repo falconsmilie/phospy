@@ -1,0 +1,24 @@
+{
+  "classification": "synthetic_validation",
+  "estimand": "site-level sample abundance after peptide-to-site signal allocation",
+  "bias_units": "linear_abundance",
+  "regimes": {
+    "duplicate_discordant": {
+      "mean_absolute_bias": 15.0,
+      "supported_interpretation": "duplicate peptide evidence can bias a site mean when duplicate peptide observations are discordant"
+    },
+    "ambiguous_equal_split": {
+      "mean_absolute_bias": 50.0,
+      "supported_interpretation": "equal splitting attenuates the true site and creates spurious support for the alternative site"
+    },
+    "missing_observation": {
+      "mean_absolute_bias": 20.0,
+      "supported_interpretation": "missing peptide evidence shifts the resolved site abundance toward the observed subset"
+    },
+    "localisation_error": {
+      "mean_absolute_bias": 100.0,
+      "supported_interpretation": "wrong localisation transfers signal from the true site to the assigned false site"
+    }
+  },
+  "tuning_policy": "fixture quantifies adverse-design sensitivity and must not be used to tune production allocation parameters"
+}

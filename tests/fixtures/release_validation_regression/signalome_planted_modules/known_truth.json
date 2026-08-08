@@ -1,0 +1,10 @@
+{
+  "classification": "synthetic_validation",
+  "external_reference": null,
+  "expected_module_count": 2,
+  "module_recovery_metric": "pairwise_coassignment_matches_planted_modules",
+  "required_pairwise_accuracy": 1.0,
+  "perturbation_stability_metric": "same_pairwise_coassignment_after_perturbation",
+  "required_perturbation_stability": 1.0,
+  "supported_interpretation": "planted module recovery and deterministic perturbation stability for a synthetic score matrix only; not causal signalome evidence"
+}

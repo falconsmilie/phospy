@@ -1,0 +1,36 @@
+{
+  "manifest_schema_version": "fixture-manifest-v1",
+  "fixture_family": "signalome_planted_modules",
+  "classification": "synthetic_validation",
+  "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
+  "generator_sha256": "2355185c9c2a236a41a5b9fb45f9ae5908f17590056e1faeaaa72ca8bbeeb573",
+  "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
+  "seed": 20260724,
+  "generation_timestamp_utc": "2026-07-24T00:00:00Z",
+  "source_policy": "deterministic synthetic known-truth validation fixture; not external parity and not empirical validation",
+  "byte_policy": "utf-8 LF with final newline",
+  "software_versions": {
+    "python": "runtime-independent"
+  },
+  "notes": "Signalome planted-module synthetic validation fixture covering module recovery, automatic module-count selection, and small deterministic perturbation stability.",
+  "files": [
+    {
+      "relative_path": "score_matrix.csv",
+      "sha256": "34831c94e71b32c11a66086d0d685e15eb81008b0c8569a7e35d5a5d21e90071"
+    },
+    {
+      "relative_path": "score_matrix_perturbed.csv",
+      "sha256": "4ccbebc252ef9eee2dc1435d6be245179c76a450cdf94d018f6b9c2654db5456"
+    },
+    {
+      "relative_path": "planted_modules.csv",
+      "sha256": "24f55728fa4d8649291eaead0c4ef3336f52aaf87fcc76974247c99a8751db4c"
+    },
+    {
+      "relative_path": "known_truth.json",
+      "sha256": "dd9b14884088b144ee7fc688004b0f57ff2d78476c86a179c73c699d430f970e"
+    }
+  ],
+  "known_truth_source": "closed-form synthetic construction",
+  "evidence_category": "synthetic_validation"
+}

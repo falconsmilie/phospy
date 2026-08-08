@@ -1,0 +1,32 @@
+{
+  "manifest_schema_version": "fixture-manifest-v1",
+  "fixture_family": "sps_ruv_planted_unwanted_factor",
+  "classification": "synthetic_validation",
+  "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
+  "generator_sha256": "2355185c9c2a236a41a5b9fb45f9ae5908f17590056e1faeaaa72ca8bbeeb573",
+  "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
+  "seed": 20260724,
+  "generation_timestamp_utc": "2026-07-24T00:00:00Z",
+  "source_policy": "deterministic synthetic known-truth validation fixture; not external parity and not empirical validation",
+  "byte_policy": "utf-8 LF with final newline",
+  "software_versions": {
+    "python": "runtime-independent"
+  },
+  "notes": "Independent synthetic known-truth fixture for native PhosPy SPS/RUV-style correction. It plants a one-dimensional unwanted factor in explicit controls and a separate protected condition effect in a signal row. This is not PhosR parity.",
+  "files": [
+    {
+      "relative_path": "phospho.csv",
+      "sha256": "3d0d839513f533a2c69b62795986614535b8ee42605eec913148b4b25dcc587f"
+    },
+    {
+      "relative_path": "sample_metadata.csv",
+      "sha256": "5663852c82e34e6450a2f9a6c2d5ae29920631f833e6c510fa82546af18567bc"
+    },
+    {
+      "relative_path": "known_truth.json",
+      "sha256": "ab405238a33d9dd1258dfa0858836e0b9d2e981ed38cb79b6bf0a4b6209fbaf3"
+    }
+  ],
+  "known_truth_source": "closed-form synthetic construction",
+  "evidence_category": "synthetic_validation"
+}

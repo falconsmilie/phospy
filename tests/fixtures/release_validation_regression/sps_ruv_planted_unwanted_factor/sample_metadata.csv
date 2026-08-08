@@ -1,0 +1,7 @@
+sample_id,batch,condition,replicate,planted_factor
+s1,run_1,A,r1,-2.0
+s2,run_1,B,r2,-2.0
+s3,run_2,A,r3,0.0
+s4,run_2,B,r4,0.0
+s5,run_3,A,r5,2.0
+s6,run_3,B,r6,2.0

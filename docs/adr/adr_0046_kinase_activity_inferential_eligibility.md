@@ -137,6 +137,23 @@ The ordinary normal-approximation assumptions remain scientific assumptions
 even after membership eligibility is established; eligibility only establishes
 that the ordinary KSEA p/q output is allowed under this policy gate.
 
+## Amendment: Known-Membership Synthetic Validation
+
+**Date:** 2026-08-08
+
+Kinase activity release validation now includes a known-membership synthetic
+fixture under
+`tests/fixtures/release_validation_regression/kinase_activity_known_membership/`.
+The fixture defines planted positive and negative substrate sets, a sparse
+membership case, and a coverage-sensitive kinase that is computable at one
+`min_substrates` setting and insufficient at a stricter setting.
+
+This evidence is `synthetic_validation`. It validates direction recovery and
+substrate-coverage sensitivity for the implemented activity method contracts.
+It does not establish causal kinase activation, empirical biological validity,
+full PhosR kinase activity equivalence, or ordinary KSEA p/q eligibility unless
+the independent-membership provenance requirements in this ADR are satisfied.
+
 ## Consequences
 
 Positive consequences:

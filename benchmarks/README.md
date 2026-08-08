@@ -21,6 +21,10 @@ This directory contains rewrite-native benchmark scripts that track active code 
   - Targets `phospy.science.signalomes.clustering.run_signalome_clustering_engine` and scale-guard policy thresholds in `phospy.science.signalomes.clustering`.
 
 All benchmark scripts print plain `key=value` metrics for easy CI/log parsing.
+The optional release-scale builder+differential benchmark can also write a JSON
+report under `benchmarks/reports/`; that report includes Python, selected
+dependency versions, machine metadata, runtime timings, peak RSS when available,
+metrics, scientific-summary payload, and output fingerprints/digests.
 
 ## Drift guard
 

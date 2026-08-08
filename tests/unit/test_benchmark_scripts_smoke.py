@@ -203,3 +203,40 @@ def test_release_scale_benchmark_report_path_is_under_benchmarks_reports() -> No
         "release-scale-builder-differential.json"
     )
     assert "tests" not in report_path.relative_to(REPO_ROOT).parts
+
+
+def test_release_scale_benchmark_report_payload_records_environment_and_outputs() -> (
+    None
+):
+    module = _load_script_module(RELEASE_SCALE_BENCHMARK_SCRIPT)
+    result = module.ReleaseScaleBenchmarkResult(
+        config=module.default_config(),
+        timings={"total_runtime_seconds": 1.25, "builder_execution_seconds": 0.5},
+        metrics={
+            "total_runtime_seconds": 1.25,
+            "process_rss_peak_mib": 256.0,
+            "scientific_summary_digest": "summary-digest",
+        },
+        scientific_summary={
+            "input_table_fingerprints_digest": "input-digest",
+            "output_table_fingerprints_digest": "output-digest",
+            "preprocessing_trace_digest": "trace-digest",
+            "differential_result_table_digest": "result-digest",
+        },
+    )
+
+    payload = module.report_payload(result)
+
+    assert payload["python"]["version"]
+    assert payload["environment"]["python"]["executable"]
+    assert {"numpy", "pandas", "scipy", "phospy"} <= set(payload["dependencies"])
+    assert payload["machine"]["platform"]
+    assert payload["runtime"]["total_runtime_seconds"] == 1.25
+    assert payload["peak_memory"]["process_rss_peak_mib"] == 256.0
+    assert payload["output_fingerprints"] == {
+        "input_table_fingerprints_digest": "input-digest",
+        "output_table_fingerprints_digest": "output-digest",
+        "preprocessing_trace_digest": "trace-digest",
+        "differential_result_table_digest": "result-digest",
+        "scientific_summary_digest": "summary-digest",
+    }

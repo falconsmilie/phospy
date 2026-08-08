@@ -1,0 +1,20 @@
+{
+  "classification": "synthetic_validation",
+  "external_reference": null,
+  "effect_profile": "stim_effect",
+  "membership_threshold": 0.5,
+  "expected_direction": {
+    "K_UP": "positive",
+    "K_DOWN": "negative"
+  },
+  "substrate_coverage_sensitivity": {
+    "kinase": "K_COVERAGE",
+    "computed_min_substrates": 2,
+    "insufficient_min_substrates": 3
+  },
+  "sparse_membership": {
+    "kinase": "K_SPARSE",
+    "substrate_count": 1
+  },
+  "supported_interpretation": "known-membership synthetic activity direction and coverage sensitivity only; not causal kinase activation evidence"
+}

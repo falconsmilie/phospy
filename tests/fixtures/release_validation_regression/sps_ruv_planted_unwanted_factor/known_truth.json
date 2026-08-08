@@ -1,0 +1,28 @@
+{
+  "classification": "synthetic_validation",
+  "external_reference": null,
+  "planted_unwanted_factor_by_sample": {
+    "s1": -2.0,
+    "s2": -2.0,
+    "s3": 0.0,
+    "s4": 0.0,
+    "s5": 2.0,
+    "s6": 2.0
+  },
+  "control_site_ids": [
+    "control_1",
+    "control_2",
+    "control_3"
+  ],
+  "protected_signal_site_id": "signal_protected",
+  "protected_condition_effect": {
+    "contrast": "B_minus_A",
+    "expected_difference": 5.0,
+    "acceptance_absolute_tolerance": 1e-10
+  },
+  "unwanted_factor_recovery": {
+    "minimum_abs_correlation": 0.999,
+    "control_row_max_span_after_correction": 1e-10
+  },
+  "tuning_policy": "fixture is release validation evidence only; implementation parameters must not be tuned against this fixture"
+}

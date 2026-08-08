@@ -9,8 +9,10 @@ machine-dependent observations rather than portable release-blocking facts.
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
 import os
+import platform
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
@@ -79,6 +81,7 @@ from tests.support.performance_contracts import (
 REPORTS_DIRECTORY = Path("benchmarks/reports")
 REPORT_FILENAME = "release-scale-builder-differential.json"
 RSS_UNAVAILABLE = "unavailable"
+REPORT_DEPENDENCY_PACKAGES = ("numpy", "pandas", "scipy", "phospy")
 CONTRAST_NAME = "C2_vs_C1"
 EXPECTED_PREPROCESSING_STAGE_SEQUENCE = (
     "localisation_confidence",
@@ -269,6 +272,17 @@ def run_benchmark(
 def write_report(result: ReleaseScaleBenchmarkResult) -> Path:
     report_path = default_report_path()
     report_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = report_payload(result)
+    report_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return report_path
+
+
+def report_payload(result: ReleaseScaleBenchmarkResult) -> dict[str, object]:
+    """Return the JSON payload written by the release-scale benchmark."""
+
     payload = {
         "benchmark": "release_scale_builder_differential",
         "description": (
@@ -283,16 +297,96 @@ def write_report(result: ReleaseScaleBenchmarkResult) -> Path:
             "version": sys.version,
             "executable": sys.executable,
         },
+        "environment": _runtime_environment_payload(),
+        "dependencies": _dependency_versions(),
+        "machine": _machine_payload(),
+        "runtime": _runtime_payload(result),
+        "peak_memory": _peak_memory_payload(result),
+        "output_fingerprints": _output_fingerprints_payload(result),
     }
-    report_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    return report_path
+    return payload
 
 
 def default_report_path() -> Path:
     return Path(__file__).resolve().parents[1] / REPORTS_DIRECTORY / REPORT_FILENAME
+
+
+def _runtime_environment_payload() -> dict[str, object]:
+    return {
+        "python": {
+            "version": sys.version,
+            "version_info": list(sys.version_info[:5]),
+            "implementation": platform.python_implementation(),
+            "executable": sys.executable,
+        },
+        "dependencies": _dependency_versions(),
+        "machine": _machine_payload(),
+    }
+
+
+def _dependency_versions() -> dict[str, str]:
+    versions: dict[str, str] = {}
+    for package_name in REPORT_DEPENDENCY_PACKAGES:
+        try:
+            versions[package_name] = importlib.metadata.version(package_name)
+        except importlib.metadata.PackageNotFoundError:
+            versions[package_name] = "unavailable"
+    return versions
+
+
+def _machine_payload() -> dict[str, str]:
+    return {
+        "platform": platform.platform(),
+        "system": platform.system(),
+        "release": platform.release(),
+        "version": platform.version(),
+        "machine": platform.machine(),
+        "processor": platform.processor(),
+        "os_name": os.name,
+    }
+
+
+def _runtime_payload(result: ReleaseScaleBenchmarkResult) -> dict[str, object]:
+    metrics = dict(result.metrics)
+    timings = dict(result.timings)
+    total_runtime = metrics.get("total_runtime_seconds")
+    if total_runtime is None:
+        total_runtime = timings.get("total_runtime_seconds")
+    return {
+        "total_runtime_seconds": total_runtime,
+        "timings_seconds": timings,
+    }
+
+
+def _peak_memory_payload(result: ReleaseScaleBenchmarkResult) -> dict[str, object]:
+    return {
+        "process_rss_peak_mib": dict(result.metrics).get("process_rss_peak_mib"),
+        "measurement": (
+            "current-process peak RSS when available from the operating system; "
+            "otherwise 'unavailable'"
+        ),
+    }
+
+
+def _output_fingerprints_payload(
+    result: ReleaseScaleBenchmarkResult,
+) -> dict[str, object]:
+    summary = dict(result.scientific_summary)
+    return {
+        "input_table_fingerprints_digest": summary.get(
+            "input_table_fingerprints_digest"
+        ),
+        "output_table_fingerprints_digest": summary.get(
+            "output_table_fingerprints_digest"
+        ),
+        "preprocessing_trace_digest": summary.get("preprocessing_trace_digest"),
+        "differential_result_table_digest": summary.get(
+            "differential_result_table_digest"
+        ),
+        "scientific_summary_digest": dict(result.metrics).get(
+            "scientific_summary_digest"
+        ),
+    }
 
 
 def _run_release_scale_workflow(

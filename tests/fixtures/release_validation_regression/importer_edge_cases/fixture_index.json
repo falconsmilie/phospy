@@ -1,0 +1,64 @@
+{
+  "classification": "regression",
+  "evidence_category": "regression",
+  "external_reference": null,
+  "referenced_fixture_files": [
+    {
+      "relative_path": "tests/fixtures/maxquant/phospho_sty_sites_standard.txt",
+      "sha256": "dd731a80c0e94908d4e680d35201a27f07dc996431163c78f990c24509292c52"
+    },
+    {
+      "relative_path": "tests/fixtures/maxquant/phospho_sty_sites_realistic_variants.txt",
+      "sha256": "bb1bad089d79b7856c139fc43bd51d81be32b29d4261d0eade4b9bc2e5bd5ca7"
+    },
+    {
+      "relative_path": "tests/fixtures/maxquant/phospho_sty_sites_raw_and_lfq.txt",
+      "sha256": "948dd98eba524eb6a7297ea5429d6693d2035d9db7b00169eebfb89ee293b9c6"
+    },
+    {
+      "relative_path": "tests/fixtures/maxquant/phospho_sty_sites_lfq_only.txt",
+      "sha256": "eb6c1a9797214c3ad2eb203ae59834e5dbef76d06df65e903859f3b10f264fd1"
+    },
+    {
+      "relative_path": "tests/fixtures/maxquant/phospho_sty_sites_multisite.txt",
+      "sha256": "0d3bc433ed98e50a0831445d64d50f0232c7106e27a49c8df516f40ad17672bc"
+    },
+    {
+      "relative_path": "tests/fixtures/fragpipe/ptmprophet_sites.tsv",
+      "sha256": "ee952e59e97b9496b1f992dc3d80724a3976f7ed155096508dccf5a4571df828"
+    },
+    {
+      "relative_path": "tests/fixtures/fragpipe/ptmprophet_explicit_site_edge_cases.tsv",
+      "sha256": "2b41df7c9d36ac9810a2b5eb685c536b5d0069a78363f1f008b39e14738c4f68"
+    },
+    {
+      "relative_path": "tests/fixtures/fragpipe/ptmprophet_peptide_position_edge_cases.tsv",
+      "sha256": "b83db7998dfe78f506d0e076bc76b82621990abbab1fa25ab493497c5db1dcfd"
+    },
+    {
+      "relative_path": "tests/fixtures/fragpipe/ptmprophet_missing_required_start.tsv",
+      "sha256": "7a3102bf5df54bf3a117ab6f5891d53b67f7265bfa2f88a25100516fe685ea5f"
+    }
+  ],
+  "edge_case_coverage": {
+    "maxquant": [
+      "standard phospho STY columns",
+      "contaminant and reverse filtering or flagging",
+      "raw/LFQ intensity ambiguity",
+      "LFQ-only intensity detection",
+      "protein/gene group collapse diagnostics",
+      "multi-site candidates",
+      "localisation probability normalization"
+    ],
+    "fragpipe_ptmprophet": [
+      "single-site peptide parsing",
+      "multi-site peptide evidence",
+      "ambiguous localisation diagnostics",
+      "protein-position and peptide-position localisation strings",
+      "contaminant and decoy filtering or flagging",
+      "protein-group collapse diagnostics",
+      "missing required protein start rejection"
+    ]
+  },
+  "supported_interpretation": "targeted importer edge-case regression coverage only; not broad vendor parity, not Spectronaut/DIA-NN support, and not upstream statistical-result import"
+}

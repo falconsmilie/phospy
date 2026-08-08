@@ -71,6 +71,23 @@ This ADR records the prerequisite contract and its implemented status for the
 native PhosPy lane. It does not claim PhosR equivalence or broad RUV-III
 parity.
 
+## Amendment: Synthetic Validation Evidence
+
+**Date:** 2026-08-08
+
+Native SPS/RUV-style correction has an additional synthetic known-truth release
+fixture under
+`tests/fixtures/release_validation_regression/sps_ruv_planted_unwanted_factor/`.
+The fixture plants a one-dimensional unwanted factor in explicit controls and a
+separate protected condition effect in a signal row.
+
+Acceptance checks require recovery of the planted unwanted factor, removal of
+control-row unwanted-factor span after correction, and preservation of the
+protected condition effect. This evidence is classified as
+`synthetic_validation`. It is not PhosR SPS/RUV-III parity, not empirical batch
+correction evidence, and not a basis for silently tuning factor-count or
+control-selection defaults.
+
 ## Risks of Casual Batch-Correction Flags
 
 Casual flags are risky because they can hide scientific choices that should be

@@ -77,6 +77,21 @@ A not-computable report means the implemented stability method was not applicabl
 to the observed input or execution path. This is distinct from stability and must
 not be silently converted into a stable or modal selected count.
 
+## Amendment: Release Synthetic Stability Fixture
+
+**Date:** 2026-08-08
+
+The release validation fixture
+`tests/fixtures/release_validation_regression/signalome_planted_modules/`
+includes both baseline and perturbed score matrices plus planted module labels.
+It is classified as `synthetic_validation` and verifies planted-module recovery
+and pairwise coassignment stability under a deterministic small perturbation.
+
+This fixture strengthens descriptive stability evidence only. It does not turn
+selected-count frequencies, pairwise coassignment, or module assignments into
+probabilities, causal relationships, directionality evidence, or empirical
+signalome validation.
+
 ## Consequences
 
 Positive consequences:

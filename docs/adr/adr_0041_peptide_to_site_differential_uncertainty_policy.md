@@ -61,6 +61,21 @@ semantics and executable peptide-to-site mapping semantics are not implemented.
 The withdrawal status is
 `unsupported_withdrawn_posthoc_estimate_combination_v1`.
 
+## Amendment: Validation Evidence Does Not Reintroduce Post-Hoc Support
+
+**Date:** 2026-08-08
+
+The release validation fixture
+`tests/fixtures/release_validation_regression/peptide_site_bias_regimes/`
+quantifies duplicate, ambiguous, missing, and localisation-error bias for the
+sample-intensity peptide-to-site resolution route. It is
+`synthetic_validation`, not post-hoc differential estimate-combination support,
+not external parity, and not empirical validation.
+
+This evidence documents adverse-regime sensitivity for the supported
+pre-differential route. It does not satisfy the required future conditions for
+reintroducing post-hoc peptide-level differential estimate combination.
+
 ## Required Future Conditions Before Reintroduction
 
 Future public support requires a new ADR-backed scientific model and executable

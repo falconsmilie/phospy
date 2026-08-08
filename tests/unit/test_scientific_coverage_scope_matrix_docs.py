@@ -178,6 +178,51 @@ def test_scope_matrix_columns_and_required_rows_are_present() -> None:
         assert f"| {row_name} |" in lowered
 
 
+def test_validation_evidence_matrix_records_required_fields_and_methods() -> None:
+    text = _scientific_coverage_text()
+    normalized = " ".join(text.lower().split())
+
+    assert "## scientific validation evidence matrix" in normalized
+    assert (
+        "| method | estimand | expected inputs | known truth or external reference | "
+        "comparison method and threshold | sensitivity analysis | fixture "
+        "provenance and evidence category | supported interpretation |"
+    ) in normalized
+    for category in (
+        "`regression`",
+        "`parity`",
+        "`synthetic validation`",
+        "`empirical validation`",
+    ):
+        assert category in normalized
+    for method in (
+        "differential analysis",
+        "native sps/ruv-style correction",
+        "peptide-to-site aggregation",
+        "kinase scoring and prediction",
+        "kinase activity methods",
+        "signalome module selection and network summaries",
+        "importer edge cases",
+        "release-scale builder and differential workflow",
+    ):
+        assert f"| {method} |" in normalized
+
+    assert "phospy-generated expected outputs must not be relabelled" in normalized
+    assert "synthetic known-truth fixtures are not empirical evidence" in normalized
+    assert "not tuning targets" in normalized
+    assert "sps_ruv_planted_unwanted_factor" in normalized
+    assert "peptide_site_bias_regimes" in normalized
+    assert "kinase_activity_known_membership" in normalized
+    assert "signalome_planted_modules" in normalized
+    assert "importer_edge_cases" in normalized
+    assert "benchmark report schema requires python, dependency, machine" in (
+        normalized
+    )
+    assert "excluded from ci, release gates, scheduled jobs, and per-commit checks" in (
+        normalized
+    )
+
+
 def test_docs_list_current_workflow_packages() -> None:
     text = (
         _readme_text()

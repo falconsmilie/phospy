@@ -166,6 +166,27 @@ workflow interface unless a future ADR changes that boundary.
 
 PhosPy does not claim full PhosR, MSstatsPTM, or Kinase Library equivalence.
 
+## Amendment: Release-Grade Validation Evidence
+
+**Date:** 2026-08-08
+
+Competitive coverage claims must now map to the validation evidence matrix in
+`docs/scientific-coverage.md`. The matrix separates external parity,
+PhosPy regression contracts, closed-form synthetic validation, empirical
+validation, and benchmark/scale evidence.
+
+Current added validation evidence includes planted SPS/RUV-style unwanted-factor
+recovery, peptide-to-site adverse-regime bias quantification, known-membership
+kinase activity direction and coverage sensitivity, planted signalome module
+recovery with perturbation stability, importer edge-case fixture manifests, and
+an optional release-scale builder+differential benchmark report schema.
+
+These additions do not broaden current equivalence claims. They specifically do
+not create full PhosR equivalence, PhosR-equivalent SPS/RUV-III parity,
+validated Kinase Library parity, causal kinase activity claims, causal
+signalome module claims, broad vendor-importer parity, or portable performance
+guarantees.
+
 ## Desired Direction
 
 The desired direction is a competitive but scoped Python phosphoproteomics

@@ -68,6 +68,22 @@ counts, per-column imputation counts, total imputed retained cells, and the
 exact prepared-matrix fingerprint. If no dimension remains after dropping fully
 missing columns, execution fails before tree construction.
 
+## Amendment: Planted-Module Validation Evidence
+
+**Date:** 2026-08-08
+
+Signalome validation now includes a planted two-module synthetic fixture under
+`tests/fixtures/release_validation_regression/signalome_planted_modules/`.
+Release checks compare pairwise coassignment against the planted module labels
+and verify that a small deterministic score perturbation preserves the same
+coassignment structure.
+
+This fixture is `synthetic_validation`. It supports the narrow statement that
+the implemented module-selection/clustering path can recover a simple planted
+score-derived module structure and remain stable under the declared
+perturbation. It is not empirical validation, causal module evidence,
+directionality evidence, or experimental signalling proof.
+
 ## Historical Payloads
 
 Historical signalome result bundles remain readable. If a stored result records

@@ -168,7 +168,12 @@ To also write a JSON report:
 python benchmarks/measure_release_scale_builder_differential.py --write-report
 ```
 
-Reports are written only under `benchmarks/reports/`.
+Reports are written only under `benchmarks/reports/`. The report records the
+Python executable/version, selected dependency versions (`phospy`, `numpy`,
+`pandas`, and `scipy` when installed metadata is available), machine/platform
+metadata, runtime timings, peak RSS when the platform exposes it, metrics,
+scientific-summary payload, and output fingerprints/digests for the benchmarked
+tables and provenance trace.
 
 Benchmark observations are informational. A slow result is evidence for local
 profiling or same-machine comparison; it is not a release failure and is not

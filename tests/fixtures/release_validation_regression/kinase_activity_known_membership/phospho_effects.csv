@@ -1,0 +1,9 @@
+site_id,stim_effect,null_effect
+UP1;S1;,3.0,0.0
+UP2;S2;,2.8,0.1
+UP3;S3;,2.6,-0.1
+DOWN1;S4;,-3.0,0.0
+DOWN2;S5;,-2.8,0.1
+DOWN3;S6;,-2.6,-0.1
+BG1;S7;,0.0,0.0
+BG2;S8;,0.2,0.2

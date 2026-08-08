@@ -22,6 +22,11 @@ MANIFEST_GOVERNED_FIXTURE_DIRS = (
     RELEASE_VALIDATION_ROOT / "evidence_resolution",
     RELEASE_VALIDATION_ROOT / "kinase_sparse_support",
     RELEASE_VALIDATION_ROOT / "signalome_safety",
+    RELEASE_VALIDATION_ROOT / "sps_ruv_planted_unwanted_factor",
+    RELEASE_VALIDATION_ROOT / "peptide_site_bias_regimes",
+    RELEASE_VALIDATION_ROOT / "kinase_activity_known_membership",
+    RELEASE_VALIDATION_ROOT / "signalome_planted_modules",
+    RELEASE_VALIDATION_ROOT / "importer_edge_cases",
     LARGE_LIMMA_TREND_ROOT,
 )
 
