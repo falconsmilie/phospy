@@ -1,5 +1,4 @@
 """Public kinase workflow result contracts."""
-# pyright: reportMissingTypeStubs=false
 
 from __future__ import annotations
 
@@ -350,6 +349,38 @@ class KinaseWorkflowResult:
             assume_owned=True,
         )
         return result
+
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        references: ReferenceBundle,
+        scoring_result: KinaseScoringResult,
+        prediction_result: KinasePredictionResult,
+        eligibility_report: KinaseEligibilityReport | None = None,
+        site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None,
+        attrition_provenance: KinaseWorkflowAttritionProvenance | None = None,
+        activity_result: KinaseActivityResult | None = None,
+        provenance: RunProvenance | None = None,
+        substrate_contributions: pd.DataFrame | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+    ) -> KinaseWorkflowResult:
+        """Construct from already-owned tables at trusted workflow boundaries."""
+
+        return cls._from_owned(
+            dataset=dataset,
+            references=references,
+            scoring_result=scoring_result,
+            prediction_result=prediction_result,
+            eligibility_report=eligibility_report,
+            site_attrition_summary=site_attrition_summary,
+            attrition_provenance=attrition_provenance,
+            activity_result=activity_result,
+            provenance=provenance,
+            substrate_contributions=substrate_contributions,
+            caveats=caveats,
+        )
 
     def scientifically_equals(
         self,

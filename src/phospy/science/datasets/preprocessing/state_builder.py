@@ -159,15 +159,11 @@ class DatasetProcessingStateBuilder:
         parsed.validate_site_sequence_resolution_payload(
             site_sequence_resolution_diagnostics
         )
-        typed_correction_diagnostics = (
-            None
-            if correction_diagnostics is None
-            else TotalProteinCorrectionDiagnostics.from_payload(
-                correction_diagnostics,
-                field_name=(
-                    "dataset processing state total_protein_correction.diagnostics"
-                ),
-            )
+        typed_correction_diagnostics = TotalProteinCorrectionDiagnostics.from_payload(
+            correction_diagnostics,
+            field_name=(
+                "dataset processing state total_protein_correction.diagnostics"
+            ),
         )
         typed_missing_data_diagnostics = (
             None

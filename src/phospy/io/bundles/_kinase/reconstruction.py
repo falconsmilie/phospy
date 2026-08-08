@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import NoReturn, cast
+from typing import NoReturn, TypeGuard
 
 import pandas as pd
 
@@ -29,7 +29,10 @@ from phospy.io.bundles._shared.organisms import (
     parse_optional_organism,
     parse_required_organism,
 )
-from phospy.io.bundles._shared.primitives import require_mapping
+from phospy.io.bundles._shared.primitives import (
+    require_mapping,
+    validate_json_safe_mapping,
+)
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
 )
@@ -135,7 +138,7 @@ def reconstruct_kinase_result(
         ),
     )
 
-    references = ReferenceBundle._from_owned(
+    references = ReferenceBundle.from_trusted_owned(
         organism=parse_required_organism(
             sections.references_metadata.get("organism"),
             field_name="bundle manifest.resolved_references.metadata.organism",
@@ -154,7 +157,7 @@ def reconstruct_kinase_result(
         ),
     )
 
-    scoring_result = KinaseScoringResult._from_owned(
+    scoring_result = KinaseScoringResult.from_trusted_owned(
         profile_scores=read_required_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
@@ -219,7 +222,7 @@ def reconstruct_kinase_result(
         ),
     )
 
-    prediction_result = KinasePredictionResult._from_owned(
+    prediction_result = KinasePredictionResult.from_trusted_owned(
         pred_mat=read_required_table(
             bundle_root=bundle_root,
             tables=sections.prediction_tables,
@@ -345,7 +348,7 @@ def reconstruct_kinase_result(
             input_semantics=input_semantics,
         )
         try:
-            activity_result = KinaseActivityResult._from_owned(
+            activity_result = KinaseActivityResult.from_trusted_owned(
                 weighted_activity=weighted_activity,
                 thresholded_substrate_mean_activity=(
                     thresholded_substrate_mean_activity
@@ -403,7 +406,7 @@ def reconstruct_kinase_result(
             )
         activity_result = None
 
-    return KinaseWorkflowResult._from_owned(
+    return KinaseWorkflowResult.from_trusted_owned(
         dataset=dataset,
         references=references,
         scoring_result=scoring_result,
@@ -500,7 +503,7 @@ def _validate_activity_semantic_metadata(
         expected_label="activity/weighted_activity table columns",
     )
 
-    axis = cast(ActivityProfileAxis, input_semantics.profile_axis)
+    axis = _activity_profile_axis(input_semantics)
     if axis is ActivityProfileAxis.SAMPLE:
         _require_exact_manifest_labels(
             observed=profile_metadata.sample_ids,
@@ -625,19 +628,23 @@ def _validate_activity_provenance_agreement(
     input_semantics: ActivityInputSemantics,
 ) -> None:
     workflow_parameters = provenance.workflow_parameters
-    if not isinstance(workflow_parameters, Mapping):
+    activity_config = _optional_json_mapping(
+        workflow_parameters.get("activity_config"),
+        field_name="bundle manifest.provenance.workflow_parameters.activity_config",
+    )
+    if activity_config is None:
         return
-    activity_config = workflow_parameters.get("activity_config")
-    if not isinstance(activity_config, Mapping):
+    method_input_contract = _optional_json_mapping(
+        activity_config.get("method_input_contract"),
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.activity_config."
+            "method_input_contract"
+        ),
+    )
+    if method_input_contract is None:
         return
-    method_input_contract = activity_config.get("method_input_contract")
-    if not isinstance(method_input_contract, Mapping):
-        return
-    expected_axis = cast(ActivityProfileAxis, input_semantics.profile_axis).value
-    expected_quantity = cast(
-        ActivityQuantitativeSemantics,
-        input_semantics.quantitative_semantics,
-    ).value
+    expected_axis = _activity_profile_axis(input_semantics).value
+    expected_quantity = _activity_quantitative_semantics(input_semantics).value
     _require_optional_provenance_semantic_agreement(
         method_input_contract,
         key="resolved_activity_profile_axis",
@@ -739,7 +746,7 @@ def _raise_activity_semantic_manifest_error(
     )
 
 
-def _normalise_site_metadata_bundle_table(table):
+def _normalise_site_metadata_bundle_table(table: pd.DataFrame) -> pd.DataFrame:
     if "site_key" in table.columns:
         return table
     if "site_key.1" not in table.columns:
@@ -799,11 +806,13 @@ def _validate_kinase_reference_projection_provenance(
             "must be a current schema projection-summary object; null does not "
             "prove zero reference attrition",
         )
-    if not isinstance(raw_summary, Mapping):
-        _raise_projection_manifest_error(
-            "bundle manifest.provenance.workflow_parameters.reference_projection_summary",
-            "must be an object",
-        )
+    summary_field_name = (
+        "bundle manifest.provenance.workflow_parameters.reference_projection_summary"
+    )
+    raw_summary = _projection_mapping_payload(
+        raw_summary,
+        field_name=summary_field_name,
+    )
     try:
         projection_summary = KinaseReferenceProjectionSummary.from_payload(raw_summary)
     except WorkflowBoundaryError as exc:
@@ -817,11 +826,10 @@ def _validate_kinase_reference_projection_provenance(
             "is required for current kinase bundle reconstruction",
         )
     raw_universe_attrition = workflow_parameters.get("universe_attrition")
-    if not isinstance(raw_universe_attrition, Mapping):
-        _raise_projection_manifest_error(
-            "bundle manifest.provenance.workflow_parameters.universe_attrition",
-            "must be an object",
-        )
+    raw_universe_attrition = _projection_mapping_payload(
+        raw_universe_attrition,
+        field_name="bundle manifest.provenance.workflow_parameters.universe_attrition",
+    )
     canonical_reference_attrition = _validate_reference_attrition_agreement(
         projection_summary=projection_summary,
         universe_attrition=raw_universe_attrition,
@@ -848,7 +856,7 @@ def _validate_reference_attrition_agreement(
     )
     if not _is_sequence_payload(raw_reference_attrition):
         _raise_projection_manifest_error(field_name, "must be an array")
-    reference_attrition = list(cast(Sequence[object], raw_reference_attrition))
+    reference_attrition = list(raw_reference_attrition)
     expected_records = _canonical_reference_attrition_records(projection_summary)
     if len(reference_attrition) != len(expected_records):
         _raise_projection_manifest_error(
@@ -861,8 +869,7 @@ def _validate_reference_attrition_agreement(
         zip(reference_attrition, expected_records, strict=True)
     ):
         record_field = f"{field_name}[{index}]"
-        if not isinstance(observed, Mapping):
-            _raise_projection_manifest_error(record_field, "must be an object")
+        observed = _projection_mapping_payload(observed, field_name=record_field)
         _require_reference_attrition_record_matches(
             observed=observed,
             expected=expected,
@@ -960,7 +967,7 @@ def _require_reference_attrition_record_matches(
             )
 
 
-def _is_sequence_payload(value: object) -> bool:
+def _is_sequence_payload(value: object) -> TypeGuard[Sequence[object]]:
     return isinstance(value, Sequence) and not isinstance(
         value, (str, bytes, bytearray)
     )
@@ -977,10 +984,11 @@ def _profile_self_inclusion_policy_from_provenance(
     provenance: RunProvenance,
 ) -> str:
     workflow_parameters = provenance.workflow_parameters
-    if not isinstance(workflow_parameters, Mapping):
-        return "allow"
-    scoring_config = workflow_parameters.get("scoring_config")
-    if not isinstance(scoring_config, Mapping):
+    scoring_config = _optional_json_mapping(
+        workflow_parameters.get("scoring_config"),
+        field_name="bundle manifest.provenance.workflow_parameters.scoring_config",
+    )
+    if scoring_config is None:
         return "allow"
     policy = scoring_config.get("profile_self_inclusion_policy")
     return policy if isinstance(policy, str) else "allow"
@@ -990,26 +998,48 @@ def _kinase_caveats_from_provenance(
     provenance: RunProvenance,
 ) -> tuple[KinaseWorkflowCaveat, ...]:
     workflow_parameters = provenance.workflow_parameters
-    if not isinstance(workflow_parameters, Mapping):
+    scoring_diagnostics = _optional_json_mapping(
+        workflow_parameters.get("scoring_diagnostics"),
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.scoring_diagnostics"
+        ),
+    )
+    if scoring_diagnostics is None:
         return ()
-    scoring_diagnostics = workflow_parameters.get("scoring_diagnostics")
-    if not isinstance(scoring_diagnostics, Mapping):
-        return ()
+    violation_field_name = (
+        "bundle manifest.provenance.workflow_parameters.scoring_diagnostics."
+        "attrition_policy_violations"
+    )
     raw_violations = scoring_diagnostics.get("attrition_policy_violations")
-    if not isinstance(raw_violations, list):
-        attrition_provenance = workflow_parameters.get("attrition_provenance")
-        if isinstance(attrition_provenance, Mapping):
-            raw_violations = attrition_provenance.get("policy_violations")
-    if not isinstance(raw_violations, list):
-        return ()
+    if _is_object_list(raw_violations):
+        violations = _mapping_list_payload(
+            raw_violations,
+            field_name=violation_field_name,
+        )
+    else:
+        attrition_provenance = _optional_json_mapping(
+            workflow_parameters.get("attrition_provenance"),
+            field_name=(
+                "bundle manifest.provenance.workflow_parameters.attrition_provenance"
+            ),
+        )
+        violations = (
+            []
+            if attrition_provenance is None
+            else _mapping_list_payload(
+                attrition_provenance.get("policy_violations"),
+                field_name=(
+                    "bundle manifest.provenance.workflow_parameters."
+                    "attrition_provenance.policy_violations"
+                ),
+            )
+        )
     caveats: list[KinaseWorkflowCaveat] = []
-    for raw_violation in raw_violations:
-        if not isinstance(raw_violation, Mapping):
-            continue
-        raw_message = raw_violation.get("message")
+    for violation in violations:
+        raw_message = violation.get("message")
         if not isinstance(raw_message, str) or raw_message.strip() == "":
             continue
-        raw_code = raw_violation.get("code")
+        raw_code = violation.get("code")
         code = (
             raw_code
             if isinstance(raw_code, str) and raw_code.strip() != ""
@@ -1020,7 +1050,7 @@ def _kinase_caveats_from_provenance(
                 code=code,
                 severity="warning",
                 message=raw_message,
-                details=dict(raw_violation),
+                details=dict(violation),
             )
         )
     return tuple(caveats)
@@ -1030,23 +1060,49 @@ def _kinase_attrition_provenance_from_provenance(
     provenance: RunProvenance,
 ) -> KinaseWorkflowAttritionProvenance | None:
     workflow_parameters = provenance.workflow_parameters
-    if not isinstance(workflow_parameters, Mapping):
-        return None
     raw_payload = workflow_parameters.get("attrition_provenance")
-    if isinstance(raw_payload, Mapping):
-        return _kinase_attrition_provenance_from_payload(raw_payload)
-    scoring_diagnostics = workflow_parameters.get("scoring_diagnostics")
-    scoring_config = workflow_parameters.get("scoring_config")
-    if not isinstance(scoring_diagnostics, Mapping) or not isinstance(
-        scoring_config, Mapping
-    ):
+    payload = _optional_json_mapping(
+        raw_payload,
+        field_name="bundle manifest.provenance.workflow_parameters.attrition_provenance",
+    )
+    if payload is not None:
+        return _kinase_attrition_provenance_from_payload(payload)
+    scoring_diagnostics = _optional_json_mapping(
+        workflow_parameters.get("scoring_diagnostics"),
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.scoring_diagnostics"
+        ),
+    )
+    scoring_config = _optional_json_mapping(
+        workflow_parameters.get("scoring_config"),
+        field_name="bundle manifest.provenance.workflow_parameters.scoring_config",
+    )
+    if scoring_diagnostics is None or scoring_config is None:
         return None
-    metrics = scoring_diagnostics.get("attrition_metrics")
-    policy = scoring_config.get("attrition_policy")
-    if not isinstance(metrics, Mapping) or not isinstance(policy, Mapping):
+    metrics = _optional_json_mapping(
+        scoring_diagnostics.get("attrition_metrics"),
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.scoring_diagnostics."
+            "attrition_metrics"
+        ),
+    )
+    policy = _optional_json_mapping(
+        scoring_config.get("attrition_policy"),
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.scoring_config."
+            "attrition_policy"
+        ),
+    )
+    if metrics is None or policy is None:
         return None
     raw_violations = scoring_diagnostics.get("attrition_policy_violations", [])
-    violations = raw_violations if isinstance(raw_violations, list) else []
+    violations = _mapping_list_payload(
+        raw_violations,
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.scoring_diagnostics."
+            "attrition_policy_violations"
+        ),
+    )
     outcome = "passed"
     if violations:
         outcome = "failed" if policy.get("on_violation") == "error" else "warned"
@@ -1054,15 +1110,12 @@ def _kinase_attrition_provenance_from_provenance(
         metrics=metrics,
         policy=policy,
         policy_outcome=outcome,
-        policy_violations=tuple(
-            item for item in violations if isinstance(item, Mapping)
-        ),
+        policy_violations=tuple(violations),
         warning_messages=tuple(
-            str(item.get("message"))
+            message
             for item in violations
-            if isinstance(item, Mapping)
-            and isinstance(item.get("message"), str)
-            and str(item.get("message")).strip() != ""
+            if isinstance((message := item.get("message")), str)
+            and message.strip() != ""
         ),
     )
 
@@ -1070,29 +1123,40 @@ def _kinase_attrition_provenance_from_provenance(
 def _kinase_attrition_provenance_from_payload(
     payload: Mapping[str, object],
 ) -> KinaseWorkflowAttritionProvenance | None:
-    metrics = payload.get("metrics")
-    policy = payload.get("policy")
+    metrics = _optional_json_mapping(
+        payload.get("metrics"),
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.attrition_provenance."
+            "metrics"
+        ),
+    )
+    policy = _optional_json_mapping(
+        payload.get("policy"),
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.attrition_provenance.policy"
+        ),
+    )
     policy_outcome = payload.get("policy_outcome")
-    if not isinstance(metrics, Mapping) or not isinstance(policy, Mapping):
+    if metrics is None or policy is None:
         return None
     if not isinstance(policy_outcome, str):
         return None
     raw_violations = payload.get("policy_violations", [])
-    violations = raw_violations if isinstance(raw_violations, list) else []
+    violations = _mapping_list_payload(
+        raw_violations,
+        field_name=(
+            "bundle manifest.provenance.workflow_parameters.attrition_provenance."
+            "policy_violations"
+        ),
+    )
     raw_warnings = payload.get("warning_messages", [])
-    warnings = raw_warnings if isinstance(raw_warnings, list) else []
+    warnings = _text_list_payload(raw_warnings)
     return KinaseWorkflowAttritionProvenance(
         metrics=metrics,
         policy=policy,
         policy_outcome=policy_outcome,
-        policy_violations=tuple(
-            item for item in violations if isinstance(item, Mapping)
-        ),
-        warning_messages=tuple(
-            str(item)
-            for item in warnings
-            if isinstance(item, str) and item.strip() != ""
-        ),
+        policy_violations=tuple(violations),
+        warning_messages=tuple(item for item in warnings if item.strip() != ""),
     )
 
 
@@ -1127,7 +1191,7 @@ def _read_absent_optional_table(
     tables: Mapping[str, object],
     table_key: str,
     field_name: str,
-):
+) -> pd.DataFrame | None:
     if table_key not in tables:
         return None
     return read_optional_table(
@@ -1136,3 +1200,77 @@ def _read_absent_optional_table(
         table_key=table_key,
         field_name=field_name,
     )
+
+
+def _activity_profile_axis(
+    input_semantics: ActivityInputSemantics,
+) -> ActivityProfileAxis:
+    axis = input_semantics.profile_axis
+    if isinstance(axis, ActivityProfileAxis):
+        return axis
+    _raise_activity_semantic_manifest_error(
+        "bundle manifest.outputs.activity.input_semantics.profile_axis",
+        "must be a normalized ActivityProfileAxis",
+    )
+
+
+def _activity_quantitative_semantics(
+    input_semantics: ActivityInputSemantics,
+) -> ActivityQuantitativeSemantics:
+    quantity = input_semantics.quantitative_semantics
+    if isinstance(quantity, ActivityQuantitativeSemantics):
+        return quantity
+    _raise_activity_semantic_manifest_error(
+        "bundle manifest.outputs.activity.input_semantics.quantitative_semantics",
+        "must be a normalized ActivityQuantitativeSemantics",
+    )
+
+
+def _projection_mapping_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    mapping = _optional_json_mapping(value, field_name=field_name)
+    if mapping is not None:
+        return mapping
+    _raise_projection_manifest_error(field_name, "must be an object")
+
+
+def _optional_json_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object] | None:
+    if not _is_object_mapping(value):
+        return None
+    return validate_json_safe_mapping(value, field_name=field_name)
+
+
+def _mapping_list_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> list[Mapping[str, object]]:
+    if not _is_object_list(value):
+        return []
+    mappings: list[Mapping[str, object]] = []
+    for index, item in enumerate(value):
+        mapping = _optional_json_mapping(item, field_name=f"{field_name}[{index}]")
+        if mapping is not None:
+            mappings.append(mapping)
+    return mappings
+
+
+def _text_list_payload(value: object) -> list[str]:
+    if not _is_object_list(value):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def _is_object_mapping(value: object) -> TypeGuard[Mapping[object, object]]:
+    return isinstance(value, Mapping)
+
+
+def _is_object_list(value: object) -> TypeGuard[list[object]]:
+    return isinstance(value, list)

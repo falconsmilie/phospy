@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import NoReturn
 
 from phospy.contracts.results import SignalomeWorkflowResult
@@ -58,6 +59,45 @@ class SignalomeManifestSections:
     config_snapshot_entry: Mapping[str, object]
     signalome_caveats_payload: object = ()
     upstream_kinase_caveats_payload: object = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _SignalomeManifestSchema:
+    """Schema-parsed signalome manifest payload before file-record validation."""
+
+    manifest_version: int
+    dataset_payload: Mapping[str, object]
+    references_payload: Mapping[str, object]
+    upstream_payload: Mapping[str, object]
+    scoring_payload: Mapping[str, object]
+    prediction_payload: Mapping[str, object]
+    activity_payload: Mapping[str, object]
+    signalome_outputs_payload: Mapping[str, object]
+    dataset_tables: Mapping[str, object]
+    reference_tables: Mapping[str, object]
+    scoring_tables: Mapping[str, object]
+    prediction_tables: Mapping[str, object]
+    upstream_activity_enabled: bool
+    activity_tables: Mapping[str, object]
+    signalome_metadata: Mapping[str, object]
+    signalome_tables: Mapping[str, object]
+    provenance_payload: Mapping[str, object]
+    config_snapshot_raw: object
+    signalome_caveats_payload: object
+    upstream_kinase_caveats_payload: object
+
+
+@dataclass(frozen=True, slots=True)
+class _SignalomeManifestFileRecords:
+    """Signalome manifest table/file records after validation."""
+
+    dataset_tables: Mapping[str, object]
+    reference_tables: Mapping[str, object]
+    scoring_tables: Mapping[str, object]
+    prediction_tables: Mapping[str, object]
+    activity_tables: Mapping[str, object]
+    signalome_tables: Mapping[str, object]
+    config_snapshot_entry: Mapping[str, object]
 
 
 _LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR = (
@@ -260,6 +300,15 @@ def build_manifest(
 def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
     """Parse and validate current-contract signalome manifest payload."""
 
+    schema = _parse_manifest_schema(payload)
+    _validate_manifest_paths(schema)
+    file_records = _validate_manifest_file_records(schema)
+    return _assemble_manifest_sections(schema=schema, file_records=file_records)
+
+
+def _parse_manifest_schema(payload: Mapping[str, object]) -> _SignalomeManifestSchema:
+    """Parse manifest object schemas and semantic switches."""
+
     _reject_unsupported_fields(
         payload,
         field_name="bundle manifest",
@@ -424,11 +473,6 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         required_fields=_DATASET_TABLE_KEYS,
         unsupported_shape=True,
     )
-    _require_table_entries(
-        dataset_tables,
-        field_name="bundle manifest.dataset.tables",
-        optional_keys=frozenset({"sample_metadata", "total"}),
-    )
     reference_tables = require_mapping(
         references_payload.get("tables"),
         field_name="bundle manifest.resolved_references.tables",
@@ -443,11 +487,6 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         field_name="bundle manifest.resolved_references.tables",
         required_fields=_REFERENCE_TABLE_KEYS,
         unsupported_shape=True,
-    )
-    _require_table_entries(
-        reference_tables,
-        field_name="bundle manifest.resolved_references.tables",
-        optional_keys=frozenset(),
     )
     scoring_tables = require_mapping(
         scoring_payload.get("tables"),
@@ -464,21 +503,6 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         required_fields=_SCORING_TABLE_REQUIRED_KEYS,
         unsupported_shape=True,
     )
-    _require_table_entries(
-        scoring_tables,
-        field_name="bundle manifest.upstream_kinase_outputs.scoring.tables",
-        optional_keys=frozenset(
-            {
-                "motif_scores",
-                "rank_weighted_fusion_scores",
-                "kinase_library_motif_scores",
-                "combined_profile_motif_scores",
-                "score_fusion_weights",
-                "kinase_library_site_diagnostics",
-                "kinase_library_kinase_diagnostics",
-            }
-        ),
-    )
     prediction_tables = require_mapping(
         prediction_payload.get("tables"),
         field_name="bundle manifest.upstream_kinase_outputs.prediction.tables",
@@ -494,11 +518,6 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         required_fields=_PREDICTION_TABLE_KEYS,
         unsupported_shape=True,
     )
-    _require_table_entries(
-        prediction_tables,
-        field_name="bundle manifest.upstream_kinase_outputs.prediction.tables",
-        optional_keys=frozenset({"substrate_list"}),
-    )
     activity_tables = require_mapping(
         activity_payload.get("tables"),
         field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
@@ -513,11 +532,6 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
         required_fields=_ACTIVITY_TABLE_KEYS,
         unsupported_shape=True,
-    )
-    _require_table_entries(
-        activity_tables,
-        field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
-        optional_keys=_ACTIVITY_TABLE_KEYS,
     )
     signalome_metadata = require_mapping(
         signalome_outputs_payload.get("metadata"),
@@ -557,8 +571,105 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         required_fields=_SIGNALOME_TABLE_KEYS,
         unsupported_shape=True,
     )
+    return _SignalomeManifestSchema(
+        manifest_version=manifest_version,
+        dataset_payload=dataset_payload,
+        references_payload=references_payload,
+        upstream_payload=upstream_payload,
+        scoring_payload=scoring_payload,
+        prediction_payload=prediction_payload,
+        activity_payload=activity_payload,
+        signalome_outputs_payload=signalome_outputs_payload,
+        dataset_tables=dataset_tables,
+        reference_tables=reference_tables,
+        scoring_tables=scoring_tables,
+        prediction_tables=prediction_tables,
+        upstream_activity_enabled=upstream_activity_enabled,
+        activity_tables=activity_tables,
+        signalome_metadata=signalome_metadata,
+        signalome_tables=signalome_tables,
+        provenance_payload=provenance_payload,
+        config_snapshot_raw=payload.get("config_snapshot"),
+        signalome_caveats_payload=payload.get("caveats", []),
+        upstream_kinase_caveats_payload=upstream_payload.get("caveats", []),
+    )
+
+
+def _validate_manifest_paths(schema: _SignalomeManifestSchema) -> None:
+    """Validate manifest-declared path strings before file-record validation."""
+
+    _validate_table_paths(
+        schema.dataset_tables,
+        field_name="bundle manifest.dataset.tables",
+    )
+    _validate_table_paths(
+        schema.reference_tables,
+        field_name="bundle manifest.resolved_references.tables",
+    )
+    _validate_table_paths(
+        schema.scoring_tables,
+        field_name="bundle manifest.upstream_kinase_outputs.scoring.tables",
+    )
+    _validate_table_paths(
+        schema.prediction_tables,
+        field_name="bundle manifest.upstream_kinase_outputs.prediction.tables",
+    )
+    _validate_table_paths(
+        schema.activity_tables,
+        field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
+    )
+    _validate_table_paths(
+        schema.signalome_tables,
+        field_name="bundle manifest.signalome_outputs.tables",
+    )
+    _validate_file_path(
+        schema.config_snapshot_raw,
+        field_name="bundle manifest.config_snapshot",
+    )
+
+
+def _validate_manifest_file_records(
+    schema: _SignalomeManifestSchema,
+) -> _SignalomeManifestFileRecords:
+    """Validate manifest table/file records after path validation."""
+
     _require_table_entries(
-        signalome_tables,
+        schema.dataset_tables,
+        field_name="bundle manifest.dataset.tables",
+        optional_keys=frozenset({"sample_metadata", "total"}),
+    )
+    _require_table_entries(
+        schema.reference_tables,
+        field_name="bundle manifest.resolved_references.tables",
+        optional_keys=frozenset(),
+    )
+    _require_table_entries(
+        schema.scoring_tables,
+        field_name="bundle manifest.upstream_kinase_outputs.scoring.tables",
+        optional_keys=frozenset(
+            {
+                "motif_scores",
+                "rank_weighted_fusion_scores",
+                "kinase_library_motif_scores",
+                "combined_profile_motif_scores",
+                "score_fusion_weights",
+                "kinase_library_site_diagnostics",
+                "kinase_library_kinase_diagnostics",
+            }
+        ),
+    )
+    _require_table_entries(
+        schema.prediction_tables,
+        field_name="bundle manifest.upstream_kinase_outputs.prediction.tables",
+        optional_keys=frozenset({"substrate_list"}),
+    )
+    _require_table_entries(
+        schema.activity_tables,
+        field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
+        optional_keys=_ACTIVITY_TABLE_KEYS,
+    )
+    _require_table_entries(
+        schema.signalome_tables,
         field_name="bundle manifest.signalome_outputs.tables",
         optional_keys=frozenset(
             {
@@ -572,36 +683,87 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
     )
     try:
         config_snapshot_entry = require_file_entry(
-            payload.get("config_snapshot"),
+            schema.config_snapshot_raw,
             field_name="bundle manifest.config_snapshot",
             expected_logical_type="config_snapshot",
         )
     except PhosPyInputError as exc:
         _raise_unsupported_manifest_shape(str(exc))
+    return _SignalomeManifestFileRecords(
+        dataset_tables=schema.dataset_tables,
+        reference_tables=schema.reference_tables,
+        scoring_tables=schema.scoring_tables,
+        prediction_tables=schema.prediction_tables,
+        activity_tables=schema.activity_tables,
+        signalome_tables=schema.signalome_tables,
+        config_snapshot_entry=config_snapshot_entry,
+    )
+
+
+def _assemble_manifest_sections(
+    *,
+    schema: _SignalomeManifestSchema,
+    file_records: _SignalomeManifestFileRecords,
+) -> SignalomeManifestSections:
+    """Assemble the public decoded manifest section model."""
 
     return SignalomeManifestSections(
-        manifest_version=manifest_version,
+        manifest_version=schema.manifest_version,
         dataset_metadata=require_mapping(
-            dataset_payload.get("metadata"),
+            schema.dataset_payload.get("metadata"),
             field_name="bundle manifest.dataset.metadata",
         ),
-        dataset_tables=dataset_tables,
+        dataset_tables=file_records.dataset_tables,
         references_metadata=require_mapping(
-            references_payload.get("metadata"),
+            schema.references_payload.get("metadata"),
             field_name="bundle manifest.resolved_references.metadata",
         ),
-        reference_tables=reference_tables,
-        scoring_tables=scoring_tables,
-        prediction_tables=prediction_tables,
-        upstream_activity_enabled=upstream_activity_enabled,
-        activity_tables=activity_tables,
-        signalome_metadata=signalome_metadata,
-        signalome_tables=signalome_tables,
-        provenance_payload=provenance_payload,
-        config_snapshot_entry=config_snapshot_entry,
-        signalome_caveats_payload=payload.get("caveats", []),
-        upstream_kinase_caveats_payload=upstream_payload.get("caveats", []),
+        reference_tables=file_records.reference_tables,
+        scoring_tables=file_records.scoring_tables,
+        prediction_tables=file_records.prediction_tables,
+        upstream_activity_enabled=schema.upstream_activity_enabled,
+        activity_tables=file_records.activity_tables,
+        signalome_metadata=schema.signalome_metadata,
+        signalome_tables=file_records.signalome_tables,
+        provenance_payload=schema.provenance_payload,
+        config_snapshot_entry=file_records.config_snapshot_entry,
+        signalome_caveats_payload=schema.signalome_caveats_payload,
+        upstream_kinase_caveats_payload=schema.upstream_kinase_caveats_payload,
     )
+
+
+def _validate_table_paths(
+    tables: Mapping[str, object],
+    *,
+    field_name: str,
+) -> None:
+    for table_key, value in tables.items():
+        if value is None:
+            continue
+        entry_field_name = f"{field_name}.{str(table_key)}"
+        _validate_file_path(value, field_name=entry_field_name)
+
+
+def _validate_file_path(value: object, *, field_name: str) -> None:
+    try:
+        entry = require_mapping(value, field_name=field_name)
+        relative_path = require_str(entry.get("path"), field_name=f"{field_name}.path")
+        _validate_relative_manifest_path(
+            relative_path,
+            field_name=f"{field_name}.path",
+        )
+    except PhosPyInputError as exc:
+        _raise_unsupported_manifest_shape(str(exc))
+
+
+def _validate_relative_manifest_path(path: str, *, field_name: str) -> None:
+    candidate = PurePosixPath(path)
+    if candidate.is_absolute():
+        _raise_unsupported_manifest_shape(f"{field_name} must be a relative path")
+    if ".." in candidate.parts:
+        _raise_unsupported_manifest_shape(
+            f"{field_name} must not contain parent-directory traversal"
+        )
 
 
 def _raise_unsupported_manifest_shape(message: str) -> NoReturn:

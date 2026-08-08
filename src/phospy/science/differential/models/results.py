@@ -480,6 +480,54 @@ class DifferentialAnalysisResult:
         return True
 
     @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        residual_variance: pd.Series,
+        posterior_residual_variance: pd.Series,
+        prior_residual_variance: pd.Series,
+        prior_degrees_of_freedom_series_value: pd.Series,
+        prior_variance: float,
+        prior_degrees_of_freedom: float,
+        residual_degrees_of_freedom: float,
+        empirical_bayes_method: str,
+        empirical_bayes_robust: bool,
+        empirical_bayes_trend: bool,
+        prior_diagnostics: EmpiricalBayesPriorDiagnostics,
+        mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+        contrast_tables: Mapping[str, pd.DataFrame],
+        diagnostics: DifferentialModelDiagnostics | None = None,
+        policy_provenance: DifferentialPolicyProvenance | None = None,
+        workflow_provenance: Mapping[str, object] | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+        input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
+        feature_eligibility: pd.DataFrame | None = None,
+    ) -> DifferentialAnalysisResult:
+        """Construct from already-owned tables at trusted workflow boundaries."""
+
+        return cls._from_owned(
+            residual_variance=residual_variance,
+            posterior_residual_variance=posterior_residual_variance,
+            prior_residual_variance=prior_residual_variance,
+            prior_degrees_of_freedom_series_value=prior_degrees_of_freedom_series_value,
+            prior_variance=prior_variance,
+            prior_degrees_of_freedom=prior_degrees_of_freedom,
+            residual_degrees_of_freedom=residual_degrees_of_freedom,
+            empirical_bayes_method=empirical_bayes_method,
+            empirical_bayes_robust=empirical_bayes_robust,
+            empirical_bayes_trend=empirical_bayes_trend,
+            prior_diagnostics=prior_diagnostics,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            contrast_tables=contrast_tables,
+            diagnostics=diagnostics,
+            policy_provenance=policy_provenance,
+            workflow_provenance=workflow_provenance,
+            caveats=caveats,
+            input_dataset_preprocessing_report=input_dataset_preprocessing_report,
+            feature_eligibility=feature_eligibility,
+        )
+
+    @classmethod
     def _from_owned(
         cls,
         *,

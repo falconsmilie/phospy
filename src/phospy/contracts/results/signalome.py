@@ -1,5 +1,4 @@
 """Public signalome workflow result contracts."""
-# pyright: reportMissingTypeStubs=false, reportUnnecessaryIsInstance=false
 
 from __future__ import annotations
 
@@ -389,6 +388,46 @@ class SignalomeWorkflowResult:
             assume_owned=True,
         )
         return result
+
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        kinase_result: KinaseWorkflowResult,
+        module_assignments: SignalomeAssignments,
+        signalome_modules: SignalomeModules,
+        kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
+        expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+    ) -> SignalomeWorkflowResult:
+        """Construct from already-owned tables at trusted workflow boundaries."""
+
+        return cls._from_owned(
+            dataset=dataset,
+            kinase_result=kinase_result,
+            module_assignments=module_assignments,
+            signalome_modules=signalome_modules,
+            kinase_network=kinase_network,
+            module_selection_diagnostics=module_selection_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
+            score_preconditioning_diagnostics=score_preconditioning_diagnostics,
+            alignment_diagnostics=alignment_diagnostics,
+            expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
+            provenance=provenance,
+            caveats=caveats,
+        )
 
     def to_dataframe(self) -> pd.DataFrame | None:
         """Return an expanded-signalome snapshot, not an export."""

@@ -272,6 +272,57 @@ class _SsgseaNullScoreCache:
 
 
 @dataclass(frozen=True, slots=True)
+class _SsgseaPreparedInputs:
+    activity_input: ActivityInputMatrix
+    aligned_membership: pd.DataFrame
+    kinase_index: pd.Index
+    profile_index: pd.Index
+    site_labels: np.ndarray
+    membership_by_kinase: dict[str, set[str]]
+    effect_values: np.ndarray
+    random_seed: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class _SsgseaMutableScoringTables:
+    activity_scores: pd.DataFrame
+    substrate_count_table: pd.DataFrame
+    p_value_matrix: pd.DataFrame | None
+    q_value_matrix: pd.DataFrame | None
+    rows: list[dict[str, object]]
+    status_counts: dict[str, int]
+    null_score_cache: _SsgseaNullScoreCache
+
+
+@dataclass(frozen=True, slots=True)
+class _SsgseaProfileRanking:
+    position: int
+    profile_id: str
+    ranked_blocks: _RankedTieBlocks
+    ranked_position_by_site: dict[str, int]
+
+
+@dataclass(frozen=True, slots=True)
+class _SsgseaPairScore:
+    n_substrates: int
+    enrichment_score: float
+    p_value: float
+    status: str
+    reason: str
+    tie_diagnostics: dict[str, int]
+
+
+@dataclass(frozen=True, slots=True)
+class _SsgseaScoredOutputs:
+    activity_scores: pd.DataFrame
+    substrate_count_table: pd.DataFrame
+    p_value_matrix: pd.DataFrame | None
+    q_value_matrix: pd.DataFrame | None
+    statistics_table: pd.DataFrame
+    status_counts: dict[str, int]
+
+
+@dataclass(frozen=True, slots=True)
 class SsgseaSubstrateEnrichmentActivityMethod:
     """PhosPy ssGSEA-style kinase substrate enrichment score."""
 
@@ -283,39 +334,43 @@ class SsgseaSubstrateEnrichmentActivityMethod:
     q_value_method: str = SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
 
     def __post_init__(self) -> None:
-        if isinstance(self.min_substrates, bool) or not isinstance(
+        min_substrates = _require_int(
             self.min_substrates,
-            int,
-        ):
-            raise ValueError("ssgsea min_substrates must be an int")
-        if int(self.min_substrates) < 1:
+            field_name="ssgsea min_substrates",
+        )
+        if min_substrates < 1:
             raise ValueError("ssgsea min_substrates must be greater than or equal to 1")
         if self.ranking_direction not in SSGSEA_RANKING_DIRECTIONS:
             allowed = ", ".join(sorted(SSGSEA_RANKING_DIRECTIONS))
             raise ValueError(f"ssgsea ranking_direction must be one of: {allowed}")
-        if isinstance(self.permutation_count, bool) or not isinstance(
+        permutation_count = _require_int(
             self.permutation_count,
-            int,
-        ):
-            raise ValueError("ssgsea permutation_count must be an int")
-        if int(self.permutation_count) < 0:
+            field_name="ssgsea permutation_count",
+        )
+        if permutation_count < 0:
             raise ValueError(
                 "ssgsea permutation_count must be greater than or equal to 0"
             )
-        if self.random_seed is not None and (
-            isinstance(self.random_seed, bool) or not isinstance(self.random_seed, int)
-        ):
-            raise ValueError("ssgsea random_seed must be an int or None")
-        if self.random_seed is not None and int(self.random_seed) < 0:
+        random_seed = _require_optional_int(
+            self.random_seed,
+            field_name="ssgsea random_seed",
+        )
+        if random_seed is not None and random_seed < 0:
             raise ValueError("ssgsea random_seed must be greater than or equal to 0")
-        if int(self.permutation_count) > 0 and self.random_seed is None:
+        if permutation_count > 0 and random_seed is None:
             raise ValueError(
                 "ssgsea random_seed must be set when permutation_count is positive"
             )
-        if not isinstance(self.adjust_p_values, bool):
-            raise ValueError("ssgsea adjust_p_values must be a bool")
+        adjust_p_values = _require_bool(
+            self.adjust_p_values,
+            field_name="ssgsea adjust_p_values",
+        )
         if self.q_value_method != SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG:
             raise ValueError("ssgsea q_value_method must be 'benjamini_hochberg'")
+        object.__setattr__(self, "min_substrates", min_substrates)
+        object.__setattr__(self, "permutation_count", permutation_count)
+        object.__setattr__(self, "random_seed", random_seed)
+        object.__setattr__(self, "adjust_p_values", adjust_p_values)
 
     def run(
         self,
@@ -324,339 +379,516 @@ class SsgseaSubstrateEnrichmentActivityMethod:
         effect_matrix: pd.DataFrame | None = None,
         kinase_substrate_membership: pd.DataFrame,
     ) -> KinaseActivityResult:
-        if activity_input is not None and effect_matrix is not None:
-            raise WorkflowBoundaryError(
-                "ssgsea activity requires either activity_input or legacy "
-                "effect_matrix, not both"
-            )
-        if activity_input is None:
-            if effect_matrix is None:
-                raise WorkflowBoundaryError(
-                    "ssgsea activity requires ActivityInputMatrix with explicit "
-                    "contrast/effect semantics"
-                )
-            activity_input = normalize_activity_input_matrix(
-                effect_matrix,
-                field_name="activity_inputs.effect_matrix",
-                legacy_dataframe_semantics=ActivityInputSemantics(
-                    profile_axis=ActivityProfileAxis.EFFECT,
-                    quantitative_semantics=(
-                        ActivityQuantitativeSemantics.STANDARDISED_EFFECT
-                    ),
-                ),
-                legacy_dataframe_warning=(
-                    "Passing a raw DataFrame as effect_matrix is deprecated; "
-                    "provide ActivityInputMatrix.contrast_log_fold_change(...) or "
-                    "ActivityInputMatrix.standardised_effect(...) so activity "
-                    "input semantics are explicit."
-                ),
-            )
-        from phospy.science.quantitative_method_contracts import (
-            resolve_activity_input_contract,
+        prepared = _prepare_ssgsea_inputs(
+            activity_input=activity_input,
+            effect_matrix=effect_matrix,
+            kinase_substrate_membership=kinase_substrate_membership,
+            method=self,
+        )
+        scored = _score_ssgsea_profiles(method=self, prepared=prepared)
+        corrected = _apply_ssgsea_multiple_testing(
+            prepared=prepared,
+            scored=scored,
+        )
+        return _assemble_ssgsea_result(
+            method=self,
+            prepared=prepared,
+            scored=corrected,
         )
 
-        resolve_activity_input_contract(
-            activity_input=activity_input,
-            contract=ssgsea_substrate_enrichment_activity_input_contract(),
-            context=(
-                "ssGSEA substrate enrichment activity input requires explicit "
-                "contrast/effect input"
-            ),
-        )
-        effects = activity_input.frame
-        membership = _validate_membership_table(kinase_substrate_membership)
-        site_labels = np.asarray(effects.index.astype(str).tolist(), dtype=object)
-        site_universe = set(str(value) for value in site_labels.tolist())
-        aligned_membership = membership.loc[
-            membership.loc[:, _SUBSTRATE_COLUMN].astype(str).isin(site_universe),
-            :,
-        ].copy(deep=True)
-        kinases = _ordered_unique_strings(membership.loc[:, _KINASE_COLUMN])
-        kinase_index = pd.Index(kinases, name="kinase")
-        profile_index = pd.Index(
-            effects.columns.astype(str).tolist(),
-            name=effects.columns.name,
-        )
-        membership_by_kinase = _build_membership_lookup(
+
+def _prepare_ssgsea_inputs(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    activity_input: ActivityInputMatrix | None,
+    effect_matrix: pd.DataFrame | None,
+    kinase_substrate_membership: pd.DataFrame,
+) -> _SsgseaPreparedInputs:
+    resolved_activity_input = _resolve_ssgsea_activity_input(
+        activity_input=activity_input,
+        effect_matrix=effect_matrix,
+    )
+    from phospy.science.quantitative_method_contracts import (
+        resolve_activity_input_contract,
+    )
+
+    resolve_activity_input_contract(
+        activity_input=resolved_activity_input,
+        contract=ssgsea_substrate_enrichment_activity_input_contract(),
+        context=(
+            "ssGSEA substrate enrichment activity input requires explicit "
+            "contrast/effect input"
+        ),
+    )
+    effects = resolved_activity_input.frame
+    membership = _validate_membership_table(kinase_substrate_membership)
+    site_labels = np.asarray(effects.index.astype(str).tolist(), dtype=object)
+    site_universe = set(str(value) for value in site_labels.tolist())
+    aligned_membership = membership.loc[
+        membership.loc[:, _SUBSTRATE_COLUMN].astype(str).isin(site_universe),
+        :,
+    ].copy(deep=True)
+    kinases = _ordered_unique_strings(membership.loc[:, _KINASE_COLUMN])
+    kinase_index = pd.Index(kinases, name="kinase")
+    profile_index = pd.Index(
+        effects.columns.astype(str).tolist(),
+        name=effects.columns.name,
+    )
+    return _SsgseaPreparedInputs(
+        activity_input=resolved_activity_input,
+        aligned_membership=aligned_membership,
+        kinase_index=kinase_index,
+        profile_index=profile_index,
+        site_labels=site_labels,
+        membership_by_kinase=_build_membership_lookup(
             kinases=kinases,
             membership=aligned_membership,
-        )
+        ),
+        effect_values=effects.to_numpy(dtype=float, copy=False),
+        random_seed=_resolve_ssgsea_random_seed(method),
+    )
 
-        activity_scores = pd.DataFrame(
+
+def _resolve_ssgsea_activity_input(
+    *,
+    activity_input: ActivityInputMatrix | None,
+    effect_matrix: pd.DataFrame | None,
+) -> ActivityInputMatrix:
+    if activity_input is not None and effect_matrix is not None:
+        raise WorkflowBoundaryError(
+            "ssgsea activity requires either activity_input or legacy "
+            "effect_matrix, not both"
+        )
+    if activity_input is not None:
+        return activity_input
+    if effect_matrix is None:
+        raise WorkflowBoundaryError(
+            "ssgsea activity requires ActivityInputMatrix with explicit "
+            "contrast/effect semantics"
+        )
+    return normalize_activity_input_matrix(
+        effect_matrix,
+        field_name="activity_inputs.effect_matrix",
+        legacy_dataframe_semantics=ActivityInputSemantics(
+            profile_axis=ActivityProfileAxis.EFFECT,
+            quantitative_semantics=ActivityQuantitativeSemantics.STANDARDISED_EFFECT,
+        ),
+        legacy_dataframe_warning=(
+            "Passing a raw DataFrame as effect_matrix is deprecated; "
+            "provide ActivityInputMatrix.contrast_log_fold_change(...) or "
+            "ActivityInputMatrix.standardised_effect(...) so activity "
+            "input semantics are explicit."
+        ),
+    )
+
+
+def _resolve_ssgsea_random_seed(
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+) -> int | None:
+    if int(method.permutation_count) <= 0:
+        return None
+    if method.random_seed is None:
+        raise ValueError(
+            "ssgsea random_seed must be set when permutation_count is positive"
+        )
+    return int(method.random_seed)
+
+
+def _score_ssgsea_profiles(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    prepared: _SsgseaPreparedInputs,
+) -> _SsgseaScoredOutputs:
+    tables = _initialise_ssgsea_scoring_tables(method=method, prepared=prepared)
+    for profile_position, profile_id in enumerate(prepared.profile_index):
+        ranking = _rank_ssgsea_profile(
+            method=method,
+            prepared=prepared,
+            profile_position=profile_position,
+            profile_id=str(profile_id),
+        )
+        for kinase_position, kinase_name in enumerate(prepared.kinase_index):
+            score = _score_ssgsea_kinase_profile(
+                method=method,
+                prepared=prepared,
+                ranking=ranking,
+                tables=tables,
+                kinase_name=str(kinase_name),
+            )
+            _record_ssgsea_pair_score(
+                method=method,
+                prepared=prepared,
+                ranking=ranking,
+                tables=tables,
+                score=score,
+                kinase_position=kinase_position,
+                kinase_name=str(kinase_name),
+            )
+    return _SsgseaScoredOutputs(
+        activity_scores=tables.activity_scores,
+        substrate_count_table=tables.substrate_count_table,
+        p_value_matrix=tables.p_value_matrix,
+        q_value_matrix=tables.q_value_matrix,
+        statistics_table=pd.DataFrame.from_records(
+            tables.rows,
+            columns=_ssgsea_statistics_columns(),
+        ),
+        status_counts=tables.status_counts,
+    )
+
+
+def _initialise_ssgsea_scoring_tables(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    prepared: _SsgseaPreparedInputs,
+) -> _SsgseaMutableScoringTables:
+    p_value_matrix = (
+        pd.DataFrame(
             np.nan,
-            index=kinase_index,
-            columns=profile_index,
+            index=prepared.kinase_index,
+            columns=prepared.profile_index,
             dtype=float,
         )
-        substrate_count_table = pd.DataFrame(
+        if int(method.permutation_count) > 0
+        else None
+    )
+    q_value_matrix = (
+        pd.DataFrame(
+            np.nan,
+            index=prepared.kinase_index,
+            columns=prepared.profile_index,
+            dtype=float,
+        )
+        if int(method.permutation_count) > 0 and bool(method.adjust_p_values)
+        else None
+    )
+    return _SsgseaMutableScoringTables(
+        activity_scores=pd.DataFrame(
+            np.nan,
+            index=prepared.kinase_index,
+            columns=prepared.profile_index,
+            dtype=float,
+        ),
+        substrate_count_table=pd.DataFrame(
             0,
-            index=kinase_index,
-            columns=profile_index,
+            index=prepared.kinase_index,
+            columns=prepared.profile_index,
             dtype=int,
-        )
-        p_value_matrix = (
-            pd.DataFrame(
-                np.nan,
-                index=kinase_index,
-                columns=profile_index,
-                dtype=float,
-            )
-            if int(self.permutation_count) > 0
-            else None
-        )
-        q_value_matrix = (
-            pd.DataFrame(
-                np.nan,
-                index=kinase_index,
-                columns=profile_index,
-                dtype=float,
-            )
-            if int(self.permutation_count) > 0 and bool(self.adjust_p_values)
-            else None
-        )
-
-        random_seed: int | None = None
-        if int(self.permutation_count) > 0:
-            if self.random_seed is None:
-                raise ValueError(
-                    "ssgsea random_seed must be set when permutation_count is positive"
-                )
-            random_seed = int(self.random_seed)
-        effect_values = effects.to_numpy(dtype=float, copy=False)
-        rows: list[dict[str, object]] = []
-        counts = {
+        ),
+        p_value_matrix=p_value_matrix,
+        q_value_matrix=q_value_matrix,
+        rows=[],
+        status_counts={
             SSGSEA_STATUS_COMPUTED: 0,
             SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES: 0,
             SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES: 0,
             SSGSEA_STATUS_INSUFFICIENT_BACKGROUND_SITES: 0,
             SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES: 0,
-        }
-        null_score_cache = _SsgseaNullScoreCache()
+        },
+        null_score_cache=_SsgseaNullScoreCache(),
+    )
 
-        for profile_position, profile_id in enumerate(profile_index):
-            profile_values = effect_values[:, profile_position]
-            finite_positions = np.flatnonzero(np.isfinite(profile_values))
-            ranked_blocks = _rank_site_blocks(
-                site_labels=site_labels,
-                values=profile_values,
-                finite_positions=finite_positions,
-                ranking_direction=str(self.ranking_direction),
-            )
-            n_background = ranked_blocks.n_background
-            ranked_position_by_site = {
-                str(site_id): int(position)
-                for position, site_id in enumerate(ranked_blocks.site_labels.tolist())
-            }
 
-            for kinase_position, kinase_name in enumerate(kinase_index):
-                substrate_sites = membership_by_kinase[str(kinase_name)]
-                hit_positions = np.fromiter(
-                    (
-                        ranked_position_by_site[site_id]
-                        for site_id in substrate_sites
-                        if site_id in ranked_position_by_site
-                    ),
-                    dtype=np.int64,
-                )
-                hit_mask = np.zeros(n_background, dtype=bool)
-                hit_mask[hit_positions] = True
-                n_substrates = int(hit_mask.sum())
-                tie_diagnostics = _build_kinase_tie_diagnostics(
-                    ranked_blocks=ranked_blocks,
-                    hit_mask=hit_mask,
-                )
-                substrate_count_table.iat[kinase_position, profile_position] = (
-                    n_substrates
-                )
+def _rank_ssgsea_profile(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    prepared: _SsgseaPreparedInputs,
+    profile_position: int,
+    profile_id: str,
+) -> _SsgseaProfileRanking:
+    profile_values = prepared.effect_values[:, profile_position]
+    finite_positions = np.flatnonzero(np.isfinite(profile_values))
+    ranked_blocks = _rank_site_blocks(
+        site_labels=prepared.site_labels,
+        values=profile_values,
+        finite_positions=finite_positions,
+        ranking_direction=str(method.ranking_direction),
+    )
+    return _SsgseaProfileRanking(
+        position=profile_position,
+        profile_id=profile_id,
+        ranked_blocks=ranked_blocks,
+        ranked_position_by_site={
+            str(site_id): int(position)
+            for position, site_id in enumerate(ranked_blocks.site_labels.tolist())
+        },
+    )
 
-                status, reason = _resolve_status(
-                    n_background=n_background,
-                    n_substrates=n_substrates,
-                    min_substrates=int(self.min_substrates),
-                )
-                enrichment_score = np.nan
-                p_value = np.nan
-                if status == SSGSEA_STATUS_COMPUTED:
-                    null_score_engine = null_score_cache.get(
-                        ranked_blocks=ranked_blocks,
-                        n_substrates=n_substrates,
-                    )
-                    enrichment_score = null_score_engine.score_selected_positions(
-                        hit_positions,
-                    )
-                    if not np.isfinite(enrichment_score):
-                        status = SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
-                        reason = "enrichment score is not finite"
-                    else:
-                        activity_scores.iat[
-                            kinase_position,
-                            profile_position,
-                        ] = float(enrichment_score)
-                        if random_seed is not None and p_value_matrix is not None:
-                            permutation_rng = _make_ssgsea_permutation_rng(
-                                random_seed=int(random_seed),
-                                profile_id=str(profile_id),
-                                kinase_name=str(kinase_name),
-                            )
-                            p_value = _permutation_p_value(
-                                observed_score=float(enrichment_score),
-                                null_score_engine=null_score_engine,
-                                permutation_count=int(self.permutation_count),
-                                rng=permutation_rng,
-                            )
-                            p_value_matrix.iat[
-                                kinase_position,
-                                profile_position,
-                            ] = float(p_value)
 
-                counts[status] += 1
-                significance_status = _resolve_significance_status(
-                    computability_status=status,
-                    permutation_count=int(self.permutation_count),
-                    adjust_p_values=bool(self.adjust_p_values),
-                )
-                rows.append(
-                    {
-                        "kinase": str(kinase_name),
-                        "profile_id": str(profile_id),
-                        "z_score": np.nan,
-                        "enrichment_score": (
-                            float(enrichment_score)
-                            if np.isfinite(enrichment_score)
-                            else np.nan
-                        ),
-                        "p_value": float(p_value) if np.isfinite(p_value) else np.nan,
-                        "q_value": np.nan,
-                        "significance_status": significance_status,
-                        "n_substrates": int(n_substrates),
-                        "n_background_sites": int(n_background),
-                        "evidence_threshold": np.nan,
-                        "evidence_threshold_operator": "",
-                        "evidence_threshold_description": (
-                            "not thresholded; explicit kinase-substrate membership"
-                        ),
-                        "min_substrates": int(self.min_substrates),
-                        "ranking_direction": str(self.ranking_direction),
-                        "tie_policy": SSGSEA_TIE_POLICY,
-                        "n_tie_blocks": ranked_blocks.n_tie_blocks,
-                        "n_tied_sites": ranked_blocks.n_tied_sites,
-                        "max_tie_block_size": ranked_blocks.max_tie_block_size,
-                        "substrate_only_tie_blocks": tie_diagnostics[
-                            "substrate_only_tie_blocks"
-                        ],
-                        "non_substrate_only_tie_blocks": tie_diagnostics[
-                            "non_substrate_only_tie_blocks"
-                        ],
-                        "mixed_substrate_tie_blocks": tie_diagnostics[
-                            "mixed_substrate_tie_blocks"
-                        ],
-                        "permutation_count": int(self.permutation_count),
-                        "random_seed": (
-                            np.nan
-                            if self.random_seed is None
-                            else int(self.random_seed)
-                        ),
-                        "computability_status": status,
-                        "reason": reason,
-                    }
-                )
-
-        statistics_table = pd.DataFrame.from_records(
-            rows,
-            columns=[
-                "kinase",
-                "profile_id",
-                "z_score",
-                "enrichment_score",
-                "p_value",
-                "q_value",
-                "significance_status",
-                "n_substrates",
-                "n_background_sites",
-                "evidence_threshold",
-                "evidence_threshold_operator",
-                "evidence_threshold_description",
-                "min_substrates",
-                "ranking_direction",
-                "tie_policy",
-                "n_tie_blocks",
-                "n_tied_sites",
-                "max_tie_block_size",
-                "substrate_only_tie_blocks",
-                "non_substrate_only_tie_blocks",
-                "mixed_substrate_tie_blocks",
-                "permutation_count",
-                "random_seed",
-                "computability_status",
-                "reason",
-            ],
+def _score_ssgsea_kinase_profile(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    prepared: _SsgseaPreparedInputs,
+    ranking: _SsgseaProfileRanking,
+    tables: _SsgseaMutableScoringTables,
+    kinase_name: str,
+) -> _SsgseaPairScore:
+    hit_positions = np.fromiter(
+        (
+            ranking.ranked_position_by_site[site_id]
+            for site_id in prepared.membership_by_kinase[kinase_name]
+            if site_id in ranking.ranked_position_by_site
+        ),
+        dtype=np.int64,
+    )
+    hit_mask = np.zeros(ranking.ranked_blocks.n_background, dtype=bool)
+    hit_mask[hit_positions] = True
+    n_substrates = int(hit_mask.sum())
+    status, reason = _resolve_status(
+        n_background=ranking.ranked_blocks.n_background,
+        n_substrates=n_substrates,
+        min_substrates=int(method.min_substrates),
+    )
+    enrichment_score = np.nan
+    p_value = np.nan
+    if status == SSGSEA_STATUS_COMPUTED:
+        null_score_engine = tables.null_score_cache.get(
+            ranked_blocks=ranking.ranked_blocks,
+            n_substrates=n_substrates,
         )
-        if p_value_matrix is not None and q_value_matrix is not None:
-            _apply_q_values(
-                statistics_table=statistics_table,
-                q_value_matrix=q_value_matrix,
-                profile_index=profile_index,
-            )
+        enrichment_score = null_score_engine.score_selected_positions(hit_positions)
+        if not np.isfinite(enrichment_score):
+            status = SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
+            reason = "enrichment score is not finite"
+        else:
+            if prepared.random_seed is not None and tables.p_value_matrix is not None:
+                p_value = _ssgsea_null_p_value(
+                    method=method,
+                    prepared=prepared,
+                    ranking=ranking,
+                    kinase_name=kinase_name,
+                    observed_score=float(enrichment_score),
+                    null_score_engine=null_score_engine,
+                )
+    return _SsgseaPairScore(
+        n_substrates=n_substrates,
+        enrichment_score=(
+            float(enrichment_score) if np.isfinite(enrichment_score) else np.nan
+        ),
+        p_value=float(p_value) if np.isfinite(p_value) else np.nan,
+        status=status,
+        reason=reason,
+        tie_diagnostics=_build_kinase_tie_diagnostics(
+            ranked_blocks=ranking.ranked_blocks,
+            hit_mask=hit_mask,
+        ),
+    )
 
-        target_counts = _build_target_counts(
-            aligned_membership=aligned_membership,
-            kinase_index=kinase_index,
-        )
-        thresholded_substrate_counts = target_counts.rename("n_substrates")
-        target_table = _build_target_table(aligned_membership=aligned_membership)
-        summary = ActivityMethodSummary(
-            kinases_evaluated=int(len(kinase_index)),
-            kinase_profile_pairs_evaluated=int(len(kinase_index) * len(profile_index)),
-            kinase_profile_pairs_computed=counts[SSGSEA_STATUS_COMPUTED],
-            kinase_profile_pairs_insufficient_substrates=counts[
-                SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES
-            ],
-            kinase_profile_pairs_invalid_background_variance=(
-                counts[SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES]
-                + counts[SSGSEA_STATUS_INSUFFICIENT_BACKGROUND_SITES]
-            ),
-            kinase_profile_pairs_no_finite_background_values=counts[
-                SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES
-            ],
-            kinase_profile_pairs_no_finite_substrate_values=counts[
-                SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
-            ],
-        )
-        diagnostics = SsgseaSubstrateEnrichmentActivityDiagnostics(
-            method_summary=summary,
-            threshold_membership_diagnostics=None,
-            statistics_table=statistics_table,
-        )
-        policy = build_ssgsea_substrate_enrichment_activity_policy(
-            min_substrates=int(self.min_substrates),
-            ranking_direction=str(self.ranking_direction),
-            permutation_count=int(self.permutation_count),
-            random_seed=self.random_seed,
-            adjust_p_values=bool(self.adjust_p_values),
-            q_value_method=(
-                str(self.q_value_method)
-                if int(self.permutation_count) > 0 and bool(self.adjust_p_values)
-                else None
-            ),
-        )
 
-        return KinaseActivityResult._from_owned(
-            weighted_activity=activity_scores,
-            p_value_matrix=p_value_matrix,
-            q_value_matrix=q_value_matrix,
-            thresholded_substrate_counts=thresholded_substrate_counts,
-            activity_substrate_counts=substrate_count_table,
-            substrate_count_matrix=substrate_count_table,
-            target_counts=target_counts,
-            target_table=target_table,
-            statistics_table=statistics_table,
-            method_summary=summary,
-            method_diagnostics=diagnostics,
-            policy_provenance=(policy,),
-            activity_method=SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
-            input_semantics=activity_input.semantics,
-            profile_metadata=activity_input.profile_metadata,
+def _ssgsea_null_p_value(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    prepared: _SsgseaPreparedInputs,
+    ranking: _SsgseaProfileRanking,
+    kinase_name: str,
+    observed_score: float,
+    null_score_engine: _SsgseaNullScoreEngine,
+) -> float:
+    if prepared.random_seed is None:
+        return np.nan
+    permutation_rng = _make_ssgsea_permutation_rng(
+        random_seed=int(prepared.random_seed),
+        profile_id=ranking.profile_id,
+        kinase_name=kinase_name,
+    )
+    return _permutation_p_value(
+        observed_score=float(observed_score),
+        null_score_engine=null_score_engine,
+        permutation_count=int(method.permutation_count),
+        rng=permutation_rng,
+    )
+
+
+def _record_ssgsea_pair_score(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    prepared: _SsgseaPreparedInputs,
+    ranking: _SsgseaProfileRanking,
+    tables: _SsgseaMutableScoringTables,
+    score: _SsgseaPairScore,
+    kinase_position: int,
+    kinase_name: str,
+) -> None:
+    tables.substrate_count_table.iat[kinase_position, ranking.position] = (
+        score.n_substrates
+    )
+    if score.status == SSGSEA_STATUS_COMPUTED:
+        tables.activity_scores.iat[kinase_position, ranking.position] = (
+            score.enrichment_score
         )
+        if tables.p_value_matrix is not None:
+            tables.p_value_matrix.iat[kinase_position, ranking.position] = score.p_value
+    tables.status_counts[score.status] += 1
+    tables.rows.append(
+        _ssgsea_statistics_row(
+            method=method,
+            ranking=ranking,
+            score=score,
+            kinase_name=kinase_name,
+        )
+    )
+
+
+def _ssgsea_statistics_row(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    ranking: _SsgseaProfileRanking,
+    score: _SsgseaPairScore,
+    kinase_name: str,
+) -> dict[str, object]:
+    significance_status = _resolve_significance_status(
+        computability_status=score.status,
+        permutation_count=int(method.permutation_count),
+        adjust_p_values=bool(method.adjust_p_values),
+    )
+    return {
+        "kinase": kinase_name,
+        "profile_id": ranking.profile_id,
+        "z_score": np.nan,
+        "enrichment_score": score.enrichment_score,
+        "p_value": score.p_value,
+        "q_value": np.nan,
+        "significance_status": significance_status,
+        "n_substrates": int(score.n_substrates),
+        "n_background_sites": int(ranking.ranked_blocks.n_background),
+        "evidence_threshold": np.nan,
+        "evidence_threshold_operator": "",
+        "evidence_threshold_description": (
+            "not thresholded; explicit kinase-substrate membership"
+        ),
+        "min_substrates": int(method.min_substrates),
+        "ranking_direction": str(method.ranking_direction),
+        "tie_policy": SSGSEA_TIE_POLICY,
+        "n_tie_blocks": ranking.ranked_blocks.n_tie_blocks,
+        "n_tied_sites": ranking.ranked_blocks.n_tied_sites,
+        "max_tie_block_size": ranking.ranked_blocks.max_tie_block_size,
+        "substrate_only_tie_blocks": score.tie_diagnostics["substrate_only_tie_blocks"],
+        "non_substrate_only_tie_blocks": score.tie_diagnostics[
+            "non_substrate_only_tie_blocks"
+        ],
+        "mixed_substrate_tie_blocks": score.tie_diagnostics[
+            "mixed_substrate_tie_blocks"
+        ],
+        "permutation_count": int(method.permutation_count),
+        "random_seed": (
+            np.nan if method.random_seed is None else int(method.random_seed)
+        ),
+        "computability_status": score.status,
+        "reason": score.reason,
+    }
+
+
+def _ssgsea_statistics_columns() -> list[str]:
+    return [
+        "kinase",
+        "profile_id",
+        "z_score",
+        "enrichment_score",
+        "p_value",
+        "q_value",
+        "significance_status",
+        "n_substrates",
+        "n_background_sites",
+        "evidence_threshold",
+        "evidence_threshold_operator",
+        "evidence_threshold_description",
+        "min_substrates",
+        "ranking_direction",
+        "tie_policy",
+        "n_tie_blocks",
+        "n_tied_sites",
+        "max_tie_block_size",
+        "substrate_only_tie_blocks",
+        "non_substrate_only_tie_blocks",
+        "mixed_substrate_tie_blocks",
+        "permutation_count",
+        "random_seed",
+        "computability_status",
+        "reason",
+    ]
+
+
+def _apply_ssgsea_multiple_testing(
+    *,
+    prepared: _SsgseaPreparedInputs,
+    scored: _SsgseaScoredOutputs,
+) -> _SsgseaScoredOutputs:
+    if scored.p_value_matrix is not None and scored.q_value_matrix is not None:
+        _apply_q_values(
+            statistics_table=scored.statistics_table,
+            q_value_matrix=scored.q_value_matrix,
+            profile_index=prepared.profile_index,
+        )
+    return scored
+
+
+def _assemble_ssgsea_result(
+    *,
+    method: SsgseaSubstrateEnrichmentActivityMethod,
+    prepared: _SsgseaPreparedInputs,
+    scored: _SsgseaScoredOutputs,
+) -> KinaseActivityResult:
+    target_counts = _build_target_counts(
+        aligned_membership=prepared.aligned_membership,
+        kinase_index=prepared.kinase_index,
+    )
+    thresholded_substrate_counts = target_counts.rename("n_substrates")
+    target_table = _build_target_table(aligned_membership=prepared.aligned_membership)
+    summary = ActivityMethodSummary(
+        kinases_evaluated=int(len(prepared.kinase_index)),
+        kinase_profile_pairs_evaluated=int(
+            len(prepared.kinase_index) * len(prepared.profile_index)
+        ),
+        kinase_profile_pairs_computed=scored.status_counts[SSGSEA_STATUS_COMPUTED],
+        kinase_profile_pairs_insufficient_substrates=scored.status_counts[
+            SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES
+        ],
+        kinase_profile_pairs_invalid_background_variance=(
+            scored.status_counts[SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES]
+            + scored.status_counts[SSGSEA_STATUS_INSUFFICIENT_BACKGROUND_SITES]
+        ),
+        kinase_profile_pairs_no_finite_background_values=scored.status_counts[
+            SSGSEA_STATUS_NO_FINITE_BACKGROUND_VALUES
+        ],
+        kinase_profile_pairs_no_finite_substrate_values=scored.status_counts[
+            SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
+        ],
+    )
+    diagnostics = SsgseaSubstrateEnrichmentActivityDiagnostics(
+        method_summary=summary,
+        threshold_membership_diagnostics=None,
+        statistics_table=scored.statistics_table,
+    )
+    policy = build_ssgsea_substrate_enrichment_activity_policy(
+        min_substrates=int(method.min_substrates),
+        ranking_direction=str(method.ranking_direction),
+        permutation_count=int(method.permutation_count),
+        random_seed=method.random_seed,
+        adjust_p_values=bool(method.adjust_p_values),
+        q_value_method=(
+            str(method.q_value_method)
+            if int(method.permutation_count) > 0 and bool(method.adjust_p_values)
+            else None
+        ),
+    )
+
+    return KinaseActivityResult.from_trusted_owned(
+        weighted_activity=scored.activity_scores,
+        p_value_matrix=scored.p_value_matrix,
+        q_value_matrix=scored.q_value_matrix,
+        thresholded_substrate_counts=thresholded_substrate_counts,
+        activity_substrate_counts=scored.substrate_count_table,
+        substrate_count_matrix=scored.substrate_count_table,
+        target_counts=target_counts,
+        target_table=target_table,
+        statistics_table=scored.statistics_table,
+        method_summary=summary,
+        method_diagnostics=diagnostics,
+        policy_provenance=(policy,),
+        activity_method=SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
+        input_semantics=prepared.activity_input.semantics,
+        profile_metadata=prepared.activity_input.profile_metadata,
+    )
 
 
 def _validate_membership_table(value: pd.DataFrame) -> pd.DataFrame:
@@ -709,6 +941,26 @@ def _validate_membership_table(value: pd.DataFrame) -> pd.DataFrame:
     return frame.copy(deep=True)
 
 
+def _require_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be an int")
+    return int(value)
+
+
+def _require_optional_int(value: object, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be an int or None")
+    return int(value)
+
+
+def _require_bool(value: object, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a bool")
+    return value
+
+
 def _ordered_unique_strings(values: pd.Series) -> list[str]:
     return list(dict.fromkeys(str(value) for value in values.tolist()))
 
@@ -718,7 +970,7 @@ def _build_membership_lookup(
     kinases: list[str],
     membership: pd.DataFrame,
 ) -> dict[str, set[str]]:
-    result = {kinase: set() for kinase in kinases}
+    result: dict[str, set[str]] = {kinase: set() for kinase in kinases}
     if membership.empty:
         return result
     for kinase, substrate_site in membership.loc[
@@ -744,8 +996,8 @@ def _rank_site_blocks(
         )
     finite_values = values[finite_positions]
     # Sorting establishes only the order of distinct value blocks. The order of
-    # rows inside an equal-value block is intentionally ignored by
-    # _score_from_ranked_hit_mask.
+    # rows inside an equal-value block is intentionally ignored by block-count
+    # scoring.
     if ranking_direction == SSGSEA_RANKING_DIRECTION_ASCENDING:
         order = np.argsort(finite_values, kind="mergesort")
     else:
@@ -825,7 +1077,7 @@ def _score_from_hit_mask(hit_mask: np.ndarray) -> float:
     return float(running.sum() / float(n_background))
 
 
-def _score_from_ranked_hit_mask(
+def _score_from_ranked_hit_mask(  # pyright: ignore[reportUnusedFunction] - imported by activity regression tests as a private numerical seam
     *,
     hit_mask: np.ndarray,
     ranked_blocks: _RankedTieBlocks,
@@ -1024,7 +1276,7 @@ def _ssgsea_permutation_seed_material(
         if condition_name is None
         else str(condition_name)
     )
-    seed_material = {
+    seed_material: dict[str, object] = {
         "kinase": str(kinase_name),
         "method_id": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD.activity_method_id,
         "method_version": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,

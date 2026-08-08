@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ast
 
+import pandas as pd
+
 from phospy.errors.input import PhosPyInputError
 from phospy.science.signalomes.constants import (
     LEGACY_PROTEIN_GROUP_ID_COLUMN,
@@ -11,7 +13,7 @@ from phospy.science.signalomes.constants import (
 )
 
 
-def normalize_module_assignments_table(table):
+def normalize_module_assignments_table(table: pd.DataFrame) -> pd.DataFrame:
     """Normalize tuple/list/dict-serialized signalome assignment fields."""
 
     normalized = table.copy(deep=True)
@@ -27,7 +29,11 @@ def normalize_module_assignments_table(table):
         if str(column).endswith("_candidates")
     ]
     for candidates_column in candidate_columns:
-        candidates_index = normalized.columns.get_loc(candidates_column)
+        candidates_index = _unique_column_position(
+            normalized,
+            column_name=candidates_column,
+            field_name="bundle signalome module_assignments",
+        )
         candidates = (
             normalized.loc[:, candidates_column]
             .map(_parse_kinase_candidates)
@@ -39,7 +45,11 @@ def normalize_module_assignments_table(table):
         str(column) for column in normalized.columns if str(column).endswith("_weights")
     ]
     for weight_column in weight_columns:
-        weight_index = normalized.columns.get_loc(weight_column)
+        weight_index = _unique_column_position(
+            normalized,
+            column_name=weight_column,
+            field_name="bundle signalome module_assignments",
+        )
         weights = (
             normalized.loc[:, weight_column].map(_parse_kinase_weights).astype(object)
         )
@@ -48,7 +58,11 @@ def normalize_module_assignments_table(table):
     return normalized
 
 
-def migrate_signalome_protein_group_id_column(table, *, field_name: str):
+def migrate_signalome_protein_group_id_column(
+    table: pd.DataFrame,
+    *,
+    field_name: str,
+) -> pd.DataFrame:
     """Migrate legacy Signalome grouping column name to protein_group_id."""
 
     has_current = PROTEIN_GROUP_ID_COLUMN in table.columns
@@ -84,14 +98,14 @@ def migrate_signalome_protein_group_id_column(table, *, field_name: str):
     )
 
 
-def _normalize_current_site_key_column(table):
+def _normalize_current_site_key_column(table: pd.DataFrame) -> pd.DataFrame:
     if "site_key" in table.columns or "site_key.1" not in table.columns:
         return table
     normalized = table.copy(deep=True)
     return normalized.rename(columns={"site_key.1": "site_key"})
 
 
-def _normalize_string_columns(table):
+def _normalize_string_columns(table: pd.DataFrame) -> pd.DataFrame:
     normalized = table.copy(deep=True)
     for column_name in (
         "site_key",
@@ -107,13 +121,29 @@ def _normalize_string_columns(table):
         "module_top_kinase_selection_policy",
     ):
         if column_name in normalized.columns:
-            column_index = normalized.columns.get_loc(column_name)
+            column_index = _unique_column_position(
+                normalized,
+                column_name=column_name,
+                field_name="bundle signalome module_assignments",
+            )
             series = (
                 normalized.loc[:, column_name].astype(object).fillna("").astype(str)
             )
             normalized = normalized.drop(columns=[column_name])
             normalized.insert(column_index, column_name, series)
     return normalized
+
+
+def _unique_column_position(
+    table: pd.DataFrame,
+    *,
+    column_name: str,
+    field_name: str,
+) -> int:
+    position = table.columns.get_loc(column_name)
+    if isinstance(position, int):
+        return position
+    raise PhosPyInputError(f"{field_name}.{column_name} must be a unique column")
 
 
 def _parse_kinase_candidates(value: object) -> tuple[str, ...]:

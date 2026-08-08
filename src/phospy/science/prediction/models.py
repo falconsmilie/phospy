@@ -594,6 +594,54 @@ class KinaseScoringResult:
         )
         return result
 
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        profile_scores: pd.DataFrame,
+        motif_scores: pd.DataFrame | None = None,
+        rank_weighted_fusion_scores: pd.DataFrame | None = None,
+        kinase_library_motif_scores: pd.DataFrame | None = None,
+        combined_profile_motif_scores: pd.DataFrame | None = None,
+        score_fusion_weights: pd.DataFrame | None = None,
+        score_source_matrix: pd.DataFrame | None = None,
+        score_source_summary: pd.DataFrame | None = None,
+        profile_score_diagnostics: pd.DataFrame | None = None,
+        kinase_library_site_diagnostics: pd.DataFrame | None = None,
+        kinase_library_kinase_diagnostics: pd.DataFrame | None = None,
+        scoring_mode: str = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        score_source: DownstreamScoreSource | str | None = None,
+        score_scale: str | None = None,
+        score_scale_metadata: Mapping[str, object] | None = None,
+        profile_self_inclusion_policy: ProfileSelfInclusionPolicy | str = (
+            ProfileSelfInclusionPolicy.ALLOW
+        ),
+        motif_sequence_validation: SequenceValidationResult | None = None,
+        motif_library_validation: MotifLibraryValidationResult | None = None,
+    ) -> KinaseScoringResult:
+        """Construct from already-owned tables at trusted workflow boundaries."""
+
+        return cls._from_owned(
+            profile_scores=profile_scores,
+            motif_scores=motif_scores,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            kinase_library_motif_scores=kinase_library_motif_scores,
+            combined_profile_motif_scores=combined_profile_motif_scores,
+            score_fusion_weights=score_fusion_weights,
+            score_source_matrix=score_source_matrix,
+            score_source_summary=score_source_summary,
+            profile_score_diagnostics=profile_score_diagnostics,
+            kinase_library_site_diagnostics=kinase_library_site_diagnostics,
+            kinase_library_kinase_diagnostics=kinase_library_kinase_diagnostics,
+            scoring_mode=scoring_mode,
+            score_source=score_source,
+            score_scale=score_scale,
+            score_scale_metadata=score_scale_metadata,
+            profile_self_inclusion_policy=profile_self_inclusion_policy,
+            motif_sequence_validation=motif_sequence_validation,
+            motif_library_validation=motif_library_validation,
+        )
+
     def to_dataframe(self) -> pd.DataFrame:
         """Return a `profile_scores` snapshot isolated from this result."""
 
@@ -1111,6 +1159,20 @@ class KinasePredictionResult:
         object.__setattr__(result, "_pred_mat", pred_mat)
         object.__setattr__(result, "_substrate_list", substrate_list)
         return result
+
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        pred_mat: pd.DataFrame,
+        substrate_list: pd.DataFrame | None = None,
+    ) -> KinasePredictionResult:
+        """Construct from already-owned tables at trusted workflow boundaries."""
+
+        return cls._from_owned(
+            pred_mat=pred_mat,
+            substrate_list=substrate_list,
+        )
 
     def to_dataframe(self) -> pd.DataFrame:
         """Return a `pred_mat` snapshot isolated from this result."""

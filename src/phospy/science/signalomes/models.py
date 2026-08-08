@@ -457,6 +457,12 @@ class SignalomeAssignments:
     def _from_owned(cls, *, table: pd.DataFrame) -> SignalomeAssignments:
         return cls(table=table, _assume_owned=True)
 
+    @classmethod
+    def from_trusted_owned(cls, *, table: pd.DataFrame) -> SignalomeAssignments:
+        """Construct from an already-owned assignment table."""
+
+        return cls(table=table, _assume_owned=True)
+
     def to_pandas(self) -> pd.DataFrame:
         """Return an assignments snapshot isolated from this object."""
 
@@ -503,6 +509,12 @@ class SignalomeModules:
 
     @classmethod
     def _from_owned(cls, *, table: pd.DataFrame) -> SignalomeModules:
+        return cls(table=table, _assume_owned=True)
+
+    @classmethod
+    def from_trusted_owned(cls, *, table: pd.DataFrame) -> SignalomeModules:
+        """Construct from an already-owned module table."""
+
         return cls(table=table, _assume_owned=True)
 
     def to_pandas(self) -> pd.DataFrame:
@@ -622,6 +634,25 @@ class KinaseNetwork:
         candidate_correlations: pd.DataFrame | None = None,
         correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics | None = None,
     ) -> KinaseNetwork:
+        return cls(
+            edges=edges,
+            nodes=nodes,
+            candidate_correlations=candidate_correlations,
+            correlation_diagnostics=correlation_diagnostics,
+            _assume_owned=True,
+        )
+
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        edges: pd.DataFrame,
+        nodes: pd.DataFrame | None = None,
+        candidate_correlations: pd.DataFrame | None = None,
+        correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics | None = None,
+    ) -> KinaseNetwork:
+        """Construct from already-owned network tables."""
+
         return cls(
             edges=edges,
             nodes=nodes,

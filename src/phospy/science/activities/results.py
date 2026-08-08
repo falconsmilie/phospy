@@ -649,6 +649,64 @@ class KinaseActivityResult:
         )
         return result
 
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        weighted_activity: pd.DataFrame | None = None,
+        thresholded_substrate_mean_activity: pd.DataFrame | None = None,
+        thresholded_substrate_counts: pd.Series | None = None,
+        target_counts: pd.Series | None = None,
+        target_table: pd.DataFrame | None = None,
+        threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics
+        | None = None,
+        activity_substrate_counts: pd.DataFrame | None = None,
+        statistics_table: pd.DataFrame | None = None,
+        method_summary: ActivityMethodSummary | None = None,
+        activity_method: ActivityMethodMetadata = (
+            SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD
+        ),
+        activity_matrix: pd.DataFrame | None = None,
+        p_value_matrix: pd.DataFrame | None = None,
+        q_value_matrix: pd.DataFrame | None = None,
+        confidence_interval_low: pd.DataFrame | None = None,
+        confidence_interval_high: pd.DataFrame | None = None,
+        substrate_count_matrix: pd.DataFrame | None = None,
+        method_diagnostics: ActivityMethodDiagnostics | None = None,
+        policy_provenance: tuple[ScientificPolicyRecord, ...]
+        | list[ScientificPolicyRecord]
+        | ScientificPolicyRecord
+        | None = None,
+        input_semantics: ActivityInputSemantics | None = None,
+        profile_metadata: ActivityProfileMetadata | None = None,
+        membership_selection: ActivityMembershipSelection | None = None,
+    ) -> KinaseActivityResult:
+        """Construct from already-owned tables at trusted activity boundaries."""
+
+        return cls._from_owned(
+            weighted_activity=weighted_activity,
+            thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
+            thresholded_substrate_counts=thresholded_substrate_counts,
+            target_counts=target_counts,
+            target_table=target_table,
+            threshold_membership_diagnostics=threshold_membership_diagnostics,
+            activity_substrate_counts=activity_substrate_counts,
+            statistics_table=statistics_table,
+            method_summary=method_summary,
+            activity_method=activity_method,
+            activity_matrix=activity_matrix,
+            p_value_matrix=p_value_matrix,
+            q_value_matrix=q_value_matrix,
+            confidence_interval_low=confidence_interval_low,
+            confidence_interval_high=confidence_interval_high,
+            substrate_count_matrix=substrate_count_matrix,
+            method_diagnostics=method_diagnostics,
+            policy_provenance=policy_provenance,
+            input_semantics=input_semantics,
+            profile_metadata=profile_metadata,
+            membership_selection=membership_selection,
+        )
+
     def to_dataframe(self) -> pd.DataFrame:
         """Return a primary kinase activity score snapshot isolated from this result."""
 

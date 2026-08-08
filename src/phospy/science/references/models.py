@@ -1112,6 +1112,26 @@ class ReferenceBundle:
         )
         return bundle
 
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        organism: Organism,
+        kinase_substrate_map: pd.DataFrame,
+        site_sequences: pd.DataFrame,
+        provenance: ReferenceProvenance | None = None,
+        manifest: ReferenceManifest | None = None,
+    ) -> ReferenceBundle:
+        """Construct from already-owned tables at trusted reference boundaries."""
+
+        return cls._from_owned(
+            organism=organism,
+            kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+            provenance=provenance,
+            manifest=manifest,
+        )
+
     def kinase_substrate_map_dataframe(self) -> pd.DataFrame:
         """Return a kinase-substrate map snapshot isolated from this bundle."""
 

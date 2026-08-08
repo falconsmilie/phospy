@@ -1,5 +1,4 @@
 """Public enrichment workflow result contracts."""
-# pyright: reportMissingTypeStubs=false
 
 from __future__ import annotations
 

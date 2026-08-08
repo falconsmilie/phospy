@@ -1,5 +1,4 @@
 """Base public result contracts for importer handoff."""
-# pyright: reportMissingTypeStubs=false, reportUnnecessaryIsInstance=false
 
 from __future__ import annotations
 
@@ -33,9 +32,9 @@ ImporterQualityStatus: TypeAlias = Literal[
     "not_applicable",
 ]
 
-IMPORTER_QUALITY_STATUS_REPORTED = "reported"
-IMPORTER_QUALITY_STATUS_NOT_REPORTED = "not_reported"
-IMPORTER_QUALITY_STATUS_NOT_APPLICABLE = "not_applicable"
+IMPORTER_QUALITY_STATUS_REPORTED: Literal["reported"] = "reported"
+IMPORTER_QUALITY_STATUS_NOT_REPORTED: Literal["not_reported"] = "not_reported"
+IMPORTER_QUALITY_STATUS_NOT_APPLICABLE: Literal["not_applicable"] = "not_applicable"
 
 
 @dataclass(frozen=True, slots=True)
@@ -865,12 +864,12 @@ def _validate_quality_status(
     *,
     field_name: str,
 ) -> ImporterQualityStatus:
-    if value in {
-        IMPORTER_QUALITY_STATUS_REPORTED,
-        IMPORTER_QUALITY_STATUS_NOT_REPORTED,
-        IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
-    }:
-        return value  # type: ignore[return-value]
+    if value == IMPORTER_QUALITY_STATUS_REPORTED:
+        return IMPORTER_QUALITY_STATUS_REPORTED
+    if value == IMPORTER_QUALITY_STATUS_NOT_REPORTED:
+        return IMPORTER_QUALITY_STATUS_NOT_REPORTED
+    if value == IMPORTER_QUALITY_STATUS_NOT_APPLICABLE:
+        return IMPORTER_QUALITY_STATUS_NOT_APPLICABLE
     raise PhosPyInputError(
         f"{field_name} must be one of: 'reported', 'not_reported', 'not_applicable'"
     )

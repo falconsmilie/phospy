@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -16,6 +15,7 @@ from phospy.science.differential.internal_view import (
     DifferentialComputationResultInternalView,
 )
 from phospy.science.differential.models import (
+    ContrastMatrix,
     DifferentialAnalysisResult,
     DifferentialComputationResult,
     DifferentialContrastDefinition,
@@ -132,7 +132,7 @@ class DifferentialResultAssembler:
             imputation_policy_inputs=request.imputation_policy_inputs,
             feature_eligibility_inputs=eligibility.feature_eligibility_inputs,
         )
-        return DifferentialAnalysisResult._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal ownership-preserving constructor
+        return DifferentialAnalysisResult.from_trusted_owned(
             residual_variance=residual_variance,
             posterior_residual_variance=posterior_residual_variance,
             prior_residual_variance=prior_residual_variance,
@@ -301,7 +301,17 @@ def _require_fitted_decomposition_identity(
 def _contrast_definitions_from_matrix(
     request: InterpretedDifferentialAnalysisRequest,
 ) -> tuple[DifferentialContrastDefinition, ...]:
-    contrast_frame = cast(pd.DataFrame, request.computation_request.contrasts.frame)
+    contrasts = request.computation_request.contrasts
+    if not isinstance(contrasts, ContrastMatrix):
+        raise WorkflowBoundaryError(
+            seam="differential.result_assembly.contrast_matrix",
+            next_action=(
+                "pass a validated ContrastMatrix from the differential workflow "
+                "validator into result assembly"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    contrast_frame = contrasts.frame
     contrast_values = contrast_frame.to_numpy(dtype=float)
     coefficient_names = tuple(contrast_frame.index)
     definitions: list[DifferentialContrastDefinition] = []

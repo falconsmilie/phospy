@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import NoReturn
 
 from phospy.contracts.results import KinaseWorkflowResult
@@ -53,6 +54,44 @@ class KinaseManifestSections:
     provenance_payload: Mapping[str, object]
     config_snapshot_entry: Mapping[str, object]
     caveats_payload: object = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseManifestSchema:
+    """Schema-parsed manifest payload before file-record validation."""
+
+    manifest_version: int
+    dataset_payload: Mapping[str, object]
+    references_payload: Mapping[str, object]
+    scoring_payload: Mapping[str, object]
+    prediction_payload: Mapping[str, object]
+    activity_payload: Mapping[str, object]
+    dataset_tables: Mapping[str, object]
+    reference_tables: Mapping[str, object]
+    scoring_tables: Mapping[str, object]
+    prediction_tables: Mapping[str, object]
+    activity_enabled: bool
+    activity_method_metadata: Mapping[str, object] | None
+    activity_method_summary: Mapping[str, object] | None
+    activity_input_semantics: Mapping[str, object] | None
+    activity_profile_metadata: Mapping[str, object] | None
+    activity_membership_selection: Mapping[str, object] | None
+    activity_tables: Mapping[str, object]
+    provenance_payload: Mapping[str, object]
+    config_snapshot_raw: object
+    caveats_payload: object
+
+
+@dataclass(frozen=True, slots=True)
+class _KinaseManifestFileRecords:
+    """Manifest table/file records after path and record validation."""
+
+    dataset_tables: Mapping[str, object]
+    reference_tables: Mapping[str, object]
+    scoring_tables: Mapping[str, object]
+    prediction_tables: Mapping[str, object]
+    activity_tables: Mapping[str, object]
+    config_snapshot_entry: Mapping[str, object]
 
 
 _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
@@ -234,6 +273,15 @@ def build_manifest(
 
 def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
     """Parse and validate current-contract kinase manifest payload."""
+
+    schema = _parse_manifest_schema(payload)
+    _validate_manifest_paths(schema)
+    file_records = _validate_manifest_file_records(schema)
+    return _assemble_manifest_sections(schema=schema, file_records=file_records)
+
+
+def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSchema:
+    """Parse manifest object schemas and semantic switches."""
 
     _reject_unsupported_fields(
         payload,
@@ -458,10 +506,11 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
             "when activity is disabled; remove the membership payload or "
             "regenerate the bundle"
         )
-    if payload.get("provenance") is None:
+    provenance_raw = payload.get("provenance")
+    if provenance_raw is None:
         _raise_unsupported_manifest_shape("bundle manifest.provenance is required")
     provenance_payload = require_mapping(
-        payload.get("provenance"),
+        provenance_raw,
         field_name="bundle manifest.provenance",
     )
     dataset_tables = require_mapping(
@@ -479,11 +528,6 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         required_fields=_DATASET_TABLE_KEYS,
         unsupported_shape=True,
     )
-    _require_table_entries(
-        dataset_tables,
-        field_name="bundle manifest.dataset.tables",
-        optional_keys=frozenset({"sample_metadata", "total"}),
-    )
     reference_tables = require_mapping(
         references_payload.get("tables"),
         field_name="bundle manifest.resolved_references.tables",
@@ -498,11 +542,6 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         field_name="bundle manifest.resolved_references.tables",
         required_fields=_REFERENCE_TABLE_KEYS,
         unsupported_shape=True,
-    )
-    _require_table_entries(
-        reference_tables,
-        field_name="bundle manifest.resolved_references.tables",
-        optional_keys=frozenset(),
     )
     scoring_tables = require_mapping(
         scoring_payload.get("tables"),
@@ -519,22 +558,6 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         required_fields=_SCORING_TABLE_REQUIRED_KEYS,
         unsupported_shape=True,
     )
-    _require_table_entries(
-        scoring_tables,
-        field_name="bundle manifest.outputs.scoring.tables",
-        optional_keys=frozenset(
-            {
-                "motif_scores",
-                "rank_weighted_fusion_scores",
-                "kinase_library_motif_scores",
-                "combined_profile_motif_scores",
-                "score_fusion_weights",
-                "kinase_library_site_diagnostics",
-                "kinase_library_kinase_diagnostics",
-                "substrate_contributions",
-            }
-        ),
-    )
     prediction_tables = require_mapping(
         prediction_payload.get("tables"),
         field_name="bundle manifest.outputs.prediction.tables",
@@ -549,11 +572,6 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         field_name="bundle manifest.outputs.prediction.tables",
         required_fields=_PREDICTION_TABLE_KEYS,
         unsupported_shape=True,
-    )
-    _require_table_entries(
-        prediction_tables,
-        field_name="bundle manifest.outputs.prediction.tables",
-        optional_keys=frozenset({"substrate_list"}),
     )
     activity_tables = require_mapping(
         activity_payload.get("tables"),
@@ -570,31 +588,14 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         required_fields=_ACTIVITY_TABLE_KEYS,
         unsupported_shape=True,
     )
-    _require_table_entries(
-        activity_tables,
-        field_name="bundle manifest.outputs.activity.tables",
-        optional_keys=_ACTIVITY_TABLE_KEYS,
-    )
-    try:
-        config_snapshot_entry = require_file_entry(
-            payload.get("config_snapshot"),
-            field_name="bundle manifest.config_snapshot",
-            expected_logical_type="config_snapshot",
-        )
-    except PhosPyInputError as exc:
-        _raise_unsupported_manifest_shape(str(exc))
-
-    return KinaseManifestSections(
+    return _KinaseManifestSchema(
         manifest_version=manifest_version,
-        dataset_metadata=require_mapping(
-            dataset_payload.get("metadata"),
-            field_name="bundle manifest.dataset.metadata",
-        ),
+        dataset_payload=dataset_payload,
+        references_payload=references_payload,
+        scoring_payload=scoring_payload,
+        prediction_payload=prediction_payload,
+        activity_payload=activity_payload,
         dataset_tables=dataset_tables,
-        references_metadata=require_mapping(
-            references_payload.get("metadata"),
-            field_name="bundle manifest.resolved_references.metadata",
-        ),
         reference_tables=reference_tables,
         scoring_tables=scoring_tables,
         prediction_tables=prediction_tables,
@@ -606,9 +607,165 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         activity_membership_selection=activity_membership_selection,
         activity_tables=activity_tables,
         provenance_payload=provenance_payload,
-        config_snapshot_entry=config_snapshot_entry,
+        config_snapshot_raw=payload.get("config_snapshot"),
         caveats_payload=payload.get("caveats", []),
     )
+
+
+def _validate_manifest_paths(schema: _KinaseManifestSchema) -> None:
+    """Validate manifest-declared path strings before file-record validation."""
+
+    _validate_table_paths(
+        schema.dataset_tables,
+        field_name="bundle manifest.dataset.tables",
+    )
+    _validate_table_paths(
+        schema.reference_tables,
+        field_name="bundle manifest.resolved_references.tables",
+    )
+    _validate_table_paths(
+        schema.scoring_tables,
+        field_name="bundle manifest.outputs.scoring.tables",
+    )
+    _validate_table_paths(
+        schema.prediction_tables,
+        field_name="bundle manifest.outputs.prediction.tables",
+    )
+    _validate_table_paths(
+        schema.activity_tables,
+        field_name="bundle manifest.outputs.activity.tables",
+    )
+    _validate_file_path(
+        schema.config_snapshot_raw,
+        field_name="bundle manifest.config_snapshot",
+    )
+
+
+def _validate_manifest_file_records(
+    schema: _KinaseManifestSchema,
+) -> _KinaseManifestFileRecords:
+    """Validate manifest table/file records after path validation."""
+
+    _require_table_entries(
+        schema.dataset_tables,
+        field_name="bundle manifest.dataset.tables",
+        optional_keys=frozenset({"sample_metadata", "total"}),
+    )
+    _require_table_entries(
+        schema.reference_tables,
+        field_name="bundle manifest.resolved_references.tables",
+        optional_keys=frozenset(),
+    )
+    _require_table_entries(
+        schema.scoring_tables,
+        field_name="bundle manifest.outputs.scoring.tables",
+        optional_keys=frozenset(
+            {
+                "motif_scores",
+                "rank_weighted_fusion_scores",
+                "kinase_library_motif_scores",
+                "combined_profile_motif_scores",
+                "score_fusion_weights",
+                "kinase_library_site_diagnostics",
+                "kinase_library_kinase_diagnostics",
+                "substrate_contributions",
+            }
+        ),
+    )
+    _require_table_entries(
+        schema.prediction_tables,
+        field_name="bundle manifest.outputs.prediction.tables",
+        optional_keys=frozenset({"substrate_list"}),
+    )
+    _require_table_entries(
+        schema.activity_tables,
+        field_name="bundle manifest.outputs.activity.tables",
+        optional_keys=_ACTIVITY_TABLE_KEYS,
+    )
+    try:
+        config_snapshot_entry = require_file_entry(
+            schema.config_snapshot_raw,
+            field_name="bundle manifest.config_snapshot",
+            expected_logical_type="config_snapshot",
+        )
+    except PhosPyInputError as exc:
+        _raise_unsupported_manifest_shape(str(exc))
+    return _KinaseManifestFileRecords(
+        dataset_tables=schema.dataset_tables,
+        reference_tables=schema.reference_tables,
+        scoring_tables=schema.scoring_tables,
+        prediction_tables=schema.prediction_tables,
+        activity_tables=schema.activity_tables,
+        config_snapshot_entry=config_snapshot_entry,
+    )
+
+
+def _assemble_manifest_sections(
+    *,
+    schema: _KinaseManifestSchema,
+    file_records: _KinaseManifestFileRecords,
+) -> KinaseManifestSections:
+    """Assemble the public decoded manifest section model."""
+
+    return KinaseManifestSections(
+        manifest_version=schema.manifest_version,
+        dataset_metadata=require_mapping(
+            schema.dataset_payload.get("metadata"),
+            field_name="bundle manifest.dataset.metadata",
+        ),
+        dataset_tables=file_records.dataset_tables,
+        references_metadata=require_mapping(
+            schema.references_payload.get("metadata"),
+            field_name="bundle manifest.resolved_references.metadata",
+        ),
+        reference_tables=file_records.reference_tables,
+        scoring_tables=file_records.scoring_tables,
+        prediction_tables=file_records.prediction_tables,
+        activity_enabled=schema.activity_enabled,
+        activity_method_metadata=schema.activity_method_metadata,
+        activity_method_summary=schema.activity_method_summary,
+        activity_input_semantics=schema.activity_input_semantics,
+        activity_profile_metadata=schema.activity_profile_metadata,
+        activity_membership_selection=schema.activity_membership_selection,
+        activity_tables=file_records.activity_tables,
+        provenance_payload=schema.provenance_payload,
+        config_snapshot_entry=file_records.config_snapshot_entry,
+        caveats_payload=schema.caveats_payload,
+    )
+
+
+def _validate_table_paths(
+    tables: Mapping[str, object],
+    *,
+    field_name: str,
+) -> None:
+    for table_key, value in tables.items():
+        if value is None:
+            continue
+        entry_field_name = f"{field_name}.{str(table_key)}"
+        _validate_file_path(value, field_name=entry_field_name)
+
+
+def _validate_file_path(value: object, *, field_name: str) -> None:
+    try:
+        entry = require_mapping(value, field_name=field_name)
+        relative_path = require_str(entry.get("path"), field_name=f"{field_name}.path")
+        _validate_relative_manifest_path(
+            relative_path,
+            field_name=f"{field_name}.path",
+        )
+    except PhosPyInputError as exc:
+        _raise_unsupported_manifest_shape(str(exc))
+
+
+def _validate_relative_manifest_path(path: str, *, field_name: str) -> None:
+    candidate = PurePosixPath(path)
+    if candidate.is_absolute():
+        _raise_unsupported_manifest_shape(f"{field_name} must be a relative path")
+    if ".." in candidate.parts:
+        _raise_unsupported_manifest_shape(
+            f"{field_name} must not contain parent-directory traversal"
+        )
 
 
 def _raise_unsupported_manifest_shape(message: str) -> NoReturn:
