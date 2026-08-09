@@ -1,0 +1,374 @@
+{
+  "benchmark": "release_scale_builder_differential",
+  "benchmark_name": "release_scale_builder_differential",
+  "benchmark_observation_scope": "Dated machine-specific benchmark observation only; not a portable performance guarantee, release gate, scientific validation claim, or external parity claim.",
+  "benchmark_schema_version": "release_scale_builder_differential_report_v1",
+  "command": {
+    "argv": [
+      "benchmarks\\measure_release_scale_builder_differential.py",
+      "--report-path",
+      "benchmarks\\evidence\\release-scale-builder-differential-2026-08-09.json"
+    ],
+    "command_line": "'C:\\Users\\Netts\\miniforge3\\python.exe' 'benchmarks\\measure_release_scale_builder_differential.py' --report-path 'benchmarks\\evidence\\release-scale-builder-differential-2026-08-09.json'",
+    "executable": "C:\\Users\\Netts\\miniforge3\\python.exe",
+    "full_argv": [
+      "C:\\Users\\Netts\\miniforge3\\python.exe",
+      "benchmarks\\measure_release_scale_builder_differential.py",
+      "--report-path",
+      "benchmarks\\evidence\\release-scale-builder-differential-2026-08-09.json"
+    ]
+  },
+  "config": {
+    "condition_shift": 2.5,
+    "gene_prefix": "RELGENE",
+    "missing_fraction": 0.03,
+    "n_samples": 48,
+    "n_sites": 50000,
+    "seed": 20260426,
+    "sequence_width": 31,
+    "shifted_row_fraction": 0.08,
+    "site_start": 700000
+  },
+  "dataset_dimensions": {
+    "samples": 48,
+    "sites": 50000
+  },
+  "dependencies": {
+    "numpy": "2.4.4",
+    "pandas": "2.3.3",
+    "phospy": "1.5.2",
+    "scipy": "1.17.1"
+  },
+  "description": "Optional local 50,000-site x 48-sample builder, preprocessing, provenance/fingerprinting, and one-contrast differential benchmark.",
+  "environment": {
+    "dependencies": {
+      "numpy": "2.4.4",
+      "pandas": "2.3.3",
+      "phospy": "1.5.2",
+      "scipy": "1.17.1"
+    },
+    "machine": {
+      "machine": "AMD64",
+      "os_name": "nt",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "processor": "AMD64 Family 26 Model 36 Stepping 0, AuthenticAMD",
+      "release": "11",
+      "system": "Windows",
+      "version": "10.0.26200"
+    },
+    "python": {
+      "executable": "C:\\Users\\Netts\\miniforge3\\python.exe",
+      "implementation": "CPython",
+      "version": "3.13.12 | packaged by conda-forge | (main, Feb  5 2026, 05:41:12) [MSC v.1944 64 bit (AMD64)]",
+      "version_info": [
+        3,
+        13,
+        12,
+        "final",
+        0
+      ]
+    }
+  },
+  "evidence_category": "benchmark_evidence",
+  "generated_at_utc": "2026-08-09T09:56:00Z",
+  "generation_date_utc": "2026-08-09",
+  "machine": {
+    "machine": "AMD64",
+    "os_name": "nt",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "AMD64 Family 26 Model 36 Stepping 0, AuthenticAMD",
+    "release": "11",
+    "system": "Windows",
+    "version": "10.0.26200"
+  },
+  "metrics": {
+    "builder_execution_seconds": 324.6876909000566,
+    "differential_analysis_seconds": 28.6267181999865,
+    "final_missing_cell_count": 0,
+    "missing_fraction": 0.03,
+    "original_missing_cell_count": 72000,
+    "output_columns": 48,
+    "output_rows": 50000,
+    "preprocessing_execution_seconds": 108.22331970004598,
+    "preprocessing_report_assembly_seconds": 0.5951256999978796,
+    "process_rss_peak_mib": 696.664062,
+    "provenance_fingerprinting_seconds": 35.58493809995707,
+    "request_preparation_seconds": 0.2491749000037089,
+    "result_table_assembly_seconds": 7.816130599996541,
+    "result_table_fingerprinting_seconds": 1.3420434000436217,
+    "samples": 48,
+    "scientific_summary_assembly_seconds": 1.3672975999652408,
+    "scientific_summary_digest": "a1725552f23e8311985c4dd368286ac2a10724f5d357c41f06494977bc6b4eac",
+    "single_workload_runtime_seconds": 361.37971460004337,
+    "sites": 50000,
+    "tested_feature_count": 50000,
+    "total_runtime_seconds": 382.6778025999665
+  },
+  "output_dimensions": {
+    "analysis_ready_matrix": {
+      "columns": 48,
+      "rows": 50000
+    },
+    "differential_result_table": {
+      "columns": 48,
+      "rows": 50000
+    },
+    "tested_feature_count": 50000
+  },
+  "output_fingerprints": {
+    "differential_result_table_digest": "16ef953f7db1999708f1b37e0532b3ea2852c38a25814463bf4e9a5b733aa2df",
+    "input_table_fingerprints_digest": "f8a073e84bc133d5f73bf90a4d880ecf3dbf0dccecda9ce1d9df0d2f631c85ec",
+    "output_table_fingerprints_digest": "e6a097771dc3a891fdcdb5462ec30f53218fe239931d17906cef2714dea3cc66",
+    "preprocessing_trace_digest": "d239b66fb9ed984f32c94991c60b823099f17e98d622825ce1e3eaede9296eaf",
+    "scientific_summary_digest": "a1725552f23e8311985c4dd368286ac2a10724f5d357c41f06494977bc6b4eac"
+  },
+  "peak_memory": {
+    "measurement": "current-process peak RSS when available from the operating system; otherwise 'unavailable'",
+    "process_rss_peak_mib": 696.664062
+  },
+  "python": {
+    "executable": "C:\\Users\\Netts\\miniforge3\\python.exe",
+    "version": "3.13.12 | packaged by conda-forge | (main, Feb  5 2026, 05:41:12) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "report_path": "benchmarks/evidence/release-scale-builder-differential-2026-08-09.json",
+  "runtime": {
+    "timings_seconds": {
+      "builder_execution_seconds": 324.6876909000566,
+      "differential_analysis_seconds": 28.6267181999865,
+      "preprocessing_execution_seconds": 108.22331970004598,
+      "preprocessing_report_assembly_seconds": 0.5951256999978796,
+      "provenance_fingerprinting_seconds": 35.58493809995707,
+      "request_preparation_seconds": 0.2491749000037089,
+      "result_table_assembly_seconds": 7.816130599996541,
+      "result_table_fingerprinting_seconds": 1.3420434000436217,
+      "scientific_summary_assembly_seconds": 1.3672975999652408,
+      "single_workload_runtime_seconds": 361.37971460004337,
+      "total_runtime_seconds": 382.6778025999665
+    },
+    "total_runtime_seconds": 382.6778025999665
+  },
+  "scientific_summary": {
+    "contrast_names": [
+      "C2_vs_C1"
+    ],
+    "dataset_workflow_provenance_digest": "6f4ed2992aa1e76e10c534338d24568f882e6a0325dc4e9a88e227fe2cccf9dd",
+    "differential_policy_provenance_digest": "a86a041cf276d8f634806f005114160256f182b25138821841e5ecedc260934b",
+    "differential_result_table_digest": "16ef953f7db1999708f1b37e0532b3ea2852c38a25814463bf4e9a5b733aa2df",
+    "differential_result_table_fingerprint": {
+      "columns": 28,
+      "hash_algorithm": "sha256-float-round-8dp-v1",
+      "hash_value": "16ef953f7db1999708f1b37e0532b3ea2852c38a25814463bf4e9a5b733aa2df",
+      "name": "differential.C2_vs_C1.result_table",
+      "rows": 50000
+    },
+    "differential_workflow_provenance_digest": "d34161a766e14c075519a4346e8a6adeebdb0fd4c028827b8324b0bef508f6da",
+    "expected_original_missing_cell_count": 72000,
+    "expected_preprocessing_stage_sequence": [
+      "localisation_confidence",
+      "missing_data",
+      "intensity_transform",
+      "normalisation"
+    ],
+    "final_missing_cell_count": 0,
+    "input_table_fingerprints": [
+      {
+        "columns": 48,
+        "name": "dataset.phospho",
+        "rows": 50000,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "bffbffc5b8965453f502c9d8aca3e70d299c7a168fe313cf25f76a1d386c5676"
+      },
+      {
+        "columns": 14,
+        "name": "dataset.site_metadata",
+        "rows": 50000,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "0c968383f5190fb277302d5f89cecb27de99de639eb010f645ebccf8ec56fa27"
+      },
+      {
+        "columns": 7,
+        "name": "dataset.sample_metadata",
+        "rows": 48,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "ddbf11a8e448201cf5a59a5e96b3818efeb040bcefe8f29d3c755afdab787567"
+      }
+    ],
+    "input_table_fingerprints_digest": "f8a073e84bc133d5f73bf90a4d880ecf3dbf0dccecda9ce1d9df0d2f631c85ec",
+    "matrix_dimensions": {
+      "columns": 48,
+      "rows": 50000
+    },
+    "original_missing_cell_count": 72000,
+    "output_table_fingerprints": [
+      {
+        "columns": 48,
+        "name": "dataset.phospho",
+        "rows": 50000,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "ec7a1322d290356347d312edba024b366c3d5876de1082094f010527605cd244"
+      },
+      {
+        "columns": 14,
+        "name": "dataset.site_metadata",
+        "rows": 50000,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "0c968383f5190fb277302d5f89cecb27de99de639eb010f645ebccf8ec56fa27"
+      },
+      {
+        "columns": 7,
+        "name": "dataset.sample_metadata",
+        "rows": 48,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "ddbf11a8e448201cf5a59a5e96b3818efeb040bcefe8f29d3c755afdab787567"
+      },
+      {
+        "columns": 48,
+        "name": "dataset.imputation_observation_mask",
+        "rows": 50000,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "b8a33449f5b723a59806c6f0482bb1e891dd006499baa15991883d8c0cce93f2"
+      }
+    ],
+    "output_table_fingerprints_digest": "e6a097771dc3a891fdcdb5462ec30f53218fe239931d17906cef2714dea3cc66",
+    "preprocessing_stage_sequence": [
+      "localisation_confidence",
+      "missing_data",
+      "intensity_transform",
+      "normalisation"
+    ],
+    "preprocessing_trace": [
+      {
+        "dropped_row_count": 0,
+        "imputed_cell_count": 0,
+        "input_hash": "b99441fa8327d72bb95a5fc0e49c4b7fc071ed63c1fcb57b00ddcacfa8b5638d",
+        "input_shape": [
+          50000,
+          48
+        ],
+        "operation": "require_threshold",
+        "output_hash": "7258f8393fec9d5495d9e5eec984baf600f59d264a6ed551eb0fef560cf72b97",
+        "output_shape": [
+          50000,
+          48
+        ],
+        "parameters_digest": "67c40b78be91569e5ea8b916700d76acc994bac3bd43ec5f0c2a3a15d071b3fc",
+        "phospho_input_hash": "d95dc2e561b4e0364401ebf3c656a539600d4b7139409bf432caa139f6634ae0",
+        "phospho_output_hash": "e5f0823e9f32fa67285dc691e77f8e96488d6c192c987bd21f8137efed63076e",
+        "stage": "localisation_confidence"
+      },
+      {
+        "dropped_row_count": 0,
+        "imputed_cell_count": 72000,
+        "input_hash": "8777caeb1d720475b0e44924a68780ba7fe81037a41739a9815556a3f17a775f",
+        "input_shape": [
+          50000,
+          48
+        ],
+        "operation": "impute_row_median",
+        "output_hash": "3787095b35a050f4b27de830ff334480f5e7358798b947b984a5f0d5e97f6fd9",
+        "output_shape": [
+          50000,
+          48
+        ],
+        "parameters_digest": "e3a19f729a050244d89b9c95745c58127afba6cd8314c585b2d4a16433241749",
+        "phospho_input_hash": "4c7b25f6bbcba3f51ddd08040d9ebc09e742449f17e72212f2c4accf0a7e50af",
+        "phospho_output_hash": "ff1d0114bff56de60fe683d590529657a4ded33a6b33c85e0e26d548bd2929bd",
+        "stage": "missing_data"
+      },
+      {
+        "dropped_row_count": 0,
+        "imputed_cell_count": 0,
+        "input_hash": "bf291c9c6540766e1dbf97e5f4bbfe2fbdd76ba6b716fe8f208576f049fcc583",
+        "input_shape": [
+          50000,
+          48
+        ],
+        "operation": "log2",
+        "output_hash": "faaf2b4a882461ecde0b619ed48b0b2ba394cec05c018a0dfda53774873afce7",
+        "output_shape": [
+          50000,
+          48
+        ],
+        "parameters_digest": "840764d7f2b8907c15168927b5684a81b51310da3af69ce27c2988f85ad8769c",
+        "phospho_input_hash": "5281df07e3ac035f6b0b74627ae801e4a1df90c6762073970adf1262f8f9c51b",
+        "phospho_output_hash": "f554d1c500d4d04349b6ef96cd52efaa8c6dc79b9148b875f25e31ab29732802",
+        "stage": "intensity_transform"
+      },
+      {
+        "dropped_row_count": 0,
+        "imputed_cell_count": 0,
+        "input_hash": "7d729ed885bc7563e7914f7d13781856f48b2cb8d139690ff0706f3bccf889d9",
+        "input_shape": [
+          50000,
+          48
+        ],
+        "operation": "median_center",
+        "output_hash": "8ec18d1eaf28c136d32b1340009c1eb4e6fab2b2e651f730931aa13d6c8aabda",
+        "output_shape": [
+          50000,
+          48
+        ],
+        "parameters_digest": "2a4770bbb9a1382ddbf8cfc4765d645f621a3a2dae1bb60b5a4961fd2bfbc93d",
+        "phospho_input_hash": "2d5b894ae2d946cd2216ae1172a8235e96816592e7e6c2c849c518cdf6c5ba97",
+        "phospho_output_hash": "56a2c0d5f86db7a9e775c0a2f0b2e321d81a8c45b4a8a15652b166f5660feaff",
+        "stage": "normalisation"
+      }
+    ],
+    "preprocessing_trace_digest": "d239b66fb9ed984f32c94991c60b823099f17e98d622825ce1e3eaede9296eaf",
+    "processing_state_completeness_flags": {
+      "missing_data_complete_matrix": true,
+      "missing_data_has_missing_values": false,
+      "missing_data_imputed": true,
+      "missing_data_missing_value_count": 0,
+      "ruv_enabled": false,
+      "ruv_matrix_complete": true,
+      "ruv_missingness_mask_preserved": true,
+      "ruv_ready": false,
+      "ruv_requires_complete_matrix": true
+    },
+    "provenance_complete": true,
+    "tested_feature_count": 50000
+  },
+  "scientific_summary_digest": "a1725552f23e8311985c4dd368286ac2a10724f5d357c41f06494977bc6b4eac",
+  "tested_feature_count": 50000,
+  "timings": {
+    "builder_execution_seconds": 324.6876909000566,
+    "differential_analysis_seconds": 28.6267181999865,
+    "preprocessing_execution_seconds": 108.22331970004598,
+    "preprocessing_report_assembly_seconds": 0.5951256999978796,
+    "provenance_fingerprinting_seconds": 35.58493809995707,
+    "request_preparation_seconds": 0.2491749000037089,
+    "result_table_assembly_seconds": 7.816130599996541,
+    "result_table_fingerprinting_seconds": 1.3420434000436217,
+    "scientific_summary_assembly_seconds": 1.3672975999652408,
+    "single_workload_runtime_seconds": 361.37971460004337,
+    "total_runtime_seconds": 382.6778025999665
+  },
+  "workload": {
+    "condition_shift": 2.5,
+    "configuration": {
+      "condition_shift": 2.5,
+      "gene_prefix": "RELGENE",
+      "missing_fraction": 0.03,
+      "n_samples": 48,
+      "n_sites": 50000,
+      "seed": 20260426,
+      "sequence_width": 31,
+      "shifted_row_fraction": 0.08,
+      "site_start": 700000
+    },
+    "contrast": "C2_vs_C1",
+    "missing_fraction": 0.03,
+    "name": "release_scale_builder_differential",
+    "preprocessing_stage_sequence": [
+      "localisation_confidence",
+      "missing_data",
+      "intensity_transform",
+      "normalisation"
+    ],
+    "samples": 48,
+    "seed": 20260426,
+    "shifted_row_fraction": 0.08,
+    "sites": 50000
+  }
+}

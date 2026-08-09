@@ -172,6 +172,17 @@ def test_release_scale_benchmark_defaults_are_declared_without_dataset_build() -
     assert config.missing_fraction == 0.03
 
 
+def test_release_scale_benchmark_declares_linear_imputation_input_scale() -> None:
+    module = _load_script_module(RELEASE_SCALE_BENCHMARK_SCRIPT)
+    request = module._build_release_scale_dataset_request(
+        module.ReleaseScaleBenchmarkConfig(n_sites=8, n_samples=4)
+    )
+
+    input_scale = request.preprocessing_config.missing_data.input_scale
+
+    assert getattr(input_scale, "value", input_scale) == "linear"
+
+
 def test_release_scale_benchmark_documents_main_key_value_metrics() -> None:
     module = _load_script_module(RELEASE_SCALE_BENCHMARK_SCRIPT)
 
@@ -216,6 +227,9 @@ def test_release_scale_benchmark_report_payload_records_environment_and_outputs(
         config=module.default_config(),
         timings={"total_runtime_seconds": 1.25, "builder_execution_seconds": 0.5},
         metrics={
+            "output_rows": 50_000,
+            "output_columns": 12,
+            "tested_feature_count": 50_000,
             "total_runtime_seconds": 1.25,
             "process_rss_peak_mib": 256.0,
             "scientific_summary_digest": "summary-digest",

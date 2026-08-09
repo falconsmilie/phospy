@@ -222,12 +222,24 @@ To also write a JSON report:
 python benchmarks/measure_release_scale_builder_differential.py --write-report
 ```
 
-Reports are written only under `benchmarks/reports/`. The report records the
-Python executable/version, selected dependency versions (`phospy`, `numpy`,
-`pandas`, and `scipy` when installed metadata is available), machine/platform
-metadata, runtime timings, peak RSS when the platform exposes it, metrics,
-scientific-summary payload, and output fingerprints/digests for the benchmarked
-tables and provenance trace.
+The `--write-report` form preserves the default scratch-report behavior and
+writes under the ignored `benchmarks/reports/` directory. To retain benchmark
+evidence in the tracked history, provide an explicit dated report path:
+
+```bash
+python benchmarks/measure_release_scale_builder_differential.py \
+  --report-path benchmarks/evidence/release-scale-builder-differential-YYYY-MM-DD.json
+```
+
+The retained 50,000 x 48 observation currently checked into the repository is
+[release-scale-builder-differential-2026-08-09.json](https://github.com/falconsmilie/phospy/blob/main/benchmarks/evidence/release-scale-builder-differential-2026-08-09.json).
+It records the Python executable/version, selected dependency versions
+(`phospy`, `numpy`, `pandas`, and `scipy`), machine/platform metadata, workload
+configuration and seed, runtime timings, peak RSS when the platform exposes it
+or an explicit unavailable state, metrics, scientific-summary payload and
+digest, and output fingerprints/digests for the benchmarked tables and
+provenance trace. Fast unit tests validate the retained JSON schema without
+rerunning the workload.
 
 Benchmark observations are informational. A slow result is evidence for local
 profiling or same-machine comparison; it is not a release failure and is not
@@ -244,8 +256,10 @@ produced.
 - They are excluded from default local unit/integration pytest runs.
 - They are selected by `make test-performance` and included in
   `make release-check`.
-- The optional 50,000 x 48 benchmark is excluded from `make test-performance`,
+- The optional 50,000 x 48 workload is excluded from `make test-performance`,
   `make release-check`, GitHub Actions workflows, release workflows, and
   publication targets.
+- CI may validate the retained benchmark-evidence JSON schema, but it must not
+  execute the 50,000 x 48 workload.
 - Do not move the optional benchmark into nightly, scheduled, manual,
   tag-only, release, or non-blocking GitHub Actions jobs.

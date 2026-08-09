@@ -117,7 +117,7 @@ tests/unit/test_batch_correction_reports.py,unit,329,9,false,false,,,,,,
 tests/unit/test_batch_correction_residualize.py,unit,150,7,false,false,,,,,,
 tests/unit/test_batch_correction_validation.py,unit,586,26,false,false,,,,,,
 tests/unit/test_batch_correction_workflow_orchestrator.py,unit,906,12,false,false,,,,,,[auto-orchestration] 24 hit(s); indicators: private_member_access
-tests/unit/test_benchmark_scripts_smoke.py,unit,309,13,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_benchmark_scripts_smoke.py,unit,323,14,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_boundary_constructor_no_repair.py,unit,37,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_builder_and_kinase_orchestration.py,unit,725,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts. | [auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_bundle_manifest_parser_stages.py,unit,378,8,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
@@ -268,6 +268,7 @@ tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,pu
 tests/unit/test_reference_organism_identity_boundaries.py,unit,442,11,false,false,,,,,,
 tests/unit/test_reference_provenance.py,unit,246,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_release_scale_benchmark_evidence.py,unit,293,12,false,false,,,,,,
 tests/unit/test_release_selector_coverage_helper.py,unit,66,5,false,false,,,,,,
 tests/unit/test_request_validation_boundaries.py,unit,307,6,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_result_caveats.py,unit,351,7,true,true,,,,,,

@@ -13,11 +13,13 @@ import importlib.metadata
 import json
 import os
 import platform
+import shlex
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field, is_dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, cast
@@ -79,7 +81,15 @@ from tests.support.performance_contracts import (
 )
 
 REPORTS_DIRECTORY = Path("benchmarks/reports")
+EVIDENCE_DIRECTORY = Path("benchmarks/evidence")
 REPORT_FILENAME = "release-scale-builder-differential.json"
+EVIDENCE_CATEGORY = "benchmark_evidence"
+BENCHMARK_SCHEMA_VERSION = "release_scale_builder_differential_report_v1"
+BENCHMARK_NAME = "release_scale_builder_differential"
+BENCHMARK_DESCRIPTION = (
+    "Optional local 50,000-site x 48-sample builder, preprocessing, "
+    "provenance/fingerprinting, and one-contrast differential benchmark."
+)
 RSS_UNAVAILABLE = "unavailable"
 REPORT_DEPENDENCY_PACKAGES = ("numpy", "pandas", "scipy", "phospy")
 CONTRAST_NAME = "C2_vs_C1"
@@ -269,25 +279,89 @@ def run_benchmark(
     )
 
 
-def write_report(result: ReleaseScaleBenchmarkResult) -> Path:
-    report_path = default_report_path()
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = report_payload(result)
-    report_path.write_text(
+def write_report(
+    result: ReleaseScaleBenchmarkResult,
+    *,
+    report_path: str | Path | None = None,
+    command: Mapping[str, object] | None = None,
+) -> Path:
+    resolved_path = default_report_path() if report_path is None else Path(report_path)
+    resolved_path = resolved_path.resolve()
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = report_payload(
+        result,
+        command=command,
+        report_path=resolved_path,
+    )
+    resolved_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    return report_path
+    return resolved_path
 
 
-def report_payload(result: ReleaseScaleBenchmarkResult) -> dict[str, object]:
+def report_payload(
+    result: ReleaseScaleBenchmarkResult,
+    *,
+    command: Mapping[str, object] | None = None,
+    generated_at_utc: str | None = None,
+    report_path: str | Path | None = None,
+) -> dict[str, object]:
     """Return the JSON payload written by the release-scale benchmark."""
 
+    generated_at = _utc_timestamp() if generated_at_utc is None else generated_at_utc
+    dataset_dimensions = {
+        "sites": int(result.config.n_sites),
+        "samples": int(result.config.n_samples),
+    }
+    output_rows = _metric_int(result.metrics, "output_rows")
+    output_columns = _metric_int(result.metrics, "output_columns")
+    tested_feature_count = _metric_int(result.metrics, "tested_feature_count")
+    scientific_summary_digest = str(
+        dict(result.metrics).get("scientific_summary_digest", "")
+    )
     payload = {
-        "benchmark": "release_scale_builder_differential",
-        "description": (
-            "Optional local 50,000-site x 48-sample builder, preprocessing, "
-            "provenance/fingerprinting, and one-contrast differential benchmark."
+        "evidence_category": EVIDENCE_CATEGORY,
+        "benchmark_schema_version": BENCHMARK_SCHEMA_VERSION,
+        "benchmark": BENCHMARK_NAME,
+        "benchmark_name": BENCHMARK_NAME,
+        "description": BENCHMARK_DESCRIPTION,
+        "generated_at_utc": generated_at,
+        "generation_date_utc": generated_at.split("T", maxsplit=1)[0],
+        "command": dict(command) if command is not None else _command_payload(None),
+        "report_path": (
+            None if report_path is None else _display_path(Path(report_path))
+        ),
+        "dataset_dimensions": dataset_dimensions,
+        "workload": {
+            "name": BENCHMARK_NAME,
+            "configuration": asdict(result.config),
+            "seed": int(result.config.seed),
+            "sites": int(result.config.n_sites),
+            "samples": int(result.config.n_samples),
+            "missing_fraction": float(result.config.missing_fraction),
+            "shifted_row_fraction": float(result.config.shifted_row_fraction),
+            "condition_shift": float(result.config.condition_shift),
+            "contrast": CONTRAST_NAME,
+            "preprocessing_stage_sequence": list(EXPECTED_PREPROCESSING_STAGE_SEQUENCE),
+        },
+        "output_dimensions": {
+            "analysis_ready_matrix": {
+                "rows": int(result.config.n_sites),
+                "columns": int(result.config.n_samples),
+            },
+            "differential_result_table": {
+                "rows": output_rows,
+                "columns": output_columns,
+            },
+            "tested_feature_count": tested_feature_count,
+        },
+        "tested_feature_count": tested_feature_count,
+        "scientific_summary_digest": scientific_summary_digest,
+        "benchmark_observation_scope": (
+            "Dated machine-specific benchmark observation only; not a portable "
+            "performance guarantee, release gate, scientific validation claim, "
+            "or external parity claim."
         ),
         "config": asdict(result.config),
         "metrics": dict(result.metrics),
@@ -307,8 +381,55 @@ def report_payload(result: ReleaseScaleBenchmarkResult) -> dict[str, object]:
     return payload
 
 
+def _metric_int(metrics: Mapping[str, object], key: str) -> int:
+    value = metrics.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise AssertionError(f"release-scale metric {key!r} must be an int")
+    return int(value)
+
+
+def _utc_timestamp() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _command_payload(argv: Sequence[str] | None) -> dict[str, object]:
+    if argv is None:
+        raw_argv = [str(argument) for argument in sys.argv]
+    else:
+        raw_argv = [
+            str(Path(__file__).resolve()),
+            *[str(argument) for argument in argv],
+        ]
+    full_argv = [sys.executable, *raw_argv]
+    return {
+        "executable": sys.executable,
+        "argv": raw_argv,
+        "full_argv": full_argv,
+        "command_line": shlex.join(full_argv),
+    }
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def default_report_path() -> Path:
     return Path(__file__).resolve().parents[1] / REPORTS_DIRECTORY / REPORT_FILENAME
+
+
+def default_evidence_directory() -> Path:
+    return Path(__file__).resolve().parents[1] / EVIDENCE_DIRECTORY
+
+
+def default_dated_evidence_path(*, generated_at_utc: str | None = None) -> Path:
+    generated_at = _utc_timestamp() if generated_at_utc is None else generated_at_utc
+    date_part = generated_at.split("T", maxsplit=1)[0]
+    return default_evidence_directory() / (
+        f"release-scale-builder-differential-{date_part}.json"
+    )
 
 
 def _runtime_environment_payload() -> dict[str, object]:
@@ -885,6 +1006,7 @@ def _build_release_scale_dataset_request(
             normalisation=DatasetNormalisationConfig(policy="median_center"),
             missing_data=DatasetMissingDataConfig(
                 policy="impute_row_median",
+                input_scale="linear",
                 min_observed_values=1,
             ),
             site_matrix=DatasetSiteMatrixConfig(policy="as_input"),
@@ -1055,6 +1177,17 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
             "prints key=value metrics to stdout."
         ),
     )
+    parser.add_argument(
+        "--report-path",
+        type=Path,
+        default=None,
+        help=(
+            "Write a JSON report to this explicit path. Use "
+            "benchmarks/evidence/<dated-file>.json for retained benchmark "
+            "evidence. When omitted, --write-report keeps the existing "
+            "benchmarks/reports/ scratch-report behavior."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -1063,8 +1196,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     result = run_benchmark()
     metrics = dict(result.metrics)
     metrics["report_path"] = "not_written"
-    if args.write_report:
-        metrics["report_path"] = str(write_report(result))
+    if args.write_report or args.report_path is not None:
+        metrics["report_path"] = str(
+            write_report(
+                result,
+                report_path=args.report_path,
+                command=_command_payload(argv),
+            )
+        )
     formatted_metrics = format_metric_values(metrics)
     print(f"benchmark=release_scale_builder_differential {formatted_metrics}")
     return 0

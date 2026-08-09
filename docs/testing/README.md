@@ -48,13 +48,15 @@ The installed-distribution verifier also runs on Python 3.11 and 3.12 against
 the single uploaded wheel/sdist artifact set.
 
 The optional 50,000 x 48 release-scale builder+differential benchmark lives
-under `benchmarks/` and is invoked with `make benchmark-release-scale`. It is
-not collected by pytest, not selected by `make test-performance`, and not part
-of `make release-check` or CI. Release-policy tests audit effective dimensions
-and command/import reachability, so renaming the benchmark script/target,
-moving the dimensions into helpers, computing the dimensions, or placing the
-workload under another required marker does not make it release-reachable.
-Bounded 50,000 x 12 and 50,000 x 24 contracts remain allowed.
+under `benchmarks/` and is invoked explicitly with `make benchmark-release-scale`
+or the benchmark script's direct retained-evidence `--report-path` command. It
+is not collected by pytest, not selected by `make test-performance`, and not
+part of `make release-check` or CI. Release-policy tests audit effective
+dimensions and command/import reachability, so renaming the benchmark
+script/target, moving the dimensions into helpers, computing the dimensions, or
+placing the workload under another required marker does not make it
+release-reachable. Bounded 50,000 x 12 and 50,000 x 24 contracts remain
+allowed.
 
 ## Read This First
 

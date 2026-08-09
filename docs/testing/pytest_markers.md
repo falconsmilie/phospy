@@ -43,8 +43,9 @@ selected by explicit Makefile targets. The release check blocks release on:
 | `slow` | Not selected solely by marker for release; it runs only when also collected by a blocking selector. |
 
 The optional 50,000 x 48 release-scale benchmark lives under `benchmarks/`, not
-`tests/`, and is invoked only with `make benchmark-release-scale`. It is not a
-pytest marker category, is not collected by pytest, and is excluded from
+`tests/`, and is invoked explicitly with `make benchmark-release-scale` or the
+benchmark script's direct retained-evidence `--report-path` command. It is not
+a pytest marker category, is not collected by pytest, and is excluded from
 `make test-performance`, `make release-check`, and CI.
 
 CI runs the default non-parity suite, public-consumer contract suite,
