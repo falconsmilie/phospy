@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+import math
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import NoReturn, TypeGuard
+from typing import NoReturn, TypeGuard, cast
 
 import pandas as pd
 
@@ -642,6 +643,16 @@ def _validate_enabled_activity_agreement(
         provenance=payloads.provenance,
         input_semantics=activity_payloads.input_semantics,
     )
+    _validate_ksea_inferential_bundle_agreement(
+        activity_method=activity_payloads.method,
+        membership_selection=membership_selection,
+        membership_selection_missing_from_manifest=(
+            activity_payloads.membership_selection_missing_from_manifest
+        ),
+        p_value_matrix=None,
+        q_value_matrix=None,
+        statistics_table=activity_tables.statistics_table,
+    )
     return _ValidatedKinaseActivityState(
         enabled_activity=_EnabledKinaseActivityState(
             weighted_activity=activity_tables.weighted_activity,
@@ -681,6 +692,91 @@ def _resolve_activity_membership_selection(
         selected_kinase_universe=weighted_activity.index.astype(str).tolist(),
         selected_substrate_universe=(),
     )
+
+
+def _validate_ksea_inferential_bundle_agreement(
+    *,
+    activity_method: ActivityMethodMetadata,
+    membership_selection: ActivityMembershipSelection | None,
+    membership_selection_missing_from_manifest: bool,
+    p_value_matrix: pd.DataFrame | None,
+    q_value_matrix: pd.DataFrame | None,
+    statistics_table: pd.DataFrame | None,
+) -> None:
+    if not activity_method.is_ksea:
+        return
+    finite_p_q_fields = _finite_ksea_probability_output_fields(
+        p_value_matrix=p_value_matrix,
+        q_value_matrix=q_value_matrix,
+        statistics_table=statistics_table,
+    )
+    if not finite_p_q_fields:
+        return
+    if membership_selection is not None and membership_selection.inferential_eligible:
+        return
+    provenance_state = (
+        "missing membership provenance"
+        if membership_selection_missing_from_manifest or membership_selection is None
+        else "inferentially ineligible membership provenance"
+    )
+    involved_fields = (
+        "bundle manifest.outputs.activity.membership_selection",
+        *finite_p_q_fields,
+    )
+    raise PhosPyInputError(
+        "bundle manifest.outputs.activity contains incompatible KSEA "
+        "inferential output: "
+        f"{', '.join(involved_fields)}; finite ordinary p/q output is "
+        f"incompatible with {provenance_state}. Correct the manifest/tables or "
+        "regenerate the bundle from the original KinaseActivityResult"
+    )
+
+
+def _finite_ksea_probability_output_fields(
+    *,
+    p_value_matrix: pd.DataFrame | None,
+    q_value_matrix: pd.DataFrame | None,
+    statistics_table: pd.DataFrame | None,
+) -> tuple[str, ...]:
+    fields: list[str] = []
+    if _has_finite_numeric_cell(p_value_matrix):
+        fields.append("bundle manifest.outputs.activity.tables.p_value_matrix")
+    if _has_finite_numeric_cell(q_value_matrix):
+        fields.append("bundle manifest.outputs.activity.tables.q_value_matrix")
+    if statistics_table is not None:
+        for column_name in ("p_value", "q_value"):
+            if column_name not in statistics_table.columns:
+                continue
+            if _has_finite_numeric_cell(statistics_table.loc[:, [column_name]]):
+                fields.append(
+                    "bundle manifest.outputs.activity.tables."
+                    f"statistics_table.{column_name}"
+                )
+    return tuple(fields)
+
+
+def _has_finite_numeric_cell(frame: pd.DataFrame | None) -> bool:
+    if frame is None or frame.empty:
+        return False
+    rows = cast(
+        Iterable[tuple[object, ...]],
+        frame.itertuples(index=False, name=None),
+    )
+    for row in rows:
+        for value in row:
+            if _is_finite_numeric_value(value):
+                return True
+    return False
+
+
+def _is_finite_numeric_value(value: object) -> bool:
+    if not isinstance(value, str | bytes | bytearray | int | float):
+        return False
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return False
+    return math.isfinite(numeric_value)
 
 
 def _validate_disabled_activity_agreement(

@@ -44,6 +44,7 @@ from phospy.io.bundles.kinase import (
     load_kinase_workflow_bundle,
     save_kinase_workflow_bundle,
 )
+from phospy.provenance.hashing import fingerprint_table_normalized_axes
 from phospy.provenance.models import RunProvenance
 from phospy.science.activities.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
@@ -175,6 +176,32 @@ def _refresh_manifest_table_entry(
     entry["byte_size"] = path.stat().st_size
     entry["sha256"] = _sha256_path(path)
     entry["shape"] = {"rows": int(table.shape[0]), "columns": int(table.shape[1])}
+
+
+def _write_activity_statistics_p_q(
+    manifest: dict[str, object],
+    *,
+    bundle_root: Path,
+    p_value: float,
+    q_value: float,
+) -> pd.DataFrame:
+    activity_payload = manifest["outputs"]["activity"]
+    assert isinstance(activity_payload, dict)
+    tables = activity_payload["tables"]
+    assert isinstance(tables, dict)
+    entry = tables["statistics_table"]
+    assert isinstance(entry, dict)
+    table_path = bundle_root / str(entry["path"])
+    statistics_table = pd.read_csv(table_path, index_col=0)
+    statistics_table.loc[:, "p_value"] = float(p_value)
+    statistics_table.loc[:, "q_value"] = float(q_value)
+    statistics_table.to_csv(table_path)
+    _refresh_manifest_table_entry(
+        entry,
+        bundle_root=bundle_root,
+        table=statistics_table,
+    )
+    return statistics_table
 
 
 def _save_basic_kinase_bundle(
@@ -710,6 +737,16 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
         ),
         pytest.param(
             {
+                "name": "ksea_fixed_external_standardised_effect",
+                "activity_result": "ksea_fixed_external_standardised_effect",
+                "method": KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+                "scale": "log2",
+                "meaning": "differential_effect_size",
+            },
+            id="ksea-fixed-external-standardised-effect",
+        ),
+        pytest.param(
+            {
                 "name": "ssgsea_contrast_log_fold_change",
                 "activity_result": "ssgsea_contrast_log_fold_change",
                 "method": KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
@@ -899,58 +936,169 @@ def test_kinase_bundle_rejects_tampered_ksea_membership_source_facts(
         load_kinase_workflow_bundle(bundle_root)
 
 
-def test_kinase_bundle_rejects_finite_ksea_p_q_without_membership_provenance(
+@pytest.mark.parametrize(
+    ("membership_payload_mode", "expected_membership_state"),
+    [
+        pytest.param(
+            "explicit_ineligible",
+            "inferentially ineligible membership provenance",
+            id="explicit-ineligible-membership",
+        ),
+        pytest.param(
+            "legacy_missing",
+            "missing membership provenance",
+            id="legacy-missing-membership",
+        ),
+    ],
+)
+def test_kinase_bundle_rejects_finite_ksea_p_q_before_activity_constructor(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    membership_payload_mode: str,
+    expected_membership_state: str,
 ) -> None:
-    base_request = _build_request(activity=False)
-    base_result = KinaseWorkflow().run(base_request)
     activity_result = _ksea_standardised_effect_activity_result()
     assert activity_result.membership_selection is not None
     assert activity_result.membership_selection.inferential_eligible is False
-    result = _replace_activity_result_with_semantic_provenance(
-        base_result,
+    bundle_root, manifest = _save_semantic_activity_bundle(
+        tmp_path,
+        bundle_name=(f"kinase_bundle_finite_ksea_p_q_{membership_payload_mode}"),
         activity_result=activity_result,
         method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
         resolved_scale="log2",
         resolved_meaning="differential_effect_size",
     )
-    request = replace(
-        base_request,
-        activity_config=_activity_config_for_method(KINASE_ACTIVITY_METHOD_KSEA_ZSCORE),
-    )
-    bundle_root = tmp_path / "kinase_bundle_finite_ksea_p_q_absent_membership"
-    save_kinase_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
-    )
-
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     activity_payload = manifest["outputs"]["activity"]
     assert isinstance(activity_payload, dict)
-    activity_payload["membership_selection"] = None
-    tables = activity_payload["tables"]
-    assert isinstance(tables, dict)
-    entry = tables["statistics_table"]
-    assert isinstance(entry, dict)
-    table_path = bundle_root / str(entry["path"])
-    statistics_table = pd.read_csv(table_path, index_col=0)
-    statistics_table.loc[:, "p_value"] = 0.01
-    statistics_table.loc[:, "q_value"] = 0.02
-    statistics_table.to_csv(table_path)
-    _refresh_manifest_table_entry(
-        entry,
+    if membership_payload_mode == "legacy_missing":
+        activity_payload["membership_selection"] = None
+    elif membership_payload_mode != "explicit_ineligible":
+        raise AssertionError(
+            f"Unsupported membership payload mode: {membership_payload_mode}"
+        )
+    _write_activity_statistics_p_q(
+        manifest,
         bundle_root=bundle_root,
-        table=statistics_table,
+        p_value=0.01,
+        q_value=0.02,
     )
+    manifest_path = bundle_root / "manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True),
         encoding="utf-8",
     )
 
-    with pytest.raises(PhosPyInputError, match="statistics_table p/q cells"):
+    import phospy.io.bundles._kinase.reconstruction as kinase_reconstruction
+
+    def fail_if_activity_constructor_is_called(*args: object, **kwargs: object):
+        raise AssertionError(
+            "KinaseActivityResult.from_trusted_owned should not be called for "
+            "malformed persisted KSEA p/q output"
+        )
+
+    monkeypatch.setattr(
+        kinase_reconstruction.KinaseActivityResult,
+        "from_trusted_owned",
+        fail_if_activity_constructor_is_called,
+    )
+
+    with pytest.raises(PhosPyInputError) as exc_info:
         load_kinase_workflow_bundle(bundle_root)
+    message = str(exc_info.value)
+    assert "bundle manifest.outputs.activity.membership_selection" in message
+    assert "bundle manifest.outputs.activity.tables.statistics_table.p_value" in message
+    assert "bundle manifest.outputs.activity.tables.statistics_table.q_value" in message
+    assert "finite ordinary p/q output is incompatible" in message
+    assert expected_membership_state in message
+
+
+def test_kinase_bundle_loads_eligible_ksea_membership_with_finite_p_q(
+    tmp_path: Path,
+) -> None:
+    activity_result = _ksea_fixed_external_standardised_effect_activity_result()
+    assert activity_result.membership_selection is not None
+    assert activity_result.membership_selection.inferential_eligible is True
+    statistics_table = activity_result.statistics_table
+    assert statistics_table is not None
+    assert pd.to_numeric(statistics_table["p_value"], errors="coerce").notna().any()
+    assert pd.to_numeric(statistics_table["q_value"], errors="coerce").notna().any()
+    bundle_root, _ = _save_semantic_activity_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_eligible_ksea_finite_p_q",
+        activity_result=activity_result,
+        method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        resolved_scale="log2",
+        resolved_meaning="differential_effect_size",
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    assert loaded.result.activity_result is not None
+    loaded_activity = loaded.result.activity_result
+    assert loaded_activity.membership_selection == activity_result.membership_selection
+    assert loaded_activity.membership_selection is not None
+    assert loaded_activity.membership_selection.inferential_eligible is True
+    loaded_statistics = loaded_activity.statistics_table
+    assert loaded_statistics is not None
+    assert pd.to_numeric(loaded_statistics["p_value"], errors="coerce").notna().any()
+    assert pd.to_numeric(loaded_statistics["q_value"], errors="coerce").notna().any()
+
+
+def test_kinase_bundle_loads_ineligible_ksea_membership_with_missing_p_q(
+    tmp_path: Path,
+) -> None:
+    activity_result = _ksea_standardised_effect_activity_result()
+    assert activity_result.membership_selection is not None
+    assert activity_result.membership_selection.inferential_eligible is False
+    statistics_table = activity_result.statistics_table
+    assert statistics_table is not None
+    assert statistics_table.loc[:, ["p_value", "q_value"]].isna().all().all()
+    bundle_root, _ = _save_semantic_activity_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_ineligible_ksea_missing_p_q",
+        activity_result=activity_result,
+        method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        resolved_scale="log2",
+        resolved_meaning="differential_effect_size",
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    assert loaded.result.activity_result is not None
+    loaded_activity = loaded.result.activity_result
+    assert loaded_activity.membership_selection is not None
+    assert loaded_activity.membership_selection.inferential_eligible is False
+    loaded_statistics = loaded_activity.statistics_table
+    assert loaded_statistics is not None
+    assert loaded_statistics.loc[:, ["p_value", "q_value"]].isna().all().all()
+
+
+def test_kinase_bundle_non_ksea_allows_finite_statistics_without_membership(
+    tmp_path: Path,
+) -> None:
+    activity_result = _condition_summary_statistics_activity_result()
+    assert activity_result.membership_selection is None
+    statistics_table = activity_result.statistics_table
+    assert statistics_table is not None
+    assert pd.to_numeric(statistics_table["p_value"], errors="coerce").notna().any()
+    assert pd.to_numeric(statistics_table["q_value"], errors="coerce").notna().any()
+    bundle_root, _ = _save_semantic_activity_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_non_ksea_finite_p_q_without_membership",
+        activity_result=activity_result,
+        method=KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+        resolved_scale="linear",
+        resolved_meaning="phosphosite_abundance",
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    assert loaded.result.activity_result is not None
+    assert loaded.result.activity_result.membership_selection is None
+    loaded_statistics = loaded.result.activity_result.statistics_table
+    assert loaded_statistics is not None
+    assert pd.to_numeric(loaded_statistics["p_value"], errors="coerce").notna().any()
+    assert pd.to_numeric(loaded_statistics["q_value"], errors="coerce").notna().any()
 
 
 def test_kinase_bundle_legacy_missing_ksea_membership_loads_as_explicit_missing(
@@ -1556,6 +1704,9 @@ def _activity_result_factory(name: str):
         "ksea_sample_log_abundance": _ksea_sample_log_abundance_activity_result,
         "ksea_contrast_log_fold_change": _ksea_contrast_log_fold_change_activity_result,
         "ksea_standardised_effect": _ksea_standardised_effect_activity_result,
+        "ksea_fixed_external_standardised_effect": (
+            _ksea_fixed_external_standardised_effect_activity_result
+        ),
         "ssgsea_contrast_log_fold_change": _ssgsea_contrast_log_fold_change_activity_result,
         "ssgsea_standardised_effect": _ssgsea_standardised_effect_activity_result,
     }
@@ -1765,6 +1916,59 @@ def _ksea_profile_derived_activity_result() -> KinaseActivityResult:
             fingerprint_ksea_tested_quantitative_matrix(matrix)
         ),
         consumed_tested_matrix=True,
+        selected_kinase_universe=pred_mat.columns.astype(str).tolist(),
+        selected_substrate_universe=selected_substrate_universe_from_prediction_matrix(
+            pred_mat,
+            threshold=0.5,
+        ),
+    )
+    return KseaZScoreActivityMethod(
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    ).run(
+        KinaseActivityInputs(
+            pred_mat=pred_mat,
+            phospho_matrix=matrix,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=1,
+            overlap_summary=PredMatOverlapSummary(
+                overlap_count=int(pred_mat.index.intersection(matrix.index).size),
+                pred_mat_rows=int(pred_mat.index.size),
+                phospho_rows=int(matrix.index.size),
+            ),
+            activity_input=activity_input,
+            membership_selection=membership_selection,
+        )
+    )
+
+
+def _ksea_fixed_external_standardised_effect_activity_result() -> KinaseActivityResult:
+    pred_mat = _activity_pred_mat()
+    matrix = _standardised_effect_activity_matrix()
+    activity_input = ActivityInputMatrix.standardised_effect(
+        matrix,
+        _assume_owned=True,
+    )
+    membership_selection = ActivityMembershipSelection.fixed_external_reference(
+        provider_method_identifier="integration_test_fixed_membership",
+        provider_method_version="test-provider-v1",
+        provider_score_source_identifier=("fixed_external_reference_membership_scores"),
+        threshold_top_k_policy={
+            "evidence_threshold": 0.5,
+            "evidence_threshold_operator": ">=",
+            "top_k": None,
+        },
+        source_reference_fingerprints=(
+            fingerprint_table_normalized_axes(
+                pred_mat,
+                name="tests.integration.fixed_external_membership_scores",
+            ),
+        ),
+        tested_quantitative_matrix_fingerprint=(
+            fingerprint_ksea_tested_quantitative_matrix(matrix)
+        ),
         selected_kinase_universe=pred_mat.columns.astype(str).tolist(),
         selected_substrate_universe=selected_substrate_universe_from_prediction_matrix(
             pred_mat,

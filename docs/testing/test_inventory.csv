@@ -32,7 +32,7 @@ tests/integration/test_differential_with_technical_replicates.py,integration,203
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,480,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/integration/test_kinase_bundle_integration.py,integration,2850,25,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/integration/test_kinase_bundle_integration.py,integration,3054,28,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/integration/test_kinase_library_workflow_scoring.py,integration,262,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,306,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,403,3,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
