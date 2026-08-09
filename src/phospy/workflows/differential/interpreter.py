@@ -14,6 +14,7 @@ from phospy.science.differential.models import (
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
+from phospy.science.sites.identity_contracts import RESULT_IDENTITY_COLUMNS
 from phospy.validation.identity_contracts import (
     enforce_display_id_column,
     enforce_site_key_column,
@@ -314,15 +315,7 @@ def _build_result_identity_metadata(
     site_metadata: pd.DataFrame,
     expected_index: pd.Index,
 ) -> pd.DataFrame:
-    required_columns = (
-        "site_key",
-        "display_id",
-        "organism",
-        "protein_namespace",
-        "protein_identifier",
-        "gene_symbol",
-        "site",
-    )
+    required_columns = RESULT_IDENTITY_COLUMNS
     optional_columns = (
         "protein_id",
         "protein_accession",
@@ -346,10 +339,14 @@ def _build_result_identity_metadata(
                 f"missing required result identity columns: {joined}"
             ),
         )
+    selected_columns = required_columns + tuple(
+        column for column in optional_columns if column in site_metadata.columns
+    )
     try:
-        aligned = dataframe_copy(
-            dataframe_loc(site_metadata, rows=expected_index),
-            deep=True,
+        aligned_selected = dataframe_loc(
+            site_metadata,
+            rows=expected_index,
+            columns=list(selected_columns),
         )
     except KeyError as exc:
         raise WorkflowBoundaryError(
@@ -361,7 +358,7 @@ def _build_result_identity_metadata(
             details={"expected_index_count": int(expected_index.size)},
             message_prefix="differential workflow boundary validation failed",
         ) from exc
-    if not aligned.index.equals(expected_index):
+    if not aligned_selected.index.equals(expected_index):
         raise WorkflowBoundaryError(
             seam="differential.interpreter.result_identity_alignment",
             next_action=(
@@ -370,11 +367,11 @@ def _build_result_identity_metadata(
             ),
             details={
                 "expected_index_count": int(expected_index.size),
-                "actual_index_count": int(aligned.index.size),
+                "actual_index_count": int(aligned_selected.index.size),
             },
             message_prefix="differential workflow boundary validation failed",
         )
-    identity = dataframe_copy(aligned, deep=True)
+    identity = dataframe_copy(aligned_selected, deep=True)
     try:
         enforce_site_key_column_raw_matches_index(
             site_metadata=identity,
@@ -417,10 +414,7 @@ def _build_result_identity_metadata(
     identity.index = pd.Index(site_key_list, name="site_key")
     identity["site_key"] = site_key_list
     identity["display_id"] = display_id_list
-    selected_columns = required_columns + tuple(
-        column for column in optional_columns if column in aligned.columns
-    )
-    return dataframe_loc(identity, columns=list(selected_columns))
+    return identity
 
 
 def _prefer_site_key_index_for_differential_results(

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pandas as pd
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -265,6 +266,7 @@ def test_repeated_workflow_snapshot_reuse_benchmark_schema() -> None:
         runtime_seconds=0.25,
         peak_tracemalloc_mib=12.5,
         full_frame_deep_copies={"dataset.phospho": 1},
+        projected_frame_deep_copies={"dataset.site_metadata projected": 1},
         snapshot_constructions={"dataset.phospho internal snapshot": 1},
     )
     result = module.BenchmarkResult(
@@ -284,11 +286,13 @@ def test_repeated_workflow_snapshot_reuse_benchmark_schema() -> None:
             "phospho": {"A_1": "float64"},
             "site_metadata": {"site_key": "object"},
         },
+        setup=measurement,
         differential_first=measurement,
         differential_repeated=measurement,
         kinase_first=measurement,
         kinase_repeated=measurement,
         total_full_frame_deep_copies={"dataset.phospho": 1},
+        total_projected_frame_deep_copies={"dataset.site_metadata projected": 1},
         total_snapshot_constructions={"dataset.phospho internal snapshot": 1},
         environment={"python_version": "3.x", "platform": "test"},
         dependencies={"phospy": "test", "numpy": "test", "pandas": "test"},
@@ -300,11 +304,18 @@ def test_repeated_workflow_snapshot_reuse_benchmark_schema() -> None:
         "dataset_phospho_rows",
         "dataset_phospho_columns",
         "frame_dtypes_json",
+        "setup_run_seconds",
         "differential_first_run_seconds",
         "differential_repeated_run_seconds",
         "kinase_first_run_seconds",
         "kinase_repeated_run_seconds",
+        "setup_full_frame_deep_copy_counts_json",
+        "per_run_full_frame_deep_copy_counts_json",
         "full_frame_deep_copy_counts_json",
+        "projected_frame_deep_copy_counts_json",
+        "per_run_projected_frame_deep_copy_counts_json",
+        "setup_snapshot_construction_counts_json",
+        "per_run_snapshot_construction_counts_json",
         "snapshot_construction_counts_json",
         "environment_json",
         "dependency_versions_json",
@@ -312,12 +323,32 @@ def test_repeated_workflow_snapshot_reuse_benchmark_schema() -> None:
     assert payload["benchmark"] == "repeated_workflow_dataset_snapshot_reuse"
     assert payload["dataset"]["dimensions"]["phospho_rows"] == 40
     assert payload["dataset"]["frame_dtypes"]["phospho"]["A_1"] == "float64"
+    assert payload["setup"]["full_frame_deep_copies"] == {"dataset.phospho": 1}
     assert payload["runs"]["differential"]["first"]["runtime_seconds"] == 0.25
     assert payload["runs"]["kinase"]["repeated"]["peak_tracemalloc_mib"] == 12.5
     assert payload["totals"]["full_frame_deep_copies"] == {"dataset.phospho": 1}
+    assert payload["totals"]["projected_frame_deep_copies"] == {
+        "dataset.site_metadata projected": 1
+    }
     assert payload["totals"]["snapshot_constructions"] == {
         "dataset.phospho internal snapshot": 1
     }
     assert payload["environment"]["python_version"] == "3.x"
     assert payload["dependencies"]["pandas"] == "test"
     assert "machine-specific" in payload["observation_scope"].lower()
+
+
+def test_repeated_workflow_benchmark_copy_attribution_uses_frame_origin() -> None:
+    module = _load_script_module(REPEATED_WORKFLOW_BENCHMARK_SCRIPT)
+    source = pd.DataFrame({"value": [1.0, 2.0]}, index=pd.Index(["a", "b"]))
+    unrelated_same_shape = pd.DataFrame(
+        {"value": [3.0, 4.0]},
+        index=pd.Index(["a", "b"]),
+    )
+
+    with module._instrument_copy_accounting() as counts:
+        module._mark_frame_source(counts, source, label="dataset.phospho")
+        source.copy(deep=True)
+        unrelated_same_shape.copy(deep=True)
+
+    assert dict(counts.full_frame_deep_copies) == {"dataset.phospho": 1}

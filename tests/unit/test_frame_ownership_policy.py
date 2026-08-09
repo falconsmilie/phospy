@@ -19,6 +19,7 @@ import pandas as pd
 import pytest
 
 import phospy.science.datasets.internal_frame_store as internal_frame_store_module
+import phospy.workflows.differential.interpreter as differential_interpreter_module
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -367,6 +368,7 @@ def _analysis_ready_dataset() -> AnalysisReadyPhosphoDataset:
 def _differential_workflow_request(
     *,
     n_sites: int = 8,
+    site_metadata_extra_columns: Mapping[str, object] | None = None,
 ) -> DifferentialAnalysisRequest:
     genes = [f"GENE{i}" for i in range(n_sites)]
     sites = [f"S{i + 1}" for i in range(n_sites)]
@@ -400,6 +402,8 @@ def _differential_workflow_request(
         },
         index=site_index.copy(),
     )
+    for column_name, values in (site_metadata_extra_columns or {}).items():
+        site_metadata.loc[:, column_name] = values
     dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
@@ -2405,6 +2409,162 @@ def test_repeated_differential_workflow_reuses_dataset_owned_snapshots(
     assert isinstance(second, DifferentialAnalysisResult)
     assert snapshot_counts["dataset.phospho internal snapshot"] == 1
     assert snapshot_counts["dataset.site_metadata internal snapshot"] == 1
+
+
+def test_differential_identity_metadata_projects_before_single_ownership_copy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _differential_workflow_request(
+        n_sites=4,
+        site_metadata_extra_columns={
+            "protein_accession": [f"P{i:05d}" for i in range(4)],
+            "isoform_id": [pd.NA for _ in range(4)],
+            "unused_numeric_payload": np.arange(4, dtype=float),
+            "unused_object_payload": [_mutable_object_payload() for _ in range(4)],
+        },
+    )
+    site_metadata = DatasetInternalView(request.dataset).site_metadata
+    expected_index = pd.Index(
+        list(reversed(site_metadata.index.tolist())),
+        name=site_metadata.index.name,
+    )
+    expected_columns = (
+        "site_key",
+        "display_id",
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
+        "gene_symbol",
+        "site",
+        "protein_id",
+        "protein_accession",
+        "isoform_id",
+    )
+    copied_identity_columns: list[tuple[str, ...]] = []
+    original_dataframe_copy = differential_interpreter_module.dataframe_copy
+
+    def _recording_dataframe_copy(
+        frame: pd.DataFrame,
+        *,
+        deep: bool = True,
+    ) -> pd.DataFrame:
+        if deep and {"site_key", "display_id"}.issubset(set(frame.columns)):
+            copied_identity_columns.append(
+                tuple(str(column) for column in frame.columns)
+            )
+        return original_dataframe_copy(frame, deep=deep)
+
+    monkeypatch.setattr(
+        differential_interpreter_module,
+        "dataframe_copy",
+        _recording_dataframe_copy,
+    )
+
+    identity = differential_interpreter_module._build_result_identity_metadata(
+        site_metadata=site_metadata,
+        expected_index=expected_index,
+    )
+
+    assert copied_identity_columns == [expected_columns]
+    assert tuple(identity.columns) == expected_columns
+    assert identity.index.tolist() == expected_index.astype(str).tolist()
+    assert identity.loc[:, "site_key"].tolist() == identity.index.tolist()
+    assert "unused_numeric_payload" not in identity.columns
+    assert "unused_object_payload" not in identity.columns
+
+
+def test_differential_workflow_uses_one_projected_identity_copy_per_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _differential_workflow_request(
+        n_sites=8,
+        site_metadata_extra_columns={
+            "protein_accession": [f"P{i:05d}" for i in range(8)],
+            "isoform_id": [pd.NA for _ in range(8)],
+            "discarded_metadata_payload": np.arange(8, dtype=float),
+        },
+    )
+    expected_columns = (
+        "site_key",
+        "display_id",
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
+        "gene_symbol",
+        "site",
+        "protein_id",
+        "protein_accession",
+        "isoform_id",
+    )
+    copied_identity_columns: list[tuple[str, ...]] = []
+    original_dataframe_copy = differential_interpreter_module.dataframe_copy
+
+    def _recording_dataframe_copy(
+        frame: pd.DataFrame,
+        *,
+        deep: bool = True,
+    ) -> pd.DataFrame:
+        if deep and {"site_key", "display_id"}.issubset(set(frame.columns)):
+            copied_identity_columns.append(
+                tuple(str(column) for column in frame.columns)
+            )
+        return original_dataframe_copy(frame, deep=deep)
+
+    monkeypatch.setattr(
+        differential_interpreter_module,
+        "dataframe_copy",
+        _recording_dataframe_copy,
+    )
+
+    workflow = DifferentialAnalysisWorkflow()
+    first = workflow.run(request)
+    second = workflow.run(request)
+
+    assert first.scientifically_equals(second)
+    assert copied_identity_columns == [expected_columns, expected_columns]
+    table = first.table_for("B_vs_A")
+    assert tuple(table.columns[: len(expected_columns)]) == expected_columns
+    assert "discarded_metadata_payload" not in table.columns
+
+
+def test_differential_results_and_dataset_exports_are_mutation_detached() -> None:
+    request = _differential_workflow_request(n_sites=8)
+    workflow = DifferentialAnalysisWorkflow()
+    first = workflow.run(request)
+    second = workflow.run(request)
+    first_expected = first.table_for("B_vs_A")
+    second_expected = second.table_for("B_vs_A")
+    dataset_metadata_expected = request.dataset.site_metadata
+
+    first_export = first.table_for("B_vs_A")
+    first_export.loc[first_export.index[0], "display_id"] = "BROKEN;S1;"
+    first_export.loc[first_export.index[0], "logFC"] = 999.0
+    second_export = second.table_for("B_vs_A")
+    second_export.loc[second_export.index[0], "display_id"] = "BROKEN;S2;"
+    dataset_export = request.dataset.site_metadata
+    dataset_export.loc[dataset_export.index[0], "display_id"] = "BROKEN;S3;"
+
+    pd.testing.assert_frame_equal(first.table_for("B_vs_A"), first_expected)
+    pd.testing.assert_frame_equal(second.table_for("B_vs_A"), second_expected)
+    pd.testing.assert_frame_equal(
+        request.dataset.site_metadata, dataset_metadata_expected
+    )
+
+    later = workflow.run(request)
+    pd.testing.assert_frame_equal(later.table_for("B_vs_A"), first_expected)
+
+
+def test_repeated_workflow_outputs_remain_scientifically_equal() -> None:
+    differential_request = _differential_workflow_request(n_sites=8)
+    first_differential = DifferentialAnalysisWorkflow().run(differential_request)
+    second_differential = DifferentialAnalysisWorkflow().run(differential_request)
+
+    kinase_request = _kinase_workflow_request()
+    first_kinase = KinaseWorkflow().run(kinase_request)
+    second_kinase = KinaseWorkflow().run(kinase_request)
+
+    assert first_differential.scientifically_equals(second_differential)
+    assert first_kinase.scientifically_equals(second_kinase)
 
 
 @pytest.mark.parametrize(

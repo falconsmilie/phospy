@@ -6,9 +6,9 @@ Targets:
 - `phospy.workflows.kinase.KinaseWorkflow.run`
 
 This is an explicitly invoked local benchmark. It records machine-specific
-runtime, tracemalloc peak memory, full-frame pandas deep-copy counts, and
-dataset internal snapshot construction counts for repeated workflow use of the
-same unchanged dataset.
+runtime, tracemalloc peak memory, full-frame and projected pandas deep-copy
+counts, and dataset internal snapshot construction counts for setup and
+repeated workflow use of the same unchanged dataset.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import tracemalloc
 from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -44,6 +44,8 @@ DOCUMENTED_MAIN_METRIC_KEYS = (
     "dataset_phospho_columns",
     "dataset_site_metadata_columns",
     "frame_dtypes_json",
+    "setup_run_seconds",
+    "setup_peak_tracemalloc_mib",
     "differential_first_run_seconds",
     "differential_repeated_run_seconds",
     "differential_first_peak_tracemalloc_mib",
@@ -52,11 +54,18 @@ DOCUMENTED_MAIN_METRIC_KEYS = (
     "kinase_repeated_run_seconds",
     "kinase_first_peak_tracemalloc_mib",
     "kinase_repeated_peak_tracemalloc_mib",
+    "setup_full_frame_deep_copy_counts_json",
+    "per_run_full_frame_deep_copy_counts_json",
     "full_frame_deep_copy_counts_json",
+    "projected_frame_deep_copy_counts_json",
+    "per_run_projected_frame_deep_copy_counts_json",
+    "setup_snapshot_construction_counts_json",
+    "per_run_snapshot_construction_counts_json",
     "snapshot_construction_counts_json",
     "environment_json",
     "dependency_versions_json",
 )
+_FRAME_SOURCE_ATTR = "_phospy_repeated_workflow_frame_source"
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +81,7 @@ class RunMeasurement:
     runtime_seconds: float
     peak_tracemalloc_mib: float
     full_frame_deep_copies: dict[str, int]
+    projected_frame_deep_copies: dict[str, int]
     snapshot_constructions: dict[str, int]
 
 
@@ -80,20 +90,21 @@ class BenchmarkResult:
     config: BenchmarkConfig
     dataset_dimensions: dict[str, int]
     frame_dtypes: dict[str, dict[str, str]]
+    setup: RunMeasurement
     differential_first: RunMeasurement
     differential_repeated: RunMeasurement
     kinase_first: RunMeasurement
     kinase_repeated: RunMeasurement
     total_full_frame_deep_copies: dict[str, int]
+    total_projected_frame_deep_copies: dict[str, int]
     total_snapshot_constructions: dict[str, int]
     environment: dict[str, str]
     dependencies: dict[str, str]
 
 
 @dataclass(frozen=True, slots=True)
-class _DatasetFrameSignature:
+class _DatasetFrameSource:
     label: str
-    shape: tuple[int, int]
     index: tuple[object, ...]
     columns: tuple[object, ...]
 
@@ -101,7 +112,16 @@ class _DatasetFrameSignature:
 @dataclass(slots=True)
 class _InstrumentationCounts:
     full_frame_deep_copies: Counter[str]
+    projected_frame_deep_copies: Counter[str]
     snapshot_constructions: Counter[str]
+    frame_sources_by_id: dict[int, _DatasetFrameSource] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class _BenchmarkSetup:
+    dataset: Any
+    differential_request: Any
+    kinase_request: Any
 
 
 def default_config() -> BenchmarkConfig:
@@ -147,7 +167,88 @@ def _site_sequence(site: str) -> str:
     return ("A" * 15) + residue + ("A" * 15)
 
 
-def _build_dataset(config: BenchmarkConfig):
+def _mark_frame_source(
+    counts: _InstrumentationCounts,
+    frame: pd.DataFrame,
+    *,
+    label: str,
+) -> None:
+    source = _DatasetFrameSource(
+        label=label,
+        index=tuple(frame.index.tolist()),
+        columns=tuple(frame.columns.tolist()),
+    )
+    counts.frame_sources_by_id[id(frame)] = source
+    frame.attrs[_FRAME_SOURCE_ATTR] = source
+
+
+def _mark_dataset_frame_sources(
+    counts: _InstrumentationCounts,
+    dataset: Any,
+) -> None:
+    for label, frame in (
+        ("dataset.phospho", dataset._phospho),
+        ("dataset.site_metadata", dataset._site_metadata),
+        ("dataset.sample_metadata", dataset._sample_metadata),
+        ("dataset.total", dataset._total),
+        ("dataset.comparisons", dataset._comparisons),
+    ):
+        if isinstance(frame, pd.DataFrame):
+            _mark_frame_source(counts, frame, label=label)
+
+
+def _frame_source_for(
+    counts: _InstrumentationCounts,
+    frame: pd.DataFrame,
+) -> _DatasetFrameSource | None:
+    source = counts.frame_sources_by_id.get(id(frame))
+    if source is not None:
+        return source
+    attr_source = frame.attrs.get(_FRAME_SOURCE_ATTR)
+    if isinstance(attr_source, _DatasetFrameSource):
+        return attr_source
+    return None
+
+
+def _is_full_source_frame(
+    frame: pd.DataFrame,
+    source: _DatasetFrameSource,
+) -> bool:
+    return (
+        tuple(frame.index.tolist()) == source.index
+        and tuple(frame.columns.tolist()) == source.columns
+    )
+
+
+def _snapshot_source_label(field_name: str) -> str | None:
+    suffix = " internal snapshot"
+    if not field_name.endswith(suffix):
+        return None
+    return field_name[: -len(suffix)]
+
+
+def _mark_snapshot_frame_source(
+    counts: _InstrumentationCounts,
+    snapshot: object,
+    *,
+    field_name: str,
+    source_value: pd.DataFrame,
+) -> None:
+    snapshot_frame = getattr(snapshot, "_frame", None)
+    if not isinstance(snapshot_frame, pd.DataFrame):
+        return
+    source = _frame_source_for(counts, source_value)
+    label = source.label if source is not None else _snapshot_source_label(field_name)
+    if label is None:
+        return
+    _mark_frame_source(counts, snapshot_frame, label=label)
+
+
+def _build_dataset(
+    config: BenchmarkConfig,
+    *,
+    counts: _InstrumentationCounts | None = None,
+):
     from phospy.api import Organism
     from tests.support.analysis_ready_dataset_factories import (
         trusted_analysis_ready_dataset_from_tables,
@@ -202,15 +303,47 @@ def _build_dataset(config: BenchmarkConfig):
         },
         index=site_index.copy(),
     )
-    return trusted_analysis_ready_dataset_from_tables(
+    sample_metadata = pd.DataFrame(
+        {
+            "condition": [
+                "A" if sample_id.startswith("A_") else "B" for sample_id in sample_ids
+            ],
+            "batch": [
+                f"batch_{(position % 2) + 1}"
+                for position, _sample_id in enumerate(sample_ids)
+            ],
+        },
+        index=pd.Index(sample_ids, name="sample_id"),
+    )
+    comparisons = pd.DataFrame(
+        {
+            "B_vs_A_expected_shift": np.full(
+                int(config.n_sites),
+                0.35,
+                dtype=np.float64,
+            )
+        },
+        index=site_index.copy(),
+    )
+    if counts is not None:
+        _mark_frame_source(counts, phospho, label="dataset.phospho")
+        _mark_frame_source(counts, site_metadata, label="dataset.site_metadata")
+        _mark_frame_source(counts, sample_metadata, label="dataset.sample_metadata")
+        _mark_frame_source(counts, comparisons, label="dataset.comparisons")
+    dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=phospho,
         site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        comparisons=comparisons,
         organism=Organism.RAT,
         intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
         ),
         processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
+    if counts is not None:
+        _mark_dataset_frame_sources(counts, dataset)
+    return dataset
 
 
 def _differential_request(dataset: Any):
@@ -291,58 +424,32 @@ def _kinase_request(dataset: Any, config: BenchmarkConfig):
     )
 
 
-def _frame_signatures(dataset: Any) -> tuple[_DatasetFrameSignature, ...]:
-    frames = (
-        ("dataset.phospho", dataset._phospho),
-        ("dataset.site_metadata", dataset._site_metadata),
-        ("dataset.sample_metadata", dataset._sample_metadata),
-        ("dataset.total", dataset._total),
-        ("dataset.comparisons", dataset._comparisons),
-    )
-    return tuple(
-        _DatasetFrameSignature(
-            label=label,
-            shape=frame.shape,
-            index=tuple(frame.index.tolist()),
-            columns=tuple(frame.columns.tolist()),
-        )
-        for label, frame in frames
-        if frame is not None
-    )
-
-
-def _matching_frame_label(
-    frame: pd.DataFrame,
-    signatures: tuple[_DatasetFrameSignature, ...],
-) -> str | None:
-    frame_shape = frame.shape
-    frame_columns = tuple(frame.columns.tolist())
-    for signature in signatures:
-        if frame_shape != signature.shape or frame_columns != signature.columns:
-            continue
-        if tuple(frame.index.tolist()) == signature.index:
-            return signature.label
-    return None
-
-
 @contextmanager
-def _instrument_dataset(dataset: Any) -> Iterator[_InstrumentationCounts]:
+def _instrument_copy_accounting() -> Iterator[_InstrumentationCounts]:
     import phospy.science.datasets.internal_frame_store as internal_frame_store_module
 
-    signatures = _frame_signatures(dataset)
     counts = _InstrumentationCounts(
         full_frame_deep_copies=Counter(),
+        projected_frame_deep_copies=Counter(),
         snapshot_constructions=Counter(),
     )
     original_copy = pd.DataFrame.copy
     original_snapshot = internal_frame_store_module.immutable_dataframe_snapshot
+    original_optional_snapshot = (
+        internal_frame_store_module.immutable_optional_dataframe_snapshot
+    )
 
     def wrapped_copy(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         deep = kwargs.get("deep", args[0] if args else True)
         if bool(deep):
-            label = _matching_frame_label(self, signatures)
-            if label is not None:
-                counts.full_frame_deep_copies.update((label,))
+            source = _frame_source_for(counts, self)
+            if source is not None:
+                if _is_full_source_frame(self, source):
+                    counts.full_frame_deep_copies.update((source.label,))
+                else:
+                    counts.projected_frame_deep_copies.update(
+                        (f"{source.label} projected",)
+                    )
         return original_copy(self, *args, **kwargs)
 
     def counting_snapshot(
@@ -352,19 +459,54 @@ def _instrument_dataset(dataset: Any) -> Iterator[_InstrumentationCounts]:
         error_type: type[Exception] = TypeError,
     ):
         counts.snapshot_constructions.update((field_name,))
-        return original_snapshot(
+        snapshot = original_snapshot(
             value,
             field_name=field_name,
             error_type=error_type,
         )
+        _mark_snapshot_frame_source(
+            counts,
+            snapshot,
+            field_name=field_name,
+            source_value=value,
+        )
+        return snapshot
+
+    def counting_optional_snapshot(
+        value: pd.DataFrame | None,
+        *,
+        field_name: str,
+        error_type: type[Exception] = TypeError,
+    ):
+        if isinstance(value, pd.DataFrame):
+            counts.snapshot_constructions.update((field_name,))
+        snapshot = original_optional_snapshot(
+            value,
+            field_name=field_name,
+            error_type=error_type,
+        )
+        if isinstance(value, pd.DataFrame):
+            _mark_snapshot_frame_source(
+                counts,
+                snapshot,
+                field_name=field_name,
+                source_value=value,
+            )
+        return snapshot
 
     pd.DataFrame.copy = wrapped_copy  # pyright: ignore[reportAttributeAccessIssue] - benchmark instrumentation monkeypatches pandas copy counts.
     internal_frame_store_module.immutable_dataframe_snapshot = counting_snapshot
+    internal_frame_store_module.immutable_optional_dataframe_snapshot = (
+        counting_optional_snapshot
+    )
     try:
         yield counts
     finally:
         pd.DataFrame.copy = original_copy  # pyright: ignore[reportAttributeAccessIssue] - restore benchmark instrumentation.
         internal_frame_store_module.immutable_dataframe_snapshot = original_snapshot
+        internal_frame_store_module.immutable_optional_dataframe_snapshot = (
+            original_optional_snapshot
+        )
 
 
 def _counter_delta(after: Counter[str], before: Counter[str]) -> dict[str, int]:
@@ -380,24 +522,40 @@ def _measure_run(
     run: Callable[[], object],
     counts: _InstrumentationCounts,
 ) -> RunMeasurement:
+    _result, measurement = _measure_operation(run, counts)
+    return measurement
+
+
+def _measure_operation(
+    run: Callable[[], object],
+    counts: _InstrumentationCounts,
+) -> tuple[object, RunMeasurement]:
     full_copy_before = counts.full_frame_deep_copies.copy()
+    projected_copy_before = counts.projected_frame_deep_copies.copy()
     snapshot_before = counts.snapshot_constructions.copy()
     tracemalloc.start()
     started = time.perf_counter()
-    run()
+    result = run()
     runtime_seconds = time.perf_counter() - started
     _current_bytes, peak_bytes = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    return RunMeasurement(
-        runtime_seconds=float(runtime_seconds),
-        peak_tracemalloc_mib=float(peak_bytes / (1024.0 * 1024.0)),
-        full_frame_deep_copies=_counter_delta(
-            counts.full_frame_deep_copies,
-            full_copy_before,
-        ),
-        snapshot_constructions=_counter_delta(
-            counts.snapshot_constructions,
-            snapshot_before,
+    return (
+        result,
+        RunMeasurement(
+            runtime_seconds=float(runtime_seconds),
+            peak_tracemalloc_mib=float(peak_bytes / (1024.0 * 1024.0)),
+            full_frame_deep_copies=_counter_delta(
+                counts.full_frame_deep_copies,
+                full_copy_before,
+            ),
+            projected_frame_deep_copies=_counter_delta(
+                counts.projected_frame_deep_copies,
+                projected_copy_before,
+            ),
+            snapshot_constructions=_counter_delta(
+                counts.snapshot_constructions,
+                snapshot_before,
+            ),
         ),
     )
 
@@ -417,15 +575,35 @@ def _frame_dtypes(dataset: Any) -> dict[str, dict[str, str]]:
     }
 
 
+def _build_setup(
+    config: BenchmarkConfig,
+    counts: _InstrumentationCounts,
+) -> _BenchmarkSetup:
+    dataset = _build_dataset(config, counts=counts)
+    differential_request = _differential_request(dataset)
+    kinase_request = _kinase_request(dataset, config)
+    _mark_dataset_frame_sources(counts, dataset)
+    return _BenchmarkSetup(
+        dataset=dataset,
+        differential_request=differential_request,
+        kinase_request=kinase_request,
+    )
+
+
 def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResult:
     from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow
 
     resolved_config = config or default_config()
-    dataset = _build_dataset(resolved_config)
-    differential_request = _differential_request(dataset)
-    kinase_request = _kinase_request(dataset, resolved_config)
-
-    with _instrument_dataset(dataset) as counts:
+    with _instrument_copy_accounting() as counts:
+        setup_payload, setup = _measure_operation(
+            lambda: _build_setup(resolved_config, counts),
+            counts,
+        )
+        if not isinstance(setup_payload, _BenchmarkSetup):
+            raise TypeError("benchmark setup did not return _BenchmarkSetup")
+        dataset = setup_payload.dataset
+        differential_request = setup_payload.differential_request
+        kinase_request = setup_payload.kinase_request
         differential_first = _measure_run(
             lambda: DifferentialAnalysisWorkflow().run(differential_request),
             counts,
@@ -452,12 +630,16 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResult:
             "site_metadata_columns": int(dataset._site_metadata.shape[1]),
         },
         frame_dtypes=_frame_dtypes(dataset),
+        setup=setup,
         differential_first=differential_first,
         differential_repeated=differential_repeated,
         kinase_first=kinase_first,
         kinase_repeated=kinase_repeated,
         total_full_frame_deep_copies=dict(
             sorted(counts.full_frame_deep_copies.items())
+        ),
+        total_projected_frame_deep_copies=dict(
+            sorted(counts.projected_frame_deep_copies.items())
         ),
         total_snapshot_constructions=dict(
             sorted(counts.snapshot_constructions.items())
@@ -472,7 +654,24 @@ def _measurement_payload(measurement: RunMeasurement) -> dict[str, Any]:
         "runtime_seconds": measurement.runtime_seconds,
         "peak_tracemalloc_mib": measurement.peak_tracemalloc_mib,
         "full_frame_deep_copies": measurement.full_frame_deep_copies,
+        "projected_frame_deep_copies": measurement.projected_frame_deep_copies,
         "snapshot_constructions": measurement.snapshot_constructions,
+    }
+
+
+def _per_phase_metric(
+    result: BenchmarkResult,
+    attribute_name: str,
+) -> dict[str, dict[str, int]]:
+    return {
+        "setup": getattr(result.setup, attribute_name),
+        "differential_first": getattr(result.differential_first, attribute_name),
+        "differential_repeated": getattr(
+            result.differential_repeated,
+            attribute_name,
+        ),
+        "kinase_first": getattr(result.kinase_first, attribute_name),
+        "kinase_repeated": getattr(result.kinase_repeated, attribute_name),
     }
 
 
@@ -489,6 +688,7 @@ def report_payload(result: BenchmarkResult) -> dict[str, Any]:
             "dimensions": result.dataset_dimensions,
             "frame_dtypes": result.frame_dtypes,
         },
+        "setup": _measurement_payload(result.setup),
         "runs": {
             "differential": {
                 "first": _measurement_payload(result.differential_first),
@@ -501,6 +701,7 @@ def report_payload(result: BenchmarkResult) -> dict[str, Any]:
         },
         "totals": {
             "full_frame_deep_copies": result.total_full_frame_deep_copies,
+            "projected_frame_deep_copies": result.total_projected_frame_deep_copies,
             "snapshot_constructions": result.total_snapshot_constructions,
         },
         "environment": result.environment,
@@ -522,6 +723,8 @@ def _print_metrics(result: BenchmarkResult) -> None:
         f"{result.dataset_dimensions['site_metadata_columns']}"
     )
     print(f"frame_dtypes_json={_json_metric(result.frame_dtypes)}")
+    print(f"setup_run_seconds={result.setup.runtime_seconds:.6f}")
+    print(f"setup_peak_tracemalloc_mib={result.setup.peak_tracemalloc_mib:.3f}")
     print(
         "differential_first_run_seconds="
         f"{result.differential_first.runtime_seconds:.6f}"
@@ -549,8 +752,32 @@ def _print_metrics(result: BenchmarkResult) -> None:
         f"{result.kinase_repeated.peak_tracemalloc_mib:.3f}"
     )
     print(
+        "setup_full_frame_deep_copy_counts_json="
+        f"{_json_metric(result.setup.full_frame_deep_copies)}"
+    )
+    print(
+        "per_run_full_frame_deep_copy_counts_json="
+        f"{_json_metric(_per_phase_metric(result, 'full_frame_deep_copies'))}"
+    )
+    print(
         "full_frame_deep_copy_counts_json="
         f"{_json_metric(result.total_full_frame_deep_copies)}"
+    )
+    print(
+        "projected_frame_deep_copy_counts_json="
+        f"{_json_metric(result.total_projected_frame_deep_copies)}"
+    )
+    print(
+        "per_run_projected_frame_deep_copy_counts_json="
+        f"{_json_metric(_per_phase_metric(result, 'projected_frame_deep_copies'))}"
+    )
+    print(
+        "setup_snapshot_construction_counts_json="
+        f"{_json_metric(result.setup.snapshot_constructions)}"
+    )
+    print(
+        "per_run_snapshot_construction_counts_json="
+        f"{_json_metric(_per_phase_metric(result, 'snapshot_constructions'))}"
     )
     print(
         "snapshot_construction_counts_json="

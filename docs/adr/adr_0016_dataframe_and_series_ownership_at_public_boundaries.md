@@ -52,6 +52,13 @@ values with field-path-specific `PhosPyInputError` messages. Named scientific
 comparison for differential results compares this normalized immutable JSON
 state and must not invoke pandas Boolean coercion.
 
+Update note (2026-08-09, workflow copy-budget accounting): differential result
+identity metadata is aligned, projected to declared identity columns, and then
+copied once for workflow/result ownership. The repeated-workflow benchmark now
+separates setup, first differential run, repeated differential run, first kinase
+run, and repeated kinase run copy counts; it attributes dataset-origin frames by
+explicit source tags rather than shape/label equality alone.
+
 ## Context and Problem Statement
 
 PhosPy datasets and workflow results carry mutable pandas objects internally.
@@ -166,8 +173,9 @@ derived dataset, interpretation creates a new view for that independent derived
 workflow state. The views are run-scoped, but the immutable frame snapshots are
 dataset-scoped so repeated runs can reuse them without exposing mutable frames.
 Representative differential workflow tests bound full phospho-matrix
-`DataFrame.copy(deep=True)` calls and separately assert that repeated runs build
-the dataset phospho/site-metadata internal snapshots once.
+`DataFrame.copy(deep=True)` calls, assert that repeated runs build the dataset
+phospho/site-metadata internal snapshots once, and enforce the projected
+differential result-identity metadata copy budget.
 
 Implementation note (2026-08-04): ordinary Signalome workflow execution threads
 one validator-owned `DatasetInternalView` from the private validated request
@@ -271,11 +279,14 @@ but cannot claim deep immutability.
 - `benchmarks/measure_repeated_workflow_dataset_snapshot_reuse.py` is an
   opt-in local benchmark for repeated differential and kinase workflow use of
   the same dataset. It reports dataset dimensions, frame dtypes, first/repeated
-  workflow runtime, tracemalloc peak memory, full-frame deep-copy counts,
-  snapshot construction counts, environment details, and dependency versions.
-- Workflow copy-count instrumentation must cover at least one representative
-  differential and kinase run pair and assert the full phospho matrix is not
-  repeatedly deep-copied by validator/interpreter handoffs.
+  workflow runtime, setup measurements, tracemalloc peak memory, full-frame and
+  projected deep-copy counts, snapshot construction counts, environment
+  details, and dependency versions.
+- Workflow copy-count instrumentation must cover setup, first/repeated
+  differential runs, and first/repeated kinase runs. It must assert the full
+  phospho/site-metadata dataset frames are not repeatedly deep-copied by
+  validator/interpreter handoffs and that differential identity assembly does
+  not restore redundant full site-metadata copies.
 - API contract tests must statically audit public pandas/NumPy-bearing
   dataclasses for implicit equality and `unsafe_hash=True`, and must exercise
   same-instance comparison, independent equivalent objects, scientifically
