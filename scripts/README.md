@@ -33,5 +33,8 @@ archive bytes match the manifest digests without marking binary assets as text.
 
 ## Support Modules
 
+- `scripts/support/generate_peptide_site_bias_regime_fixtures.py`: independent
+  standard-library payload builder for peptide-to-site synthetic known-truth
+  fixture rows consumed by the release-validation generator.
 - `scripts/support/public_workflow_reference.py`: shared helper for building
   supported L6 dataset inputs used by active public-workflow generators.

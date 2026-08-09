@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 from phospy.contracts.configs.preprocessing import (
@@ -41,6 +43,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
+from phospy.science.evidence import PeptideEvidenceDatasetResolver, PeptideEvidenceTable
 from phospy.science.signalomes.clustering import cluster_sites_with_diagnostics
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
@@ -64,6 +67,10 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 def _read_matrix(path: Path) -> pd.DataFrame:
     return pd.read_csv(path).set_index("site_id")
+
+
+def _read_bool_text(value: object) -> bool:
+    return str(value).strip().lower() == "true"
 
 
 def _validate_manifest_file_hashes(fixture_dir: Path) -> dict[str, Any]:
@@ -151,6 +158,138 @@ def test_sps_ruv_synthetic_fixture_recovers_planted_factor_and_protected_signal(
     )
 
 
+def _read_peptide_bias_evidence(fixture_dir: Path) -> pd.DataFrame:
+    evidence = pd.read_csv(fixture_dir / "peptide_evidence.csv")
+    evidence.loc[:, "multi_site"] = evidence.loc[:, "multi_site"].map(_read_bool_text)
+    return evidence
+
+
+def _read_peptide_bias_mapping(fixture_dir: Path) -> pd.DataFrame:
+    mapping = pd.read_csv(fixture_dir / "site_mapping.csv")
+    mapping.loc[:, "mapping_uncertainty"] = mapping.loc[
+        :,
+        "mapping_uncertainty",
+    ].map(_read_bool_text)
+    mapping.loc[:, "is_multi_site"] = mapping.loc[:, "is_multi_site"].map(
+        _read_bool_text
+    )
+    return mapping
+
+
+def _run_peptide_bias_resolution(
+    *,
+    evidence: pd.DataFrame,
+    mapping: pd.DataFrame,
+):
+    return PeptideEvidenceDatasetResolver().run(
+        evidence=PeptideEvidenceTable(
+            frame=evidence,
+            sample_intensity_columns=("sample_1", "sample_2"),
+            site_mapping=mapping,
+        ),
+        multi_site_policy="split",
+        input_intensity_scale="linear",
+    )
+
+
+def _expected_site_estimate_matrix(fixture_dir: Path) -> pd.DataFrame:
+    expected = pd.read_csv(fixture_dir / "expected_site_estimates.csv")
+    matrix = expected.pivot(
+        index="site_id",
+        columns="sample_id",
+        values="expected_site_abundance",
+    ).sort_index()
+    matrix.columns.name = None
+    matrix.index.name = "site_id"
+    return matrix.loc[:, ["sample_1", "sample_2"]].astype(float)
+
+
+def test_peptide_site_bias_expected_output_generator_is_independent() -> None:
+    fixture_dir = _fixture_dir("peptide_site_bias_regimes")
+    manifest = _validate_manifest_file_hashes(fixture_dir)
+    generator_path = ROOT / str(manifest["expected_output_generator"])
+    source = generator_path.read_text(encoding="utf-8")
+    parsed = ast.parse(source)
+
+    imported_modules: set[str] = set()
+    for node in ast.walk(parsed):
+        if isinstance(node, ast.Import):
+            imported_modules.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            imported_modules.add(node.module)
+
+    forbidden_import_roots = (
+        "phospy",
+        "src.phospy",
+        "tests",
+    )
+    assert not any(
+        imported_module == root or imported_module.startswith(f"{root}.")
+        for imported_module in imported_modules
+        for root in forbidden_import_roots
+    )
+    assert "PeptideEvidenceDatasetResolver" not in source
+    assert "allocate_peptide_signals_to_resolved_sites" not in source
+    assert "tests.support" not in source
+    assert (
+        hashlib.sha256(generator_path.read_bytes()).hexdigest()
+        == (manifest["expected_output_generator_sha256"])
+    )
+
+
+def test_peptide_site_bias_raw_fixture_runs_through_production_resolver() -> None:
+    fixture_dir = _fixture_dir("peptide_site_bias_regimes")
+    assumptions = _read_json(fixture_dir / "policy_assumptions.json")
+    expected_matrix = _expected_site_estimate_matrix(fixture_dir)
+
+    resolved = _run_peptide_bias_resolution(
+        evidence=_read_peptide_bias_evidence(fixture_dir),
+        mapping=_read_peptide_bias_mapping(fixture_dir),
+    )
+    observed = resolved.phospho.sort_index().loc[:, ["sample_1", "sample_2"]]
+
+    pdt.assert_frame_equal(
+        observed,
+        expected_matrix,
+        check_exact=False,
+        rtol=float(assumptions.get("absolute_tolerance", 1.0e-12)),
+        atol=float(assumptions.get("absolute_tolerance", 1.0e-12)),
+    )
+
+    payload = resolved.summary.to_payload()
+    assert payload["input_intensity_scale"] == assumptions["input_intensity_scale"]
+    assert (
+        payload["input_quantitative_meaning"]
+        == (assumptions["input_quantitative_meaning"])
+    )
+    assert payload["allocation_domain"] == assumptions["allocation_domain"]
+    assert payload["multi_site_policy"] == assumptions["multi_site_policy"]
+    assert int(payload["fractional_mapping_rows"]) == 4
+    assert int(payload["duplicate_peptide_rows"]) == 4
+
+
+def test_peptide_site_bias_raw_fixture_is_row_order_invariant() -> None:
+    fixture_dir = _fixture_dir("peptide_site_bias_regimes")
+    evidence = _read_peptide_bias_evidence(fixture_dir)
+    mapping = _read_peptide_bias_mapping(fixture_dir)
+    expected = _run_peptide_bias_resolution(
+        evidence=evidence,
+        mapping=mapping,
+    ).phospho.sort_index()
+
+    permuted_evidence = evidence.sort_values(
+        ["site_id", "peptide_row_id"],
+        ascending=[False, False],
+    ).reset_index(drop=True)
+    permuted_mapping = mapping.iloc[::-1, :].reset_index(drop=True)
+    observed = _run_peptide_bias_resolution(
+        evidence=permuted_evidence,
+        mapping=permuted_mapping,
+    ).phospho.sort_index()
+
+    pdt.assert_frame_equal(observed, expected)
+
+
 def test_peptide_site_bias_fixture_quantifies_adverse_regimes() -> None:
     fixture_dir = _fixture_dir("peptide_site_bias_regimes")
     rows = pd.read_csv(fixture_dir / "bias_regimes.csv")
@@ -161,17 +300,81 @@ def test_peptide_site_bias_fixture_quantifies_adverse_regimes() -> None:
         assert observed[regime] == pytest.approx(
             float(expected_payload["mean_absolute_bias"])
         )
+        assert (
+            int(
+                rows.loc[
+                    (rows["regime"] == regime)
+                    & (rows["bias_status"] == "nonestimable_missing_output"),
+                    :,
+                ].shape[0]
+            )
+            == expected_payload["missing_estimate_count"]
+        )
 
+    assert set(rows["evidence_classification"]) == {"synthetic_validation"}
+    concordant = rows.loc[rows["regime"] == "duplicate_concordant_control"]
+    assert set(concordant["signed_bias"].astype(float)) == {0.0}
+    discordant = rows.loc[rows["regime"] == "duplicate_discordant"]
+    assert set(discordant["signed_bias"].astype(float)) == {15.0}
     ambiguous = rows.loc[rows["regime"] == "ambiguous_equal_split"]
     assert set(ambiguous["signed_bias"].astype(float)) == {-50.0, 50.0}
+    unequal = rows.loc[rows["regime"] == "ambiguous_unequal_fraction"]
+    assert set(unequal["signed_bias"].astype(float)) == {-60.0, 60.0}
+    missing_partial = rows.loc[
+        rows["case_id"] == "missing_value_in_one_sample",
+    ].set_index("sample_id")
+    assert float(missing_partial.loc["sample_1", "signed_bias"]) == pytest.approx(0.0)
+    assert float(missing_partial.loc["sample_2", "signed_bias"]) == pytest.approx(-20.0)
+    missing_entire = rows.loc[
+        rows["case_id"] == "entirely_missing_peptide_observation",
+    ]
+    assert missing_entire["expected_site_abundance"].isna().all()
+    assert set(missing_entire["bias_status"]) == {"nonestimable_missing_output"}
     localisation = rows.loc[rows["regime"] == "localisation_error"]
     assert set(localisation["signed_bias"].astype(float)) == {-100.0, 100.0}
     assert set(rows["regime"]) == {
+        "duplicate_concordant_control",
         "duplicate_discordant",
         "ambiguous_equal_split",
+        "ambiguous_unequal_fraction",
         "missing_observation",
         "localisation_error",
     }
+
+
+def test_peptide_site_bias_fixture_bias_matches_production_output_and_truth() -> None:
+    fixture_dir = _fixture_dir("peptide_site_bias_regimes")
+    resolved = _run_peptide_bias_resolution(
+        evidence=_read_peptide_bias_evidence(fixture_dir),
+        mapping=_read_peptide_bias_mapping(fixture_dir),
+    )
+    production_long = resolved.phospho.reset_index().melt(
+        id_vars="site_id",
+        var_name="sample_id",
+        value_name="production_site_abundance",
+    )
+    bias = pd.read_csv(fixture_dir / "bias_regimes.csv")
+    merged = bias.merge(production_long, on=("site_id", "sample_id"), how="left")
+
+    finite = merged.loc[merged["bias_status"] == "finite", :]
+    assert not finite.empty
+    np.testing.assert_allclose(
+        finite["production_site_abundance"].to_numpy(dtype=float),
+        finite["expected_site_abundance"].to_numpy(dtype=float),
+        rtol=1.0e-12,
+        atol=1.0e-12,
+    )
+    np.testing.assert_allclose(
+        finite["production_site_abundance"].to_numpy(dtype=float)
+        - finite["true_site_abundance"].to_numpy(dtype=float),
+        finite["signed_bias"].to_numpy(dtype=float),
+        rtol=1.0e-12,
+        atol=1.0e-12,
+    )
+
+    missing = merged.loc[merged["bias_status"] == "nonestimable_missing_output", :]
+    assert set(missing["case_id"]) == {"entirely_missing_peptide_observation"}
+    assert missing["production_site_abundance"].isna().all()
 
 
 def test_kinase_activity_known_membership_fixture_direction_and_coverage() -> None:

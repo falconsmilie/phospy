@@ -1,23 +1,93 @@
 {
   "classification": "synthetic_validation",
-  "estimand": "site-level sample abundance after peptide-to-site signal allocation",
+  "evidence_category": "synthetic_validation",
+  "validation_type": "production-path synthetic known-truth validation",
+  "estimand": "site-level sample abundance from fractional peptide-row allocation followed by a finite-value arithmetic mean per resolved site and sample",
   "bias_units": "linear_abundance",
+  "absolute_tolerance": 1e-12,
   "regimes": {
-    "duplicate_discordant": {
-      "mean_absolute_bias": 15.0,
-      "supported_interpretation": "duplicate peptide evidence can bias a site mean when duplicate peptide observations are discordant"
-    },
     "ambiguous_equal_split": {
+      "finite_bias_cell_count": 4,
+      "missing_estimate_count": 0,
       "mean_absolute_bias": 50.0,
+      "maximum_absolute_bias": 50.0,
+      "signed_bias_values": [
+        -50.0,
+        50.0
+      ],
+      "case_ids": [
+        "ambiguous_equal_split"
+      ],
       "supported_interpretation": "equal splitting attenuates the true site and creates spurious support for the alternative site"
     },
-    "missing_observation": {
-      "mean_absolute_bias": 20.0,
-      "supported_interpretation": "missing peptide evidence shifts the resolved site abundance toward the observed subset"
+    "ambiguous_unequal_fraction": {
+      "finite_bias_cell_count": 4,
+      "missing_estimate_count": 0,
+      "mean_absolute_bias": 60.0,
+      "maximum_absolute_bias": 60.0,
+      "signed_bias_values": [
+        -60.0,
+        60.0
+      ],
+      "case_ids": [
+        "ambiguous_unequal_fraction"
+      ],
+      "supported_interpretation": "unequal explicit fractions allocate different signal magnitudes while retaining the same allocated-signal mean estimand"
+    },
+    "duplicate_concordant_control": {
+      "finite_bias_cell_count": 2,
+      "missing_estimate_count": 0,
+      "mean_absolute_bias": 0.0,
+      "maximum_absolute_bias": 0.0,
+      "signed_bias_values": [
+        0.0
+      ],
+      "case_ids": [
+        "duplicate_concordant_control"
+      ],
+      "supported_interpretation": "concordant duplicate rows leave the retained-row mean unbiased"
+    },
+    "duplicate_discordant": {
+      "finite_bias_cell_count": 2,
+      "missing_estimate_count": 0,
+      "mean_absolute_bias": 15.0,
+      "maximum_absolute_bias": 15.0,
+      "signed_bias_values": [
+        15.0
+      ],
+      "case_ids": [
+        "duplicate_discordant"
+      ],
+      "supported_interpretation": "duplicate peptide evidence can bias a site mean when duplicate peptide observations are discordant"
     },
     "localisation_error": {
+      "finite_bias_cell_count": 4,
+      "missing_estimate_count": 0,
       "mean_absolute_bias": 100.0,
-      "supported_interpretation": "wrong localisation transfers signal from the true site to the assigned false site"
+      "maximum_absolute_bias": 100.0,
+      "signed_bias_values": [
+        -100.0,
+        100.0
+      ],
+      "case_ids": [
+        "localisation_assigned_to_wrong_site"
+      ],
+      "supported_interpretation": "wrong localisation transfers signal away from the synthetic true site and into the assigned false site"
+    },
+    "missing_observation": {
+      "finite_bias_cell_count": 2,
+      "missing_estimate_count": 2,
+      "mean_absolute_bias": 10.0,
+      "maximum_absolute_bias": 20.0,
+      "signed_bias_values": [
+        -20.0,
+        0.0
+      ],
+      "case_ids": [
+        "entirely_missing_peptide_observation",
+        "missing_value_in_one_sample"
+      ],
+      "supported_interpretation": "missing peptide evidence yields finite means from the observed subset and missing estimates when no finite allocated value exists"
     }
   },
   "tuning_policy": "fixture quantifies adverse-design sensitivity and must not be used to tune production allocation parameters"

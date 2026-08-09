@@ -1,9 +1,21 @@
-regime,site_id,sample_id,true_site_abundance,resolved_site_abundance,signed_bias,absolute_bias,mapping_weight,localisation_confidence,bias_source
-duplicate_discordant,DUP;S1;,sample_1,100.0,115.0,15.0,15.0,1.0,0.98,duplicate peptide mean
-duplicate_discordant,DUP;S1;,sample_2,100.0,115.0,15.0,15.0,1.0,0.98,duplicate peptide mean
-ambiguous_equal_split,AMB;S1;,sample_1,100.0,50.0,-50.0,50.0,0.5,0.7,ambiguous equal split
-ambiguous_equal_split,AMB;T2;,sample_1,0.0,50.0,50.0,50.0,0.5,0.7,ambiguous equal split
-missing_observation,MISS;S1;,sample_1,100.0,80.0,-20.0,20.0,1.0,0.95,missing observation
-missing_observation,MISS;S1;,sample_2,100.0,80.0,-20.0,20.0,1.0,0.95,missing observation
-localisation_error,LOC_TRUE;S1;,sample_1,100.0,0.0,-100.0,100.0,0.0,0.2,localisation error
-localisation_error,LOC_FALSE;T2;,sample_1,0.0,100.0,100.0,100.0,1.0,0.8,localisation error
+regime,case_id,site_id,sample_id,true_site_abundance,expected_site_abundance,resolved_site_abundance,signed_bias,absolute_bias,mapping_weight,localisation_confidence,bias_source,estimator_output_status,bias_status,evidence_classification
+duplicate_concordant_control,duplicate_concordant_control,DUPCON;S1;,sample_1,100.0,100.0,100.0,0.0,0.0,1.0,0.99,duplicate peptide mean control,finite_estimate,finite,synthetic_validation
+duplicate_concordant_control,duplicate_concordant_control,DUPCON;S1;,sample_2,100.0,100.0,100.0,0.0,0.0,1.0,0.99,duplicate peptide mean control,finite_estimate,finite,synthetic_validation
+duplicate_discordant,duplicate_discordant,DUPDIS;S1;,sample_1,100.0,115.0,115.0,15.0,15.0,1.0,0.98,retained duplicate peptide rows with discordant abundances,finite_estimate,finite,synthetic_validation
+duplicate_discordant,duplicate_discordant,DUPDIS;S1;,sample_2,100.0,115.0,115.0,15.0,15.0,1.0,0.98,retained duplicate peptide rows with discordant abundances,finite_estimate,finite,synthetic_validation
+ambiguous_equal_split,ambiguous_equal_split,AMBEQ;S4;,sample_1,100.0,50.0,50.0,-50.0,50.0,0.5,0.7,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+ambiguous_equal_split,ambiguous_equal_split,AMBEQ;S4;,sample_2,100.0,50.0,50.0,-50.0,50.0,0.5,0.7,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+ambiguous_equal_split,ambiguous_equal_split,AMBEQ;T6;,sample_1,0.0,50.0,50.0,50.0,50.0,0.5,0.7,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+ambiguous_equal_split,ambiguous_equal_split,AMBEQ;T6;,sample_2,0.0,50.0,50.0,50.0,50.0,0.5,0.7,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+ambiguous_unequal_fraction,ambiguous_unequal_fraction,AMBUNEQ;S4;,sample_1,80.0,20.0,20.0,-60.0,60.0,0.25,0.65,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+ambiguous_unequal_fraction,ambiguous_unequal_fraction,AMBUNEQ;S4;,sample_2,80.0,20.0,20.0,-60.0,60.0,0.25,0.65,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+ambiguous_unequal_fraction,ambiguous_unequal_fraction,AMBUNEQ;T6;,sample_1,0.0,60.0,60.0,60.0,60.0,0.75,0.65,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+ambiguous_unequal_fraction,ambiguous_unequal_fraction,AMBUNEQ;T6;,sample_2,0.0,60.0,60.0,60.0,60.0,0.75,0.65,ambiguous multi-site fractional allocation,finite_estimate,finite,synthetic_validation
+missing_observation,missing_value_in_one_sample,MISSPART;S1;,sample_1,90.0,90.0,90.0,0.0,0.0,1.0,0.95,finite-value mean after sample-level missing peptide evidence,finite_estimate,finite,synthetic_validation
+missing_observation,missing_value_in_one_sample,MISSPART;S1;,sample_2,100.0,80.0,80.0,-20.0,20.0,1.0,0.95,finite-value mean after sample-level missing peptide evidence,finite_estimate,finite,synthetic_validation
+missing_observation,entirely_missing_peptide_observation,MISSENT;S1;,sample_1,100.0,,,,,1.0,0.9,no finite peptide observation for the site/sample,missing_no_finite_allocated_evidence,nonestimable_missing_output,synthetic_validation
+missing_observation,entirely_missing_peptide_observation,MISSENT;S1;,sample_2,100.0,,,,,1.0,0.9,no finite peptide observation for the site/sample,missing_no_finite_allocated_evidence,nonestimable_missing_output,synthetic_validation
+localisation_error,localisation_assigned_to_wrong_site,LOCERR;S1;,sample_1,100.0,0.0,0.0,-100.0,100.0,1.0,0.2,signal assigned to the wrong resolved site,finite_estimate,finite,synthetic_validation
+localisation_error,localisation_assigned_to_wrong_site,LOCERR;S1;,sample_2,100.0,0.0,0.0,-100.0,100.0,1.0,0.2,signal assigned to the wrong resolved site,finite_estimate,finite,synthetic_validation
+localisation_error,localisation_assigned_to_wrong_site,LOCERR;T2;,sample_1,0.0,100.0,100.0,100.0,100.0,1.0,0.8,signal assigned to the wrong resolved site,finite_estimate,finite,synthetic_validation
+localisation_error,localisation_assigned_to_wrong_site,LOCERR;T2;,sample_2,0.0,100.0,100.0,100.0,100.0,1.0,0.8,signal assigned to the wrong resolved site,finite_estimate,finite,synthetic_validation

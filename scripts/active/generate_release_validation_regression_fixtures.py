@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import importlib.util
 import io
 import json
 from pathlib import Path
@@ -18,6 +19,9 @@ DEFAULT_SEED = 20260724
 CANONICAL_TEXT_ENCODING = "utf-8"
 CANONICAL_TEXT_NEWLINE = "\n"
 CANONICAL_TEXT_BYTE_POLICY = "utf-8 LF with final newline"
+PEPTIDE_SITE_BIAS_GENERATOR = (
+    ROOT / "scripts" / "support" / "generate_peptide_site_bias_regime_fixtures.py"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,6 +95,21 @@ def _sha256(path: Path) -> str:
 
 def _script_sha256() -> str:
     return _sha256(Path(__file__).resolve())
+
+
+def _build_peptide_site_bias_fixture_payload() -> dict[str, Any]:
+    spec = importlib.util.spec_from_file_location(
+        "_phospy_peptide_site_bias_fixture_generator",
+        PEPTIDE_SITE_BIAS_GENERATOR,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(
+            "cannot load peptide-site bias fixture generator from "
+            f"{PEPTIDE_SITE_BIAS_GENERATOR}"
+        )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.build_peptide_site_bias_fixture_payload()
 
 
 def _write_manifest(
@@ -827,121 +846,6 @@ def generate_sps_ruv_planted_unwanted_factor_fixtures(
     )
 
 
-def _peptide_bias_rows() -> tuple[list[dict[str, object]], tuple[str, ...]]:
-    columns = (
-        "regime",
-        "site_id",
-        "sample_id",
-        "true_site_abundance",
-        "resolved_site_abundance",
-        "signed_bias",
-        "absolute_bias",
-        "mapping_weight",
-        "localisation_confidence",
-        "bias_source",
-    )
-    raw_rows = [
-        ("duplicate_discordant", "DUP;S1;", "sample_1", 100.0, 115.0, 1.0, 0.98),
-        ("duplicate_discordant", "DUP;S1;", "sample_2", 100.0, 115.0, 1.0, 0.98),
-        ("ambiguous_equal_split", "AMB;S1;", "sample_1", 100.0, 50.0, 0.5, 0.70),
-        ("ambiguous_equal_split", "AMB;T2;", "sample_1", 0.0, 50.0, 0.5, 0.70),
-        ("missing_observation", "MISS;S1;", "sample_1", 100.0, 80.0, 1.0, 0.95),
-        ("missing_observation", "MISS;S1;", "sample_2", 100.0, 80.0, 1.0, 0.95),
-        (
-            "localisation_error",
-            "LOC_TRUE;S1;",
-            "sample_1",
-            100.0,
-            0.0,
-            0.0,
-            0.20,
-        ),
-        (
-            "localisation_error",
-            "LOC_FALSE;T2;",
-            "sample_1",
-            0.0,
-            100.0,
-            1.0,
-            0.80,
-        ),
-    ]
-    rows: list[dict[str, object]] = []
-    for (
-        regime,
-        site_id,
-        sample_id,
-        truth,
-        resolved,
-        mapping_weight,
-        localisation_confidence,
-    ) in raw_rows:
-        signed_bias = float(resolved) - float(truth)
-        rows.append(
-            {
-                "regime": regime,
-                "site_id": site_id,
-                "sample_id": sample_id,
-                "true_site_abundance": truth,
-                "resolved_site_abundance": resolved,
-                "signed_bias": signed_bias,
-                "absolute_bias": abs(signed_bias),
-                "mapping_weight": mapping_weight,
-                "localisation_confidence": localisation_confidence,
-                "bias_source": (
-                    "duplicate peptide mean"
-                    if regime == "duplicate_discordant"
-                    else regime.replace("_", " ")
-                ),
-            }
-        )
-    return rows, columns
-
-
-def _peptide_bias_expected_summary() -> dict[str, object]:
-    return {
-        "classification": "synthetic_validation",
-        "estimand": (
-            "site-level sample abundance after peptide-to-site signal allocation"
-        ),
-        "bias_units": "linear_abundance",
-        "regimes": {
-            "duplicate_discordant": {
-                "mean_absolute_bias": 15.0,
-                "supported_interpretation": (
-                    "duplicate peptide evidence can bias a site mean when "
-                    "duplicate peptide observations are discordant"
-                ),
-            },
-            "ambiguous_equal_split": {
-                "mean_absolute_bias": 50.0,
-                "supported_interpretation": (
-                    "equal splitting attenuates the true site and creates "
-                    "spurious support for the alternative site"
-                ),
-            },
-            "missing_observation": {
-                "mean_absolute_bias": 20.0,
-                "supported_interpretation": (
-                    "missing peptide evidence shifts the resolved site "
-                    "abundance toward the observed subset"
-                ),
-            },
-            "localisation_error": {
-                "mean_absolute_bias": 100.0,
-                "supported_interpretation": (
-                    "wrong localisation transfers signal from the true site "
-                    "to the assigned false site"
-                ),
-            },
-        },
-        "tuning_policy": (
-            "fixture quantifies adverse-design sensitivity and must not be used "
-            "to tune production allocation parameters"
-        ),
-    }
-
-
 def generate_peptide_site_bias_regime_fixtures(
     *,
     outdir: Path,
@@ -950,11 +854,38 @@ def generate_peptide_site_bias_regime_fixtures(
     command: str,
 ) -> None:
     family_dir = outdir / "peptide_site_bias_regimes"
-    rows, columns = _peptide_bias_rows()
+    payload = _build_peptide_site_bias_fixture_payload()
+
+    evidence_path = family_dir / "peptide_evidence.csv"
+    _write_csv(
+        evidence_path,
+        payload["peptide_evidence_rows"],
+        payload["peptide_evidence_columns"],
+    )
+    mapping_path = family_dir / "site_mapping.csv"
+    _write_csv(
+        mapping_path,
+        payload["site_mapping_rows"],
+        payload["site_mapping_columns"],
+    )
+    truth_path = family_dir / "known_truth.csv"
+    _write_csv(
+        truth_path,
+        payload["known_truth_rows"],
+        payload["known_truth_columns"],
+    )
+    expected_path = family_dir / "expected_site_estimates.csv"
+    _write_csv(
+        expected_path,
+        payload["expected_site_estimate_rows"],
+        payload["expected_site_estimate_columns"],
+    )
     bias_path = family_dir / "bias_regimes.csv"
-    _write_csv(bias_path, rows, columns)
+    _write_csv(bias_path, payload["bias_rows"], payload["bias_columns"])
     summary_path = family_dir / "expected_bias_summary.json"
-    _write_json(summary_path, _peptide_bias_expected_summary())
+    _write_json(summary_path, payload["expected_bias_summary"])
+    assumptions_path = family_dir / "policy_assumptions.json"
+    _write_json(assumptions_path, payload["policy_assumptions"])
 
     _write_manifest(
         directory=family_dir,
@@ -963,15 +894,30 @@ def generate_peptide_site_bias_regime_fixtures(
         generator_command=command,
         seed=seed,
         timestamp=timestamp,
-        files=(bias_path, summary_path),
+        files=(
+            evidence_path,
+            mapping_path,
+            truth_path,
+            expected_path,
+            bias_path,
+            summary_path,
+            assumptions_path,
+        ),
         notes=(
-            "Closed-form peptide-to-site adverse-regime validation fixture "
-            "quantifying bias for duplicate, ambiguous, missing, and "
-            "localisation-error cases. This is not external parity."
+            "Production-path peptide-to-site synthetic known-truth validation "
+            "fixture with raw peptide evidence, explicit mappings, independent "
+            "expected estimator outputs, and bias quantification for duplicate, "
+            "ambiguous, missing, and localisation-error cases. This is not "
+            "external parity."
         ),
         extra_fields={
             "known_truth_source": "closed-form synthetic construction",
             "evidence_category": "synthetic_validation",
+            "validation_type": ("production-path synthetic known-truth validation"),
+            "expected_output_generator": (
+                "scripts/support/generate_peptide_site_bias_regime_fixtures.py"
+            ),
+            "expected_output_generator_sha256": _sha256(PEPTIDE_SITE_BIAS_GENERATOR),
         },
         source_policy=(
             "deterministic synthetic known-truth validation fixture; not "

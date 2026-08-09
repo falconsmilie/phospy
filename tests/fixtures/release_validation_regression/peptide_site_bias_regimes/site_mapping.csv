@@ -1,0 +1,14 @@
+regime,case_id,peptide_row_id,site_id,mapping_weight,mapping_uncertainty,multi_site_policy,is_multi_site,evidence_classification
+duplicate_concordant_control,duplicate_concordant_control,dup_concordant_a,DUPCON;S1;,1.0,false,split,false,synthetic_validation
+duplicate_concordant_control,duplicate_concordant_control,dup_concordant_b,DUPCON;S1;,1.0,false,split,false,synthetic_validation
+duplicate_discordant,duplicate_discordant,dup_discordant_low,DUPDIS;S1;,1.0,false,split,false,synthetic_validation
+duplicate_discordant,duplicate_discordant,dup_discordant_high,DUPDIS;S1;,1.0,false,split,false,synthetic_validation
+ambiguous_equal_split,ambiguous_equal_split,amb_equal,AMBEQ;S4;,0.5,true,split,true,synthetic_validation
+ambiguous_equal_split,ambiguous_equal_split,amb_equal,AMBEQ;T6;,0.5,true,split,true,synthetic_validation
+ambiguous_unequal_fraction,ambiguous_unequal_fraction,amb_unequal,AMBUNEQ;S4;,0.25,true,split,true,synthetic_validation
+ambiguous_unequal_fraction,ambiguous_unequal_fraction,amb_unequal,AMBUNEQ;T6;,0.75,true,split,true,synthetic_validation
+missing_observation,missing_value_in_one_sample,miss_partial_observed,MISSPART;S1;,1.0,false,split,false,synthetic_validation
+missing_observation,missing_value_in_one_sample,miss_partial_missing_sample,MISSPART;S1;,1.0,false,split,false,synthetic_validation
+missing_observation,entirely_missing_peptide_observation,miss_entire,MISSENT;S1;,1.0,false,split,false,synthetic_validation
+localisation_error,localisation_assigned_to_wrong_site,loc_true_zero_anchor,LOCERR;S1;,1.0,false,split,false,synthetic_validation
+localisation_error,localisation_assigned_to_wrong_site,loc_false_assignment,LOCERR;T2;,1.0,false,split,false,synthetic_validation

@@ -17,4 +17,5 @@ tests/fixtures/**/*.R text eol=lf
 # These generators record their source SHA-256 in fixture manifests, so their
 # checked-out bytes must also be stable across platforms.
 scripts/active/generate_release_validation_regression_fixtures.py text eol=lf
+scripts/support/generate_peptide_site_bias_regime_fixtures.py text eol=lf
 scripts/active/generate_large_differential_limma_trend_fixture.R text eol=lf

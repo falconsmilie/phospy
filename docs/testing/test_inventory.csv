@@ -84,7 +84,7 @@ tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,
 tests/science/test_evidence_resolution_regression_fixtures.py,science,153,5,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_kinase_sparse_support_regression_fixtures.py,science,319,5,true,false,,,,,,
-tests/science/test_release_scientific_validation_fixtures.py,science,468,6,true,true,,,,,,
+tests/science/test_release_scientific_validation_fixtures.py,science,671,10,true,true,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/science/test_signalome_safety_regression_fixtures.py,science,177,6,true,false,,,,,,
 tests/unit/api/test_api_compatibility_deprecations.py,api,154,5,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access

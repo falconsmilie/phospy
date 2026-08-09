@@ -3,7 +3,7 @@
   "fixture_family": "kinase_sparse_support",
   "classification": "regression",
   "generator": "scripts/active/generate_release_validation_regression_fixtures.py",
-  "generator_sha256": "2355185c9c2a236a41a5b9fb45f9ae5908f17590056e1faeaaa72ca8bbeeb573",
+  "generator_sha256": "738f62d99af48cc830ebd11f9836a594a01316a089e679bb228624e066bd6dfa",
   "command": "python scripts/active/generate_release_validation_regression_fixtures.py --outdir tests/fixtures/release_validation_regression --timestamp 2026-07-24T00:00:00Z --seed 20260724",
   "seed": 20260724,
   "generation_timestamp_utc": "2026-07-24T00:00:00Z",
