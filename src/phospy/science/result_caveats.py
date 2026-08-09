@@ -74,7 +74,7 @@ class ResultCaveat:
         }
 
 
-def validate_result_caveats(
+def coerce_result_caveats(
     caveats: Iterable[ResultCaveat],
     *,
     field_name: str,
@@ -161,5 +161,4 @@ __all__ = [
     "ResultCaveat",
     "ResultCaveatSeverity",
     "result_caveats_from_payloads",
-    "validate_result_caveats",
 ]

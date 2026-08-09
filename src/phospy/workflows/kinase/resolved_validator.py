@@ -20,7 +20,7 @@ from phospy.science.prediction.motif_scoring import (
     KINASE_LIBRARY_RESIDUE_CLASS_SER_THR,
     KINASE_LIBRARY_RESIDUE_CLASS_TYR,
 )
-from phospy.science.references.kinase_library import KinaseLibraryResource
+from phospy.science.references.kinase_library_models import KinaseLibraryResource
 from phospy.science.references.models import ReferenceBundle
 from phospy.workflows.kinase.attrition_metrics import (
     KinaseAttritionMetrics,

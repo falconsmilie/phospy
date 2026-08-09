@@ -30,7 +30,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
 )
-from phospy.science.evidence.dataset_resolution import (
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
     PeptideEvidenceResolutionSummary,
 )

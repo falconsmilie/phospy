@@ -64,7 +64,7 @@ from phospy.science.enrichment.models import (
     GeneSetCollection,
     PtmSetCollection,
 )
-from phospy.science.references.kinase_library import KinaseLibraryResource
+from phospy.science.references.kinase_library_models import KinaseLibraryResource
 from phospy.science.references.models import ReferenceBundle, ReferencePreset
 
 DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (

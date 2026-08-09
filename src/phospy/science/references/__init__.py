@@ -32,14 +32,15 @@ __all__ = [
 
 if TYPE_CHECKING:
     from phospy.science.references.builder import ReferenceBundleBuilder
-    from phospy.science.references.kinase_library import (
+    from phospy.science.references.kinase_library_loading import (
+        KinaseLibraryResourceLoader,
+        load_kinase_library_resource,
+    )
+    from phospy.science.references.kinase_library_models import (
         KinaseLibraryMatrix,
         KinaseLibraryResidueClass,
         KinaseLibraryResource,
-        KinaseLibraryResourceLoader,
         KinaseLibraryResourceLoadRequest,
-        KinaseLibraryResourceValidator,
-        load_kinase_library_resource,
     )
     from phospy.science.references.models import (
         BundledReferenceLane,
@@ -58,6 +59,9 @@ if TYPE_CHECKING:
         SequenceWindowDefinition,
         reference_context_from_provenance,
     )
+    from phospy.science.references.validation.kinase_library import (
+        KinaseLibraryResourceValidator,
+    )
 
 
 def __getattr__(name: str) -> object:
@@ -70,13 +74,23 @@ def __getattr__(name: str) -> object:
         "KinaseLibraryResidueClass",
         "KinaseLibraryResource",
         "KinaseLibraryResourceLoadRequest",
-        "KinaseLibraryResourceLoader",
-        "KinaseLibraryResourceValidator",
-        "load_kinase_library_resource",
     }:
-        from phospy.science.references import kinase_library as _kinase_library
+        from phospy.science.references import kinase_library_models as _kinase_library
 
         return getattr(_kinase_library, name)
+    if name in {
+        "KinaseLibraryResourceLoader",
+        "load_kinase_library_resource",
+    }:
+        from phospy.science.references import kinase_library_loading as _kinase_library
+
+        return getattr(_kinase_library, name)
+    if name == "KinaseLibraryResourceValidator":
+        from phospy.science.references.validation.kinase_library import (
+            KinaseLibraryResourceValidator,
+        )
+
+        return KinaseLibraryResourceValidator
     if name in __all__:
         from phospy.science.references import models as _models
 

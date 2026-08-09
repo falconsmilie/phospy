@@ -29,7 +29,7 @@ from phospy.science.datasets.preprocessing.protein_aware_alignment import (
     ProteinAwarePreparationEligibility,
     ProteinAwareSampleAlignmentDiagnostics,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationReport,
     ProteinAwareSiteEligibility,
 )
@@ -78,7 +78,7 @@ _IMMUTABLE_JSON_FIELDS = {
     "policy_violations": (
         "contract-owned kinase attrition policy violation payloads; recursively frozen"
     ),
-    "phospy.science.datasets.preprocessing.protein_aware_preparation."
+    "phospy.science.datasets.preprocessing.protein_aware_models."
     "ProteinAwarePreparationReport.policy_parameters": (
         "protein-aware preprocessing policy JSON; recursively frozen"
     ),
@@ -334,7 +334,7 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
         "policy": kinase_attrition.policy,
         "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
         "policy_violations": kinase_attrition.policy_violations,
-        "phospy.science.datasets.preprocessing.protein_aware_preparation."
+        "phospy.science.datasets.preprocessing.protein_aware_models."
         "ProteinAwarePreparationReport.policy_parameters": (
             protein_aware_report.policy_parameters
         ),

@@ -168,9 +168,12 @@ when ownership or compatibility routes change.
   `src/phospy/science/references/validation/__init__.py` route is a
   compatibility facade only.
 - Reference bundle and Kinase Library resource construction invariants:
-  `src/phospy/science/references/models.py` and
-  `src/phospy/science/references/kinase_library.py`; validation-package routes
-  re-export these validators for internal compatibility.
+  passive models live in `src/phospy/science/references/models.py` and
+  `src/phospy/science/references/kinase_library_models.py`; validator service
+  routes live in `src/phospy/science/references/validation/bundle.py` and
+  `src/phospy/science/references/validation/kinase_library.py`, with
+  validation-package routes re-exporting these validators for internal
+  compatibility.
 - Workflow-boundary owners include
   `src/phospy/workflows/kinase/validator.py` and
   `src/phospy/workflows/signalome/validator.py`.

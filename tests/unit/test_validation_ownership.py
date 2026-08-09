@@ -144,14 +144,20 @@ def test_reference_compatibility_validator_is_single_owner_for_compatibility_rul
 
 
 def test_reference_bundle_contract_validation_has_single_owner() -> None:
+    from phospy.science.references import models as reference_models
+
     bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)
+    validation_source = inspect.getsource(
+        reference_models._run_reference_bundle_validation
+    )
     validator_source = inspect.getsource(ReferenceBundleValidator.run)
     resolver_source = inspect.getsource(ReferenceResolver.run)
-    assert "ReferenceBundleValidator().run(" in bundle_source
+    assert "_run_reference_bundle_validation(" in bundle_source
     assert "KinaseSubstrateReference(" not in bundle_source
     assert "SiteSequenceReference(" not in bundle_source
-    assert "KinaseSubstrateReference(" in validator_source
-    assert "SiteSequenceReference(" in validator_source
+    assert "KinaseSubstrateReference(" in validation_source
+    assert "SiteSequenceReference(" in validation_source
+    assert "_run_reference_bundle_validation(" in validator_source
     assert "ReferenceBundleValidator" not in resolver_source
 
 

@@ -284,7 +284,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 109 | `references=ReferencePreset.HUMAN,` |
 | tests/unit/test_validation_ownership.py | test_reference_resolver_delegates_compatibility_and_does_not_duplicate_checks | 132 | `assert "ReferenceBundleValidator" not in resolver_source` |
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_validator_is_single_owner_for_compatibility_rules | 142 | `assert "ReferencePreset.AUTO requires dataset.organism" in source` |
-| tests/unit/test_validation_ownership.py | test_reference_bundle_contract_validation_has_single_owner | 147 | `bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)` |
+| tests/unit/test_validation_ownership.py | test_reference_bundle_contract_validation_has_single_owner | 149 | `bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_exploratory_scoring_intent | 196 | `references=ReferencePreset.RAT,` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_production_scoring_intent | 210 | `references=ReferencePreset.RAT,` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_accepts_explicit_custom_scoring_intent | 224 | `references=ReferencePreset.RAT,` |

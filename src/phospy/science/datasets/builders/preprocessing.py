@@ -21,9 +21,8 @@ from phospy.science.datasets.preprocessing.models import (
     reject_external_corrected_output_after_downstream_preprocessing,
 )
 from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationResult,
-    ProteinAwarePreparationStage,
 )
 from phospy.science.datasets.preprocessing.provenance_adapter import (
     PreprocessingProvenanceAdapter,
@@ -35,6 +34,9 @@ from phospy.science.datasets.preprocessing.stages import (
     BatchCorrectionAdequacyValidatorProtocol,
     BatchDesignMetadataValidatorProtocol,
     SpsRuvStyleBatchCorrectionRunner,
+)
+from phospy.science.datasets.preprocessing.stages.protein_aware_preparation import (
+    ProteinAwarePreparationStage,
 )
 from phospy.science.datasets.preprocessing.state_builder import (
     DatasetProcessingStateBuilder,

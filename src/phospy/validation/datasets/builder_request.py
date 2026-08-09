@@ -14,7 +14,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.correction_output import (
     validate_corrected_preprocessing_output,
 )
-from phospy.science.evidence.dataset_resolution import (
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
     SUPPORTED_DATASET_MULTI_SITE_POLICIES,
     SUPPORTED_DATASET_SITE_RESOLUTION_MODES,

@@ -6,7 +6,8 @@ from collections.abc import Sequence
 from typing import cast
 
 from phospy.science.evidence.dataset_resolution.allocation import SiteSignalSummary
-from phospy.science.evidence.dataset_resolution.contracts import (
+from phospy.science.evidence.dataset_resolution.mapping import ResolvedMappingFractions
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     MAPPING_FRACTION_COLUMN,
@@ -15,7 +16,6 @@ from phospy.science.evidence.dataset_resolution.contracts import (
     PeptideEvidenceResolutionSummary,
     PeptideToSiteAggregationPolicy,
 )
-from phospy.science.evidence.dataset_resolution.mapping import ResolvedMappingFractions
 from phospy.science.evidence.dataset_resolution.site_metadata import (
     SiteMetadataResolution,
 )

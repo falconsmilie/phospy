@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.science.references.models import (
+from phospy.science.references.validation.bundle import (
     ReferenceBundleValidationResult,
     ReferenceBundleValidator,
 )

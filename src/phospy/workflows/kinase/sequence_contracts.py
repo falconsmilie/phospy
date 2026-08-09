@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.kinase_library import KinaseLibraryResource
+from phospy.science.references.kinase_library_models import KinaseLibraryResource
 from phospy.validation.identity_contracts import SequenceContextContract
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,

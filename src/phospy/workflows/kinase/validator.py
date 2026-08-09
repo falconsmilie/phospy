@@ -23,7 +23,7 @@ from phospy.science.activities.method_contracts import (
 )
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.kinase_library import KinaseLibraryResource
+from phospy.science.references.kinase_library_models import KinaseLibraryResource
 from phospy.science.references.models import (
     ReferenceBundle,
     ReferencePreset,

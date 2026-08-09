@@ -7,11 +7,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.evidence.dataset_resolution.contracts import (
+from phospy.science.evidence.dataset_resolution.mapping import ResolvedMappingFractions
+from phospy.science.evidence.dataset_resolution.models import (
     MAPPING_FRACTION_COLUMN,
     PeptideToSiteAggregationPolicy,
 )
-from phospy.science.evidence.dataset_resolution.mapping import ResolvedMappingFractions
 
 
 @dataclass(frozen=True, slots=True)

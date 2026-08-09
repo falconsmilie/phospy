@@ -7,7 +7,7 @@ from phospy.science.datasets.preprocessing.batch_correction_models import (
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwareMappingDiagnostics,
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,

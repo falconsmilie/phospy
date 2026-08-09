@@ -8,7 +8,7 @@ import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.evidence.dataset_resolution.allocation import AllocatedEvidence
-from phospy.science.evidence.dataset_resolution.contracts import (
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_PEPTIDE_LOCALISATION_COMPATIBILITY_ALIAS_COLUMN,
     DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
     DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS,

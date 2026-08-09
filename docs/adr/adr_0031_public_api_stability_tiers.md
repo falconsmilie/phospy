@@ -137,6 +137,20 @@ import designated public science modules only to expose exact owner-defined
 object identities. It must not import private science modules, executors,
 construction services, internal views, or validation implementation modules.
 
+Update note (2026-08-09, role-pure contracts-to-science facades): A
+`__phospy_contracts_facade_role__` marker describes the marked module's actual
+responsibility; it is not a waiver. A marked module must be role-pure for its
+declared passive ownership category. Marked modules must not declare public
+validators, loaders, builders, construction services, stages, executors,
+workflow runners/orchestrators, internal dataset views, reference builders,
+resolver execution services, or public `build_*`, `load_*`, `validate_*`,
+`run_*`, `execute_*`, `resolve_*`, `construct_*`, or `orchestrate_*` functions.
+They also must not wildcard-import or bare-import forbidden implementation
+modules, or re-export imported implementation symbols under passive markers.
+Implementation responsibilities remain in their owning science-domain
+implementation modules, while `phospy.contracts` imports only the role-pure
+science-owner modules needed to preserve object identity.
+
 ## Contract Facade Dependency and Ownership Audit
 
 The stable and advanced public facades can expose science-owned objects without
@@ -159,13 +173,21 @@ The executable import policy is:
    `science_owned_public_table_contract`, and a narrow
    `science_owned_public_helper` role for public science helpers whose
    behaviour must not be copied into transport DTOs.
-3. Generic forbidden categories override the prefix/marker rule. Contracts must
+3. A marked science module must be role-pure. The marker is valid only when the
+   module's top-level declarations and implementation-symbol imports match the
+   declared passive owner role. Validators, loaders, builders, construction
+   services, executable preprocessing stages, executors, workflow runners or
+   orchestrators, internal dataset views, reference builders, resolver
+   execution services, and executable policy construction/validation functions
+   must live in appropriately named implementation modules in the owning
+   science domain.
+4. Generic forbidden categories override the prefix/marker rule. Contracts must
    not import science modules with private path segments, builders,
    construction services, executors, internal views, validation
    implementations, reference builders/reference validation modules, or
    workflow implementation modules. A marker on one of those implementation
    modules is invalid and does not legalize the import.
-4. The architecture test rejects stale markers. A science module should carry a
+5. The architecture test rejects stale markers. A science module should carry a
    contracts-facade role only while `phospy.contracts` actually imports that
    exact module as an identity-preserving facade dependency.
 

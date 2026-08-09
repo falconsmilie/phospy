@@ -83,7 +83,7 @@ from phospy.workflows.kinase.site_sequence_policy import (
 )
 
 if TYPE_CHECKING:
-    from phospy.science.references.kinase_library import KinaseLibraryResource
+    from phospy.science.references.kinase_library_models import KinaseLibraryResource
     from phospy.science.references.resolution import ReferenceResolverContract
 
 

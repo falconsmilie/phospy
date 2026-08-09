@@ -42,7 +42,7 @@ from phospy.science.datasets.organism_coherence import (
     require_dataset_provenance_organism_coherence,
     resolve_single_dataset_organism,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationResult,
 )
 from phospy.science.datasets.processing_state import (

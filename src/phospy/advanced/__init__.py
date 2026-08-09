@@ -115,7 +115,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteStatus,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
-from phospy.science.references.kinase_library import (
+from phospy.science.references.kinase_library_models import (
     KinaseLibraryResource,
     KinaseLibraryResourceLoadRequest,
 )

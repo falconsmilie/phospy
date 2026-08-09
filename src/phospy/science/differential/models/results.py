@@ -41,7 +41,7 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
     validate_result_table_contract,
 )
-from phospy.science.result_caveats import ResultCaveat, validate_result_caveats
+from phospy.science.result_caveats import ResultCaveat, coerce_result_caveats
 
 if TYPE_CHECKING:
     from phospy.science.datasets.models import DatasetPreprocessingReport
@@ -245,7 +245,7 @@ class DifferentialAnalysisResult:
             workflow_provenance,
             field_name="differential_result.workflow_provenance",
         )
-        caveats = validate_result_caveats(
+        caveats = coerce_result_caveats(
             caveats,
             field_name="differential_result.caveats",
         )

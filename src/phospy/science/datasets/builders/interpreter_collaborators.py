@@ -36,12 +36,16 @@ from phospy.science.datasets.preprocessing.policy_models import (
     SiteMatrixDuplicateSitePolicy,
     SiteMatrixPolicy,
 )
-from phospy.science.evidence.dataset_resolution import (
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
-    PeptideEvidenceDatasetResolver,
     PeptideEvidenceResolutionSummary,
+)
+from phospy.science.evidence.dataset_resolution.policies import (
     build_multi_site_handling_config_for_dataset_policy,
+)
+from phospy.science.evidence.dataset_resolution.resolver import (
+    PeptideEvidenceDatasetResolver,
 )
 from phospy.science.evidence.models import PeptideEvidenceTable
 from phospy.science.references.models import Organism

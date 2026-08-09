@@ -177,6 +177,7 @@ def test_differential_workflow_supported_import_routes() -> None:
 
 
 def test_contract_facade_reexports_science_owned_objects_by_identity() -> None:
+    import phospy.advanced as advanced_api
     import phospy.contracts.dataset_build as contract_dataset_build
     import phospy.contracts.requests as contract_requests
     import phospy.contracts.result_caveats as contract_caveats
@@ -185,17 +186,35 @@ def test_contract_facade_reexports_science_owned_objects_by_identity() -> None:
     from phospy.science.datasets.preprocessing import (
         batch_correction_models as science_batch_correction_models,
     )
+    from phospy.science.datasets.preprocessing import (
+        protein_aware_models as science_protein_aware_models,
+    )
     from phospy.science.design import models as science_design_models
     from phospy.science.differential import models as science_differential_models
     from phospy.science.enrichment import models as science_enrichment_models
     from phospy.science.evidence.dataset_resolution import (
-        contracts as science_dataset_resolution_contracts,
+        models as science_dataset_resolution_models,
+    )
+    from phospy.science.references import (
+        kinase_library_models as science_kinase_library_models,
     )
     from phospy.science.references import models as science_reference_models
 
     assert (
         contract_dataset_build.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
-        is science_dataset_resolution_contracts.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+        is science_dataset_resolution_models.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+    )
+    assert (
+        contract_requests.KinaseLibraryResource
+        is science_kinase_library_models.KinaseLibraryResource
+    )
+    assert (
+        advanced_api.KinaseLibraryResource
+        is science_kinase_library_models.KinaseLibraryResource
+    )
+    assert (
+        advanced_api.KinaseLibraryResourceLoadRequest
+        is science_kinase_library_models.KinaseLibraryResourceLoadRequest
     )
     assert (
         contract_requests.ExperimentalDesign is science_design_models.ExperimentalDesign
@@ -213,6 +232,14 @@ def test_contract_facade_reexports_science_owned_objects_by_identity() -> None:
     assert (
         contract_preprocessing_results.BatchCorrectionReport
         is science_batch_correction_models.BatchCorrectionReport
+    )
+    assert (
+        contract_preprocessing_results.ProteinAwarePreparationReport
+        is science_protein_aware_models.ProteinAwarePreparationReport
+    )
+    assert (
+        contract_preprocessing_results.ProteinAwarePreparationResult
+        is science_protein_aware_models.ProteinAwarePreparationResult
     )
 
 

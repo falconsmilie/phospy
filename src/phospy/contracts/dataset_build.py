@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from phospy.contracts.configs import DatasetPreprocessingConfig
-from phospy.science.evidence.dataset_resolution.contracts import (
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,

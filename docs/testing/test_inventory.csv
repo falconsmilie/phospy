@@ -8,7 +8,7 @@ tests/architecture/test_dataset_builder_preprocessor_contract.py,architecture,12
 tests/architecture/test_deprecation_governance.py,architecture,54,1,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_exported_json_state_immutability.py,architecture,377,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,870,17,true,true,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
+tests/architecture/test_package_dependency_dag.py,architecture,1198,22,true,true,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
 tests/architecture/test_public_consumer_contract_imports.py,architecture,105,1,false,false,,,,,,
 tests/architecture/test_scientific_model_decomposition.py,architecture,196,6,false,false,,,,,,
@@ -212,7 +212,7 @@ tests/unit/test_maintainer_scripts_smoke.py,unit,344,9,true,true,provenance/gold
 tests/unit/test_maxquant_phosphosite_importer.py,unit,315,10,false,false,,,,,,
 tests/unit/test_missing_data_split_modules.py,unit,1011,29,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_multiple_testing_correction.py,unit,159,7,true,true,,,,,,
-tests/unit/test_peptide_evidence_dataset_resolution_components.py,unit,827,21,true,true,,,,,,
+tests/unit/test_peptide_evidence_dataset_resolution_components.py,unit,829,21,true,true,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,162,6,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_peptide_to_site_aggregation.py,unit,351,8,true,true,scientific invariant,keep,Loss of this file would remove typed uncertainty/dependence protection for peptide-to-site differential evidence.,codex-audit,,Updated after typed peptide-to-site uncertainty redesign.
 tests/unit/test_performance_contract_helpers.py,unit,19,1,false,false,,,,,,
@@ -251,7 +251,7 @@ tests/unit/test_public_contract_boundary_honesty.py,unit,323,7,true,true,public 
 tests/unit/test_public_contract_dataset.py,unit,404,16,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract dataset and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_enrichment.py,unit,389,14,true,true,,,,,,
 tests/unit/test_public_contract_errors.py,unit,775,25,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_contract_import_routes.py,unit,333,19,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_public_contract_import_routes.py,unit,360,19,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_results.py,unit,417,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_workflows.py,unit,190,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,604,11,false,false,,,,,,
@@ -311,7 +311,7 @@ tests/unit/test_table_schemas.py,unit,1108,65,true,true,public API contract,keep
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,565,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_transformation_provenance.py,unit,329,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_validation_common_ownership.py,unit,27,2,false,false,,,,,,
-tests/unit/test_validation_ownership.py,unit,217,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_validation_ownership.py,unit,223,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_validation_ownership_contracts.py,unit,109,4,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_validator_boundaries.py,unit,2159,76,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_workflow_boundary_error.py,unit,343,9,false,false,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in workflow boundary error and increase risk of silent reintroduction.,codex-audit,,

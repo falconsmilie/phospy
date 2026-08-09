@@ -153,10 +153,15 @@ The enforced package rules are:
    enforced by the architecture test: `phospy.science.configs.*` is the single
    approved prefix, and every other science target must declare the private
    `__phospy_contracts_facade_role__` marker with an approved public owner
-   role. Generic forbidden categories override that marker. Contracts must not
-   import private science modules, builders, construction services, executors,
-   internal views, reference builders/reference validation modules, workflow
-   implementation modules, or validation implementation modules.
+   role. The marker must be truthful: marked modules are role-pure passive owner
+   modules, not waivers for validators, loaders, builders, construction
+   services, executable stages, executors, workflow runners/orchestrators,
+   internal views, reference builders, resolver execution services, or public
+   construction/validation/loading functions. Generic forbidden categories
+   override that marker. Contracts must not import private science modules,
+   builders, construction services, executors, internal views, reference
+   builders/reference validation modules, workflow implementation modules, or
+   validation implementation modules.
 5. Concrete local readers, reference source loaders, and nested workflow runners
    are injected by API/workflow orchestration adapters.
 6. Compatibility modules may re-export moved names, but they must not reintroduce
@@ -246,6 +251,13 @@ allowed.
 - `src/phospy/science/datasets/preprocessing/batch_correction_provenance_payloads.py`
 - `src/phospy/science/datasets/preprocessing/batch_correction_provenance_validation.py`
 - `src/phospy/science/references/kinase_library.py`
+- `src/phospy/science/references/kinase_library_models.py`
+- `src/phospy/science/references/kinase_library_loading.py`
+- `src/phospy/science/references/validation/kinase_library.py`
+- `src/phospy/science/datasets/preprocessing/protein_aware_models.py`
+- `src/phospy/science/datasets/preprocessing/stages/protein_aware_preparation.py`
+- `src/phospy/science/evidence/dataset_resolution/models.py`
+- `src/phospy/science/evidence/dataset_resolution/policies.py`
 - `src/phospy/io/readers/dataset_inputs.py`
 - `src/phospy/workflows/batch_correction/preprocessing_adapter.py`
 - `tests/architecture/test_package_dependency_dag.py`

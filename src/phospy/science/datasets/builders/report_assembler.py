@@ -37,7 +37,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationReport,
 )
 from phospy.science.datasets.preprocessing.report_schema import (
@@ -51,7 +51,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
     row_audit_rows_from_dataframe,
     row_count_rows_from_dataframe,
 )
-from phospy.science.evidence.dataset_resolution import (
+from phospy.science.evidence.dataset_resolution.models import (
     PeptideEvidenceResolutionSummary,
 )
 from phospy.science.transformations.models import IntensityTransformationEvent

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.evidence.dataset_resolution.contracts import (
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
     MAPPING_FRACTION_COLUMN,

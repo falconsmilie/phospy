@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from phospy.science.evidence.dataset_resolution import site_metadata as _site_metadata
-from phospy.science.evidence.dataset_resolution.contracts import (
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
@@ -46,9 +46,11 @@ from phospy.science.evidence.dataset_resolution.contracts import (
     PeptideEvidenceResolutionSummary,
     PeptideToSiteAggregationPolicy,
     PeptideToSiteAllocationDomain,
+    normalise_peptide_evidence_resolution_summary_payload,
+)
+from phospy.science.evidence.dataset_resolution.policies import (
     build_multi_site_handling_config_for_dataset_policy,
     build_peptide_to_site_aggregation_policy,
-    normalise_peptide_evidence_resolution_summary_payload,
 )
 from phospy.science.evidence.dataset_resolution.resolver import (
     PeptideEvidenceDatasetResolver,

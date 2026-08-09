@@ -38,16 +38,18 @@ from phospy.science.evidence.dataset_resolution.allocation import (
     allocate_peptide_signals_to_resolved_sites,
     summarise_allocated_site_signals,
 )
-from phospy.science.evidence.dataset_resolution.contracts import (
-    MAPPING_FRACTION_COLUMN,
-    PeptideEvidenceResolutionInputMetrics,
-    build_peptide_to_site_aggregation_policy,
-)
 from phospy.science.evidence.dataset_resolution.mapping import (
     JoinedMappingRows,
     ResolvedMappingFractions,
     join_peptide_rows_to_site_mapping,
     resolve_and_validate_mapping_fractions,
+)
+from phospy.science.evidence.dataset_resolution.models import (
+    MAPPING_FRACTION_COLUMN,
+    PeptideEvidenceResolutionInputMetrics,
+)
+from phospy.science.evidence.dataset_resolution.policies import (
+    build_peptide_to_site_aggregation_policy,
 )
 from phospy.science.evidence.dataset_resolution.site_metadata import (
     SiteMetadataResolution,

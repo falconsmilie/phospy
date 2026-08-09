@@ -44,7 +44,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageOrderResolution,
     TotalProteinCorrectionIdentityPolicy,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationReport,
 )
 from phospy.science.datasets.preprocessing.scientific_policies import (

@@ -29,7 +29,7 @@ from phospy.science.datasets.construction.validation import (
 )
 from phospy.science.datasets.imputation_metadata import ImputationObservationMetadata
 from phospy.science.datasets.internal_frame_store import DatasetInternalFrameStore
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationResult,
 )
 from phospy.science.datasets.processing_state import (

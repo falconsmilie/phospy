@@ -411,88 +411,84 @@ class ReferenceBundleValidationResult:
         )
 
 
-class ReferenceBundleValidator:
-    """Validate the stable `ReferenceBundle` contract."""
-
-    def run(
-        self,
-        *,
-        organism: Organism,
-        kinase_substrate_map: object,
-        site_sequences: object,
-        provenance: ReferenceProvenance | None = None,
-        manifest: ReferenceManifest | None = None,
-    ) -> ReferenceBundleValidationResult:
-        if not isinstance(cast(object, organism), Organism):
-            raise ReferenceValidationError(
-                "references.organism must be an Organism enum value"
-            )
-        if not isinstance(kinase_substrate_map, pd.DataFrame):
-            raise ReferenceValidationError(
-                "references.kinase_substrate_map must be a pandas DataFrame"
-            )
-        if not isinstance(site_sequences, pd.DataFrame):
-            raise ReferenceValidationError(
-                "references.site_sequences must be a pandas DataFrame"
-            )
-        if provenance is not None and not isinstance(
-            cast(object, provenance), ReferenceProvenance
-        ):
-            raise ReferenceValidationError(
-                "references.provenance must be ReferenceProvenance or None"
-            )
-        if manifest is not None and not isinstance(
-            cast(object, manifest), ReferenceManifest
-        ):
-            raise ReferenceValidationError(
-                "references.manifest must be ReferenceManifest or None"
-            )
-        _require_reference_bundle_organism_coherence(
-            organism=organism,
-            provenance=provenance,
-            manifest=manifest,
+def _run_reference_bundle_validation(
+    *,
+    organism: Organism,
+    kinase_substrate_map: object,
+    site_sequences: object,
+    provenance: ReferenceProvenance | None = None,
+    manifest: ReferenceManifest | None = None,
+) -> ReferenceBundleValidationResult:
+    if not isinstance(cast(object, organism), Organism):
+        raise ReferenceValidationError(
+            "references.organism must be an Organism enum value"
         )
-        kinase_substrate_reference = KinaseSubstrateReference(
-            frame=kinase_substrate_map,
-            _assume_owned=True,
+    if not isinstance(kinase_substrate_map, pd.DataFrame):
+        raise ReferenceValidationError(
+            "references.kinase_substrate_map must be a pandas DataFrame"
         )
-        site_sequence_reference = SiteSequenceReference(
-            frame=site_sequences,
-            _assume_owned=True,
+    if not isinstance(site_sequences, pd.DataFrame):
+        raise ReferenceValidationError(
+            "references.site_sequences must be a pandas DataFrame"
         )
-        substrate_sites = {
-            str(value)
-            for value in kinase_substrate_reference.frame["substrate_site"].tolist()
-        }
-        known_sites = set(site_sequence_reference.frame.index.tolist())
-        missing_sequences = sorted(substrate_sites.difference(known_sites))
-        if missing_sequences:
-            missing_sample = ", ".join(missing_sequences[:10])
-            raise ReferenceValidationError(
-                "references.site_sequences is missing sequence entries for "
-                f"substrate sites in references.kinase_substrate_map: {missing_sample}"
-            )
-        identifier_normalisation = merge_reference_identifier_normalisation_reports(
-            report
-            for report in (
-                kinase_substrate_reference.identifier_normalisation,
-                site_sequence_reference.identifier_normalisation,
-            )
-            if report is not None
+    if provenance is not None and not isinstance(
+        cast(object, provenance), ReferenceProvenance
+    ):
+        raise ReferenceValidationError(
+            "references.provenance must be ReferenceProvenance or None"
         )
-        report = _build_validation_report(
-            organism=organism,
-            kinase_substrate_map=kinase_substrate_reference.frame,
-            site_sequences=site_sequence_reference.frame,
-            provenance=provenance,
-            manifest=manifest,
+    if manifest is not None and not isinstance(
+        cast(object, manifest), ReferenceManifest
+    ):
+        raise ReferenceValidationError(
+            "references.manifest must be ReferenceManifest or None"
         )
-        return ReferenceBundleValidationResult(
-            kinase_substrate_map=kinase_substrate_reference.frame,
-            site_sequences=site_sequence_reference.frame,
-            identifier_normalisation=identifier_normalisation,
-            report=report,
+    _require_reference_bundle_organism_coherence(
+        organism=organism,
+        provenance=provenance,
+        manifest=manifest,
+    )
+    kinase_substrate_reference = KinaseSubstrateReference(
+        frame=kinase_substrate_map,
+        _assume_owned=True,
+    )
+    site_sequence_reference = SiteSequenceReference(
+        frame=site_sequences,
+        _assume_owned=True,
+    )
+    substrate_sites = {
+        str(value)
+        for value in kinase_substrate_reference.frame["substrate_site"].tolist()
+    }
+    known_sites = set(site_sequence_reference.frame.index.tolist())
+    missing_sequences = sorted(substrate_sites.difference(known_sites))
+    if missing_sequences:
+        missing_sample = ", ".join(missing_sequences[:10])
+        raise ReferenceValidationError(
+            "references.site_sequences is missing sequence entries for "
+            f"substrate sites in references.kinase_substrate_map: {missing_sample}"
         )
+    identifier_normalisation = merge_reference_identifier_normalisation_reports(
+        report
+        for report in (
+            kinase_substrate_reference.identifier_normalisation,
+            site_sequence_reference.identifier_normalisation,
+        )
+        if report is not None
+    )
+    report = _build_validation_report(
+        organism=organism,
+        kinase_substrate_map=kinase_substrate_reference.frame,
+        site_sequences=site_sequence_reference.frame,
+        provenance=provenance,
+        manifest=manifest,
+    )
+    return ReferenceBundleValidationResult(
+        kinase_substrate_map=kinase_substrate_reference.frame,
+        site_sequences=site_sequence_reference.frame,
+        identifier_normalisation=identifier_normalisation,
+        report=report,
+    )
 
 
 def _build_validation_report(
@@ -1008,7 +1004,7 @@ class ReferenceBundle:
                     ),
                 )
             )
-        validation = ReferenceBundleValidator().run(
+        validation = _run_reference_bundle_validation(
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,

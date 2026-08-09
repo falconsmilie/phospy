@@ -60,7 +60,7 @@ from phospy.science.datasets.imputation_metadata import (
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationReport,
 )
 from phospy.science.datasets.preprocessing.report_schema import (

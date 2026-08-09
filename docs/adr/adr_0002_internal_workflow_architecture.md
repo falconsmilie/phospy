@@ -67,7 +67,12 @@ science modules must declare the private module marker
 narrow public helper role. Contextual validation, execution, construction,
 internal views, workflow implementation modules, reference builders/reference
 validation, and private validation implementations remain outside the contracts
-package even if a forbidden module declares that marker.
+package even if a forbidden module declares that marker. The marker itself must
+also be role-pure: it describes the marked module's real passive ownership role
+and cannot be used on a module that declares or re-exports public validators,
+loaders, builders, construction services, stages, executors, workflow runners or
+orchestrators, internal views, reference builders, resolver execution services,
+or executable construction/validation/loading functions.
 
 ## Context and Problem Statement
 

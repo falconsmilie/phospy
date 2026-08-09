@@ -45,7 +45,7 @@ from phospy.science.datasets.organism_coherence import (
 from phospy.science.datasets.preprocessing.models import (
     reject_external_corrected_output_after_downstream_preprocessing,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.science.datasets.preprocessing.protein_aware_models import (
     ProteinAwarePreparationResult,
 )
 from phospy.science.datasets.preprocessing.quantitative_scale_policy import (

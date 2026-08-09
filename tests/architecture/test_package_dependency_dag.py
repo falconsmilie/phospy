@@ -103,6 +103,37 @@ CONTRACTS_PUBLIC_SCIENCE_FACADE_ROLES = frozenset(
     }
 )
 
+CONTRACTS_FORBIDDEN_FACADE_DECLARATION_SUFFIXES = (
+    "Validator",
+    "Loader",
+    "Builder",
+    "ConstructionService",
+    "Stage",
+    "Executor",
+    "Runner",
+    "Orchestrator",
+    "Resolver",
+)
+
+CONTRACTS_FORBIDDEN_FACADE_DECLARATION_FRAGMENTS = (
+    "WorkflowExecutor",
+    "WorkflowRunner",
+    "WorkflowOrchestrator",
+    "InternalDatasetView",
+    "InternalView",
+)
+
+CONTRACTS_FORBIDDEN_FACADE_FUNCTION_PREFIXES = (
+    "build_",
+    "construct_",
+    "execute_",
+    "load_",
+    "orchestrate_",
+    "resolve_",
+    "run_",
+    "validate_",
+)
+
 CONTRACTS_FORBIDDEN_SCIENCE_STRUCTURE_SEGMENTS = frozenset(
     {
         "builder",
@@ -303,6 +334,119 @@ def test_contracts_science_facade_rule_accepts_marked_public_owner(
 
 
 @pytest.mark.parametrize(
+    ("symbol_source", "expected_symbol"),
+    (
+        ("class WorkflowExecutor:\n    pass\n", "WorkflowExecutor"),
+        ("class PublicRequestValidator:\n    pass\n", "PublicRequestValidator"),
+        (
+            "class KinaseLibraryResourceLoader:\n    pass\n",
+            "KinaseLibraryResourceLoader",
+        ),
+        ("class ReferenceResourceBuilder:\n    pass\n", "ReferenceResourceBuilder"),
+        (
+            "class ProteinAwarePreparationStage:\n    pass\n",
+            "ProteinAwarePreparationStage",
+        ),
+    ),
+)
+def test_contracts_science_facade_role_rejects_implementation_declarations(
+    tmp_path: Path,
+    symbol_source: str,
+    expected_symbol: str,
+) -> None:
+    module_name = "phospy.science.public_marked.models"
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source=(
+            '"""Marked module with an implementation declaration."""\n'
+            f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} = "
+            '"science_owned_public_model"\n\n'
+            f"{symbol_source}"
+        ),
+    )
+
+    assert not _is_public_contracts_science_facade_import(
+        module_name,
+        module_paths=module_paths,
+    )
+    problems = _contracts_science_facade_role_marker_problems(
+        module_paths=module_paths,
+        observed_contracts_science_targets={module_name},
+    )
+
+    assert len(problems) == 1
+    assert module_name in problems[0]
+    assert "science_owned_public_model" in problems[0]
+    assert expected_symbol in problems[0]
+    assert ":4:" in problems[0]
+
+
+def test_contracts_science_facade_role_rejects_loader_function(
+    tmp_path: Path,
+) -> None:
+    module_name = "phospy.science.public_marked.models"
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source=(
+            '"""Marked module with an executable loader function."""\n'
+            f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} = "
+            '"science_owned_public_model"\n\n'
+            "def load_reference_resource() -> object:\n"
+            "    return object()\n"
+        ),
+    )
+
+    assert not _is_public_contracts_science_facade_import(
+        module_name,
+        module_paths=module_paths,
+    )
+    problems = _contracts_science_facade_role_marker_problems(
+        module_paths=module_paths,
+        observed_contracts_science_targets={module_name},
+    )
+
+    assert problems == [
+        f"{module_name}:4: {CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} role "
+        "'science_owned_public_model' is not role-pure: offending symbol "
+        "'load_reference_resource'"
+    ]
+
+
+def test_contracts_science_facade_role_rejects_implementation_import(
+    tmp_path: Path,
+) -> None:
+    module_name = "phospy.science.public_marked.models"
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source=(
+            '"""Marked module importing validation implementation."""\n'
+            f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} = "
+            '"science_owned_public_model"\n\n'
+            "from phospy.science.references.validation.bundle import "
+            "ReferenceBundleValidator\n"
+        ),
+    )
+
+    assert not _is_public_contracts_science_facade_import(
+        module_name,
+        module_paths=module_paths,
+    )
+    problems = _contracts_science_facade_role_marker_problems(
+        module_paths=module_paths,
+        observed_contracts_science_targets={module_name},
+    )
+
+    assert problems == [
+        f"{module_name}:4: {CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} role "
+        "'science_owned_public_model' is not role-pure: offending import symbol "
+        "'ReferenceBundleValidator'",
+    ]
+
+
+@pytest.mark.parametrize(
     "module_name",
     (
         "phospy.science.public_marked._private_model",
@@ -355,6 +499,44 @@ def test_contracts_science_facade_role_marker_audit_detects_stale_marker(
     )
 
     assert problems == [f"{module_name}: unused {CONTRACTS_SCIENCE_FACADE_ROLE_MARKER}"]
+
+
+def test_contracts_science_facade_role_marker_audit_detects_invalid_role(
+    tmp_path: Path,
+) -> None:
+    module_name = "phospy.science.invalid_public.models"
+    module_paths = _facade_rule_fixture_module_paths(
+        tmp_path,
+        module_name=module_name,
+        source=(
+            '"""Marked with an unsupported role."""\n'
+            f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} = "
+            '"public_model"\n'
+        ),
+    )
+
+    assert not _is_public_contracts_science_facade_import(
+        module_name,
+        module_paths=module_paths,
+    )
+    problems = _contracts_science_facade_role_marker_problems(
+        module_paths=module_paths,
+        observed_contracts_science_targets={module_name},
+    )
+
+    assert problems == [
+        f"{module_name}:2: invalid {CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} "
+        "'public_model'"
+    ]
+
+
+def test_contracts_science_facade_rule_accepts_real_role_pure_science_import() -> None:
+    graph = _build_import_graph()
+
+    assert _is_public_contracts_science_facade_import(
+        "phospy.science.evidence.dataset_resolution.models",
+        module_paths=graph.module_paths,
+    )
 
 
 def test_workflows_do_not_import_unresolved_peptide_evidence_models() -> None:
@@ -664,7 +846,11 @@ def _is_public_contracts_science_facade_import(
         module_name,
         module_paths=module_paths,
     )
-    return marker is not None and marker.role in CONTRACTS_PUBLIC_SCIENCE_FACADE_ROLES
+    return (
+        marker is not None
+        and marker.role in CONTRACTS_PUBLIC_SCIENCE_FACADE_ROLES
+        and not _contracts_science_facade_role_purity_problems(marker)
+    )
 
 
 def _contracts_science_facade_role_marker(
@@ -747,11 +933,153 @@ def _contracts_science_facade_role_marker_problems(
                 f"{marker.module_name}:{marker.line}: forbidden "
                 f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER}"
             )
+        else:
+            problems.extend(_contracts_science_facade_role_purity_problems(marker))
         if marker.module_name not in observed:
             problems.append(
                 f"{marker.module_name}: unused {CONTRACTS_SCIENCE_FACADE_ROLE_MARKER}"
             )
     return problems
+
+
+def _contracts_science_facade_role_purity_problems(
+    marker: ContractsScienceFacadeRoleMarker,
+) -> list[str]:
+    if marker.role not in CONTRACTS_PUBLIC_SCIENCE_FACADE_ROLES:
+        return []
+    tree = ast.parse(
+        marker.source_path.read_text(encoding="utf-8-sig"),
+        filename=str(marker.source_path),
+    )
+    problems: list[str] = []
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and _is_forbidden_facade_declaration_name(
+            node.name,
+        ):
+            problems.append(
+                _format_facade_role_purity_problem(
+                    marker,
+                    line=node.lineno,
+                    detail=f"offending symbol {node.name!r}",
+                )
+            )
+        elif isinstance(
+            node,
+            ast.FunctionDef | ast.AsyncFunctionDef,
+        ) and _is_forbidden_facade_function_name(node.name):
+            problems.append(
+                _format_facade_role_purity_problem(
+                    marker,
+                    line=node.lineno,
+                    detail=f"offending symbol {node.name!r}",
+                )
+            )
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(
+                    target,
+                    ast.Name,
+                ) and _is_forbidden_facade_declaration_name(target.id):
+                    problems.append(
+                        _format_facade_role_purity_problem(
+                            marker,
+                            line=node.lineno,
+                            detail=f"offending symbol {target.id!r}",
+                        )
+                    )
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and _is_forbidden_facade_declaration_name(node.target.id)
+        ):
+            problems.append(
+                _format_facade_role_purity_problem(
+                    marker,
+                    line=node.lineno,
+                    detail=f"offending symbol {node.target.id!r}",
+                )
+            )
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if _is_forbidden_contracts_science_implementation_module(alias.name):
+                    problems.append(
+                        _format_facade_role_purity_problem(
+                            marker,
+                            line=node.lineno,
+                            detail=f"offending import {alias.name!r}",
+                        )
+                    )
+                imported_name = alias.asname or alias.name.rsplit(".", maxsplit=1)[-1]
+                if _is_forbidden_facade_declaration_name(imported_name):
+                    problems.append(
+                        _format_facade_role_purity_problem(
+                            marker,
+                            line=node.lineno,
+                            detail=f"offending import symbol {imported_name!r}",
+                        )
+                    )
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                imported = _resolve_import_from(
+                    marker.module_name, marker.source_path, node
+                )
+                if (
+                    alias.name == "*"
+                    and imported is not None
+                    and _is_forbidden_contracts_science_implementation_module(imported)
+                ):
+                    problems.append(
+                        _format_facade_role_purity_problem(
+                            marker,
+                            line=node.lineno,
+                            detail=f"offending import {imported!r}.*",
+                        )
+                    )
+                imported_name = alias.asname or alias.name
+                if _is_forbidden_facade_declaration_name(imported_name):
+                    problems.append(
+                        _format_facade_role_purity_problem(
+                            marker,
+                            line=node.lineno,
+                            detail=f"offending import symbol {imported_name!r}",
+                        )
+                    )
+    return sorted(set(problems))
+
+
+def _format_facade_role_purity_problem(
+    marker: ContractsScienceFacadeRoleMarker,
+    *,
+    line: int,
+    detail: str,
+) -> str:
+    return (
+        f"{marker.module_name}:{line}: "
+        f"{CONTRACTS_SCIENCE_FACADE_ROLE_MARKER} role {marker.role!r} "
+        f"is not role-pure: {detail}"
+    )
+
+
+def _is_forbidden_facade_function_name(name: str) -> bool:
+    return _is_public_facade_name(name) and name.startswith(
+        CONTRACTS_FORBIDDEN_FACADE_FUNCTION_PREFIXES
+    )
+
+
+def _is_forbidden_facade_declaration_name(name: str) -> bool:
+    return _is_public_facade_name(name) and (
+        name.endswith(CONTRACTS_FORBIDDEN_FACADE_DECLARATION_SUFFIXES)
+        or any(
+            fragment in name
+            for fragment in CONTRACTS_FORBIDDEN_FACADE_DECLARATION_FRAGMENTS
+        )
+    )
+
+
+def _is_public_facade_name(name: str) -> bool:
+    return not name.startswith("_")
 
 
 def _facade_rule_fixture_module_paths(

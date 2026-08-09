@@ -21,7 +21,7 @@ from phospy.science.quantitative_method_contracts import (
     MethodQuantitativeInputContract,
     ResolvedMethodQuantitativeInputContract,
 )
-from phospy.science.references.kinase_library import KinaseLibraryResource
+from phospy.science.references.kinase_library_models import KinaseLibraryResource
 from phospy.science.references.models import ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import (
     BundledReferenceProvider,

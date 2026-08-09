@@ -13,7 +13,7 @@ from phospy.science.prediction.motif_scoring import (
     score_kinase_library_motifs,
 )
 from phospy.science.prediction.motif_scoring.scaling import minmax_scale_columns
-from phospy.science.references.kinase_library import KinaseLibraryResource
+from phospy.science.references.kinase_library_models import KinaseLibraryResource
 
 KINASE_LIBRARY_WORKFLOW_SCORE_SCALE = "kinase_library_motif_minmax_unit_interval"
 

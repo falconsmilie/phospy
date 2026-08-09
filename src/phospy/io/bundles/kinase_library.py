@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
-from phospy.science.references.kinase_library import (
+from phospy.science.references.kinase_library_loading import (
+    KinaseLibraryResourceLoader as _KinaseLibraryResourceLoader,
+)
+from phospy.science.references.kinase_library_models import (
     KinaseLibraryPath,
     KinaseLibraryResource,
     KinaseLibraryResourceLoadRequest,
-)
-from phospy.science.references.kinase_library import (
-    KinaseLibraryResourceLoader as _KinaseLibraryResourceLoader,
 )
 
 

@@ -20,7 +20,9 @@ from phospy.science.datasets.builders.sequence_derivation import SiteSequenceDer
 from phospy.science.datasets.preprocessing.correction_output import (
     CorrectedPreprocessingOutput,
 )
-from phospy.science.evidence.dataset_resolution import PeptideEvidenceDatasetResolver
+from phospy.science.evidence.dataset_resolution.resolver import (
+    PeptideEvidenceDatasetResolver,
+)
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,

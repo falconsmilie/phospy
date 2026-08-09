@@ -9,17 +9,19 @@ from phospy.science.evidence.dataset_resolution.allocation import (
     allocate_peptide_signals_to_resolved_sites,
     summarise_allocated_site_signals,
 )
-from phospy.science.evidence.dataset_resolution.contracts import (
+from phospy.science.evidence.dataset_resolution.mapping import (
+    join_peptide_rows_to_site_mapping,
+    resolve_and_validate_mapping_fractions,
+)
+from phospy.science.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
     DATASET_MULTI_SITE_POLICY_SPLIT,
     PeptideEvidenceResolutionInputMetrics,
     PeptideEvidenceResolutionResult,
+)
+from phospy.science.evidence.dataset_resolution.policies import (
     build_peptide_to_site_aggregation_policy,
     validate_dataset_multi_site_policy,
-)
-from phospy.science.evidence.dataset_resolution.mapping import (
-    join_peptide_rows_to_site_mapping,
-    resolve_and_validate_mapping_fractions,
 )
 from phospy.science.evidence.dataset_resolution.site_metadata import (
     aggregate_site_metadata_and_localisation,
