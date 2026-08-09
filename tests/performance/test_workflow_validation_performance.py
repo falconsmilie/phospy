@@ -47,7 +47,7 @@ def test_bounded_kinase_sequence_validation_completes_under_generous_threshold(
             site_metadata=bounded_kinase_sequence_metadata,
             field_name="performance.selected_site_sequences",
             workflow_name="kinase workflow request",
-            scoring_mode="kinase_library_motif",
+            scoring_mode="kinase_library_contextual_motif",
             contract=_kinase_library_sequence_contract(),
             error_type=WorkflowValidationError,
             sequence_source_by_site=source_by_site,
@@ -80,7 +80,7 @@ def test_kinase_sequence_validation_remains_strict_for_invalid_sequences() -> No
             site_metadata=site_metadata,
             field_name="performance.selected_site_sequences",
             workflow_name="kinase workflow request",
-            scoring_mode="kinase_library_motif",
+            scoring_mode="kinase_library_contextual_motif",
             contract=_kinase_library_sequence_contract(),
             error_type=WorkflowValidationError,
             sequence_source_by_site={

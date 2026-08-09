@@ -160,6 +160,7 @@ def test_deprecated_differential_analysis_shell_warns_and_delegates() -> None:
         PhosPyDeprecationWarning,
         match="DifferentialAnalysis is deprecated",
     ):
+        # phospy-deprecation-compat: science.differential.DifferentialAnalysis
         shell = DifferentialAnalysis(workflow=_Workflow())  # type: ignore[arg-type]
 
     assert shell.run("request") == "delegated:'request'"  # type: ignore[arg-type]

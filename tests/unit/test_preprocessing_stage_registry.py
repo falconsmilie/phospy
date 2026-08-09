@@ -763,14 +763,16 @@ def test_registry_instance_builder_contains_no_concrete_batch_special_case() -> 
 
 
 def test_pipeline_rejects_both_registry_aliases() -> None:
-    with pytest.raises(
-        DatasetBuildError,
-        match="stage_contract_registry.*stage_metadata_registry.*aliases.*only one",
-    ):
-        PreprocessingPipeline(
-            stage_contract_registry=(),
-            stage_metadata_registry=(),
-        )
+    with pytest.warns(PhosPyDeprecationWarning, match="stage_metadata_registry"):
+        with pytest.raises(
+            DatasetBuildError,
+            match="stage_contract_registry.*stage_metadata_registry.*aliases.*only one",
+        ):
+            PreprocessingPipeline(
+                stage_contract_registry=(),
+                # phospy-deprecation-compat: preprocessing.pipeline.stage_metadata_registry
+                stage_metadata_registry=(),
+            )
 
 
 def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
@@ -795,6 +797,7 @@ def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
     with pytest.warns(PhosPyDeprecationWarning, match="stage_metadata_registry"):
         pipeline = PreprocessingPipeline(
             stage_registry=(FakeStage(),),
+            # phospy-deprecation-compat: preprocessing.pipeline.stage_metadata_registry
             stage_metadata_registry=(contract,),
         )
 

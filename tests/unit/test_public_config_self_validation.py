@@ -534,6 +534,7 @@ def test_kinase_scoring_exploratory_matches_historical_default() -> None:
 
 def test_kinase_scoring_default_is_deprecated_exploratory_alias() -> None:
     with pytest.warns(PhosPyDeprecationWarning, match="exploratory"):
+        # phospy-deprecation-compat: contracts.kinase.KinaseScoringConfig.default
         default = KinaseScoringConfig.default()
 
     assert default == KinaseScoringConfig.exploratory()

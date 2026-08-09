@@ -418,6 +418,7 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
         PhosPyDeprecationWarning,
         match="KinaseActivityResult.activity_scores.*activity_matrix",
     ):
+        # phospy-deprecation-compat: activities.result.activity_scores
         activity_scores = result.activity_result.activity_scores
     pd.testing.assert_frame_equal(
         activity_scores,
@@ -427,6 +428,7 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
         PhosPyDeprecationWarning,
         match="KinaseActivityResult.weighted_activity.*activity_matrix",
     ):
+        # phospy-deprecation-compat: activities.result.weighted_activity
         weighted_activity = result.activity_result.weighted_activity
     pd.testing.assert_frame_equal(
         weighted_activity,

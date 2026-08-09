@@ -38,6 +38,43 @@ DeprecationKind = Literal[
     "value-alias",
 ]
 DeprecationStability = Literal["stable", "advanced", "unsupported", "internal"]
+DeprecationSourceUseKind = Literal[
+    "class-alias",
+    "classmethod-alias",
+    "descriptive",
+    "exact-string-value",
+    "function-alias",
+    "import-route",
+    "keyword-argument",
+    "method-alias",
+    "property-alias",
+    "symbol",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class DeprecationSourceUse:
+    """Machine-readable description of a retained deprecated consumer spelling."""
+
+    kind: DeprecationSourceUseKind
+    token: str
+    check_consumer_sources: bool = True
+    unchecked_reason: str = ""
+    module: str | None = None
+    owner: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.token:
+            raise ValueError("deprecation source-use token must be non-empty")
+        if self.check_consumer_sources and self.unchecked_reason:
+            raise ValueError(
+                "checked deprecation source uses must not provide an unchecked reason"
+            )
+        if not self.check_consumer_sources and not self.unchecked_reason:
+            raise ValueError(
+                "unchecked deprecation source uses must explain why static "
+                "consumer-source checking is not applicable"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +94,7 @@ class RetainedDeprecation:
     summary: str = ""
     deprecated_module: str | None = None
     deprecated_name: str | None = None
+    source_uses: tuple[DeprecationSourceUse, ...] = ()
 
 
 _DEFAULT_INTRODUCED_VERSION = "1.6.0"
@@ -155,6 +193,7 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "DifferentialAnalysis is deprecated; use "
                 "DifferentialAnalysisWorkflow from top-level phospy"
             ),
+            source_uses=(_source_use("class-alias", "DifferentialAnalysis"),),
         ),
         _record(
             identifier="contracts.kinase.KinaseScoringConfig.default",
@@ -168,6 +207,13 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
             summary=(
                 "KinaseScoringConfig.default() is deprecated because the name "
                 "is ambiguous"
+            ),
+            source_uses=(
+                _source_use(
+                    "classmethod-alias",
+                    "default",
+                    owner="KinaseScoringConfig",
+                ),
             ),
         ),
         _record(
@@ -184,6 +230,7 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "contextual profile/reference-substrate eligibility. Use "
                 "'kinase_library_contextual_motif' for the current behavior."
             ),
+            source_uses=(_source_use("exact-string-value", "kinase_library_motif"),),
         ),
         _record(
             identifier="prediction.motif_library.bare_sequence",
@@ -202,6 +249,16 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "because they omit stable reference and site identity metadata "
                 "needed for reproducible motif-library validation"
             ),
+            source_uses=(
+                _unchecked_source_use(
+                    "descriptive",
+                    "motif_sequences",
+                    reason=(
+                        "bare-string motif sequence compatibility depends on "
+                        "runtime container shape and element type"
+                    ),
+                ),
+            ),
         ),
         _record(
             identifier="activities.inputs.missing_activity_input",
@@ -219,6 +276,17 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "KinaseActivityInputs constructed without typed activity_input "
                 "semantics is deprecated"
             ),
+            source_uses=(
+                _unchecked_source_use(
+                    "descriptive",
+                    "KinaseActivityInputs.activity_input",
+                    reason=(
+                        "the deprecated behavior is an omitted constructor "
+                        "argument that requires call-target and default-value "
+                        "resolution"
+                    ),
+                ),
+            ),
         ),
         _record(
             identifier="activities.ssgsea.effect_matrix_dataframe",
@@ -235,6 +303,17 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
             replacement_module="phospy.science.activities.semantics",
             replacement_name="ActivityInputMatrix",
             summary="Passing a raw DataFrame as effect_matrix is deprecated",
+            source_uses=(
+                _unchecked_source_use(
+                    "keyword-argument",
+                    "effect_matrix",
+                    reason=(
+                        "the deprecated behavior is specifically a raw "
+                        "DataFrame value; static source scanning cannot prove "
+                        "the runtime value type"
+                    ),
+                ),
+            ),
         ),
         _record(
             identifier="activities.result.missing_semantics",
@@ -254,6 +333,16 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "KinaseActivityResult constructed without explicit activity "
                 "input semantics is deprecated"
             ),
+            source_uses=(
+                _unchecked_source_use(
+                    "descriptive",
+                    "KinaseActivityResult.input_semantics",
+                    reason=(
+                        "the deprecated behavior is missing constructor "
+                        "semantics and requires runtime argument resolution"
+                    ),
+                ),
+            ),
         ),
         _record(
             identifier="activities.result.activity_scores",
@@ -264,6 +353,13 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
             stability="stable",
             replacement_module="phospy.api",
             replacement_name="KinaseActivityResult",
+            source_uses=(
+                _source_use(
+                    "property-alias",
+                    "activity_scores",
+                    owner="KinaseActivityResult",
+                ),
+            ),
         ),
         _record(
             identifier="activities.result.weighted_activity",
@@ -274,6 +370,13 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
             stability="stable",
             replacement_module="phospy.api",
             replacement_name="KinaseActivityResult",
+            source_uses=(
+                _source_use(
+                    "property-alias",
+                    "weighted_activity",
+                    owner="KinaseActivityResult",
+                ),
+            ),
         ),
         _record(
             identifier="activities.result.legacy_condition_statistics_table",
@@ -294,6 +397,13 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "legacy_condition_statistics_table_dataframe() is deprecated "
                 "and does not establish a biological condition contract"
             ),
+            source_uses=(
+                _source_use(
+                    "method-alias",
+                    "legacy_condition_statistics_table_dataframe",
+                    owner="KinaseActivityResult",
+                ),
+            ),
         ),
         _record(
             identifier="preprocessing.pipeline.stage_metadata_registry",
@@ -310,6 +420,7 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "deprecated because stage_metadata_registry is a legacy alias "
                 "for stage_contract_registry"
             ),
+            source_uses=(_source_use("keyword-argument", "stage_metadata_registry"),),
         ),
         _record(
             identifier="workflows.differential.TechnicalReplicateResolver",
@@ -327,6 +438,7 @@ def _static_deprecations() -> tuple[RetainedDeprecation, ...]:
                 "TechnicalReplicateAggregationPlanner and "
                 "TechnicalReplicateAggregator"
             ),
+            source_uses=(_source_use("class-alias", "TechnicalReplicateResolver"),),
         ),
     ]
     records.extend(_enrichment_alias_deprecations())
@@ -345,6 +457,7 @@ def _enrichment_alias_deprecations() -> tuple[RetainedDeprecation, ...]:
             stability="unsupported",
             replacement_module="phospy.io.readers.enrichment_sets",
             replacement_name=replacement_name,
+            source_uses=(_source_use("function-alias", deprecated_name),),
         )
         for deprecated_name, replacement_name in (
             ("load_enrichment_sets_gmt", "read_enrichment_sets_gmt"),
@@ -371,6 +484,13 @@ def _activity_summary_alias_deprecations() -> tuple[RetainedDeprecation, ...]:
                 f"{replacement_name}. The deprecated condition-named alias is "
                 "only a compatibility counter name and does not define "
                 "biological condition semantics."
+            ),
+            source_uses=(
+                _source_use(
+                    "property-alias",
+                    deprecated_name,
+                    owner="ActivityMethodSummary",
+                ),
             ),
         )
         for deprecated_name, replacement_name in (
@@ -563,7 +683,20 @@ def _record(
     summary: str = "",
     deprecated_module: str | None = None,
     deprecated_name: str | None = None,
+    source_uses: tuple[DeprecationSourceUse, ...] = (),
 ) -> RetainedDeprecation:
+    if not source_uses and kind == "import-route":
+        if deprecated_module is None or deprecated_name is None:
+            raise ValueError(
+                "import-route deprecations require deprecated module/name metadata"
+            )
+        source_uses = (
+            _source_use(
+                "import-route",
+                deprecated_name,
+                module=deprecated_module,
+            ),
+        )
     return RetainedDeprecation(
         identifier=identifier,
         kind=kind,
@@ -578,10 +711,45 @@ def _record(
         summary=summary,
         deprecated_module=deprecated_module,
         deprecated_name=deprecated_name,
+        source_uses=source_uses,
+    )
+
+
+def _source_use(
+    kind: DeprecationSourceUseKind,
+    token: str,
+    *,
+    module: str | None = None,
+    owner: str | None = None,
+) -> DeprecationSourceUse:
+    return DeprecationSourceUse(
+        kind=kind,
+        token=token,
+        module=module,
+        owner=owner,
+    )
+
+
+def _unchecked_source_use(
+    kind: DeprecationSourceUseKind,
+    token: str,
+    *,
+    reason: str,
+    module: str | None = None,
+    owner: str | None = None,
+) -> DeprecationSourceUse:
+    return DeprecationSourceUse(
+        kind=kind,
+        token=token,
+        check_consumer_sources=False,
+        unchecked_reason=reason,
+        module=module,
+        owner=owner,
     )
 
 
 __all__ = [
+    "DeprecationSourceUse",
     "PhosPyDeprecationWarning",
     "RetainedDeprecation",
     "api_compatibility_deprecation_id",

@@ -792,6 +792,7 @@ def test_technical_replicate_resolver_warns_and_preserves_wrapper_behaviour() ->
         PhosPyDeprecationWarning,
         match="TechnicalReplicateResolver is deprecated",
     ) as construction_warnings:
+        # phospy-deprecation-compat: workflows.differential.TechnicalReplicateResolver
         resolver = TechnicalReplicateResolver()
     assert "TechnicalReplicateAggregationPlanner" in str(
         construction_warnings[0].message

@@ -120,7 +120,7 @@ Important `KinaseScoringConfig` fields:
 
 | Field | Default | Notes |
 | --- | --- | --- |
-| `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
+| `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_contextual_motif"`, `"kinase_library_motif_only"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
 | `reliability_profile` | Required for direct construction | Use `exploratory()`, `production(...)`, or explicit `CUSTOM`; profiles are caller-selected, not inferred from old defaults. |
 | `min_substrates` | `2` | Minimum unique usable substrates for kinase scoring support. The public floor is `2`. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
@@ -305,7 +305,7 @@ summary IDs, contrast-axis results use contrast IDs, and effect-axis results
 use neutral effect profile IDs. A `condition` column is reserved for genuine
 condition-summary results, where it must match `profile_id`; sample, contrast,
 and effect statistics tables do not contain `condition`. Use
-`legacy_condition_statistics_table_dataframe()` only for deprecated consumers
+`legacy_condition_statistics_table_dataframe()` only for deprecated consumers <!-- phospy-deprecation-compat: activities.result.legacy_condition_statistics_table -->
 that still need an old condition-shaped table; the adapter adds
 `condition = profile_id` and does not create a biological condition contract.
 
@@ -365,7 +365,7 @@ Important nested result fields:
 
 `activity_result.activity_matrix` is the method-neutral primary activity matrix
 for kinase activity scores. Deprecated compatibility aliases such as
-`activity_scores` and `weighted_activity` are not preferred for new
+`activity_scores` and `weighted_activity` are not preferred for new <!-- phospy-deprecation-compat: activities.result.activity_scores, activities.result.weighted_activity -->
 documentation or code.
 
 Reloadable kinase bundles preserve the exact typed activity semantics in

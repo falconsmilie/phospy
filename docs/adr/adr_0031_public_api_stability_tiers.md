@@ -75,6 +75,32 @@ with `pytest.warns(PhosPyDeprecationWarning)` and may inspect replacement and
 removal guidance. Ordinary tests and documentation examples must use supported
 stable or advanced imports and supported parameter or mode names.
 
+Update note (2026-08-09, registry-driven source governance): Retained
+deprecation records also own machine-readable consumer-source metadata for
+supported-use checks. The metadata records the deprecated source token, the way
+that token appears in consumer code or documentation examples, and whether
+automated consumer-source checking is applicable. Import routes, exact string
+values, keyword aliases, class/function aliases, classmethod aliases, method
+aliases, property aliases, and other exact symbols are checked from structured
+metadata. Descriptive deprecations that depend on runtime value shape or omitted
+arguments must carry an explicit unchecked reason in the registry.
+
+The supported-use policy scans ordinary consumer surfaces: tests, bounded
+benchmarks, Python examples, Python code blocks in Markdown, and relevant
+inline-code examples in README and current user documentation. Runtime
+implementation modules may retain deprecated spellings when they are needed to
+accept compatibility input and emit the registered warning.
+
+Compatibility exemptions are narrow and line-local. A source line may opt into a
+registered compatibility use with `phospy-deprecation-compat: <deprecation-id>`.
+The identifier must exist in `phospy._deprecations`, and the marker is invalid
+if it is unused. In Python tests, the exempted deprecated expression must be
+inside `pytest.warns(PhosPyDeprecationWarning, ...)` with either a `match=...`
+assertion or captured warning records, so the test explicitly exercises and
+inspects the package warning. Historical changelog or migration prose may carry
+the same explicit marker for a deprecated spelling, but ordinary examples and
+current guidance must use supported forms.
+
 Retained API compatibility routes introduced by this API reduction are planned
 for removal in PhosPy 2.0.0 unless a later release ADR changes the policy
 before removal. Other retained deprecations keep their registered planned
@@ -544,9 +570,15 @@ Future API changes must satisfy these criteria:
    inventory.
 9. Every retained user-facing deprecation must have owner, replacement,
    introduction-version, planned-removal, kind, deprecated-target, and
-   stability metadata in the shared registry.
+   stability metadata in the shared registry. Machine-identifiable retained
+   deprecations must also carry structured consumer-source metadata; descriptive
+   deprecations that cannot be checked mechanically must state why.
 10. Normal test collection must not emit uncaptured `PhosPyDeprecationWarning`;
     compatibility warnings are asserted only in compatibility-specific tests.
 11. Source modules must not call `warnings.warn(..., DeprecationWarning)` or
     `warnings.warn(..., PhosPyDeprecationWarning)` directly outside
     `phospy._deprecations`.
+12. Ordinary tests, benchmarks, examples, README examples, and current
+    documentation examples must use supported retained-deprecation forms unless
+    a line-local exemption names a valid registry identifier and, for Python
+    tests, captures and inspects the matching `PhosPyDeprecationWarning`.

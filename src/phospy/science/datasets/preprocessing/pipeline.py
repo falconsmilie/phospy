@@ -328,16 +328,17 @@ def _resolve_stage_contract_overrides(
     stage_contract_registry: tuple[PreprocessingStageMetadata, ...] | None,
     stage_metadata_registry: tuple[PreprocessingStageMetadata, ...] | None,
 ) -> tuple[PreprocessingStageMetadata, ...] | None:
+    if stage_metadata_registry is not None:
+        warn_deprecated(
+            "preprocessing.pipeline.stage_metadata_registry",
+            stacklevel=3,
+        )
     if stage_contract_registry is not None and stage_metadata_registry is not None:
         raise DatasetBuildError(
             "dataset preprocessing registry arguments stage_contract_registry and "
             "stage_metadata_registry are aliases; only one may be passed"
         )
     if stage_metadata_registry is not None:
-        warn_deprecated(
-            "preprocessing.pipeline.stage_metadata_registry",
-            stacklevel=3,
-        )
         return stage_metadata_registry
     return stage_contract_registry
 

@@ -118,6 +118,7 @@ def test_every_retained_deprecation_has_complete_unique_metadata_and_live_replac
         assert record.stability in {"stable", "advanced", "unsupported", "internal"}
         assert record.replacement_module
         assert record.replacement_name
+        assert record.source_uses
 
         importlib.import_module(record.owner_module)
         replacement_owner = importlib.import_module(record.replacement_module)
@@ -126,6 +127,16 @@ def test_every_retained_deprecation_has_complete_unique_metadata_and_live_replac
             "__all__",
             (),
         ) or hasattr(replacement_owner, record.replacement_name)
+
+        for source_use in record.source_uses:
+            assert source_use.kind
+            assert source_use.token
+            if source_use.kind == "import-route":
+                assert source_use.module
+            if source_use.check_consumer_sources:
+                assert not source_use.unchecked_reason
+            else:
+                assert source_use.unchecked_reason
 
 
 def test_advanced_compatibility_exports_point_to_advanced_namespace() -> None:

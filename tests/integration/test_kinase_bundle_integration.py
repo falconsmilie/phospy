@@ -234,6 +234,7 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
         PhosPyDeprecationWarning,
         match="KinaseActivityResult.activity_scores.*activity_matrix",
     ):
+        # phospy-deprecation-compat: activities.result.activity_scores
         activity_scores = loaded.result.activity_result.activity_scores
     pd.testing.assert_frame_equal(
         activity_scores,
@@ -243,6 +244,7 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
         PhosPyDeprecationWarning,
         match="KinaseActivityResult.weighted_activity.*activity_matrix",
     ):
+        # phospy-deprecation-compat: activities.result.weighted_activity
         weighted_activity = loaded.result.activity_result.weighted_activity
     pd.testing.assert_frame_equal(
         weighted_activity,
@@ -756,6 +758,7 @@ def test_kinase_bundle_round_trip_preserves_exact_activity_semantics(
             match="does not establish a biological condition contract",
         ):
             legacy_statistics = (
+                # phospy-deprecation-compat: activities.result.legacy_condition_statistics_table
                 activity_result.legacy_condition_statistics_table_dataframe()
             )
         assert legacy_statistics is not None

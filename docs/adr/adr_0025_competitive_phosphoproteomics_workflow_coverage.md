@@ -124,8 +124,9 @@ or substrate-set enrichment statistics, not calibrated causal inference.
 
 Current Kinase Library-style support includes a pure motif scorer, local
 `KinaseLibraryResource` / `KinaseLibraryResourceLoader` contracts, and opt-in
-`KinaseWorkflow` scoring modes `kinase_library_motif` and
-`combined_profile_motif`. These paths require caller-supplied compatible local
+`KinaseWorkflow` scoring modes `kinase_library_contextual_motif`,
+`kinase_library_motif_only`, and `combined_profile_motif`. These paths require
+caller-supplied compatible local
 Kinase Library-style resources with explicit provenance. PhosPy does not bundle
 official Kinase Library data and does not claim validated Kinase Library parity.
 Workflow motif scores are normalized support scores for within-run ranking;

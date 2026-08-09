@@ -2119,6 +2119,7 @@ def test_activity_scores_compatibility_alias_matches_activity_matrix() -> None:
         PhosPyDeprecationWarning,
         match="KinaseActivityResult.activity_scores.*activity_matrix",
     ):
+        # phospy-deprecation-compat: activities.result.activity_scores
         activity_scores = result.activity_scores
     pdt.assert_frame_equal(activity_scores, result.activity_matrix)
 
@@ -3184,6 +3185,7 @@ def test_weighted_activity_compatibility_alias_matches_activity_matrix() -> None
         PhosPyDeprecationWarning,
         match="KinaseActivityResult.weighted_activity.*activity_matrix",
     ):
+        # phospy-deprecation-compat: activities.result.weighted_activity
         weighted_activity = result.weighted_activity
     pdt.assert_frame_equal(weighted_activity, result.activity_matrix)
 
@@ -3356,6 +3358,7 @@ def test_activity_method_summary_accepts_legacy_payload_but_serializes_profile_f
         PhosPyDeprecationWarning,
         match="kinase_condition_pairs_evaluated.*kinase_profile_pairs_evaluated",
     ):
+        # phospy-deprecation-compat: activities.method_summary.kinase_condition_pairs_evaluated
         assert summary.kinase_condition_pairs_evaluated == 2
 
 
@@ -3388,6 +3391,7 @@ def test_legacy_condition_statistics_table_adapter_is_deprecated_and_defensive()
         PhosPyDeprecationWarning,
         match="does not establish a biological condition contract",
     ):
+        # phospy-deprecation-compat: activities.result.legacy_condition_statistics_table
         legacy = result.legacy_condition_statistics_table_dataframe()
 
     assert legacy is not None
