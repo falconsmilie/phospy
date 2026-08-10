@@ -1,9 +1,6 @@
 """Differential result table contracts and validation helpers."""
-# pyright: reportMissingTypeStubs=false
 
 from __future__ import annotations
-
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -139,7 +136,7 @@ def _validate_result_table_statistics(
     if missing:
         joined = ", ".join(missing)
         raise PhosPyInputError(f"{field_name} is missing required columns: {joined}")
-    stat_table = cast(pd.DataFrame, table[list(_RESULT_STATISTIC_COLUMNS)])  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
+    stat_table = table[list(_RESULT_STATISTIC_COLUMNS)]
     require_numeric_dataframe(
         stat_table,
         field_name=field_name,

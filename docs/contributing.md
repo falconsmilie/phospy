@@ -134,4 +134,8 @@ Expectations for typing changes:
 
 Suppression policy:
 
-> Avoid suppressions by default. Use them only when Pyright cannot model correct runtime behaviour. Every suppression must be narrow, error-code-specific, commented, and justified by tests where practical.
+> Avoid suppressions by default. Use them only when Pyright cannot model correct runtime behaviour. In strict files, every Pyright suppression must use this inline format:
+>
+> `# pyright: ignore[reportRuleName] - concrete technical rationale`
+>
+> The rule list must contain one or more explicit Pyright `report...` diagnostic names, and the rationale must explain the concrete typing limitation and why the runtime operation is safe. Blanket `# pyright: ignore`, placeholder reasons such as `TODO`, file-wide diagnostic downgrades such as `# pyright: reportUnknownMemberType=false`, file-wide strictness downgrades, and `[tool.pyright].ignore` entries that intersect effective strict files are rejected by `python tools/testing/pyright_strict_coverage.py --check`.

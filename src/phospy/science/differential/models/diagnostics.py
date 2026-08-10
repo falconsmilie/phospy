@@ -1,5 +1,4 @@
 """Diagnostic payload models for differential analysis."""
-# pyright: reportMissingTypeStubs=false
 
 from __future__ import annotations
 

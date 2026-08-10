@@ -1,5 +1,4 @@
 """Design metadata and adequacy validation for batch correction."""
-# pyright: reportUnnecessaryIsInstance=false, reportUnknownMemberType=false
 # Runtime boundary guards are intentionally retained for untyped external callers.
 
 from __future__ import annotations
@@ -97,8 +96,8 @@ class SampleMetadataAlignmentValidator:
     def run(
         self,
         *,
-        phospho: pd.DataFrame,
-        sample_metadata: pd.DataFrame | None,
+        phospho: object,
+        sample_metadata: object | None,
         required_columns: Sequence[str],
         context: str = "batch-correction",
     ) -> tuple[str, ...]:
@@ -199,7 +198,7 @@ class ConditionStructureValidator:
         *,
         sample_metadata: pd.DataFrame,
         sample_order: Sequence[str],
-        condition_columns: Sequence[str],
+        condition_columns: object,
         context: str = "batch-correction",
     ) -> Mapping[str, str]:
         if isinstance(condition_columns, str) or not isinstance(
@@ -209,7 +208,8 @@ class ConditionStructureValidator:
                 f"{context} validation condition_columns must be a non-empty "
                 "sequence of column names"
             )
-        columns = tuple(str(column).strip() for column in condition_columns)
+        condition_column_values = cast(Sequence[object], condition_columns)
+        columns = tuple(str(column).strip() for column in condition_column_values)
         if not columns or any(column == "" for column in columns):
             raise PhosPyInputError(
                 f"{context} validation condition_columns must contain non-empty "
@@ -392,12 +392,12 @@ class BatchDesignMetadataValidator:
                 f"{context} validation requires sample_metadata input data"
             )
         metadata_frame = sample_metadata
-        aligned = cast(pd.DataFrame, metadata_frame.copy(deep=False))  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
+        aligned = metadata_frame.copy(deep=False)
         aligned.index = normalize_sample_index(
             metadata_frame.index,
             field_name=f"{context} sample_metadata.index",
         )
-        aligned = cast(pd.DataFrame, aligned.reindex(sample_order))  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
+        aligned = aligned.reindex(sample_order)
         batch_by_sample = self._batch_structure_validator.run(
             sample_metadata=aligned,
             sample_order=sample_order,
@@ -438,7 +438,7 @@ class BatchDesignMetadataValidator:
 class DesignRankValidator:
     """Validate full column rank for numeric design matrices."""
 
-    def run(self, design_matrix: pd.DataFrame, *, context: str) -> int:
+    def run(self, design_matrix: object, *, context: str) -> int:
         if not isinstance(design_matrix, pd.DataFrame):
             raise PhosPyInputError(f"{context} design matrix must be a DataFrame")
         if not design_matrix.index.is_unique:

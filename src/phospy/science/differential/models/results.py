@@ -1,5 +1,4 @@
 """Public result DTOs for differential analysis."""
-# pyright: reportMissingTypeStubs=false
 
 from __future__ import annotations
 

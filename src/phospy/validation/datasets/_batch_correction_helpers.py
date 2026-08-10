@@ -1,5 +1,4 @@
 """Shared private helpers for batch-correction dataset validation."""
-# pyright: reportUnnecessaryIsInstance=false, reportUnknownMemberType=false
 
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ MISSING = object()
 
 
 def require_non_empty_mapping(
-    value: Mapping[str, object],
+    value: object,
     *,
     field_name: str,
 ) -> None:

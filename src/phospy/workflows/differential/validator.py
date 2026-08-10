@@ -161,10 +161,9 @@ class DifferentialAnalysisValidator:
             paired_design_policy=config.paired_design_policy,
             dataset_view=dataset_view,
         )
-        analysis_matrix = cast(  # pyright: ignore[reportUnnecessaryCast] - retained for pandas-stubs compatibility across supported targets.
-            pd.DataFrame,
-            dataset_view.phospho[list(validated_design_contract.analysis_sample_ids)],
-        )
+        analysis_matrix = dataset_view.phospho[
+            list(validated_design_contract.analysis_sample_ids)
+        ]
         _validate_analysis_matrix_scope(analysis_matrix)
 
         design_matrix = DesignMatrix(validated_design_contract.design_frame)

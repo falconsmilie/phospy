@@ -1,5 +1,4 @@
 """Control-site provenance validation for applied batch correction."""
-# pyright: reportUnknownMemberType=false
 
 from __future__ import annotations
 

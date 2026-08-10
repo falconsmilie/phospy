@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd  # pyright: ignore[reportMissingTypeStubs]
+import pandas as pd
 
 from phospy.science.signalomes.clustering.contracts import ClusterTreeEngine
 from phospy.science.signalomes.clustering.diagnostic_schemas import (

@@ -253,24 +253,36 @@ def enforce_site_identity_rows(
 ) -> None:
     """Enforce row-level phosphosite identity parsing for table boundaries."""
 
-    for row_position, site_id in enumerate(site_metadata.index.tolist()):
-        row = site_metadata.iloc[row_position]  # pyright: ignore[reportUnknownMemberType]
+    site_ids = tuple(site_metadata.index.tolist())
+    gene_symbols = _column_values(site_metadata, "gene_symbol")
+    site_values = _column_values(site_metadata, "site")
+    protein_ids = (
+        None
+        if "protein_id" not in site_metadata.columns
+        else _column_values(site_metadata, "protein_id")
+    )
+    protein_accessions = (
+        None
+        if "protein_accession" not in site_metadata.columns
+        else _column_values(site_metadata, "protein_accession")
+    )
+    for row_position, site_id in enumerate(site_ids):
         _ = build_phosphosite_identity(
             display_id=site_id,
-            gene_symbol=row["gene_symbol"],
-            site=row["site"],
+            gene_symbol=gene_symbols[row_position],
+            site=site_values[row_position],
             allow_opaque_site_values=allow_opaque_site_values,
-            protein_id=(
-                None if "protein_id" not in site_metadata.columns else row["protein_id"]
-            ),
+            protein_id=(None if protein_ids is None else protein_ids[row_position]),
             protein_accession=(
-                None
-                if "protein_accession" not in site_metadata.columns
-                else row["protein_accession"]
+                None if protein_accessions is None else protein_accessions[row_position]
             ),
             field_name=f"{field_name}[{row_position}:{site_id!r}]",
             error_type=error_type,
         )
+
+
+def _column_values(site_metadata: pd.DataFrame, column_name: str) -> tuple[object, ...]:
+    return tuple(pd.Series(site_metadata[column_name], dtype="object").tolist())
 
 
 def _resolve_site_position_series(site_metadata: pd.DataFrame) -> pd.Series:

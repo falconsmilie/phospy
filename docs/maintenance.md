@@ -159,8 +159,20 @@ policy check fails if any declared strict path is missing or outside the
 configured Pyright include scope.
 
 Avoid suppressions by default. Use them only when Pyright cannot model correct
-runtime behaviour. Every suppression must be narrow, error-code-specific,
-commented, and justified by tests where practical.
+runtime behaviour. In strict files, every Pyright suppression must use this
+inline format:
+
+```python
+# pyright: ignore[reportRuleName] - concrete technical rationale
+```
+
+The rule list must contain one or more explicit Pyright `report...` diagnostic
+names. The rationale must explain the concrete typing limitation and why the
+runtime operation is safe. Blanket `# pyright: ignore`, placeholder reasons such
+as `TODO`, file-wide diagnostic downgrades such as
+`# pyright: reportUnknownMemberType=false`, file-wide strictness downgrades, and
+`[tool.pyright].ignore` entries that intersect effective strict files are
+rejected by `python tools/testing/pyright_strict_coverage.py --check`.
 
 ## Fixture Policy
 

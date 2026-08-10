@@ -1,5 +1,4 @@
 """Applied SPS/RUV-style provenance validation for batch correction."""
-# pyright: reportUnnecessaryIsInstance=false
 # Runtime boundary guards are intentionally retained for untyped external callers.
 
 from __future__ import annotations
@@ -169,12 +168,7 @@ def _require_environment_provenance(provenance: BatchCorrectionProvenance) -> No
             "corrected_preprocessing_output BatchCorrectionProvenance must include "
             "non-empty python_version for applied SPS/RUV-style corrected output"
         )
-    dependency_versions = provenance.dependency_versions
-    if not isinstance(dependency_versions, Mapping) or not dependency_versions:
-        raise PhosPyInputError(
-            "corrected_preprocessing_output BatchCorrectionProvenance must include "
-            "non-empty dependency_versions for applied SPS/RUV-style corrected output"
-        )
+    dependency_versions = _require_dependency_versions(provenance.dependency_versions)
 
     missing_dependencies = tuple(
         dependency
@@ -188,6 +182,15 @@ def _require_environment_provenance(provenance: BatchCorrectionProvenance) -> No
             "batch-correction dependencies: "
             f"{format_labels(missing_dependencies)}"
         )
+
+
+def _require_dependency_versions(value: object) -> Mapping[str, object]:
+    if not isinstance(value, Mapping) or not value:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance must include "
+            "non-empty dependency_versions for applied SPS/RUV-style corrected output"
+        )
+    return cast(Mapping[str, object], value)
 
 
 def _extract_sps_ruv_n_unwanted_factors(
