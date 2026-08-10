@@ -9,13 +9,17 @@ machine-dependent observations rather than portable release-blocking facts.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.metadata
 import json
 import os
 import platform
+import re
 import shlex
+import subprocess
 import sys
 import time
+import tomllib
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field, is_dataclass
@@ -33,6 +37,7 @@ for _path in (ROOT, SRC):
     if str(_path) not in sys.path:
         sys.path.insert(0, str(_path))
 
+import phospy
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -93,6 +98,8 @@ BENCHMARK_DESCRIPTION = (
 RSS_UNAVAILABLE = "unavailable"
 REPORT_DEPENDENCY_PACKAGES = ("numpy", "pandas", "scipy", "phospy")
 CONTRAST_NAME = "C2_vs_C1"
+SOURCE_PROVENANCE_SCHEMA_VERSION = "release_scale_source_provenance_v1"
+SOURCE_TREE_DIGEST_ALGORITHM = "sha256-sorted-relative-paths-and-file-bytes-v1"
 EXPECTED_PREPROCESSING_STAGE_SEQUENCE = (
     "localisation_confidence",
     "missing_data",
@@ -105,6 +112,31 @@ WORKLOAD_SEGMENT_KEYS = (
     "differential_analysis_seconds",
     "result_table_assembly_seconds",
 )
+SOURCE_DIGEST_EXCLUDED_PARTS = frozenset(
+    {
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".tox",
+        ".venv",
+        "build",
+        "dist",
+        "site",
+    }
+)
+SOURCE_DIGEST_EXCLUDED_SUFFIXES = frozenset({".pyc", ".pyo", ".pyd"})
+_PYTHON_REQUIREMENT_SPECIFIER_RE = re.compile(
+    r"^\s*(?P<operator>===|!=|==|<=|>=|<|>|~=)\s*"
+    r"(?P<version>[0-9]+(?:\.[0-9]+){0,2}(?:\.\*)?)\s*$"
+)
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+class BenchmarkSourceProvenanceError(RuntimeError):
+    """Raised when benchmark source/runtime provenance cannot be trusted."""
+
+
 DOCUMENTED_MAIN_METRIC_KEYS = (
     "sites",
     "samples",
@@ -205,6 +237,7 @@ class ReleaseScaleBenchmarkResult:
     timings: Mapping[str, float]
     metrics: Mapping[str, object]
     scientific_summary: Mapping[str, object]
+    source_provenance: Mapping[str, object] | None = None
 
 
 def default_config() -> ReleaseScaleBenchmarkConfig:
@@ -215,7 +248,14 @@ def default_config() -> ReleaseScaleBenchmarkConfig:
 
 def run_benchmark(
     config: ReleaseScaleBenchmarkConfig | None = None,
+    *,
+    source_provenance: Mapping[str, object] | None = None,
 ) -> ReleaseScaleBenchmarkResult:
+    resolved_source_provenance = (
+        validate_benchmark_source_environment()
+        if source_provenance is None
+        else source_provenance
+    )
     resolved_config = default_config() if config is None else config
     started = time.perf_counter()
 
@@ -247,7 +287,17 @@ def run_benchmark(
     timings["total_runtime_seconds"] = float(time.perf_counter() - started)
 
     summary_payload = summary_measurement.summary.to_payload()
-    row_count, column_count = _summary_dimensions(summary_payload)
+    row_count, column_count = _differential_result_dimensions_from_table(workflow.table)
+    fingerprint_row_count, fingerprint_column_count = (
+        _differential_result_dimensions_from_summary(summary_payload)
+    )
+    if (row_count, column_count) != (fingerprint_row_count, fingerprint_column_count):
+        raise AssertionError(
+            "release-scale differential result table dimensions and fingerprint "
+            "dimensions differ: "
+            f"table={(row_count, column_count)!r}; "
+            f"fingerprint={(fingerprint_row_count, fingerprint_column_count)!r}"
+        )
     metrics: dict[str, object] = {
         "sites": int(resolved_config.n_sites),
         "samples": int(resolved_config.n_samples),
@@ -276,6 +326,7 @@ def run_benchmark(
         timings=timings,
         metrics=metrics,
         scientific_summary=summary_payload,
+        source_provenance=resolved_source_provenance,
     )
 
 
@@ -284,6 +335,7 @@ def write_report(
     *,
     report_path: str | Path | None = None,
     command: Mapping[str, object] | None = None,
+    source_provenance: Mapping[str, object] | None = None,
 ) -> Path:
     resolved_path = default_report_path() if report_path is None else Path(report_path)
     resolved_path = resolved_path.resolve()
@@ -292,6 +344,7 @@ def write_report(
         result,
         command=command,
         report_path=resolved_path,
+        source_provenance=source_provenance,
     )
     resolved_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
@@ -306,10 +359,18 @@ def report_payload(
     command: Mapping[str, object] | None = None,
     generated_at_utc: str | None = None,
     report_path: str | Path | None = None,
+    source_provenance: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Return the JSON payload written by the release-scale benchmark."""
 
     generated_at = _utc_timestamp() if generated_at_utc is None else generated_at_utc
+    resolved_source_provenance = (
+        source_provenance
+        if source_provenance is not None
+        else result.source_provenance
+        if result.source_provenance is not None
+        else source_provenance_payload(validate=False)
+    )
     dataset_dimensions = {
         "sites": int(result.config.n_sites),
         "samples": int(result.config.n_samples),
@@ -328,6 +389,7 @@ def report_payload(
         "description": BENCHMARK_DESCRIPTION,
         "generated_at_utc": generated_at,
         "generation_date_utc": generated_at.split("T", maxsplit=1)[0],
+        "source_provenance": _json_compatible_payload(resolved_source_provenance),
         "command": dict(command) if command is not None else _command_payload(None),
         "report_path": (
             None if report_path is None else _display_path(Path(report_path))
@@ -453,6 +515,514 @@ def _dependency_versions() -> dict[str, str]:
         except importlib.metadata.PackageNotFoundError:
             versions[package_name] = "unavailable"
     return versions
+
+
+def validate_benchmark_source_environment() -> dict[str, object]:
+    """Return source provenance or fail before the heavy benchmark runs."""
+
+    provenance = source_provenance_payload(validate=False)
+    _validate_source_provenance_payload(provenance)
+    return provenance
+
+
+def _validate_source_provenance_payload(provenance: Mapping[str, object]) -> None:
+    errors: list[str] = []
+
+    project = _mapping_field(provenance, "project")
+    runtime = _mapping_field(provenance, "runtime")
+    imported = _mapping_field(provenance, "imported_phospy")
+    digests = _mapping_field(provenance, "digests")
+    source_tree = _mapping_field(digests, "source_tree")
+    benchmark_script = _mapping_field(digests, "benchmark_script")
+    pyproject_toml = _mapping_field(digests, "pyproject_toml")
+    git = _mapping_field(provenance, "git")
+
+    project_version = _string_field(project, "version")
+    requires_python = _string_field(project, "requires_python")
+    runtime_phospy_version = _string_field(runtime, "phospy_version")
+    distribution_phospy_version = _string_field(
+        runtime,
+        "distribution_phospy_version",
+    )
+    imported_module_path = _string_field(imported, "module_path")
+    imported_resolved_path = _string_field(imported, "resolved_path")
+    expected_package_root = _string_field(imported, "expected_package_root")
+
+    if not imported_module_path or not imported_resolved_path:
+        errors.append("imported phospy module origin is missing")
+    else:
+        imported_path = Path(imported_resolved_path).resolve()
+        expected_root = (ROOT / expected_package_root).resolve()
+        if not _path_is_relative_to(imported_path, expected_root):
+            errors.append(
+                "imported phospy does not originate from the intended checkout: "
+                f"imported={imported_module_path!r}; expected_under="
+                f"{expected_package_root!r}"
+            )
+
+    if runtime_phospy_version != project_version:
+        errors.append(
+            "runtime PhosPy version does not match project version: "
+            f"runtime={runtime_phospy_version!r}; project={project_version!r}"
+        )
+    if distribution_phospy_version != project_version:
+        errors.append(
+            "distribution PhosPy version does not match project version: "
+            f"distribution={distribution_phospy_version!r}; "
+            f"project={project_version!r}"
+        )
+
+    python_version_info = _runtime_python_version_info(runtime)
+    if not _python_version_satisfies_requirement(
+        python_version_info,
+        requires_python,
+    ):
+        errors.append(
+            "current Python version does not satisfy project requires-python: "
+            f"python={_python_version_label(python_version_info)!r}; "
+            f"requires_python={requires_python!r}"
+        )
+
+    for label, section in (
+        ("source tree", source_tree),
+        ("benchmark script", benchmark_script),
+        ("pyproject.toml", pyproject_toml),
+    ):
+        digest = _string_field(section, "sha256")
+        if _SHA256_HEX_RE.fullmatch(digest) is None:
+            errors.append(f"{label} SHA-256 digest could not be resolved reliably")
+    if _int_field(source_tree, "file_count") <= 0:
+        errors.append("source tree digest did not include any source files")
+    if (ROOT / ".git").exists() and not bool(git.get("available")):
+        errors.append("Git metadata is present but could not be resolved reliably")
+    if (ROOT / ".git").exists() and not bool(source_tree.get("git_ignore_available")):
+        errors.append(
+            "Git metadata is present but ignored source files could not be resolved"
+        )
+
+    if errors:
+        raise BenchmarkSourceProvenanceError("; ".join(errors))
+
+
+def source_provenance_payload(*, validate: bool = False) -> dict[str, object]:
+    """Build the typed source-provenance section for the benchmark report."""
+
+    project_metadata = _project_metadata()
+    distribution_version = _phospy_distribution_version()
+    runtime_version = str(getattr(phospy, "__version__", "unavailable"))
+    imported_module_path = _imported_phospy_module_path()
+    imported_resolved_path = (
+        "" if imported_module_path is None else str(imported_module_path)
+    )
+    python_version_info = _current_python_version_info()
+    source_tree_digest = _source_tree_digest(ROOT / "src" / "phospy", repo_root=ROOT)
+    payload = {
+        "schema": SOURCE_PROVENANCE_SCHEMA_VERSION,
+        "project": {
+            "name": project_metadata["name"],
+            "version": project_metadata["version"],
+            "requires_python": project_metadata["requires_python"],
+            "pyproject_path": _display_path(ROOT / "pyproject.toml"),
+            "pyproject_sha256": _file_sha256(ROOT / "pyproject.toml"),
+        },
+        "imported_phospy": {
+            "module_path": (
+                ""
+                if imported_module_path is None
+                else _display_path(imported_module_path)
+            ),
+            "resolved_path": imported_resolved_path,
+            "expected_package_root": "src/phospy",
+        },
+        "runtime": {
+            "python_version": _python_version_label(python_version_info),
+            "python_version_info": list(python_version_info),
+            "python_executable": sys.executable,
+            "phospy_version": runtime_version,
+            "distribution_phospy_version": distribution_version,
+        },
+        "digests": {
+            "source_tree": source_tree_digest,
+            "benchmark_script": {
+                "path": _display_path(Path(__file__).resolve()),
+                "sha256": _file_sha256(Path(__file__).resolve()),
+                "algorithm": "sha256-file-bytes-v1",
+            },
+            "pyproject_toml": {
+                "path": _display_path(ROOT / "pyproject.toml"),
+                "sha256": _file_sha256(ROOT / "pyproject.toml"),
+                "algorithm": "sha256-file-bytes-v1",
+            },
+        },
+        "git": _git_provenance_payload(ROOT),
+    }
+    if validate:
+        _validate_source_provenance_payload(payload)
+    return payload
+
+
+def _project_metadata() -> dict[str, str]:
+    pyproject_path = ROOT / "pyproject.toml"
+    if not pyproject_path.is_file():
+        raise BenchmarkSourceProvenanceError(
+            "source provenance cannot resolve pyproject.toml"
+        )
+    with pyproject_path.open("rb") as handle:
+        pyproject = tomllib.load(handle)
+    project = pyproject.get("project")
+    if not isinstance(project, Mapping):
+        raise BenchmarkSourceProvenanceError(
+            "source provenance cannot resolve [project] metadata"
+        )
+    name = project.get("name")
+    version = project.get("version")
+    requires_python = project.get("requires-python")
+    if not isinstance(name, str) or not name:
+        raise BenchmarkSourceProvenanceError("project.name is missing from pyproject")
+    if not isinstance(version, str) or not version:
+        raise BenchmarkSourceProvenanceError(
+            "project.version is missing from pyproject"
+        )
+    if not isinstance(requires_python, str) or not requires_python:
+        raise BenchmarkSourceProvenanceError(
+            "project.requires-python is missing from pyproject"
+        )
+    return {
+        "name": name,
+        "version": version,
+        "requires_python": requires_python,
+    }
+
+
+def _phospy_distribution_version() -> str:
+    try:
+        return importlib.metadata.version("phospy")
+    except importlib.metadata.PackageNotFoundError:
+        return "unavailable"
+
+
+def _imported_phospy_module_path() -> Path | None:
+    module_file = getattr(phospy, "__file__", None)
+    if not isinstance(module_file, str) or module_file == "":
+        return None
+    return Path(module_file).resolve()
+
+
+def _current_python_version_info() -> tuple[int, int, int, str, int]:
+    return cast(tuple[int, int, int, str, int], tuple(sys.version_info[:5]))
+
+
+def _source_tree_digest(root: Path, *, repo_root: Path) -> dict[str, object]:
+    resolved_root = root.resolve()
+    if not resolved_root.is_dir():
+        raise BenchmarkSourceProvenanceError(
+            f"source provenance cannot resolve source tree: {root}"
+        )
+    candidate_paths: list[Path] = []
+    for path in resolved_root.rglob("*"):
+        if not path.is_file():
+            continue
+        relative_to_source = path.relative_to(resolved_root)
+        if _source_digest_path_is_excluded(relative_to_source):
+            continue
+        candidate_paths.append(path)
+
+    relative_repo_paths = tuple(
+        _repo_relative_path(path, repo_root=repo_root) for path in candidate_paths
+    )
+    ignored_paths, git_ignore_available = _git_ignored_relative_paths(
+        repo_root,
+        relative_repo_paths,
+    )
+    included_paths = [
+        path
+        for path in candidate_paths
+        if _repo_relative_path(path, repo_root=repo_root) not in ignored_paths
+    ]
+    sorted_paths = sorted(
+        included_paths,
+        key=lambda path: _repo_relative_path(path, repo_root=repo_root),
+    )
+    digest = hashlib.sha256()
+    for path in sorted_paths:
+        relative_path = _repo_relative_path(path, repo_root=repo_root)
+        data = path.read_bytes()
+        digest.update(b"path\0")
+        digest.update(relative_path.encode("utf-8"))
+        digest.update(b"\0size\0")
+        digest.update(str(len(data)).encode("ascii"))
+        digest.update(b"\0data\0")
+        digest.update(data)
+        digest.update(b"\0")
+    return {
+        "path": _display_path(resolved_root),
+        "sha256": digest.hexdigest(),
+        "algorithm": SOURCE_TREE_DIGEST_ALGORITHM,
+        "file_count": len(sorted_paths),
+        "git_ignore_available": git_ignore_available,
+        "excluded": (
+            "generated files, caches, ignored files when Git metadata is "
+            "available, and retained benchmark reports outside the source tree"
+        ),
+    }
+
+
+def _source_digest_path_is_excluded(relative_path: Path) -> bool:
+    if any(part in SOURCE_DIGEST_EXCLUDED_PARTS for part in relative_path.parts):
+        return True
+    if relative_path.suffix in SOURCE_DIGEST_EXCLUDED_SUFFIXES:
+        return True
+    if any(part.endswith(".egg-info") for part in relative_path.parts):
+        return True
+    return False
+
+
+def _repo_relative_path(path: Path, *, repo_root: Path) -> str:
+    return path.resolve().relative_to(repo_root.resolve()).as_posix()
+
+
+def _git_ignored_relative_paths(
+    repo_root: Path,
+    relative_paths: Sequence[str],
+) -> tuple[frozenset[str], bool]:
+    if not (repo_root / ".git").exists():
+        return frozenset(), False
+    if not relative_paths:
+        return frozenset(), True
+    input_text = "".join(f"{path}\n" for path in relative_paths)
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repo_root), "check-ignore", "--stdin"],
+            input=input_text,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return frozenset(), False
+    if completed.returncode not in {0, 1}:
+        return frozenset(), False
+    return frozenset(
+        line.strip().replace("\\", "/")
+        for line in completed.stdout.splitlines()
+        if line.strip()
+    ), True
+
+
+def _git_provenance_payload(repo_root: Path) -> dict[str, object]:
+    if not (repo_root / ".git").exists():
+        return {
+            "available": False,
+            "reason": "git metadata directory is not present",
+        }
+    try:
+        inside_work_tree = _git_stdout(repo_root, "rev-parse", "--is-inside-work-tree")
+        commit = _git_stdout(repo_root, "rev-parse", "HEAD")
+        tree = _git_stdout(repo_root, "rev-parse", "HEAD^{tree}")
+        status_output = _git_stdout(
+            repo_root,
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+        )
+    except BenchmarkSourceProvenanceError as error:
+        return {
+            "available": False,
+            "error": str(error),
+        }
+    status_lines = tuple(line for line in status_output.splitlines() if line)
+    status_digest = hashlib.sha256("\n".join(status_lines).encode("utf-8")).hexdigest()
+    return {
+        "available": inside_work_tree == "true",
+        "commit": commit,
+        "tree": tree,
+        "dirty": bool(status_lines),
+        "status_porcelain_v1": list(status_lines),
+        "status_porcelain_v1_sha256": status_digest,
+    }
+
+
+def _git_stdout(repo_root: Path, *args: str) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repo_root), *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise BenchmarkSourceProvenanceError(
+            f"git {' '.join(args)} failed: {error}"
+        ) from error
+    if completed.returncode != 0:
+        stderr = completed.stderr.strip()
+        raise BenchmarkSourceProvenanceError(
+            f"git {' '.join(args)} failed with exit code "
+            f"{completed.returncode}: {stderr}"
+        )
+    return completed.stdout.strip()
+
+
+def _file_sha256(path: Path) -> str:
+    resolved = path.resolve()
+    if not resolved.is_file():
+        raise BenchmarkSourceProvenanceError(
+            f"source provenance cannot resolve file digest: {path}"
+        )
+    return hashlib.sha256(resolved.read_bytes()).hexdigest()
+
+
+def _python_version_label(version_info: Sequence[object]) -> str:
+    return ".".join(str(part) for part in version_info[:3])
+
+
+def _runtime_python_version_info(runtime: Mapping[str, object]) -> tuple[int, int, int]:
+    value = runtime.get("python_version_info")
+    if not isinstance(value, Sequence) or isinstance(value, str) or len(value) < 3:
+        raise BenchmarkSourceProvenanceError(
+            "source provenance runtime.python_version_info is missing or malformed"
+        )
+    parts = value[:3]
+    if not all(isinstance(part, int) and not isinstance(part, bool) for part in parts):
+        raise BenchmarkSourceProvenanceError(
+            "source provenance runtime.python_version_info is missing or malformed"
+        )
+    return cast(tuple[int, int, int], tuple(parts))
+
+
+def _python_version_satisfies_requirement(
+    version_info: Sequence[int],
+    requires_python: str,
+) -> bool:
+    specifiers = tuple(
+        item.strip() for item in requires_python.split(",") if item.strip()
+    )
+    if not specifiers:
+        raise BenchmarkSourceProvenanceError(
+            "project requires-python specifier is empty"
+        )
+    version = (int(version_info[0]), int(version_info[1]), int(version_info[2]))
+    for specifier in specifiers:
+        match = _PYTHON_REQUIREMENT_SPECIFIER_RE.fullmatch(specifier)
+        if match is None:
+            raise BenchmarkSourceProvenanceError(
+                "project requires-python specifier cannot be evaluated reliably: "
+                f"{requires_python!r}"
+            )
+        operator = match.group("operator")
+        expected_raw = match.group("version")
+        if not _version_satisfies_specifier(version, operator, expected_raw):
+            return False
+    return True
+
+
+def _version_satisfies_specifier(
+    version: tuple[int, int, int],
+    operator: str,
+    expected_raw: str,
+) -> bool:
+    if expected_raw.endswith(".*"):
+        expected_prefix = tuple(
+            int(part) for part in expected_raw.removesuffix(".*").split(".")
+        )
+        prefix_matches = version[: len(expected_prefix)] == expected_prefix
+        if operator == "==":
+            return prefix_matches
+        if operator == "!=":
+            return not prefix_matches
+        raise BenchmarkSourceProvenanceError(
+            "wildcard requires-python specifiers only support == and !="
+        )
+    expected = _version_tuple(expected_raw)
+    if operator == "==":
+        return _compare_versions(version, expected) == 0
+    if operator == "!=":
+        return _compare_versions(version, expected) != 0
+    if operator == ">=":
+        return _compare_versions(version, expected) >= 0
+    if operator == ">":
+        return _compare_versions(version, expected) > 0
+    if operator == "<=":
+        return _compare_versions(version, expected) <= 0
+    if operator == "<":
+        return _compare_versions(version, expected) < 0
+    if operator == "~=":
+        upper_bound = _compatible_release_upper_bound(expected_raw)
+        return (
+            _compare_versions(version, expected) >= 0
+            and _compare_versions(version, upper_bound) < 0
+        )
+    if operator == "===":
+        return _python_version_label(version) == expected_raw
+    raise BenchmarkSourceProvenanceError(
+        f"unsupported requires-python operator: {operator!r}"
+    )
+
+
+def _version_tuple(value: str) -> tuple[int, int, int]:
+    parts = tuple(int(part) for part in value.split("."))
+    if len(parts) > 3:
+        raise BenchmarkSourceProvenanceError(
+            f"unsupported Python version specifier: {value!r}"
+        )
+    normalized = (*parts, *(0 for _ in range(3 - len(parts))))
+    return (normalized[0], normalized[1], normalized[2])
+
+
+def _compare_versions(left: Sequence[int], right: Sequence[int]) -> int:
+    left_tuple = tuple(int(part) for part in left[:3])
+    right_tuple = tuple(int(part) for part in right[:3])
+    if left_tuple < right_tuple:
+        return -1
+    if left_tuple > right_tuple:
+        return 1
+    return 0
+
+
+def _compatible_release_upper_bound(value: str) -> tuple[int, int, int]:
+    parts = [int(part) for part in value.split(".")]
+    if len(parts) == 1:
+        return (parts[0] + 1, 0, 0)
+    if len(parts) == 2:
+        return (parts[0] + 1, 0, 0)
+    return (parts[0], parts[1] + 1, 0)
+
+
+def _mapping_field(payload: Mapping[str, object], field: str) -> Mapping[str, object]:
+    value = payload.get(field)
+    if not isinstance(value, Mapping):
+        raise BenchmarkSourceProvenanceError(
+            f"source provenance field {field!r} must be an object"
+        )
+    return cast(Mapping[str, object], value)
+
+
+def _string_field(payload: Mapping[str, object], field: str) -> str:
+    value = payload.get(field)
+    if not isinstance(value, str):
+        raise BenchmarkSourceProvenanceError(
+            f"source provenance field {field!r} must be a string"
+        )
+    return value
+
+
+def _int_field(payload: Mapping[str, object], field: str) -> int:
+    value = payload.get(field)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise BenchmarkSourceProvenanceError(
+            f"source provenance field {field!r} must be an integer"
+        )
+    return int(value)
+
+
+def _path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+    except ValueError:
+        return False
+    return True
 
 
 def _machine_payload() -> dict[str, str]:
@@ -846,11 +1416,19 @@ def _required_int(payload: Mapping[str, object], key: str) -> int:
     return int(value)
 
 
-def _summary_dimensions(payload: Mapping[str, object]) -> tuple[int, int]:
-    raw_dimensions = payload["matrix_dimensions"]
-    if not isinstance(raw_dimensions, Mapping):
-        raise AssertionError("release-scale matrix_dimensions must be an object")
-    dimensions = cast(Mapping[str, object], raw_dimensions)
+def _differential_result_dimensions_from_table(table: pd.DataFrame) -> tuple[int, int]:
+    return (int(table.shape[0]), int(table.shape[1]))
+
+
+def _differential_result_dimensions_from_summary(
+    payload: Mapping[str, object],
+) -> tuple[int, int]:
+    raw_fingerprint = payload["differential_result_table_fingerprint"]
+    if not isinstance(raw_fingerprint, Mapping):
+        raise AssertionError(
+            "release-scale differential_result_table_fingerprint must be an object"
+        )
+    dimensions = cast(Mapping[str, object], raw_fingerprint)
     return (
         _required_int(dimensions, "rows"),
         _required_int(dimensions, "columns"),
@@ -1193,7 +1771,8 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
-    result = run_benchmark()
+    source_provenance = validate_benchmark_source_environment()
+    result = run_benchmark(source_provenance=source_provenance)
     metrics = dict(result.metrics)
     metrics["report_path"] = "not_written"
     if args.write_report or args.report_path is not None:
@@ -1202,6 +1781,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result,
                 report_path=args.report_path,
                 command=_command_payload(argv),
+                source_provenance=source_provenance,
             )
         )
     formatted_metrics = format_metric_values(metrics)

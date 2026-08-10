@@ -7,9 +7,11 @@ evidence is a dated machine-specific observation.
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import re
+import sys
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from pathlib import Path
@@ -42,8 +44,18 @@ REQUIRED_OUTPUT_FINGERPRINT_KEYS = (
     "differential_result_table_digest",
     "scientific_summary_digest",
 )
+SOURCE_PROVENANCE_SCHEMA_VERSION = "release_scale_source_provenance_v1"
+REQUIRED_SOURCE_DIGEST_KEYS = (
+    ("source_tree", True),
+    ("benchmark_script", False),
+    ("pyproject_toml", False),
+)
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
+_PYTHON_REQUIREMENT_SPECIFIER_RE = re.compile(
+    r"^\s*(?P<operator>===|!=|==|<=|>=|<|>|~=)\s*"
+    r"(?P<version>[0-9]+(?:\.[0-9]+){0,2}(?:\.\*)?)\s*$"
+)
 
 
 class BenchmarkReportSchemaError(AssertionError):
@@ -78,6 +90,8 @@ def validate_release_scale_benchmark_report(payload: Mapping[str, Any]) -> None:
         field="generation_date_utc",
     )
 
+    source_provenance = _require_mapping(payload, "source_provenance")
+
     command = _require_mapping(payload, "command")
     _require_non_empty_string(command, "executable")
     _require_string_sequence(command, "argv", minimum_length=1)
@@ -86,37 +100,98 @@ def validate_release_scale_benchmark_report(payload: Mapping[str, Any]) -> None:
 
     config = _require_mapping(payload, "config")
     workload = _require_mapping(payload, "workload")
+    workload_configuration = _require_mapping(workload, "configuration")
     dataset_dimensions = _require_mapping(payload, "dataset_dimensions")
-    _require_equal(dataset_dimensions, "sites", EXPECTED_SITES)
-    _require_equal(dataset_dimensions, "samples", EXPECTED_SAMPLES)
-    _require_equal(config, "n_sites", EXPECTED_SITES)
-    _require_equal(config, "n_samples", EXPECTED_SAMPLES)
-    _require_equal(workload, "sites", EXPECTED_SITES)
-    _require_equal(workload, "samples", EXPECTED_SAMPLES)
-    _require_int(config, "seed")
-    _require_int(workload, "seed")
-    _require_number(config, "missing_fraction")
-    _require_number(workload, "missing_fraction")
+    dataset_sites = _require_int(dataset_dimensions, "sites")
+    dataset_samples = _require_int(dataset_dimensions, "samples")
+    config_sites = _require_int(config, "n_sites")
+    config_samples = _require_int(config, "n_samples")
+    workload_sites = _require_int(workload, "sites")
+    workload_samples = _require_int(workload, "samples")
+    workload_config_sites = _require_int(workload_configuration, "n_sites")
+    workload_config_samples = _require_int(workload_configuration, "n_samples")
+    _require_equal_value("dataset_dimensions.sites", dataset_sites, EXPECTED_SITES)
+    _require_equal_value(
+        "dataset_dimensions.samples", dataset_samples, EXPECTED_SAMPLES
+    )
+    for field, observed in (
+        ("config.n_sites", config_sites),
+        ("workload.sites", workload_sites),
+        ("workload.configuration.n_sites", workload_config_sites),
+    ):
+        _require_equal_value(field, observed, dataset_sites)
+    for field, observed in (
+        ("config.n_samples", config_samples),
+        ("workload.samples", workload_samples),
+        ("workload.configuration.n_samples", workload_config_samples),
+    ):
+        _require_equal_value(field, observed, dataset_samples)
+    config_seed = _require_int(config, "seed")
+    workload_seed = _require_int(workload, "seed")
+    workload_config_seed = _require_int(workload_configuration, "seed")
+    _require_equal_value("workload.seed", workload_seed, config_seed)
+    _require_equal_value(
+        "workload.configuration.seed", workload_config_seed, config_seed
+    )
+    config_missing_fraction = _require_number(config, "missing_fraction")
+    workload_missing_fraction = _require_number(workload, "missing_fraction")
+    workload_config_missing_fraction = _require_number(
+        workload_configuration,
+        "missing_fraction",
+    )
+    _require_equal_value(
+        "workload.missing_fraction",
+        workload_missing_fraction,
+        config_missing_fraction,
+    )
+    _require_equal_value(
+        "workload.configuration.missing_fraction",
+        workload_config_missing_fraction,
+        config_missing_fraction,
+    )
 
     output_dimensions = _require_mapping(payload, "output_dimensions")
     matrix_dimensions = _require_mapping(output_dimensions, "analysis_ready_matrix")
-    _require_equal(matrix_dimensions, "rows", EXPECTED_SITES)
-    _require_equal(matrix_dimensions, "columns", EXPECTED_SAMPLES)
+    analysis_ready_rows = _require_positive_int(matrix_dimensions, "rows")
+    analysis_ready_columns = _require_positive_int(matrix_dimensions, "columns")
+    _require_equal_value(
+        "output_dimensions.analysis_ready_matrix.rows",
+        analysis_ready_rows,
+        dataset_sites,
+    )
+    _require_equal_value(
+        "output_dimensions.analysis_ready_matrix.columns",
+        analysis_ready_columns,
+        dataset_samples,
+    )
     result_table_dimensions = _require_mapping(
         output_dimensions,
         "differential_result_table",
     )
-    _require_equal(result_table_dimensions, "rows", EXPECTED_SITES)
-    _require_positive_int(result_table_dimensions, "columns")
-    _require_equal(output_dimensions, "tested_feature_count", EXPECTED_SITES)
-    _require_equal(payload, "tested_feature_count", EXPECTED_SITES)
+    result_table_rows = _require_positive_int(result_table_dimensions, "rows")
+    result_table_columns = _require_positive_int(result_table_dimensions, "columns")
+    output_tested_feature_count = _require_int(
+        output_dimensions,
+        "tested_feature_count",
+    )
+    payload_tested_feature_count = _require_int(payload, "tested_feature_count")
 
     metrics = _require_mapping(payload, "metrics")
-    _require_equal(metrics, "sites", EXPECTED_SITES)
-    _require_equal(metrics, "samples", EXPECTED_SAMPLES)
-    _require_equal(metrics, "output_rows", EXPECTED_SITES)
-    _require_positive_int(metrics, "output_columns")
-    _require_equal(metrics, "tested_feature_count", EXPECTED_SITES)
+    _require_equal_value("metrics.sites", _require_int(metrics, "sites"), dataset_sites)
+    _require_equal_value(
+        "metrics.samples",
+        _require_int(metrics, "samples"),
+        dataset_samples,
+    )
+    metrics_output_rows = _require_positive_int(metrics, "output_rows")
+    metrics_output_columns = _require_positive_int(metrics, "output_columns")
+    metrics_tested_feature_count = _require_int(metrics, "tested_feature_count")
+    for field, observed in (
+        ("output_dimensions.tested_feature_count", output_tested_feature_count),
+        ("tested_feature_count", payload_tested_feature_count),
+        ("metrics.tested_feature_count", metrics_tested_feature_count),
+    ):
+        _require_equal_value(field, observed, EXPECTED_SITES)
 
     timings = _require_mapping(payload, "timings")
     runtime = _require_mapping(payload, "runtime")
@@ -131,23 +206,62 @@ def validate_release_scale_benchmark_report(payload: Mapping[str, Any]) -> None:
     _validate_peak_memory_value(metrics, "process_rss_peak_mib")
     _validate_peak_memory_value(peak_memory, "process_rss_peak_mib")
 
-    python = _require_mapping(payload, "python")
-    _require_non_empty_string(python, "version")
-    _require_non_empty_string(python, "executable")
+    python_payload = _require_mapping(payload, "python")
+    _require_non_empty_string(python_payload, "version")
+    _require_non_empty_string(python_payload, "executable")
     environment = _require_mapping(payload, "environment")
     environment_python = _require_mapping(environment, "python")
     _require_non_empty_string(environment_python, "version")
     _require_non_empty_string(environment_python, "executable")
+    environment_python_version = _require_python_version_info(
+        environment_python,
+        "version_info",
+    )
     machine = _require_mapping(payload, "machine")
     for field in ("platform", "system", "release", "version", "machine", "os_name"):
         _require_non_empty_string(machine, field)
     _require_string(machine, "processor")
 
     dependencies = _require_mapping(payload, "dependencies")
+    environment_dependencies = _require_mapping(environment, "dependencies")
     for dependency_name in REQUIRED_DEPENDENCIES:
         value = _require_non_empty_string(dependencies, dependency_name)
         if value == "unavailable":
             _fail(f"dependencies.{dependency_name} must record an installed version")
+        environment_value = _require_non_empty_string(
+            environment_dependencies,
+            dependency_name,
+        )
+        _require_equal_value(
+            f"environment.dependencies.{dependency_name}",
+            environment_value,
+            value,
+        )
+
+    source_project_version, requires_python, source_python_version = (
+        _validate_source_provenance(
+            source_provenance,
+            dependencies=dependencies,
+        )
+    )
+    _require_equal_value(
+        "environment.python.version_info",
+        environment_python_version,
+        source_python_version,
+    )
+    if not _python_version_satisfies_requirement(
+        source_python_version,
+        requires_python,
+    ):
+        _fail(
+            "source_provenance.runtime.python_version_info must satisfy "
+            "source_provenance.project.requires_python"
+        )
+    _require_equal_value(
+        "dependencies.phospy",
+        _require_non_empty_string(dependencies, "phospy"),
+        source_project_version,
+    )
 
     output_fingerprints = _require_mapping(payload, "output_fingerprints")
     for fingerprint_key in REQUIRED_OUTPUT_FINGERPRINT_KEYS:
@@ -160,24 +274,95 @@ def validate_release_scale_benchmark_report(payload: Mapping[str, Any]) -> None:
         scientific_summary,
         "matrix_dimensions",
     )
-    _require_equal(summary_matrix_dimensions, "rows", EXPECTED_SITES)
-    _require_equal(summary_matrix_dimensions, "columns", EXPECTED_SAMPLES)
-    _require_equal(scientific_summary, "tested_feature_count", EXPECTED_SITES)
+    summary_matrix_rows = _require_positive_int(summary_matrix_dimensions, "rows")
+    summary_matrix_columns = _require_positive_int(summary_matrix_dimensions, "columns")
+    _require_equal_value(
+        "scientific_summary.matrix_dimensions.rows",
+        summary_matrix_rows,
+        analysis_ready_rows,
+    )
+    _require_equal_value(
+        "scientific_summary.matrix_dimensions.columns",
+        summary_matrix_columns,
+        analysis_ready_columns,
+    )
+    summary_tested_feature_count = _require_int(
+        scientific_summary,
+        "tested_feature_count",
+    )
+    _require_equal_value(
+        "scientific_summary.tested_feature_count",
+        summary_tested_feature_count,
+        payload_tested_feature_count,
+    )
     for digest_key in (
         "input_table_fingerprints_digest",
         "output_table_fingerprints_digest",
         "preprocessing_trace_digest",
         "differential_result_table_digest",
+        "differential_policy_provenance_digest",
+        "differential_workflow_provenance_digest",
+        "dataset_workflow_provenance_digest",
     ):
         _require_digest(scientific_summary, digest_key)
     result_table_fingerprint = _require_mapping(
         scientific_summary,
         "differential_result_table_fingerprint",
     )
-    _require_equal(result_table_fingerprint, "rows", EXPECTED_SITES)
-    _require_positive_int(result_table_fingerprint, "columns")
+    fingerprint_rows = _require_positive_int(result_table_fingerprint, "rows")
+    fingerprint_columns = _require_positive_int(result_table_fingerprint, "columns")
+    for field, observed in (
+        ("metrics.output_rows", metrics_output_rows),
+        ("output_dimensions.differential_result_table.rows", result_table_rows),
+        (
+            "scientific_summary.differential_result_table_fingerprint.rows",
+            fingerprint_rows,
+        ),
+    ):
+        _require_equal_value(field, observed, EXPECTED_SITES)
+    _require_equal_value(
+        "metrics.output_columns",
+        metrics_output_columns,
+        result_table_columns,
+    )
+    _require_equal_value(
+        "scientific_summary.differential_result_table_fingerprint.columns",
+        fingerprint_columns,
+        result_table_columns,
+    )
     _require_non_empty_string(result_table_fingerprint, "hash_algorithm")
-    _require_digest(result_table_fingerprint, "hash_value")
+    result_table_hash = _require_digest(result_table_fingerprint, "hash_value")
+    _require_equal_value(
+        "scientific_summary.differential_result_table_digest",
+        _require_digest(scientific_summary, "differential_result_table_digest"),
+        result_table_hash,
+    )
+    _require_equal_value(
+        "output_fingerprints.differential_result_table_digest",
+        _require_digest(output_fingerprints, "differential_result_table_digest"),
+        result_table_hash,
+    )
+    for digest_key in (
+        "input_table_fingerprints_digest",
+        "output_table_fingerprints_digest",
+        "preprocessing_trace_digest",
+    ):
+        _require_equal_value(
+            f"output_fingerprints.{digest_key}",
+            _require_digest(output_fingerprints, digest_key),
+            _require_digest(scientific_summary, digest_key),
+        )
+    scientific_summary_digest = _require_digest(payload, "scientific_summary_digest")
+    _require_equal_value(
+        "metrics.scientific_summary_digest",
+        _require_digest(metrics, "scientific_summary_digest"),
+        scientific_summary_digest,
+    )
+    _require_equal_value(
+        "output_fingerprints.scientific_summary_digest",
+        _require_digest(output_fingerprints, "scientific_summary_digest"),
+        scientific_summary_digest,
+    )
     _validate_table_fingerprint_list(
         scientific_summary,
         "input_table_fingerprints",
@@ -186,6 +371,80 @@ def validate_release_scale_benchmark_report(payload: Mapping[str, Any]) -> None:
         scientific_summary,
         "output_table_fingerprints",
     )
+
+
+def _validate_source_provenance(
+    payload: Mapping[str, Any],
+    *,
+    dependencies: Mapping[str, Any],
+) -> tuple[str, str, tuple[int, int, int]]:
+    _require_equal(payload, "schema", SOURCE_PROVENANCE_SCHEMA_VERSION)
+    project = _require_mapping(payload, "project")
+    imported = _require_mapping(payload, "imported_phospy")
+    runtime = _require_mapping(payload, "runtime")
+    digests = _require_mapping(payload, "digests")
+
+    _require_equal(project, "name", "phospy")
+    project_version = _require_non_empty_string(project, "version")
+    requires_python = _require_non_empty_string(project, "requires_python")
+    _require_non_empty_string(project, "pyproject_path")
+    project_pyproject_digest = _require_digest(project, "pyproject_sha256")
+
+    _require_non_empty_string(imported, "module_path")
+    _require_non_empty_string(imported, "resolved_path")
+    _require_non_empty_string(imported, "expected_package_root")
+
+    runtime_phospy_version = _require_non_empty_string(runtime, "phospy_version")
+    distribution_phospy_version = _require_non_empty_string(
+        runtime,
+        "distribution_phospy_version",
+    )
+    _require_equal_value(
+        "source_provenance.runtime.phospy_version",
+        runtime_phospy_version,
+        project_version,
+    )
+    _require_equal_value(
+        "source_provenance.runtime.distribution_phospy_version",
+        distribution_phospy_version,
+        project_version,
+    )
+    _require_equal_value(
+        "dependencies.phospy",
+        _require_non_empty_string(dependencies, "phospy"),
+        project_version,
+    )
+    _require_non_empty_string(runtime, "python_version")
+    _require_non_empty_string(runtime, "python_executable")
+    source_python_version = _require_python_version_info(
+        runtime,
+        "python_version_info",
+    )
+
+    for section_name, require_file_count in REQUIRED_SOURCE_DIGEST_KEYS:
+        section = _require_mapping(digests, section_name)
+        _require_non_empty_string(section, "path")
+        _require_non_empty_string(section, "algorithm")
+        section_digest = _require_digest(section, "sha256")
+        if section_name == "pyproject_toml":
+            _require_equal_value(
+                "source_provenance.digests.pyproject_toml.sha256",
+                section_digest,
+                project_pyproject_digest,
+            )
+        if require_file_count:
+            _require_positive_int(section, "file_count")
+
+    git = _require_mapping(payload, "git")
+    git_available = _require_bool(git, "available")
+    if git_available:
+        _require_non_empty_string(git, "commit")
+        _require_non_empty_string(git, "tree")
+        _require_bool(git, "dirty")
+        _require_string_sequence(git, "status_porcelain_v1", minimum_length=0)
+        _require_digest(git, "status_porcelain_v1_sha256")
+
+    return project_version, requires_python, source_python_version
 
 
 def _validate_table_fingerprint_list(
@@ -234,6 +493,96 @@ def _validate_generation_date(
         _fail(f"{field} must be a valid ISO date")
     if value != generated_at_utc.split("T", maxsplit=1)[0]:
         _fail(f"{field} must match the date portion of generated_at_utc")
+
+
+def _python_version_satisfies_requirement(
+    version_info: Sequence[int],
+    requires_python: str,
+) -> bool:
+    specifiers = tuple(
+        item.strip() for item in requires_python.split(",") if item.strip()
+    )
+    if not specifiers:
+        _fail("source_provenance.project.requires_python must not be empty")
+    version = (int(version_info[0]), int(version_info[1]), int(version_info[2]))
+    for specifier in specifiers:
+        match = _PYTHON_REQUIREMENT_SPECIFIER_RE.fullmatch(specifier)
+        if match is None:
+            _fail(
+                "source_provenance.project.requires_python contains an unsupported "
+                f"specifier: {specifier!r}"
+            )
+        operator = match.group("operator")
+        expected_raw = match.group("version")
+        if not _version_satisfies_specifier(version, operator, expected_raw):
+            return False
+    return True
+
+
+def _version_satisfies_specifier(
+    version: tuple[int, int, int],
+    operator: str,
+    expected_raw: str,
+) -> bool:
+    if expected_raw.endswith(".*"):
+        expected_prefix = tuple(
+            int(part) for part in expected_raw.removesuffix(".*").split(".")
+        )
+        prefix_matches = version[: len(expected_prefix)] == expected_prefix
+        if operator == "==":
+            return prefix_matches
+        if operator == "!=":
+            return not prefix_matches
+        _fail("wildcard requires-python specifiers only support == and !=")
+    expected = _version_tuple(expected_raw)
+    if operator == "==":
+        return _compare_versions(version, expected) == 0
+    if operator == "!=":
+        return _compare_versions(version, expected) != 0
+    if operator == ">=":
+        return _compare_versions(version, expected) >= 0
+    if operator == ">":
+        return _compare_versions(version, expected) > 0
+    if operator == "<=":
+        return _compare_versions(version, expected) <= 0
+    if operator == "<":
+        return _compare_versions(version, expected) < 0
+    if operator == "~=":
+        upper_bound = _compatible_release_upper_bound(expected_raw)
+        return (
+            _compare_versions(version, expected) >= 0
+            and _compare_versions(version, upper_bound) < 0
+        )
+    if operator == "===":
+        return ".".join(str(part) for part in version) == expected_raw
+    _fail(f"unsupported requires-python operator: {operator!r}")
+
+
+def _version_tuple(value: str) -> tuple[int, int, int]:
+    parts = tuple(int(part) for part in value.split("."))
+    if len(parts) > 3:
+        _fail(f"unsupported Python version specifier: {value!r}")
+    normalized = (*parts, *(0 for _ in range(3 - len(parts))))
+    return (normalized[0], normalized[1], normalized[2])
+
+
+def _compare_versions(left: Sequence[int], right: Sequence[int]) -> int:
+    left_tuple = tuple(int(part) for part in left[:3])
+    right_tuple = tuple(int(part) for part in right[:3])
+    if left_tuple < right_tuple:
+        return -1
+    if left_tuple > right_tuple:
+        return 1
+    return 0
+
+
+def _compatible_release_upper_bound(value: str) -> tuple[int, int, int]:
+    parts = [int(part) for part in value.split(".")]
+    if len(parts) == 1:
+        return (parts[0] + 1, 0, 0)
+    if len(parts) == 2:
+        return (parts[0] + 1, 0, 0)
+    return (parts[0], parts[1] + 1, 0)
 
 
 def _require_present(payload: Mapping[str, Any], field: str) -> Any:
@@ -292,10 +641,22 @@ def _require_non_empty_string(payload: Mapping[str, Any], field: str) -> str:
     return value
 
 
+def _require_bool(payload: Mapping[str, Any], field: str) -> bool:
+    value = _require_present(payload, field)
+    if not isinstance(value, bool):
+        _fail(f"{field} must be a boolean")
+    return value
+
+
 def _require_equal(payload: Mapping[str, Any], field: str, expected: object) -> None:
     value = _require_present(payload, field)
     if value != expected:
         _fail(f"{field} must be {expected!r}; observed {value!r}")
+
+
+def _require_equal_value(field: str, observed: object, expected: object) -> None:
+    if observed != expected:
+        _fail(f"{field} must equal {expected!r}; observed {observed!r}")
 
 
 def _require_int(payload: Mapping[str, Any], field: str) -> int:
@@ -339,5 +700,35 @@ def _require_digest(payload: Mapping[str, Any], field: str) -> str:
     return value
 
 
+def _require_python_version_info(
+    payload: Mapping[str, Any],
+    field: str,
+) -> tuple[int, int, int]:
+    value = _require_sequence(payload, field, minimum_length=3)
+    parts = value[:3]
+    if not all(isinstance(part, int) and not isinstance(part, bool) for part in parts):
+        _fail(f"{field} must start with integer major/minor/patch values")
+    return int(parts[0]), int(parts[1]), int(parts[2])
+
+
 def _fail(message: str) -> NoReturn:
     raise BenchmarkReportSchemaError(message)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Validate retained release-scale benchmark evidence JSON.",
+    )
+    parser.add_argument("report_path", nargs="+", type=Path)
+    args = parser.parse_args(argv)
+    for report_path in args.report_path:
+        validate_report_path(report_path)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except BenchmarkReportSchemaError as error:
+        print(f"release-scale benchmark report schema error: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
