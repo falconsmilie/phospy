@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # Workflow Contracts
 
 This page is the short contract map for PhosPy workflows. It keeps the public

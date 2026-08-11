@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # Dataset Builders
 
 PhosPy's supported analysis-ready dataset construction entrypoint is

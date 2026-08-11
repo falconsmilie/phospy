@@ -1,61 +1,46 @@
-# Enrichment Workflow
+# Enrichment
 
-## Plain-language introduction
+`EnrichmentWorkflow` runs offline over-representation analysis (ORA) with an
+identifier list, a local set collection, and an explicit background universe.
 
-`EnrichmentWorkflow` runs offline over-representation analysis (ORA) with
-identifier sets that you provide. Use it when you already have a selected list
-of genes, proteins, or phosphosites and want to ask whether that list overlaps
-local enrichment sets more than expected under an explicit background universe.
+Use it when you have already selected genes, proteins, or phosphosites and want
+to test whether they overlap particular sets more often than expected.
 
-The workflow expects one selected-identifier source, one homogeneous set
-collection, and one explicit background universe. It returns an
-`EnrichmentWorkflowResult` with one row per tested term, ORA p-values,
-multiple-testing-adjusted p-values, overlap diagnostics, caveats, and run
-provenance.
+!!! info "At a Glance"
+    **Input:** Selected identifiers, a matching `GeneSetCollection` or
+    `PtmSetCollection`, and a background universe  
+    **Run:** `EnrichmentWorkflow().run(request)`  
+    **Returns:** An `EnrichmentWorkflowResult` with one row per tested term,
+    diagnostics, provenance, and caveats
 
-This workflow does not fetch GO, KEGG, Reactome, PTM-SEA, Enrichr, gseapy, or
-other online resources. It does not implement ranked-list enrichment, GSEA,
-ssGSEA, or PTM-SEA.
+PhosPy does not fetch or bundle GO, KEGG, Reactome, PTM-SEA, Enrichr, or gseapy
+resources. It does not implement GSEA, ssGSEA, or PTM-SEA. ORA does not imply
+GSEA or PTM-SEA support.
 
-## Input and dataset requirements
+## Before You Begin
 
-Enrichment does not take an `AnalysisReadyPhosphoDataset` directly. It works on
-identifiers that you pass either as a sequence or in a pandas DataFrame column.
-If those identifiers came from a PhosPy dataset or workflow result, the upstream
-workflow owns the dataset requirements.
+Choose one identifier level and use it consistently across the selected list,
+background, and set collection:
 
-Workflow-specific requirements:
+| Identifier Kind | Collection |
+| --- | --- |
+| `"gene_symbol"` or `"protein_id"` | `GeneSetCollection` |
+| `"site_key"`, `"display_id"`, or `"phosphosite"` | `PtmSetCollection` |
 
-- Choose one identifier level: gene/protein identifiers or PTM/phosphosite
-  identifiers.
-- Set `identifier_kind` to one of `"gene_symbol"`, `"protein_id"`,
-  `"site_key"`, `"display_id"`, or `"phosphosite"`.
-- Use a matching collection:
-  - `GeneSetCollection` for `"gene_symbol"` or `"protein_id"`.
-  - `PtmSetCollection` for `"site_key"`, `"display_id"`, or `"phosphosite"`.
-- Provide exactly one selected-identifier source:
-  - `selected_identifiers`, or
-  - `input_table` plus `identifier_column`.
-- Provide a non-empty `background_universe`. PhosPy does not infer it from a
-  dataset, reference bundle, or set collection.
-- Keep selected identifiers, background identifiers, and set members in the
-  same namespace. PhosPy does not map between gene symbols, accessions,
-  `display_id` labels, and `site_key` values.
-- For PTM-level enrichment derived from PhosPy data, prefer analysis-ready
-  `site_key` identifiers. Upstream dataset construction requires
-  `site_sequence`, but enrichment itself does not inspect site sequences.
-- ORA uses selected/background membership only. There is no replicate,
-  condition, or intensity-scale requirement unless you provide optional
-  provenance for an identifier set derived from a quantitative PhosPy result.
+Provide selected identifiers in exactly one way:
 
-The main scientific assumption is that your background universe represents the
-identifiers that could have been selected. A poor background can dominate the
-result.
+- `selected_identifiers`; or
+- `input_table` together with `identifier_column`.
 
-For shared dataset preparation, see
-[Preparing a dataset](dataset-build-workflow.md).
+The `background_universe` is always required. It should represent the
+identifiers that could reasonably have been selected in your experiment.
+PhosPy does not infer it from a dataset, reference bundle, or set collection.
 
-## Minimal end-to-end example
+PhosPy also does not translate between namespaces. Gene symbols, protein
+accessions, `display_id` labels, and `site_key` values must not be mixed.
+For PhosPy-derived site-level analyses, prefer `site_key`.
+
+## Example
 
 ```python
 from phospy.api import (
@@ -95,251 +80,166 @@ result = EnrichmentWorkflow().run(request)
 print(result.table.loc[:, ["term_id", "input_overlap_count", "p_value"]])
 ```
 
-`EnrichmentWorkflow` is public through `phospy.api`; it is not a top-level
-`phospy` convenience export.
+`EnrichmentWorkflow` is public through `phospy.api`; it is not exported from the
+package root.
 
-## Request model
+## Request
 
-Use `EnrichmentWorkflowRequest`.
+Create an `EnrichmentWorkflowRequest`.
 
-| Parameter | Type | Required or default | Description | Constraints |
+| Parameter | Type | Required or Default | Description | Main Constraint |
 | --- | --- | --- | --- | --- |
-| `identifier_column` | `str` | Required | Column to read when `input_table` is the selected-identifier source. Also records the identifier column name in request semantics. | Must be non-empty after trimming. The column must exist when `input_table` is supplied. |
-| `identifier_kind` | `Literal["gene_symbol", "protein_id", "site_key", "display_id", "phosphosite"]` | Required | Declares the identifier namespace used by selected identifiers, the background universe, and the set collection. | Must match `set_collection.identifier_kind`. Gene-level kinds use gene sets; PTM-level kinds use PTM sets. |
-| `set_collection` | `EnrichmentSetCollection` | Required | Local enrichment set collection supplied by the caller. `GeneSetCollection` and `PtmSetCollection` are the usual constructors. | Must be non-empty, homogeneous, and match `identifier_kind`. Set IDs must be unique. Set names and members must be non-empty strings. |
-| `background_universe` | `Sequence[str]` | Required | Explicit universe for the hypergeometric ORA test. | Missing the argument raises `TypeError`. An empty sequence is rejected by `EnrichmentWorkflow.run(...)`. Values are trimmed and de-duplicated for execution. |
-| `config` | `EnrichmentConfig` | Default: `EnrichmentConfig()` | Method, multiple-testing, background-policy, and set-size filtering options. | Must be an `EnrichmentConfig`. |
-| `input_table` | `pandas.DataFrame \| None` | Default: `None` | Optional table containing selected identifiers in `identifier_column`. | Mutually exclusive with `selected_identifiers`. The current workflow path accepts a non-empty pandas DataFrame with the required column. |
-| `selected_identifiers` | `Sequence[str] \| None` | Default: `None` | Optional explicit selected identifiers. | Mutually exclusive with `input_table`. Must be non-empty when used. Values are trimmed and de-duplicated for execution. |
-| `selected_identifier_provenance` | `EnrichmentIdentifierSetProvenance \| None` | Default: `None` | Optional typed provenance for the selected identifier set. | If supplied, `identifier_count` must match the normalized selected identifier count. |
-| `background_identifier_provenance` | `EnrichmentIdentifierSetProvenance \| None` | Default: `None` | Optional typed provenance for the background universe. | If supplied, `identifier_count` must match the normalized background identifier count. |
+| `identifier_column` | `str` | Required | Column used when `input_table` supplies the selected identifiers. It also records the selected identifier field name. | Must be non-empty and present in `input_table` when that source is used. |
+| `identifier_kind` | Identifier-kind string | Required | Namespace shared by selected identifiers, background, and sets. | Must match the collection level. |
+| `set_collection` | `GeneSetCollection` or `PtmSetCollection` | Required | Caller-supplied local sets. | Must be non-empty and use the same identifier kind. |
+| `background_universe` | `Sequence[str]` | Required | Universe used by the hypergeometric test. | Must be non-empty. Values are trimmed and de-duplicated. |
+| `config` | `EnrichmentConfig` | `EnrichmentConfig()` | ORA, correction, attrition, and size-filter policy. | Only supported policies are accepted. |
+| `input_table` | `pandas.DataFrame` or `None` | `None` | Optional table containing selected identifiers. | Mutually exclusive with `selected_identifiers`. |
+| `selected_identifiers` | `Sequence[str]` or `None` | `None` | Optional explicit selected list. | Mutually exclusive with `input_table`; must be non-empty when used. |
+| `selected_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the selected set. | `identifier_count` must match the normalized selected count. |
+| `background_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the background. | `identifier_count` must match the normalized background count. |
 
 ### `EnrichmentConfig`
 
-| Parameter | Type | Required or default | Description | Constraints |
-| --- | --- | --- | --- | --- |
-| `method` | `Literal["over_representation"]` | Default: `"over_representation"` | Enrichment method. | ORA is the only supported method. |
-| `multiple_testing_correction` | `Literal["benjamini_hochberg", "bonferroni", "holm", "benjamini_yekutieli", "none"]` | Default: `"benjamini_hochberg"` | Adjusts p-values across tested sets. | Correction is applied after background policies and optional set-size filters. `"none"` returns adjusted p-values equal to the raw p-values. |
-| `min_set_size` | `int \| None` | Default: `None` | Drops sets with fewer retained members than this value. | `None` disables the lower bound. Integers must be `>= 1`. Size is measured after intersecting each set with `background_universe`. |
-| `max_set_size` | `int \| None` | Default: `None` | Drops sets with more retained members than this value. | `None` disables the upper bound. Integers must be `>= 1`. If both bounds are set, `min_set_size <= max_set_size`. |
-| `selected_outside_background_policy` | `Literal["error", "drop"]` | Default: `"error"` | Controls selected identifiers that are absent from the background. | `"error"` raises a validation error. `"drop"` runs ORA on the selected/background intersection and records dropped identifiers. |
-| `set_member_outside_background_policy` | `Literal["error", "drop"]` | Default: `"drop"` | Controls set members that are absent from the background. | `"drop"` supports broad local collections tested against an experiment-specific background. `"error"` requires every set member to be inside the background. |
-| `minimum_retained_foreground_fraction` | `float \| None` | Default: `None` | Optional guard on selected-identifier attrition when dropping outside-background identifiers. | `None` disables the guard. Values must be within `[0.0, 1.0]`. The workflow fails if the retained selected fraction is lower. |
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `method` | `"over_representation"` | ORA is the only supported method. |
+| `multiple_testing_correction` | `"benjamini_hochberg"` | Supports `"none"`, `"benjamini_hochberg"`, `"bonferroni"`, `"holm"`, and `"benjamini_yekutieli"`. |
+| `min_set_size` | `None` | Optional lower set-size bound after background intersection. |
+| `max_set_size` | `None` | Optional upper set-size bound after background intersection. |
+| `selected_outside_background_policy` | `"error"` | Use `"drop"` only when selected/background intersection is intentional and will be reviewed. |
+| `set_member_outside_background_policy` | `"drop"` | Use `"error"` to require every set member to occur in the background. |
+| `minimum_retained_foreground_fraction` | `None` | Optional lower bound on the selected fraction retained after background intersection. |
 
-`EnrichmentConfig.publishing()` returns
-`EnrichmentConfig(min_set_size=5, max_set_size=500, ...)` unless you override
-those bounds.
+`EnrichmentConfig.publishing()` supplies default set-size bounds of 5 and 500
+unless you override them.
 
-### Set collections
+<details markdown="1">
+<summary><strong>Set Collection Parameters</strong></summary>
 
-Use `GeneSetCollection` for gene/protein-level ORA and `PtmSetCollection` for
-phosphosite/PTM-level ORA.
+`GeneSetCollection` and `PtmSetCollection` accept:
 
-| Constructor | Main parameters | Defaults | Constraints |
-| --- | --- | --- | --- |
-| `GeneSetCollection` | `sets`, `identifier_kind`, `term_names`, `source_name`, `source_version`, `descriptions` | `identifier_kind="gene_symbol"`, `source_name="user"` | `identifier_kind` must be `"gene_symbol"` or `"protein_id"`. |
-| `PtmSetCollection` | `sets`, `identifier_kind`, `term_names`, `source_name`, `source_version`, `descriptions` | `identifier_kind="site_key"`, `source_name="user"` | `identifier_kind` must be `"site_key"`, `"display_id"`, or `"phosphosite"`. |
-| `EnrichmentSet` | `set_id`, `name`, `identifiers`, `identifier_kind`, `source_name`, `source_version`, `description` | Optional source and description fields default to `None`. | Use when you want to build an `EnrichmentSetCollection` from explicit set records. |
+| Parameter | Description |
+| --- | --- |
+| `sets` | Mapping from term ID to identifiers, or explicit `EnrichmentSet` records. |
+| `identifier_kind` | Namespace used by every member. Defaults to `"gene_symbol"` for gene sets and `"site_key"` for PTM sets. |
+| `term_names` | Optional readable names keyed by term ID. |
+| `source_name`, `source_version` | Optional source identity recorded with the collection. |
+| `descriptions` | Optional term descriptions keyed by term ID. |
 
-For mapping-style `sets`, keys are term IDs and values are identifier
-sequences. `term_names` and `descriptions` may name only IDs present in `sets`.
-Duplicate identifiers within one set are collapsed.
+Set IDs must be unique and non-empty. Duplicate members within a set are
+collapsed. `term_names` and `descriptions` may refer only to existing set IDs.
 
-### Optional identifier-set provenance
+Optional `EnrichmentIdentifierSetProvenance` records where a selected or
+background set came from, including an upstream workflow, selection rule,
+identifier count, quantitative context, caveats, and upstream provenance
+fingerprints.
 
-`EnrichmentIdentifierSetProvenance` is optional. Use it when you want the result
-to record where the selected or background identifiers came from.
+</details>
 
-| Parameter | Type | Required or default | Description | Constraints |
-| --- | --- | --- | --- | --- |
-| `source_type` | `EnrichmentIdentifierSetSourceType` | Required | Source category. | Accepted values are `"manual"`, `"raw_identifier_list"`, and `"phospy_derived_quantitative"`. |
-| `source_label` | `str` | Required | Human-readable label for the identifier set source. | Must be non-empty after trimming. |
-| `identifier_count` | `int` | Required | Number of normalized identifiers represented by this provenance record. | Must be non-negative and must match the normalized selected or background count used by the workflow. |
-| `upstream_workflow_id` | `str \| None` | Default: `None` | Optional upstream workflow identifier. | Must be non-empty if supplied. |
-| `upstream_result_id` | `str \| None` | Default: `None` | Optional upstream result identifier. | Must be non-empty if supplied. |
-| `input_intensity_scale_evidence` | `InputIntensityScaleEvidence \| None` | Default: `None` | Required only for `"phospy_derived_quantitative"` provenance. | Must be omitted for `"manual"` and `"raw_identifier_list"`. |
-| `derived_quantitative_provenance` | `EnrichmentDerivedQuantitativeSetProvenance \| None` | Default: `None` | Required only for `"phospy_derived_quantitative"` provenance. | Must be omitted for `"manual"` and `"raw_identifier_list"`. Its identifier namespace must match `identifier_kind`. |
-
-Manual provenance can be supplied entirely through the stable public API:
+## Run the Workflow
 
 ```python
-from phospy.api import (
-    EnrichmentIdentifierSetProvenance,
-    EnrichmentIdentifierSetSourceType,
-)
-
-selected_provenance = EnrichmentIdentifierSetProvenance(
-    source_type=EnrichmentIdentifierSetSourceType.MANUAL,
-    source_label="curated hit list",
-    identifier_count=2,
-)
-```
-
-## Running the workflow
-
-Run enrichment with the public workflow object:
-
-```python
-from phospy.api import EnrichmentWorkflow
-
 result = EnrichmentWorkflow().run(request)
 ```
 
-`run(...)` receives one `EnrichmentWorkflowRequest` and returns one
-`EnrichmentWorkflowResult`. The ORA calculation is deterministic; there is no
-seed parameter. Run provenance records the offline/no-online-resource policy;
-online resources are not used.
+Execution is deterministic for the same normalized inputs and configuration.
+Invalid local config values raise `ContractValidationError`; cross-input
+problems raise `WorkflowValidationError` when the workflow runs.
 
-Before ORA runs, PhosPy validates the request. Common validation failures
-include:
+Typical failures include an empty background, both selected-input routes being
+set, mismatched identifier kinds, selected identifiers outside the background
+under the `"error"` policy, or provenance counts that do not match normalized
+identifiers.
 
-- the request is not an `EnrichmentWorkflowRequest`;
-- `identifier_kind` is unsupported or does not match the set collection;
-- both `input_table` and `selected_identifiers` are supplied, or neither is
-  supplied;
-- the selected source, background universe, or set collection is empty;
-- selected identifiers are outside the background while
-  `selected_outside_background_policy="error"`;
-- all selected identifiers would be dropped by the background policy;
-- retained selected-identifier fraction is below
-  `minimum_retained_foreground_fraction`;
-- set members are outside the background while
-  `set_member_outside_background_policy="error"`;
-- optional provenance counts do not match the normalized identifier counts.
+## Response
 
-These are reported as `WorkflowValidationError` during workflow execution.
-Invalid `EnrichmentConfig` construction raises `ContractValidationError`.
+`EnrichmentWorkflow.run(...)` returns an `EnrichmentWorkflowResult`.
 
-## Response model and output formats
+| Attribute or Helper | Format | Meaning |
+| --- | --- | --- |
+| `table`, `result_table`, `to_dataframe()` | `pandas.DataFrame` | Independent snapshots of the sorted result table. |
+| `records` | `tuple[EnrichmentResultRecord, ...]` | One typed record per tested term; may be empty. |
+| `identifier_kind` | `str` | Namespace used for the run. |
+| `set_collection`, `config` | Typed objects | Resolved collection and configuration. |
+| `unmatched_identifiers` | `tuple[str, ...]` | Retained selected identifiers that overlap no tested set. |
+| `warnings`, `caveats` | Tuples | User-facing warnings and structured scientific limits. |
+| `diagnostics` | Mapping | Foreground/background, set filtering, and correction diagnostics. |
+| `method_metadata` | Mapping | Resolved method name and method-specific execution metadata. |
+| `background_summary`, `set_collection_summary` | Mappings | Compact input and attrition summaries. |
+| `selected_identifier_provenance`, `background_identifier_provenance` | Typed provenance or `None` | Optional upstream identifier-set evidence. |
+| `provenance` | `RunProvenance` or `None` | Workflow parameters, input fingerprints, and limitations. |
 
-`EnrichmentWorkflow.run(...)` returns `EnrichmentWorkflowResult`.
+Provenance records the offline and no-online-resource policy for a workflow-created
+result.
 
-| Attribute or helper | Python type | Always present? | Meaning |
-| --- | --- | --- | --- |
-| `identifier_kind` | `str` | Yes | Identifier namespace used for the run. |
-| `set_collection` | `EnrichmentSetCollection` | Yes | The set collection represented by the result. |
-| `config` | `EnrichmentConfig` | Yes | Resolved enrichment configuration. |
-| `records` | `tuple[EnrichmentResultRecord, ...]` | Yes; may be empty | One record per tested term. |
-| `table` | `pandas.DataFrame` | Yes; may be empty | Defensive snapshot of the result table. |
-| `result_table` | `pandas.DataFrame` | Yes; may be empty | Alias for `table`. |
-| `to_dataframe()` | `pandas.DataFrame` | Yes; may be empty | Returns the same result table shape as a defensive snapshot. |
-| `unmatched_identifiers` | `tuple[str, ...]` | Yes; may be empty | Selected identifiers retained in the background that did not overlap any tested set. |
-| `warnings` | `tuple[str, ...]` | Yes; may be empty | User-facing warning strings if present. |
-| `caveats` | `tuple[ResultCaveat, ...]` | Yes; may be empty | Structured scientific caveats attached to the result. |
-| `diagnostics` | `Mapping[str, object]` | Yes | Execution diagnostics, including foreground/background overlap and multiple-testing status. |
-| `method_metadata` | `Mapping[str, object]` | Yes | Resolved method metadata, including ORA and multiple-testing settings. |
-| `background_summary` | `Mapping[str, object]` | Yes | Background-universe and selected-source summary. |
-| `set_collection_summary` | `Mapping[str, object]` | Yes | Set collection size, source, and attrition summary. |
-| `selected_identifier_provenance` | `EnrichmentIdentifierSetProvenance \| None` | Optional | Selected-identifier provenance when supplied on the request. |
-| `background_identifier_provenance` | `EnrichmentIdentifierSetProvenance \| None` | Optional | Background-universe provenance when supplied on the request. |
-| `provenance` | `RunProvenance \| None` | Present for workflow-created results | Run provenance, including parameters, table fingerprints, offline/no-online-resource policy, and limitations. |
+### Result Table Format
 
-`table`, `result_table`, and `to_dataframe()` return defensive snapshots.
-Changing the returned DataFrame does not mutate the result.
+Each row is one tested term. Rows are ordered by raw `p_value`, then by
+`term_id` when values tie.
 
-### Result table schema
-
-The result table has a default row index. Each row is one tested term. Rows are
-ordered by raw `p_value`, then by `term_id` for ties.
-
-| Column or index | Meaning | Type or format | Always present |
-| --- | --- | --- | --- |
-| row index | Positional row number in the sorted result table. | pandas index | Yes |
-| `term_id` | Set identifier. | non-empty string | Yes |
-| `term_name` | Human-readable set name. | string | Yes |
-| `collection_kind` | Set collection level. | `"gene_set"` or `"ptm_set"` | Yes |
-| `identifier_kind` | Identifier namespace used by this row. | `"gene_symbol"`, `"protein_id"`, `"site_key"`, `"display_id"`, or `"phosphosite"` | Yes |
-| `input_overlap_count` | Number of selected identifiers that overlap this tested set after background filtering. | integer count | Yes |
-| `background_overlap_count` | Number of set members retained in the background universe. | integer count | Yes |
-| `set_size` | Raw number of identifiers in the set before background intersection. | integer count | Yes |
-| `overlap_identifiers` | Sorted identifiers in the selected/set overlap. | tuple of strings | Yes; may be empty |
-| `p_value` | Hypergeometric ORA p-value for over-representation. | float in `[0.0, 1.0]` | Yes for workflow-created rows |
-| `adjusted_p_value` | Multiple-testing-adjusted p-value. | float in `[0.0, 1.0]` | Yes for workflow-created rows |
-| `correction_method` | Multiple-testing method used for this row. | configured correction method | Yes for workflow-created rows |
-| `enrichment_ratio` | Observed overlap divided by expected overlap under the background. | non-negative float or `None` | Yes; `None` when the expected overlap is undefined |
-
-If all sets are removed by configured set-size filters, `records` is empty and
-`table` is an empty DataFrame with the same columns.
-
-### Main diagnostics and summaries
-
-`diagnostics["foreground_background"]` reports the selected/background
-intersection:
-
-| Key | Meaning |
+| Column | Meaning |
 | --- | --- |
-| `identifier_kind` | Identifier namespace used for the run. |
-| `foreground_size_before_intersection` | Normalized selected-identifier count before background intersection. |
-| `background_size` | Normalized background-universe size. |
-| `usable_foreground_size_after_background_intersection` | Selected identifiers retained in the background and used by ORA. |
-| `retained_foreground_fraction` | Fraction of selected identifiers retained in the background. |
-| `foreground_identifiers_missing_from_background_count` | Count of selected identifiers absent from the background. |
-| `foreground_identifiers_missing_from_background` | Selected identifiers absent from the background. |
-| `selected_outside_background_policy` | Resolved selected-identifier policy. |
-| `set_member_outside_background_policy` | Resolved set-member policy. |
-| `minimum_retained_foreground_fraction` | Configured retained-foreground guard, when any. |
-| `tested_set_count` | Number of sets tested after optional set-size filters. |
-| `dropped_set_count` | Number of sets dropped by optional set-size filters. |
-| `set_identifiers_missing_from_background_count` | Count of distinct set members absent from the background. |
-| `set_identifiers_missing_from_background` | Bounded, sorted preview of absent set members. |
-| `set_identifiers_missing_from_background_truncated` | Whether the preview was shortened. |
-| `set_identifiers_missing_from_background_preview_limit` | Preview limit. |
+| `term_id`, `term_name` | Set identity and readable name. |
+| `collection_kind` | `"gene_set"` or `"ptm_set"`. |
+| `identifier_kind` | Namespace used by the test. |
+| `input_overlap_count` | Selected identifiers overlapping the term after background filtering. |
+| `background_overlap_count` | Term members retained in the background. |
+| `set_size` | Original set size before background intersection. |
+| `overlap_identifiers` | Sorted selected identifiers in the overlap. |
+| `p_value` | Hypergeometric ORA *p* value. |
+| `adjusted_p_value` | Multiple-testing-adjusted *p* value. |
+| `correction_method` | Correction applied to the tested terms. |
+| `enrichment_ratio` | Observed overlap divided by expected overlap; `None` when undefined. |
 
-`diagnostics["multiple_testing_correction"]` records the correction method,
-whether correction was applied, and the number of tested records. When
-`min_set_size` or `max_set_size` is configured,
-`diagnostics["set_size_filter"]` records the applied bounds, input/tested/drop
-counts, drop reasons, and dropped-set summaries.
+When set-size filtering removes every set, the table is empty but keeps the same
+columns. Returned DataFrames are independent snapshots.
 
-`background_summary` includes the explicit background source, universe size,
-selected identifier count, selected source, retained foreground fraction, and
-outside-background policy results. `set_collection_summary` includes collection
-kind, identifier kind, set count, member counts, source metadata, empty-set
-counts after background filtering, and dropped-set counts when set-size filters
-are used.
+<details markdown="1">
+<summary><strong>Key Diagnostic Groups</strong></summary>
 
-## Interpreting the result
+`diagnostics["foreground_background"]` reports normalized selected and
+background counts, retained foreground fraction, outside-background identifiers,
+resolved policies, and tested/dropped set counts.
+
+`diagnostics["multiple_testing_correction"]` records the method and number of
+tested terms. When size bounds are active, `diagnostics["set_size_filter"]`
+records the bounds, dropped terms, and reasons.
+
+</details>
+
+## Interpret the Result
 
 ORA asks whether the selected identifiers overlap a set more than expected if
-the selected identifiers were drawn from the explicit background universe.
+they were drawn from the stated background universe.
 
-Low `p_value` or `adjusted_p_value` values mean the observed overlap is
-unlikely under that ORA model. Higher `enrichment_ratio` values mean the
-observed overlap is larger than the expected overlap under the same background.
-An `enrichment_ratio` of `0.0` means no selected identifiers overlapped that
-set. `None` means the ratio is undefined, usually because the selected set or
-background-retained set has size zero.
+A smaller `p_value` or `adjusted_p_value` indicates stronger evidence under that
+model. A larger `enrichment_ratio` indicates more overlap than expected. These
+values do not prove pathway activation, regulation, kinase activity, or
+causality.
 
-The result does not prove pathway activation, regulation, causality, or kinase
-activity. ORA is sensitive to the background universe, identifier namespace,
-set curation, and the rule used to select foreground identifiers. Absence from
-the output can also mean a set was filtered out or had no overlap in the chosen
-background; it is not evidence of biological absence.
+Results are sensitive to the background, namespace, set curation, and foreground
+selection rule. A missing term may have been filtered or may have had no usable
+overlap; it is not evidence of biological absence.
 
-Gene-level and PTM-level ORA results are not interchangeable. Do not interpret
-a gene-symbol set as phosphosite evidence, and do not collapse PTM-level
-results to gene-level claims unless that transformation is part of your
-analysis design.
+Gene-level and PTM-level results are not interchangeable. Do not turn a
+gene-level overlap into a phosphosite-level claim without an explicit and
+scientifically justified transformation.
 
-For broader caveats, see
-[Scientific interpretation and limitations](../scientific-interpretation.md).
+## Common Issues
 
-## Common problems
-
-| Problem | Most likely fix |
+| Issue | What to Check |
 | --- | --- |
-| Selected identifiers are outside the background. | Check that the selected list and background use the same namespace. Use `"drop"` only when selected/background intersection is intended, and review retained-foreground diagnostics. |
-| The workflow says exactly one identifier source is required. | Provide either `selected_identifiers` or `input_table`, not both. |
-| `input_table` is rejected. | Pass a non-empty pandas DataFrame and make sure `identifier_column` exists. |
-| Gene and PTM semantics do not match. | Use `GeneSetCollection` with `"gene_symbol"` or `"protein_id"`; use `PtmSetCollection` with `"site_key"`, `"display_id"`, or `"phosphosite"`. |
-| Empty results after filtering. | Review `min_set_size`, `max_set_size`, and `diagnostics["set_size_filter"]`. Set size is measured after background intersection. |
-| Unexpectedly weak enrichment. | Revisit the background universe, selected-identifier rule, and set collection. ORA results are only as meaningful as those inputs. |
-| Provenance count mismatch. | Set `identifier_count` to the normalized selected or background count after trimming blanks and removing duplicates. |
+| Selected identifiers fall outside the background. | Confirm that both use the same namespace. Choose `"drop"` only deliberately, then review the retained fraction. |
+| The request has two selected sources. | Provide either `selected_identifiers` or `input_table`, not both. |
+| A table input is rejected. | Pass a non-empty pandas DataFrame containing `identifier_column`. |
+| Collection and identifiers do not match. | Use a gene collection for gene/protein kinds and a PTM collection for site kinds. |
+| The result is empty. | Review set-size filters and `diagnostics["set_size_filter"]`. |
+| Enrichment is unexpectedly weak. | Revisit the background universe, selection rule, and set curation. |
 
-## Related documentation
+## Related Guides
 
-- [Preparing a dataset](dataset-build-workflow.md)
-- [Differential analysis](differential-analysis.md)
-- [Scientific interpretation and limitations](../scientific-interpretation.md)
-- [Reference data](../reference_bundles.md)
-- [API guide](guide.md)
+- [Differential Analysis](differential-analysis.md)
+- [Scientific Interpretation and Limitations](../scientific-interpretation.md)
+- [Reference Data](../reference_bundles.md)
+- [Public Python API](guide.md)

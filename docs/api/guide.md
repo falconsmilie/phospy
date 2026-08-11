@@ -1,51 +1,31 @@
-# API Guide
+# Public Python API
 
-Welcome to the PhosPy API guide. This page shows the supported Python import
-contract, the workflow map, and the main boundaries to keep in mind when writing
-analysis code.
+PhosPy uses a small public Python API. Start with the workflow guides for
+end-to-end examples; use this page when you need to confirm where a public class
+should be imported from.
 
-## API Endpoint Status
+## Workflow Map
 
-PhosPy does not expose HTTP endpoints, REST routes, or a web service. The supported user interface is the Python API. In this guide, "API" means importable Python classes, request objects, configuration objects, workflow entrypoints, and result objects.
+| Task | Request | Workflow | Result |
+| --- | --- | --- | --- |
+| Prepare data | `DatasetBuildRequest` | `AnalysisReadyDatasetBuilder` | `AnalysisReadyPhosphoDataset` |
+| Test condition contrasts | `DifferentialAnalysisRequest` | `DifferentialAnalysisWorkflow` | `DifferentialAnalysisResult` |
+| Run offline enrichment | `EnrichmentWorkflowRequest` | `EnrichmentWorkflow` | `EnrichmentWorkflowResult` |
+| Score kinase support | `KinaseWorkflowRequest` | `KinaseWorkflow` | `KinaseWorkflowResult` |
+| Build signalome summaries | `SignalomeWorkflowRequest` | `SignalomeWorkflow` | `SignalomeWorkflowResult` |
 
-This guide describes executable interfaces, not broad PhosR-equivalence claims.
-Scope categories and parity/open-gap status live in
-[Scientific Coverage](../scientific-coverage.md), with fixture comparison
-details in [Parity](../parity.md).
+The complete request and response contract for each workflow lives on its own
+page:
 
-## Workflow Pages
+- [Dataset Preparation](dataset-build-workflow.md)
+- [Differential Analysis](differential-analysis.md)
+- [Enrichment](enrichment.md)
+- [Kinase Analysis](kinase.md)
+- [Signalome Analysis](signalome.md)
 
-Each public workflow has its own API page:
+## Import From `phospy`
 
-| Area | Page | Public API |
-| --- | --- | --- |
-| Dataset builder | [Dataset Build API](dataset-build-workflow.md) | `AnalysisReadyDatasetBuilder.run(DatasetBuildRequest)` returns `AnalysisReadyPhosphoDataset`. |
-| Differential analysis | [Differential Analysis Workflow](differential-analysis.md) | `DifferentialAnalysisWorkflow.run(DifferentialAnalysisRequest)` returns `DifferentialAnalysisResult`. |
-| Enrichment | [Enrichment Workflow](enrichment.md) | `EnrichmentWorkflow.run(EnrichmentWorkflowRequest)` returns `EnrichmentWorkflowResult`. |
-| Kinase | [Kinase Workflow](kinase.md) | `KinaseWorkflow.run(KinaseWorkflowRequest)` returns `KinaseWorkflowResult`. |
-| Signalome | [Signalome Workflow](signalome.md) | `SignalomeWorkflow.run(SignalomeWorkflowRequest)` returns `SignalomeWorkflowResult`. |
-| Importers | [Phosphosite Importers](../importers.md) | Importers produce builder input candidates; they do not bypass dataset validation. |
-
-The usual workflow shape is:
-
-```python
-dataset = AnalysisReadyDatasetBuilder().run(dataset_request)
-differential_result = DifferentialAnalysisWorkflow().run(differential_request)
-kinase_result = KinaseWorkflow().run(kinase_request)
-signalome_result = SignalomeWorkflow().run(signalome_request)
-```
-
-Enrichment is independent of the dataset/kinase/signalome chain:
-
-```python
-from phospy.api import EnrichmentWorkflow
-
-enrichment_result = EnrichmentWorkflow().run(enrichment_request)
-```
-
-## Import Contract
-
-Use top-level `phospy` for the main convenience entrypoints:
+Use the package root for the dataset builder and the main workflow entry points:
 
 ```python
 from phospy import (
@@ -56,23 +36,10 @@ from phospy import (
 )
 ```
 
-`AnalysisReadyPhosphoDataset` remains exported as a public result/domain type.
-The direct `AnalysisReadyPhosphoDataset` constructor raises immediately.
-Advanced callers who already own fully prepared `site_key`-indexed tables and
-processing-state provenance must use
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, which runs the private
-dataset structural validation, including required
-`site_sequence`, and requires typed trusted-construction evidence or explicit
-waivers for identity, intensity scale, quantitative meaning, localisation,
-sequence, and reference context, plus non-waivable aligned-table structure
-evidence. Supplied trusted provenance must match the actual table fingerprints.
-It cannot prove the biological correctness of user-asserted state or
-provenance. Ordinary dataset construction should use
-`AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
+## Import From `phospy.api`
 
-Use `phospy.api` for stable request, workflow, primary result, reference, enum,
-and common exception contracts. The aggregate facade is intentionally smaller
-than the implementation modules:
+Use `phospy.api` for stable requests, common configuration objects, references,
+results, enums, and user-facing exceptions:
 
 ```python
 from phospy.api import (
@@ -80,6 +47,7 @@ from phospy.api import (
     ExperimentalDesign,
     Contrast,
     SampleDesignRecord,
+    DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     KinaseWorkflowRequest,
@@ -92,15 +60,7 @@ from phospy.api import (
 )
 ```
 
-Use `phospy.advanced` only when you need specialized policy objects or
-diagnostic/result-inspection helpers outside the stable facade:
-
-```python
-from phospy.advanced import KinaseScoringConfig, SignalomeConfig
-```
-
-`EnrichmentWorkflow` is a supported public workflow from `phospy.api`, not a
-top-level `phospy` convenience export:
+Enrichment is also public through `phospy.api`:
 
 ```python
 from phospy.api import (
@@ -111,250 +71,53 @@ from phospy.api import (
 )
 ```
 
-### Dataset Diagnostics and Internal Processing State
+## Import From `phospy.advanced`
 
-The stable public API does not re-export internal dataset processing-state
-models or low-level diagnostic DTOs. The `phospy.api.datasets` submodule is a
-stable-only route and exports `AnalysisReadyPhosphoDataset` only.
-
-Users should inspect dataset diagnostics through stable public objects,
-including:
-
-- `AnalysisReadyPhosphoDataset` properties
-- preprocessing reports returned by dataset builders
-- workflow result objects
-- provenance records
-
-Classes that describe internal processing state, validation state,
-batch-correction diagnostics, or low-level transformation state are
-implementation details. They may appear in internal modules, but they are not
-stable import targets and should not be imported from `phospy.api`.
-
-Do not write code that depends on imports such as:
-
-```text
-from phospy.api.datasets import DatasetProcessingState
-from phospy.api.datasets import MissingDataState
-```
-
-These names are not part of the stable public API.
-
-Prefer:
+Use `phospy.advanced` only when a workflow guide asks for a specialized policy
+or configuration object:
 
 ```python
-from phospy.api.datasets import AnalysisReadyPhosphoDataset
-
-dataset: AnalysisReadyPhosphoDataset = ...
-report = dataset.preprocessing_report
-provenance = dataset.provenance
-```
-
-### API Stability Tiers
-
-Stable public API is the default user-facing surface. It includes the dataset
-builder, `AnalysisReadyPhosphoDataset`, core workflow request objects, workflow
-classes with `run(...)`, primary workflow result objects, reference-bundle
-entrypoints, example-level enums, and common exception types.
-
-Advanced supported API is public but should be imported deliberately. It
-includes selected specialized configuration objects, control-site policy
-helpers, local Kinase Library-style resource loaders, and explicit result-table
-inspection helpers such as `filter_differential_results` and
-`rank_differential_results`. The supported import route is
-`phospy.advanced`; historical `phospy.api` advanced import routes are
-compatibility adapters that emit `PhosPyDeprecationWarning` and identify the
-replacement import. These warnings also include the compatibility-route
-introduction version and planned removal version; current retained API import
-compatibility routes introduced by the API reduction are planned for removal in
-PhosPy 2.0.0.
-
-Internal / experimental API is not exported through `phospy.api`. This includes
-validators, private result assemblers, internal scoring helpers, private
-provenance serialization functions, low-level workflow interpreters and
-executors, reference manifest validation internals, processing-state internals,
-nested diagnostic records, and compatibility constants. Submodule wildcard
-surfaces under `phospy.api` follow the same inventory: names classified as
-internal / experimental are not exported from `__all__`.
-
-See [ADR-0031](../adr/adr_0031_public_api_stability_tiers.md) for the current
-inventory and promotion policy.
-
-### Public and Semi-Public Routes
-
-The supported public API remains:
-
-- `phospy` for the small top-level workflow convenience surface.
-- `phospy.api` for stable request, config, result, enum, reference, workflow,
-  and exception names listed in `phospy.api.__all__`.
-- `phospy.advanced` for advanced supported configuration, result-inspection,
-  reference-resource, and policy-helper names listed in
-  `phospy.advanced.__all__`.
-
-Selected `phospy.science.*` routes are semi-public compatibility routes for
-advanced extension, parity, and backend-contract use. They are not promoted to
-`phospy.api`, and neighbouring private helpers are not public.
-
-| Status | Supported route | Supported names |
-| --- | --- | --- |
-| Public | `phospy` | Top-level convenience entrypoints listed above. |
-| Public | `phospy.api` | Public names listed in `phospy.api.__all__`. |
-| Public | `phospy.api.datasets` | `AnalysisReadyPhosphoDataset` only. |
-| Semi-public | `phospy.science.datasets.preprocessing.stage_registry` | `PreprocessingStageMetadata` and exported registry helpers. |
-| Semi-public | `phospy.science.signalomes.clustering.protocol` | `ClusterTreeEngine`, `SignalomeClusteringEngine`. |
-| Semi-public | `phospy.science.signalomes.clustering.exact_python` | Exact-Python clustering compatibility facade names exported in `__all__`. |
-| Semi-public | `phospy.science.prediction.scoring` | `fuse_profile_and_motif_scores_by_rank_weight` for parity and advanced scoring checks. |
-
-Unsupported import routes include underscored helpers and root/API imports for
-semi-public science helpers. For example,
-`from phospy.api import PreprocessingStageMetadata` is not supported.
-
-See [ADR-0028](../adr/adr_0028_semi_public_science_import_policy.md) for the
-semi-public route policy.
-
-## Request Validation Boundary
-
-Public request dataclasses are lightweight command payloads. Constructing a
-request records user intent, but it does not mean the request is scientifically
-valid.
-
-Validation happens when the relevant builder or workflow is run:
-
-- `AnalysisReadyDatasetBuilder.run(request)` validates inputs, preprocessing
-  compatibility, site-resolution state, and the strict analysis-ready dataset
-  boundary.
-- `DifferentialAnalysisWorkflow.run(request)` validates the dataset, explicit
-  design, contrasts, replicate requirements, and differential config.
-- `EnrichmentWorkflow.run(request)` validates explicit identifier semantics,
-  background universe, and supplied set collections before ORA execution.
-- `KinaseWorkflow.run(request)` validates the dataset, references, workflow
-  configs, localisation requirements, site sequences, and reference projection.
-- `SignalomeWorkflow.run(request)` validates the upstream kinase result, matrix
-  alignment, site identity, protein grouping metadata, and signalome config.
-
-Config objects may reject invalid local policy values at construction time
-because those invariants belong to the config itself.
-
-## Dataset Boundary
-
-`AnalysisReadyPhosphoDataset` is the strict analysis-ready dataset boundary.
-Downstream workflows expect it to be complete, auditable, and keyed by
-`site_key`.
-
-Important identity rules:
-
-- `dataset.phospho.index` is `site_key`.
-- `dataset.site_metadata.index` is `site_key`.
-- `dataset.site_metadata["site_key"]` matches the index.
-- `dataset.site_metadata["display_id"]` is a human-readable label.
-- Duplicate `display_id` values remain valid when the corresponding `site_key`
-  values differ.
-- Duplicate rows that resolve to the same `site_key` are a scientific ambiguity
-  and fail by default unless an explicit non-error duplicate-site preprocessing
-  policy is chosen.
-
-For preprocessing options, including localisation, missing data, total-protein
-correction, protein-aware preparation, batch residualisation, native
-SPS/RUV-style correction, and RUV-readiness reporting, see
-[Dataset Build API](dataset-build-workflow.md).
-
-`ruv_readiness` is report-only. It does not select SPS controls, run
-correction, or imply PhosR-equivalent batch correction. Native SPS/RUV-style
-correction is available only through explicit `SpsRuvBatchCorrectionConfig`.
-
-## Result Snapshots
-
-Result models are typed containers. Public helpers such as `to_dataframe()`,
-`*_dataframe()`, `table`, `result_table`, and `to_payload()` return defensive
-in-memory snapshots for inspection or handoff.
-
-They are not exporters, plotting helpers, report generators, or places to run
-additional scientific post-processing.
-
-## References
-
-`ReferencePreset.AUTO` is intended for the bundled rat beginner lane in this
-release. Human and mouse workflows should pass an explicit `ReferenceBundle`.
-
-Use `ReferenceBundleBuilder` when building references from local source files so
-provenance and validation are recorded consistently. The builder reads local
-files only; it does not scrape web resources or invent missing sequence windows.
-
-## Public Exceptions
-
-Common user-facing exception types are available from `phospy.api`:
-
-- `PhosPyInputError`
-- `UnsupportedInputFormatError`
-- `PhosPyValidationError`
-- `ReferenceResolutionError`
-- `ReferenceCompatibilityError`
-- `WorkflowValidationError`
-- `WorkflowBoundaryError`
-- `SignalomeScaleError`
-
-Example:
-
-```python
-from phospy.api import PhosPyValidationError, WorkflowValidationError
-
-try:
-    kinase_result = KinaseWorkflow().run(kinase_request)
-except WorkflowValidationError as error:
-    print(f"Please check the workflow configuration: {error}")
-except PhosPyValidationError as error:
-    print(f"Please check the input tables: {error}")
-```
-
-## Small Working Example
-
-This tiny example builds a rat analysis-ready dataset and runs the kinase
-workflow with activity disabled. The numbers are synthetic and demonstrate API
-wiring only.
-
-```python
-import pandas as pd
-
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.advanced import (
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
 )
+```
+
+The stable and advanced surfaces are intentional. Do not build user code around
+private validators, internal workflow executors, underscored helpers, or nearby
+implementation modules simply because Python can import them.
+
+## Build Datasets Through the Builder
+
+The supported construction path is:
+
+```python
+dataset = AnalysisReadyDatasetBuilder().run(dataset_request)
+```
+
+The direct `AnalysisReadyPhosphoDataset(...)` constructor raises immediately.
+The advanced/trusted route,
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, is for callers who
+already own fully prepared, `site_key`-indexed tables and the required typed
+evidence. It is not a shortcut around validation. Most users should use
+`AnalysisReadyDatasetBuilder`.
+
+## A Small Public-API Pattern
+
+The example below shows the request-and-run pattern for differential analysis.
+The [quickstart](../quickstart.md) provides complete input tables.
+
+```python
+from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
+    Contrast,
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
-    IntensityScaleKind,
-    KinaseWorkflowRequest,
+    DifferentialAnalysisRequest,
+    ExperimentalDesign,
     Organism,
-    ReferencePreset,
-)
-
-phospho = pd.DataFrame(
-    {
-        "sample_a": [1.00, 0.70],
-        "sample_b": [1.10, 0.80],
-        "sample_c": [0.95, 0.75],
-    },
-    index=["TSC2;S939;", "GSK3B;S9;"],
-)
-
-site_metadata = pd.DataFrame(
-    {
-        "gene_symbol": ["TSC2", "GSK3B"],
-        "site": ["S939", "S9"],
-        "site_sequence": [
-            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
-        ],
-        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
-        "organism": ["rat", "rat"],
-        "protein_namespace": ["protein_id", "protein_id"],
-        "protein_identifier": ["TSC2", "GSK3B"],
-        "protein_group_id": ["TSC2", "GSK3B"],
-        "localisation_confidence": [0.95, 0.92],
-    },
-    index=phospho.index.copy(),
+    SampleDesignRecord,
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -362,30 +125,79 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        input_intensity_scale=IntensityScaleKind.LINEAR,
         preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
             localisation=DatasetLocalisationConfig(
-                mode="require_threshold",
                 confidence_column="localisation_confidence",
                 min_confidence=0.75,
-            )
+            ),
         ),
     )
 )
 
-kinase_result = KinaseWorkflow().run(
-    KinaseWorkflowRequest(
+design = ExperimentalDesign(
+    samples=(
+        SampleDesignRecord("control_1", "control", "control_r1"),
+        SampleDesignRecord("control_2", "control", "control_r2"),
+        SampleDesignRecord("treated_1", "treated", "treated_r1"),
+        SampleDesignRecord("treated_2", "treated", "treated_r2"),
+    )
+)
+
+result = DifferentialAnalysisWorkflow().run(
+    DifferentialAnalysisRequest(
         dataset=dataset,
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(
-            reliability_profile=KinaseReliabilityProfile.CUSTOM,
-            reference_context_compatibility_policy=(
-                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
-            )
+        design=design,
+        contrasts=(
+            Contrast("treated_vs_control", "treated", "control"),
         ),
-        activity_config=None,
     )
 )
-
-print(kinase_result.prediction_result.pred_mat)
 ```
+
+Constructing a request records your intent. The builder or workflow validates
+that request when `run(...)` is called.
+
+## Work With Results
+
+Result models are typed containers. Their documented table helpers return
+independent pandas snapshots, so changing a returned DataFrame does not change
+the result object.
+
+Use the workflow-specific helpers whenever possible:
+
+```python
+differential_table = result.table_for("treated_vs_control")
+kinase_scores = kinase_result.scoring_result.authoritative_scores
+predictions = kinase_result.prediction_result.pred_mat
+enrichment_table = enrichment_result.table
+assignments = signalome_result.module_assignments.table
+```
+
+Result objects also carry diagnostics, provenance, and caveats. Review these
+before interpreting filtered or missing rows as biological absence.
+
+## Handle Validation Errors
+
+Common user-facing exceptions are available from `phospy.api`:
+
+```python
+from phospy.api import PhosPyValidationError, WorkflowValidationError
+
+try:
+    result = KinaseWorkflow().run(kinase_request)
+except WorkflowValidationError as error:
+    print(f"Check the workflow request: {error}")
+except PhosPyValidationError as error:
+    print(f"Check the input data: {error}")
+```
+
+Configuration objects may reject invalid local values when they are created.
+Scientific and cross-table checks usually run at the builder or workflow
+boundary.
+
+## API Scope
+
+PhosPy's API is Python-native; it does not provide HTTP endpoints, REST routes,
+or a hosted service. Detailed implementation boundaries and compatibility
+policy are documented in [ADR-0031](../adr/adr_0031_public_api_stability_tiers.md).

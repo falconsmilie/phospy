@@ -1,20 +1,26 @@
 # Installation
 
-PhosPy requires Python 3.11 or 3.12.
+PhosPy supports Python 3.11 and 3.12.
 
-## Install from PyPI
+## Install From PyPI
 
 ```bash
 pip install phospy
 ```
 
-Install the Parquet extra if you need `.parquet` input or output:
+For Parquet input and output, install the optional extra:
 
 ```bash
 pip install "phospy[parquet]"
 ```
 
-## Development install
+Confirm the installation:
+
+```bash
+python -c "import phospy; print(phospy.__version__)"
+```
+
+## Install for Development
 
 From a local clone:
 
@@ -22,14 +28,14 @@ From a local clone:
 pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 ```
 
-The project-supported documentation build is:
+Build the documentation with the project-supported command:
 
 ```bash
 mkdocs build --strict
 ```
 
-## Next steps
+## Continue
 
 - [Prepare a dataset](api/dataset-build-workflow.md)
 - [Run your first analysis](quickstart.md)
-- [Choose a workflow](index.md#workflow-map)
+- [Choose a workflow](index.md#choose-a-workflow)

@@ -1,33 +1,82 @@
 # Contributing to PhosPy
 
-Thanks for helping improve PhosPy.
+Thank you for helping improve PhosPy. Small, focused changes are easier to
+review and safer to release than broad rewrites that mix unrelated concerns.
 
 ## Before You Open a Pull Request
 
-Please make sure your change is:
+Please make sure the change is:
 
-- accurate for the current code
-- clear for scientists and first-time users
-- small enough to review without detective work
-- honest about the supported public lane
+- accurate for the current source and tests;
+- clear to scientists and first-time users;
+- limited to one understandable purpose;
+- honest about supported, advanced, and internal behavior; and
+- covered by the relevant tests or documentation checks.
 
-## Documentation Expectations
+## Documentation Style
 
-When editing docs or examples:
+PhosPy uses an APA-informed style adapted for technical documentation. The goal
+is readable scientific writing, not manuscript formatting.
 
-- keep the beginner path small and runnable
-- avoid repeating the same rule in many places
-- keep top-level user guides in `docs/`, workflow API pages in `docs/api/`,
-  architecture decisions in `docs/adr/`, and testing-audit material in
-  `docs/testing/`
-- use `phospy.api` for request, config, result, enum, reference, and error imports
-- keep beginner docs focused on the rat bundled-reference lane unless the page is explicitly advanced
+### Voice and Structure
+
+- Write in a warm, direct, professional voice.
+- Lead with the user’s task or scientific question.
+- Prefer active voice and short paragraphs.
+- Use **you** for instructions and **PhosPy** for software behavior.
+- Put the working example before advanced implementation detail.
+- Keep one authoritative user page for each workflow.
+- Define an abbreviation the first time it appears on a page.
+- Use inclusive, specific language; singular **they** is acceptable.
+
+### Headings and Terms
+
+- Use title case for page titles and headings.
+- Keep heading levels in order; do not skip from level 2 to level 4.
+- Preserve public class names, parameters, enum values, table columns, and file
+  paths exactly as code.
+- Use established scientific terminology, then explain how PhosPy applies it.
+- Avoid architecture language in beginner guides unless users must act on it.
+
+### Numbers and Statistics
+
+- Use numerals for measurements, versions, thresholds, sample counts, and code
+  values.
+- Use a leading zero for ordinary decimal values below 1. For statistical
+  quantities that cannot exceed 1, follow APA convention in prose, such as
+  *p* = .03; preserve exact field names and machine-readable values in code.
+- Italicise statistical symbols in prose, including *p*, *t*, *F*, and *r*.
+  Do not italicise code identifiers such as `P.Value` or `adj.P.Val`.
+- State effect sizes, uncertainty, assumptions, and limitations where they
+  matter; do not equate statistical significance with biological importance.
+
+### Citations and References
+
+Use author–date citations for external scientific claims, for example,
+`(Author & Author, 2024)`. Add a **References** section to the page when it cites
+external literature. Keep entries alphabetical, use sentence case for article
+and book titles, and include a DOI or stable source link when available.
+
+Do not add citations merely to describe PhosPy’s API. Current public exports,
+source definitions, tests, and release contracts are the source of truth for
+software behavior.
+
+### Documentation Locations
+
+- Keep welcoming and task-based guides in `docs/`.
+- Keep each complete workflow contract in its page under `docs/api/`.
+- Keep architecture decisions in `docs/adr/`.
+- Keep testing-audit material in `docs/testing/`.
+- Use `phospy.api` for public request, configuration, result, enum, reference,
+  and error imports unless a documented route says otherwise.
+- Use `phospy.advanced` only for supported advanced configuration.
+- Never present private validators or internal execution modules as public API.
 
 ## Local Setup
 
 ```bash
 pip install -e ".[dev]"
-pip install -e ".[dev,parquet]"  # optional parquet support
+pip install -e ".[dev,parquet]"  # Optional Parquet support
 ```
 
 ## Tests to Run
@@ -38,55 +87,41 @@ For most changes:
 pytest -m "not parity"
 ```
 
-For public docs and examples:
+For public documentation and examples:
 
 ```bash
 pytest tests/unit/test_public_contract_import_routes.py
 pytest tests/unit/test_public_examples_contract.py
 pytest tests/integration/test_public_examples_smoke.py
+python -m mkdocs build --strict
 ```
 
-Run parity tests when scientific logic or fixture-backed behaviour changes:
+Run parity tests when scientific logic or fixture-backed behavior changes:
 
 ```bash
 pytest tests/parity -m "parity and not parity_diagnostic" -s
 ```
 
-Run full release checks when changing scientific/parity/provenance/performance
-behavior or before preparing a release. The maintainer release command is
-`make release-check`; default `pytest` is not sufficient for publishing, and
-blocking parity tests, performance contracts, release/golden/reproducibility
-tests, public-consumer contract tests, strict documentation build, checked-in
-reference validation, metadata checks, packaged-reference checks, and installed
-wheel/sdist verification are release-blocking. Default pytest `testpaths` omit
-`tests/contract`, `tests/release`, `tests/golden`, and `tests/performance`; the
-`test-contract` and `test-release-gates` Make targets select those suites
-explicitly. This
-provides normal CI/build confidence, not formal exact-source/exact-artifact
-attestation:
+Run the release checks before publishing or after changes to scientific,
+provenance, performance, distribution, or public-contract behavior:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 make release-check
 ```
 
-For local scale profiling, use `make benchmark-release-scale`. That optional
-50,000 x 48 benchmark is machine-dependent and informational; it is not part of
-`make release-check` or CI.
+The optional 50,000 × 48 scale benchmark is informational and
+machine-dependent. Run it locally with `make benchmark-release-scale`; it is not
+part of the release gate or continuous integration.
 
-Before publishing distributions, use the documented build command:
+Build and verify distributions with:
 
 ```bash
 make build
+make verify-installed-distributions
 ```
 
-It starts from an empty `dist/`, builds one wheel and one sdist, runs metadata
-checks, validates the packaged reference manifests and declared file hashes in
-both archives, and installs/executes both artifacts outside the checkout. To
-inspect only the archives, run `make build`; to rebuild and run the
-installed-artifact verifier, run `make verify-installed-distributions`.
-
-## Style
+## Code Style and Type Checking
 
 Use Ruff for linting and formatting:
 
@@ -95,47 +130,23 @@ ruff check --fix
 ruff format
 ```
 
-For a deeper architecture rationale, review
-[ADR 0002: Internal Workflow Architecture for PhosPy](adr/adr_0002_internal_workflow_architecture.md).
-
-## Type Checking
-
-Run type checking locally with the same scope and strict-coverage policy used in CI:
+Run the configured strict-type coverage and Pyright checks:
 
 ```bash
 python tools/testing/pyright_strict_coverage.py --check
 python scripts/run_pyright.py
 ```
 
-The checked scope is explicitly configured in `pyproject.toml` under
-`[tool.pyright].include` and covers:
+Prefer precise boundary types over `Any`. Keep suppressions narrow and local.
+When Pyright cannot model correct runtime behavior, use the required inline
+format with explicit rule names and a concrete technical reason:
 
-- `src/phospy/api`
-- `src/phospy/contracts`
-- `src/phospy/errors`
-- `src/phospy/frames`
-- `src/phospy/io`
-- `src/phospy/policies`
-- `src/phospy/provenance`
-- `src/phospy/science`
-- `src/phospy/tables`
-- `src/phospy/validation`
-- `src/phospy/workflows`
+```python
+# pyright: ignore[reportRuleName] - Concrete reason the runtime operation is safe
+```
 
-Expectations for typing changes:
+Blanket ignores, placeholder reasons, and file-wide strictness downgrades are
+rejected by the strict-coverage check.
 
-- `src/phospy/science/datasets/models.py` is listed under
-  `[tool.pyright].strict` and is already strict-checked
-- declared strict paths must exist and remain inside `[tool.pyright].include`;
-  `python tools/testing/pyright_strict_coverage.py --check` enforces this
-- prefer precise public/model/protocol boundary types over `Any`
-- keep suppressions narrow and local
-- avoid broad ignores and config-wide suppression
-
-Suppression policy:
-
-> Avoid suppressions by default. Use them only when Pyright cannot model correct runtime behaviour. In strict files, every Pyright suppression must use this inline format:
->
-> `# pyright: ignore[reportRuleName] - concrete technical rationale`
->
-> The rule list must contain one or more explicit Pyright `report...` diagnostic names, and the rationale must explain the concrete typing limitation and why the runtime operation is safe. Blanket `# pyright: ignore`, placeholder reasons such as `TODO`, file-wide diagnostic downgrades such as `# pyright: reportUnknownMemberType=false`, file-wide strictness downgrades, and `[tool.pyright].ignore` entries that intersect effective strict files are rejected by `python tools/testing/pyright_strict_coverage.py --check`.
+For the architecture behind these boundaries, see
+[ADR 0002: Internal Workflow Architecture for PhosPy](adr/adr_0002_internal_workflow_architecture.md).

@@ -1,5 +1,5 @@
 site_name: PhosPy Documentation
-site_description: Python native implementation of selected PhosR style workflows for phosphoproteomics.
+site_description: Friendly, practical documentation for PhosPy phosphoproteomics workflows.
 site_url: https://phospy.com/docs/
 repo_url: https://github.com/falconsmilie/phospy
 docs_dir: docs
@@ -10,22 +10,22 @@ theme:
   font: false
   features:
     - navigation.sections
+    - navigation.tracking
     - navigation.top
     - navigation.footer
+    - toc.follow
     - search.highlight
     - search.suggest
     - content.code.copy
     - content.code.select
     - content.code.annotate
   palette:
-    # Dark mode
     - scheme: slate
       primary: blue grey
       accent: teal
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-    # Light mode
     - scheme: default
       primary: blue grey
       accent: teal
@@ -47,6 +47,7 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
+  - pymdownx.details
   - pymdownx.highlight:
       use_pygments: true
       anchor_linenums: true
@@ -58,32 +59,31 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting started:
-      - Installation: installation.md
-      - Preparing a dataset: api/dataset-build-workflow.md
-      - Running your first analysis: quickstart.md
+  - Getting Started:
+      - Install PhosPy: installation.md
+      - Prepare a Dataset: api/dataset-build-workflow.md
+      - Run Your First Analysis: quickstart.md
   - Workflows:
-      - Differential analysis: api/differential-analysis.md
+      - Differential Analysis: api/differential-analysis.md
       - Enrichment: api/enrichment.md
-      - Kinase analysis: api/kinase.md
-      - Signalome analysis: api/signalome.md
-  - Core concepts:
-      - Reference data: reference_bundles.md
-      - Scientific interpretation and limitations: scientific-interpretation.md
-      - Validation guide: validation.md
-      - Output bundles: output_bundles.md
-      - Phosphosite importers: importers.md
-      - Performance contracts: performance.md
-      - Scientific coverage: scientific-coverage.md
-      - Parity to PhosR: parity.md
-  - API reference:
-      - API guide: api/guide.md
-      - Supplementary workflow contract map: workflow_contracts.md
-      - CLI status: cli.md
-  - Contributing and maintenance:
+      - Kinase Analysis: api/kinase.md
+      - Signalome Analysis: api/signalome.md
+  - Using PhosPy:
+      - Public Python API: api/guide.md
+      - Reference Data: reference_bundles.md
+      - Scientific Interpretation: scientific-interpretation.md
+      - Output Bundles: output_bundles.md
+      - Import Phosphosite Data: importers.md
+  - Advanced Reference:
+      - Validation: validation.md
+      - Scientific Coverage: scientific-coverage.md
+      - Comparison With PhosR: parity.md
+      - Performance Contracts: performance.md
+      - CLI Status: cli.md
+  - Contributing and Maintenance:
       - Contributing: contributing.md
       - Maintenance: maintenance.md
-      - Release notes: release-notes.md
-      - Validation ownership map: validation-ownership.md
-      - Testing audit docs: testing/README.md
-      - ADR index: adr/index.md
+      - Release Notes: release-notes.md
+      - Validation Ownership: validation-ownership.md
+      - Testing Audit: testing/README.md
+      - Architecture Decisions: adr/index.md

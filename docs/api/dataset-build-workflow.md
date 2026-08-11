@@ -1,296 +1,201 @@
-# Dataset Build Workflow
+# Prepare a Dataset
 
-This page explains the dataset build API in detail. Start here when you have
-phosphosite intensity data and want a strict `AnalysisReadyPhosphoDataset` for
-differential, kinase, and signalome analysis.
+Use `AnalysisReadyDatasetBuilder` to turn phosphosite intensities and metadata
+into an `AnalysisReadyPhosphoDataset`. The builder checks row identity, sample
+alignment, localisation, intensity scale, missing values, and any preprocessing
+policy you select.
 
-## Purpose
+!!! info "At a Glance"
+    **Input:** Phosphosite intensities, site metadata, and optional sample or
+    total-protein tables  
+    **Request:** `DatasetBuildRequest`  
+    **Run:** `AnalysisReadyDatasetBuilder().run(request)`  
+    **Returns:** An `AnalysisReadyPhosphoDataset` ready for supported workflows
 
-The dataset builder validates table shape, interprets site metadata, applies the
-preprocessing policy you request, and returns an `AnalysisReadyPhosphoDataset`.
-The dataset that leaves the builder is intentionally strict and must be
-missing-value-free. It also uses protein-scoped `site_key` values as
-analysis-ready row identity. `display_id` is the human-readable `GENE;SITE;`
-label and may repeat when distinct `site_key` values preserve the protein
-context.
+For routine use, always go through the builder. Direct
+`AnalysisReadyPhosphoDataset` construction raises immediately. The separate
+advanced/trusted route,
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, is for callers that
+already own fully validated, analysis-ready tables and complete typed evidence.
+It is not a shortcut around the builder.
 
-Direct `AnalysisReadyPhosphoDataset` construction is sealed and raises
-immediately; it is not an advanced bypass. Advanced callers must use
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` when they already own
-analysis-ready tables. The factory uses the private construction service and
-requires encoded `site_key` indexes and auditable identity metadata
-(`site_key`, `display_id`, `organism`, `protein_namespace`,
-`protein_identifier`, `gene_symbol`, `site`, and `site_sequence`). It also
-requires `TrustedDatasetConstructionAssertions` with typed evidence or an
-explicit waiver for identity, intensity scale, quantitative meaning,
-localisation, sequence, and reference context, plus non-waivable aligned-table
-structure evidence. Localisation evidence must record source, policy, and
-threshold; sequence presence is not localisation evidence. Supplied trusted
-provenance must match the actual table fingerprints. The factory does not
-silently fall back to display-site identity, and validation cannot prove the
-biological correctness of user-asserted provenance. The builder may accept
-legacy display-indexed input only when `site_metadata` contains enough protein
-context to derive `site_key` without ambiguity.
+## Before You Begin
 
-`DatasetBuildRequest` is a lightweight command payload. Constructing it stores
-the requested inputs and policies, but does not prove the dataset-build request
-is valid. `AnalysisReadyDatasetBuilder.run(...)` owns request validation and
-rejects invalid source types, unsupported site-resolution modes,
-preprocessing/input incompatibilities, and scientific dataset states before
-interpretation or dataset construction.
+PhosPy expects a site-by-sample intensity matrix. Each row must resolve to one
+phosphosite in a protein context. Human-readable labels such as `TSC2;S939;`
+are useful for display, but they are not sufficient row identity when the same
+label can refer to more than one protein or isoform.
 
-```python
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        organism=Organism.RAT,
-        input_intensity_scale=IntensityScaleKind.LINEAR,
-    )
-)
-```
+The built dataset therefore uses:
 
-## Imports
+- `site_key` as the unique, protein-scoped row index;
+- `display_id` as the readable `GENE;SITE;` label; and
+- `site_sequence` as required sequence context for analysis-ready rows.
+
+Duplicate `display_id` values are allowed when their `site_key` values differ.
+Duplicate `site_key` values require an explicit resolution policy because
+merging them changes the represented evidence.
+
+Site-level workflows also need localisation evidence. The default policy
+requires a confidence value of at least 0.75 in the
+`localisation_confidence` column.
+
+## Example
+
+This example starts with linear intensities, applies a log2 transform, and
+requires site-level localisation evidence.
 
 ```python
+import pandas as pd
+
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import (
-    ControlSiteSet,
-    ControlSiteSourceMetadata,
-    CorrectionMissingnessPolicy,
-    DatasetBatchCorrectionConfig,
-    DatasetComparisonBuildingConfig,
-    DatasetGroupCoverageFilterConfig,
-    DatasetIntensityTransformConfig,
-    DatasetMissingDataConfig,
-    DatasetNormalisationConfig,
-    DatasetProteinAwarePreparationConfig,
-    DatasetRuvReadinessConfig,
-    DatasetSiteMatrixConfig,
-    DatasetSiteSequenceResolutionConfig,
-    DatasetTotalProteinCorrectionConfig,
-    DatasetTotalProteinCorrectionIdentityConfig,
-    ObservationMask,
-    OriginallyMissingCellTracking,
-    SpsRuvBatchCorrectionConfig,
-    TemporaryImputationMethod,
-    TemporaryImputationPolicy,
-)
+from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
-    IntensityScaleKind,
     Organism,
 )
-```
 
-## Request Parameters
+phospho = pd.DataFrame(
+    {
+        "control_1": [1000.0, 800.0],
+        "control_2": [1050.0, 820.0],
+        "treated_1": [1800.0, 760.0],
+        "treated_2": [1750.0, 740.0],
+    },
+    index=["MAPK14;Y182;", "TSC2;S939;"],
+)
 
-| Parameter | Type | Default | Required | How to Use It |
-| --- | --- | --- | --- | --- |
-| `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
-| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index` at ingestion. The analysis-ready boundary requires `site_key`, `display_id`, `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and `site_sequence`. Builder input may omit `site_key` only when it includes enough protein context, preferably `protein_identifier` plus `protein_namespace`, to derive it. `protein_group_id` is additionally required for Signalome grouping; legacy `protein_id` is accepted by Signalome only as a migration alias. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
-| `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns with unique column names. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
-| `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
-| `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
-| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
-| `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | No | Externally resolved batch-corrected preprocessing output. Use only when it is the only matrix-changing preprocessing input after upstream boundary handling; downstream matrix-consuming preprocessing stages must not also be configured. |
-| `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
-| `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | No | Conservative override for high-confidence declared `log2` diagnostics. Keep `False` unless you intentionally trust a `log2` declaration despite raw-linear-looking matrix values; successful overrides are recorded in provenance and the preprocessing report. |
-| `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional caller declaration for the supplied phospho matrix only. Allowed values are `unknown`, `phosphosite_abundance`, and `phosphosite_log_abundance`. |
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "TSC2"],
+        "site": ["Y182", "S939"],
+        "site_sequence": [
+            ("A" * 15) + "Y" + ("A" * 15),
+            ("A" * 15) + "S" + ("A" * 15),
+        ],
+        "protein_identifier": ["MAPK14", "TSC2"],
+        "localisation_confidence": [0.95, 0.96],
+    },
+    index=phospho.index,
+)
 
-Supported file suffixes are `.csv`, `.tsv`, `.txt` as tab-separated text, and
-`.parquet`. CSV, TSV, and TXT inputs are read with the first column as the row
-index.
-
-Parsing is table-role aware:
-
-- `phospho` and `total` are parsed as numeric matrices with string-preserved row
-  and column identifiers. Non-numeric cells fail fast with row/column context.
-- `site_metadata` and `sample_metadata` are parsed as string-preserving metadata
-  tables (`"NA"` stays the literal string `"NA"`; leading-zero IDs are
-  preserved).
-- Missing-value interpretation is explicit per table role; dataset loading does
-  not rely on pandas default NA inference for metadata.
-
-## Sample Metadata Semantics
-
-`sample_metadata` is passive dataset metadata aligned to `phospho.columns`.
-
-- It is useful for descriptive labels and metadata-driven preprocessing features.
-- Its column names must be unique.
-- It does not perform scientific design validation.
-- It does not automatically define differential-analysis conditions,
-  replicates, batches, or blocks.
-- Differential analysis consumes explicit workflow design objects
-  (`ExperimentalDesign` and `Contrast`) in the differential workflow API.
-
-```python
 request = DatasetBuildRequest(
-    phospho="./input/phospho.csv",
-    site_metadata="./input/site_metadata.tsv",
-    sample_metadata="./input/sample_metadata.csv",
+    phospho=phospho,
+    site_metadata=site_metadata,
     organism=Organism.RAT,
-    input_intensity_scale=IntensityScaleKind.LINEAR,
+    preprocessing_config=DatasetPreprocessingConfig(
+        intensity_transform=DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=1.0,
+        ),
+        localisation=DatasetLocalisationConfig(
+            mode="require_threshold",
+            confidence_column="localisation_confidence",
+            min_confidence=0.75,
+        ),
+    ),
 )
+
+dataset = AnalysisReadyDatasetBuilder().run(request)
+
+print(dataset.phospho.shape)
+print(dataset.intensity_scale_state.label)
+print(dataset.site_metadata.loc[:, ["display_id", "site_sequence"]])
 ```
 
-## Minimum Input Shape
+The builder may derive missing identity fields from safe input metadata, but the
+finished dataset always has strict residue/position identity and the required
+`AnalysisReadyPhosphoDataset` metadata.
 
-`phospho` should be numeric. Builder input may use human-readable display labels
-such as `TSC2;S939;` as the index when enough protein context is available in
-`site_metadata` to derive `site_key`.
+## Input Tables
 
-```python
-phospho = pd.DataFrame(
-    {
-        "sample_a": [1.00, 0.70],
-        "sample_b": [1.10, 0.80],
-        "sample_c": [0.95, 0.75],
-    },
-    index=["TSC2;S939;", "GSK3B;S9;"],
-)
-```
+`DatasetBuildRequest` accepts pandas data frames or paths to `.csv`, `.tsv`,
+`.txt`, and `.parquet` files. CSV, TSV, and TXT files use the first column as
+the row index.
 
-`site_metadata` must align to `phospho.index`.
-This builder example intentionally omits `site_key`; direct
-`AnalysisReadyPhosphoDataset` construction and the
-`from_trusted_tables(...)` factory cannot omit it.
-
-```python
-site_metadata = pd.DataFrame(
-    {
-        "gene_symbol": ["TSC2", "GSK3B"],
-        "site": ["S939", "S9"],
-        "site_sequence": [
-            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
-        ],
-        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
-        "organism": ["rat", "rat"],
-        "protein_namespace": ["protein_id", "protein_id"],
-        "protein_identifier": ["TSC2", "GSK3B"],
-        "protein_group_id": ["TSC2", "GSK3B"],
-        "localisation_confidence": [0.95, 0.92],
-    },
-    index=phospho.index.copy(),
-)
-```
-
-The built dataset will be indexed by `site_key`:
-
-```python
-assert dataset.phospho.index.name == "site_key"
-assert dataset.site_metadata.index.name == "site_key"
-assert dataset.site_metadata["display_id"].tolist() == ["TSC2;S939;", "GSK3B;S9;"]
-assert dataset.site_metadata["site_key"].tolist() == dataset.phospho.index.tolist()
-assert {"organism", "protein_namespace", "protein_identifier"}.issubset(
-    dataset.site_metadata.columns
-)
-```
-
-### Duplicate Display Labels
-
-`display_id` is not a row key. It is display metadata. Two rows can have the
-same human-readable label when protein-scoped identity differs:
-
-```python
-phospho = pd.DataFrame(
-    {
-        "sample_a": [1.0, 2.0],
-        "sample_b": [1.1, 2.1],
-    },
-    index=["MAPK14;Y182;", "MAPK14;Y182;"],
-)
-site_metadata = pd.DataFrame(
-    {
-        "gene_symbol": ["MAPK14", "MAPK14"],
-        "site": ["Y182", "Y182"],
-        "site_sequence": [
-            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
-            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
-        ],
-        "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
-        "organism": ["rat", "rat"],
-        "protein_namespace": ["protein_id", "protein_id"],
-        "protein_identifier": ["MAPK14_A", "MAPK14_B"],
-        "protein_group_id": ["MAPK14_A", "MAPK14_B"],
-        "localisation_confidence": [0.95, 0.95],
-    },
-    index=phospho.index.copy(),
-)
-
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        organism=Organism.RAT,
-        input_intensity_scale=IntensityScaleKind.LINEAR,
-    )
-)
-
-identity = dataset.site_metadata.loc[
-    :,
-    ["site_key", "display_id", "protein_identifier"],
-]
-assert identity["display_id"].tolist() == ["MAPK14;Y182;", "MAPK14;Y182;"]
-assert identity["site_key"].is_unique
-assert identity["protein_identifier"].tolist() == ["MAPK14_A", "MAPK14_B"]
-assert dataset.phospho.shape[0] == 2
-```
-
-Rows are preserved because their `site_key` values differ. They are not
-collapsed, overwritten, aggregated, or deduplicated merely because
-`display_id` repeats. A `GENE;SITE;` display label is therefore not sufficient
-biological row identity for site-level analysis.
-
-Supported site-metadata aliases are deliberately narrow:
-
-- `gene_name` may stand in for `gene_symbol`.
-- `centralized_sequence` may stand in for `site_sequence`.
-
-The builder may derive `gene_symbol` and `site` from index values formatted like
-`MAPK14;Y182;`. It does not derive `protein_group_id`, `protein_id`, or any
-protein-scoped identity from the gene-symbol prefix.
-
-Protein context is used to derive `site_key` when it is available and safe.
-`display_id` remains metadata and may repeat after `site_key` becomes the row
-identity. If the advanced/trusted `from_trusted_tables(...)` factory is used
-instead of the builder, the caller must provide matching `site_key` indexes and
-all required identity metadata up front.
-
-## Preprocessing Configuration
-
-`DatasetPreprocessingConfig` groups the public preprocessing controls.
-
-| Parameter | Type | Default | How to Use It |
+| Table | Shape | Purpose | Main Requirements |
 | --- | --- | --- | --- |
-| `intensity_transform` | `DatasetIntensityTransformConfig` | `policy="identity"`, `pseudocount=1.0` | Controls numeric intensity transformation before downstream preprocessing. |
-| `normalisation` | `DatasetNormalisationConfig` | `policy="none"` | Controls sample-wise normalisation. |
-| `missing_data` | `DatasetMissingDataConfig` | `policy="forbid"` | Controls missing-value rejection or imputation. |
-| `group_coverage_filter` | `DatasetGroupCoverageFilterConfig` | `enabled=False` | Filters phosphosite rows by finite-value coverage within sample groups before missing-data handling. |
-| `total_protein_correction` | `DatasetTotalProteinCorrectionConfig` | `policy="none"` | Controls phosphosite-to-total correction. |
-| `protein_aware_preparation` | `DatasetProteinAwarePreparationConfig` | `policy="disabled"` | Prepares aligned phosphosite/protein model-input contracts and diagnostics only. |
-| `batch_correction` | `DatasetBatchCorrectionConfig` or `SpsRuvBatchCorrectionConfig` | `method="none"` | Controls optional batch correction. Use `DatasetBatchCorrectionConfig` for fixed-effect residualisation. Use `SpsRuvBatchCorrectionConfig` for native SPS/RUV-style correction with explicit controls, design metadata, missingness policy, factor count, diagnostics, and provenance. |
-| `site_matrix` | `DatasetSiteMatrixConfig` | `policy="as_input"` | Controls construction and duplicate-site handling. |
-| `site_sequence_resolution` | `DatasetSiteSequenceResolutionConfig` | `mode="validate_existing_and_fill_missing"` | Controls optional local FASTA-backed site-sequence resolution. |
-| `comparisons` | `DatasetComparisonBuildingConfig` | `policy="none"` | Controls optional pairwise comparison construction from sample metadata. |
-| `localisation` | `DatasetLocalisationConfig` | `mode="require_threshold"`, `min_confidence=0.75`, `confidence_column="localisation_confidence"` | Controls site-level localisation-confidence eligibility at dataset-build time. |
-| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds report-only readiness reporting; it does not select SPS controls or apply correction. Native SPS/RUV-style correction uses explicit `SpsRuvBatchCorrectionConfig`. |
+| `phospho` | Sites × samples | Quantitative phosphosite matrix. | Numeric values; unique sample columns; row labels aligned with `site_metadata`. |
+| `site_metadata` | Sites × fields | Site, sequence, protein, and localisation context. | Must align with phospho rows and provide enough information to derive strict `site_key` values. |
+| `sample_metadata` | Samples × fields | Descriptive labels and preprocessing metadata. | Index must align with phospho columns; column names must be unique. |
+| `total` | Proteins × samples | Optional total-protein matrix. | Sample columns must align with phospho columns. |
+| `peptide_evidence` | Peptides × fields | Alternative peptide-evidence input lane. | Requires explicit intensity columns and multi-site handling. |
 
-Use presets for common lanes:
+Text metadata is preserved as text: values such as `"NA"` and identifiers with
+leading zeros are not silently converted. Quantitative tables must contain
+numeric cells; invalid cells fail with row and column context.
+
+`sample_metadata` does not define a differential design automatically. The
+[differential workflow](differential-analysis.md) uses an explicit
+`ExperimentalDesign` and `Contrast` objects.
+
+## Request
+
+Create a `DatasetBuildRequest`.
+
+| Parameter | Type | Required or Default | Description | Main Constraint |
+| --- | --- | --- | --- | --- |
+| `phospho` | `pandas.DataFrame`, `str`, `Path`, or `None` | Required for `site_level_resolved` | Site-by-sample intensity matrix. | Must align with `site_metadata`. |
+| `site_metadata` | `pandas.DataFrame`, `str`, `Path`, or `None` | Required for `site_level_resolved` | Site and protein metadata. | Must provide or safely support derivation of analysis-ready identity and `site_sequence`. |
+| `sample_metadata` | `pandas.DataFrame`, `str`, `Path`, or `None` | `None` | Sample metadata used by selected preprocessing policies. | Index must align with phospho columns. |
+| `total` | `pandas.DataFrame`, `str`, `Path`, or `None` | `None` | Total-protein matrix. | Used only by total-protein correction or protein-aware preparation. |
+| `site_resolution_mode` | `str` | `"site_level_resolved"` | Selects site-level or peptide-evidence input. | Supports `"site_level_resolved"` and `"peptide_evidence"`. |
+| `peptide_evidence` | `pandas.DataFrame`, `str`, `Path`, or `None` | Required for `peptide_evidence` | Peptide-level evidence table. | Must contain the metadata needed for peptide-to-site interpretation. |
+| `peptide_evidence_sample_intensity_columns` | `tuple[str, ...]` or `None` | Required for `peptide_evidence` | Names the quantitative sample columns in `peptide_evidence`. | Values must be unique and present. |
+| `peptide_site_mapping` | `pandas.DataFrame`, `str`, `Path`, or `None` | `None` | Optional explicit peptide-to-site mapping. | Must agree with the selected resolution policy. |
+| `multi_site_policy` | `str` or `None` | Required when ambiguous peptide evidence is possible | Controls ambiguous multi-site peptides. | Use one of the supported policies listed below. |
+| `allow_opaque_site_values` | `bool` | `False` | Allows site values outside strict serine, threonine, or tyrosine residue/position notation. | Enable only for a documented nonstandard use case. |
+| `organism` | `Organism` or `None` | `None` | Species represented by the dataset. | Must agree with supplied identity metadata. |
+| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | Groups dataset preprocessing policies. | Incompatible stages fail before construction. |
+| `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | Declares an already established `"linear"` or `"log2"` scale when no transform establishes it. | Suspicious declarations fail by default. |
+| `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | Allows a suspicious declared log2 scale with recorded warnings. | Use only when independent evidence supports the declaration. |
+| `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | Declares what the supplied matrix represents. | Must agree with the established scale and cannot claim an operation PhosPy did not perform. |
+| `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | Supplies externally corrected output at the supported boundary. | Cannot be combined with downstream matrix-changing preprocessing stages. |
+
+Constructing the request stores these choices. Validation happens when
+`AnalysisReadyDatasetBuilder().run(request)` is called.
+
+## Preprocessing
+
+`DatasetPreprocessingConfig` keeps related policies together. Defaults are
+conservative: no transform, no normalisation, no correction, missing values
+forbidden, and localisation required at 0.75.
+
+| Configuration Group | Default | Purpose |
+| --- | --- | --- |
+| `intensity_transform` | `policy="identity"` | Keeps values unchanged or applies a log2 transform. |
+| `normalisation` | `policy="none"` | Keeps distributions unchanged, median-centres samples, or applies quantile normalisation. |
+| `missing_data` | `policy="forbid"` | Rejects missing values or applies a selected imputation method. |
+| `group_coverage_filter` | `enabled=False` | Filters rows by finite-value coverage within sample groups. |
+| `localisation` | `mode="require_threshold"` | Enforces localisation evidence at dataset build time. |
+| `batch_correction` | `method="none"` | Applies fixed-effect residualisation or explicit native SPS/RUV-style correction. |
+| `total_protein_correction` | `policy="none"` | Optionally subtracts matched log2 total-protein values. |
+| `protein_aware_preparation` | `policy="disabled"` | Prepares aligned phosphosite/protein model inputs without changing intensities. |
+| `site_matrix` | `policy="as_input"` | Controls duplicate-site handling and optional metadata-based construction. |
+| `site_sequence_resolution` | no FASTA path | Optionally validates or fills sequences from a local FASTA file. |
+| `comparisons` | `policy="none"` | Optionally builds descriptive pairwise comparison columns. |
+| `ruv_readiness` | `enabled=False` | Records report-only readiness metadata; it does not modify the matrix. |
+
+Common presets are available as
+`DatasetPreprocessingConfig.strict()` and
+`DatasetPreprocessingConfig.from_raw_phosphosite_table()`.
+
+<details markdown="1">
+<summary><strong>Common Preprocessing Parameters</strong></summary>
+
+### Intensity Transform
+
+`DatasetIntensityTransformConfig` accepts `policy="identity"` or
+`policy="log2"`. For log2 transformation, `pseudocount` defaults to 1.0 and
+must be finite and nonnegative.
+
+When you keep the identity policy, declare the supplied scale explicitly:
 
 ```python
-strict = DatasetPreprocessingConfig.strict()
-raw_table = DatasetPreprocessingConfig.from_raw_phosphosite_table()
-```
+from phospy.api import IntensityScaleKind
 
-If you keep the identity transform (`policy="identity"`), declare
-`input_intensity_scale` on `DatasetBuildRequest` so the dataset can establish a
-trusted scale state:
-
-```python
 request = DatasetBuildRequest(
     phospho=phospho,
     site_metadata=site_metadata,
@@ -298,92 +203,125 @@ request = DatasetBuildRequest(
 )
 ```
 
-Declared input scales are checked against matrix-value diagnostics. By default,
-a high-confidence suspicious `log2` declaration fails dataset construction; for
-example declaring `input_intensity_scale="log2"` for values that strongly
-resemble raw linear intensities raises `TransformationStateEstablishmentError`
-instead of silently accepting or re-transforming the matrix. Other
-declared-scale diagnostics are recorded as provenance warnings. If you have
-external evidence that the suspicious `log2` declaration is correct, set
-`allow_suspicious_declared_input_intensity_scale=True`.
+A suspicious declared log2 scale fails by default rather than being silently
+accepted or transformed again. Any deliberate override is recorded in the
+preprocessing report and provenance.
 
-That override is auditable. Successful builds record
-`allow_suspicious_declared_input_intensity_scale`, the effective diagnostic
-policy (`"error"` or `"warn"`), the input declaration source, establishment mode,
-and diagnostic warnings in `dataset.provenance.workflow_parameters` and in the
-final `dataset.preprocessing_report.operations` row.
-Intensity-scale establishment parameters are recursively immutable inside the
-typed provenance model. Public payloads and saved-bundle JSON keep the same keys
-and values, but each payload read returns detached ordinary `dict`/`list`
-containers.
+### Normalisation
 
-## Quantitative Meaning Declarations
+`DatasetNormalisationConfig.policy` supports:
 
-`quantitative_meaning` declares what the supplied phospho matrix already means.
-It is not evidence that PhosPy or an upstream tool performed a scientific
-transformation. The builder accepts only direct input meanings:
+| Value | Effect |
+| --- | --- |
+| `"none"` | Keeps sample distributions unchanged. |
+| `"median_center"` | Subtracts each sample's median. |
+| `"quantile"` | Makes sample columns share one empirical distribution. |
 
-- `unknown`
-- `phosphosite_abundance`
-- `phosphosite_log_abundance`
+Use quantile normalisation only when that distributional assumption is
+scientifically appropriate.
 
-These declarations record `declared_by_caller` semantic provenance and may add
-the stable caveat code `quantitative_meaning_user_declared` to dataset
-provenance. A declaration must also be compatible with the established
-intensity scale: `phosphosite_abundance` requires linear scale, while
-`phosphosite_log_abundance` requires log2 scale.
+### Missing Data
 
-The builder rejects declarations for operation-derived meanings it did not
-perform, including `phospho_total_log_ratio`,
-`mixed_phospho_total_log_ratio_and_phosphosite_log_abundance`,
-`contrast_log2_fold_change`, `differential_effect_size`, and `activity_score`.
-Successful total-protein correction creates its own derived semantic transition
-with stage provenance and table fingerprints. When no explicit base meaning is
-declared, the builder records `inferred_from_scale_contract` evidence for the
-default linear or log2 phosphosite-abundance meaning.
+`DatasetMissingDataConfig.policy` supports:
 
-Use explicit groups when you need a specific preprocessing policy:
+| Value | Main Parameters | Notes |
+| --- | --- | --- |
+| `"forbid"` | None | Fails when missing values remain. |
+| `"impute_row_median"` | `min_observed_values`, `input_scale` | Replaces missing cells with the row median after the row passes the observation threshold. |
+| `"impute_minprob"` | `q`, `width`, `seed`, `max_missing_fraction_per_row`, `input_scale` | Stochastic lower-tail imputation; set a seed for reproducibility. |
+| `"impute_knn"` | `k`, `distance`, `max_missing_fraction_per_row`, `input_scale`, `no_overlap_policy` | KNN imputation with explicit missingness limits. |
+
+The dataset retains observation metadata so downstream workflows can distinguish
+originally observed values from imputed replacements. Imputation can affect
+scientific inference; inspect the workflow-specific policy before analysis.
+
+### Group Coverage Filter
+
+`DatasetGroupCoverageFilterConfig` uses `sample_metadata[group_column]` to keep
+rows with sufficient finite observations in a requested number of groups.
+Choose either `min_finite_observations_per_group` or
+`min_finite_fraction_per_group`, then set `min_groups_passing_threshold`.
+PhosPy does not infer groups from sample names.
+
+### Localisation
+
+`DatasetLocalisationConfig` accepts:
+
+| Mode | Meaning |
+| --- | --- |
+| `"require_threshold"` | Requires every retained row to contain a valid confidence value at or above `min_confidence`. |
+| `"allow_missing_with_waiver"` | Allows missing evidence only with a nonempty `waiver_reason`. |
+| `"ignore"` | Deliberately ignores localisation evidence. |
+
+The strict mode fails when the confidence column is absent, values are invalid
+or missing, or any retained value is below `min_confidence`.
+
+</details>
+
+<details markdown="1">
+<summary><strong>Site Construction, Sequences, and Comparisons</strong></summary>
+
+### Site Matrix
+
+`DatasetSiteMatrixConfig` controls how rows become a site matrix.
+
+| Parameter | Default | Supported Values |
+| --- | --- | --- |
+| `policy` | `"as_input"` | `"as_input"`, `"build_from_metadata"` |
+| `duplicate_site_policy` | `"error"` | `"error"`, `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"` |
+| `missing_data_policy` | `"drop_any_missing"` | `"drop_any_missing"` |
+| `minimum_observed_values` | `None` | Must remain `None` at the strict public boundary. |
+
+The default rejects duplicate `site_key` rows. When you choose a non-error
+policy, inspect `dataset.preprocessing_report.duplicate_site_resolution` and
+`dataset.preprocessing_report.metadata_conflicts`.
+
+### Site-Sequence Resolution
+
+`DatasetSiteSequenceResolutionConfig` can validate, fill, or replace
+`site_sequence` values from a local FASTA file.
+
+| Parameter | Default | Supported Values or Meaning |
+| --- | --- | --- |
+| `fasta_path` | `None` | Local FASTA path; no online lookup occurs. |
+| `mode` | `"validate_existing_and_fill_missing"` | Also supports `"fill_missing_only"`, `"validate_existing_only"`, and `"replace_existing"`. |
+| `conflict_policy` | `None` | `"error"`, `"preserve_existing"`, or `"replace_existing"`. |
+| `flank_size` | `7` | Residues requested on each side of the modified residue. |
+| `accession_column` | `"protein_accession"` | Site-metadata accession column. |
+| `site_column` | `"site"` | Site label column, such as `S939`. |
+
+### Comparison Building
+
+`DatasetComparisonBuildingConfig(policy="sample_metadata_pairs")` can build
+pairwise dataset columns from `sample_metadata`. Use `sample_group_column` to
+name the group field and `pairs` for explicit group pairs. These descriptive
+comparisons do not replace the differential workflow's design and contrast
+contracts.
+
+### RUV Readiness
+
+`ruv_readiness` diagnostics are report-only. `DatasetRuvReadinessConfig`
+records whether named control-feature, replicate-group, and optional batch
+columns are available. It does not select controls, estimate factors, or change
+the matrix.
+
+</details>
+
+## Batch Correction
+
+PhosPy keeps two correction methods separate because they answer different
+technical questions.
+
+### Limited Fixed-Effect Residualisation
+
+`linear_residualize_batch`, a limited fixed-effect residualisation, removes
+configured batch terms while including condition terms in the design. It is
+not ComBat, not RUV, not limma `removeBatchEffect` parity, and not mixed-effects
+modelling.
 
 ```python
-config = DatasetPreprocessingConfig(
-    intensity_transform=DatasetIntensityTransformConfig(
-        policy="log2",
-        pseudocount=1.0,
-    ),
-    normalisation=DatasetNormalisationConfig(policy="median_center"),
-    missing_data=DatasetMissingDataConfig(
-        policy="impute_row_median",
-        min_observed_values=2,
-        input_scale="linear",
-    ),
-)
+from phospy.advanced import DatasetBatchCorrectionConfig
 
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        organism=Organism.RAT,
-        preprocessing_config=config,
-    )
-)
-```
-
-## Batch-Correction Parameters
-
-`DatasetBatchCorrectionConfig` defaults to `method="none"`. Its executable
-method is `method="linear_residualize_batch"`, a fixed-effect residualisation
-of batch terms that preserves condition effects by including condition terms in
-the design. It is not ComBat, not RUV, not limma `removeBatchEffect` parity,
-and not mixed-effects modelling.
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `method` | `str` | `"none"` | `"none"`, `"linear_residualize_batch"` | Selects whether batch residualisation runs. |
-| `batch_column` | `str` | `"batch"` | Non-empty string | Column in `sample_metadata` identifying batch labels. |
-| `condition_column` | `str` | `"condition"` | Non-empty string | Column in `sample_metadata` identifying condition labels to preserve during residualisation. |
-| `preserve_condition_effects` | `True` | `True` | `True` only | Condition preservation is required for `linear_residualize_batch` fixed-effect residualisation. |
-
-```python
 batch_correction = DatasetBatchCorrectionConfig(
     method="linear_residualize_batch",
     batch_column="batch",
@@ -392,217 +330,70 @@ batch_correction = DatasetBatchCorrectionConfig(
 )
 ```
 
-When this method is requested, `sample_metadata` is required and must align to
-the phospho sample columns. Confounded batch/condition designs are rejected
-before correction because condition effects cannot be preserved in those
-designs. Inspect `dataset.preprocessing_report.batch_correction` after build
-for status, observed levels, confounding-check status, matrix shapes, warnings,
-and limitations.
+This method requires aligned `sample_metadata`. A confounded batch and condition
+design fails before correction because the condition effect cannot be
+preserved. Inspect `dataset.preprocessing_report.batch_correction` for its
+status, observed levels, confounding-check status, matrix shapes, warnings, and
+limitations.
 
-Native SPS/RUV-style correction is executable only through a separate
-structured preprocessing config. Do not use a boolean shortcut. The caller
-supplies the control-site set and missingness policy explicitly; PhosPy
-validates the request before execution and records typed provenance. The
-default public method is `method="sps_ruv_style"`: it
-estimates unwanted factors from eligible control-site residuals after
-protecting the configured condition terms, then subtracts the estimated
-unwanted-factor contribution from the phosphosite matrix. This is a native
-PhosPy implementation, not PhosR-equivalent SPS/RUV-III parity. Batch terms are
-resolved for validation and diagnostics, including batch-associated-variance
-summaries; they are not directly residualized as fixed effects by the native
-PhosPy SPS/RUV-style preprocessing correction.
-Unwanted-factor feasibility is checked against eligible-control count,
-sample/design capacity after protected condition terms, and eligible control
-residual rank after protected condition terms. It is not checked against a
-protected-plus-batch fixed-effect residual degrees-of-freedom model, because
-batch terms are not part of the native numerical factor-estimation or
-correction model.
-The `ruv_iii_style` method label is not executable unless a future feature
-implements replicate-aware RUV-III semantics.
+### Native SPS/RUV-Style Correction
 
-Native SPS/RUV-style correction currently supports only one execution
-placement in the dataset preprocessing pipeline: after missing-data handling
-and before downstream preprocessing consumers such as total-protein correction,
-site-matrix construction, normalisation, comparisons, and analysis workflows.
-Requests for other `stage_order` policies are rejected so recorded provenance
-matches the pipeline that actually ran.
+Native PhosPy SPS/RUV-style preprocessing correction estimates unwanted factors
+from eligible control-site residuals after protected-design handling. The
+caller supplies the controls, protected condition columns, missingness policy,
+and number of factors. PhosPy does not fetch or silently choose controls.
 
-Externally supplied `CorrectedPreprocessingOutput` is accepted only at a safe
-preprocessing boundary. Do not combine it with configured downstream
-matrix-consuming preprocessing stages such as total-protein correction,
-site-matrix construction, normalisation, or comparison building. If you already
-have external corrected output, provide it as the only matrix-changing
-preprocessing input at dataset build time. If correction must run as part of a
-larger preprocessing plan, use native SPS/RUV-style
-`SpsRuvBatchCorrectionConfig` in
-`DatasetPreprocessingConfig.batch_correction` so correction executes at the
-recorded batch-correction stage before downstream consumers.
+Batch terms are resolved for validation and diagnostics; they are not directly
+residualized as fixed effects by the native correction. This implementation is
+not PhosR-equivalent SPS/RUV-III parity. Replicate-aware RUV-III semantics are
+not implemented.
 
-Control metadata policy is explicit. Caller-supplied controls must provide
-auditable control-source metadata or field-level `metadata_missing_reason`
-rationale for unavailable caller-local fields. The audited fields include
-`organism`, `identifier_namespace`, source identity, `source_version`,
-`license`, and `redistribution`; when `organism` or `identifier_namespace` are
-provided, they are checked for compatibility with dataset metadata. Formal or
-external source names require `source_version`. Packaged control references, if
-added in a future release, must include complete `organism`,
-`identifier_namespace`, `source_name`, `source_version`, `license`, and
-`redistribution` metadata; incomplete packaged metadata is rejected. PhosPy does
+The optional `replicate_column` is checked and recorded for diagnostics and
+provenance. The `replicate_column` metadata is not used for numerical
+unwanted-factor estimation and does not enable RUV-III behavior.
+
+<details markdown="1">
+<summary><strong>Native Correction Configuration and Safety Boundaries</strong></summary>
+
+Control metadata is explicit. Caller-supplied controls must provide auditable
+control-source metadata or field-level `metadata_missing_reason` rationale. The
+audited fields include `organism`, `identifier_namespace`, source identity,
+`source_version`, `license`, and `redistribution`. PhosPy rejects incompatible
+organism or namespace metadata when present. Formal or external source names
+require source version. Packaged controls, if added, require complete organism,
+namespace, source, version, license, and redistribution metadata. PhosPy does
 not infer metadata from `site_key` strings and does not fetch metadata online.
-When `site_metadata` is supplied for control compatibility, accepted control
-`site_key` values must have matching metadata rows. Extra metadata rows are
-allowed for broader dataset context, but they are ignored for control
-compatibility only after `site_metadata.index` has passed nonblank and unique
-index validation.
 
-```python
-control_source = ControlSiteSourceMetadata(
-    organism="rat",
-    identifier_namespace="site_key",
-    source_name="manual-curated-controls",
-    source_version="manual-v1",
-    license="caller local use",
-    redistribution="not redistributed",
-)
+Native correction requires:
 
-control_sites = ControlSiteSet.from_site_keys(
-    (
-        "phospy:v1|organism=rat|protein_namespace=protein_id|"
-        "protein_identifier=MAPK14|residue=Y|position=182",
-        "phospy:v1|organism=rat|protein_namespace=protein_id|"
-        "protein_identifier=SRC|residue=Y|position=416",
-    ),
-    source_metadata=control_source,
-)
+- a caller-supplied `ControlSiteSet` with auditable source metadata;
+- aligned `sample_metadata` with `batch_column` and all protected
+  `condition_columns`;
+- an explicit `CorrectionMissingnessPolicy`;
+- `n_unwanted_factors >= 1`, supported by the eligible controls and residual
+  rank; and
+- diagnostics plus `provenance_enabled=True`.
 
-sps_ruv_correction = SpsRuvBatchCorrectionConfig(
-    control_site_set=control_sites,
-    batch_column="batch",
-    condition_columns=("condition",),
-    replicate_column="replicate",
-    missingness_policy=CorrectionMissingnessPolicy(),
-    n_unwanted_factors=1,
-    diagnostics_enabled=True,
-    provenance_enabled=True,
-)
+Multiple protected condition columns are represented as observed joint condition
+strata, such as `condition=treated|timepoint=early`. This is not additive
+protected-condition modelling, and the method does not fit additive
+protected-condition terms. Correction runs after missing-data handling
+and before downstream matrix consumers. Other stage placements are rejected.
 
-config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
-```
-
-Native PhosPy SPS/RUV-style `SpsRuvBatchCorrectionConfig` requires:
-
-- caller-supplied `ControlSiteSet`; controls are explicit `site_key`
-  annotations and are not fetched online or silently selected from bundled
-  resources. Caller-supplied control metadata must either include the audit
-  fields described above or carry explicit field-level
-  `metadata_missing_reason` rationale.
-- aligned `sample_metadata` containing `batch_column` and one or more
-  protected `condition_columns`.
-- when `condition_columns` contains multiple columns, PhosPy protects their
-  observed combinations as joint condition strata. For example,
-  `condition_columns=("condition", "timepoint")` is represented as labels such
-  as `condition=treated|timepoint=early` and treatment-coded from those joint
-  strata. This is not additive protected-condition modelling; if an additive
-  protected design is added in the future it must be a separate, explicit
-  configuration.
-- optional `replicate_column` for recording available replicate metadata with
-  the native `sps_ruv_style` method. The `replicate_column` metadata is
-  validated and recorded for provenance and diagnostics only. Supplied
-  replicate labels are rejected when they are all the same, all unique,
-  perfectly confounded with batch, or perfectly confounded with protected
-  condition metadata. The `replicate_column` metadata is not used for
-  numerical unwanted-factor estimation and does not enable RUV-III or
-  replicate-aware RUV-III semantics. RUV-III correction is not currently
-  executable because replicate-aware RUV-III numerical semantics are not
-  implemented.
-- explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve
-  the observation mask and is recorded as correction mechanics, not observed
-  evidence. The public native SPS/RUV-style workflow requires a complete
-  correction-stage matrix. Recognized temporary-imputation policy/mechanics
-  labels are `none` and `row_median_temporary`; `row_median_temporary` is not
-  public-workflow permission to correct incomplete matrices.
-  `minprob_temporary` and `knn_temporary` are rejected in native correction
-  because their temporary correction semantics are not implemented.
-  `row_median_temporary` is a recognized policy/mechanics label for low-level
-  correction diagnostics only; it does not let actual NaNs pass through the
-  public native workflow or make missing matrices analysis-ready.
-- `n_unwanted_factors >= 1`; the requested count must be supported by the
-  eligible-control count, protected-design residual sample capacity, and
-  eligible control residual rank after protected condition terms.
-- `diagnostics_enabled` and `provenance_enabled=True`; native correction cannot
-  run without provenance.
-
-Upstream-imputed input cells remain tracked through observation masks and are
-not treated as observed evidence during correction. The correction-stage matrix
-must be complete: native SPS/RUV-style correction rejects actual missing values
-(NaNs) before executor invocation because temporary imputation followed by
-restored missing values cannot produce analysis-ready corrected output. Run
-missing-data preprocessing first, or provide a complete upstream-imputed matrix
-with observation-mask provenance.
-
-Successful requests return a corrected analysis-ready dataset and attach
-`BatchCorrectionProvenance` to the `batch_correction` preprocessing stage in
-`dataset.provenance.preprocessing_stages`. Diagnostics include the resolved
-design summary, eligible and rejected controls, requested and estimated
-unwanted-factor counts, singular values, batch-associated variance summaries,
-missingness/imputation summaries, output observation-mask fingerprints,
-warnings, and input/output matrix fingerprints.
+#### Minimal Valid Native-Correction Example
 
 Minimal valid native-correction example:
 
-```python
-import pandas as pd
+Replace the example keys with `site_key` values present in your dataset input.
 
-from phospy import AnalysisReadyDatasetBuilder
+```python
 from phospy.advanced import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
     SpsRuvBatchCorrectionConfig,
 )
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    Organism,
-)
-
-phospho = pd.DataFrame(
-    {
-        "sample_1": [10.0, 5.0, 20.0],
-        "sample_2": [10.0, 9.0, 20.0],
-        "sample_3": [14.0, 8.0, 28.0],
-        "sample_4": [14.0, 12.0, 28.0],
-    },
-    index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"], name="site_id"),
-)
-
-site_metadata = pd.DataFrame(
-    {
-        "gene_symbol": ["MAPK14", "AKT1", "SRC"],
-        "site": ["Y182", "T308", "Y416"],
-        "site_sequence": [
-            ("A" * 15) + "Y" + ("A" * 15),
-            ("A" * 15) + "T" + ("A" * 15),
-            ("A" * 15) + "Y" + ("A" * 15),
-        ],
-        "display_id": ["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"],
-        "organism": ["rat", "rat", "rat"],
-        "protein_namespace": ["protein_id", "protein_id", "protein_id"],
-        "protein_identifier": ["MAPK14", "AKT1", "SRC"],
-        "protein_group_id": ["MAPK14", "AKT1", "SRC"],
-        "localisation_confidence": [0.95, 0.92, 0.98],
-    },
-    index=phospho.index.copy(),
-)
-
-sample_metadata = pd.DataFrame(
-    {
-        "batch": ["run_1", "run_1", "run_2", "run_2"],
-        "condition": ["control", "treated", "control", "treated"],
-        "replicate": ["r1", "r2", "r2", "r1"],
-    },
-    index=phospho.columns.copy(),
-)
+from phospy.api import DatasetPreprocessingConfig
 
 control_site_keys = (
     "phospy:v1|organism=rat|protein_namespace=protein_id|"
@@ -620,100 +411,42 @@ control_source = ControlSiteSourceMetadata(
     redistribution="not redistributed",
 )
 
+native_correction = SpsRuvBatchCorrectionConfig(
+    control_site_set=ControlSiteSet.from_site_keys(
+        control_site_keys,
+        source_metadata=control_source,
+    ),
+    batch_column="batch",
+    condition_columns=("condition",),
+    replicate_column="replicate",
+    missingness_policy=CorrectionMissingnessPolicy(),
+    n_unwanted_factors=1,
+    diagnostics_enabled=True,
+    provenance_enabled=True,
+)
+
 preprocessing = DatasetPreprocessingConfig(
-    batch_correction=SpsRuvBatchCorrectionConfig(
-        control_site_set=ControlSiteSet.from_site_keys(
-            control_site_keys,
-            source_metadata=control_source,
-        ),
-        batch_column="batch",
-        condition_columns=("condition",),
-        replicate_column="replicate",
-        missingness_policy=CorrectionMissingnessPolicy(),
-        n_unwanted_factors=1,
-        diagnostics_enabled=True,
-        provenance_enabled=True,
-    )
-)
-
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        sample_metadata=sample_metadata,
-        organism=Organism.RAT,
-        input_intensity_scale="log2",
-        preprocessing_config=preprocessing,
-    )
-)
-
-report = dataset.preprocessing_report.batch_correction
-assert report.status == "applied"
-assert report.method == "sps_ruv_style"
-```
-
-Rejected unsafe example: this request supplies only one eligible control site
-while requesting one unwanted factor. Validation fails before execution because
-the method needs at least `n_unwanted_factors + 1` eligible controls and never
-selects fallback controls.
-
-```python
-unsafe_preprocessing = DatasetPreprocessingConfig(
-    batch_correction=SpsRuvBatchCorrectionConfig(
-        control_site_set=ControlSiteSet.from_site_keys(
-            (control_site_keys[0],),
-            source_metadata=control_source,
-        ),
-        batch_column="batch",
-        condition_columns=("condition",),
-        replicate_column="replicate",
-        missingness_policy=CorrectionMissingnessPolicy(),
-        n_unwanted_factors=1,
-    )
-)
-
-AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        sample_metadata=sample_metadata,
-        organism=Organism.RAT,
-        input_intensity_scale="log2",
-        preprocessing_config=unsafe_preprocessing,
-    )
+    batch_correction=native_correction,
 )
 ```
 
-Observation masks and temporary imputation:
-
-- With the default `CorrectionMissingnessPolicy()`, native correction expects
-  the correction-stage matrix to be complete and uses no temporary imputation.
-- Complete upstream-imputed matrices are supported when the request provides
-  `ObservationMask` metadata through
-  `CorrectionMissingnessPolicy(originally_missing_cells_tracked_by="observation_mask", ...)`.
-  The mask identifies originally observed cells separately from upstream-imputed
-  cells.
-- Temporary imputation is numerical correction mechanics only. The native
-  SPS/RUV-style workflow requires a complete correction-stage matrix and rejects
-  actual missing values (NaNs) before executor invocation;
-  `TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` is retained as a recognized
-  policy/mechanics label for conservative low-level executor diagnostics and is
-  not a way to pass actual NaNs through the public native workflow or make
-  missing matrices analysis-ready.
-- The corrected output carries an output observation mask and per-cell status.
-  Upstream-imputed cells remain flagged according to the policy, and final
-  dataset construction still enforces the strict analysis-ready boundary.
+The public native SPS/RUV-style workflow requires a complete correction-stage
+matrix and rejects actual missing values (NaNs) before executor invocation.
+Upstream-imputed cells may remain identified with observation-mask provenance
+through an `ObservationMask`; they are not treated as observed evidence.
 
 ```python
-akt_site_key = (
-    "phospy:v1|organism=rat|protein_namespace=protein_id|"
-    "protein_identifier=AKT1|residue=T|position=308"
+from phospy.advanced import (
+    ObservationMask,
+    OriginallyMissingCellTracking,
+    TemporaryImputationMethod,
+    TemporaryImputationPolicy,
 )
 
 mask = ObservationMask(
-    feature_ids=(control_site_keys[0], akt_site_key, control_site_keys[1]),
-    sample_ids=tuple(phospho.columns.astype(str)),
-    originally_missing_cells=((akt_site_key, "sample_2"),),
+    feature_ids=("site_a", "site_b", "site_c"),
+    sample_ids=("sample_1", "sample_2", "sample_3", "sample_4"),
+    originally_missing_cells=(("site_b", "sample_2"),),
 )
 
 missingness_policy = CorrectionMissingnessPolicy(
@@ -722,289 +455,86 @@ missingness_policy = CorrectionMissingnessPolicy(
         method=TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
         method_parameters={"min_observed_values": 2},
     ),
-    originally_missing_cells_tracked_by=OriginallyMissingCellTracking.OBSERVATION_MASK,
+    originally_missing_cells_tracked_by=(
+        OriginallyMissingCellTracking.OBSERVATION_MASK
+    ),
     observation_mask=mask,
 )
 ```
 
-## Intensity Transform Parameters
+`TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` is a recorded correction
+mechanic. It does not let actual NaNs pass through the public native workflow,
+and it is not a way to pass actual NaNs through the public native workflow or
+to reclassify imputed cells as observed evidence.
 
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `policy` | `str` | `"identity"` | `"identity"`, `"log2"` | `"identity"` keeps values as provided. `"log2"` applies `log2(value + pseudocount)`. |
-| `pseudocount` | `float` or `int` | `1.0` | Any finite value `>= 0` | Used only by `policy="log2"`. Choose it to keep all transformed inputs valid. |
+#### Rejected Unsafe Example
 
-Example:
+Rejected unsafe example:
+
+This configuration requests one factor from only one control site. Validation
+rejects it instead of selecting fallback controls.
 
 ```python
-transform = DatasetIntensityTransformConfig(
-    policy="log2",
-    pseudocount=1.0,
+unsafe_correction = SpsRuvBatchCorrectionConfig(
+    control_site_set=ControlSiteSet.from_site_keys(
+        (control_site_keys[0],),
+        source_metadata=control_source,
+    ),
+    batch_column="batch",
+    condition_columns=("condition",),
+    replicate_column="replicate",
+    missingness_policy=CorrectionMissingnessPolicy(),
+    n_unwanted_factors=1,
+    provenance_enabled=True,
 )
 ```
 
-## Normalisation Parameters
+Successful correction records typed provenance, selected and rejected controls,
+factor diagnostics, singular values, variance summaries, observation-mask
+fingerprints, warnings, and input/output matrix fingerprints.
 
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `policy` | `str` | `"none"` | `"none"`, `"median_center"`, `"quantile"` | `"none"` keeps sample distributions unchanged. `"median_center"` subtracts sample-wise medians. `"quantile"` forces sample columns to share one empirical distribution. |
+</details>
 
-Quantile normalisation is dense and sort-heavy. Use it only when matched sample
-distributions are scientifically appropriate.
+Externally supplied `CorrectedPreprocessingOutput` is accepted only at its safe
+boundary. Provide it as the only matrix-changing preprocessing input; do not
+combine it with total-protein correction, site-matrix construction,
+normalisation, or comparison building.
 
-```python
-normalisation = DatasetNormalisationConfig(policy="median_center")
-```
+## Total-Protein Options
 
-Normalisation provenance is explicit in both `dataset.provenance.preprocessing_stages`
-and `dataset.preprocessing_report.operations`. Stage diagnostics include:
-
-- method and resolved parameters
-- input/output matrix shapes
-- per-sample summaries before and after normalisation
-- row/column drop indicators and counts
-
-## Missing-Data Parameters
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `policy` | `str` | `"forbid"` | `"forbid"`, `"impute_row_median"`, `"impute_minprob"`, `"impute_knn"` | Selects rejection or imputation behaviour. |
-| `input_scale` | `str` or `None` | `None` | `"linear"` or `"log2"` for `"impute_row_median"` and `"impute_knn"`; `None` or `"log2"` for `"impute_minprob"`; `None` for `"forbid"` | Declares the scale that the imputer consumes. Linear imputation runs before a configured log2 transform; log2 imputation runs after that transform or on input declared as already log2. MinProb resolves to method-required `"log2"` when omitted. |
-| `min_observed_values` | `int` or `None` | `None` | Integer `>= 1` when `policy="impute_row_median"`; otherwise `None` | Drops rows with too few observed samples before row-median imputation. |
-| `q` | `float` or `None` | `None` | `0 < q < 0.5` when `policy="impute_minprob"`; otherwise `None` | Lower-tail quantile for MinProb-style imputation. |
-| `width` | `float` or `None` | `None` | `0 < width <= 1.0` when `policy="impute_minprob"`; otherwise `None` | Controls the width of the imputation distribution. |
-| `seed` | `int` or `None` | `None` | Integer `>= 0` when `policy="impute_minprob"`; otherwise `None` | Makes random MinProb-style imputation reproducible. |
-| `k` | `int` or `None` | `None` | Integer `>= 1` when `policy="impute_knn"`; otherwise `None` | Number of neighbours for KNN imputation. |
-| `distance` | `str` or `None` | `None` | `"nan_euclidean"` when `policy="impute_knn"`; otherwise `None` | Distance metric for KNN imputation. |
-| `max_missing_fraction_per_row` | `float` or `None` | `None` | `0 < value <= 1` for `"impute_minprob"` and `"impute_knn"`; otherwise `None` | Drops rows with too much missingness before advanced imputation. |
-
-Row-median example:
+`DatasetTotalProteinCorrectionConfig(policy="subtract_log_total")` calculates
+log2 phosphosite minus matched log2 total protein. It requires a log2 transform,
+an aligned `total` table, and explicit identity matching.
 
 ```python
-missing_data = DatasetMissingDataConfig(
-    policy="impute_row_median",
-    min_observed_values=2,
-    input_scale="linear",
-)
-```
-
-MinProb-style example:
-
-```python
-missing_data = DatasetMissingDataConfig(
-    policy="impute_minprob",
-    q=0.01,
-    width=0.3,
-    seed=12345,
-    max_missing_fraction_per_row=0.5,
-    input_scale="log2",
-)
-```
-
-KNN example:
-
-```python
-missing_data = DatasetMissingDataConfig(
-    policy="impute_knn",
-    k=5,
-    distance="nan_euclidean",
-    max_missing_fraction_per_row=0.5,
-    input_scale="linear",
-)
-```
-
-Missing-data diagnostics stored on `dataset.processing_state.missing_data` use
-immutable internal JSON mappings. Calls to `to_payload()` and bundle
-serialization still return ordinary schema v1 JSON `dict`/`list` payloads, and
-each call returns a fresh detached copy.
-
-Processing state records the imputation input scale and operation order
-(`before_intensity_transform`, `after_intensity_transform`, or
-`no_intensity_transform`) when imputation is active. The observation mask is
-preserved so downstream workflows can distinguish originally observed values
-from imputed replacements.
-
-## Group Coverage Filter Parameters
-
-`DatasetGroupCoverageFilterConfig` describes a group-aware coverage filter
-rule. It can express rules such as "keep sites quantified in at least two
-replicates in at least one condition." Use it before analysis when rows with
-too little replicate or condition coverage should be removed before imputation,
-normalisation, and analysis-ready dataset creation.
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `enabled` | `bool` | `False` | `True`, `False` | Enables filtering. When `False`, existing dataset-building behavior is unchanged. |
-| `group_column` | `str` or `None` | `None` | Non-empty string when `enabled=True` | Sample-metadata column that defines groups such as conditions. |
-| `min_finite_observations_per_group` | `int` or `None` | `None` | Integer `>= 1`, mutually exclusive with fraction threshold | Minimum finite sample values needed within a group. |
-| `min_finite_fraction_per_group` | `float` or `None` | `None` | `0 < value <= 1`, mutually exclusive with count threshold | Minimum finite-value fraction needed within a group. |
-| `min_groups_passing_threshold` | `int` | `1` | Integer `>= 1` | Number of groups that must pass the selected threshold. |
-
-The filter uses `sample_metadata[group_column]` to resolve groups. It does not
-guess experimental groups from sample names. For each phosphosite row and each
-group, it counts finite numeric values in that group's samples. A count
-threshold such as `2` means at least two finite values in the group. A fraction
-threshold such as `0.67` means at least 67% of samples in that group have finite
-values. The row is kept when at least `min_groups_passing_threshold` groups pass.
-
-```python
-sample_metadata = pd.DataFrame(
-    {"condition": ["control", "control", "control", "treated", "treated", "treated"]},
-    index=["c1", "c2", "c3", "t1", "t2", "t3"],
+from phospy.advanced import (
+    DatasetTotalProteinCorrectionConfig,
+    DatasetTotalProteinCorrectionIdentityConfig,
 )
 
-coverage_filter = DatasetGroupCoverageFilterConfig(
-    enabled=True,
-    group_column="condition",
-    min_finite_observations_per_group=2,
-    min_groups_passing_threshold=1,
-)
-
-preprocessing = DatasetPreprocessingConfig(
-    group_coverage_filter=coverage_filter,
-    missing_data=DatasetMissingDataConfig(
-        policy="impute_row_median",
-        min_observed_values=1,
-        input_scale="linear",
+correction = DatasetTotalProteinCorrectionConfig(
+    policy="subtract_log_total",
+    identity=DatasetTotalProteinCorrectionIdentityConfig(
+        mode="direct",
+        phosphosite_key="protein_id",
+        total_protein_key="__index__",
     ),
 )
 ```
 
-Filtering runs before analysis-ready dataset creation and before missing-data
-imputation. Inspect `dataset.preprocessing_report.row_counts`,
-`dataset.preprocessing_report.operations`, and
-`dataset.preprocessing_report.row_audit` to see how many rows were retained or
-removed and why. If all phosphosite rows are removed, dataset building fails
-with a clear input error instead of creating an empty analysis-ready dataset.
+Identity configuration supports direct matching or an explicit mapping table,
+strict matching, duplicate handling, and unmatched-row handling. Inspect the
+processing state when you intentionally allow partial correction.
 
-## Localisation-Confidence Parameters
+### Protein-Aware Preparation
 
-Use `DatasetLocalisationConfig` to make localisation policy explicit for
-site-level analysis datasets.
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `mode` | `str` | `"require_threshold"` | `"require_threshold"`, `"allow_missing_with_waiver"`, `"ignore"` | `"require_threshold"` is the scientifically strict lane for site-level workflows. |
-| `min_confidence` | `float` | `0.75` | `0.0 <= value <= 1.0` | Minimum accepted localisation confidence for `mode="require_threshold"`. |
-| `confidence_column` | `str` | `"localisation_confidence"` | Non-empty string | Site-metadata column containing localisation confidence values. |
-| `waiver_reason` | `str` or `None` | `None` | Non-empty string when `mode="allow_missing_with_waiver"` | Required reason when localisation strictness is waived. |
-
-Failure behaviour for `mode="require_threshold"`:
-
-- fails dataset build when `site_metadata[confidence_column]` is missing
-- fails dataset build when values are missing/invalid
-- fails dataset build when any value is below `min_confidence`
-
-Why this matters: low-confidence phosphosite localisation can mis-assign
-site-level effects and lead to misleading downstream kinase/signalome
-interpretation.
-
-```python
-localisation = DatasetLocalisationConfig(
-    mode="require_threshold",
-    confidence_column="localisation_confidence",
-    min_confidence=0.75,
-)
-```
-
-## Total-Protein Correction Parameters
-
-`DatasetTotalProteinCorrectionConfig` controls whether total-protein correction
-runs.
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `policy` | `str` | `"none"` | `"none"`, `"subtract_log_total"` | `"subtract_log_total"` computes `log2_phospho - log2_total`. |
-| `identity` | `DatasetTotalProteinCorrectionIdentityConfig` | `DatasetTotalProteinCorrectionIdentityConfig()` | Identity config object | Explains how phosphosite rows match total-protein rows. |
-
-`policy="subtract_log_total"` requires `intensity_transform.policy="log2"`, a
-`total` table aligned to phospho sample columns, and an explicit identity
-mapping.
-
-```python
-config = DatasetPreprocessingConfig(
-    intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
-    total_protein_correction=DatasetTotalProteinCorrectionConfig(
-        policy="subtract_log_total",
-        identity=DatasetTotalProteinCorrectionIdentityConfig(
-            mode="direct",
-            phosphosite_key="protein_id",
-            total_protein_key="__index__",
-        ),
-    ),
-)
-
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        total=total,
-        preprocessing_config=config,
-    )
-)
-```
-
-### Total-Protein Identity Parameters
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `mode` | `str` | `"direct"` | `"direct"`, `"mapping_table"` | `"direct"` matches a phosphosite metadata key directly to a total-protein key. `"mapping_table"` uses an explicit mapping table. |
-| `phosphosite_key` | `str` | `"gene_symbol"` | Non-empty string | Column in `site_metadata` used as the phosphosite-side identity. |
-| `total_protein_key` | `str` | `"__index__"` | Non-empty string | Total-protein identity key. Use `"__index__"` to match against `total.index`. |
-| `mapping_table` | `pandas.DataFrame` or `None` | `None` | Required for `mode="mapping_table"`; otherwise `None` | Two-column table connecting phosphosite identities to total-protein identities. |
-| `mapping_phosphosite_key` | `str` or `None` | `None` | Required for `mode="mapping_table"`; otherwise `None` | Column in `mapping_table` that matches `phosphosite_key`. |
-| `mapping_total_protein_key` | `str` or `None` | `None` | Required for `mode="mapping_table"`; otherwise `None` | Column in `mapping_table` that matches total-protein identities. |
-| `matching_policy` | `str` | `"strict"` | `"strict"`, `"gene_symbol_normalised"` | `"strict"` compares trimmed identity keys exactly. `"gene_symbol_normalised"` uppercases gene-symbol keys and should be chosen only when that is scientifically suitable. |
-| `duplicate_policy` | `str` | `"error"` | `"error"` | Fails on duplicate identity matches. |
-| `unmatched_policy` | `str` | `"error"` | `"error"`, `"allow_uncorrected"` | `"error"` requires complete matching. `"allow_uncorrected"` keeps unmatched phosphosite rows uncorrected and marks the dataset as mixed. |
-
-Mapping-table example:
-
-```python
-mapping_table = pd.DataFrame(
-    {
-        "phosphosite_protein_id": ["TSC2", "GSK3B"],
-        "total_row_id": ["TSC2_total", "GSK3B_total"],
-    }
-)
-
-identity = DatasetTotalProteinCorrectionIdentityConfig(
-    mode="mapping_table",
-    phosphosite_key="protein_id",
-    total_protein_key="__index__",
-    mapping_table=mapping_table,
-    mapping_phosphosite_key="phosphosite_protein_id",
-    mapping_total_protein_key="total_row_id",
-    unmatched_policy="error",
-)
-```
-
-Quantitative meaning is explicit after preprocessing:
-
-- fully corrected log2 datasets: `phospho_total_log_ratio`
-- log2 datasets without total-protein correction: `phosphosite_log_abundance`
-- mixed corrected and uncorrected datasets: `mixed_phospho_total_log_ratio_and_phosphosite_log_abundance`
-
-For mixed datasets, row-level correction status is available in
-`dataset.processing_state.total_protein_correction.diagnostics`.
-Those diagnostics follow the same immutable-internal, fresh-JSON-payload
-contract as missing-data diagnostics.
-
-## Protein-Aware Preparation Parameters
-
-`DatasetProteinAwarePreparationConfig` is a preparation-only policy for aligned
-phosphosite/protein model inputs and diagnostics. It does not change the
-phosphosite matrix, does not subtract total protein, does not normalise
-intensities, and does not run differential analysis.
-
-Use it only when you provide `total` input data and want an auditable
-`ProteinAwarePreparationResult` on the built dataset:
+`DatasetProteinAwarePreparationConfig` prepares aligned phosphosite and protein
+model inputs and diagnostics. It does not change the phosphosite matrix, does
+not subtract total protein, does not normalise intensities, and does not run
+differential analysis. It also does not claim MSstatsPTM-style inference.
 
 ```python
 from phospy.advanced import DatasetProteinAwarePreparationConfig
-from phospy.api import (
-    DatasetPreprocessingConfig,
-)
 
 preprocessing = DatasetPreprocessingConfig(
     protein_aware_preparation=DatasetProteinAwarePreparationConfig(
@@ -1014,12 +544,7 @@ preprocessing = DatasetPreprocessingConfig(
 )
 ```
 
-The public preparation stage maps explicit protein identifiers from
-`site_metadata` (`protein_accession`, `protein_id`, or `protein_group_id`) to
-`total.index`. Gene-symbol matching is not the public default. Missing or
-ambiguous mappings are reported according to the configured mapping policy.
-
-After build, inspect:
+After building the dataset:
 
 ```python
 preparation = dataset.protein_aware_preparation
@@ -1027,133 +552,24 @@ report = dataset.preprocessing_report.protein_aware_preparation
 site_eligibility = report.site_eligibility_dataframe()
 ```
 
-PhosPy does not claim MSstatsPTM-style inference or equivalence for this
-preparation stage. Current `DifferentialAnalysisWorkflow` execution does not
-consume `ProteinAwarePreparationResult`.
+The current differential workflow does not consume this preparation result.
 
-## Site-Matrix Parameters
+## Peptide-Evidence Input
 
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `policy` | `str` | `"as_input"` | `"as_input"`, `"build_from_metadata"` | `"as_input"` preserves interpreted site-matrix-ready rows after `site_key` derivation. `"build_from_metadata"` constructs site identity from metadata before final dataset construction. |
-| `duplicate_site_policy` | `str` | `"error"` | `"error"`, `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"` | Controls duplicate rows that resolve to the same `site_key` during site-matrix construction. Duplicate `display_id` values with distinct `site_key` values are valid. |
-| `missing_data_policy` | `str` | `"drop_any_missing"` | `"drop_any_missing"` | Keeps only complete rows for strict dataset construction. |
-| `minimum_observed_values` | `None` | `None` | `None` | Public strict construction requires this to stay unset. |
+Use `site_resolution_mode="peptide_evidence"` when the input contains
+peptide-level evidence rather than resolved site rows. Ambiguous multi-site
+peptides require an explicit policy.
 
-When two or more rows resolve to the same `site_key`, the default policy raises
-instead of collapsing evidence. Duplicate `site_key` rows are a scientific
-ambiguity because choosing one row or aggregating rows changes the
-analysis-ready phosphosite evidence model. Non-error policies are deliberate
-scientific choices: `max_mean_signal` and `first` retain one source row, while
-`aggregate_mean` and `aggregate_median` combine duplicate source rows. When you
-use a non-error policy, inspect
-`dataset.preprocessing_report.duplicate_site_resolution` and
-`dataset.preprocessing_report.metadata_conflicts`.
+Supported analysis-ready policies are:
 
-Rows with repeated `display_id` values can pass when their derived `site_key`
-values differ. `display_id` is display metadata, not row identity.
-
-```python
-site_matrix = DatasetSiteMatrixConfig(
-    policy="build_from_metadata",
-    duplicate_site_policy="aggregate_mean",  # intentional row-collapse policy
-)
-```
-
-## Site-Sequence Resolution Parameters
-
-`DatasetSiteSequenceResolutionConfig` optionally uses a local FASTA file to
-validate, fill, or replace site sequences.
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `fasta_path` | `str` or `None` | `None` | Local filesystem path or `None` | Provides the FASTA source. When omitted, no local FASTA file is read. |
-| `mode` | `str` | `"validate_existing_and_fill_missing"` | `"validate_existing_and_fill_missing"`, `"fill_missing_only"`, `"validate_existing_only"`, `"replace_existing"` | Controls whether existing sequences are checked, missing sequences are filled, or existing values are replaced. |
-| `conflict_policy` | `str` or `None` | `None` | `"error"`, `"preserve_existing"`, `"replace_existing"`, or `None` | Controls conflicts between supplied and FASTA-derived sequences. |
-| `flank_size` | `int` | `7` | Integer `>= 1` when `fasta_path` is provided | Number of residues requested on each side of the modified residue. |
-| `accession_column` | `str` | `"protein_accession"` | Non-empty string | Metadata column containing protein accessions used for FASTA lookup. |
-| `site_column` | `str` | `"site"` | Non-empty string | Metadata column containing site labels such as `S939`. |
-
-Example:
-
-```python
-site_sequence_resolution = DatasetSiteSequenceResolutionConfig(
-    fasta_path="./references/rat.fasta",
-    mode="validate_existing_and_fill_missing",
-    conflict_policy="error",
-    flank_size=7,
-    accession_column="protein_accession",
-    site_column="site",
-)
-```
-
-## Comparison-Building Parameters
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `policy` | `str` | `"none"` | `"none"`, `"sample_metadata_pairs"` | Selects whether dataset comparisons are built. |
-| `sample_group_column` | `str` | `"comparison_group"` | Non-empty string | Column in `sample_metadata` containing group labels. |
-| `pairs` | `tuple[tuple[str, str], ...]` or `None` | `None` | Non-empty pair tuples when provided | Explicit comparison pairs. If omitted, pairs are inferred from observed groups. |
-
-When `policy="sample_metadata_pairs"`, `sample_metadata` is required.
-This comparison-building feature does not replace differential workflow design
-contracts.
-
-```python
-sample_metadata = pd.DataFrame(
-    {"comparison_group": ["control", "treated", "treated"]},
-    index=["sample_a", "sample_b", "sample_c"],
-)
-
-comparisons = DatasetComparisonBuildingConfig(
-    policy="sample_metadata_pairs",
-    sample_group_column="comparison_group",
-    pairs=(("control", "treated"),),
-)
-```
-
-## RUV-Readiness Parameters
-
-`DatasetRuvReadinessConfig` records report-only RUV-readiness metadata. It helps
-audit whether metadata that could be relevant to future RUV-family work is
-present; it does not select SPS controls or correct the matrix. Executable native
-SPS/RUV-style correction uses `SpsRuvBatchCorrectionConfig` under
-`batch_correction`. RUV-III correction is not currently supported.
-It does not make sample metadata scientific design input for differential
-analysis.
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `enabled` | `bool` | `False` | `True`, `False` | Enables readiness reporting. |
-| `control_feature_column` | `str` | `"is_control_feature"` | Non-empty string | Site-metadata column identifying control features. |
-| `replicate_group_column` | `str` | `"replicate_group"` | Non-empty string | Sample-metadata column identifying replicate groups. |
-| `batch_column` | `str` or `None` | `"batch"` | Non-empty string or `None` | Sample-metadata column identifying batches. Use `None` when batch information is not available. |
-
-```python
-ruv_readiness = DatasetRuvReadinessConfig(
-    enabled=True,
-    control_feature_column="is_control_feature",
-    replicate_group_column="replicate_group",
-    batch_column="batch",
-)
-```
-
-## Peptide-Evidence Multi-Site Policy
-
-When `site_resolution_mode="peptide_evidence"`, the builder requires an
-explicit `multi_site_policy`. Supported analysis-ready policies are:
-
-- `reject`: fail when ambiguous peptide evidence is present.
-- `exclude_from_sequence_scoring`: exclude ambiguous peptide evidence before the
-  analysis-ready dataset is built.
-- `split`: allocate ambiguous peptide evidence to strict site-level rows.
+- `reject`: Fail when ambiguous peptide evidence is present.
+- `exclude_from_sequence_scoring`: Remove ambiguous peptide evidence before the analysis-ready dataset is built.
+- `split`: Allocate ambiguous peptide evidence to strict site-level rows.
 
 The former `keep_joint` value is not supported by
-`AnalysisReadyDatasetBuilder`. Joint multi-site tokens keep unresolved peptide
-ambiguity and cannot produce the strict residue/position identity required by
+`AnalysisReadyDatasetBuilder`. Joint tokens retain unresolved peptide ambiguity
+and cannot provide the strict residue/position identity required by
 `AnalysisReadyPhosphoDataset`.
-
-Migration example:
 
 ```python
 request = DatasetBuildRequest(
@@ -1166,73 +582,77 @@ request = DatasetBuildRequest(
 )
 ```
 
-## Full Dataset-Build Example
+## Response
 
-```python
-import pandas as pd
+`AnalysisReadyDatasetBuilder.run(...)` returns an
+`AnalysisReadyPhosphoDataset`. Data-frame properties return defensive snapshots,
+so changing a returned table does not mutate the dataset.
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetMissingDataConfig,
-    DatasetNormalisationConfig,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetLocalisationConfig,
-    DatasetPreprocessingConfig,
-    Organism,
-)
+| Attribute | Format | Meaning | Presence |
+| --- | --- | --- | --- |
+| `phospho` | `pandas.DataFrame` | Analysis-ready site-by-sample quantitative matrix indexed by `site_key`. | Always |
+| `site_metadata` | `pandas.DataFrame` | Required identity, site, sequence, and scientific metadata aligned to `phospho`. | Always |
+| `sample_metadata` | `pandas.DataFrame` or `None` | Aligned sample metadata supplied to the builder. | When supplied |
+| `total` | `pandas.DataFrame` or `None` | Aligned total-protein input. | When supplied |
+| `comparisons` | `pandas.DataFrame` or `None` | Optional builder-created comparison columns. | When configured |
+| `intensity_scale_state` | `IntensityScaleState` | Established intensity scale and supporting evidence. | Always |
+| `processing_state` | `DatasetProcessingState` | Typed preprocessing and quantitative-meaning state. | Always |
+| `preprocessing_report` | `DatasetPreprocessingReport` or `None` | Row counts, operations, attrition, correction, sequence, and conflict diagnostics. | Built datasets normally include it |
+| `imputation_observation_metadata` | Typed metadata or `None` | Originally observed versus imputed-cell evidence. | When imputation metadata exists |
+| `imputation_feature_metadata` | `pandas.DataFrame` or `None` | Per-feature imputation summary. | When imputation metadata exists |
+| `protein_aware_preparation` | `ProteinAwarePreparationResult` or `None` | Prepared protein-aware model inputs and report. | When configured |
+| `organism` | `Organism` or `None` | Dataset species. | When established |
+| `opaque_site_values_allowed` | `bool` | Whether the advanced opaque-site policy was enabled. | Always |
+| `provenance` | `RunProvenance` or `None` | Inputs, parameters, stage evidence, fingerprints, and caveats. | Built datasets normally include it |
+| `reference_context` | Reference context or `None` | Reference compatibility information derived from provenance. | When available |
+| `trusted_construction_assertions` | `TrustedDatasetConstructionAssertions` or `None` | Evidence supplied through the advanced/trusted construction route. | Trusted-table construction only |
 
-phospho = pd.DataFrame(
-    {
-        "sample_a": [100.0, 70.0],
-        "sample_b": [110.0, 80.0],
-        "sample_c": [95.0, 75.0],
-    },
-    index=["TSC2;S939;", "GSK3B;S9;"],
-)
-site_metadata = pd.DataFrame(
-    {
-        "gene_symbol": ["TSC2", "GSK3B"],
-        "site": ["S939", "S9"],
-        "site_sequence": [
-            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
-        ],
-        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
-        "organism": ["rat", "rat"],
-        "protein_namespace": ["protein_id", "protein_id"],
-        "protein_identifier": ["TSC2", "GSK3B"],
-        "protein_group_id": ["TSC2", "GSK3B"],
-        "localisation_confidence": [0.95, 0.92],
-    },
-    index=phospho.index.copy(),
-)
+The most useful preprocessing report tables are:
 
-preprocessing = DatasetPreprocessingConfig(
-    intensity_transform=DatasetIntensityTransformConfig(
-        policy="log2",
-        pseudocount=1.0,
-    ),
-    normalisation=DatasetNormalisationConfig(policy="median_center"),
-    missing_data=DatasetMissingDataConfig(policy="forbid"),
-    localisation=DatasetLocalisationConfig(
-        mode="require_threshold",
-        confidence_column="localisation_confidence",
-        min_confidence=0.75,
-    ),
-)
+| Attribute | Meaning |
+| --- | --- |
+| `row_counts` | Row counts at named preprocessing stages. |
+| `operations` | Applied operations, parameters, shapes, and status. |
+| `row_audit` | Row-level retention and removal reasons. |
+| `duplicate_site_resolution` | How duplicate `site_key` rows were handled. |
+| `metadata_conflicts` | Conflicting metadata discovered during row resolution. |
+| `batch_correction` | Typed correction status and diagnostics. |
+| `protein_aware_preparation` | Typed preparation report. |
 
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        organism=Organism.RAT,
-        preprocessing_config=preprocessing,
-    )
-)
+## Common Problems
 
-print(dataset.phospho.shape)
-print(dataset.intensity_scale_state.label)
-```
+### The intensity scale is not established
+
+Apply an explicit log2 transform or declare the supplied scale with
+`input_intensity_scale`. Do not label raw-looking linear values as log2 merely
+to pass validation.
+
+### Localisation validation fails
+
+Check the configured confidence column, missing values, and threshold. Use a
+waiver only when the missing evidence and its scientific consequences are
+understood and recorded.
+
+### Sample metadata does not align
+
+The `sample_metadata` index and `total` columns must match the phospho sample
+columns. PhosPy does not reorder ambiguous or duplicate identifiers silently.
+
+### Duplicate sites are rejected
+
+Confirm whether the rows truly represent the same protein-scoped site. Choose a
+non-error duplicate policy only when retaining or aggregating those rows is a
+deliberate scientific decision.
+
+### Missing values remain
+
+The analysis-ready boundary is complete by design. Filter insufficient rows or
+select an explicit imputation policy, then inspect the recorded observation
+metadata before downstream inference.
+
+## Related Documentation
+
+- [Run your first analysis](../quickstart.md)
+- [Differential analysis](differential-analysis.md)
+- [Kinase analysis](kinase.md)
+- [Scientific interpretation and limitations](../scientific-interpretation.md)

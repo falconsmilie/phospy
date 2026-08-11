@@ -1,46 +1,45 @@
-# PhosPy documentation
+# Welcome to PhosPy
 
-PhosPy is a Python package for selected phosphoproteomics workflows.
+PhosPy provides a focused Python API for phosphoproteomics analysis. These
+guides are designed to help you move from an intensity table to an interpretable
+result without having to study PhosPy's internal architecture.
 
-Use these docs when you want to build an analysis-ready phosphosite dataset,
-choose the right workflow, understand the request fields, and interpret the
-result tables without digging through implementation modules.
-
-## Start here
+## Start Here
 
 1. [Install PhosPy](installation.md).
-2. [Prepare a dataset](api/dataset-build-workflow.md).
-3. [Run your first analysis](quickstart.md).
-4. Choose a workflow page:
-   [differential analysis](api/differential-analysis.md),
-   [enrichment](api/enrichment.md),
-   [kinase analysis](api/kinase.md), or
-   [signalome analysis](api/signalome.md).
+2. [Prepare an analysis-ready dataset](api/dataset-build-workflow.md).
+3. [Run a first analysis](quickstart.md).
+4. Choose the workflow that matches your scientific question.
 
-## Workflow map
+## Choose a Workflow
 
-| Goal | Workflow page | Public entry point |
+| Scientific question | Guide | Public entry point |
 | --- | --- | --- |
-| Test explicit condition contrasts | [Differential analysis](api/differential-analysis.md) | `DifferentialAnalysisWorkflow.run(DifferentialAnalysisRequest)` |
-| Run offline ORA on selected identifiers | [Enrichment](api/enrichment.md) | `EnrichmentWorkflow.run(EnrichmentWorkflowRequest)` |
-| Score and predict kinase support | [Kinase analysis](api/kinase.md) | `KinaseWorkflow.run(KinaseWorkflowRequest)` |
-| Summarize kinase outputs into modules and network-style tables | [Signalome analysis](api/signalome.md) | `SignalomeWorkflow.run(SignalomeWorkflowRequest)` |
+| Which phosphosites differ between named conditions? | [Differential Analysis](api/differential-analysis.md) | `DifferentialAnalysisWorkflow.run(...)` |
+| Are selected identifiers over-represented in my local sets? | [Enrichment](api/enrichment.md) | `EnrichmentWorkflow.run(...)` |
+| Which kinases have the strongest support for each site? | [Kinase Analysis](api/kinase.md) | `KinaseWorkflow.run(...)` |
+| How can kinase-supported sites be summarized into modules and associations? | [Signalome Analysis](api/signalome.md) | `SignalomeWorkflow.run(...)` |
 
-The dataset builder is shared by the workflows. It returns an
-`AnalysisReadyPhosphoDataset` with `site_key` row identity, required
-`site_sequence` metadata, and auditable preprocessing state.
+Each workflow guide contains its complete request model, a runnable example,
+its response format, interpretation guidance, and common problems.
+
+## Understand the Dataset Boundary
+
+The dataset builder returns an `AnalysisReadyPhosphoDataset`. Rows use a unique
+`site_key`; `display_id` remains a readable label and may repeat when protein
+context differs.
 
 Duplicate `display_id` values remain valid when the corresponding `site_key`
 values differ. Duplicate rows that resolve to the same `site_key` are a
 scientific ambiguity and fail by default unless you deliberately choose and
 audit a non-error duplicate-site policy.
 
-## Scientific scope
+## Keep the Scientific Limits in View
 
-PhosPy is PhosR-inspired, not a full PhosR replacement. Scientific scope and
-parity/open-gap status live in [Scientific Coverage](scientific-coverage.md).
-For practical caveats, start with
-[Scientific interpretation and limitations](scientific-interpretation.md).
+PhosPy is inspired by selected PhosR workflows, but it does not claim full PhosR
+equivalence. Start with [Scientific Interpretation and
+Limitations](scientific-interpretation.md) for practical guidance. The detailed
+support matrix is available in [Scientific Coverage](scientific-coverage.md).
 
 PhosPy does not provide HTTP endpoints or a hosted service. The supported user
 interface is the Python API.
