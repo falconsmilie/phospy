@@ -4,26 +4,16 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/phospy.svg)](https://pypi.org/project/phospy/)
 [![Tests](https://github.com/falconsmilie/phospy/actions/workflows/ci.yml/badge.svg)](https://github.com/falconsmilie/phospy/actions/workflows/ci.yml)
 [![License](https://img.shields.io/pypi/l/phospy.svg)](https://github.com/falconsmilie/phospy/blob/main/LICENSE)
-[![Downloads](https://api.pepy.tech/badge/phospy)](https://pepy.tech/project/phospy)
 
-PhosPy is a Python package for selected phosphoproteomics workflows inspired by
-PhosR. It is aimed at scientists who want a clear Python lane from phosphosite
-intensity tables to differential phosphorylation analysis, offline
-over-representation enrichment, kinase scoring and prediction, and optional
-signalome analysis. Enrichment support is offline ORA over caller-supplied
-selected identifiers, local set collections, and an explicit background
-universe.
+PhosPy is a Python package for selected phosphoproteomics workflows.
 
-"PhosR-inspired" in PhosPy docs means scoped, feature-level comparison lanes. It
-does not imply full PhosR package parity or full PhosR API compatibility.
-Current differential analysis is scoped to tested design and contrast envelopes;
-it is not full limma or PhosR parity.
+It helps you build strict phosphosite datasets, run differential phosphorylation
+analysis, run offline over-representation analysis (ORA), score kinase support,
+predict kinase-substrate support, and create optional signalome summaries. The
+supported interface is the Python API.
 
-PhosPy does **not** provide HTTP endpoints or a web service. The supported user
-interface is the Python API.
-
-## Recommended Reading
-You can view the full documentation here: [PhosPy Docs](https://phospy.com/docs)
+PhosPy is PhosR-inspired, but current differential analysis is limited to tested
+design and contrast envelopes; it is not full limma or PhosR parity.
 
 ## Installation
 
@@ -33,147 +23,26 @@ PhosPy requires Python 3.11 or 3.12.
 pip install phospy
 ```
 
-For `.parquet` input or output support:
+For Parquet input/output:
 
 ```bash
 pip install "phospy[parquet]"
 ```
 
-For local development from a clone:
-
-```bash
-pip install -e ".[dev]"
-python scripts/run_pyright.py
-pytest -m "not parity"
-```
-
-For reproducible scientific/regression runs aligned to CI:
-
-```bash
-pip install -c constraints/ci.txt -e ".[dev,test]"
-pytest tests/parity -m "parity and not parity_diagnostic" -s
-```
-
-For public release checks, the maintainer command is `make release-check`. It
-runs the normal lint, type, unit, external-consumer contract, blocking parity,
-performance, strict documentation build, release/golden/reproducibility,
-checked-in reference, distribution build, and installed wheel/sdist verification
-checks:
+For local development:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
-make release-check
 ```
 
-This process provides normal CI/build confidence, not formal
-exact-source/exact-artifact attestation. Partial local passes, such as default
-tests, parity-only tests, or performance-only tests, are useful development
-checks but are insufficient for publishing. Default pytest `testpaths` omit
-`tests/release`, `tests/golden`, and `tests/performance`; the
-`test-release-gates` Make target selects release/golden checks explicitly.
-`make build` starts from an empty `dist/`, builds one wheel and one sdist, runs
-metadata checks, and validates the packaged reference manifests and declared
-file hashes in both archives. `make verify-installed-distributions` rebuilds
-the artifacts when invoked directly, then installs the wheel and sdist in
-isolated environments outside the checkout, verifies `phospy.__file__` resolves
-inside the installed environment, checks bundled reference resources and SHA-256
-values, and runs representative public workflow contracts. CI runs this
-installed-distribution verifier on Python 3.11 and 3.12.
+For maintained release checks, run `make release-check`. It provides normal
+CI/build confidence, not formal exact-source/exact-artifact attestation.
 
-For local scale profiling only, `make benchmark-release-scale` runs the
-optional 50,000 x 48 builder+differential benchmark. It is informational,
-machine-dependent, and intentionally excluded from `make release-check` and CI.
+## Compact example
 
-## Quick Start
-
-1. Build an analysis-ready phosphoproteomics dataset.
-2. Run the supported workflow lane you need: differential, enrichment, kinase,
-   or signalome.
-3. Explore full API workflow documentation:
-    - [Dataset building](docs/api/dataset-build-workflow.md)
-    - [Differential workflow](docs/api/differential-analysis.md)
-    - [Enrichment workflow](docs/api/enrichment.md)
-    - [Kinase workflow](docs/api/kinase.md)
-    - [Signalome workflow](docs/api/signalome.md)
-
-Bundled runtime references in the current release are rat-only. For human or
-mouse work, create and pass an explicit `ReferenceBundle` in Python instead of
-using `ReferencePreset.AUTO`.
-Packaged references are governed by a manifest `redistribution_status`: only
-`approved` references with typed upstream-package license evidence for the exact
-snapshot and packaged files are release-eligible, `unresolved` bundled
-references block release, and `external_only` references are caller-supplied
-local data that must not be shipped as bundled data. The raw
-`redistribution_allowed` manifest value is only a compatibility mirror and must
-not contradict `redistribution_status`.
-
-The default kinase `scoring_mode="phosr_rank_weighted"` is PhosR-inspired
-rank-weighted scoring implemented by PhosPy. It combines available profile and
-motif support under PhosPy's support rules; it is not an exact PhosR
-implementation and is not intended to provide numerical parity with PhosR.
-Kinase scoring and prediction outputs are relative support within a run, not
-calibrated probabilities.
-Optional kinase activity outputs are exploratory kinase activity scores or
-activity-like substrate summaries. They depend on substrate coverage and
-reference evidence; they are not direct proof of kinase activation or causal
-pathway activity. KSEA-style outputs emit ordinary normal-approximation p-values
-and q-values only when typed substrate-membership provenance shows that
-membership was selected independently of the tested quantitative matrix; adaptive
-profile-derived membership reports descriptive z-scores with p/q values
-unavailable.
-
-Enrichment ORA results are overlap statistics under the caller-supplied
-background universe. They do not prove pathway activation, regulation, or
-biological causality, and PhosPy does not imply GSEA or PTM-SEA support.
-Manual or external identifier lists can remain minimally described, while
-identifier sets derived from PhosPy quantitative results require typed
-derivation provenance with source-result fingerprint, threshold/direction,
-namespace, missing-value rule, quantitative scale/meaning, and software
-version.
-
-Scientific scope categories and parity/open-gap status are maintained in
-[`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture
-evidence lives in [`docs/parity.md`](docs/parity.md). Parity claims are
-fixture-scoped; they do not transfer to untested fixtures, broader PhosR
-surfaces, or artifacts that did not pass the maintainer release checks.
-Future coverage direction is tracked in
-[`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
-that roadmap is not a current feature-support claim.
-Native SPS/RUV-style batch-correction prerequisites are recorded in
-[`ADR-0029`](docs/adr/adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md);
-those prerequisites are implemented for the supported
-`SpsRuvBatchCorrectionConfig` preprocessing lane. This is a native PhosPy
-implementation, not PhosR-equivalent SPS/RUV-III parity.
-
-The `batch_correction` preprocessing group exposes two explicit lanes:
-`linear_residualize_batch`, a limited fixed-effect residualisation step, and
-native SPS/RUV-style correction through `SpsRuvBatchCorrectionConfig`.
-`linear_residualize_batch` preserves condition effects by design and rejects
-confounded batch/condition metadata; it is not ComBat, not RUV, not limma
-`removeBatchEffect` parity, not native SPS/RUV-style correction, not
-PhosR-equivalent batch correction, and not mixed-effects modelling. Native
-SPS/RUV-style correction is executable only through explicit structured
-preprocessing config and requires caller-supplied controls, batch and protected
-condition metadata, a missingness policy, diagnostics, and provenance. The
-native PhosPy SPS/RUV-style preprocessing correction estimates unwanted factors
-from eligible control-site residuals after protected-design handling. Batch
-terms are resolved for validation and diagnostics, including
-batch-associated-variance summaries; they are not directly residualized as
-fixed effects by the native correction. Replicate metadata, when supplied, is
-validated and recorded for provenance and diagnostics only. Supplied replicate
-labels must not be all the same, all unique, perfectly confounded with batch,
-or perfectly confounded with protected condition metadata. Replicate metadata
-is not used for numerical unwanted-factor estimation and does not enable
-RUV-III or replicate-aware RUV-III semantics. RUV-III style correction is not
-executable unless a future feature implements replicate-aware semantics. Any
-`ruv_readiness` diagnostics are report-only readiness signals and do not apply
-correction. Native SPS/RUV-style correction rejects correction-stage matrices
-with actual missing values before executor invocation: temporary imputation
-followed by restored missing values cannot produce analysis-ready corrected
-output. Run missing-data preprocessing first, or provide a complete
-upstream-imputed matrix with an observation mask.
-
-## Kinase Workflow Example
+This example builds a small rat dataset and runs the public kinase workflow.
+Real analyses should use study-specific biological replicates, references, and
+reporting thresholds.
 
 ```python
 import pandas as pd
@@ -181,20 +50,15 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.api import (
     DatasetBuildRequest,
-    IntensityScaleKind,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
+    IntensityScaleKind,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
 )
-from phospy.advanced import (
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
+from phospy.advanced import KinaseReliabilityProfile, KinaseScoringConfig
 
-# Tiny synthetic example for workflow mechanics only (not biological discovery).
 phospho = pd.DataFrame(
     {
         "control_rep1": [8200.0, 9100.0, 6000.0],
@@ -217,30 +81,19 @@ site_metadata = pd.DataFrame(
         "organism": ["rat", "rat", "rat"],
         "protein_namespace": ["protein_id", "protein_id", "protein_id"],
         "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
-        # Signalome has a separate explicit grouping requirement.
         "protein_group_id": ["MAPK14", "GSK3A", "TSC2"],
         "localisation_confidence": [0.95, 0.94, 0.96],
     },
     index=phospho.index.copy(),
-)
-sample_metadata = pd.DataFrame(
-    {
-        "comparison_group": ["control", "control", "treatment", "treatment"],
-    },
-    index=phospho.columns.copy(),
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
         phospho=phospho,
         site_metadata=site_metadata,
-        sample_metadata=sample_metadata,
         organism=Organism.RAT,
         input_intensity_scale=IntensityScaleKind.LINEAR,
         preprocessing_config=DatasetPreprocessingConfig(
-            # Site-level workflows should fail fast when localisation is missing
-            # or below threshold, because ambiguous site assignment can
-            # mis-state kinase/substrate interpretation.
             localisation=DatasetLocalisationConfig(
                 mode="require_threshold",
                 confidence_column="localisation_confidence",
@@ -250,118 +103,65 @@ dataset = AnalysisReadyDatasetBuilder().run(
     )
 )
 
-# Builder input may be display-indexed when enough protein context is present.
-# The analysis-ready dataset itself is indexed by site_key; direct
-# AnalysisReadyPhosphoDataset construction must already use site_key indexes.
-print(
-    dataset.site_metadata.loc[
-        :,
-        [
-            "site_key",
-            "display_id",
-            "gene_symbol",
-            "site",
-            "organism",
-            "protein_namespace",
-            "protein_identifier",
-            "protein_group_id",
-            "site_sequence",
-        ],
-    ]
-)
-# sample_metadata is descriptive/alignment metadata on the dataset.
-# Differential workflow design is provided separately via ExperimentalDesign.
-
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
-        # Safe in this example because organism=rat and bundled runtime
-        # references in this release are rat-only.
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(
             reliability_profile=KinaseReliabilityProfile.CUSTOM,
-            reference_context_compatibility_policy=(
-                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
-            )
         ),
         activity_config=None,
     )
 )
 
-print(kinase_result.prediction_result.pred_mat.round(3).iloc[:3, :5])
-if kinase_result.prediction_result.substrate_list is not None:
-    print(kinase_result.prediction_result.substrate_list.head(5))
+print(kinase_result.prediction_result.pred_mat.head())
 ```
 
-`site_key` is the true analysis-ready phosphosite row identity. `display_id` is
-only a human-readable label and may repeat when different `site_key` values
-preserve distinct protein context. Rows that resolve to the same `site_key` are
-a scientific ambiguity; the builder fails by default, and any non-error
-duplicate-site policy should be chosen deliberately and audited in the
-preprocessing report.
-
-Differential result tables use strict protein-scoped identity. Public
-`DifferentialAnalysisResult` tables must be indexed by encoded `site_key` values
-and include `site_key`, `display_id`, `gene_symbol`, and `site`. Workflow-created
-results preserve available protein context such as `organism`,
-`protein_namespace`, `protein_identifier`, and Signalome grouping metadata such
-as `protein_group_id`. Display-indexed or
-stat-only result tables are not valid public inputs.
-
-## Import Contract
-
-Use top-level `phospy` for the dataset, differential, kinase, and signalome
-convenience entrypoints:
+Use top-level imports for the main dataset and workflow entry points:
 
 ```python
 from phospy import AnalysisReadyDatasetBuilder
 from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
 ```
 
-`AnalysisReadyPhosphoDataset` remains exported as a public result/domain type.
-The direct `AnalysisReadyPhosphoDataset(...)` constructor raises immediately; it
-does not provide a warning-based compatibility route and does not create
-provenance for direct calls. Ordinary user construction should go
-through `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
-Advanced callers who already own fully prepared `site_key`-indexed
-analysis-ready tables must use
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with complete
-`TrustedDatasetConstructionAssertions`. The trusted factory runs private dataset
-structural validation, including required `site_sequence`, but trusted
-assertions and provenance are caller claims and do not prove biological
-correctness. Supplied provenance must fingerprint the actual represented tables;
-mismatched fingerprints are rejected.
-
-Use `phospy.api` for the stable request, workflow, primary result, reference,
-enum, and common exception names documented in the API guide. The aggregate
-facade is intentionally smaller than the implementation modules; validators,
-workflow executors, processing-state internals, nested diagnostic records, and
-compatibility constants are not stable public API.
-
-`EnrichmentWorkflow` is a supported public workflow from `phospy.api`, not a
-top-level `phospy` convenience export:
+`EnrichmentWorkflow` is public through `phospy.api`:
 
 ```python
-from phospy.api import EnrichmentConfig, EnrichmentWorkflow
-from phospy.api import EnrichmentWorkflowRequest, GeneSetCollection
+from phospy.api import EnrichmentConfig, EnrichmentWorkflow, EnrichmentWorkflowRequest
 ```
 
-Specialized configuration and inspection helpers that are not part of the
-stable facade are documented as advanced supported API. Import them from the
-explicit `phospy.advanced` namespace. Historical `phospy.api` advanced import
-routes are compatibility adapters and emit deprecation warnings with the
-replacement import.
+## Supported workflows
 
-## Documentation
+- [Dataset preparation](docs/api/dataset-build-workflow.md)
+- [Differential analysis](docs/api/differential-analysis.md)
+- [Enrichment](docs/api/enrichment.md)
+- [Kinase analysis](docs/api/kinase.md)
+- [Signalome analysis](docs/api/signalome.md)
 
-1. [Quickstart](https://phospy.com/docs/quickstart/)
-2. [API Guide](https://phospy.com/docs/api/)
-3. [Workflow Contracts](https://phospy.com/docs/workflow_contracts/)
-4. [Validation Guide](https://phospy.com/docs/validation/)
-5. [Scientific Coverage Matrix](https://phospy.com/docs/scientific-coverage/)
+The full documentation starts at [PhosPy Docs](https://phospy.com/docs/).
+See the [contributing guide](docs/contributing.md), [license](LICENSE), and
+[`CITATION.cff`](CITATION.cff) for project and citation details.
 
-## Citation
+## Scientific-use notes
 
-If you use PhosPy in scientific work, cite this software release using
-[`CITATION.cff`](CITATION.cff) and also cite the upstream PhosR project and
-publications described in [`NOTICE.md`](NOTICE.md).
+Bundled runtime references are rat-only in this release. Use
+`ReferencePreset.AUTO` only for rat datasets; for human or mouse work, pass an
+explicit `ReferenceBundle`.
+
+Kinase scores are relative support within a run, not calibrated probabilities.
+Kinase activity outputs are not direct proof of kinase activation or causal
+pathway activity. Enrichment ORA uses caller-supplied selected identifiers, set
+collections, and a background universe; ORA does not imply GSEA or PTM-SEA
+support.
+
+Batch-correction preprocessing is explicit. `linear_residualize_batch` is
+limited fixed-effect residualisation; it rejects confounded batch/condition
+metadata and is not ComBat, not RUV, not limma `removeBatchEffect` parity, not
+mixed-effects modelling, not native SPS/RUV-style correction, and not
+PhosR-equivalent batch correction. Native SPS/RUV-style correction through
+`SpsRuvBatchCorrectionConfig` has implemented prerequisites, but it is not
+PhosR-equivalent SPS/RUV-III parity; those prerequisites are implemented as a
+native PhosPy preprocessing lane, not current PhosR parity. Replicate metadata is validated and
+recorded for provenance and diagnostics only; it is not used for numerical
+unwanted-factor estimation. `ruv_readiness` diagnostics are report-only
+RUV-readiness metadata; they are readiness signals and do not apply correction.

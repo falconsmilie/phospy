@@ -431,9 +431,13 @@ activity results faithfully.
 ## Where Details Live
 
 - [API Guide](api/guide.md) links to supported imports and workflow pages.
-- [Dataset Build API](api/dataset-build-workflow.md) owns dataset request,
-  preprocessing configuration details, workflow-specific request,
-  config, result, example, provenance, and limitation details.
+- [Dataset Build API](api/dataset-build-workflow.md) owns shared dataset
+  preparation and preprocessing details.
+- [Differential Analysis Workflow](api/differential-analysis.md),
+  [Enrichment Workflow](api/enrichment.md),
+  [Kinase Workflow](api/kinase.md), and
+  [Signalome Workflow](api/signalome.md) own their workflow-specific request
+  fields, response formats, examples, and interpretation notes.
 - [Scientific Coverage](scientific-coverage.md) is the maintained scope and
   coverage matrix.
 - [Parity](parity.md) tracks fixture comparison evidence.

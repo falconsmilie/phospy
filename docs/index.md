@@ -1,53 +1,46 @@
-# PhosPy Documentation
+# PhosPy documentation
 
-## Welcome
+PhosPy is a Python package for selected phosphoproteomics workflows.
 
-PhosPy helps you turn phosphosite intensity tables into kinase scoring,
-kinase prediction, and optional signalome analysis in Python.
+Use these docs when you want to build an analysis-ready phosphosite dataset,
+choose the right workflow, understand the request fields, and interpret the
+result tables without digging through implementation modules.
 
-PhosPy does not claim full PhosR package equivalence. Scientific support claims
-are feature-scoped and mapped in the Scientific Coverage matrix.
+## Start here
 
-## Start Here
+1. [Install PhosPy](installation.md).
+2. [Prepare a dataset](api/dataset-build-workflow.md).
+3. [Run your first analysis](quickstart.md).
+4. Choose a workflow page:
+   [differential analysis](api/differential-analysis.md),
+   [enrichment](api/enrichment.md),
+   [kinase analysis](api/kinase.md), or
+   [signalome analysis](api/signalome.md).
 
-1. [Quickstart](quickstart.md): copy/paste a complete first workflow.
-2. [API Guide](api/guide.md): see the public Python classes and config options.
-3. [Validation Guide](validation.md): fix common input and boundary errors.
+## Workflow map
 
-## What PhosPy Does
+| Goal | Workflow page | Public entry point |
+| --- | --- | --- |
+| Test explicit condition contrasts | [Differential analysis](api/differential-analysis.md) | `DifferentialAnalysisWorkflow.run(DifferentialAnalysisRequest)` |
+| Run offline ORA on selected identifiers | [Enrichment](api/enrichment.md) | `EnrichmentWorkflow.run(EnrichmentWorkflowRequest)` |
+| Score and predict kinase support | [Kinase analysis](api/kinase.md) | `KinaseWorkflow.run(KinaseWorkflowRequest)` |
+| Summarize kinase outputs into modules and network-style tables | [Signalome analysis](api/signalome.md) | `SignalomeWorkflow.run(SignalomeWorkflowRequest)` |
 
-PhosPy supports clear public workflow lanes:
+The dataset builder is shared by the workflows. It returns an
+`AnalysisReadyPhosphoDataset` with `site_key` row identity, required
+`site_sequence` metadata, and auditable preprocessing state.
 
-1. build an `AnalysisReadyPhosphoDataset`
-2. run `DifferentialAnalysisWorkflow` with explicit design and contrasts
-3. run `EnrichmentWorkflow` as offline ORA with caller-supplied selected
-   identifiers, sets, and background universe
-4. run `KinaseWorkflow`
-5. optionally run `SignalomeWorkflow`
+Duplicate `display_id` values remain valid when the corresponding `site_key`
+values differ. Duplicate rows that resolve to the same `site_key` are a
+scientific ambiguity and fail by default unless you deliberately choose and
+audit a non-error duplicate-site policy.
 
-The package does not provide HTTP endpoints. Use the Python API for DataFrame
-work and explicit references.
+## Scientific scope
 
-## Page Map
+PhosPy is PhosR-inspired, not a full PhosR replacement. Scientific scope and
+parity/open-gap status live in [Scientific Coverage](scientific-coverage.md).
+For practical caveats, start with
+[Scientific interpretation and limitations](scientific-interpretation.md).
 
-| Need | Page                                                                  |
-| --- |-----------------------------------------------------------------------|
-| First successful run | [Quickstart](quickstart.md)                                           |
-| Public Python classes and parameters | [API Guide](api/guide.md) |
-| Human/mouse local references | [Reference Bundles](reference_bundles.md)                              |
-| Input rules and common errors | [Validation Guide](validation.md)                                     |
-| Workflow expectations, assumptions, and result interpretation | [Workflow Contracts](workflow_contracts.md)                           |
-| Written output files and reloadable bundles | [Output Bundles](output_bundles.md)                                   |
-| Runtime limits and larger datasets | [Performance Contracts](performance.md)                               |
-| Scientific coverage and PhosR comparison | [Scientific Coverage](scientific-coverage.md) and [Parity](parity.md) |
-| Development, CI, fixtures, and release notes | [Maintenance](maintenance.md)                                         |
-| Validation ownership details for maintainers | [Validation Ownership Map](validation-ownership.md)                    |
-| Testing audit and consolidation docs | [Testing Audit Docs](testing/README.md)                                |
-
-A good first outcome is modest: build a two-site rat dataset, run kinase with
-`ReferencePreset.AUTO`, and add signalome once protein context is complete and
-explicit `protein_group_id` values are present.
-
-Use [Scientific Coverage](scientific-coverage.md) as the single maintained
-scope matrix for parity-gated lanes, validated PhosPy implementations,
-experimental features, open gaps, and out-of-scope/not-planned areas.
+PhosPy does not provide HTTP endpoints or a hosted service. The supported user
+interface is the Python API.

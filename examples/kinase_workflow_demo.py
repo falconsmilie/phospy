@@ -49,7 +49,7 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
             "protein_identifier": ["TSC2", "GSK3A"],
             "localisation_confidence": [0.95] * phospho.shape[0],
             # Required later by signalome; kinase identity itself uses site_key.
-            "protein_id": ["TSC2", "GSK3A"],
+            "protein_group_id": ["TSC2", "GSK3A"],
         },
         index=phospho.index.copy(),
     )
@@ -104,7 +104,7 @@ def main() -> None:
                 "site",
                 "protein_namespace",
                 "protein_identifier",
-                "protein_id",
+                "protein_group_id",
             ],
         ]
     )

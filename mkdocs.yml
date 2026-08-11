@@ -58,28 +58,32 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Quickstart: quickstart.md
-  - API:
-      - API Guide: api/guide.md
-      - Dataset Build API: api/dataset-build-workflow.md
-      - Differential Analysis: api/differential-analysis.md
+  - Getting started:
+      - Installation: installation.md
+      - Preparing a dataset: api/dataset-build-workflow.md
+      - Running your first analysis: quickstart.md
+  - Workflows:
+      - Differential analysis: api/differential-analysis.md
       - Enrichment: api/enrichment.md
-      - Kinase: api/kinase.md
-      - Signalome: api/signalome.md
-  - CLI Status: cli.md
-  - User Guides:
-      - Phosphosite Importers: importers.md
-      - Workflow Contracts: workflow_contracts.md
-      - Validation Guide: validation.md
-      - Reference Bundles: reference_bundles.md
-      - Output Bundles: output_bundles.md
-      - Performance Contracts: performance.md
-      - Scientific Coverage: scientific-coverage.md
+      - Kinase analysis: api/kinase.md
+      - Signalome analysis: api/signalome.md
+  - Core concepts:
+      - Reference data: reference_bundles.md
+      - Scientific interpretation and limitations: scientific-interpretation.md
+      - Validation guide: validation.md
+      - Output bundles: output_bundles.md
+      - Phosphosite importers: importers.md
+      - Performance contracts: performance.md
+      - Scientific coverage: scientific-coverage.md
       - Parity to PhosR: parity.md
+  - API reference:
+      - API guide: api/guide.md
+      - Supplementary workflow contract map: workflow_contracts.md
+      - CLI status: cli.md
+  - Contributing and maintenance:
       - Contributing: contributing.md
-  - Project:
       - Maintenance: maintenance.md
-      - Release Notes: release-notes.md
-      - Validation Ownership Map: validation-ownership.md
-      - Testing Audit Docs: testing/README.md
-      - ADR Index: adr/index.md
+      - Release notes: release-notes.md
+      - Validation ownership map: validation-ownership.md
+      - Testing audit docs: testing/README.md
+      - ADR index: adr/index.md

@@ -219,6 +219,9 @@ pytest tests/parity -m "parity_diagnostic" -s
 - Missing-value handling is an intentional contract difference:
   `AnalysisReadyPhosphoDataset` requires complete matrices, so missing values
   are rejected before differential execution.
+- Upstream-imputed datasets are rejected by default. The explicit
+  `withhold_imputed_features` policy is a PhosPy safety contract, not a limma
+  parity surface.
 
 ### Large Differential Trend Fixture Provenance
 
