@@ -134,6 +134,17 @@ The full documentation is available at [PhosPy Docs](https://phospy.com/docs/).
 See the [contributing guide](docs/contributing.md), [license](LICENSE), and
 [`CITATION.cff`](CITATION.cff) for project and citation details.
 
+## Release Checks
+
+Maintainers should run the lightweight release gate before publishing:
+
+```bash
+make release-check
+```
+
+This provides normal CI/build confidence, not formal
+exact-source/exact-artifact attestation.
+
 ## Scientific Scope
 
 PhosPy is careful about what each result can support. Read the

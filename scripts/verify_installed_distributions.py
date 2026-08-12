@@ -49,6 +49,7 @@ from phospy.advanced import DatasetMissingDataConfig, DatasetNormalisationConfig
 from phospy.advanced import DatasetSiteMatrixConfig, KinaseReliabilityProfile
 from phospy.advanced import KinaseScoringConfig
 from phospy.advanced import ReferenceContextCompatibilityPolicy
+from phospy.advanced import publish_dataset
 from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
 from phospy import KinaseWorkflow
 from phospy.api import Contrast, DatasetBuildRequest, DatasetLocalisationConfig
@@ -120,6 +121,7 @@ def _verify_public_surface() -> dict[str, object]:
         "DatasetIntensityTransformConfig",
         "KinaseScoringConfig",
         "ReferenceContextCompatibilityPolicy",
+        "publish_dataset",
     ):
         if name in api.__all__:
             raise AssertionError(f"advanced API name leaked into phospy.api: {name}")
@@ -328,6 +330,7 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
         kinase_request=kinase_request,
         kinase_result=kinase_result,
     )
+    publisher_report = _exercise_advanced_table_publisher(dataset)
 
     return {
         "imputed_dataset_shape": [
@@ -345,7 +348,54 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
             int(kinase_result.prediction_result.pred_mat.shape[1]),
         ],
         "bundle_round_trip": bundle_report,
+        "advanced_table_publisher": publisher_report,
     }
+
+
+def _exercise_advanced_table_publisher(dataset) -> dict[str, object]:
+    with tempfile.TemporaryDirectory(prefix="phospy-installed-publisher-") as tmp_dir:
+        output_root = pathlib.Path(tmp_dir) / "published_tables"
+        written = publish_dataset(dataset, output_root, output_format="csv")
+        expected_manifest = output_root / "dataset" / "manifest.json"
+        if written["dataset.manifest"] != expected_manifest:
+            raise AssertionError("publisher returned an unexpected manifest path")
+        if not expected_manifest.is_file():
+            raise AssertionError("publisher did not write the dataset manifest")
+        stale_path = output_root / "dataset" / "stale.txt"
+        stale_path.write_text("stale", encoding="utf-8")
+        try:
+            publish_dataset(dataset, output_root, output_format="csv")
+        except api.PhosPyInputError as exc:
+            if str(output_root) not in str(exc):
+                raise AssertionError(
+                    "publisher existing-root error did not identify destination"
+                ) from exc
+        else:
+            raise AssertionError("publisher replaced existing output without overwrite=True")
+
+        overwritten = publish_dataset(
+            dataset,
+            output_root,
+            output_format="csv",
+            overwrite=True,
+        )
+        if stale_path.exists():
+            raise AssertionError("publisher overwrite left a stale file behind")
+        if list(pathlib.Path(tmp_dir).glob(".published_tables.tmp-*")):
+            raise AssertionError("publisher left a staging directory after success")
+        if list(pathlib.Path(tmp_dir).glob(".published_tables.previous-*")):
+            raise AssertionError("publisher left a backup directory after success")
+        if any(
+            ".tmp-" in part or ".previous-" in part
+            for path in overwritten.values()
+            for part in path.parts
+        ):
+            raise AssertionError("publisher returned staging or backup paths")
+        manifest_payload = json.loads(expected_manifest.read_text(encoding="utf-8"))
+        return {
+            "manifest_output_format": manifest_payload["output_format"],
+            "written_key_count": len(overwritten),
+        }
 
 
 def _exercise_result_bundle_round_trip(

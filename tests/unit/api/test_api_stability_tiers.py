@@ -91,6 +91,11 @@ def test_advanced_exports_are_grouped_and_documented() -> None:
         "KinaseEligibilityReport",
         "KinaseWorkflowAttritionProvenance",
     } <= advanced
+    assert {
+        "publish_dataset",
+        "publish_kinase_workflow",
+        "publish_signalome_workflow",
+    } <= advanced
 
     guide = API_GUIDE.read_text(encoding="utf-8")
     adr = POLICY_ADR.read_text(encoding="utf-8")

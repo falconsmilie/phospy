@@ -110,6 +110,9 @@ pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 make release-check
 ```
 
+This provides normal CI/build confidence, not formal
+exact-source/exact-artifact attestation.
+
 The optional 50,000 × 48 scale benchmark is informational and
 machine-dependent. Run it locally with `make benchmark-release-scale`; it is not
 part of the release gate or continuous integration.

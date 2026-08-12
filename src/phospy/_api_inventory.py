@@ -248,6 +248,12 @@ ADVANCED_RESULT_API = (
     "KinaseWorkflowSiteAttritionSummary",
 )
 
+_ADVANCED_PUBLISHER_API = (
+    "publish_dataset",
+    "publish_kinase_workflow",
+    "publish_signalome_workflow",
+)
+
 ADVANCED_PUBLIC_API = (
     "ControlSiteAnnotation",
     "ControlSiteSet",
@@ -261,11 +267,12 @@ ADVANCED_PUBLIC_API = (
     "load_kinase_library_resource",
     "filter_differential_results",
     "rank_differential_results",
+    *_ADVANCED_PUBLISHER_API,
     *ADVANCED_RESULT_API,
 )
 
 STABLE_PUBLIC_API_BASELINE_COUNT = 61
-ADVANCED_PUBLIC_API_BASELINE_COUNT = 101
+ADVANCED_PUBLIC_API_BASELINE_COUNT = 104
 
 API_COMPATIBILITY_INTRODUCED_VERSION = "1.6.0"
 API_COMPATIBILITY_PLANNED_REMOVAL_VERSION = "2.0.0"
@@ -359,6 +366,14 @@ ADVANCED_API_STABILITY_JUSTIFICATIONS = {
             "not change scientific results."
         )
         for name in _ADVANCED_DIFFERENTIAL_TABLE_API
+    },
+    **{
+        name: (
+            "Advanced filesystem table publisher for inspection and "
+            "interoperability outputs; callers must choose destination and "
+            "overwrite policy explicitly."
+        )
+        for name in _ADVANCED_PUBLISHER_API
     },
     **{
         name: (

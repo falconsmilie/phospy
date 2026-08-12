@@ -9,6 +9,53 @@ PhosPy has two related output paths.
 Use the simple publisher layout when you only need files. Use bundle services when you
 want to save and reload a workflow result object.
 
+The supported publisher import route is the advanced API:
+
+```python
+from phospy.advanced import (
+    publish_dataset,
+    publish_kinase_workflow,
+    publish_signalome_workflow,
+)
+```
+
+Publisher directories are table publications for inspection and
+interoperability. They are not reloadable result bundles.
+
+## Publisher Safety Rules
+
+Publisher helpers reject an existing output root by default. Existing files,
+directories, and symlinks at that root are treated as conflicts before any
+output file is written:
+
+```python
+publish_kinase_workflow(result, Path("tables-out"))
+```
+
+Pass `overwrite=True` only when you want to replace the entire publication
+root:
+
+```python
+publish_kinase_workflow(result, Path("tables-out"), overwrite=True)
+```
+
+Each publisher stages the complete output tree in a hidden sibling directory on
+the same filesystem as the final path. The final publication root is created or
+replaced only after all tables and manifests are written in staging. On
+successful overwrite, the previous root is replaced as a whole, so stale files
+from an older publication cannot survive.
+
+When `overwrite=True`, PhosPy moves the existing root to a sibling recovery
+backup, promotes the staged replacement, then removes the backup. If promotion
+fails, PhosPy restores the original root when the filesystem allows it. If a
+cleanup step fails after a safe promotion, the raised error reports the retained
+backup path instead of silently deleting the only recoverable copy.
+
+Filesystem atomicity is limited by the local filesystem and operating system.
+The transaction uses sibling directory moves to avoid cross-device promotion,
+but it is not a lock service for concurrent writers and is not designed for
+object stores or network filesystems with non-standard rename semantics.
+
 ## Publisher Output Layout
 
 `publish_dataset(...)` writes:

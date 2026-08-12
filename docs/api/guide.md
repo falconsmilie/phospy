@@ -38,6 +38,8 @@ from phospy import (
 
 ## Import From `phospy.api`
 
+Stable public API names live in `phospy.api`.
+
 Use `phospy.api` for stable requests, common configuration objects, references,
 results, enums, and user-facing exceptions:
 
@@ -73,18 +75,25 @@ from phospy.api import (
 
 ## Import From `phospy.advanced`
 
-Use `phospy.advanced` only when a workflow guide asks for a specialized policy
-or configuration object:
+Advanced supported API names live in `phospy.advanced`.
+
+Use `phospy.advanced` only when a workflow guide asks for a specialized policy,
+configuration object, or table publisher:
 
 ```python
 from phospy.advanced import (
     SignalomeConfig,
+    publish_dataset,
+    publish_kinase_workflow,
+    publish_signalome_workflow,
 )
 ```
 
 The stable and advanced surfaces are intentional. Do not build user code around
 private validators, internal workflow executors, underscored helpers, or nearby
 implementation modules simply because Python can import them.
+
+Internal / experimental API names are not supported import targets.
 
 ## Build Datasets Through the Builder
 

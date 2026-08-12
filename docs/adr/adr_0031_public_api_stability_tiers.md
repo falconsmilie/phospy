@@ -29,7 +29,7 @@ PhosPy now uses three API tiers with separate stable and advanced namespaces:
 - Advanced supported API (`phospy.advanced`): explicit opt-in imports for specialized
   configuration, advanced reference-resource loading, control-site policy
   values, diagnostic result models, compatibility result aliases, and
-  result-table inspection helpers.
+  result-table inspection and publication helpers.
 - Internal / experimental API: implementation details that are not exported
   from `phospy.api`, including validators, workflow interpreters/executors,
   result assemblers, low-level scoring helpers, private provenance
@@ -150,6 +150,13 @@ modules, or re-export imported implementation symbols under passive markers.
 Implementation responsibilities remain in their owning science-domain
 implementation modules, while `phospy.contracts` imports only the role-pure
 science-owner modules needed to preserve object identity.
+
+Update note (2026-08-12, documented table publishers): Documented table
+publisher helpers (`publish_dataset`, `publish_kinase_workflow`, and
+`publish_signalome_workflow`) are advanced supported API under
+`phospy.advanced`. They are filesystem persistence helpers for inspection and
+interoperability output directories, not stable workflow entrypoints and not
+reloadable bundle services.
 
 ## Contract Facade Dependency and Ownership Audit
 

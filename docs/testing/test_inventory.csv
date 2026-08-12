@@ -70,7 +70,7 @@ tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,f
 tests/performance/test_ssgsea_activity_performance.py,performance,123,2,true,false,,,,,,
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
-tests/release/test_installed_distribution_verifier.py,release,474,12,true,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/release/test_installed_distribution_verifier.py,release,476,12,true,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/release/test_manifest_fixture_byte_reproducibility.py,release,277,4,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
@@ -89,7 +89,7 @@ tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,
 tests/science/test_signalome_safety_regression_fixtures.py,science,177,6,true,false,,,,,,
 tests/unit/api/test_api_compatibility_deprecations.py,api,165,5,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_api_deprecation_governance.py,api,916,22,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
-tests/unit/api/test_api_stability_tiers.py,api,195,13,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
+tests/unit/api/test_api_stability_tiers.py,api,200,13,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/unit/api/test_public_api_dataset_construction.py,api,204,5,false,false,,,,,,
 tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
@@ -256,6 +256,7 @@ tests/unit/test_public_contract_results.py,unit,417,9,false,false,public API con
 tests/unit/test_public_contract_workflows.py,unit,190,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,604,11,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,45,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/unit/test_publishers_transactional.py,unit,593,13,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_pyright_strict_coverage.py,unit,497,18,false,false,,,,,,
 tests/unit/test_quantitative_operation_contracts.py,unit,499,8,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_quantitative_operation_evidence.py,unit,1063,9,true,true,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access

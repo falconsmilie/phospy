@@ -468,6 +468,8 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
     assert "load_bundled_reference_manifest" in INSTALLED_PROBE_SOURCE
     assert "DifferentialAnalysisWorkflow" in INSTALLED_PROBE_SOURCE
     assert "KinaseWorkflow" in INSTALLED_PROBE_SOURCE
+    assert "publish_dataset" in INSTALLED_PROBE_SOURCE
+    assert "advanced_table_publisher" in INSTALLED_PROBE_SOURCE
     assert "save_kinase_workflow_bundle" in INSTALLED_PROBE_SOURCE
     assert "load_kinase_workflow_bundle" in INSTALLED_PROBE_SOURCE
     assert "ticket_1_posthoc_peptide_to_site_boundary" in INSTALLED_PROBE_SOURCE

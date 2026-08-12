@@ -10,6 +10,7 @@ import pandas as pd
 from phospy.contracts.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
+from phospy.io.bundles._shared.transactions import write_output_tree_atomically
 from phospy.io.bundles._signalome.diagnostics import (
     signalome_module_selection_stability_report_to_payload,
 )
@@ -24,9 +25,84 @@ def publish_dataset(
     output_root: Path,
     *,
     output_format: str = "csv",
+    overwrite: bool = False,
 ) -> dict[str, Path]:
     """Publish an analysis-ready dataset into an output directory."""
 
+    return write_output_tree_atomically(
+        output_root=Path(output_root),
+        overwrite=overwrite,
+        artifact_label="publication",
+        required_relative_paths=(Path("dataset") / "manifest.json",),
+        write_staged_tree=lambda staged_root: _write_dataset_publication_tree(
+            dataset,
+            staged_root,
+            output_format=output_format,
+        ),
+        allow_non_directory_overwrite=True,
+    )
+
+
+def publish_kinase_workflow(
+    result: KinaseWorkflowResult,
+    output_root: Path,
+    *,
+    output_format: str = "csv",
+    overwrite: bool = False,
+) -> dict[str, Path]:
+    """Publish kinase workflow outputs into an output directory."""
+
+    return write_output_tree_atomically(
+        output_root=Path(output_root),
+        overwrite=overwrite,
+        artifact_label="publication",
+        required_relative_paths=(
+            Path("dataset") / "manifest.json",
+            Path("kinase") / "manifest.json",
+        ),
+        write_staged_tree=lambda staged_root: _write_kinase_publication_tree(
+            result,
+            staged_root,
+            output_format=output_format,
+        ),
+        allow_non_directory_overwrite=True,
+    )
+
+
+def publish_signalome_workflow(
+    result: SignalomeWorkflowResult,
+    output_root: Path,
+    *,
+    output_format: str = "csv",
+    overwrite: bool = False,
+) -> dict[str, Path]:
+    """Publish signalome workflow outputs into the supported output layout."""
+
+    return write_output_tree_atomically(
+        output_root=Path(output_root),
+        overwrite=overwrite,
+        artifact_label="publication",
+        required_relative_paths=(
+            Path("dataset") / "manifest.json",
+            Path("kinase") / "manifest.json",
+            Path("signalome") / "manifest.json",
+        ),
+        write_staged_tree=lambda staged_root: _write_signalome_publication_tree(
+            result,
+            staged_root,
+            output_format=output_format,
+        ),
+        allow_non_directory_overwrite=True,
+    )
+
+
+def _write_dataset_publication_tree(
+    dataset: AnalysisReadyPhosphoDataset,
+    output_root: Path,
+    *,
+    output_format: str,
+    written: dict[str, Path] | None = None,
+) -> dict[str, Path]:
     quantitative_meaning = dataset.intensity_scale_state.quantity
     if quantitative_meaning is None:
         raise PhosPyInputError(
@@ -34,7 +110,7 @@ def publish_dataset(
         )
     suffix = table_suffix_for_format(output_format)
     dataset_dir = Path(output_root) / "dataset"
-    written: dict[str, Path] = {}
+    written = {} if written is None else written
 
     _write_required_output_table(
         dataset.phospho,
@@ -74,16 +150,20 @@ def publish_dataset(
     return written
 
 
-def publish_kinase_workflow(
+def _write_kinase_publication_tree(
     result: KinaseWorkflowResult,
     output_root: Path,
     *,
     output_format: str = "csv",
+    written: dict[str, Path] | None = None,
 ) -> dict[str, Path]:
-    """Publish kinase workflow outputs into an output directory."""
-
     suffix = table_suffix_for_format(output_format)
-    written = publish_dataset(result.dataset, output_root, output_format=output_format)
+    written = _write_dataset_publication_tree(
+        result.dataset,
+        output_root,
+        output_format=output_format,
+        written=written,
+    )
     workflow_dir = Path(output_root) / "kinase"
 
     _write_kinase_scoring_outputs(result, workflow_dir, suffix, written)
@@ -100,16 +180,14 @@ def publish_kinase_workflow(
     return written
 
 
-def publish_signalome_workflow(
+def _write_signalome_publication_tree(
     result: SignalomeWorkflowResult,
     output_root: Path,
     *,
     output_format: str = "csv",
 ) -> dict[str, Path]:
-    """Publish signalome workflow outputs into the supported output layout."""
-
     suffix = table_suffix_for_format(output_format)
-    written = publish_kinase_workflow(
+    written = _write_kinase_publication_tree(
         result.kinase_result,
         output_root,
         output_format=output_format,
