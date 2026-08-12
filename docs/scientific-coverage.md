@@ -430,8 +430,9 @@ packaged-reference validation. The maintained commands/workflows are:
   `constraints/minimum.txt`, installs the project with test dependencies under
   those lower-bound pins, runs `pip check`, then runs the non-parity suite plus
   release/golden/reproducibility selectors that do not require external tools.
-- This process provides normal CI/build confidence, not formal
-  exact-source/exact-artifact attestation.
+- These scientific release checks provide normal CI/build confidence. Final
+  release verification, including Git-backed staged-byte checks and built
+  wheel/sdist verification, is described in [Maintenance](maintenance.md).
 - The optional 50,000 x 48 release-scale builder+differential benchmark is
   invoked explicitly through `make benchmark-release-scale` or the benchmark
   script's direct `--report-path` evidence command. It is machine-dependent,

@@ -87,8 +87,10 @@ Based on that configuration:
 The default local run deliberately omits contract tests, release tests, golden
 tests, threshold-bearing parity tests, documentation builds, and performance
 contracts unless they are selected separately through the release check. `make
-release-check` is the authoritative aggregate command. This process provides normal CI/build
-confidence, not formal exact-source/exact-artifact attestation.
+release-check` is the authoritative aggregate command. This marker model
+provides normal CI/build confidence; final Git-backed staged-byte and built
+wheel/sdist release verification is described in
+[Maintenance](../maintenance.md).
 
 The release policy test suite includes a collection-only selector audit using
 `tools/testing/release_selector_coverage.py`. It compares actual collected node

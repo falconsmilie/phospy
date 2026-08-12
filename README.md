@@ -12,9 +12,16 @@ Use PhosPy to prepare and validate phosphosite data, test differential
 phosphorylation, run offline enrichment, explore kinase-substrate support, and
 build signalome summaries. The supported user interface is the Python API.
 
-## Install PhosPy
+## Project Status and API Stability
 
-PhosPy supports Python 3.11 and 3.12.
+PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
+during beta: `phospy.api` is the stable user-facing route, `phospy.advanced` is
+the supported route for advanced configuration and publishing helpers, and
+internal modules are unsupported import targets. See the
+[API stability guide](docs/api/guide.md) and the
+[maintainer release process](docs/maintenance.md).
+
+## Install PhosPy
 
 ```bash
 pip install phospy
@@ -133,17 +140,6 @@ from phospy.api import EnrichmentConfig, EnrichmentWorkflow, EnrichmentWorkflowR
 The full documentation is available at [PhosPy Docs](https://phospy.com/docs/).
 See the [contributing guide](docs/contributing.md), [license](LICENSE), and
 [`CITATION.cff`](CITATION.cff) for project and citation details.
-
-## Release Checks
-
-Maintainers should run the lightweight release gate before publishing:
-
-```bash
-make release-check
-```
-
-This provides normal CI/build confidence, not formal
-exact-source/exact-artifact attestation.
 
 ## Scientific Scope
 

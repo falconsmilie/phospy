@@ -29,8 +29,9 @@ contracts from the installed package, including bundled-resource hash checks
 and the resolved public-boundary check for withdrawn post-hoc peptide-to-site
 differential aggregation.
 
-This provides normal CI/build confidence, not formal exact-source/exact-artifact
-attestation.
+This provides normal CI/build confidence for the testing-audit policy. Final
+release verification, including Git-backed staged-byte checks and built
+wheel/sdist verification, is described in [Maintenance](../maintenance.md).
 
 `parity_diagnostic` tests are informational unless they are intentionally
 promoted into the release selector. `make test-release-gates` selects

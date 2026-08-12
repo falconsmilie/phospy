@@ -4,6 +4,23 @@ PhosPy uses a small public Python API. Start with the workflow guides for
 end-to-end examples; use this page when you need to confirm where a public class
 should be imported from.
 
+## Beta Compatibility Expectations
+
+PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
+during beta, but compatibility expectations differ by route:
+
+- `phospy.api` is the stable user-facing route for requests, common
+  configuration, results, references, enums, workflows, and user-facing
+  exceptions.
+- `phospy.advanced` is a supported advanced route for specialized
+  configuration, trusted construction paths, and publishing helpers. It may
+  change with narrower migration guidance than the stable route.
+- Internal modules, private validators, workflow executors, interpreters, and
+  underscored helpers are unsupported import targets.
+
+Detailed implementation boundaries and compatibility policy are documented in
+[ADR-0031](../adr/adr_0031_public_api_stability_tiers.md).
+
 ## Workflow Map
 
 | Task | Request | Workflow | Result |

@@ -1,6 +1,6 @@
 # Maintenance
 
-This page describes the maintainer material.
+This page is the authoritative maintainer release-process page for PhosPy.
 
 ## Development Setup
 
@@ -25,15 +25,16 @@ pytest -m "not parity"
 pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"
 ```
 
-For full release checks, install the release extras first. The maintainer
-release command is `make release-check`; it runs normal lint, type, unit,
-public-consumer contract, parity, performance, strict documentation,
-release/golden/reproducibility, checked-in reference, metadata,
-archive-level packaged-reference, build, and installed wheel/sdist verification
-checks:
+For release checks, install the release extras first:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
+```
+
+Then run the final aggregate maintainer command:
+
+```bash
+make release-check
 ```
 
 If `make release-check` fails with import errors for optional engines, install
@@ -88,11 +89,23 @@ make release-check
 ```
 
 Default `pytest` or `pytest -m "not parity"` is a fast local development check,
-not sufficient for publishing. The configured default pytest `testpaths` omit
-`tests/release`, `tests/golden`, and `tests/performance`. Blocking parity tests,
-performance contracts, release/golden/reproducibility tests, reference
-validation, metadata checks, archive-level packaged-reference checks, and the
-installed wheel/sdist verifier are not optional for public release decisions.
+not sufficient for publishing. Ordinary CI/build success provides normal
+development confidence: it shows the source-tree checks, documentation build,
+and packaging checks selected by CI are healthy for that commit. Final release
+verification is different. `make release-check` is the authoritative aggregate
+command, and it performs release-owned exact-source and exact-artefact
+verification by validating staged reference-bundle bytes from a Git-backed
+checkout, building fresh wheel and sdist artefacts, checking packaged reference
+manifests and hashes, and executing installed wheel/sdist probes outside the
+checkout. Because staged-byte verification reads the Git index, release checks
+must run from a Git-backed checkout. A successful source-tree test run alone is
+not proof that the built wheel and sdist are valid.
+
+The configured default pytest `testpaths` omit `tests/release`, `tests/golden`,
+and `tests/performance`. Blocking parity tests, performance contracts,
+release/golden/reproducibility tests, reference validation, metadata checks,
+archive-level packaged-reference checks, and the installed wheel/sdist verifier
+are not optional for public release decisions.
 
 The publish pipeline (`.github/workflows/publish.yml`) runs
 `make release-check` once on the checked-out tag, uploads the fresh `dist/`
@@ -100,10 +113,9 @@ directory, verifies the uploaded wheel and sdist on Python 3.11 and 3.12, and
 publishes those artifacts through trusted publishing only after that matrix
 passes.
 
-This process provides normal CI/build confidence, not formal
-exact-source/exact-artifact attestation. Do not treat a partial local pass, a
-parity-only pass, a performance-only pass, or a check pass from a different
-commit/distribution as sufficient evidence for public release.
+Do not treat a partial local pass, a parity-only pass, a performance-only pass,
+ordinary CI/build confidence from a different commit, or a check pass from a
+different distribution as sufficient evidence for public release.
 
 Release-blocking coverage in `make release-check` is:
 

@@ -102,27 +102,31 @@ Run parity tests when scientific logic or fixture-backed behavior changes:
 pytest tests/parity -m "parity and not parity_diagnostic" -s
 ```
 
-Run the release checks before publishing or after changes to scientific,
-provenance, performance, distribution, or public-contract behavior:
+## Release Checks
+
+Normal contributor checks are the focused commands above: the default
+non-parity suite for most changes, documentation checks for public docs, and
+parity checks when scientific logic or fixture-backed behavior changes.
+
+Run the aggregate release command before publishing, and also after changes to
+scientific, provenance, performance, distribution, reference-bundle, or
+public-contract behavior:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
 make release-check
 ```
 
-This provides normal CI/build confidence, not formal
-exact-source/exact-artifact attestation.
+The detailed procedure lives in [Maintenance](maintenance.md). Ordinary
+CI/build success and source-tree tests provide normal development confidence;
+they are not sufficient for publishing. Final release verification is stricter
+because it requires a Git-backed checkout for staged-byte validation and
+verifies the freshly built wheel and sdist. A successful source-tree test run
+alone does not prove the built distributions are valid.
 
-The optional 50,000 × 48 scale benchmark is informational and
+The optional 50,000 x 48 scale benchmark is informational and
 machine-dependent. Run it locally with `make benchmark-release-scale`; it is not
 part of the release gate or continuous integration.
-
-Build and verify distributions with:
-
-```bash
-make build
-make verify-installed-distributions
-```
 
 ## Code Style and Type Checking
 

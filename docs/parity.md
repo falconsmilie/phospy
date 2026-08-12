@@ -140,8 +140,9 @@ the manifest for the exact packaged files; developers and Codex agents must not
 use optimistic wording or source-lineage notes as a substitute for that
 evidence.
 
-This process provides normal CI/build confidence, not formal
-exact-source/exact-artifact attestation.
+This parity guidance is part of normal CI/build confidence. Final release
+verification, including Git-backed staged-byte checks and built wheel/sdist
+verification, is described in [Maintenance](maintenance.md).
 
 Some diagnostic parity tests are informational. Release decisions should use the
 threshold-bearing gates and the documented fixture expectations, not visual

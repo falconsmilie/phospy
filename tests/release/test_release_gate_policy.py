@@ -17,13 +17,19 @@ ROOT = Path(__file__).resolve().parents[2]
 pytestmark = pytest.mark.release_gate
 
 AUTHORITATIVE_RELEASE_COMMAND = "make release-check"
-PUBLIC_RELEASE_INSTRUCTION_DOCS = (
-    Path("README.md"),
-    Path("docs/maintenance.md"),
-    Path("docs/testing/README.md"),
-    Path("docs/testing/pytest_markers.md"),
+AUTHORITATIVE_RELEASE_DOC = Path("docs/maintenance.md")
+CONTRIBUTOR_RELEASE_GUIDANCE_DOCS = (
     Path("docs/contributing.md"),
     Path(".github/CONTRIBUTING.md"),
+)
+ALLOWED_RELEASE_RELATED_MAKE_COMMANDS = frozenset(
+    {
+        "make release-check",
+        "make test-release-gates",
+        "make benchmark-release-scale",
+        "make fixtures-release-validation-regression",
+        "make fixtures-large-differential-limma-trend",
+    }
 )
 RELEASE_CHECK_DEPENDENCIES = (
     "lint",
@@ -131,6 +137,24 @@ PYTHON_SOURCE_EXCLUDED_PARTS = frozenset(
 
 def _read(relative_path: str | Path) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8").replace("\r\n", "\n")
+
+
+def _normalized_markdown(relative_path: str | Path) -> str:
+    return re.sub(r"\s+", " ", _read(relative_path).lower())
+
+
+def _maintained_release_command_docs() -> tuple[Path, ...]:
+    docs = tuple(
+        path.relative_to(ROOT)
+        for path in sorted((ROOT / "docs").rglob("*.md"))
+        if "adr" not in path.relative_to(ROOT).parts
+    )
+    explicit = (
+        Path("README.md"),
+        Path("deploy.md"),
+        Path(".github/CONTRIBUTING.md"),
+    )
+    return tuple(path for path in explicit + docs if (ROOT / path).is_file())
 
 
 def _load_pyproject() -> dict[str, Any]:
@@ -1607,20 +1631,92 @@ def test_release_check_command_is_maintained_project_authority() -> None:
     assert _make_target_body("release-check") == ""
 
 
+def test_authoritative_maintainer_release_page_documents_release_verification() -> None:
+    text = _read(AUTHORITATIVE_RELEASE_DOC)
+    normalized = _normalized_markdown(AUTHORITATIVE_RELEASE_DOC)
+
+    assert AUTHORITATIVE_RELEASE_COMMAND in text
+    assert "authoritative aggregate command" in normalized
+    assert "ordinary ci/build success provides normal development confidence" in (
+        normalized
+    )
+    assert "final release verification is different" in normalized
+    assert "release-owned exact-source and exact-artefact verification" in normalized
+    assert "git-backed checkout" in normalized
+    assert "staged-byte verification" in normalized
+    assert "source-tree test run alone is not proof" in normalized
+    assert "built wheel and sdist are valid" in normalized
+
+
 @pytest.mark.parametrize(
     "relative_path",
-    PUBLIC_RELEASE_INSTRUCTION_DOCS,
+    CONTRIBUTOR_RELEASE_GUIDANCE_DOCS,
     ids=lambda path: path.as_posix(),
 )
-def test_maintained_release_instructions_point_to_lightweight_release_check(
+def test_contributor_release_guidance_points_to_authoritative_process(
     relative_path: Path,
 ) -> None:
     text = _read(relative_path)
-    normalized = re.sub(r"\s+", " ", text.lower())
+    normalized = _normalized_markdown(relative_path)
 
     assert AUTHORITATIVE_RELEASE_COMMAND in text
-    assert "normal ci/build confidence" in normalized
-    assert "formal exact-source/exact-artifact attestation" in normalized
+    assert "normal contributor" in normalized or "normal development" in normalized
+    assert "not sufficient for publishing" in normalized
+    assert "final release verification" in normalized
+    assert "staged-byte" in normalized
+    assert "wheel and sdist" in normalized
+    assert "docs/maintenance.md" in text or "maintenance.md" in text
+
+
+def test_readme_documents_beta_status_without_release_manual() -> None:
+    text = _read("README.md")
+    normalized = _normalized_markdown("README.md")
+
+    assert "phospy is currently beta software" in normalized
+    assert "python 3.11 and 3.12" in normalized
+    assert "`phospy.api` is the stable user-facing route" in text
+    assert "`phospy.advanced` is" in text
+    assert "internal modules are unsupported import targets" in normalized
+    assert "apis may evolve during beta" in normalized
+    assert "(docs/api/guide.md)" in text
+    assert "(docs/maintenance.md)" in text
+    assert AUTHORITATIVE_RELEASE_COMMAND not in text
+    assert "exact-source" not in normalized
+    assert "staged-byte" not in normalized
+
+
+def test_api_guide_documents_beta_compatibility_tiers() -> None:
+    text = _read("docs/api/guide.md")
+    normalized = _normalized_markdown("docs/api/guide.md")
+
+    assert "beta compatibility expectations" in normalized
+    assert "phospy is currently beta software" in normalized
+    assert "`phospy.api` is the stable user-facing route" in text
+    assert "`phospy.advanced` is a supported advanced route" in text
+    assert "internal modules" in normalized
+    assert "unsupported import targets" in normalized
+    assert "adr_0031_public_api_stability_tiers.md" in text
+
+
+def test_maintained_docs_do_not_recommend_conflicting_release_commands() -> None:
+    issues: list[str] = []
+    command_pattern = re.compile(r"make[ \t]+[A-Za-z0-9_.%/-]*release[A-Za-z0-9_.%/-]*")
+
+    for relative_path in _maintained_release_command_docs():
+        text = _read(relative_path)
+        commands = set(command_pattern.findall(text))
+        conflicting = commands - ALLOWED_RELEASE_RELATED_MAKE_COMMANDS
+        if conflicting:
+            issues.append(
+                f"{relative_path.as_posix()}: {', '.join(sorted(conflicting))}"
+            )
+        normalized = re.sub(r"\s+", " ", text.lower())
+        if "not formal exact-source/exact-artifact attestation" in normalized:
+            issues.append(
+                f"{relative_path.as_posix()}: denies final release artefact verification"
+            )
+
+    assert issues == []
 
 
 def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
