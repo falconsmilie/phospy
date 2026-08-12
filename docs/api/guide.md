@@ -10,6 +10,12 @@ PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
 during beta, but compatibility expectations follow the governed stability tier
 for the import route you use:
 
+`phospy.api` is the stable user-facing route for ordinary workflow code.
+`phospy.advanced` is a supported advanced route for documented specialist
+configuration, diagnostics, references, and publishing helpers.
+Implementation modules are unsupported import targets for external callers.
+The beta compatibility expectations are:
+
 | Stability tier | Supported import route | Compatibility expectation |
 | --- | --- | --- |
 | Stable public API | Use `phospy.api` for ordinary workflow code. Selected root-package convenience imports, such as `from phospy import KinaseWorkflow`, alias stable facade names. | Contains the primary beta-user contracts. Compatibility and migration treatment follow the project's stable public API policy. "Stable" means policy-governed during beta, not frozen forever. |

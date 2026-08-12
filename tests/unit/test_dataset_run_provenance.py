@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -39,6 +41,8 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _gene_site_key(
@@ -172,8 +176,14 @@ def test_collect_environment_provenance_falls_back_to_project_metadata_version(
         use_cache=False,
     )
 
-    assert environment.package_version == "1.6.0"
+    assert environment.package_version == _project_metadata_version()
     assert environment.package_version != "unknown"
+
+
+def _project_metadata_version() -> str:
+    with (ROOT / "pyproject.toml").open("rb") as handle:
+        pyproject = tomllib.load(handle)
+    return str(pyproject["project"]["version"])
 
 
 def test_collect_batch_correction_environment_tolerates_unavailable_dependency(

@@ -240,7 +240,7 @@ python benchmarks/measure_release_scale_builder_differential.py \
 ```
 
 The retained 50,000 x 48 observation currently checked into the repository is
-[release-scale-builder-differential-2026-08-10.json](https://github.com/falconsmilie/phospy/blob/main/benchmarks/evidence/release-scale-builder-differential-2026-08-10.json).
+[release-scale-builder-differential-2026-08-12.json](https://github.com/falconsmilie/phospy/blob/main/benchmarks/evidence/release-scale-builder-differential-2026-08-12.json).
 It records the Python executable/version, selected dependency versions
 (`phospy`, `numpy`, `pandas`, and `scipy`), machine/platform metadata, workload
 configuration and seed, runtime timings, peak RSS when the platform exposes it
@@ -251,9 +251,9 @@ validate the retained JSON schema without rerunning the workload; that schema
 validation checks internal consistency and provenance fields, not independent
 proof that the workload was rerun.
 
-Observed local run on 2026-08-10, Windows 11
+Observed local run on 2026-08-12, Windows 11
 (`Windows-11-10.0.26200-SP0`), Python 3.12.10, NumPy 2.5.1, pandas 3.0.3,
-SciPy 1.18.0, and PhosPy 1.6.0:
+SciPy 1.18.0, and PhosPy 1.7.0:
 
 | Metric | Observed value |
 | --- | ---: |
@@ -266,17 +266,17 @@ SciPy 1.18.0, and PhosPy 1.6.0:
 | Analysis-ready matrix dimensions | 50,000 x 48 |
 | Differential result table dimensions | 50,000 x 28 |
 | Tested feature count | 50,000 |
-| Total runtime | 348.386723 s |
-| Request preparation | 0.197789 s |
-| Builder execution | 331.345754 s |
-| Preprocessing execution | 143.247168 s |
-| Preprocessing report assembly | 0.608771 s |
-| Provenance fingerprinting | 35.766463 s |
-| Differential analysis | 15.458759 s |
-| Result-table assembly | 0.005780 s |
-| Result-table fingerprinting | 1.318959 s |
-| Scientific-summary assembly | 1.336847 s |
-| Process RSS peak | 651.453125 MiB |
+| Total runtime | 299.943082 s |
+| Request preparation | 0.196081 s |
+| Builder execution | 284.987252 s |
+| Preprocessing execution | 106.927063 s |
+| Preprocessing report assembly | 0.594774 s |
+| Provenance fingerprinting | 32.310527 s |
+| Differential analysis | 13.484981 s |
+| Result-table assembly | 0.006053 s |
+| Result-table fingerprinting | 1.215470 s |
+| Scientific-summary assembly | 1.228751 s |
+| Process RSS peak | 652.945312 MiB |
 
 Benchmark observations are informational. A slow result is evidence for local
 profiling or same-machine comparison; it is not a release failure and is not

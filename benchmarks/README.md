@@ -33,7 +33,7 @@ snapshot reuse benchmark can also write JSON reports under
 
 Retained release-scale benchmark evidence lives separately under
 `benchmarks/evidence/`. The retained 50,000 x 48 observation is
-[release-scale-builder-differential-2026-08-10.json](evidence/release-scale-builder-differential-2026-08-10.json).
+[release-scale-builder-differential-2026-08-12.json](evidence/release-scale-builder-differential-2026-08-12.json).
 It records Python, selected dependency versions, machine metadata, runtime
 timings, peak RSS or an explicit unavailable state, metrics, scientific-summary
 digest, output fingerprints, and source provenance for the executed checkout.

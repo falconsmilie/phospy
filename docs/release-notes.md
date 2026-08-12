@@ -1,9 +1,8 @@
 # PhosPy Release Notes
 
-## Version 1.6.0
+## Version 1.7.0
 
-These notes describe Version 1.6.0. The package metadata in `pyproject.toml`
-and the citation metadata in `CITATION.cff` both declare `1.6.0`.
+These notes describe Version 1.7.0.
 
 ## Release Overview
 
@@ -14,6 +13,25 @@ protein-scoped encoded `site_key` values as row identity while preserving
 expands with importer support, richer differential designs, batch
 residualisation, protein-aware preparation, Kinase Library motif scoring,
 ssGSEA-style kinase activity, and offline enrichment ORA.
+
+## Kinase Scientific-Policy Versions
+
+The current implementation owns these policy and schema versions:
+
+| Policy | Implemented version |
+| --- | ---: |
+| KSEA activity policy | 5 |
+| Membership-selection policy | 4 |
+| Inferential policy | 4 |
+| Membership payload schema | 2 |
+| Membership-independence policy | 2 |
+
+These versions govern the KSEA scientific contract recorded in provenance and
+bundles: membership evidence, whether substrate membership was selected
+independently of the tested matrix, whether ordinary KSEA p/q output is
+eligible, and compatibility for persisted membership and provenance payloads.
+They are compatibility and interpretation contract identifiers, not empirical
+proof of scientific validity.
 
 ## Major Additions
 
@@ -92,10 +110,9 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   compatibility shell fails closed because coherent combined effect/inference
   and executable mapping semantics are not implemented.
 - KSEA membership-selection inferential eligibility now uses a closed
-  science-owned evidence contract. Current payloads carry explicit membership
-  schema version `2`, membership-selection policy version `4`, inferential
-  policy version `4`, independence-evidence version `2`, and KSEA activity
-  policy version `5`. Source category is derived from typed
+  science-owned evidence contract. Current payloads carry the policy and schema
+  versions listed in the kinase scientific-policy version table. Source
+  category is derived from typed
   `selection_evidence`; arbitrary provider method/version/score-source labels
   are descriptive only and cannot establish independence. Fixed-external and
   sequence-only motif ordinary p/q output requires explicit non-adaptive state,
@@ -166,9 +183,7 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   coherent, and tampered or contradictory membership payloads are rejected
   before p/q output can be reconstructed. KSEA results now always retain
   explicit membership-selection provenance; finite p/q output with missing or
-  ineligible membership provenance is rejected. The KSEA activity policy is
-  version `4`, the membership-selection policy is version `3`, and the KSEA
-  membership inferential policy is version `3`.
+  ineligible membership provenance is rejected.
 - Post-hoc peptide-to-site differential estimate combination no longer executes
   through public compatibility access. Mapping policies such as equal splitting
   or statistical-model exclusion must not silently execute as ordinary evidence.
