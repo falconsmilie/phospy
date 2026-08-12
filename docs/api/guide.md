@@ -4,22 +4,21 @@ PhosPy uses a small public Python API. Start with the workflow guides for
 end-to-end examples; use this page when you need to confirm where a public class
 should be imported from.
 
-## Beta Compatibility Expectations
+## Stability Tiers During Beta
 
 PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
-during beta, but compatibility expectations differ by route:
+during beta, but compatibility expectations follow the governed stability tier
+for the import route you use:
 
-- `phospy.api` is the stable user-facing route for requests, common
-  configuration, results, references, enums, workflows, and user-facing
-  exceptions.
-- `phospy.advanced` is a supported advanced route for specialized
-  configuration, trusted construction paths, and publishing helpers. It may
-  change with narrower migration guidance than the stable route.
-- Internal modules, private validators, workflow executors, interpreters, and
-  underscored helpers are unsupported import targets.
+| Stability tier | Supported import route | Compatibility expectation |
+| --- | --- | --- |
+| Stable public API | Use `phospy.api` for ordinary workflow code. Selected root-package convenience imports, such as `from phospy import KinaseWorkflow`, alias stable facade names. | Contains the primary beta-user contracts. Compatibility and migration treatment follow the project's stable public API policy. "Stable" means policy-governed during beta, not frozen forever. |
+| Advanced supported API | Use `phospy.advanced` when a guide asks for specialized configuration, diagnostic models, reference helpers, or publishing helpers. | These APIs are supported and documented, but may evolve more readily. Release notes or migration guidance accompany material changes where project policy requires it. |
+| Internal / experimental API | Do not use direct imports from implementation modules as public contracts. | Python allowing an import does not make it public. Internal modules may change without compatibility treatment, and private validators must not be used as external APIs. |
 
-Detailed implementation boundaries and compatibility policy are documented in
-[ADR-0031](../adr/adr_0031_public_api_stability_tiers.md).
+[ADR-0031](../adr/adr_0031_public_api_stability_tiers.md) governs the policy
+behind these tiers. This guide points to supported facades and workflow pages
+instead of listing every exported symbol.
 
 ## Workflow Map
 
@@ -42,16 +41,23 @@ page:
 
 ## Import From `phospy`
 
-Use the package root for the dataset builder and the main workflow entry points:
+Use the package root only for curated convenience aliases to stable facade
+names, such as the dataset builder and selected workflow entry points:
 
 ```python
 from phospy import (
     AnalysisReadyDatasetBuilder,
+    AnalysisReadyPhosphoDataset,
     DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
 ```
+
+These imports are conveniences for stable public API objects. Do not infer that
+every symbol visible from the package root is stable. For request, result,
+configuration, reference, enum, and exception contracts, prefer the explicit
+`phospy.api` imports below.
 
 ## Import From `phospy.api`
 
