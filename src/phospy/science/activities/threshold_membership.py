@@ -12,11 +12,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.science.scoring.policy_models import ThresholdMode
 
 THRESHOLD_MEMBERSHIP_MODE = ThresholdMode.GREATER_THAN_OR_EQUAL
+_BoolArray = npt.NDArray[np.bool_]
+_FloatArray = npt.NDArray[np.float64]
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,11 +137,11 @@ THRESHOLD_MEMBERSHIP_DESCRIPTION = _THRESHOLD_MEMBERSHIP_POLICY.description
 
 
 def threshold_membership_mask_array(
-    scores: np.ndarray,
+    scores: _FloatArray,
     *,
     threshold: float,
     threshold_mode: ThresholdMode | str = THRESHOLD_MEMBERSHIP_MODE,
-) -> np.ndarray:
+) -> _BoolArray:
     """Return membership mask using the standard activity-threshold rule."""
 
     threshold_value = float(threshold)
@@ -207,10 +210,10 @@ def _resolve_threshold_value(payload: Mapping[str, object]) -> float:
 
 def _threshold_comparison_mask(
     *,
-    scores: np.ndarray,
+    scores: _FloatArray,
     threshold_value: float,
     threshold_mode: ThresholdMode | str,
-) -> np.ndarray:
+) -> _BoolArray:
     mode = ThresholdMode.parse(
         threshold_mode,
         field_name="activity threshold membership mode",

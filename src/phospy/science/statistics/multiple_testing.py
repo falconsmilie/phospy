@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Literal, cast
 
 import numpy as np
+import numpy.typing as npt
 
 MULTIPLE_TESTING_CORRECTION_NONE = "none"
 MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG = "benjamini_hochberg"
@@ -26,6 +27,7 @@ SUPPORTED_MULTIPLE_TESTING_CORRECTIONS: tuple[MultipleTestingCorrection, ...] = 
     MULTIPLE_TESTING_CORRECTION_HOLM,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,
 )
+_FloatArray = npt.NDArray[np.float64]
 
 
 def run(
@@ -45,10 +47,10 @@ def run(
 
 
 def adjust_p_values(
-    p_values: Sequence[float | None] | np.ndarray,
+    p_values: Sequence[float | None] | _FloatArray,
     *,
     method: MultipleTestingCorrection | str,
-) -> np.ndarray:
+) -> _FloatArray:
     """Return adjusted p-values as a one-dimensional float array.
 
     Only finite p-values are ranked or counted. Non-finite input positions are
@@ -71,7 +73,9 @@ def adjust_p_values(
     raise ValueError(f"unsupported multiple-testing correction: {resolved_method!r}")
 
 
-def benjamini_hochberg(p_values: Sequence[float | None] | np.ndarray) -> np.ndarray:
+def benjamini_hochberg(
+    p_values: Sequence[float | None] | _FloatArray,
+) -> _FloatArray:
     """Return Benjamini-Hochberg adjusted p-values.
 
     Only finite input p-values are ranked and adjusted. The BH denominator is
@@ -84,7 +88,7 @@ def benjamini_hochberg(p_values: Sequence[float | None] | np.ndarray) -> np.ndar
     return _step_up_adjusted_values(values, scale_factor=1.0)
 
 
-def bonferroni(p_values: Sequence[float | None] | np.ndarray) -> np.ndarray:
+def bonferroni(p_values: Sequence[float | None] | _FloatArray) -> _FloatArray:
     """Return Bonferroni-adjusted p-values.
 
     The denominator is the number of finite p-values. Non-finite input
@@ -107,7 +111,7 @@ def bonferroni(p_values: Sequence[float | None] | np.ndarray) -> np.ndarray:
     return adjusted
 
 
-def holm(p_values: Sequence[float | None] | np.ndarray) -> np.ndarray:
+def holm(p_values: Sequence[float | None] | _FloatArray) -> _FloatArray:
     """Return Holm-Bonferroni adjusted p-values.
 
     Only finite input p-values are ranked and adjusted. Non-finite input
@@ -137,8 +141,8 @@ def holm(p_values: Sequence[float | None] | np.ndarray) -> np.ndarray:
 
 
 def benjamini_yekutieli(
-    p_values: Sequence[float | None] | np.ndarray,
-) -> np.ndarray:
+    p_values: Sequence[float | None] | _FloatArray,
+) -> _FloatArray:
     """Return Benjamini-Yekutieli adjusted p-values.
 
     Only finite input p-values are ranked and adjusted. Non-finite input
@@ -154,7 +158,11 @@ def benjamini_yekutieli(
     return _step_up_adjusted_values(values, scale_factor=harmonic_factor)
 
 
-def _step_up_adjusted_values(values: np.ndarray, *, scale_factor: float) -> np.ndarray:
+def _step_up_adjusted_values(
+    values: _FloatArray,
+    *,
+    scale_factor: float,
+) -> _FloatArray:
     adjusted = np.full(values.shape, np.nan, dtype=float)
     finite_mask = np.isfinite(values)
     if not np.any(finite_mask):
@@ -175,22 +183,22 @@ def _step_up_adjusted_values(values: np.ndarray, *, scale_factor: float) -> np.n
     return adjusted
 
 
-def _copy_with_nonfinite_as_nan(values: np.ndarray) -> np.ndarray:
+def _copy_with_nonfinite_as_nan(values: _FloatArray) -> _FloatArray:
     adjusted = values.astype(float, copy=True)
     adjusted[~np.isfinite(adjusted)] = np.nan
     return adjusted
 
 
 def _normalise_p_values(
-    p_values: Sequence[float | None] | np.ndarray,
-) -> np.ndarray:
+    p_values: Sequence[float | None] | _FloatArray,
+) -> _FloatArray:
     values = np.asarray(p_values, dtype=float)
     if values.ndim != 1:
         raise ValueError("p_values must be one-dimensional")
     return values
 
 
-def _validate_unit_interval(values: np.ndarray) -> None:
+def _validate_unit_interval(values: _FloatArray) -> None:
     finite_mask = np.isfinite(values)
     invalid_mask = finite_mask & ((values < 0.0) | (values > 1.0))
     if np.any(invalid_mask):

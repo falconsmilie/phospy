@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -28,6 +29,8 @@ from phospy.validation.datasets._batch_correction_helpers import (
     singleton_levels,
     treatment_coded_design,
 )
+
+_FloatArray = npt.NDArray[np.float64]
 
 
 @dataclass(frozen=True, slots=True)
@@ -536,7 +539,7 @@ class BatchCorrectionAdequacyValidator:
                 f"{format_labels(singleton_batches)}"
             )
 
-        preservation_design = treatment_coded_design(
+        preservation_design: _FloatArray = treatment_coded_design(
             condition_labels,
             include_intercept=True,
         )
@@ -556,8 +559,14 @@ class BatchCorrectionAdequacyValidator:
                 f"(samples={len(samples)}, condition_design_rank={preservation_rank})"
             )
 
-        batch_terms = treatment_coded_design(batch_labels, include_intercept=False)
-        full_design = np.concatenate((preservation_design, batch_terms), axis=1)
+        batch_terms: _FloatArray = treatment_coded_design(
+            batch_labels,
+            include_intercept=False,
+        )
+        full_design: _FloatArray = np.concatenate(
+            (preservation_design, batch_terms),
+            axis=1,
+        )
         full_columns = int(full_design.shape[1])
         if len(samples) <= full_columns:
             raise PhosPyInputError(

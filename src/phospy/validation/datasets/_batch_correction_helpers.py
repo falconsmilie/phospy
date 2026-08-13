@@ -5,9 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+
+_FloatArray = npt.NDArray[np.float64]
 
 NOT_PROVIDED_VALUES = frozenset({"not_provided", "not provided"})
 MISSING_ENVIRONMENT_VALUES = NOT_PROVIDED_VALUES | frozenset({"unknown"})
@@ -269,7 +272,7 @@ def treatment_coded_design(
     labels: Sequence[str],
     *,
     include_intercept: bool,
-) -> np.ndarray:
+) -> _FloatArray:
     levels = levels_in_order(labels)
     row_width = (1 if include_intercept else 0) + max(len(levels) - 1, 0)
     if row_width == 0:
@@ -285,7 +288,7 @@ def treatment_coded_design(
     return np.asarray(rows, dtype=float)
 
 
-def matrix_rank(matrix: np.ndarray) -> int:
+def matrix_rank(matrix: _FloatArray) -> int:
     if matrix.size == 0:
         return 0
     return int(np.linalg.matrix_rank(matrix))

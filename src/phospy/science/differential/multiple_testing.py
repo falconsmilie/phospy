@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import numpy.typing as npt
 
 from phospy.science.statistics.multiple_testing import (
     MultipleTestingCorrection,
@@ -14,18 +15,20 @@ from phospy.science.statistics.multiple_testing import (
     benjamini_hochberg as _benjamini_hochberg,
 )
 
+_FloatArray = npt.NDArray[np.float64]
 
-def benjamini_hochberg(p_values: np.ndarray) -> np.ndarray:
+
+def benjamini_hochberg(p_values: _FloatArray) -> _FloatArray:
     """Return BH-adjusted q-values."""
 
     return _benjamini_hochberg(p_values)
 
 
 def adjust_p_values(
-    p_values: np.ndarray,
+    p_values: _FloatArray,
     *,
     method: MultipleTestingCorrection,
-) -> np.ndarray:
+) -> _FloatArray:
     """Return adjusted p-values using the shared statistics helper."""
 
     return _adjust_p_values(p_values, method=method)

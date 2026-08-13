@@ -3,34 +3,38 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 from scipy import stats
 from scipy.special import digamma, polygamma
 
 _TREND_EXACT_FEATURE_LIMIT = 1_024
 _TREND_MAX_ANCHORS = 2_048
+_FloatArray = npt.NDArray[np.float64]
+_IndexArray = npt.NDArray[np.intp]
 
 
 @dataclass(frozen=True, slots=True)
 class EmpiricalBayesFit:
     """Estimated empirical-Bayes prior parameters and diagnostics."""
 
-    prior_variance: np.ndarray
-    prior_degrees_of_freedom: np.ndarray
+    prior_variance: _FloatArray
+    prior_degrees_of_freedom: _FloatArray
     base_prior_variance: float
     base_prior_degrees_of_freedom: float
     robust_outlier_count: int
     robust_outlier_fraction: float
     winsorized_low_count: int
     winsorized_high_count: int
-    mean_intensity: np.ndarray | None = None
-    log_residual_variance: np.ndarray | None = None
-    fitted_log_prior_variance: np.ndarray | None = None
+    mean_intensity: _FloatArray | None = None
+    log_residual_variance: _FloatArray | None = None
+    fitted_log_prior_variance: _FloatArray | None = None
 
 
 def fit_f_dist(
-    variances: np.ndarray,
+    variances: _FloatArray,
     *,
     residual_dof: float,
 ) -> tuple[float, float]:
@@ -41,8 +45,8 @@ def fit_f_dist(
     if variances.size == 1:
         return float(variances[0]), 0.0
 
-    variances = np.asarray(variances, dtype=float)
-    df1 = np.asarray(residual_dof, dtype=float)
+    variances = cast(_FloatArray, np.asarray(variances, dtype=float))
+    df1 = float(residual_dof)
     if not np.isfinite(df1) or df1 <= 1e-15:
         return float("nan"), float("nan")
 
@@ -60,14 +64,14 @@ def fit_f_dist(
     variances = np.maximum(variances, 1e-5 * median_variance)
 
     z = np.log(variances)
-    e = z - digamma(df1 / 2.0) + np.log(df1 / 2.0)
+    e: _FloatArray = z - float(digamma(df1 / 2.0)) + float(np.log(df1 / 2.0))
     emean = float(np.mean(e))
     evar = float(np.sum((e - emean) ** 2) / float(variances.size - 1))
     evar = evar - float(polygamma(1, df1 / 2.0))
 
     if evar > 0.0:
         df2 = 2.0 * trigamma_inverse(evar)
-        s20 = float(np.exp(emean + digamma(df2 / 2.0) - np.log(df2 / 2.0)))
+        s20 = float(np.exp(emean + float(digamma(df2 / 2.0)) - np.log(df2 / 2.0)))
         return s20, float(df2)
 
     return float(np.mean(variances)), float("inf")
@@ -75,12 +79,12 @@ def fit_f_dist(
 
 def fit_empirical_bayes(
     *,
-    variances: np.ndarray,
+    variances: _FloatArray,
     residual_dof: float,
     method: str,
     trend: bool,
     winsor_tail_p: tuple[float, float],
-    mean_intensity: np.ndarray | None = None,
+    mean_intensity: _FloatArray | None = None,
 ) -> EmpiricalBayesFit:
     """Estimate prior variance/df with optional robust and trend modes."""
 
@@ -90,7 +94,7 @@ def fit_empirical_bayes(
             "residual_dof must be finite and > 0.0 for empirical-Bayes moderation"
         )
 
-    variances = np.asarray(variances, dtype=float)
+    variances = cast(_FloatArray, np.asarray(variances, dtype=float))
     if variances.ndim != 1:
         raise ValueError("variances must be one-dimensional")
     if variances.size == 0:
@@ -111,7 +115,7 @@ def fit_empirical_bayes(
     if trend:
         if mean_intensity is None:
             raise ValueError("mean_intensity is required when trend=True")
-        mean_intensity = np.asarray(mean_intensity, dtype=float)
+        mean_intensity = cast(_FloatArray, np.asarray(mean_intensity, dtype=float))
         if mean_intensity.shape != variances.shape:
             raise ValueError("mean_intensity must match variances length")
         trend_component = _fit_mean_variance_trend(mean_intensity, log_variances)
@@ -157,8 +161,14 @@ def fit_empirical_bayes(
 
     if method == "robust" and np.isfinite(base_prior_dof) and base_prior_dof > 0.0:
         f_stat = variances / np.maximum(prior_variance, np.finfo(float).tiny)
-        log_tail_p = stats.f.logsf(f_stat, dfn=float(residual_dof), dfd=base_prior_dof)
-        ranks = stats.rankdata(f_stat, method="ordinal")
+        log_tail_p = cast(
+            _FloatArray,
+            np.asarray(
+                stats.f.logsf(f_stat, dfn=float(residual_dof), dfd=base_prior_dof),
+                dtype=float,
+            ),
+        )
+        ranks: _FloatArray = np.asarray(stats.rankdata(f_stat, method="ordinal"))
         log_empirical_tail = np.log(variances.size - ranks + 0.5) - np.log(
             variances.size
         )
@@ -251,7 +261,7 @@ def trigamma_inverse(value: float) -> float:
     return float(y)
 
 
-def _stabilize_variances(variances: np.ndarray) -> np.ndarray:
+def _stabilize_variances(variances: _FloatArray) -> _FloatArray:
     variances = np.maximum(variances, 0.0)
     finite = variances[np.isfinite(variances)]
     if finite.size == 0:
@@ -265,11 +275,11 @@ def _stabilize_variances(variances: np.ndarray) -> np.ndarray:
 
 
 def _winsorize_log_values(
-    values: np.ndarray,
+    values: _FloatArray,
     *,
     left_tail_p: float,
     right_tail_p: float,
-) -> tuple[np.ndarray, int, int, float, float]:
+) -> tuple[_FloatArray, int, int, float, float]:
     lower = float(np.quantile(values, left_tail_p))
     upper = float(np.quantile(values, 1.0 - right_tail_p))
     winsorized = np.minimum(np.maximum(values, lower), upper)
@@ -279,11 +289,11 @@ def _winsorize_log_values(
 
 
 def _fit_mean_variance_trend(
-    mean_intensity: np.ndarray,
-    log_variances: np.ndarray,
+    mean_intensity: _FloatArray,
+    log_variances: _FloatArray,
     *,
     span: float = 0.4,
-) -> np.ndarray:
+) -> _FloatArray:
     """Fit a smooth mean-variance trend using deterministic local regression.
 
     Small inputs use the exact per-feature tricube local-linear smoother. Larger
@@ -294,14 +304,14 @@ def _fit_mean_variance_trend(
     if mean_intensity.size < 3:
         return np.full_like(log_variances, float(np.mean(log_variances)))
 
-    order = np.argsort(mean_intensity)
-    x = mean_intensity[order]
-    y = log_variances[order]
+    order: _IndexArray = np.argsort(mean_intensity).astype(np.intp, copy=False)
+    x: _FloatArray = mean_intensity[order]
+    y: _FloatArray = log_variances[order]
     n = x.size
     if x[0] == x[-1]:
-        fitted = np.full(n, float(np.mean(y)), dtype=float)
+        fitted: _FloatArray = np.full(n, float(np.mean(y)), dtype=float)
     elif n <= _TREND_EXACT_FEATURE_LIMIT:
-        all_indices = np.arange(n, dtype=np.intp)
+        all_indices: _IndexArray = np.arange(n, dtype=np.intp)
         fitted = _fit_local_linear_at_sorted_indices(
             x,
             y,
@@ -310,10 +320,10 @@ def _fit_mean_variance_trend(
         )
     else:
         anchor_count = min(n, _TREND_MAX_ANCHORS)
-        anchor_indices = np.unique(
+        anchor_indices: _IndexArray = np.unique(
             np.rint(np.linspace(0, n - 1, anchor_count)).astype(np.intp)
-        )
-        anchor_fit = _fit_local_linear_at_sorted_indices(
+        ).astype(np.intp, copy=False)
+        anchor_fit: _FloatArray = _fit_local_linear_at_sorted_indices(
             x,
             y,
             target_indices=anchor_indices,
@@ -325,7 +335,7 @@ def _fit_mean_variance_trend(
             anchor_fit=anchor_fit,
         )
 
-    unsorted = np.empty_like(fitted)
+    unsorted: _FloatArray = np.empty_like(fitted)
     unsorted[order] = fitted
     finite = np.isfinite(unsorted)
     if not finite.all():
@@ -335,26 +345,26 @@ def _fit_mean_variance_trend(
 
 
 def _fit_local_linear_at_sorted_indices(
-    x: np.ndarray,
-    y: np.ndarray,
+    x: _FloatArray,
+    y: _FloatArray,
     *,
-    target_indices: np.ndarray,
+    target_indices: _IndexArray,
     span: float,
-) -> np.ndarray:
+) -> _FloatArray:
     window = min(x.size, max(5, int(np.ceil(span * x.size))))
-    fitted = np.empty(target_indices.size, dtype=float)
+    fitted: _FloatArray = np.empty(target_indices.size, dtype=float)
 
     for output_idx, target_idx in enumerate(target_indices):
-        distance = np.abs(x - x[int(target_idx)])
+        distance: _FloatArray = np.abs(x - x[int(target_idx)])
         bandwidth = float(np.partition(distance, window - 1)[window - 1])
         if bandwidth <= 0.0:
-            same = distance == 0.0
+            same: npt.NDArray[np.bool_] = distance == 0.0
             fitted[output_idx] = float(np.mean(y[same]))
             continue
         u = distance / bandwidth
-        weights = np.where(u < 1.0, (1.0 - u**3) ** 3, 0.0)
-        x_centered = x - x[int(target_idx)]
-        xw = x_centered * weights
+        weights: _FloatArray = np.where(u < 1.0, (1.0 - u**3) ** 3, 0.0)
+        x_centered: _FloatArray = x - x[int(target_idx)]
+        xw: _FloatArray = x_centered * weights
         s0 = float(np.sum(weights))
         s1 = float(np.sum(xw))
         s2 = float(np.sum(x_centered * xw))
@@ -370,13 +380,15 @@ def _fit_local_linear_at_sorted_indices(
 
 
 def _interpolate_anchor_trend(
-    x: np.ndarray,
+    x: _FloatArray,
     *,
-    anchor_indices: np.ndarray,
-    anchor_fit: np.ndarray,
-) -> np.ndarray:
-    anchor_x = x[anchor_indices]
+    anchor_indices: _IndexArray,
+    anchor_fit: _FloatArray,
+) -> _FloatArray:
+    anchor_x: _FloatArray = x[anchor_indices]
     unique_anchor_x, inverse = np.unique(anchor_x, return_inverse=True)
+    unique_anchor_x = unique_anchor_x.astype(float, copy=False)
+    inverse = inverse.astype(np.intp, copy=False)
     if unique_anchor_x.size == 1:
         return np.full(x.size, float(np.mean(anchor_fit)), dtype=float)
     if unique_anchor_x.size != anchor_x.size:

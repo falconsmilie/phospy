@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
@@ -81,13 +82,25 @@ _SSGSEA_PERMUTATION_RNG_SEED_V1_COMPATIBILITY_TOKEN = (
     "stable_by_method_condition_kinase"
 )
 _SSGSEA_PERMUTATION_EXTREME_ATOL = 1e-12
+_BoolArray = npt.NDArray[np.bool_]
+_FloatArray = npt.NDArray[np.float64]
+_IntArray = npt.NDArray[np.int64]
+_ObjectArray = npt.NDArray[np.object_]
+
+
+def _int_tuple(values: _IntArray) -> tuple[int, ...]:
+    return tuple(int(values[index]) for index in range(int(values.size)))
+
+
+def _object_tuple(values: _ObjectArray) -> tuple[object, ...]:
+    return tuple(values[index] for index in range(int(values.size)))
 
 
 @dataclass(frozen=True, slots=True)
 class _RankedTieBlocks:
-    site_labels: np.ndarray
-    block_starts: np.ndarray
-    block_sizes: np.ndarray
+    site_labels: _ObjectArray
+    block_starts: _IntArray
+    block_sizes: _IntArray
 
     @property
     def n_background(self) -> int:
@@ -133,11 +146,11 @@ class _SsgseaNullScoreEngine:
     n_background: int
     n_substrates: int
     has_ties: bool
-    rank_weights: np.ndarray | None
+    rank_weights: _FloatArray | None
     rank_weight_multiplier: float
     rank_weight_constant: float
-    block_index_by_position: np.ndarray | None
-    block_hit_coefficients: np.ndarray | None
+    block_index_by_position: _IntArray | None
+    block_hit_coefficients: _FloatArray | None
     block_constant: float
 
     @classmethod
@@ -158,8 +171,11 @@ class _SsgseaNullScoreEngine:
 
         multiplier = (1.0 / float(n_substrates)) + (1.0 / float(n_misses))
         if not ranked_blocks.has_ties:
-            rank_weights = (n_background - np.arange(n_background, dtype=float)).astype(
-                float, copy=False
+            rank_weights: _FloatArray = (
+                n_background - np.arange(n_background, dtype=float)
+            ).astype(
+                float,
+                copy=False,
             )
             total_rank_weight = float(n_background * (n_background + 1) / 2)
             return cls(
@@ -174,16 +190,20 @@ class _SsgseaNullScoreEngine:
                 block_constant=0.0,
             )
 
-        block_sizes = ranked_blocks.block_sizes.astype(float, copy=False)
-        suffix_site_counts = (
+        block_sizes: _FloatArray = ranked_blocks.block_sizes.astype(float, copy=False)
+        suffix_site_counts: _FloatArray = (
             n_background - np.cumsum(ranked_blocks.block_sizes)
         ).astype(float, copy=False)
-        block_area_coefficients = suffix_site_counts + ((block_sizes + 1.0) / 2.0)
-        block_index_by_position = np.empty(n_background, dtype=np.int64)
+        block_area_coefficients: _FloatArray = suffix_site_counts + (
+            (block_sizes + 1.0) / 2.0
+        )
+        block_index_by_position: _IntArray = np.empty(n_background, dtype=np.int64)
+        block_starts = _int_tuple(ranked_blocks.block_starts)
+        integer_block_sizes = _int_tuple(ranked_blocks.block_sizes)
         for block_index, block_start, block_size in zip(
             range(ranked_blocks.n_blocks),
-            ranked_blocks.block_starts.tolist(),
-            ranked_blocks.block_sizes.tolist(),
+            block_starts,
+            integer_block_sizes,
             strict=True,
         ):
             block_index_by_position[
@@ -207,8 +227,8 @@ class _SsgseaNullScoreEngine:
             ),
         )
 
-    def score_selected_positions(self, hit_positions: np.ndarray) -> float:
-        positions = np.asarray(hit_positions, dtype=np.int64)
+    def score_selected_positions(self, hit_positions: _IntArray) -> float:
+        positions: _IntArray = np.asarray(hit_positions, dtype=np.int64)
         if int(positions.size) != int(self.n_substrates):
             return np.nan
         if not self.has_ties:
@@ -222,11 +242,14 @@ class _SsgseaNullScoreEngine:
 
         if self.block_index_by_position is None or self.block_hit_coefficients is None:
             raise RuntimeError("ssgsea tied null score engine is incomplete")
-        block_indices = self.block_index_by_position[positions]
-        block_hit_counts = np.bincount(
+        block_indices: _IntArray = self.block_index_by_position[positions].astype(
+            np.int64,
+            copy=False,
+        )
+        block_hit_counts: _IntArray = np.bincount(
             block_indices,
             minlength=int(self.block_hit_coefficients.size),
-        )
+        ).astype(np.int64, copy=False)
         area = float(np.dot(block_hit_counts, self.block_hit_coefficients)) - float(
             self.block_constant
         )
@@ -277,9 +300,9 @@ class _SsgseaPreparedInputs:
     aligned_membership: pd.DataFrame
     kinase_index: pd.Index
     profile_index: pd.Index
-    site_labels: np.ndarray
+    site_labels: _ObjectArray
     membership_by_kinase: dict[str, set[str]]
-    effect_values: np.ndarray
+    effect_values: _FloatArray
     random_seed: int | None
 
 
@@ -422,8 +445,11 @@ def _prepare_ssgsea_inputs(
     )
     effects = resolved_activity_input.frame
     membership = _validate_membership_table(kinase_substrate_membership)
-    site_labels = np.asarray(effects.index.astype(str).tolist(), dtype=object)
-    site_universe = set(str(value) for value in site_labels.tolist())
+    site_labels: _ObjectArray = np.asarray(
+        effects.index.astype(str).tolist(),
+        dtype=object,
+    )
+    site_universe = set(str(value) for value in _object_tuple(site_labels))
     aligned_membership = membership.loc[
         membership.loc[:, _SUBSTRATE_COLUMN].astype(str).isin(site_universe),
         :,
@@ -434,6 +460,7 @@ def _prepare_ssgsea_inputs(
         effects.columns.astype(str).tolist(),
         name=effects.columns.name,
     )
+    effect_values: _FloatArray = effects.to_numpy(dtype=float, copy=False)
     return _SsgseaPreparedInputs(
         activity_input=resolved_activity_input,
         aligned_membership=aligned_membership,
@@ -444,7 +471,7 @@ def _prepare_ssgsea_inputs(
             kinases=kinases,
             membership=aligned_membership,
         ),
-        effect_values=effects.to_numpy(dtype=float, copy=False),
+        effect_values=effect_values,
         random_seed=_resolve_ssgsea_random_seed(method),
     )
 
@@ -596,8 +623,11 @@ def _rank_ssgsea_profile(
     profile_position: int,
     profile_id: str,
 ) -> _SsgseaProfileRanking:
-    profile_values = prepared.effect_values[:, profile_position]
-    finite_positions = np.flatnonzero(np.isfinite(profile_values))
+    profile_values: _FloatArray = prepared.effect_values[:, profile_position]
+    finite_positions: _IntArray = np.flatnonzero(np.isfinite(profile_values)).astype(
+        np.int64,
+        copy=False,
+    )
     ranked_blocks = _rank_site_blocks(
         site_labels=prepared.site_labels,
         values=profile_values,
@@ -610,7 +640,7 @@ def _rank_ssgsea_profile(
         ranked_blocks=ranked_blocks,
         ranked_position_by_site={
             str(site_id): int(position)
-            for position, site_id in enumerate(ranked_blocks.site_labels.tolist())
+            for position, site_id in enumerate(_object_tuple(ranked_blocks.site_labels))
         },
     )
 
@@ -623,7 +653,7 @@ def _score_ssgsea_kinase_profile(
     tables: _SsgseaMutableScoringTables,
     kinase_name: str,
 ) -> _SsgseaPairScore:
-    hit_positions = np.fromiter(
+    hit_positions: _IntArray = np.fromiter(
         (
             ranking.ranked_position_by_site[site_id]
             for site_id in prepared.membership_by_kinase[kinase_name]
@@ -631,7 +661,7 @@ def _score_ssgsea_kinase_profile(
         ),
         dtype=np.int64,
     )
-    hit_mask = np.zeros(ranking.ranked_blocks.n_background, dtype=bool)
+    hit_mask: _BoolArray = np.zeros(ranking.ranked_blocks.n_background, dtype=bool)
     hit_mask[hit_positions] = True
     n_substrates = int(hit_mask.sum())
     status, reason = _resolve_status(
@@ -983,9 +1013,9 @@ def _build_membership_lookup(
 
 def _rank_site_blocks(
     *,
-    site_labels: np.ndarray,
-    values: np.ndarray,
-    finite_positions: np.ndarray,
+    site_labels: _ObjectArray,
+    values: _FloatArray,
+    finite_positions: _IntArray,
     ranking_direction: str,
 ) -> _RankedTieBlocks:
     if finite_positions.size == 0:
@@ -994,24 +1024,30 @@ def _rank_site_blocks(
             block_starts=np.asarray([], dtype=np.int64),
             block_sizes=np.asarray([], dtype=np.int64),
         )
-    finite_values = values[finite_positions]
+    finite_values: _FloatArray = values[finite_positions]
     # Sorting establishes only the order of distinct value blocks. The order of
     # rows inside an equal-value block is intentionally ignored by block-count
     # scoring.
     if ranking_direction == SSGSEA_RANKING_DIRECTION_ASCENDING:
-        order = np.argsort(finite_values, kind="mergesort")
+        order: _IntArray = np.argsort(finite_values, kind="mergesort").astype(
+            np.int64,
+            copy=False,
+        )
     else:
-        order = np.argsort(-finite_values, kind="mergesort")
-    ranked_positions = finite_positions[order]
-    ranked_values = values[ranked_positions]
-    block_starts = np.concatenate(
+        order = np.argsort(-finite_values, kind="mergesort").astype(
+            np.int64,
+            copy=False,
+        )
+    ranked_positions: _IntArray = finite_positions[order]
+    ranked_values: _FloatArray = values[ranked_positions]
+    block_starts: _IntArray = np.concatenate(
         (
             np.asarray([0], dtype=np.int64),
             np.flatnonzero(ranked_values[1:] != ranked_values[:-1]).astype(np.int64)
             + 1,
         )
     )
-    block_ends = np.concatenate(
+    block_ends: _IntArray = np.concatenate(
         (
             block_starts[1:],
             np.asarray([ranked_values.size], dtype=np.int64),
@@ -1063,7 +1099,7 @@ def _resolve_significance_status(
     return SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
 
 
-def _score_from_hit_mask(hit_mask: np.ndarray) -> float:
+def _score_from_hit_mask(hit_mask: _BoolArray) -> float:
     n_background = int(hit_mask.size)
     n_substrates = int(hit_mask.sum())
     n_misses = n_background - n_substrates
@@ -1071,15 +1107,18 @@ def _score_from_hit_mask(hit_mask: np.ndarray) -> float:
         return np.nan
     hit_increment = 1.0 / float(n_substrates)
     miss_increment = 1.0 / float(n_misses)
-    running = np.cumsum(
-        np.where(hit_mask, hit_increment, -miss_increment).astype(float),
-    )
+    steps: _FloatArray = np.where(
+        hit_mask,
+        hit_increment,
+        -miss_increment,
+    ).astype(float)
+    running: _FloatArray = np.cumsum(steps)
     return float(running.sum() / float(n_background))
 
 
 def _score_from_ranked_hit_mask(  # pyright: ignore[reportUnusedFunction] - imported by activity regression tests as a private numerical seam
     *,
-    hit_mask: np.ndarray,
+    hit_mask: _BoolArray,
     ranked_blocks: _RankedTieBlocks,
 ) -> float:
     if not ranked_blocks.has_ties:
@@ -1095,8 +1134,8 @@ def _score_from_ranked_hit_mask(  # pyright: ignore[reportUnusedFunction] - impo
 
 def _score_from_block_hit_counts(
     *,
-    block_hit_counts: np.ndarray,
-    block_sizes: np.ndarray,
+    block_hit_counts: _IntArray,
+    block_sizes: _IntArray,
 ) -> float:
     n_background = int(block_sizes.sum())
     n_substrates = int(block_hit_counts.sum())
@@ -1108,13 +1147,11 @@ def _score_from_block_hit_counts(
     miss_increment = 1.0 / float(n_misses)
     running = 0.0
     area = 0.0
-    for block_hits_raw, block_size_raw in zip(
-        block_hit_counts.tolist(),
-        block_sizes.tolist(),
+    for block_hits, block_size in zip(
+        _int_tuple(block_hit_counts),
+        _int_tuple(block_sizes),
         strict=True,
     ):
-        block_size = int(block_size_raw)
-        block_hits = int(block_hits_raw)
         block_misses = block_size - block_hits
         block_delta = (
             float(block_hits) * hit_increment - float(block_misses) * miss_increment
@@ -1130,14 +1167,16 @@ def _score_from_block_hit_counts(
 def _block_hit_counts(
     *,
     ranked_blocks: _RankedTieBlocks,
-    hit_mask: np.ndarray,
-) -> np.ndarray:
+    hit_mask: _BoolArray,
+) -> _IntArray:
     if ranked_blocks.n_blocks == 0:
         return np.asarray([], dtype=np.int64)
-    return np.add.reduceat(
-        hit_mask.astype(np.int64, copy=False),
+    hit_values: _IntArray = hit_mask.astype(np.int64, copy=False)
+    counts: _IntArray = np.add.reduceat(
+        hit_values,
         ranked_blocks.block_starts,
     ).astype(np.int64, copy=False)
+    return counts
 
 
 def _null_score_cache_key(
@@ -1149,9 +1188,7 @@ def _null_score_cache_key(
         n_background=int(ranked_blocks.n_background),
         n_substrates=int(n_substrates),
         tie_block_sizes=(
-            tuple(int(value) for value in ranked_blocks.block_sizes.tolist())
-            if ranked_blocks.has_ties
-            else ()
+            _int_tuple(ranked_blocks.block_sizes) if ranked_blocks.has_ties else ()
         ),
     )
 
@@ -1159,7 +1196,7 @@ def _null_score_cache_key(
 def _build_kinase_tie_diagnostics(
     *,
     ranked_blocks: _RankedTieBlocks,
-    hit_mask: np.ndarray,
+    hit_mask: _BoolArray,
 ) -> dict[str, int]:
     if not ranked_blocks.has_ties:
         return {
@@ -1167,13 +1204,13 @@ def _build_kinase_tie_diagnostics(
             "non_substrate_only_tie_blocks": 0,
             "mixed_substrate_tie_blocks": 0,
         }
-    block_hit_counts = _block_hit_counts(
+    block_hit_counts: _IntArray = _block_hit_counts(
         ranked_blocks=ranked_blocks,
         hit_mask=hit_mask,
     )
-    tied = ranked_blocks.block_sizes > 1
-    tied_block_sizes = ranked_blocks.block_sizes[tied]
-    tied_hit_counts = block_hit_counts[tied]
+    tied: _BoolArray = ranked_blocks.block_sizes > 1
+    tied_block_sizes: _IntArray = ranked_blocks.block_sizes[tied]
+    tied_hit_counts: _IntArray = block_hit_counts[tied]
     substrate_only = tied_hit_counts == tied_block_sizes
     non_substrate_only = tied_hit_counts == 0
     mixed = (tied_hit_counts > 0) & (tied_hit_counts < tied_block_sizes)
@@ -1196,10 +1233,13 @@ def _permutation_p_value(
     n_background = int(null_score_engine.n_background)
     n_substrates = int(null_score_engine.n_substrates)
     for _ in range(int(permutation_count)):
-        hit_positions = rng.choice(
-            int(n_background),
-            size=int(n_substrates),
-            replace=False,
+        hit_positions: _IntArray = np.asarray(
+            rng.choice(
+                int(n_background),
+                size=int(n_substrates),
+                replace=False,
+            ),
+            dtype=np.int64,
         )
         score = null_score_engine.score_selected_positions(hit_positions)
         score_abs = abs(float(score))
