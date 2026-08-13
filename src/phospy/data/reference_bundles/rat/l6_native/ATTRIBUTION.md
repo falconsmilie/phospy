@@ -20,12 +20,18 @@ This attribution applies only to the exact files committed under:
 
 `src/phospy/data/reference_bundles/rat/l6_native`
 
-## Scientific citation
+## Scientific Citation
 
-Users should cite the PhosR publications when using this reference bundle:
+Users should cite the PhosR publications when using this reference bundle.
 
-- Kim HJ, Kim T, Hoffman NJ, Xiao D, James DE, Humphrey SJ, Yang P. PhosR enables processing and functional analysis of phosphoproteomic data. Cell Reports 34(8):108771.
-- Kim HJ, Kim T, Xiao D, Yang P. Protocol for the processing and downstream analysis of phosphoproteomic data with PhosR. STAR Protocols 2(2):100585.
+## References
+
+- Kim, H. J., Kim, T., Hoffman, N. J., Xiao, D., James, D. E., Humphrey,
+  S. J., & Yang, P. PhosR enables processing and functional analysis of
+  phosphoproteomic data. *Cell Reports, 34*(8), 108771.
+- Kim, H. J., Kim, T., Xiao, D., & Yang, P. Protocol for the processing and
+  downstream analysis of phosphoproteomic data with PhosR. *STAR Protocols,
+  2*(2), 100585.
 
 ## Scope
 
