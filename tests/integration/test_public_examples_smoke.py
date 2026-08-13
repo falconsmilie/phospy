@@ -38,6 +38,29 @@ pytestmark = pytest.mark.integration
                 "Resolved reference organism: rat",
             ],
         ),
+        (
+            "reference_bundle_builder_demo.py",
+            [
+                "Reference bundle builder demo",
+                "Organism: mouse",
+                "Deterministic fallback reference version:",
+            ],
+        ),
+        (
+            "maxquant_importer_demo.py",
+            [
+                "MaxQuant importer candidate matrix:",
+                "MaxQuant filtering diagnostics:",
+            ],
+        ),
+        (
+            "enrichment_provenance_demo.py",
+            [
+                "Enrichment provenance demo",
+                "Statistics unchanged: True",
+                "Run-provenance source type: phospy_derived_quantitative",
+            ],
+        ),
     ],
 )
 def test_public_example_script_runs(

@@ -95,10 +95,19 @@ Enrichment is also public through `phospy.api`:
 
 ```python
 from phospy.api import (
+    EnrichmentDerivedQuantitativeSetProvenance,
+    EnrichmentDerivedSetMissingValueRule,
+    EnrichmentDerivedSetSourceResultKind,
+    EnrichmentDerivedSetThresholdDirection,
+    EnrichmentDerivedSetValueMeaning,
+    EnrichmentDerivedSetValueScale,
     EnrichmentConfig,
+    EnrichmentIdentifierSetProvenance,
+    EnrichmentIdentifierSetSourceType,
     EnrichmentWorkflow,
     EnrichmentWorkflowRequest,
     GeneSetCollection,
+    InputIntensityScaleEvidence,
 )
 ```
 

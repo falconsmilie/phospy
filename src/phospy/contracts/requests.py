@@ -38,6 +38,7 @@ from phospy.contracts.enrichment_identifier_sets import (
     EnrichmentIdentifierSetSourceType,
 )
 from phospy.contracts.results.kinase import KinaseWorkflowResult
+from phospy.provenance.models import InputIntensityScaleEvidence
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.contrast_helpers import (
     all_pairwise_contrasts,
@@ -274,6 +275,7 @@ __all__ = [
     "EnrichmentSetCollection",
     "EnrichmentWorkflowRequest",
     "GeneSetCollection",
+    "InputIntensityScaleEvidence",
     "KinaseWorkflowRequest",
     "PtmSetCollection",
     "SignalomeWorkflowRequest",

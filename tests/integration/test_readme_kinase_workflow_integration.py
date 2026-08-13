@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import cast
+
 import pandas as pd
 import pytest
 
@@ -17,11 +20,37 @@ from phospy.api import (
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferencePreset,
 )
 
 pytestmark = pytest.mark.integration
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _readme_complete_kinase_example() -> str:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    marker = "<summary><strong>View the Complete Kinase Example</strong></summary>"
+    section = readme.split(marker, maxsplit=1)[1]
+    return section.split("```python", maxsplit=1)[1].split("```", maxsplit=1)[0]
+
+
+def test_readme_documented_kinase_example_executes() -> None:
+    namespace: dict[str, object] = {"__name__": "__readme_kinase_example__"}
+
+    exec(
+        compile(
+            _readme_complete_kinase_example(),
+            "README.md#complete-kinase-example",
+            "exec",
+        ),
+        namespace,
+    )
+
+    result = cast(KinaseWorkflowResult, namespace["result"])
+    assert result.prediction_result.pred_mat.shape[0] == 3
 
 
 def test_readme_style_kinase_workflow_builds_and_runs() -> None:

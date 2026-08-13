@@ -22,11 +22,18 @@ STABLE_PUBLIC_API = (
     "DesignMatrix",
     "ContrastMatrix",
     "DifferentialAnalysisRequest",
+    "EnrichmentDerivedQuantitativeSetProvenance",
+    "EnrichmentDerivedSetMissingValueRule",
+    "EnrichmentDerivedSetSourceResultKind",
+    "EnrichmentDerivedSetThresholdDirection",
+    "EnrichmentDerivedSetValueMeaning",
+    "EnrichmentDerivedSetValueScale",
     "EnrichmentIdentifierSetProvenance",
     "EnrichmentIdentifierSetSourceType",
     "EnrichmentSet",
     "EnrichmentSetCollection",
     "EnrichmentWorkflowRequest",
+    "InputIntensityScaleEvidence",
     "EnrichmentConfig",
     "GeneSetCollection",
     "PtmSetCollection",
@@ -271,7 +278,7 @@ ADVANCED_PUBLIC_API = (
     *ADVANCED_RESULT_API,
 )
 
-STABLE_PUBLIC_API_BASELINE_COUNT = 61
+STABLE_PUBLIC_API_BASELINE_COUNT = 68
 ADVANCED_PUBLIC_API_BASELINE_COUNT = 104
 
 API_COMPATIBILITY_INTRODUCED_VERSION = "1.6.0"
@@ -509,11 +516,18 @@ STABLE_REQUEST_API = (
     "DesignMatrix",
     "DatasetBuildRequest",
     "DifferentialAnalysisRequest",
+    "EnrichmentDerivedQuantitativeSetProvenance",
+    "EnrichmentDerivedSetMissingValueRule",
+    "EnrichmentDerivedSetSourceResultKind",
+    "EnrichmentDerivedSetThresholdDirection",
+    "EnrichmentDerivedSetValueMeaning",
+    "EnrichmentDerivedSetValueScale",
     "EnrichmentIdentifierSetProvenance",
     "EnrichmentIdentifierSetSourceType",
     "EnrichmentSet",
     "EnrichmentSetCollection",
     "EnrichmentWorkflowRequest",
+    "InputIntensityScaleEvidence",
     "ExperimentalDesign",
     "FixedEffectCovariate",
     "GeneSetCollection",

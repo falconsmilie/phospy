@@ -78,6 +78,7 @@ from phospy.advanced import (
     KinasePredictionConfig,
     KinaseReliabilityProfile,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
     DatasetBuildRequest,
@@ -108,6 +109,7 @@ site_metadata = pd.DataFrame(
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
         ],
         "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
+        "protein_namespace": ["protein_id"] * phospho.shape[0],
         "protein_group_id": ["MAPK14", "GSK3A", "TSC2"],
         "localisation_confidence": [0.95, 0.94, 0.96],
     },
@@ -135,6 +137,9 @@ request = KinaseWorkflowRequest(
     references=ReferencePreset.AUTO,
     scoring_config=KinaseScoringConfig(
         reliability_profile=KinaseReliabilityProfile.CUSTOM,
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
         min_substrates=2,
     ),
     prediction_config=KinasePredictionConfig.deterministic(),

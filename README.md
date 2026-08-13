@@ -46,7 +46,11 @@ dataset and bundled rat references.
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.advanced import KinaseReliabilityProfile, KinaseScoringConfig
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
@@ -76,6 +80,7 @@ site_metadata = pd.DataFrame(
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
         ],
         "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
+        "protein_namespace": ["protein_id"] * phospho.shape[0],
         "protein_group_id": ["MAPK14", "GSK3A", "TSC2"],
         "localisation_confidence": [0.95, 0.94, 0.96],
     },
@@ -90,6 +95,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
         input_intensity_scale=IntensityScaleKind.LINEAR,
         preprocessing_config=DatasetPreprocessingConfig(
             localisation=DatasetLocalisationConfig(
+                mode="require_threshold",
                 confidence_column="localisation_confidence",
                 min_confidence=0.75,
             )
@@ -103,6 +109,9 @@ result = KinaseWorkflow().run(
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(
             reliability_profile=KinaseReliabilityProfile.CUSTOM,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         activity_config=None,
     )
