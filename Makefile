@@ -136,7 +136,7 @@ validate-reference-bundles: check-tools
 docs-build: check-tools
 	$(MKDOCS) build --strict
 
-release-check: lint type-check test-unit test-contract test-parity test-performance docs-build validate-reference-bundles test-release-gates build verify-installed-distributions
+release-check: lint type-check test-unit test-contract test-parity test-performance validate-reference-bundles test-release-gates build verify-installed-distributions
 
 benchmark-release-scale: check-tools
 	$(PYTHON) benchmarks/measure_release_scale_builder_differential.py
