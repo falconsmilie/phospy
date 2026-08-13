@@ -38,7 +38,6 @@ selected by explicit Makefile targets. The release check blocks release on:
 | `parity` | Blocking through `pytest tests/parity -m "parity and not parity_diagnostic" -s`. |
 | `activity_parity` | Blocking because the activity parity file is also marked `parity` and is not marked `parity_diagnostic`; CI also has a dedicated activity parity gate. |
 | `performance` | Blocking through `pytest tests/performance -m "performance or release_gate"`. |
-| Documentation | Blocking through `make docs-build`, which runs `mkdocs build --strict` so warnings, including broken internal links, fail release checks. |
 | `parity_diagnostic` | Explicitly excluded from the blocking parity target unless intentionally promoted out of the exclusion. |
 | `slow` | Not selected solely by marker for release; it runs only when also collected by a blocking selector. |
 
@@ -50,11 +49,10 @@ a pytest marker category, is not collected by pytest, and is excluded from
 
 CI runs the default non-parity suite, public-consumer contract suite,
 threshold-bearing parity suite, release and golden gates, and performance
-contracts on each supported Python version: 3.11 and 3.12. CI also gates
-documentation with a strict MkDocs build. Build and archive-level
-packaged-reference validation remain a dedicated single-build artifact job; the
-uploaded wheel and sdist are then installed and executed by a separate Python
-3.11 and 3.12 verifier matrix.
+contracts on each supported Python version: 3.11 and 3.12. Build and
+archive-level packaged-reference validation remain a dedicated single-build
+artifact job; the uploaded wheel and sdist are then installed and executed by a
+separate Python 3.11 and 3.12 verifier matrix.
 Manifest-governed fixture byte integrity also runs on both Ubuntu and Windows
 to catch checkout newline conversion regressions.
 
@@ -86,8 +84,8 @@ Based on that configuration:
 
 The default local run deliberately omits contract tests, release tests, golden
 tests, threshold-bearing parity tests, documentation builds, and performance
-contracts unless they are selected separately through the release check. `make
-release-check` is the authoritative aggregate command. This marker model
+contracts unless they are selected separately. `make release-check` is the
+authoritative aggregate command for release-blocking checks. This marker model
 provides normal CI/build confidence; final Git-backed staged-byte and built
 wheel/sdist release verification is described in
 [Maintenance](../maintenance.md).

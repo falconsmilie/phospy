@@ -15,6 +15,7 @@ from phospy.science.prediction.svm import (
     aligned_binary_decision_vector,
     make_svm,
     require_sklearn,
+    suppress_sklearn_svc_probability_deprecation,
 )
 
 
@@ -117,7 +118,8 @@ def _run_sampling_iterations(
                 use_r_parity_scaler=use_r_parity_scaler,
             ),
         )
-        model.fit(current_x, current_y)
+        with suppress_sklearn_svc_probability_deprecation():
+            model.fit(current_x, current_y)
         prob_mat = np.asarray(model.predict_proba(base_x), dtype=float)
         weights_by_class = _compute_class_weights(
             model=model,

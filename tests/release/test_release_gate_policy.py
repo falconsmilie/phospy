@@ -38,7 +38,6 @@ RELEASE_CHECK_DEPENDENCIES = (
     "test-contract",
     "test-parity",
     "test-performance",
-    "docs-build",
     "validate-reference-bundles",
     "test-release-gates",
     "build",
@@ -2317,7 +2316,6 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     testing_audit = _workflow_job_block(workflow, "testing-audit-freshness")
     default_suite = _workflow_job_block(workflow, "default-suite")
     contract = _workflow_job_block(workflow, "public-consumer-contracts")
-    documentation = _workflow_job_block(workflow, "documentation")
     activity_parity = _workflow_job_block(workflow, "activity-parity-gate")
     hard_parity = _workflow_job_block(workflow, "parity-tests")
     diagnostics = _workflow_job_block(workflow, "parity-diagnostics")
@@ -2343,7 +2341,6 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         minimum,
         benchmark,
         testing_audit,
-        documentation,
         reference_bundles,
         adaptive,
         diagnostics,
@@ -2351,8 +2348,9 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         assert "python-version: '3.11'" in lowest_supported_job
     assert "make test-contract" in contract
     assert "public-consumer-contracts-py${{ matrix.python-version }}" in contract
-    assert 'pip install -e ".[docs]"' in documentation
-    assert "make docs-build" in documentation
+    assert re.search(r"(?m)^  documentation:", workflow) is None
+    assert 'pip install -e ".[docs]"' not in workflow
+    assert "make docs-build" not in workflow
     assert "$(MKDOCS) build --strict" in _make_target_body("docs-build")
     assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance

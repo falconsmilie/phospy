@@ -2,7 +2,30 @@
 
 from __future__ import annotations
 
+import warnings
+from collections.abc import Iterator
+from contextlib import contextmanager
+
 import numpy as np
+
+_SKLEARN_SVC_PROBABILITY_DEPRECATION_RE = (
+    r"The `probability` parameter was deprecated in 1\.9 and will be removed "
+    r"in version 1\.11\."
+)
+
+
+@contextmanager
+def suppress_sklearn_svc_probability_deprecation() -> Iterator[None]:
+    """Suppress the known sklearn transition warning for SVC probability fitting."""
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=_SKLEARN_SVC_PROBABILITY_DEPRECATION_RE,
+            category=FutureWarning,
+            module=r"sklearn\.svm\._base",
+        )
+        yield
 
 
 class _RLikeStandardScaler:

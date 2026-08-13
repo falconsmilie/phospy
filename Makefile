@@ -7,7 +7,14 @@ endif
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 
-PYTHON ?= python
+PYCHARM_MODULE_FILE ?= .idea/phospy.iml
+ifndef PYCHARM_PYTHON
+PYCHARM_PYTHON_RAW := $(shell if [ -f "$(PYCHARM_MODULE_FILE)" ]; then grep -Eo 'jdkName="[^"]*python\.exe"' "$(PYCHARM_MODULE_FILE)" | head -n 1 | cut -d '"' -f 2 || true; fi)
+USERPROFILE_POSIX := $(subst \,/,$(USERPROFILE))
+PYCHARM_PYTHON_PATH := $(subst \,/,$(PYCHARM_PYTHON_RAW))
+PYCHARM_PYTHON := $(patsubst ~/%,${USERPROFILE_POSIX}/%,$(PYCHARM_PYTHON_PATH))
+endif
+PYTHON ?= $(or $(strip $(PYCHARM_PYTHON)),python)
 PIP ?= $(PYTHON) -m pip
 PYTEST ?= $(PYTHON) -m pytest
 RUFF ?= $(PYTHON) -m ruff

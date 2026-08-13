@@ -19,6 +19,7 @@ from phospy.science.prediction.svm import (
     aligned_binary_decision_vector,
     make_svm,
     require_sklearn,
+    suppress_sklearn_svc_probability_deprecation,
 )
 from tests.support.rewrite_fixture_data import (
     load_adaptive_sampling_replay_rank_weighted_fusion_scores,
@@ -261,7 +262,8 @@ def _run_traced_lane(
                     kernel="rbf",
                     use_r_parity_scaler=policy.adaptive_policy == "r_parity",
                 )
-                model.fit(current_values, current_labels)
+                with suppress_sklearn_svc_probability_deprecation():
+                    model.fit(current_values, current_labels)
                 probability_matrix = model.predict_proba(base_values)
                 model_classes = np.asarray(model.classes_, dtype=int)
                 positive_idx = np.flatnonzero(model_classes == 1)
