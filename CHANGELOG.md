@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## [1.7.0] - 2026-08-14
 
 ### API
 
@@ -10,6 +10,10 @@ All notable changes to this project are documented here.
   supported version, with active support limited to Python 3.11 and Python
   3.12. The Python 3.10 CI lanes and compatibility dependencies were removed,
   and PhosPy now uses the standard-library `tomllib` module directly.
+- Added governed public API stability tiers. `phospy.api` is the stable
+  beta-user route for ordinary workflow code, `phospy.advanced` is the supported
+  route for specialist configuration, diagnostics, references, and publishing
+  helpers, and implementation modules remain unsupported import targets.
 - Deprecated the internal `PreprocessingPipeline(stage_metadata_registry=...)`
   constructor alias. It still works with a `DeprecationWarning`, but callers
   must use `stage_contract_registry=...`; passing both aliases now raises.
@@ -27,8 +31,7 @@ All notable changes to this project are documented here.
   with `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(phospho=..., site_metadata=..., ...))`
   for normal inputs, or with
   `AnalysisReadyPhosphoDataset.from_trusted_tables(..., trusted_construction_assertions=assertions)`
-  for audited trusted-table replay. This is expected to ship in the next
-  breaking release; no package version is bumped in this change.
+  for audited trusted-table replay.
 - Removed internal dataset processing-state and diagnostic implementation
   classes from `phospy.api.datasets`. Stable users should inspect diagnostics
   through dataset properties, builder reports, workflow results, and provenance
@@ -49,9 +52,43 @@ All notable changes to this project are documented here.
   when present. Use
   `KinaseActivityResult.legacy_condition_statistics_table_dataframe()` only for
   deprecated condition-shaped compatibility snapshots.
+- Breaking: ordinary kinase workflow execution requires explicit scoring
+  reliability intent through exploratory, production, or custom
+  `KinaseScoringConfig` routes. A bare `KinaseScoringConfig()` is rejected.
+- `KinaseWorkflowRequest.activity_config` now defaults to `None`, so
+  activity-like summaries are disabled unless callers supply a
+  `KinaseActivityConfig`.
 
 ### Added
 
+- Added native SPS/RUV-style preprocessing correction through
+  `SpsRuvBatchCorrectionConfig`, including explicit caller-supplied control
+  sites, missingness policy, protected-design handling, factor-feasibility
+  validation, selected-control provenance, observation-mask provenance, and
+  dataset preprocessing integration.
+- Added dataset group-coverage filtering, configurable multiple-testing
+  correction, differential contrast helper functions, and differential result
+  filtering/ranking helpers.
+- Added shared structured `ResultCaveat` records for differential, kinase,
+  signalome, and enrichment workflow results.
+- Added typed row-attrition provenance across dataset building, differential,
+  kinase, signalome, and enrichment workflows.
+- Added reference-context compatibility records to datasets and workflow
+  results, with configurable workflow handling for unknown or mismatched
+  contexts.
+- Added typed intensity-transformation events, derived quantitative data
+  provenance, preprocessing quantitative-operation contracts, and trace evidence
+  sidecars for row audits, observation masks, total-protein mappings, and
+  resolved stochastic seeds.
+- Added kinase reliability profiles, profile self-inclusion policy,
+  leave-one-out profile scoring, true Kinase Library-style motif-only scoring,
+  method-specific quantitative contracts, and optional substrate contribution
+  tables.
+- Added signalome module-selection stability diagnostics, edge-skip diagnostics,
+  paired-observation network guards, and stronger small-sample/fully-missing
+  clustering behavior.
+- Added importer quality reports and shared reader table-parsing helpers for
+  documented dataset/input readers.
 - Added a large-feature R/limma differential trend parity fixture, PhosPy-owned
   release-validation regression fixture families for evidence resolution,
   sparse kinase support, and signalome safety.
@@ -126,6 +163,19 @@ All notable changes to this project are documented here.
   acceptance when declared evidence is missing, and processing-state
   reconstruction revalidates typed trace evidence before establishing completed
   quantitative state.
+- Hardened peptide evidence resolution so conflicting peptide accessions or
+  supplied `site_sequence` contexts for the same resolved phosphosite fail
+  deterministically.
+- Hardened native SPS/RUV-style correction boundaries, including ambiguous axis
+  rejection, complete control-source audit provenance, selected-control
+  uniqueness, finite observed inputs, unsupported stage-order rejection, and
+  rejection of corrected outputs after downstream preprocessing stages.
+- Hardened signalome network construction for low paired-observation counts and
+  fully missing clustering input.
+- Hardened DataFrame ownership, recursively immutable public JSON-like state,
+  immutable public scientific containers, provenance hashing, package dependency
+  DAG checks, strict Pyright suppressions, and public-boundary adversarial
+  coverage.
 
 ### Changed
 
@@ -152,6 +202,10 @@ All notable changes to this project are documented here.
   `phospy.science.tables`, with generic `TableSchema` infrastructure under
   `phospy.frames`. Supported `phospy.tables.*` imports are preserved as
   identity-preserving compatibility re-exports.
+- Replaced reflective preprocessing collaborator negotiation with explicit
+  stage contracts and typed resolved preprocessing-plan sections.
+- Result bundles now use explicit overwrite policy, transactional writes, and
+  content-addressed integrity checks.
 - Expanded CI release-science coverage so the default non-parity suite,
   threshold-bearing parity suite, release/golden gates, and performance
   contracts run on Python 3.11 and 3.12. Build and publication remain
