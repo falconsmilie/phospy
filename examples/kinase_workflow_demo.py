@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the preferred 1.5.0 dataset-builder to kinase workflow lane."""
+"""Run the supported kinase workflow from a dataset-builder input."""
 
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ def run_demo() -> KinaseWorkflowResult:
 
 def main() -> None:
     result = run_demo()
-    print("Preferred 1.5.0 kinase workflow lane")
+    print("Supported kinase workflow")
     print("Dataset organism:", result.dataset.organism.value)
     print(
         result.dataset.site_metadata.loc[

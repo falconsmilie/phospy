@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build an analysis-ready dataset in the preferred 1.5.0 first-run lane."""
+"""Build an analysis-ready dataset with the supported dataset-builder workflow."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
 
 def main() -> None:
     dataset = build_demo_dataset()
-    print("Preferred 1.5.0 dataset builder lane")
+    print("Supported dataset-builder workflow")
     print("Input route: pandas DataFrame values")
     print("Bundled reference-compatible organism:", dataset.organism.value)
     print("Phospho shape:", dataset.phospho.shape)

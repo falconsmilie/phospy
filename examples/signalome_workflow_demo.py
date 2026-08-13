@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the preferred 1.5.0 signalome workflow lane.
+"""Run the supported signalome workflow.
 
 Signalome contract note: explicit ``site_metadata.protein_group_id`` is
 required. Legacy ``protein_id`` is accepted only as a migration alias.
@@ -138,7 +138,7 @@ def run_demo() -> SignalomeWorkflowResult:
 def main() -> None:
     result = run_demo()
     protein_group_ids = result.kinase_result.dataset.site_metadata["protein_group_id"]
-    print("Preferred 1.5.0 signalome workflow lane")
+    print("Supported signalome workflow")
     print(
         result.kinase_result.dataset.site_metadata.loc[
             :,
