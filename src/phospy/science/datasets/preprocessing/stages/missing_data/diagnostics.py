@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
+from collections.abc import Iterable
+from typing import Protocol
+
+import numpy as np
 import pandas as pd
 
 from phospy.errors.provenance import ProvenanceFingerprintError
@@ -15,6 +20,10 @@ from phospy.science.datasets.processing_state import (
 )
 
 from .models import MissingDataInputProfile
+
+
+class _HashUpdater(Protocol):
+    def update(self, data: bytes, /) -> object: ...
 
 
 def build_input_profile(phospho: pd.DataFrame) -> MissingDataInputProfile:
@@ -56,6 +65,13 @@ def hash_knn_mechanism_mask(mask: pd.DataFrame, *, mechanism_name: str) -> str:
     """Return row/column-order-stable fingerprint for KNN mechanism masks."""
 
     hash_name = f"missing_data.knn_{mechanism_name}_imputation_mask"
+    fast_hash = _hash_unique_string_labeled_boolean_mask_normalized_axes(
+        mask,
+        name=hash_name,
+    )
+    if fast_hash is not None:
+        return fast_hash
+
     normalized_mask = mask.astype("int8")
     try:
         return fingerprint_table_normalized_axes(
@@ -64,6 +80,74 @@ def hash_knn_mechanism_mask(mask: pd.DataFrame, *, mechanism_name: str) -> str:
         ).tolerance_hash_value
     except ProvenanceFingerprintError:
         return hash_table_tolerance(normalized_mask, name=hash_name)
+
+
+def _hash_unique_string_labeled_boolean_mask_normalized_axes(
+    mask: pd.DataFrame,
+    *,
+    name: str,
+) -> str | None:
+    row_labels = _unique_string_labels(mask.index)
+    column_labels = _unique_string_labels(mask.columns)
+    if row_labels is None or column_labels is None:
+        return None
+
+    row_positions = np.asarray(
+        sorted(range(len(row_labels)), key=row_labels.__getitem__),
+        dtype=np.intp,
+    )
+    column_positions = np.asarray(
+        sorted(range(len(column_labels)), key=column_labels.__getitem__),
+        dtype=np.intp,
+    )
+    values = mask.to_numpy(dtype=bool, copy=False)
+    normalized_values = values[np.ix_(row_positions, column_positions)]
+
+    digest = hashlib.sha256()
+    digest.update(b"phospy:boolean-mask-normalized-axes:v1\n")
+    _update_hash_string(digest, name)
+    _update_hash_string_axis(
+        digest,
+        (row_labels[int(position)] for position in row_positions),
+    )
+    _update_hash_string_axis(
+        digest,
+        (column_labels[int(position)] for position in column_positions),
+    )
+    digest.update(str(int(normalized_values.shape[0])).encode("ascii"))
+    digest.update(b"x")
+    digest.update(str(int(normalized_values.shape[1])).encode("ascii"))
+    digest.update(b"\n")
+    digest.update(np.packbits(normalized_values.ravel(order="C")).tobytes())
+    return digest.hexdigest()
+
+
+def _unique_string_labels(index: pd.Index) -> list[str] | None:
+    labels = index.tolist()
+    if not all(isinstance(label, str) for label in labels):
+        return None
+    if len(set(labels)) != len(labels):
+        return None
+    return labels
+
+
+def _update_hash_string_axis(
+    digest: _HashUpdater,
+    labels: Iterable[str],
+) -> None:
+    materialized_labels = tuple(labels)
+    digest.update(str(len(materialized_labels)).encode("ascii"))
+    digest.update(b"\n")
+    for label in materialized_labels:
+        _update_hash_string(digest, label)
+
+
+def _update_hash_string(digest: _HashUpdater, value: str) -> None:
+    encoded = value.encode("utf-8")
+    digest.update(str(len(encoded)).encode("ascii"))
+    digest.update(b":")
+    digest.update(encoded)
+    digest.update(b"\n")
 
 
 def label_preview(values: list[object], *, max_items: int = 3) -> str:

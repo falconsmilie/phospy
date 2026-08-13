@@ -340,7 +340,7 @@ def _deterministic_knn_impute(
     chunk_size = _knn_distance_chunk_size(retained_row_count=int(values.shape[0]))
     for chunk_start in range(0, int(target_positions.size), chunk_size):
         chunk_positions = target_positions[chunk_start : chunk_start + chunk_size]
-        distances = _nan_euclidean_distance_block(
+        distances = _nan_euclidean_squared_distance_block(
             target_values=values[chunk_positions, :],
             sorted_values_filled=sorted_values_filled,
             sorted_values_squared=sorted_values_squared,
@@ -559,14 +559,19 @@ def _knn_distance_chunk_size(*, retained_row_count: int) -> int:
     return max(1, int(bytes_per_pairwise_matrix // bytes_per_target_row))
 
 
-def _nan_euclidean_distance_block(
+def _nan_euclidean_squared_distance_block(
     *,
     target_values: np.ndarray,
     sorted_values_filled: np.ndarray,
     sorted_values_squared: np.ndarray,
     sorted_observed_float: np.ndarray,
 ) -> np.ndarray:
-    """Return target-by-donor nan-euclidean distances in donor tie order."""
+    """Return target-by-donor squared nan-euclidean distances in donor tie order.
+
+    The imputer only compares distances for deterministic donor selection.
+    Squared distances preserve the nan-euclidean ordering and avoid an
+    unnecessary full-matrix square root on large performance-contract tiers.
+    """
 
     target_observed = ~np.isnan(target_values)
     target_observed_float = target_observed.astype(float, copy=False)
@@ -583,7 +588,7 @@ def _nan_euclidean_distance_block(
         squared_distances *= float(target_values.shape[1])
         squared_distances /= overlap_counts
     squared_distances[overlap_counts <= 0.0] = np.inf
-    return np.sqrt(squared_distances, out=squared_distances)
+    return squared_distances
 
 
 def _select_knn_donor_positions(
