@@ -65,7 +65,7 @@ help:
 	@printf '%s\n' '  make docs-build                    Build documentation with strict link/error checks'
 	@printf '%s\n' '  make validate-reference-bundles    Validate checked-in reference bundle manifests and files'
 	@printf '%s\n' '  make verify-installed-distributions Install and execute the built wheel and sdist outside the checkout'
-	@printf '%s\n' '  make release-check                 Run maintainer release checks'
+	@printf '%s\n' '  make release-check                 Run maintainer release check'
 	@printf '%s\n' '  make test                          Run unit, contract, and parity tests'
 	@printf '%s\n' '  make tests-all                     Alias for all-tests'
 	@printf '%s\n' '  make test-seams                    Run seam-focused rewrite parity tests'
