@@ -45,7 +45,7 @@ proof of scientific validity.
   inputs. Use `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` only for
   audited trusted-table replay with complete
   `TrustedDatasetConstructionAssertions`.
-- BREAKING: kinase activity statistics tables use `profile_id` as canonical
+- BREAKING: kinase activity statistics tables use `profile_id` as authoritative
   row identity. The legacy condition-shaped statistics adapter remains only as a
   deprecated compatibility helper.
 - `KinaseWorkflowRequest.activity_config` defaults to `None`, so activity-like
@@ -72,8 +72,8 @@ proof of scientific validity.
   `phospy.advanced` is the supported route for specialist configuration,
   diagnostics, references, and publishing helpers, and implementation modules
   are unsupported import targets.
-- Native SPS/RUV-style preprocessing correction through
-  `SpsRuvBatchCorrectionConfig`, including explicit caller-supplied controls,
+- Native PhosPy SPS/RUV-style `SpsRuvBatchCorrectionConfig` preprocessing
+  correction, including explicit caller-supplied controls,
   missingness policy, factor feasibility checks, selected-control provenance,
   observation-mask provenance, and workflow orchestration.
 - Dataset group-coverage filtering, configurable multiple-testing correction,
@@ -96,7 +96,7 @@ proof of scientific validity.
 - Signalome module-selection stability diagnostics, small-sample and
   fully-missing clustering guards, network paired-observation guards, and edge
   skip diagnostics.
-- Importer quality reports, shared reader table-parsing helpers, canonical
+- Importer quality reports, shared reader table-parsing helpers, fixed
   fixture-byte policy, and hardened MaxQuant/FragPipe/PTMProphet edge-case
   coverage.
 - Reference-bundle validation reports and stricter bundled rat `l6_native`

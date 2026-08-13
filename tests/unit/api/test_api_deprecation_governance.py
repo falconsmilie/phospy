@@ -331,6 +331,7 @@ def test_existing_deprecated_api_import_route_check_uses_registry_metadata() -> 
 
 
 def _run_pytest_file(test_file: Path) -> subprocess.CompletedProcess[str]:
+    runnable_file = _in_repo_pytest_file(test_file)
     environment = dict(os.environ)
     environment["PYTHONPATH"] = os.pathsep.join(
         [str(ROOT / "src"), environment.get("PYTHONPATH", "")]
@@ -342,7 +343,7 @@ def _run_pytest_file(test_file: Path) -> subprocess.CompletedProcess[str]:
             "pytest",
             "-c",
             str(ROOT / "pyproject.toml"),
-            str(test_file),
+            str(runnable_file.relative_to(ROOT)),
             "-q",
         ],
         cwd=ROOT,
@@ -351,6 +352,24 @@ def _run_pytest_file(test_file: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         check=False,
     )
+
+
+def _in_repo_pytest_file(test_file: Path) -> Path:
+    """Copy a synthetic pytest file under ROOT before invoking pytest.
+
+    Pytest 8.0 can walk the absolute argument's parent when the requested file
+    lives outside the configured rootdir. On GitHub's Ubuntu runners this may
+    touch unreadable system-owned entries such as /tmp/snap-private-tmp and fail
+    before the synthetic file is collected. Keeping the file under the repo
+    avoids that environment-dependent collection path while still exercising the
+    project pytest configuration.
+    """
+
+    run_dir = ROOT / "build" / "pytest-deprecation-governance" / test_file.parent.name
+    run_dir.mkdir(parents=True, exist_ok=True)
+    runnable_file = run_dir / test_file.name
+    runnable_file.write_text(test_file.read_text(encoding="utf-8"), encoding="utf-8")
+    return runnable_file
 
 
 def _markdown_deprecation_violations(path: Path, source: str) -> list[str]:

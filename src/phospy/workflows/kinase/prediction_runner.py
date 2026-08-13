@@ -272,7 +272,10 @@ class KinasePredictionRunner:
         annotated.loc[:, "site_key"] = site_keys
         annotated.loc[:, "display_id"] = display_ids
         annotated.loc[:, "substrate_site"] = display_ids
-        return annotated
+        return _order_duplicate_display_substrates_by_site_identity(
+            annotated=annotated,
+            site_identity_map=site_identity_map,
+        )
 
     @staticmethod
     def _as_adaptive_prediction_execution_config(
@@ -319,6 +322,44 @@ def _require_site_identity_map(site_identity_map: pd.DataFrame | None) -> pd.Dat
             message_prefix="kinase workflow boundary validation failed",
         )
     return site_identity_map
+
+
+def _order_duplicate_display_substrates_by_site_identity(
+    *,
+    annotated: pd.DataFrame,
+    site_identity_map: pd.DataFrame,
+) -> pd.DataFrame:
+    display_ids = annotated.loc[:, "display_id"].astype(str)
+    if not display_ids.duplicated(keep=False).any():
+        return annotated
+
+    site_order = {
+        str(site_key): position
+        for position, site_key in enumerate(
+            site_identity_map.loc[:, "site_key"].astype(str).tolist()
+        )
+    }
+    result = annotated.copy(deep=True)
+    ordered = annotated.assign(
+        _phospy_original_row_order=range(int(annotated.shape[0])),
+        _phospy_site_order=annotated.loc[:, "site_key"]
+        .astype(str)
+        .map(lambda value: site_order.get(value, len(site_order))),
+    )
+    duplicate_rows = ordered.loc[display_ids.duplicated(keep=False), :]
+    for _, group in duplicate_rows.groupby(["kinase", "display_id"], sort=False):
+        if int(group.shape[0]) < 2:
+            continue
+        target_index = group.sort_values(
+            "_phospy_original_row_order",
+            kind="mergesort",
+        ).index
+        source_index = group.sort_values(
+            ["_phospy_site_order", "_phospy_original_row_order"],
+            kind="mergesort",
+        ).index
+        result.loc[target_index, :] = result.loc[source_index, :].to_numpy()
+    return result
 
 
 __all__ = ["KinasePredictionRunner"]
