@@ -66,6 +66,8 @@ parquet = [
 test = [
   "hypothesis>=6",
   "pytest>=8.0",
+  "setuptools>=77.0.3",
+  "wheel>=0.45.1",
 ]
 
 docs = [

@@ -219,6 +219,15 @@ def test_minimum_constraints_pin_declared_runtime_and_test_lower_bounds() -> Non
     )
 
 
+def test_release_gate_test_extra_declares_packaging_backend_tools() -> None:
+    test_requirements = {
+        _requirement_name(requirement)
+        for requirement in _load_pyproject()["project"]["optional-dependencies"]["test"]
+    }
+
+    assert {"setuptools", "wheel"}.issubset(test_requirements)
+
+
 def test_ci_and_publish_install_commands_share_the_ci_constraints() -> None:
     for workflow_path in WORKFLOW_PATHS:
         workflow = _read(workflow_path)
