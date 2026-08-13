@@ -898,10 +898,18 @@ def _run_pip(
         "--disable-pip-version-check",
         arguments[0],
     ]
+    environment_overrides = None
     if constraint is not None and arguments[0] == "install":
         command.extend(["-c", str(constraint)])
+        environment_overrides = {"PIP_BUILD_CONSTRAINT": str(constraint)}
     command.extend(arguments[1:])
-    return _run(command, cwd=cwd, repo_root=repo_root, context=context)
+    return _run(
+        command,
+        cwd=cwd,
+        repo_root=repo_root,
+        context=context,
+        environment_overrides=environment_overrides,
+    )
 
 
 def _run(
@@ -910,11 +918,16 @@ def _run(
     cwd: Path,
     repo_root: Path,
     context: str,
+    environment_overrides: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     _require_path_outside(cwd.resolve(), repo_root, label=f"{context} cwd")
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
+    env.pop("PIP_CONSTRAINT", None)
+    env.pop("PIP_BUILD_CONSTRAINT", None)
+    if environment_overrides is not None:
+        env.update(environment_overrides)
     env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     result = subprocess.run(
         command,

@@ -70,7 +70,7 @@ tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,f
 tests/performance/test_ssgsea_activity_performance.py,performance,123,2,true,false,,,,,,
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
-tests/release/test_installed_distribution_verifier.py,release,476,12,true,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/release/test_installed_distribution_verifier.py,release,574,14,true,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/release/test_kinase_policy_documentation.py,release,117,2,true,false,,,,,,
 tests/release/test_manifest_fixture_byte_reproducibility.py,release,277,4,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,

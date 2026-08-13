@@ -292,6 +292,104 @@ def test_installed_artifact_regression_tests_keep_requires_python_enforced() -> 
     assert "ignore_requires_python" not in DAMAGED_ARTIFACT_INSTALL_KWARGS
 
 
+def test_verifier_subprocesses_ignore_ambient_pip_constraints(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    cwd = tmp_path / "work"
+    repo_root.mkdir()
+    cwd.mkdir()
+    minimum_constraint = ROOT / "constraints" / "minimum.txt"
+    captured_env: dict[str, str] = {}
+
+    monkeypatch.setenv("PYTHONPATH", str(ROOT / "src"))
+    monkeypatch.setenv("PYTHONHOME", "poison-python-home")
+    monkeypatch.setenv("PIP_CONSTRAINT", str(minimum_constraint))
+    monkeypatch.setenv("PIP_BUILD_CONSTRAINT", str(minimum_constraint))
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        env: dict[str, str],
+        text: bool,
+        capture_output: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        del cwd, text, capture_output, check
+        captured_env.update(env)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(verifier.subprocess, "run", fake_run)
+
+    verifier._run(["probe"], cwd=cwd, repo_root=repo_root, context="probe")
+
+    assert "PYTHONPATH" not in captured_env
+    assert "PYTHONHOME" not in captured_env
+    assert "PIP_CONSTRAINT" not in captured_env
+    assert "PIP_BUILD_CONSTRAINT" not in captured_env
+    assert captured_env["PIP_DISABLE_PIP_VERSION_CHECK"] == "1"
+
+
+def test_pip_installs_apply_explicit_constraint_to_build_dependencies(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    cwd = tmp_path / "work"
+    constraint = tmp_path / "constraints" / "ci.txt"
+    repo_root.mkdir()
+    cwd.mkdir()
+    constraint.parent.mkdir()
+    constraint.write_text("setuptools==77.0.3\n", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        repo_root: Path,
+        context: str,
+        environment_overrides: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        captured.update(
+            {
+                "command": command,
+                "cwd": cwd,
+                "repo_root": repo_root,
+                "context": context,
+                "environment_overrides": environment_overrides,
+            }
+        )
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(verifier, "_run", fake_run)
+
+    verifier._run_pip(
+        tmp_path / "venv" / "bin" / "python",
+        "install sdist",
+        repo_root=repo_root,
+        cwd=cwd,
+        constraint=constraint,
+        arguments=["install", "phospy-1.7.0.tar.gz"],
+    )
+
+    assert captured["command"] == [
+        str(tmp_path / "venv" / "bin" / "python"),
+        "-m",
+        "pip",
+        "--disable-pip-version-check",
+        "install",
+        "-c",
+        str(constraint),
+        "phospy-1.7.0.tar.gz",
+    ]
+    assert captured["environment_overrides"] == {
+        "PIP_BUILD_CONSTRAINT": str(constraint)
+    }
+
+
 def test_built_artifact_metadata_declares_supported_python_contract(
     built_distribution_artifacts: DistributionArtifacts,
 ) -> None:
