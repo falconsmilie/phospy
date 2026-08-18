@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
+import pytest
 
+import phospy.science.differential.executor as differential_executor_module
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
@@ -17,8 +21,18 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.contracts.configs import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
+)
+from phospy.errors import PhosPyInputError, WorkflowValidationError
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.differential.models import DifferentialAnalysisResult
+from phospy.workflows.differential.caveats import (
+    DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE,
+)
+from phospy.workflows.differential.executor import (
+    DifferentialAnalysisExecutor as WorkflowDifferentialAnalysisExecutor,
 )
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
@@ -31,6 +45,13 @@ from tests.support.intensity_scale_states import (
     supported_log2_processing_state,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
+
+_DUPLICATE_CORRELATION_FIXTURE_ROOT = (
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "rewrite_parity"
+    / "differential_duplicate_correlation"
+)
 
 
 def _dataset_from_phospho(
@@ -176,6 +197,163 @@ def _block_effect_design(*, include_blocks: bool) -> ExperimentalDesign:
     )
 
 
+def _duplicate_fixture_request(fixture_name: str) -> DifferentialAnalysisRequest:
+    fixture_dir = _DUPLICATE_CORRELATION_FIXTURE_ROOT / fixture_name
+    matrix = pd.read_csv(fixture_dir / "matrix.csv")
+    feature_ids = matrix.pop("feature_id").astype(str).tolist()
+    sample_ids = tuple(str(column) for column in matrix.columns)
+    genes = tuple(f"GENE_{idx:02d}" for idx in range(1, len(feature_ids) + 1))
+    sites = tuple(f"S{idx}" for idx in range(1, len(feature_ids) + 1))
+    site_index = protein_site_key_index(
+        protein_identifiers=list(genes),
+        sites=list(sites),
+    )
+    phospho = pd.DataFrame(
+        matrix.to_numpy(dtype=float),
+        index=site_index,
+        columns=pd.Index(sample_ids, name="sample_id"),
+    )
+    sample_metadata = pd.read_csv(fixture_dir / "sample_metadata.csv").sort_values(
+        "sample_order"
+    )
+    contrasts_frame = pd.read_csv(fixture_dir / "contrasts.csv")
+    contrast_names = tuple(
+        str(column)
+        for column in contrasts_frame.columns
+        if str(column) != "coefficient"
+    )
+    contrasts = tuple(_contrast_from_name(name) for name in contrast_names)
+    design = ExperimentalDesign(
+        samples=tuple(
+            SampleDesignRecord(
+                sample_id=str(row.sample_id),
+                condition=str(row.condition),
+                biological_replicate_id=f"{row.condition}_{idx}",
+                block_id=str(row.block_id),
+            )
+            for idx, row in enumerate(sample_metadata.itertuples(index=False), start=1)
+        )
+    )
+    return DifferentialAnalysisRequest(
+        dataset=_dataset_from_phospho(
+            phospho=phospho,
+            genes=genes,
+            sites=sites,
+        ),
+        design=design,
+        contrasts=contrasts,
+        config=DifferentialAnalysisConfig(
+            paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+        ),
+    )
+
+
+def _contrast_from_name(name: str) -> Contrast:
+    numerator, separator, denominator = name.partition("_vs_")
+    if separator != "_vs_":
+        raise ValueError(f"unsupported fixture contrast name: {name!r}")
+    return Contrast(
+        name=name,
+        numerator_condition=numerator,
+        denominator_condition=denominator,
+    )
+
+
+def _fixture_statistics(
+    fixture_name: str,
+    *,
+    contrast_name: str,
+) -> pd.DataFrame:
+    frame = pd.read_csv(
+        _DUPLICATE_CORRELATION_FIXTURE_ROOT / fixture_name / "ebayes_statistics.csv"
+    )
+    return frame.loc[frame["contrast"].astype(str) == contrast_name].reset_index(
+        drop=True
+    )
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "contrast_name"),
+    (
+        ("fixture_a_complete_pairs", "B_vs_A"),
+        ("fixture_b_three_observation_blocks", "T1_vs_T0"),
+        ("fixture_b_three_observation_blocks", "T2_vs_T0"),
+    ),
+)
+def test_differential_duplicate_correlation_public_workflow_statistics_match_reference(
+    fixture_name: str,
+    contrast_name: str,
+) -> None:
+    result = DifferentialAnalysisWorkflow().run(
+        _duplicate_fixture_request(fixture_name)
+    )
+
+    assert isinstance(result, DifferentialAnalysisResult)
+    table = result.table_for(contrast_name)
+    reference = _fixture_statistics(fixture_name, contrast_name=contrast_name)
+
+    _assert_duplicate_correlation_reference_statistics_close(
+        table=table,
+        reference=reference,
+        log_fc_absolute_tolerance=1.0e-8,
+        t_absolute_tolerance=1.0e-6,
+        p_value_absolute_tolerance=5.0e-9,
+    )
+
+
+@pytest.mark.parametrize("contrast_name", ("B_vs_A", "C_vs_A"))
+def test_differential_duplicate_correlation_public_workflow_incomplete_block_statistics_match_reference_envelope(
+    contrast_name: str,
+) -> None:
+    result = DifferentialAnalysisWorkflow().run(
+        _duplicate_fixture_request("fixture_c_incomplete_unequal_blocks")
+    )
+
+    assert isinstance(result, DifferentialAnalysisResult)
+    table = result.table_for(contrast_name)
+    reference = _fixture_statistics(
+        "fixture_c_incomplete_unequal_blocks",
+        contrast_name=contrast_name,
+    )
+
+    _assert_duplicate_correlation_reference_statistics_close(
+        table=table,
+        reference=reference,
+        log_fc_absolute_tolerance=1.0e-4,
+        t_absolute_tolerance=5.0e-1,
+        p_value_absolute_tolerance=1.0e-2,
+    )
+
+
+def _assert_duplicate_correlation_reference_statistics_close(
+    *,
+    table: pd.DataFrame,
+    reference: pd.DataFrame,
+    log_fc_absolute_tolerance: float,
+    t_absolute_tolerance: float,
+    p_value_absolute_tolerance: float,
+) -> None:
+    np.testing.assert_allclose(
+        table["logFC"].to_numpy(dtype=float),
+        reference["logFC"].to_numpy(dtype=float),
+        rtol=1.0e-7,
+        atol=log_fc_absolute_tolerance,
+    )
+    np.testing.assert_allclose(
+        table["t"].to_numpy(dtype=float),
+        reference["t"].to_numpy(dtype=float),
+        rtol=1.0e-7,
+        atol=t_absolute_tolerance,
+    )
+    for column_name in ("P.Value", "adj.P.Val"):
+        np.testing.assert_allclose(
+            table[column_name].to_numpy(dtype=float),
+            reference[column_name].to_numpy(dtype=float),
+            rtol=1.0e-7,
+            atol=p_value_absolute_tolerance,
+        )
+
+
 def _b_vs_a_contrast() -> tuple[Contrast, ...]:
     return (
         Contrast(
@@ -310,6 +488,58 @@ def test_differential_block_fixed_block_inputs_are_passed_to_executor() -> None:
     ]
 
 
+def test_differential_duplicate_correlation_inputs_are_passed_to_executor() -> None:
+    sentinel = object()
+    captured: dict[str, InterpretedDifferentialAnalysisRequest] = {}
+
+    class _ExecutorSpy:
+        def run(self, request: InterpretedDifferentialAnalysisRequest) -> object:
+            captured["request"] = request
+            return sentinel
+
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    result = DifferentialAnalysisWorkflow._with_components(
+        executor=_ExecutorSpy(),  # type: ignore[arg-type]
+    ).run(
+        DifferentialAnalysisRequest(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_b_vs_a_contrast(),
+            config=DifferentialAnalysisConfig(
+                paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+            ),
+        )
+    )
+
+    assert result is sentinel
+    interpreted = captured["request"]
+    execution_design = interpreted.execution_design
+    assert execution_design is not None
+    assert execution_design.formula == "~0 + condition"
+    assert execution_design.description == "condition-only fixed-effect design"
+    assert execution_design.paired_design_policy == (
+        PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+    )
+    assert execution_design.block_column_metadata is None
+    assert execution_design.block_ids == ("pair_1", "pair_2", "pair_1", "pair_2")
+    assert interpreted.computation_request.design.to_dataframe().columns.tolist() == [
+        "A",
+        "B",
+    ]
+    assert all(
+        "block" not in str(column).lower()
+        for column in interpreted.computation_request.design.to_dataframe().columns
+    )
+
+
 def test_differential_block_valid_paired_two_condition_design_executes() -> None:
     design = ExperimentalDesign(
         samples=(
@@ -344,6 +574,269 @@ def test_differential_block_valid_paired_two_condition_design_executes() -> None
     assert result.policy_provenance.design.block_columns == (
         ("pair_2", "block[pair_2]"),
     )
+
+
+def test_differential_duplicate_correlation_fixture_matches_reference_statistics() -> (
+    None
+):
+    result = DifferentialAnalysisWorkflow().run(
+        _duplicate_fixture_request("fixture_a_complete_pairs")
+    )
+
+    assert isinstance(result, DifferentialAnalysisResult)
+    table = result.table_for("B_vs_A")
+    reference = _fixture_statistics(
+        "fixture_a_complete_pairs",
+        contrast_name="B_vs_A",
+    )
+    np.testing.assert_allclose(
+        table["logFC"].to_numpy(dtype=float),
+        reference["logFC"].to_numpy(dtype=float),
+        rtol=1.0e-8,
+        atol=1.0e-8,
+    )
+    np.testing.assert_allclose(
+        table["t"].to_numpy(dtype=float),
+        reference["t"].to_numpy(dtype=float),
+        rtol=1.0e-8,
+        atol=1.0e-8,
+    )
+    np.testing.assert_allclose(
+        table["P.Value"].to_numpy(dtype=float),
+        reference["P.Value"].to_numpy(dtype=float),
+        rtol=1.0e-7,
+        atol=1.0e-60,
+    )
+    np.testing.assert_allclose(
+        table["adj.P.Val"].to_numpy(dtype=float),
+        reference["adj.P.Val"].to_numpy(dtype=float),
+        rtol=1.0e-7,
+        atol=1.0e-60,
+    )
+
+    assert result.policy_provenance is not None
+    duplicate = result.policy_provenance.duplicate_correlation
+    assert duplicate is not None
+    assert duplicate.requested_paired_design_policy == "duplicate_correlation"
+    assert duplicate.normalised_paired_design_policy == "duplicate_correlation"
+    assert duplicate.block_treatment == "consensus_correlation"
+    assert duplicate.covariance_structure == "compound_symmetry"
+    assert duplicate.estimator == "feature-wise REML"
+    assert duplicate.sample_count == 12
+    assert duplicate.block_count == 6
+    assert duplicate.repeated_block_count == 6
+    assert duplicate.singleton_block_count == 0
+    assert duplicate.design_rank == 2
+    assert duplicate.gls_fit_status == "fit"
+    assert duplicate.consensus.consensus_correlation is not None
+    assert result.policy_provenance.design.formula == "~0 + condition"
+    assert result.policy_provenance.design.block_columns == ()
+    assert result.policy_provenance.design.block_column_names == ()
+    assert result.diagnostics.model_type == "moderated_gls_duplicate_correlation"
+    assert result.diagnostics.variance_method == (
+        "compound_symmetry_gls_residual_variance"
+    )
+    assert DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE in {
+        caveat.code for caveat in result.caveats
+    }
+    assert result.workflow_provenance is not None
+    assert "duplicate_correlation" in result.workflow_provenance
+
+
+def test_differential_duplicate_correlation_incomplete_blocks_execute() -> None:
+    result = DifferentialAnalysisWorkflow().run(
+        _duplicate_fixture_request("fixture_c_incomplete_unequal_blocks")
+    )
+
+    assert isinstance(result, DifferentialAnalysisResult)
+    assert result.policy_provenance is not None
+    duplicate = result.policy_provenance.duplicate_correlation
+    assert duplicate is not None
+    assert duplicate.block_count == 6
+    assert duplicate.repeated_block_count == 4
+    assert duplicate.singleton_block_count == 2
+    assert duplicate.minimum_block_size == 1
+    assert duplicate.maximum_block_size == 3
+    assert result.policy_provenance.design.block_columns == ()
+    assert np.isfinite(result.table_for("B_vs_A")["t"]).all()
+    assert np.isfinite(result.table_for("C_vs_A")["t"]).all()
+
+
+def test_differential_duplicate_correlation_rejects_no_repeated_blocks() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_3"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_4"),
+        )
+    )
+
+    with pytest.raises(WorkflowValidationError, match="repeated observations"):
+        DifferentialAnalysisWorkflow().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=design,
+                contrasts=_b_vs_a_contrast(),
+                config=DifferentialAnalysisConfig(
+                    paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                ),
+            )
+        )
+
+
+def test_differential_duplicate_correlation_requires_two_residual_dof() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                block_id="pair_1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                block_id="pair_2",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                block_id="pair_1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                block_id="pair_3",
+                covariates={"dose": 2.0},
+            ),
+        ),
+        fixed_effects=(ContinuousCovariate("dose"),),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="at least two residual degrees"):
+        DifferentialAnalysisWorkflow().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=design,
+                contrasts=_b_vs_a_contrast(),
+                config=DifferentialAnalysisConfig(
+                    paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                ),
+            )
+        )
+
+
+def test_differential_duplicate_correlation_estimator_runs_once_for_many_contrasts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+    real_estimator = (
+        differential_executor_module.estimate_duplicate_correlation_reml_consensus
+    )
+
+    def _estimator_spy(*args: object, **kwargs: object) -> object:
+        nonlocal calls
+        calls += 1
+        return real_estimator(*args, **kwargs)
+
+    monkeypatch.setattr(
+        differential_executor_module,
+        "estimate_duplicate_correlation_reml_consensus",
+        _estimator_spy,
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        _duplicate_fixture_request("fixture_b_three_observation_blocks")
+    )
+
+    assert calls == 1
+    assert set(result.contrast_tables) == {"T1_vs_T0", "T2_vs_T0"}
+
+
+def test_differential_duplicate_correlation_forced_estimator_failure_stops() -> None:
+    class _FailingDuplicateCorrelationExecutor:
+        def run(self, *args: object, **kwargs: object) -> object:
+            raise PhosPyInputError("forced estimator failure")
+
+    executor = WorkflowDifferentialAnalysisExecutor(
+        duplicate_correlation_executor=_FailingDuplicateCorrelationExecutor(),  # type: ignore[arg-type]
+    )
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(WorkflowBoundaryError, match="duplicate-correlation"):
+        DifferentialAnalysisWorkflow._with_components(executor=executor).run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=design,
+                contrasts=_b_vs_a_contrast(),
+                config=DifferentialAnalysisConfig(
+                    paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                ),
+            )
+        )
+
+
+def test_differential_fixed_block_does_not_call_duplicate_correlation_executor() -> (
+    None
+):
+    class _UnexpectedDuplicateCorrelationExecutor:
+        def run(self, *args: object, **kwargs: object) -> object:
+            raise AssertionError("duplicate-correlation executor must not run")
+
+    executor = WorkflowDifferentialAnalysisExecutor(
+        duplicate_correlation_executor=_UnexpectedDuplicateCorrelationExecutor(),  # type: ignore[arg-type]
+    )
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    result = DifferentialAnalysisWorkflow._with_components(executor=executor).run(
+        DifferentialAnalysisRequest(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_b_vs_a_contrast(),
+            config=DifferentialAnalysisConfig(
+                paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+            ),
+        )
+    )
+
+    assert np.isfinite(result.table_for("B_vs_A")["t"]).all()
+
+
+def test_differential_default_policy_does_not_auto_select_from_block_metadata() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(WorkflowValidationError, match="paired_design_policy='reject'"):
+        DifferentialAnalysisWorkflow().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=design,
+                contrasts=_b_vs_a_contrast(),
+            )
+        )
 
 
 def test_differential_fixed_block_provenance_records_block_count_and_columns() -> None:

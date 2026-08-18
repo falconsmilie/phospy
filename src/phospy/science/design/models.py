@@ -12,12 +12,14 @@ from typing import Literal, cast
 
 from phospy.errors.validation import ContractValidationError
 
-PairedDesignPolicy = Literal["reject", "fixed_block"]
+PairedDesignPolicy = Literal["reject", "fixed_block", "duplicate_correlation"]
 PAIRED_DESIGN_POLICY_REJECT: PairedDesignPolicy = "reject"
 PAIRED_DESIGN_POLICY_FIXED_BLOCK: PairedDesignPolicy = "fixed_block"
+PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION: PairedDesignPolicy = "duplicate_correlation"
 SUPPORTED_PAIRED_DESIGN_POLICIES: tuple[PairedDesignPolicy, ...] = (
     PAIRED_DESIGN_POLICY_REJECT,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
 )
 FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL = "categorical"
 FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS = "continuous"
@@ -489,6 +491,7 @@ __all__ = [
     "FixedEffectCovariateKind",
     "ExperimentalDesign",
     "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+    "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
     "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",
     "SUPPORTED_FIXED_EFFECT_COVARIATE_KINDS",

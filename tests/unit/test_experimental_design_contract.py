@@ -663,8 +663,9 @@ def test_experimental_design_validation_error_ordering_golden() -> None:
     assert str(exc_info.value) == (
         "experimental design includes block_id values while "
         "differential.paired_design_policy='reject'. Set "
-        "differential.paired_design_policy='fixed_block' to request fixed-block "
-        "validation and execution. Samples with block_id: A_1"
+        "differential.paired_design_policy='fixed_block' for fixed block "
+        "coefficients or 'duplicate_correlation' for a consensus block-correlation "
+        "GLS model. Samples with block_id: A_1"
     )
 
 
@@ -1095,6 +1096,7 @@ def test_differential_validation_rejects_invalid_contrast_vector_alignment() -> 
             *,
             design: ExperimentalDesign,
             condition_labels: tuple[str, ...],
+            paired_design_policy: object,
         ) -> object:
             frame = pd.DataFrame(
                 {"A": [1.0, 1.0, 0.0, 0.0]},

@@ -12,6 +12,8 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.contracts.configs.differential import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
     PairedDesignPolicy,
@@ -32,6 +34,9 @@ from phospy.science.differential.linear_model import (
     DifferentialDesignDecompositionError,
     decompose_differential_design,
 )
+from phospy.science.differential.models.duplicate_correlation import (
+    DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +44,7 @@ class ExperimentalDesignInputValidation:
     """Validated scalar request policy for experimental-design validation."""
 
     fixed_block_requested: bool
+    duplicate_correlation_requested: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +70,18 @@ class FixedBlockDesignValidation:
     """Fixed-block coverage facts for a validated paired design."""
 
     block_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateCorrelationDesignValidation:
+    """Block-correlation facts for a validated duplicate-correlation design."""
+
+    block_ids: tuple[str, ...]
+    block_count: int
+    repeated_block_count: int
+    singleton_block_count: int
+    minimum_block_size: int
+    maximum_block_size: int
 
 
 class ExperimentalDesignInputValidator:
@@ -98,11 +116,17 @@ class ExperimentalDesignInputValidator:
             raise WorkflowValidationError(
                 "differential workflow request minimum_condition_replicates must be >= 1"
             )
+        self._validate_paired_design_policy(
+            records=design.samples,
+            paired_design_policy=paired_design_policy,
+        )
         return ExperimentalDesignInputValidation(
-            fixed_block_requested=self._validate_paired_design_policy(
-                records=design.samples,
-                paired_design_policy=paired_design_policy,
-            )
+            fixed_block_requested=(
+                paired_design_policy == PAIRED_DESIGN_POLICY_FIXED_BLOCK
+            ),
+            duplicate_correlation_requested=(
+                paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+            ),
         )
 
     @staticmethod
@@ -110,7 +134,7 @@ class ExperimentalDesignInputValidator:
         *,
         records: tuple[SampleDesignRecord, ...],
         paired_design_policy: PairedDesignPolicy,
-    ) -> bool:
+    ) -> None:
         if paired_design_policy not in SUPPORTED_PAIRED_DESIGN_POLICIES:
             supported = ", ".join(
                 repr(value) for value in SUPPORTED_PAIRED_DESIGN_POLICIES
@@ -131,19 +155,19 @@ class ExperimentalDesignInputValidator:
                 raise WorkflowValidationError(
                     "experimental design includes block_id values while "
                     "differential.paired_design_policy='reject'. Set "
-                    "differential.paired_design_policy='fixed_block' to request "
-                    "fixed-block validation and execution. Samples with block_id: "
+                    "differential.paired_design_policy='fixed_block' for fixed "
+                    "block coefficients or 'duplicate_correlation' for a "
+                    "consensus block-correlation GLS model. Samples with block_id: "
                     + ", ".join(samples_with_block_id)
                 )
-            return False
+            return
 
         if samples_missing_block_id:
             raise WorkflowValidationError(
-                "differential.paired_design_policy='fixed_block' requires block_id "
-                "for every design sample; missing block_id for samples: "
-                + ", ".join(samples_missing_block_id)
+                f"differential.paired_design_policy={paired_design_policy!r} "
+                "requires block_id for every design sample; missing block_id for "
+                "samples: " + ", ".join(samples_missing_block_id)
             )
-        return True
 
 
 class ExperimentalDesignContrastSetValidator:
@@ -548,6 +572,112 @@ class FixedBlockDesignValidator:
         return FixedBlockDesignValidation(block_ids=tuple(sorted(records_by_block)))
 
 
+class DuplicateCorrelationDesignValidator:
+    """Validate duplicate-correlation differential design eligibility."""
+
+    def run(
+        self,
+        *,
+        records: tuple[SampleDesignRecord, ...],
+        analysis_sample_ids: tuple[str, ...],
+        design_frame: pd.DataFrame,
+        contrast_frame: pd.DataFrame,
+        design_decomposition: DifferentialDesignDecomposition,
+        dataset: AnalysisReadyPhosphoDataset,
+    ) -> DuplicateCorrelationDesignValidation:
+        records_by_sample = {record.sample_id: record for record in records}
+        duplicate_sample_ids = [
+            sample_id
+            for sample_id, count in Counter(
+                record.sample_id for record in records
+            ).items()
+            if count > 1
+        ]
+        if duplicate_sample_ids:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='duplicate_correlation' requires "
+                "unique design sample IDs; duplicates: "
+                + ", ".join(sorted(duplicate_sample_ids))
+            )
+        missing_design_rows = [
+            sample_id
+            for sample_id in analysis_sample_ids
+            if sample_id not in records_by_sample
+        ]
+        if missing_design_rows:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='duplicate_correlation' requires "
+                "a design row for every modelled sample; missing design rows for: "
+                + ", ".join(missing_design_rows)
+            )
+        missing_block_ids = [
+            sample_id
+            for sample_id in analysis_sample_ids
+            if records_by_sample[sample_id].block_id is None
+        ]
+        if missing_block_ids:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='duplicate_correlation' requires "
+                "explicit block_id for every modelled sample; missing block_id for "
+                "samples: " + ", ".join(missing_block_ids)
+            )
+        block_ids = tuple(
+            cast(str, records_by_sample[sample_id].block_id)
+            for sample_id in analysis_sample_ids
+        )
+        block_counts = Counter(block_ids)
+        repeated_block_count = sum(1 for count in block_counts.values() if count > 1)
+        singleton_block_count = sum(1 for count in block_counts.values() if count == 1)
+        if repeated_block_count < 1:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='duplicate_correlation' requires "
+                "at least one block with repeated observations"
+            )
+        residual_degrees_of_freedom = float(
+            len(analysis_sample_ids) - int(design_decomposition.rank)
+        )
+        if (
+            residual_degrees_of_freedom
+            < DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM
+        ):
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='duplicate_correlation' requires "
+                "at least two residual degrees of freedom for REML correlation "
+                "estimation; "
+                f"samples={len(analysis_sample_ids)}, "
+                f"design_rank={int(design_decomposition.rank)}, "
+                f"residual_degrees_of_freedom={residual_degrees_of_freedom}"
+            )
+        block_design_columns = tuple(
+            column
+            for column in (str(label) for label in design_frame.columns)
+            if column.lower().startswith("block[")
+            or column.lower().startswith("block_")
+        )
+        if block_design_columns:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='duplicate_correlation' requires "
+                "a non-block fixed-effects design; block_id must not also appear as "
+                "fixed block coefficients. Block columns: "
+                + ", ".join(block_design_columns)
+            )
+        if not contrast_frame.index.equals(design_frame.columns):
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='duplicate_correlation' requires "
+                "contrast vectors aligned to the non-block fixed-effects design"
+            )
+        _reject_unsupported_duplicate_correlation_weighting(dataset)
+        block_sizes = tuple(int(count) for count in block_counts.values())
+        return DuplicateCorrelationDesignValidation(
+            block_ids=block_ids,
+            block_count=len(block_counts),
+            repeated_block_count=repeated_block_count,
+            singleton_block_count=singleton_block_count,
+            minimum_block_size=min(block_sizes),
+            maximum_block_size=max(block_sizes),
+        )
+
+
 class ContrastFrameBuilder:
     """Build contrast vectors aligned to resolved design coefficients."""
 
@@ -668,8 +798,32 @@ def _normalize_categorical_level_for_validation(value: object) -> str | None:
     return str(value).strip() or None
 
 
+def _reject_unsupported_duplicate_correlation_weighting(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> None:
+    weighted_attributes = (
+        "observation_weights",
+        "sample_weights",
+        "feature_weights",
+        "weights",
+    )
+    present = [
+        attribute
+        for attribute in weighted_attributes
+        if getattr(dataset, attribute, None) is not None
+    ]
+    if present:
+        raise WorkflowValidationError(
+            "differential.paired_design_policy='duplicate_correlation' does not "
+            "currently support observation, sample, or feature weights; unsupported "
+            "weight attributes present: " + ", ".join(present)
+        )
+
+
 __all__ = [
     "ContrastFrameBuilder",
+    "DuplicateCorrelationDesignValidation",
+    "DuplicateCorrelationDesignValidator",
     "ExperimentalDesignConditionReplicateValidation",
     "ExperimentalDesignConditionReplicateValidator",
     "ExperimentalDesignContrastSetValidator",

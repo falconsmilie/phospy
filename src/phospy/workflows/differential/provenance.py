@@ -2,22 +2,37 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from typing import cast
+
+import pandas as pd
 
 from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.provenance import RowAttritionRecord, RowAttritionReport
+from phospy.provenance import (
+    RowAttritionRecord,
+    RowAttritionReport,
+    fingerprint_matrix,
+    fingerprint_table,
+)
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuildResult,
     describe_fixed_effect_design,
 )
 from phospy.science.design.models import ExperimentalDesign
+from phospy.science.differential.compound_symmetry_gls import (
+    COMPOUND_SYMMETRY_GLS_STATUS_FIT,
+    CompoundSymmetryGLSFit,
+)
 from phospy.science.differential.linear_model import DifferentialDesignDecomposition
 from phospy.science.differential.models import (
+    DesignMatrix,
     DifferentialContrastDefinition,
     DifferentialDesignMatrixSummary,
     DifferentialEmpiricalBayesProvenance,
@@ -29,6 +44,19 @@ from phospy.science.differential.models import (
     DifferentialTechnicalReplicateGroup,
     DifferentialUnsupportedDesignPolicyProvenance,
 )
+from phospy.science.differential.models import (
+    DifferentialAnalysisRequest as DifferentialComputationRequest,
+)
+from phospy.science.differential.models.duplicate_correlation import (
+    DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION,
+    DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY,
+    DUPLICATE_CORRELATION_ESTIMATOR_FEATURE_WISE_REML,
+    DUPLICATE_CORRELATION_ESTIMATOR_POLICY_VERSION,
+    DUPLICATE_CORRELATION_GLS_FIT_STATUS_FIT,
+    DUPLICATE_CORRELATION_WORKFLOW_PROVENANCE_VERSION,
+    DuplicateCorrelationConsensusResult,
+    DuplicateCorrelationWorkflowProvenance,
+)
 from phospy.workflows.differential.imputation_inference import (
     imputation_inference_summary_payload,
     summarize_differential_imputation_inference,
@@ -36,6 +64,7 @@ from phospy.workflows.differential.imputation_inference import (
 from phospy.workflows.differential.models import (
     DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
+    InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,
 )
 from phospy.workflows.differential.reliability import (
@@ -84,8 +113,10 @@ _DIFFERENTIAL_WITHHOLD_IMPUTATION_LIMITATIONS: tuple[str, ...] = (
     ),
 )
 _DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES: tuple[str, ...] = (
-    "correlated repeated-measure differential modelling beyond explicit fixed blocks",
-    "duplicateCorrelation-style correlated-replicate modelling",
+    (
+        "correlated repeated-measure differential modelling beyond explicit "
+        "fixed_block and duplicate_correlation policies"
+    ),
     "mixed-effects differential modelling",
     "random subject-effect differential modelling",
 )
@@ -105,16 +136,39 @@ _DIFFERENTIAL_FIXED_BLOCK_CONDITION_COVERAGE_RULE = (
     "numerator and denominator conditions; incomplete or partially covered "
     "blocks are rejected before execution"
 )
+_DIFFERENTIAL_DUPLICATE_CORRELATION_CONDITION_COVERAGE_RULE = (
+    "block_id values are retained as covariance groups, not fixed-effect "
+    "columns; contrasts are validated against the non-block fixed-effects "
+    "design, and at least one block must contain repeated observations"
+)
 _DIFFERENTIAL_UNPAIRED_LIMITATIONS: tuple[str, ...] = (
     "paired_design_policy='reject' does not construct fixed-block terms",
     (
         "explicit block_id metadata is rejected unless "
-        "paired_design_policy='fixed_block'"
+        "paired_design_policy='fixed_block' or "
+        "paired_design_policy='duplicate_correlation'"
     ),
     (
         "unpaired condition and covariate workflows do not fit "
-        "duplicateCorrelation, mixed-effects, or random subject-effect models"
+        "duplicate_correlation, mixed-effects, or random subject-effect models"
     ),
+)
+_DIFFERENTIAL_DUPLICATE_CORRELATION_LIMITATIONS: tuple[str, ...] = (
+    (
+        "duplicate_correlation estimates one consensus compound-symmetry "
+        "within-block correlation"
+    ),
+    "duplicate_correlation does not fit feature-specific random effects",
+    "duplicate_correlation does not add block_id levels as fixed-effect columns",
+    (
+        "singleton and incomplete blocks may contribute to fixed-effect fitting, "
+        "but only repeated blocks inform within-block correlation"
+    ),
+)
+_DIFFERENTIAL_DUPLICATE_CORRELATION_UNSUPPORTED_DESIGN_FEATURES: tuple[str, ...] = (
+    "feature-specific final random-effects differential fits",
+    "random-slope or multi-random-effect differential modelling",
+    "mixed-effects differential modelling beyond one consensus block correlation",
 )
 _DIFFERENTIAL_FIXED_BLOCK_LIMITATIONS: tuple[str, ...] = (
     "fixed_block adds block_id levels as ordinary fixed-effect design columns",
@@ -227,10 +281,10 @@ def build_differential_policy_provenance(
             covariates=covariate_provenance,
             paired_design_policy=request.config.paired_design_policy,
             block_id_field_name=_DIFFERENTIAL_BLOCK_ID_FIELD_NAME,
-            block_count=_block_count(request.design_build_result),
-            block_levels=_block_levels(request.design_build_result),
-            block_levels_included=_block_levels(request.design_build_result),
-            block_reference_level=_block_reference_level(request.design_build_result),
+            block_count=_block_count(request),
+            block_levels=_block_levels(request),
+            block_levels_included=_block_levels(request),
+            block_reference_level=_block_reference_level(request),
             block_columns=_block_columns(request.design_build_result),
             block_column_names=_block_column_names(request.design_build_result),
             condition_coverage_rule=_condition_coverage_rule(
@@ -309,7 +363,9 @@ def build_differential_policy_provenance(
             ),
         ),
         unsupported_design=DifferentialUnsupportedDesignPolicyProvenance(
-            intentionally_rejected_features=_DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES,
+            intentionally_rejected_features=_unsupported_design_features(
+                request.config.paired_design_policy
+            ),
             enforcement_stage=_DIFFERENTIAL_UNSUPPORTED_ENFORCEMENT_STAGE,
         ),
     )
@@ -320,6 +376,7 @@ def finalize_differential_policy_provenance(
     policy_provenance: DifferentialPolicyProvenance | None,
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None,
     feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None,
+    duplicate_correlation: DuplicateCorrelationWorkflowProvenance | None = None,
 ) -> DifferentialPolicyProvenance | None:
     """Refresh imputation inference counts after final row eligibility."""
 
@@ -348,6 +405,140 @@ def finalize_differential_policy_provenance(
                 imputation_inference.adjusted_p_value_denominator_feature_count
             ),
         ),
+        duplicate_correlation=(
+            duplicate_correlation
+            if duplicate_correlation is not None
+            else policy_provenance.duplicate_correlation
+        ),
+    )
+
+
+def build_duplicate_correlation_workflow_provenance(
+    *,
+    request: InterpretedDifferentialAnalysisRequest,
+    computation_request: DifferentialComputationRequest,
+    consensus_result: DuplicateCorrelationConsensusResult,
+    gls_fit: CompoundSymmetryGLSFit,
+    imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
+) -> DuplicateCorrelationWorkflowProvenance:
+    """Build typed result provenance for a completed duplicate-correlation fit."""
+
+    execution_design = request.execution_design
+    if execution_design is None or execution_design.block_ids is None:
+        raise WorkflowBoundaryError(
+            seam="differential.provenance.duplicate_correlation_blocks",
+            next_action=(
+                "carry validated duplicate-correlation block IDs through "
+                "interpretation before provenance assembly"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    block_structure = consensus_result.block_structure
+    convergence_summary = consensus_result.convergence_summary
+    boundary_summary = consensus_result.boundary_summary
+    if (
+        block_structure is None
+        or convergence_summary is None
+        or boundary_summary is None
+    ):
+        raise WorkflowBoundaryError(
+            seam="differential.provenance.duplicate_correlation_estimator_summary",
+            next_action=(
+                "return block, convergence, and boundary summaries from the "
+                "duplicate-correlation estimator"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    failed_gls_statuses = tuple(
+        status
+        for status in gls_fit.feature_fit_statuses
+        if str(status) != COMPOUND_SYMMETRY_GLS_STATUS_FIT
+    )
+    if failed_gls_statuses:
+        raise WorkflowBoundaryError(
+            seam="differential.provenance.duplicate_correlation_gls_status",
+            next_action=(
+                "only assemble duplicate-correlation result provenance after a "
+                "successful GLS fit"
+            ),
+            details={"failed_gls_statuses": sorted(set(failed_gls_statuses))},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    block_ids = execution_design.block_ids
+    sample_order = execution_design.sample_order
+    block_assignment = pd.DataFrame(
+        {
+            "sample_id": list(sample_order),
+            "block_id": list(block_ids),
+        },
+        index=pd.Index(sample_order, name="sample"),
+    )
+    block_counts = Counter(block_ids)
+    imputation_fields = _imputation_inference_provenance_fields(
+        imputation_policy_inputs=imputation_policy_inputs,
+        feature_eligibility_inputs=feature_eligibility_inputs,
+    )
+    design_matrix = cast(DesignMatrix, computation_request.design)
+    analysis_matrix_fingerprint = fingerprint_matrix(
+        computation_request.matrix,
+        name="differential.analysis_matrix",
+    )
+    return DuplicateCorrelationWorkflowProvenance(
+        model="duplicate_correlation",
+        provenance_version=DUPLICATE_CORRELATION_WORKFLOW_PROVENANCE_VERSION,
+        requested_paired_design_policy=request.config.paired_design_policy,
+        normalised_paired_design_policy=request.execution_config.paired_design_policy,
+        block_treatment=DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION,
+        covariance_structure=DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY,
+        estimator=DUPLICATE_CORRELATION_ESTIMATOR_FEATURE_WISE_REML,
+        estimator_policy_version=DUPLICATE_CORRELATION_ESTIMATOR_POLICY_VERSION,
+        trim_fraction=consensus_result.trim_fraction,
+        matrix_authority="workflow approved differential analysis matrix",
+        analysis_matrix_fingerprint=analysis_matrix_fingerprint,
+        authoritative_matrix_fingerprint=analysis_matrix_fingerprint,
+        design_authority="validation.workflows.differential non-block design",
+        design_fingerprint=fingerprint_table(
+            design_matrix.to_dataframe(),
+            name="differential.non_block_fixed_effect_design",
+        ),
+        block_authority="validation.workflows.differential block_id",
+        block_assignment_fingerprint=fingerprint_table(
+            block_assignment,
+            name="differential.duplicate_correlation_block_assignment",
+        ),
+        estimator_authority="science.differential duplicate-correlation REML",
+        gls_authority="science.differential compound-symmetry GLS",
+        failure_authority="validation, REML estimator, and GLS typed failures",
+        block_structure=block_structure,
+        consensus=consensus_result.to_summary(),
+        attempted_feature_count=int(consensus_result.attempted_feature_count or 0),
+        trimmed_feature_count_each_tail=(
+            consensus_result.trimmed_feature_count_each_tail
+        ),
+        retained_feature_count_after_trimming=int(
+            consensus_result.retained_feature_count_after_trimming or 0
+        ),
+        failure_reason_counts=consensus_result.failure_reason_counts,
+        convergence_summary=convergence_summary,
+        boundary_summary=boundary_summary,
+        sample_count=int(block_structure.sample_count),
+        block_count=int(block_structure.block_count),
+        repeated_block_count=int(block_structure.repeated_block_count),
+        singleton_block_count=int(block_structure.singleton_block_count),
+        minimum_block_size=int(
+            block_structure.minimum_block_size or min(block_counts.values())
+        ),
+        maximum_block_size=int(
+            block_structure.maximum_block_size or max(block_counts.values())
+        ),
+        design_rank=int(consensus_result.design_rank or request.design_rank),
+        gls_fit_status=DUPLICATE_CORRELATION_GLS_FIT_STATUS_FIT,
+        imputed_values_participated=bool(
+            imputation_fields.tested_imputed_cell_count > 0
+        ),
+        imputed_feature_count=int(imputation_fields.tested_imputed_feature_count),
+        imputed_cell_count=int(imputation_fields.tested_imputed_cell_count),
     )
 
 
@@ -413,22 +604,40 @@ def _imputation_inference_provenance_fields(
 
 
 def _block_levels(
-    design_build_result: DesignMatrixBuildResult | None,
+    request: ValidatedDifferentialAnalysisRequest,
 ) -> tuple[str, ...]:
+    if (
+        request.config.paired_design_policy
+        == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+    ):
+        block_ids = tuple(
+            str(record.block_id)
+            for record in request.design.samples
+            if record.sample_id in set(request.analysis_sample_ids)
+            and record.block_id is not None
+        )
+        return tuple(sorted(set(block_ids)))
+    design_build_result = request.design_build_result
     if design_build_result is None:
         return ()
     return design_build_result.block_levels
 
 
 def _block_count(
-    design_build_result: DesignMatrixBuildResult | None,
+    request: ValidatedDifferentialAnalysisRequest,
 ) -> int:
-    return len(_block_levels(design_build_result))
+    return len(_block_levels(request))
 
 
 def _block_reference_level(
-    design_build_result: DesignMatrixBuildResult | None,
+    request: ValidatedDifferentialAnalysisRequest,
 ) -> str | None:
+    if (
+        request.config.paired_design_policy
+        == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+    ):
+        return None
+    design_build_result = request.design_build_result
     if design_build_result is None:
         return None
     return design_build_result.block_reference_level
@@ -454,15 +663,25 @@ def _block_column_names(
 
 
 def _condition_coverage_rule(paired_design_policy: str) -> str:
+    if paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION:
+        return _DIFFERENTIAL_DUPLICATE_CORRELATION_CONDITION_COVERAGE_RULE
     if paired_design_policy == "fixed_block":
         return _DIFFERENTIAL_FIXED_BLOCK_CONDITION_COVERAGE_RULE
     return _DIFFERENTIAL_REJECT_BLOCK_CONDITION_COVERAGE_RULE
 
 
 def _design_limitations(paired_design_policy: str) -> tuple[str, ...]:
+    if paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION:
+        return _DIFFERENTIAL_DUPLICATE_CORRELATION_LIMITATIONS
     if paired_design_policy == "fixed_block":
         return _DIFFERENTIAL_FIXED_BLOCK_LIMITATIONS
     return _DIFFERENTIAL_UNPAIRED_LIMITATIONS
+
+
+def _unsupported_design_features(paired_design_policy: str) -> tuple[str, ...]:
+    if paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION:
+        return _DIFFERENTIAL_DUPLICATE_CORRELATION_UNSUPPORTED_DESIGN_FEATURES
+    return _DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES
 
 
 def _condition_columns(
@@ -599,6 +818,7 @@ class DifferentialWorkflowProvenanceAssembler:
         multiple_testing_feature_ids: tuple[str, ...],
         imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None,
         feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
+        duplicate_correlation: DuplicateCorrelationWorkflowProvenance | None = None,
     ) -> Mapping[str, object]:
         payload: dict[str, object] = (
             {} if workflow_provenance is None else dict(workflow_provenance)
@@ -657,6 +877,8 @@ class DifferentialWorkflowProvenanceAssembler:
             payload["imputation_inference"] = imputation_inference_summary_payload(
                 summary
             )
+        if duplicate_correlation is not None:
+            payload["duplicate_correlation"] = duplicate_correlation.to_payload()
         return payload
 
 
@@ -667,5 +889,6 @@ def _row_examples(values: tuple[str, ...]) -> tuple[str, ...]:
 __all__ = [
     "DifferentialWorkflowProvenanceAssembler",
     "build_differential_policy_provenance",
+    "build_duplicate_correlation_workflow_provenance",
     "finalize_differential_policy_provenance",
 ]

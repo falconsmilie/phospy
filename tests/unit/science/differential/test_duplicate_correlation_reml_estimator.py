@@ -35,10 +35,9 @@ FIXTURE_ROOT = (
 )
 
 # Central tolerance for independent Cholesky-profiled REML estimates versus
-# pinned limma black-box fixtures. The estimator uses the full positive-definite
-# mathematical interior. Limma caps boundary-adjacent feature correlations at
-# 0.99 in the serialized fixtures, so the tolerance covers that known boundary
-# policy difference while keeping non-boundary fixtures much tighter in practice.
+# pinned limma black-box fixtures. Boundary-adjacent positive correlations are
+# capped at the fixture policy value of 0.99; the tolerance keeps non-boundary
+# fixtures tight while allowing minor optimizer-path differences.
 REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE = 8.0e-3
 STRICT_CORRELATION_ABSOLUTE_TOLERANCE = 1.0e-8
 
@@ -498,6 +497,20 @@ def test_invalid_inputs_fail_with_domain_specific_errors() -> None:
         estimate_duplicate_correlation_reml_consensus(
             np.array([[1.0, 2.0, 3.0]]),
             np.ones((3, 2), dtype=np.float64),
+            ("b1", "b1", "b2"),
+        )
+
+    with pytest.raises(PhosPyInputError, match="at least two residual degrees"):
+        estimate_duplicate_correlation_reml_consensus(
+            np.array([[1.0, 2.0, 3.0]]),
+            np.array(
+                [
+                    [1.0, 0.0],
+                    [0.0, 1.0],
+                    [1.0, 0.0],
+                ],
+                dtype=np.float64,
+            ),
             ("b1", "b1", "b2"),
         )
 

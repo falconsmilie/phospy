@@ -201,10 +201,13 @@ gseapy, clusterProfiler, GSEA, or online-service behaviour. Typed
 selected/background identifier-set provenance is optional and does not change
 enrichment statistics.
 
-Fixed-effect batch/covariate/block differential designs, linear batch
+Fixed-effect batch/covariate/block differential designs, explicit
+`duplicate_correlation` paired differential designs, linear batch
 residualisation, and native SPS/RUV-style preprocessing correction are
-executable PhosPy features. They are not correlated repeated-measure modelling,
-mixed-effect modelling, limma `duplicateCorrelation`, ComBat, PhosR-equivalent
-RUV/SPS/RUV-III, or limma `removeBatchEffect` parity claims.
+executable PhosPy features. `duplicate_correlation` uses one REML-estimated
+consensus compound-symmetry correlation and GLS; it is not a general
+mixed-effects model or feature-specific random-effects fit. The preprocessing
+batch-correction methods are not ComBat, PhosR-equivalent RUV/SPS/RUV-III, or
+limma `removeBatchEffect` parity claims.
 
 Next: [Quickstart](quickstart.md) or [API Guide](api/guide.md).

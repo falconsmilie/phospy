@@ -15,9 +15,9 @@ is represented by ordinary nuisance coefficients in the design matrix.
 
 `duplicate_correlation` is also a valid model, but with different assumptions.
 It treats block identity as correlation-group metadata rather than fixed design
-coefficients. This ADR defines that contract before numerical implementation.
-This ticket must not expose `duplicate_correlation` as a selectable public
-policy.
+coefficients. This ADR originally defined the internal contract before public
+exposure; the completed implementation now exposes the policy through the
+existing differential request/configuration contract.
 
 ## Decision
 
@@ -39,6 +39,12 @@ The first estimator implementation must use feature-wise REML correlation
 estimates, Fisher `atanh` transformation, a `15%` trimmed mean from each tail,
 and inverse `tanh` transformation. The trim value is fixed at `0.15`; it is not
 a public tuning parameter.
+
+For the estimator to run, the full non-block fixed-effects design must leave at
+least two residual degrees of freedom, i.e. the analysed sample count must be at
+least two larger than the design rank. Feature-level REML estimates with fewer
+than two observed residual degrees of freedom are not eligible for consensus
+aggregation.
 
 The estimator uses the exact authoritative matrix entering differential model
 fitting after approved workflow preprocessing. It must not read a hidden
@@ -91,7 +97,8 @@ thousands of feature-wise values.
 ## Consequences
 
 - `fixed_block` and `duplicate_correlation` are clearly distinct valid models.
-- Public request behaviour remains unchanged in this ticket.
+- Public request behaviour supports explicit `duplicate_correlation` selection
+  without changing the default `reject` policy or auto-selecting from metadata.
 - Scientific decisions stay in the differential science domain; workflow
   validation remains in the validation/workflow domains; dataset validation
   remains private.
@@ -101,8 +108,9 @@ thousands of feature-wise values.
 
 ## Alternatives Considered
 
-1. Add `duplicate_correlation` to public config immediately. Rejected because
-   that would expose a selectable but unfinished policy.
+1. Add `duplicate_correlation` to public config before the estimator, GLS,
+   provenance, validation, and fixture parity were complete. Rejected because
+   that would have exposed a selectable but unfinished policy.
 2. Treat duplicate-correlation as a fixed-block variant. Rejected because the
    statistical assumptions and design matrix differ.
 3. Fall back to OLS, fixed block, or correlation zero when estimation fails.
@@ -112,8 +120,9 @@ thousands of feature-wise values.
 
 ## Implementation Notes
 
-- Public paired-design constants stay limited to `reject` and `fixed_block` in
-  `src/phospy/science/configs/differential.py`.
+- Public paired-design constants include `reject`, `fixed_block`, and
+  `duplicate_correlation` in `src/phospy/science/configs/differential.py` and
+  are re-exported through the supported configuration facades.
 - Internal typed contracts live in
   `src/phospy/science/differential/models/duplicate_correlation.py`.
 - Public-sized workflow provenance uses the existing `TableFingerprint`

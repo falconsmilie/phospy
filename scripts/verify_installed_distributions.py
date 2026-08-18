@@ -44,9 +44,11 @@ import pandas as pd
 import phospy
 import phospy.advanced as advanced
 import phospy.api as api
+import phospy.contracts.configs as contract_configs
 from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.advanced import DatasetMissingDataConfig, DatasetNormalisationConfig
 from phospy.advanced import DatasetSiteMatrixConfig, KinaseReliabilityProfile
+from phospy.advanced import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
 from phospy.advanced import KinaseScoringConfig
 from phospy.advanced import ReferenceContextCompatibilityPolicy
 from phospy.advanced import publish_dataset
@@ -120,6 +122,7 @@ def _verify_public_surface() -> dict[str, object]:
     for name in (
         "DatasetIntensityTransformConfig",
         "KinaseScoringConfig",
+        "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
         "ReferenceContextCompatibilityPolicy",
         "publish_dataset",
     ):
@@ -128,6 +131,14 @@ def _verify_public_surface() -> dict[str, object]:
         if name not in advanced.__all__:
             raise AssertionError(f"phospy.advanced.__all__ is missing {name!r}")
         getattr(advanced, name)
+    if contract_configs.PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION != (
+        "duplicate_correlation"
+    ):
+        raise AssertionError("contracts.configs duplicate-correlation policy changed")
+    if PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION != "duplicate_correlation":
+        raise AssertionError("advanced duplicate-correlation policy export changed")
+    if "duplicate_correlation" not in contract_configs.SUPPORTED_PAIRED_DESIGN_POLICIES:
+        raise AssertionError("supported paired-design policies omit duplicate_correlation")
     if phospy.AnalysisReadyDatasetBuilder is not api.AnalysisReadyDatasetBuilder:
         raise AssertionError("root AnalysisReadyDatasetBuilder is not api export")
     if phospy.DifferentialAnalysisWorkflow is not api.DifferentialAnalysisWorkflow:
@@ -304,6 +315,7 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
     adjusted = differential_table["adj.P.Val"].dropna()
     if not adjusted.between(0.0, 1.0, inclusive="both").all():
         raise AssertionError("differential adjusted p-values are outside [0, 1]")
+    duplicate_report = _exercise_duplicate_correlation_differential_contract(dataset)
 
     kinase_request = KinaseWorkflowRequest(
         dataset=dataset,
@@ -339,6 +351,7 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
         ],
         "dataset_shape": [int(dataset.phospho.shape[0]), int(dataset.phospho.shape[1])],
         "differential_rows": int(differential_table.shape[0]),
+        "duplicate_correlation": duplicate_report,
         "kinase_profile_shape": [
             int(kinase_result.scoring_result.profile_scores.shape[0]),
             int(kinase_result.scoring_result.profile_scores.shape[1]),
@@ -349,6 +362,62 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
         ],
         "bundle_round_trip": bundle_report,
         "advanced_table_publisher": publisher_report,
+    }
+
+
+def _exercise_duplicate_correlation_differential_contract(dataset) -> dict[str, object]:
+    duplicate_result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=_paired_design(),
+            contrasts=(
+                Contrast(
+                    name="B_vs_A",
+                    numerator_condition="B",
+                    denominator_condition="A",
+                ),
+            ),
+            config=advanced.DifferentialAnalysisConfig(
+                paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+            ),
+        )
+    )
+    if type(duplicate_result).__name__ != "DifferentialAnalysisResult":
+        raise AssertionError("duplicate_correlation returned unexpected result type")
+    duplicate_table = duplicate_result.table_for("B_vs_A")
+    if {"logFC", "t", "P.Value", "adj.P.Val"}.difference(duplicate_table.columns):
+        raise AssertionError("duplicate_correlation result table lost public columns")
+    if duplicate_result.policy_provenance is None:
+        raise AssertionError("duplicate_correlation result lacks policy provenance")
+    duplicate = duplicate_result.policy_provenance.duplicate_correlation
+    if duplicate is None:
+        raise AssertionError("duplicate_correlation provenance was not attached")
+    if duplicate.normalised_paired_design_policy != "duplicate_correlation":
+        raise AssertionError("duplicate_correlation provenance recorded wrong policy")
+    if duplicate.block_treatment != "consensus_correlation":
+        raise AssertionError("duplicate_correlation block treatment changed")
+    if duplicate.covariance_structure != "compound_symmetry":
+        raise AssertionError("duplicate_correlation covariance structure changed")
+    if duplicate.gls_fit_status != "fit":
+        raise AssertionError("duplicate_correlation GLS did not report fit status")
+    if duplicate.consensus.consensus_correlation is None:
+        raise AssertionError("duplicate_correlation consensus was not recorded")
+    if duplicate_result.policy_provenance.design.block_column_names:
+        raise AssertionError("duplicate_correlation design contains block columns")
+    if not any(
+        caveat.code == "differential_duplicate_correlation_consensus"
+        for caveat in duplicate_result.caveats
+    ):
+        raise AssertionError("duplicate_correlation consensus caveat is missing")
+    return {
+        "result_type": type(duplicate_result).__name__,
+        "rows": int(duplicate_table.shape[0]),
+        "policy": duplicate.normalised_paired_design_policy,
+        "block_treatment": duplicate.block_treatment,
+        "covariance_structure": duplicate.covariance_structure,
+        "sample_count": int(duplicate.sample_count),
+        "block_count": int(duplicate.block_count),
+        "consensus_correlation": float(duplicate.consensus.consensus_correlation),
     }
 
 
@@ -514,6 +583,37 @@ def _design() -> ExperimentalDesign:
                 sample_id="B_2",
                 condition="B",
                 biological_replicate_id="B_2",
+            ),
+        )
+    )
+
+
+def _paired_design() -> ExperimentalDesign:
+    return ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_1",
+                block_id="pair_1",
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_2",
+                block_id="pair_2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_1",
+                block_id="pair_1",
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_2",
+                block_id="pair_2",
             ),
         )
     )

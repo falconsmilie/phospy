@@ -141,11 +141,12 @@ def test_condition_only_design_provenance_records_design_and_validation_status()
         "paired_design_policy='reject' does not construct fixed-block terms",
         (
             "explicit block_id metadata is rejected unless "
-            "paired_design_policy='fixed_block'"
+            "paired_design_policy='fixed_block' or "
+            "paired_design_policy='duplicate_correlation'"
         ),
         (
             "unpaired condition and covariate workflows do not fit "
-            "duplicateCorrelation, mixed-effects, or random subject-effect models"
+            "duplicate_correlation, mixed-effects, or random subject-effect models"
         ),
     )
     assert policy.design.rank_validation_status == "validated_full_rank"
@@ -157,7 +158,11 @@ def test_condition_only_design_provenance_records_design_and_validation_status()
     assert policy.unsupported_design.policy == (
         "reject_unsupported_design_features_before_execution"
     )
-    assert "duplicateCorrelation-style correlated-replicate modelling" in (
+    assert (
+        "correlated repeated-measure differential modelling beyond explicit "
+        "fixed_block and duplicate_correlation policies"
+    ) in policy.unsupported_design.intentionally_rejected_features
+    assert "duplicateCorrelation-style correlated-replicate modelling" not in (
         policy.unsupported_design.intentionally_rejected_features
     )
     assert "mixed-effects differential modelling" in (

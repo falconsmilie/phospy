@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
 )
 from phospy.errors.validation import DatasetValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
@@ -186,6 +187,19 @@ class DifferentialComputationEligibilityResolver:
             computation_request = _filter_computation_request_for_imputation_policy(
                 computation_request=request.computation_request,
                 imputation_policy_inputs=imputation_policy_inputs,
+            )
+        if (
+            request.execution_config.paired_design_policy
+            == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+        ):
+            model_fit_feature_ids = feature_ids(computation_request.matrix.index)
+            return DifferentialExecutionEligibilityResolution(
+                computation_request=computation_request,
+                feature_eligibility_inputs=feature_eligibility_inputs,
+                input_feature_ids=feature_ids(request.result_identity_metadata.index),
+                model_fit_feature_ids=model_fit_feature_ids,
+                failed_model_fit_feature_ids=(),
+                multiple_testing_feature_ids=model_fit_feature_ids,
             )
         post_fit_eligibility = self._post_fit_eligibility_resolver.run(
             computation_request=computation_request,

@@ -26,6 +26,7 @@ from phospy.science.differential.compound_symmetry_gls import (
 )
 from phospy.science.differential.models.duplicate_correlation import (
     DUPLICATE_CORRELATION_METHOD_REML_FISHER_TRIMMED_MEAN,
+    DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM,
     DUPLICATE_CORRELATION_TRIM_FRACTION,
     DuplicateCorrelationBlockStructureSummary,
     DuplicateCorrelationBoundary,
@@ -42,6 +43,7 @@ DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE = 1.0e-10
 DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE = (
     DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE
 )
+DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP = 0.99
 DUPLICATE_CORRELATION_OPTIMIZER_ABSOLUTE_TOLERANCE = 1.0e-10
 DUPLICATE_CORRELATION_OPTIMIZER_MAX_ITERATIONS = 500
 DUPLICATE_CORRELATION_BOUNDARY_DETECTION_TOLERANCE = 1.0e-7
@@ -142,6 +144,18 @@ def estimate_duplicate_correlation_reml_consensus(
             "rank assessment; "
             f"rank={design_rank}, columns={int(design_values.shape[1])}"
         )
+    residual_degrees_of_freedom = float(int(design_values.shape[0]) - design_rank)
+    if (
+        residual_degrees_of_freedom
+        < DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM
+    ):
+        raise PhosPyInputError(
+            "duplicate_correlation.design requires at least two residual degrees "
+            "of freedom for REML correlation estimation; "
+            f"samples={int(design_values.shape[0])}, "
+            f"design_rank={design_rank}, "
+            f"residual_degrees_of_freedom={residual_degrees_of_freedom}"
+        )
 
     optimizer_absolute_tolerance = _require_positive_float(
         optimizer_absolute_tolerance,
@@ -217,7 +231,7 @@ def _estimate_one_feature(
         )
 
     residual_dof = float(observed_count - observed_design_rank)
-    if residual_dof <= 0.0:
+    if residual_dof < DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM:
         return _failed_feature_estimate(
             feature_id=feature_id,
             status=(
@@ -814,7 +828,10 @@ def _feature_bounds(maximum_observed_block_size: int) -> _FeatureBounds:
         mathematical_lower + DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE,
         -1.0 + DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE,
     )
-    upper = 1.0 - DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE
+    upper = min(
+        1.0 - DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE,
+        DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP,
+    )
     if not lower < upper:
         lower = math.nextafter(mathematical_lower, upper)
     return _FeatureBounds(lower=float(lower), upper=float(upper))

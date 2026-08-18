@@ -1,26 +1,38 @@
 """Internal duplicate-correlation scientific contracts.
 
-These models define the planned duplicate-correlation semantics before the
-numerical estimator is implemented. They are intentionally not re-exported from
-public request/config modules.
+These models define duplicate-correlation estimator, GLS, and workflow
+provenance semantics. They are intentionally not re-exported from public
+request/config modules.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import TableFingerprint
-from phospy.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.provenance.serialization.tables import (
+    table_fingerprint_from_payload,
+    table_fingerprint_to_payload,
+)
 
 DUPLICATE_CORRELATION_METHOD_REML_FISHER_TRIMMED_MEAN = (
     "feature_reml_fisher_atanh_trimmed_mean"
 )
 DUPLICATE_CORRELATION_TRIM_FRACTION = 0.15
+DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM = 2.0
+DUPLICATE_CORRELATION_WORKFLOW_PROVENANCE_VERSION = "duplicate_correlation_reml_gls_v1"
+DUPLICATE_CORRELATION_ESTIMATOR_POLICY_VERSION = (
+    "duplicate_correlation_feature_reml_fisher_atanh_trimmed_mean_v1"
+)
+DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION = "consensus_correlation"
+DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY = "compound_symmetry"
+DUPLICATE_CORRELATION_ESTIMATOR_FEATURE_WISE_REML = "feature-wise REML"
+DUPLICATE_CORRELATION_GLS_FIT_STATUS_FIT = "fit"
 
 
 class DuplicateCorrelationFeatureStatus(StrEnum):
@@ -127,6 +139,25 @@ class DuplicateCorrelationReasonCount:
 
         return {"reason": self.reason.value, "count": self.count}
 
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> DuplicateCorrelationReasonCount:
+        """Reconstruct a reason count from a JSON-compatible payload."""
+
+        mapping = _require_mapping_payload(
+            payload,
+            field_name="duplicate_correlation.reason_count",
+        )
+        return cls(
+            reason=cast(
+                DuplicateCorrelationFailureReason,
+                mapping.get("reason"),
+            ),
+            count=cast(int, mapping.get("count")),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class DuplicateCorrelationConvergenceSummary:
@@ -171,6 +202,33 @@ class DuplicateCorrelationConvergenceSummary:
                 self.non_finite_objective_or_estimate_feature_count
             ),
         }
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> DuplicateCorrelationConvergenceSummary:
+        """Reconstruct a convergence summary from a JSON-compatible payload."""
+
+        mapping = _require_mapping_payload(
+            payload,
+            field_name="duplicate_correlation.convergence",
+        )
+        return cls(
+            converged_feature_count=cast(
+                int,
+                mapping.get("converged_feature_count"),
+            ),
+            boundary_feature_count=cast(int, mapping.get("boundary_feature_count")),
+            failed_optimisation_feature_count=cast(
+                int,
+                mapping.get("failed_optimisation_feature_count"),
+            ),
+            non_finite_objective_or_estimate_feature_count=cast(
+                int,
+                mapping.get("non_finite_objective_or_estimate_feature_count"),
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,6 +290,44 @@ class DuplicateCorrelationBoundarySummary:
             "positive_definite_tolerance": self.positive_definite_tolerance,
             "fisher_boundary_tolerance": self.fisher_boundary_tolerance,
         }
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> DuplicateCorrelationBoundarySummary:
+        """Reconstruct a boundary summary from a JSON-compatible payload."""
+
+        mapping = _require_mapping_payload(
+            payload,
+            field_name="duplicate_correlation.boundary",
+        )
+        return cls(
+            lower_correlation_bound=cast(
+                float,
+                mapping.get("lower_correlation_bound"),
+            ),
+            upper_correlation_bound=cast(
+                float,
+                mapping.get("upper_correlation_bound"),
+            ),
+            lower_boundary_feature_count=cast(
+                int,
+                mapping.get("lower_boundary_feature_count"),
+            ),
+            upper_boundary_feature_count=cast(
+                int,
+                mapping.get("upper_boundary_feature_count"),
+            ),
+            positive_definite_tolerance=cast(
+                float,
+                mapping.get("positive_definite_tolerance"),
+            ),
+            fisher_boundary_tolerance=cast(
+                float,
+                mapping.get("fisher_boundary_tolerance"),
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,6 +471,32 @@ class DuplicateCorrelationBlockStructureSummary:
             "minimum_block_size": self.minimum_block_size,
             "maximum_block_size": self.maximum_block_size,
         }
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> DuplicateCorrelationBlockStructureSummary:
+        """Reconstruct block structure from a JSON-compatible payload."""
+
+        mapping = _require_mapping_payload(
+            payload,
+            field_name="duplicate_correlation.block_structure",
+        )
+        return cls(
+            block_id_field_name=cast(str, mapping.get("block_id_field_name")),
+            sample_count=cast(int, mapping.get("sample_count")),
+            block_count=cast(int, mapping.get("block_count")),
+            repeated_block_count=cast(int, mapping.get("repeated_block_count")),
+            singleton_block_count=cast(int, mapping.get("singleton_block_count")),
+            correlated_pair_count=cast(int, mapping.get("correlated_pair_count")),
+            block_levels=_string_tuple_from_payload(
+                mapping.get("block_levels"),
+                field_name="duplicate_correlation.block_structure.block_levels",
+            ),
+            minimum_block_size=cast(int | None, mapping.get("minimum_block_size")),
+            maximum_block_size=cast(int | None, mapping.get("maximum_block_size")),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -596,6 +718,47 @@ class DuplicateCorrelationConsensusSummary:
             ),
         }
 
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> DuplicateCorrelationConsensusSummary:
+        """Reconstruct a feature-free consensus summary from payload."""
+
+        mapping = _require_mapping_payload(
+            payload,
+            field_name="duplicate_correlation.consensus",
+        )
+        return cls(
+            method=cast(str, mapping.get("method")),
+            trim_fraction=cast(float, mapping.get("trim_fraction")),
+            success=_require_bool(
+                mapping.get("success"),
+                field_name="duplicate_correlation.consensus.success",
+            ),
+            consensus_correlation=cast(
+                float | None,
+                mapping.get("consensus_correlation"),
+            ),
+            eligible_feature_count=cast(
+                int,
+                mapping.get("eligible_feature_count"),
+            ),
+            estimated_feature_count=cast(
+                int,
+                mapping.get("estimated_feature_count"),
+            ),
+            failed_feature_count=cast(int, mapping.get("failed_feature_count")),
+            non_finite_feature_count=cast(
+                int,
+                mapping.get("non_finite_feature_count"),
+            ),
+            failure_reason=cast(
+                DuplicateCorrelationFailureReason | None,
+                mapping.get("failure_reason"),
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class DuplicateCorrelationConsensusResult:
@@ -792,15 +955,40 @@ class DuplicateCorrelationWorkflowProvenance:
     """Public-workflow-sized duplicate-correlation provenance summary."""
 
     model: str
+    provenance_version: str
+    requested_paired_design_policy: str
+    normalised_paired_design_policy: str
+    block_treatment: str
+    covariance_structure: str
+    estimator: str
+    estimator_policy_version: str
+    trim_fraction: float
     matrix_authority: str
+    analysis_matrix_fingerprint: TableFingerprint
     authoritative_matrix_fingerprint: TableFingerprint
     design_authority: str
+    design_fingerprint: TableFingerprint
     block_authority: str
+    block_assignment_fingerprint: TableFingerprint
     estimator_authority: str
     gls_authority: str
     failure_authority: str
     block_structure: DuplicateCorrelationBlockStructureSummary
     consensus: DuplicateCorrelationConsensusSummary
+    attempted_feature_count: int
+    trimmed_feature_count_each_tail: int
+    retained_feature_count_after_trimming: int
+    failure_reason_counts: tuple[DuplicateCorrelationReasonCount, ...]
+    convergence_summary: DuplicateCorrelationConvergenceSummary
+    boundary_summary: DuplicateCorrelationBoundarySummary
+    sample_count: int
+    block_count: int
+    repeated_block_count: int
+    singleton_block_count: int
+    minimum_block_size: int
+    maximum_block_size: int
+    design_rank: int
+    gls_fit_status: str
     imputed_values_participated: bool
     imputed_feature_count: int = 0
     imputed_cell_count: int = 0
@@ -808,6 +996,13 @@ class DuplicateCorrelationWorkflowProvenance:
     def __post_init__(self) -> None:
         for field_name in (
             "model",
+            "provenance_version",
+            "requested_paired_design_policy",
+            "normalised_paired_design_policy",
+            "block_treatment",
+            "covariance_structure",
+            "estimator",
+            "estimator_policy_version",
             "matrix_authority",
             "design_authority",
             "block_authority",
@@ -827,6 +1022,62 @@ class DuplicateCorrelationWorkflowProvenance:
             raise PhosPyInputError(
                 "duplicate_correlation.workflow.model must be 'duplicate_correlation'"
             )
+        if self.provenance_version != DUPLICATE_CORRELATION_WORKFLOW_PROVENANCE_VERSION:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.provenance_version must be "
+                f"{DUPLICATE_CORRELATION_WORKFLOW_PROVENANCE_VERSION!r}"
+            )
+        if self.normalised_paired_design_policy != "duplicate_correlation":
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.normalised_paired_design_policy "
+                "must be 'duplicate_correlation'"
+            )
+        if self.requested_paired_design_policy != "duplicate_correlation":
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.requested_paired_design_policy "
+                "must be 'duplicate_correlation'"
+            )
+        if (
+            self.block_treatment
+            != DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.block_treatment must be "
+                f"{DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION!r}"
+            )
+        if (
+            self.covariance_structure
+            != DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.covariance_structure must be "
+                f"{DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY!r}"
+            )
+        if self.estimator != DUPLICATE_CORRELATION_ESTIMATOR_FEATURE_WISE_REML:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.estimator must be "
+                f"{DUPLICATE_CORRELATION_ESTIMATOR_FEATURE_WISE_REML!r}"
+            )
+        if (
+            self.estimator_policy_version
+            != DUPLICATE_CORRELATION_ESTIMATOR_POLICY_VERSION
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.estimator_policy_version must be "
+                f"{DUPLICATE_CORRELATION_ESTIMATOR_POLICY_VERSION!r}"
+            )
+        trim_fraction = _require_fixed_trim_fraction(
+            self.trim_fraction,
+            field_name="duplicate_correlation.workflow.trim_fraction",
+        )
+        if not isinstance(
+            cast(object, self.analysis_matrix_fingerprint),
+            TableFingerprint,
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.analysis_matrix_fingerprint must "
+                "be a TableFingerprint"
+            )
         if not isinstance(
             cast(object, self.authoritative_matrix_fingerprint),
             TableFingerprint,
@@ -834,6 +1085,24 @@ class DuplicateCorrelationWorkflowProvenance:
             raise PhosPyInputError(
                 "duplicate_correlation.workflow.authoritative_matrix_fingerprint "
                 "must be a TableFingerprint"
+            )
+        if self.analysis_matrix_fingerprint != self.authoritative_matrix_fingerprint:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.analysis_matrix_fingerprint must "
+                "match authoritative_matrix_fingerprint"
+            )
+        if not isinstance(cast(object, self.design_fingerprint), TableFingerprint):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.design_fingerprint must be a "
+                "TableFingerprint"
+            )
+        if not isinstance(
+            cast(object, self.block_assignment_fingerprint),
+            TableFingerprint,
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.block_assignment_fingerprint must "
+                "be a TableFingerprint"
             )
         if not isinstance(
             cast(object, self.block_structure),
@@ -850,6 +1119,146 @@ class DuplicateCorrelationWorkflowProvenance:
             raise PhosPyInputError(
                 "duplicate_correlation.workflow.consensus must be a "
                 "DuplicateCorrelationConsensusSummary"
+            )
+        if not self.consensus.success or self.consensus.consensus_correlation is None:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow requires a successful consensus "
+                "correlation"
+            )
+        if not math.isclose(
+            trim_fraction,
+            self.consensus.trim_fraction,
+            rel_tol=0.0,
+            abs_tol=1.0e-12,
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.trim_fraction must match consensus"
+            )
+        attempted_feature_count = _require_non_negative_int(
+            self.attempted_feature_count,
+            field_name="duplicate_correlation.workflow.attempted_feature_count",
+        )
+        if attempted_feature_count < self.consensus.eligible_feature_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.attempted_feature_count cannot be "
+                "smaller than consensus.eligible_feature_count"
+            )
+        trimmed = _require_non_negative_int(
+            self.trimmed_feature_count_each_tail,
+            field_name=(
+                "duplicate_correlation.workflow.trimmed_feature_count_each_tail"
+            ),
+        )
+        retained = _require_non_negative_int(
+            self.retained_feature_count_after_trimming,
+            field_name=(
+                "duplicate_correlation.workflow.retained_feature_count_after_trimming"
+            ),
+        )
+        if retained + (2 * trimmed) > self.consensus.estimated_feature_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow retained plus trimmed feature "
+                "counts cannot exceed estimated_feature_count"
+            )
+        failure_reason_counts = _require_reason_count_tuple(
+            self.failure_reason_counts,
+            field_name="duplicate_correlation.workflow.failure_reason_counts",
+        )
+        if (
+            sum(reason_count.count for reason_count in failure_reason_counts)
+            != self.consensus.failed_feature_count
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.failure_reason_counts must sum to "
+                "consensus.failed_feature_count"
+            )
+        if not isinstance(
+            cast(object, self.convergence_summary),
+            DuplicateCorrelationConvergenceSummary,
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.convergence_summary must be a "
+                "DuplicateCorrelationConvergenceSummary"
+            )
+        if not isinstance(
+            cast(object, self.boundary_summary),
+            DuplicateCorrelationBoundarySummary,
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.boundary_summary must be a "
+                "DuplicateCorrelationBoundarySummary"
+            )
+        sample_count = _require_positive_int(
+            self.sample_count,
+            field_name="duplicate_correlation.workflow.sample_count",
+        )
+        block_count = _require_positive_int(
+            self.block_count,
+            field_name="duplicate_correlation.workflow.block_count",
+        )
+        repeated_block_count = _require_non_negative_int(
+            self.repeated_block_count,
+            field_name="duplicate_correlation.workflow.repeated_block_count",
+        )
+        singleton_block_count = _require_non_negative_int(
+            self.singleton_block_count,
+            field_name="duplicate_correlation.workflow.singleton_block_count",
+        )
+        minimum_block_size = _require_positive_int(
+            self.minimum_block_size,
+            field_name="duplicate_correlation.workflow.minimum_block_size",
+        )
+        maximum_block_size = _require_positive_int(
+            self.maximum_block_size,
+            field_name="duplicate_correlation.workflow.maximum_block_size",
+        )
+        design_rank = _require_positive_int(
+            self.design_rank,
+            field_name="duplicate_correlation.workflow.design_rank",
+        )
+        if sample_count != self.block_structure.sample_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.sample_count must match "
+                "block_structure.sample_count"
+            )
+        if block_count != self.block_structure.block_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.block_count must match "
+                "block_structure.block_count"
+            )
+        if repeated_block_count != self.block_structure.repeated_block_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.repeated_block_count must match "
+                "block_structure.repeated_block_count"
+            )
+        if singleton_block_count != self.block_structure.singleton_block_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.singleton_block_count must match "
+                "block_structure.singleton_block_count"
+            )
+        if minimum_block_size != self.block_structure.minimum_block_size:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.minimum_block_size must match "
+                "block_structure.minimum_block_size"
+            )
+        if maximum_block_size != self.block_structure.maximum_block_size:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.maximum_block_size must match "
+                "block_structure.maximum_block_size"
+            )
+        if design_rank >= sample_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.design_rank must leave positive "
+                "residual information"
+            )
+        gls_fit_status = _require_non_empty_string(
+            self.gls_fit_status,
+            field_name="duplicate_correlation.workflow.gls_fit_status",
+        )
+        if gls_fit_status != DUPLICATE_CORRELATION_GLS_FIT_STATUS_FIT:
+            raise PhosPyInputError(
+                "duplicate_correlation.workflow.gls_fit_status must be "
+                f"{DUPLICATE_CORRELATION_GLS_FIT_STATUS_FIT!r}"
             )
         if not isinstance(cast(object, self.imputed_values_participated), bool):
             raise PhosPyInputError(
@@ -871,6 +1280,23 @@ class DuplicateCorrelationWorkflowProvenance:
                 "duplicate_correlation.workflow imputed counts require "
                 "imputed_values_participated=True"
             )
+        object.__setattr__(self, "trim_fraction", trim_fraction)
+        object.__setattr__(self, "attempted_feature_count", attempted_feature_count)
+        object.__setattr__(self, "trimmed_feature_count_each_tail", trimmed)
+        object.__setattr__(
+            self,
+            "retained_feature_count_after_trimming",
+            retained,
+        )
+        object.__setattr__(self, "failure_reason_counts", failure_reason_counts)
+        object.__setattr__(self, "sample_count", sample_count)
+        object.__setattr__(self, "block_count", block_count)
+        object.__setattr__(self, "repeated_block_count", repeated_block_count)
+        object.__setattr__(self, "singleton_block_count", singleton_block_count)
+        object.__setattr__(self, "minimum_block_size", minimum_block_size)
+        object.__setattr__(self, "maximum_block_size", maximum_block_size)
+        object.__setattr__(self, "design_rank", design_rank)
+        object.__setattr__(self, "gls_fit_status", gls_fit_status)
         object.__setattr__(self, "imputed_feature_count", imputed_feature_count)
         object.__setattr__(self, "imputed_cell_count", imputed_cell_count)
 
@@ -879,21 +1305,180 @@ class DuplicateCorrelationWorkflowProvenance:
 
         return {
             "model": self.model,
+            "provenance_version": self.provenance_version,
+            "requested_paired_design_policy": self.requested_paired_design_policy,
+            "normalised_paired_design_policy": self.normalised_paired_design_policy,
+            "block_treatment": self.block_treatment,
+            "covariance_structure": self.covariance_structure,
+            "estimator": self.estimator,
+            "estimator_policy_version": self.estimator_policy_version,
+            "trim_fraction": self.trim_fraction,
             "matrix_authority": self.matrix_authority,
+            "analysis_matrix_fingerprint": table_fingerprint_to_payload(
+                self.analysis_matrix_fingerprint
+            ),
             "authoritative_matrix_fingerprint": table_fingerprint_to_payload(
                 self.authoritative_matrix_fingerprint
             ),
             "design_authority": self.design_authority,
+            "design_fingerprint": table_fingerprint_to_payload(self.design_fingerprint),
             "block_authority": self.block_authority,
+            "block_assignment_fingerprint": table_fingerprint_to_payload(
+                self.block_assignment_fingerprint
+            ),
             "estimator_authority": self.estimator_authority,
             "gls_authority": self.gls_authority,
             "failure_authority": self.failure_authority,
             "block_structure": self.block_structure.to_payload(),
             "consensus": self.consensus.to_payload(),
+            "attempted_feature_count": self.attempted_feature_count,
+            "trimmed_feature_count_each_tail": (self.trimmed_feature_count_each_tail),
+            "retained_feature_count_after_trimming": (
+                self.retained_feature_count_after_trimming
+            ),
+            "failure_reason_counts": [
+                reason_count.to_payload() for reason_count in self.failure_reason_counts
+            ],
+            "convergence_summary": self.convergence_summary.to_payload(),
+            "boundary_summary": self.boundary_summary.to_payload(),
+            "sample_count": self.sample_count,
+            "block_count": self.block_count,
+            "repeated_block_count": self.repeated_block_count,
+            "singleton_block_count": self.singleton_block_count,
+            "minimum_block_size": self.minimum_block_size,
+            "maximum_block_size": self.maximum_block_size,
+            "design_rank": self.design_rank,
+            "gls_fit_status": self.gls_fit_status,
             "imputed_values_participated": self.imputed_values_participated,
             "imputed_feature_count": self.imputed_feature_count,
             "imputed_cell_count": self.imputed_cell_count,
         }
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> DuplicateCorrelationWorkflowProvenance:
+        """Reconstruct duplicate-correlation workflow provenance from payload."""
+
+        mapping = _require_mapping_payload(
+            payload,
+            field_name="duplicate_correlation.workflow",
+        )
+        analysis_matrix_fingerprint = table_fingerprint_from_payload(
+            _require_mapping_payload(
+                mapping.get("analysis_matrix_fingerprint"),
+                field_name=(
+                    "duplicate_correlation.workflow.analysis_matrix_fingerprint"
+                ),
+            )
+        )
+        return cls(
+            model=cast(str, mapping.get("model")),
+            provenance_version=cast(str, mapping.get("provenance_version")),
+            requested_paired_design_policy=cast(
+                str,
+                mapping.get("requested_paired_design_policy"),
+            ),
+            normalised_paired_design_policy=cast(
+                str,
+                mapping.get("normalised_paired_design_policy"),
+            ),
+            block_treatment=cast(str, mapping.get("block_treatment")),
+            covariance_structure=cast(str, mapping.get("covariance_structure")),
+            estimator=cast(str, mapping.get("estimator")),
+            estimator_policy_version=cast(
+                str,
+                mapping.get("estimator_policy_version"),
+            ),
+            trim_fraction=cast(float, mapping.get("trim_fraction")),
+            matrix_authority=cast(str, mapping.get("matrix_authority")),
+            analysis_matrix_fingerprint=analysis_matrix_fingerprint,
+            authoritative_matrix_fingerprint=table_fingerprint_from_payload(
+                _require_mapping_payload(
+                    mapping.get("authoritative_matrix_fingerprint"),
+                    field_name=(
+                        "duplicate_correlation.workflow."
+                        "authoritative_matrix_fingerprint"
+                    ),
+                )
+            ),
+            design_authority=cast(str, mapping.get("design_authority")),
+            design_fingerprint=table_fingerprint_from_payload(
+                _require_mapping_payload(
+                    mapping.get("design_fingerprint"),
+                    field_name="duplicate_correlation.workflow.design_fingerprint",
+                )
+            ),
+            block_authority=cast(str, mapping.get("block_authority")),
+            block_assignment_fingerprint=table_fingerprint_from_payload(
+                _require_mapping_payload(
+                    mapping.get("block_assignment_fingerprint"),
+                    field_name=(
+                        "duplicate_correlation.workflow.block_assignment_fingerprint"
+                    ),
+                )
+            ),
+            estimator_authority=cast(str, mapping.get("estimator_authority")),
+            gls_authority=cast(str, mapping.get("gls_authority")),
+            failure_authority=cast(str, mapping.get("failure_authority")),
+            block_structure=DuplicateCorrelationBlockStructureSummary.from_payload(
+                _require_mapping_payload(
+                    mapping.get("block_structure"),
+                    field_name="duplicate_correlation.workflow.block_structure",
+                )
+            ),
+            consensus=DuplicateCorrelationConsensusSummary.from_payload(
+                _require_mapping_payload(
+                    mapping.get("consensus"),
+                    field_name="duplicate_correlation.workflow.consensus",
+                )
+            ),
+            attempted_feature_count=cast(
+                int,
+                mapping.get("attempted_feature_count"),
+            ),
+            trimmed_feature_count_each_tail=cast(
+                int,
+                mapping.get("trimmed_feature_count_each_tail"),
+            ),
+            retained_feature_count_after_trimming=cast(
+                int,
+                mapping.get("retained_feature_count_after_trimming"),
+            ),
+            failure_reason_counts=_reason_counts_from_payload(
+                mapping.get("failure_reason_counts"),
+                field_name="duplicate_correlation.workflow.failure_reason_counts",
+            ),
+            convergence_summary=DuplicateCorrelationConvergenceSummary.from_payload(
+                _require_mapping_payload(
+                    mapping.get("convergence_summary"),
+                    field_name="duplicate_correlation.workflow.convergence_summary",
+                )
+            ),
+            boundary_summary=DuplicateCorrelationBoundarySummary.from_payload(
+                _require_mapping_payload(
+                    mapping.get("boundary_summary"),
+                    field_name="duplicate_correlation.workflow.boundary_summary",
+                )
+            ),
+            sample_count=cast(int, mapping.get("sample_count")),
+            block_count=cast(int, mapping.get("block_count")),
+            repeated_block_count=cast(int, mapping.get("repeated_block_count")),
+            singleton_block_count=cast(int, mapping.get("singleton_block_count")),
+            minimum_block_size=cast(int, mapping.get("minimum_block_size")),
+            maximum_block_size=cast(int, mapping.get("maximum_block_size")),
+            design_rank=cast(int, mapping.get("design_rank")),
+            gls_fit_status=cast(str, mapping.get("gls_fit_status")),
+            imputed_values_participated=_require_bool(
+                mapping.get("imputed_values_participated"),
+                field_name=(
+                    "duplicate_correlation.workflow.imputed_values_participated"
+                ),
+            ),
+            imputed_feature_count=cast(int, mapping.get("imputed_feature_count", 0)),
+            imputed_cell_count=cast(int, mapping.get("imputed_cell_count", 0)),
+        )
 
 
 def _validate_consensus_state(
@@ -1298,9 +1883,68 @@ def _optional_block_structure(
     return value
 
 
+def duplicate_correlation_workflow_provenance_from_payload(
+    payload: Mapping[str, object],
+) -> DuplicateCorrelationWorkflowProvenance:
+    """Reconstruct duplicate-correlation workflow provenance from payload."""
+
+    return DuplicateCorrelationWorkflowProvenance.from_payload(payload)
+
+
+def _require_mapping_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    if not isinstance(value, Mapping):
+        raise PhosPyInputError(f"{field_name} must be a mapping")
+    return cast(Mapping[str, object], value)
+
+
+def _string_tuple_from_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> tuple[str, ...]:
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence of strings")
+    return tuple(
+        _require_non_empty_string(item, field_name=f"{field_name}[]")
+        for item in cast(Sequence[object], value)
+    )
+
+
+def _require_bool(value: object, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise PhosPyInputError(f"{field_name} must be bool")
+    return value
+
+
+def _reason_counts_from_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> tuple[DuplicateCorrelationReasonCount, ...]:
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence")
+    return tuple(
+        DuplicateCorrelationReasonCount.from_payload(
+            _require_mapping_payload(item, field_name=f"{field_name}[]")
+        )
+        for item in cast(Sequence[object], value)
+    )
+
+
 __all__ = [
+    "DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION",
+    "DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY",
+    "DUPLICATE_CORRELATION_ESTIMATOR_FEATURE_WISE_REML",
+    "DUPLICATE_CORRELATION_ESTIMATOR_POLICY_VERSION",
+    "DUPLICATE_CORRELATION_GLS_FIT_STATUS_FIT",
     "DUPLICATE_CORRELATION_METHOD_REML_FISHER_TRIMMED_MEAN",
+    "DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM",
     "DUPLICATE_CORRELATION_TRIM_FRACTION",
+    "DUPLICATE_CORRELATION_WORKFLOW_PROVENANCE_VERSION",
     "DuplicateCorrelationBoundary",
     "DuplicateCorrelationBoundarySummary",
     "DuplicateCorrelationBlockStructureSummary",
@@ -1312,4 +1956,5 @@ __all__ = [
     "DuplicateCorrelationFeatureStatus",
     "DuplicateCorrelationReasonCount",
     "DuplicateCorrelationWorkflowProvenance",
+    "duplicate_correlation_workflow_provenance_from_payload",
 ]

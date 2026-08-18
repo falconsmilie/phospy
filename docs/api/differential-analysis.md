@@ -179,7 +179,7 @@ Create a `DifferentialAnalysisRequest`.
 | `biological_replicate_id` | `str` or `None` | `None` | Biological replicate identity. Technical replicates never replace this requirement. |
 | `technical_replicate_id` | `str` or `None` | `None` | Technical replicate identity. Requires biological replicate IDs when used. |
 | `batch` | `str` or `None` | `None` | Batch value available to `BatchCovariate`. |
-| `block_id` | `str` or `None` | `None` | Block identity for `paired_design_policy="fixed_block"`. |
+| `block_id` | `str` or `None` | `None` | Block identity for explicit paired-design policies: fixed block effects or duplicate correlation. |
 | `covariates` | `Mapping[str, str or int or float]` | `{}` | Values for named fixed-effect covariates. |
 
 ### `Contrast`
@@ -199,12 +199,20 @@ Contrast direction is `numerator_condition - denominator_condition`.
 or `BatchCovariate` for common cases. Batch covariates are model terms, not
 batch correction.
 
-Fixed-block paired designs are supported only when every block has complete
-within-block contrast coverage. Incomplete or partially covered blocks are
-rejected; PhosPy does not silently drop those blocks or samples. Block terms are
-ordinary fixed effects, not limma `duplicateCorrelation`, not mixed-effects
-modelling, and not random subject modelling. Simple unpaired workflows remain
-the default.
+PhosPy supports two explicit paired-design policies. `fixed_block` represents
+block identity with ordinary fixed nuisance coefficients and requires every
+block to have complete within-block contrast coverage. Incomplete or partially
+covered blocks are rejected; PhosPy does not silently drop those blocks or
+samples.
+
+`duplicate_correlation` estimates one consensus within-block correlation by
+feature-wise REML, then fits a compound-symmetry GLS model with condition terms
+and supported fixed covariates only. Block IDs are retained as covariance-group
+metadata and are not added as fixed block coefficients. This is not a general
+mixed-effects framework, feature-specific random-effects fitting, random
+slopes, or automatic policy selection. The non-block fixed-effects design must
+leave at least two residual degrees of freedom for REML correlation estimation.
+Simple unpaired workflows remain the default.
 
 </details>
 
@@ -217,7 +225,7 @@ the default.
 | --- | --- | --- | --- |
 | `reliability_profile` | `"production"` or `"exploratory_single_replicate"` | `"production"` | Selects the production lane or the explicit exploratory single-replicate lane. |
 | `technical_replicate_policy` | `"reject"`, `"mean"`, or `"median"` | `"reject"` | Rejects or combines technical replicates. Combining them does not create biological replication. |
-| `paired_design_policy` | `"reject"` or `"fixed_block"` | `"reject"` | Enables complete fixed-block designs. |
+| `paired_design_policy` | `"reject"`, `"fixed_block"`, or `"duplicate_correlation"` | `"reject"` | Selects explicit paired-design handling. `fixed_block` adds block nuisance coefficients; `duplicate_correlation` estimates one consensus compound-symmetry correlation and fits GLS. |
 | `imputed_value_policy` | `"reject"` or `"withhold_imputed_features"` | `"reject"` | Rejects upstream imputation or withholds affected features using dataset-owned observation metadata. |
 | `imputed_value_max_fraction` | `float` | `0.0` | Maximum imputed-cell fraction for a tested feature under the withhold policy. |
 | `allow_design_subset` | `bool` | `False` | Allows the design to use an intentional subset of dataset samples. |

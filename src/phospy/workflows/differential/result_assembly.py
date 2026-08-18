@@ -7,6 +7,9 @@ from collections.abc import Mapping
 import numpy as np
 import pandas as pd
 
+from phospy.contracts.configs.differential import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
@@ -23,6 +26,9 @@ from phospy.science.differential.models import (
     DifferentialPolicyProvenance,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+)
+from phospy.science.differential.models.duplicate_correlation import (
+    DuplicateCorrelationWorkflowProvenance,
 )
 from phospy.workflows.differential.caveats import (
     finalize_differential_result_caveats,
@@ -54,6 +60,7 @@ class DifferentialResultAssembler:
         computation_result: DifferentialComputationResult,
         eligibility: DifferentialExecutionEligibilityResolution,
         workflow_provenance: Mapping[str, object],
+        duplicate_correlation: DuplicateCorrelationWorkflowProvenance | None = None,
     ) -> DifferentialAnalysisResult:
         _require_fitted_decomposition_identity(
             request=request,
@@ -121,6 +128,7 @@ class DifferentialResultAssembler:
             policy_provenance=request.policy_provenance,
             imputation_policy_inputs=request.imputation_policy_inputs,
             feature_eligibility_inputs=eligibility.feature_eligibility_inputs,
+            duplicate_correlation=duplicate_correlation,
         )
         diagnostics = _build_model_diagnostics(
             request=request,
@@ -227,8 +235,16 @@ def _build_model_diagnostics(
         request=request,
         batch_or_covariate_terms=batch_or_covariate_terms,
     )
+    duplicate_correlation_requested = (
+        request.execution_config.paired_design_policy
+        == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+    )
     return DifferentialModelDiagnostics(
-        model_type="moderated_ols_fixed_effect",
+        model_type=(
+            "moderated_gls_duplicate_correlation"
+            if duplicate_correlation_requested
+            else "moderated_ols_fixed_effect"
+        ),
         design_columns=design_columns,
         contrast_definitions=contrast_definitions,
         rank=int(result.design_decomposition.rank),
@@ -245,7 +261,11 @@ def _build_model_diagnostics(
         condition_number=result.design_decomposition.condition_number,
         max_condition_number=result.design_decomposition.max_condition_number,
         singular_values=result.design_decomposition.singular_values,
-        variance_method="ordinary_least_squares_residual_variance",
+        variance_method=(
+            "compound_symmetry_gls_residual_variance"
+            if duplicate_correlation_requested
+            else "ordinary_least_squares_residual_variance"
+        ),
         moderation_method=_moderation_method(
             result.empirical_bayes_method,
             robust=bool(result.empirical_bayes_robust),
@@ -369,11 +389,20 @@ def _unsupported_assumptions(
             "provenance and are not revalidated or rerun by differential analysis"
         )
     if request.ruv_readiness_enabled or request.ruv_readiness_ready:
-        assumptions.append(
-            "ruv_readiness metadata is report-only for differential analysis and "
-            "does not enable RUV, SPS/RUV-III, duplicateCorrelation, or mixed "
-            "effects"
-        )
+        if (
+            request.execution_config.paired_design_policy
+            == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+        ):
+            assumptions.append(
+                "ruv_readiness metadata is report-only for differential analysis "
+                "and does not enable RUV, SPS/RUV-III, or mixed effects"
+            )
+        else:
+            assumptions.append(
+                "ruv_readiness metadata is report-only for differential analysis and "
+                "does not enable RUV, SPS/RUV-III, duplicate_correlation, or mixed "
+                "effects"
+            )
     return _unique_text(tuple(assumptions))
 
 
@@ -398,11 +427,21 @@ def _diagnostic_warnings(
             "parity."
         )
     if request.ruv_readiness_enabled or request.ruv_readiness_ready:
-        warnings.append(
-            "Dataset RUV-readiness metadata is diagnostic/report-only for "
-            "differential analysis; no RUV, SPS/RUV-III, duplicateCorrelation, "
-            "or mixed-effect model was fit."
-        )
+        if (
+            request.execution_config.paired_design_policy
+            == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+        ):
+            warnings.append(
+                "Dataset RUV-readiness metadata is diagnostic/report-only for "
+                "differential analysis; no RUV, SPS/RUV-III, or mixed-effect "
+                "model was fit."
+            )
+        else:
+            warnings.append(
+                "Dataset RUV-readiness metadata is diagnostic/report-only for "
+                "differential analysis; no RUV, SPS/RUV-III, duplicate_correlation, "
+                "or mixed-effect model was fit."
+            )
     return _unique_text(tuple(warnings))
 
 

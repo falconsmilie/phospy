@@ -203,14 +203,16 @@ Important user-facing assumptions:
   not full limma or PhosR parity.
 - Batch can be modelled as an ordinary fixed-effect covariate when the design is
   valid, full rank, and contrasts are estimable. This is not batch correction.
-- Fixed-block paired designs are supported only when
-  `paired_design_policy="fixed_block"` and every block has complete coverage for
-  each requested contrast.
-- Block terms are fixed effects, not random effects. This is not limma
-  `duplicateCorrelation`, not mixed-effects modelling, and no mixed effects are
-  fitted.
-- Incomplete or partially covered blocks are rejected; PhosPy does not drop
-  those blocks or samples.
+- Paired designs are supported only through an explicit `paired_design_policy`.
+  `fixed_block` adds block nuisance coefficients and requires every block to
+  have complete coverage for each requested contrast.
+- `duplicate_correlation` keeps block IDs out of the fixed-effects design,
+  estimates one consensus within-block correlation, and fits a
+  compound-symmetry GLS model. It is not a general mixed-effects framework and
+  does not fit feature-specific final random effects.
+- Incomplete or partially covered fixed-block designs are rejected; PhosPy does
+  not drop those blocks or samples. Duplicate-correlation designs may include
+  incomplete or singleton blocks when validation requirements are otherwise met.
 - `reliability_profile="production"` is the default and requires at least two
   biological replicates for every contrasted condition.
 - Single-biological-replicate contrasts require the explicit

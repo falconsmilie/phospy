@@ -15,6 +15,7 @@ from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
     FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
     FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
@@ -372,17 +373,23 @@ def _validate_block_policy_inputs(
             raise WorkflowValidationError(
                 "design matrix builder received block_id values while "
                 "paired_design_policy='reject'; block terms are only constructed "
-                "when paired_design_policy='fixed_block'. Samples with block_id: "
+                "when paired_design_policy='fixed_block', and block correlation "
+                "is only constructed when paired_design_policy="
+                "'duplicate_correlation'. Samples with block_id: "
                 + ", ".join(samples_with_block_id)
             )
         return
 
     if samples_missing_block_id:
         raise WorkflowValidationError(
-            "design matrix builder paired_design_policy='fixed_block' requires "
+            f"design matrix builder paired_design_policy={paired_design_policy!r} "
+            "requires "
             "block_id for every design sample; missing block_id for samples: "
             + ", ".join(samples_missing_block_id)
         )
+
+    if paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION:
+        return
 
 
 def _resolve_condition_labels(

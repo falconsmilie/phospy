@@ -9,6 +9,7 @@ import pandas as pd
 
 from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     DifferentialImputedValuePolicy,
@@ -32,6 +33,7 @@ from phospy.science.transformations.models import (
 )
 from phospy.validation.workflows.differential_design_rules import (
     ContrastFrameBuilder,
+    DuplicateCorrelationDesignValidator,
     ExperimentalDesignConditionReplicateValidator,
     ExperimentalDesignContrastSetValidator,
     ExperimentalDesignFixedEffectValidator,
@@ -92,6 +94,9 @@ class ExperimentalDesignContractValidator:
             ExperimentalDesignConditionReplicateValidator | None
         ) = None,
         fixed_block_validator: FixedBlockDesignValidator | None = None,
+        duplicate_correlation_validator: (
+            DuplicateCorrelationDesignValidator | None
+        ) = None,
         contrast_frame_builder: ContrastFrameBuilder | None = None,
         resolved_design_validator: (
             ResolvedDifferentialDesignMatrixValidator | None
@@ -114,6 +119,9 @@ class ExperimentalDesignContractValidator:
         )
         self._fixed_block_validator = (
             fixed_block_validator or FixedBlockDesignValidator()
+        )
+        self._duplicate_correlation_validator = (
+            duplicate_correlation_validator or DuplicateCorrelationDesignValidator()
         )
         self._contrast_frame_builder = contrast_frame_builder or ContrastFrameBuilder()
         self._resolved_design_validator = (
@@ -169,6 +177,11 @@ class ExperimentalDesignContractValidator:
             design_build_result = self._design_matrix_builder.run(
                 design=design,
                 condition_labels=known_conditions,
+                paired_design_policy=(
+                    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+                    if input_validation.duplicate_correlation_requested
+                    else PAIRED_DESIGN_POLICY_REJECT
+                ),
             )
         design_frame = design_build_result.frame
         contrast_frame = self._contrast_frame_builder.run(
@@ -180,6 +193,15 @@ class ExperimentalDesignContractValidator:
             design_frame=design_frame,
             contrast_frame=contrast_frame,
         )
+        if input_validation.duplicate_correlation_requested:
+            self._duplicate_correlation_validator.run(
+                records=design.samples,
+                analysis_sample_ids=sample_alignment.design_sample_ids,
+                design_frame=design_frame,
+                contrast_frame=contrast_frame,
+                design_decomposition=design_decomposition,
+                dataset=dataset,
+            )
         return ValidatedExperimentalDesignContract(
             design=design,
             contrasts=normalized_contrasts,

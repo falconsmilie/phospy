@@ -18,6 +18,7 @@ from phospy.science.configs.differential import (
     MULTIPLE_TESTING_METHOD_BONFERRONI,
     MULTIPLE_TESTING_METHOD_HOLM,
     MULTIPLE_TESTING_METHOD_NONE,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES,
@@ -65,6 +66,8 @@ class DifferentialAnalysisConfig:
     designs only. It does not infer ``block_id`` values and does not enable
     mixed-effects modelling. ``"fixed_block"`` requires complete block metadata
     and validates a fixed-effect block design matrix before execution.
+    ``"duplicate_correlation"`` requires explicit block metadata, estimates one
+    consensus within-block correlation, and fits GLS without fixed block terms.
     ``imputed_value_policy`` defaults to ``"reject"``. Non-default policies are
     explicit opt-ins and require dataset-owned imputation observation metadata.
     ``reliability_profile`` separates production-supported inference from the
@@ -166,6 +169,7 @@ __all__ = [
     "MULTIPLE_TESTING_METHOD_NONE",
     "MultipleTestingMethod",
     "MultipleTestingConfig",
+    "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
     "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
     "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",

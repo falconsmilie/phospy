@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from typing import cast
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.differential.models.duplicate_correlation import (
+    DuplicateCorrelationWorkflowProvenance,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -708,11 +711,50 @@ class DifferentialPolicyProvenance:
     statistical_testing: DifferentialStatisticalTestingProvenance
     missing_values: DifferentialMissingValuePolicyProvenance
     unsupported_design: DifferentialUnsupportedDesignPolicyProvenance
+    duplicate_correlation: DuplicateCorrelationWorkflowProvenance | None = None
 
     def __post_init__(self) -> None:
         if not self.contrasts:
             raise PhosPyInputError(
                 "differential_policy_provenance.contrasts must be non-empty"
+            )
+        duplicate_correlation = self.duplicate_correlation
+        if duplicate_correlation is not None and not isinstance(
+            cast(object, duplicate_correlation),
+            DuplicateCorrelationWorkflowProvenance,
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.duplicate_correlation must be "
+                "DuplicateCorrelationWorkflowProvenance or None"
+            )
+        if self.design.paired_design_policy != "duplicate_correlation":
+            if duplicate_correlation is not None:
+                raise PhosPyInputError(
+                    "differential_policy_provenance.duplicate_correlation is only "
+                    "valid when design.paired_design_policy='duplicate_correlation'"
+                )
+            return
+        if self.design.block_columns or self.design.block_column_names:
+            raise PhosPyInputError(
+                "differential_policy_provenance duplicate_correlation design must "
+                "not include fixed block columns"
+            )
+        if duplicate_correlation is None:
+            return
+        if duplicate_correlation.sample_count != self.design.sample_count:
+            raise PhosPyInputError(
+                "differential_policy_provenance.duplicate_correlation.sample_count "
+                "must match design.sample_count"
+            )
+        if duplicate_correlation.block_count != self.design.block_count:
+            raise PhosPyInputError(
+                "differential_policy_provenance.duplicate_correlation.block_count "
+                "must match design.block_count"
+            )
+        if duplicate_correlation.design_rank != self.design.rank:
+            raise PhosPyInputError(
+                "differential_policy_provenance.duplicate_correlation.design_rank "
+                "must match design.rank"
             )
 
 
@@ -735,4 +777,5 @@ __all__ = [
     "DifferentialStatisticalTestingProvenance",
     "DifferentialTechnicalReplicateGroup",
     "DifferentialUnsupportedDesignPolicyProvenance",
+    "DuplicateCorrelationWorkflowProvenance",
 ]

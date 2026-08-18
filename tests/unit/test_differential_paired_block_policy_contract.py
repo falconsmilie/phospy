@@ -5,12 +5,14 @@ from typing import get_type_hints
 
 import pytest
 
+import phospy.advanced as advanced_api
 from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     ExperimentalDesign,
     SampleDesignRecord,
 )
 from phospy.contracts.configs import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
@@ -30,6 +32,14 @@ def test_fixed_block_policy_can_be_declared() -> None:
     )
 
     assert config.paired_design_policy == "fixed_block"
+
+
+def test_duplicate_correlation_policy_can_be_declared() -> None:
+    config = DifferentialAnalysisConfig(
+        paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+    )
+
+    assert config.paired_design_policy == "duplicate_correlation"
 
 
 def test_block_identifier_can_be_supplied_explicitly() -> None:
@@ -88,4 +98,18 @@ def test_public_paired_block_contract_remains_narrow() -> None:
     assert "block_id" in sample_fields
     assert {"block", "pair_id", "subject_id"}.isdisjoint(sample_fields)
     assert "paired_design_policy" in config_hints
-    assert set(SUPPORTED_PAIRED_DESIGN_POLICIES) == {"reject", "fixed_block"}
+    assert set(SUPPORTED_PAIRED_DESIGN_POLICIES) == {
+        "reject",
+        "fixed_block",
+        "duplicate_correlation",
+    }
+
+
+def test_supported_paired_design_policy_constants_are_advanced_exports() -> None:
+    for name, expected in (
+        ("PAIRED_DESIGN_POLICY_REJECT", "reject"),
+        ("PAIRED_DESIGN_POLICY_FIXED_BLOCK", "fixed_block"),
+        ("PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION", "duplicate_correlation"),
+    ):
+        assert name in advanced_api.__all__
+        assert getattr(advanced_api, name) == expected

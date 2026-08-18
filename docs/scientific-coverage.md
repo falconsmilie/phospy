@@ -108,6 +108,16 @@ passive sample metadata. A batch fixed effect is a model covariate; it is not
 batch correction and is not ComBat, RUV, `removeBatchEffect`, limma
 `duplicateCorrelation`, or mixed-effects modelling.
 
+Differential paired-design handling is explicit. `fixed_block` represents block
+identity with fixed nuisance coefficients in the design matrix.
+`duplicate_correlation` instead keeps the fixed-effects design free of block
+columns, estimates one consensus within-block correlation by feature-wise REML,
+and fits a compound-symmetry GLS model. The consensus is reused for all
+contrasts from the same fit. The fixed-effects design must leave at least two
+residual degrees of freedom for REML correlation estimation. Neither policy is
+inferred from metadata shape, and neither policy silently substitutes for the
+other.
+
 Dataset preprocessing KNN imputation is deterministic. PhosPy computes
 `nan_euclidean` neighbour distances for `impute_knn` and breaks exact-distance
 ties by stable row identity rather than input row order. Reproducibility-marked
@@ -227,6 +237,11 @@ Validated PhosPy fixed-effect support additionally includes execution for:
 - declared continuous fixed-effect covariates
 - explicit `paired_design_policy="fixed_block"` designs where every block has
   complete coverage for each requested condition contrast
+- explicit `paired_design_policy="duplicate_correlation"` designs with complete
+  block identities, at least one repeated block, a full-rank non-block
+  fixed-effects design with at least two residual degrees of freedom,
+  feature-wise REML consensus-correlation estimation, and compound-symmetry GLS
+  fitting
 - rank and contrast-estimability validation before execution
 - release-gated adverse-design regression contracts for unbalanced groups,
   continuous covariates, near-rank-deficient estimable designs,
@@ -234,8 +249,8 @@ Validated PhosPy fixed-effect support additionally includes execution for:
   positive residual degrees of freedom, and the >1,024-feature trend branch
 
 These fixed-effect covariate models are support for ordinary fixed terms in the
-linear design. They are not batch-correction methods, correlated-replicate
-modelling, or mixed-effects modelling.
+linear design. They are not batch-correction methods or mixed-effects
+modelling.
 Fixed-effect covariates are not full batch correction, and fixed-effect batch
 terms are not substitutes for full batch correction or mixed-effect modelling.
 
@@ -243,8 +258,8 @@ Fixed-block paired designs are supported only when the caller explicitly sets
 `paired_design_policy="fixed_block"` and supplies `SampleDesignRecord.block_id`
 for every analysed sample. The block terms are ordinary fixed effects in the
 design matrix; block terms are fixed effects, not random effects. This is not
-limma `duplicateCorrelation`, not mixed-effects modelling, and not random
-subject modelling; no mixed effects are fitted. For
+`duplicate_correlation`, not mixed-effects modelling, and not random subject
+modelling; no mixed effects are fitted. For
 every requested condition contrast, every block must contain both numerator and
 denominator conditions.
 Incomplete or partially covered blocks are rejected before execution; PhosPy
@@ -252,9 +267,21 @@ does not drop those blocks or samples to make the design fit. Simple unpaired
 workflows keep the default `paired_design_policy="reject"` behavior and are not
 changed by fixed-block support.
 
+Duplicate-correlation paired designs are supported only when the caller
+explicitly sets `paired_design_policy="duplicate_correlation"` and supplies
+`SampleDesignRecord.block_id` for every analysed sample. At least one block must
+contain repeated observations. The fitted fixed-effects design includes
+condition terms and supported fixed covariates, but never block dummy columns.
+The workflow estimates one feature-wise REML consensus correlation using a 15%
+trimmed mean on the Fisher-transformed scale, then fits a GLS model with a
+compound-symmetry covariance structure. The returned public result type and
+tables are the standard differential result objects. Provenance records the
+requested and normalised policy, matrix/design/block fingerprints,
+block-structure counts, consensus-correlation counts and failures, convergence
+and boundary summaries, imputation participation, and GLS fit status.
+
 Explicitly unsupported in this release:
 
-- limma `duplicateCorrelation`-style correlated-replicate modelling
 - mixed-effect differential modelling
 
 Contract difference vs limma/PhosR surface:
@@ -307,7 +334,7 @@ exist, and this page is updated to the correct scope category.
 | References | Bundled runtime references are rat-only. The only approved packaged runtime reference is the exact rat `l6_native` snapshot with a hash-verifiable manifest and typed exact-file upstream PhosR 1.20.0 license evidence. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, external bundle validation, and file-level hashes. New bundled data requires verified typed redistribution evidence, provenance, docs, and tests before `_BUNDLED_DEFAULTS` is updated. Packaged manifests with `unresolved` or `external_only` redistribution status block release. File hashes alone do not establish redistribution approval. |
 | Kinase inference | Kinase scoring/prediction and three explicit activity methods are executable. Scores are relative support or substrate-set summaries, not calibrated causal inference. | Additional kinase inference or activity methods should be added one method at a time with stable scientific policy records and method-specific validation. |
 | Importers | PhosPy supports analysis-ready tables, generic table I/O contracts, generic column-mapped phosphosite import, MaxQuant phosphosite import, and FragPipe/Philosopher/PTMProphet phosphosite import. These are input-preparation adapters that feed dataset-builder validation. They are not broad support for all vendor, search-engine, upstream statistical outputs, Spectronaut, or DIA-NN. | Additional semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. Spectronaut and DIA-NN remain future/demand-driven candidates, not current support. |
-| Richer differential designs | Current parity-protected differential lane is two-condition unpaired simple contrasts. Fixed-effect batch, categorical covariate, continuous covariate, and explicit complete fixed-block terms are executable as ordinary fixed covariates with completeness, rank, and estimability validation. Correlated repeated-measure, `duplicateCorrelation`-style, and mixed-effect modelling are not executable in this release. | Additional richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |
+| Richer differential designs | Current parity-protected differential lanes include two-condition unpaired simple contrasts and explicit duplicate-correlation paired designs. Fixed-effect batch, categorical covariate, continuous covariate, and explicit complete fixed-block terms are executable as ordinary fixed covariates with completeness, rank, and estimability validation. `duplicate_correlation` is executable as a distinct compound-symmetry GLS model using one REML-estimated consensus correlation. Mixed-effect modelling and broader random-effect designs are not executable in this release. | Additional richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |
 | Batch correction | Current executable preprocessing support includes `linear_residualize_batch` fixed-effect residualisation and native SPS/RUV-style correction through `SpsRuvBatchCorrectionConfig`; `ruv_readiness` remains diagnostic/report-only metadata readiness reporting. PhosR-equivalent SPS/RUV-III batch correction is not supported today. | Additional batch-correction methods require explicit control-site, design, imputation, diagnostics, provenance, downstream eligibility, validation, and test contracts. |
 | Enrichment | Native support is offline ORA over caller-supplied gene-set or PTM-set collections with explicit identifier semantics and background. No online resource access is bundled or executed. | Additional enrichment methods or curated resource integrations require explicit data provenance, redistribution approval where relevant, identifier semantics, validation, docs, and tests before support is claimed. |
 | Visualisation | Core PhosPy has no first-class visualisation workflow/API. | Visualisation should consume validated result objects and must not become a hidden analysis engine or source of scientific truth. |
@@ -372,7 +399,7 @@ claimed.
 
 | Area | Scope category | Current executable support | Evidence and release checks | Limits and non-claims |
 | --- | --- | --- | --- | --- |
-| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates. Upstream-imputed datasets remain rejected by default; `imputed_value_policy="withhold_imputed_features"` is an explicit validated PhosPy policy when imputation observation metadata is present. | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, `tests/parity/test_differential_limma_trend_large.py`, `tests/science/test_differential_adverse_design_contracts.py`, plus unit/integration design, fixed-effect provenance, result-contract tests, and `tests/unit/test_differential_imputation_policy.py` | Limma parity is fixture-scoped, including the 1,600-feature trend fixture; adverse fixed-effect/design cases without external expected values are PhosPy regression contracts, not parity. Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. Imputed cells are not treated as fully observed by default. `withhold_imputed_features` withholds high-imputation or insufficient-observation rows, reports status, and excludes withheld rows from model fitting and the Benjamini-Hochberg denominator. It is not observed-only fitting. |
+| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, complete fixed-block terms, and explicit duplicate-correlation paired designs are executable. `duplicate_correlation` estimates one REML consensus correlation and fits compound-symmetry GLS. Upstream-imputed datasets remain rejected by default; `imputed_value_policy="withhold_imputed_features"` is an explicit validated PhosPy policy when imputation observation metadata is present. | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, `tests/parity/test_differential_limma_trend_large.py`, `tests/fixtures/rewrite_parity/differential_duplicate_correlation/`, `tests/science/test_differential_adverse_design_contracts.py`, plus unit/integration design, fixed-effect provenance, result-contract tests, and `tests/unit/test_differential_imputation_policy.py` | Limma parity is fixture-scoped, including the 1,600-feature trend fixture and duplicate-correlation fixtures. Adverse fixed-effect/design cases without external expected values are PhosPy regression contracts, not parity. Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. `duplicate_correlation` is one consensus compound-symmetry correlation, not feature-specific random effects. Mixed-effect, random-slope, multi-random-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. Imputed cells are not treated as fully observed by default. `withhold_imputed_features` withholds high-imputation or insufficient-observation rows, reports status, and excludes withheld rows from model fitting and the Benjamini-Hochberg denominator. It is not observed-only fitting. |
 | Peptide-to-site differential evidence | `validated PhosPy implementation` for the sample-intensity route; `withdrawn` for post-hoc estimate combination | Preferred lane resolves peptide evidence at sample-intensity level before differential model fitting during dataset building before `DifferentialAnalysisWorkflow`. The former post-hoc peptide differential estimate-combination facade is withdrawn from public support and its compatibility shell fails closed before calculation. | `tests/unit/test_peptide_to_site_aggregation.py`, dataset peptide-evidence resolution tests, production-path synthetic known-truth fixture tests in `tests/science/test_release_scientific_validation_fixtures.py`, public export tests, documentation scope tests, installed wheel/sdist boundary probes, and deterministic provenance tests. | The production-path synthetic fixture validates the declared linear fractional-allocation/arithmetic-mean estimator against synthetic known truth only; it is not external parity, empirical validation, biological ground truth, or a claim that the estimator is universally optimal. The withdrawn post-hoc lane is not supported, not fail-open, and not a substitute for sample-level peptide evidence resolution followed by the core differential model. Future public support requires executable mapping semantics, a coherent combined estimand, an inferential result, dependence handling for same-experiment peptide estimates, multiple-testing semantics, provenance semantics, docs, and tests. Mapping policies such as equal splitting or exclusion must not silently execute as ordinary evidence. |
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` PhosR-inspired profile/motif scoring and rank-weighted fusion implemented by PhosPy | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py`, and sparse-support regression contracts in `tests/science/test_kinase_sparse_support_regression_fixtures.py` | Relative support scoring only; not calibrated causal inference. The mode is not an exact PhosR implementation and is not intended to provide numerical parity with PhosR. Sparse-support, leave-one-out, localisation attrition, production-threshold, and ssGSEA-permutation cases are PhosPy regression/science contracts unless an external expected output is documented. Kinase Library scoring is not the default parity lane. |
 | Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_contextual_motif`, `kinase_library_motif_only`, and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/unit/test_kinase_library_workflow_requirements.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Contextual workflow mode still requires resolved `ReferenceBundle` context with `kinase_substrate_map` overlap, eligible kinases at `min_substrates`, and resolved site sequences. It also requires an explicit compatible local `KinaseLibraryResource`. Missing matching residue-class lanes fail validation; they do not fall back to PhosR-inspired motif scoring. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. No official Kinase Library parity claim is made. |
@@ -557,11 +584,13 @@ packaged-reference validation. The maintained commands/workflows are:
   `ProteinAwarePreparationResult`.
 - Fixed-effect covariates in differential analysis are ordinary fixed terms in
   the design matrix. Batch can be modelled this way, but this does not remove
-  batch effects from data and does not implement ComBat, RUV,
-  `removeBatchEffect`, `duplicateCorrelation`, correlated repeated-measure
-  models, or mixed-effects models. Explicit fixed-block terms are supported
-  only when every block is complete for the requested condition contrasts and
-  the resolved design is full rank with estimable contrasts.
+  batch effects from data and does not implement ComBat, RUV, or
+  `removeBatchEffect`. Explicit fixed-block terms are supported only when every
+  block is complete for the requested condition contrasts and the resolved
+  design is full rank with estimable contrasts. Explicit
+  `duplicate_correlation` designs keep block IDs out of the fixed-effects
+  design and model within-block correlation through one consensus
+  compound-symmetry GLS fit.
 - Adjusted p-values control false discovery rate according to the implemented
   correction method; they do not validate biological causality.
 
@@ -603,9 +632,11 @@ Differential outputs now expose structured policy provenance through
 - p-value and adjusted p-value methods
 - missing-value handling policy, differential imputed-value policy, imputation
   fraction threshold, and adjusted-p-value scope
+- duplicate-correlation model provenance when selected, including design,
+  block-assignment, and analysis-matrix fingerprints plus consensus-correlation
+  estimation and GLS status
 - unsupported-design rejection policy and intentionally rejected unsupported
-  design features (`duplicateCorrelation`-style correlated-replicate and
-  mixed-effect or random subject-effect modelling)
+  design features such as mixed-effect or random subject-effect modelling
 
 Protein-aware preparation records preparation-only model-input preparation
 provenance without implying a downstream model. `ProteinAwarePreparationReport`

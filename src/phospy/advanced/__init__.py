@@ -11,6 +11,9 @@ from __future__ import annotations
 
 from phospy._api_inventory import ADVANCED_PUBLIC_API
 from phospy.advanced.configs import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
     CorrectionMaskPolicy,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,

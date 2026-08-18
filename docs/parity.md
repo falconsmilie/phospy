@@ -88,7 +88,10 @@ validated PhosPy implementations:
   residualized as fixed effects by the native correction. It is not
   PhosR-equivalent SPS/RUV-III parity.
 - Differential fixed-effect batch covariates are ordinary model terms. They are
-  not a data-cleaning batch-correction step.
+  not a data-cleaning batch-correction step. Differential
+  `duplicate_correlation` fixtures are a separate limma-envelope lane covering
+  one REML-estimated consensus compound-symmetry correlation and GLS, not a
+  general mixed-effects claim.
 - Release-validation fixtures under
   `tests/fixtures/release_validation_regression/` are PhosPy regression
   contracts. They cover adverse differential designs, peptide evidence
@@ -109,7 +112,7 @@ validated PhosPy implementations:
 
 | Lane | Main fixture/evidence scope |
 | --- | --- |
-| Differential | Two-condition unpaired simple contrasts and related limma-envelope checks (`tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`), plus the large-feature trend fixture (`tests/fixtures/rewrite_parity/differential_limma_trend_large/`) |
+| Differential | Two-condition unpaired simple contrasts and related limma-envelope checks (`tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`), duplicate-correlation paired-design fixtures (`tests/fixtures/rewrite_parity/differential_duplicate_correlation/`), plus the large-feature trend fixture (`tests/fixtures/rewrite_parity/differential_limma_trend_large/`) |
 | Release-validation regression | PhosPy-owned regression fixtures for evidence resolution, sparse kinase support, and signalome safety (`tests/fixtures/release_validation_regression/`) |
 | Kinase scoring/prediction | L6 and public workflow reference lanes (`tests/fixtures/rewrite_parity/r_reference_l6/`, `tests/fixtures/public_workflow_reference/`) plus sparse-support regression fixtures under `tests/fixtures/release_validation_regression/kinase_sparse_support/` |
 | Signalome | Public workflow reference and backend parity lanes (`tests/fixtures/public_workflow_reference/`) plus safety regression fixtures under `tests/fixtures/release_validation_regression/signalome_safety/` |

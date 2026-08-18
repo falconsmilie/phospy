@@ -123,6 +123,9 @@ ADVANCED_CONFIG_API = (
     "MultipleTestingConfig",
     "MultipleTestingCorrection",
     "MultipleTestingMethod",
+    "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
+    "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+    "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",
     "EnrichmentIdentifierKind",
     "EnrichmentMethod",
@@ -209,6 +212,9 @@ _ADVANCED_CONFIG_API_WITH_STABILITY_JUSTIFICATION = (
     "MultipleTestingConfig",
     "MultipleTestingCorrection",
     "MultipleTestingMethod",
+    "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
+    "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+    "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",
     "EnrichmentIdentifierKind",
     "EnrichmentMethod",
@@ -279,7 +285,7 @@ ADVANCED_PUBLIC_API = (
 )
 
 STABLE_PUBLIC_API_BASELINE_COUNT = 68
-ADVANCED_PUBLIC_API_BASELINE_COUNT = 104
+ADVANCED_PUBLIC_API_BASELINE_COUNT = 107
 
 API_COMPATIBILITY_INTRODUCED_VERSION = "1.6.0"
 API_COMPATIBILITY_PLANNED_REMOVAL_VERSION = "2.0.0"
@@ -457,8 +463,6 @@ INTERNAL_EXPERIMENTAL_API = (
     "MULTIPLE_TESTING_METHOD_HOLM",
     "MULTIPLE_TESTING_METHOD_NONE",
     "NormalisationState",
-    "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
-    "PAIRED_DESIGN_POLICY_REJECT",
     "PhosPyBuildError",
     "PhosPyTransformationError",
     "ProteinAwareMappingDiagnostics",

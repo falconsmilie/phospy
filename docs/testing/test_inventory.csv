@@ -6,7 +6,7 @@ tests/architecture/test_bundle_filesystem_lifecycle_ownership.py,architecture,78
 tests/architecture/test_config_ownership.py,architecture,279,6,false,false,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/architecture/test_dataset_builder_preprocessor_contract.py,architecture,128,3,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_deprecation_governance.py,architecture,54,1,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_duplicate_correlation_internal_contracts.py,architecture,44,1,false,false,,,,,,
+tests/architecture/test_duplicate_correlation_internal_contracts.py,architecture,137,2,false,false,,,,,,
 tests/architecture/test_exported_json_state_immutability.py,architecture,377,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_package_dependency_dag.py,architecture,1198,22,true,true,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
@@ -104,7 +104,7 @@ tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
 tests/unit/science/differential/test_compound_symmetry_gls.py,differential,492,9,true,true,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
-tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,620,17,true,true,,,,,,
+tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,633,17,true,true,,,,,,
 tests/unit/test_activity_science.py,unit,3779,100,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,383,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
@@ -151,14 +151,14 @@ tests/unit/test_dataset_transformation_state_establishment.py,unit,1246,39,false
 tests/unit/test_decomposed_ownership_facades.py,unit,101,2,false,false,,,,,,
 tests/unit/test_derived_quantitative_state_certification.py,unit,707,16,true,true,,,,,,
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
-tests/unit/test_differential_analysis.py,unit,1145,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,1146,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
 tests/unit/test_differential_feature_eligibility.py,unit,506,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
-tests/unit/test_differential_fixed_effect_provenance.py,unit,375,5,false,false,,,,,,
-tests/unit/test_differential_imputation_policy.py,unit,539,12,false,false,,,,,,
+tests/unit/test_differential_fixed_effect_provenance.py,unit,380,5,false,false,,,,,,
+tests/unit/test_differential_imputation_policy.py,unit,610,13,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,1062,24,true,true,,,,,,
-tests/unit/test_differential_paired_block_policy_contract.py,unit,91,7,false,false,,,,,,
+tests/unit/test_differential_paired_block_policy_contract.py,unit,115,9,false,false,,,,,,
 tests/unit/test_differential_replicate_reliability_policy.py,unit,429,9,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,60,6,false,false,,,,,,
 tests/unit/test_differential_result_caveats.py,unit,357,6,false,false,,,,,,
@@ -173,7 +173,7 @@ tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,
 tests/unit/test_docs_utf8_readability_smoke.py,unit,10,1,false,false,documentation contract,keep,Loss of this file would allow unreadable Markdown docs or encoding regressions to slip into user-facing documentation.,codex-audit,,Markdown encoding smoke coverage; intentionally no terminology-lint assertions.
 tests/unit/test_domain_boundaries.py,unit,1318,57,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_downstream_batch_correction_boundaries.py,unit,512,8,true,true,,,,,,
-tests/unit/test_duplicate_correlation_scientific_contract.py,unit,356,14,true,true,,,,,,
+tests/unit/test_duplicate_correlation_scientific_contract.py,unit,492,20,true,true,,,,,,
 tests/unit/test_duplicate_site_resolution_reports.py,unit,682,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for duplicate site resolution reports, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_enrichment_collections.py,unit,98,5,false,false,,,,,,
 tests/unit/test_enrichment_identifier_set_provenance.py,unit,741,25,true,true,,,,,,
@@ -185,7 +185,7 @@ tests/unit/test_enrichment_workflow_stage_boundaries.py,unit,217,6,false,false,,
 tests/unit/test_enrichment_workflow_validation.py,unit,369,21,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_error_taxonomy_boundaries.py,unit,190,5,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for error taxonomy boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for multi-site evidence handling, increasing risk of incorrect peptide-to-site interpretation.",codex-audit,,New test file classified after audit-doc regeneration.
-tests/unit/test_experimental_design_contract.py,unit,1133,38,false,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_experimental_design_contract.py,unit,1135,38,false,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_final_numeric_semantic_dataset_coherence.py,unit,418,9,true,true,,,,,,
 tests/unit/test_fixture_byte_policy.py,unit,121,5,true,true,,,,,,
@@ -349,7 +349,7 @@ tests/unit/workflows/signalome/test_signalome_row_attrition.py,signalome,232,3,f
 tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,162,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/validation/test_shared_identity_contracts.py,validation,233,6,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
-tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,527,8,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,1020,19,true,true,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/workflows/test_enrichment_workflow.py,workflows,949,29,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/workflows/test_identity_coherence.py,workflows,187,6,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,243,1,false,false,,,,,,

@@ -13,6 +13,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.contracts.configs import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
 from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.errors import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -131,6 +132,28 @@ def _design(sample_ids: tuple[str, ...] = _SAMPLES) -> ExperimentalDesign:
                 biological_replicate_id=sample_id,
             )
             for sample_id in sample_ids
+        )
+    )
+
+
+def _paired_design() -> ExperimentalDesign:
+    block_ids = {
+        "A_1": "pair_1",
+        "A_2": "pair_2",
+        "A_3": "pair_3",
+        "B_1": "pair_1",
+        "B_2": "pair_2",
+        "B_3": "pair_3",
+    }
+    return ExperimentalDesign(
+        samples=tuple(
+            SampleDesignRecord(
+                sample_id=sample_id,
+                condition=sample_id.split("_", maxsplit=1)[0],
+                biological_replicate_id=sample_id,
+                block_id=block_ids[sample_id],
+            )
+            for sample_id in _SAMPLES
         )
     )
 
@@ -259,6 +282,54 @@ def test_differential_withhold_policy_marks_high_imputation_features() -> None:
         DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_RETAINED_IMPUTED_VALUES
     )
     assert caveat.details["adjusted_p_value_denominator_feature_count"] == 2
+
+
+def test_differential_duplicate_correlation_withhold_policy_records_imputation_residual_df_contract() -> (
+    None
+):
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_imputed_dataset(),
+            design=_paired_design(),
+            contrasts=_contrasts(),
+            config=DifferentialAnalysisConfig(
+                paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                imputed_value_policy="withhold_imputed_features",
+                imputed_value_max_fraction=0.20,
+            ),
+        )
+    )
+    table = result.table_for("B_vs_A")
+
+    assert table["observed_only_fit"].unique().tolist() == [False]
+    assert table["residual_df_adjusted_for_imputation"].unique().tolist() == [False]
+    assert table["inferential_status"].tolist() == [
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_FULLY_OBSERVED,
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_RETAINED_IMPUTED_VALUES,
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_WITHHELD_NOT_TESTED,
+        DIFFERENTIAL_ROW_INFERENCE_STATUS_WITHHELD_NOT_TESTED,
+    ]
+    assert result.residual_degrees_of_freedom == 4.0
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.missing_values.observed_only_fit is False
+    assert (
+        result.policy_provenance.missing_values.residual_df_adjusted_for_imputation
+        is False
+    )
+    duplicate = result.policy_provenance.duplicate_correlation
+    assert duplicate is not None
+    assert duplicate.imputed_values_participated is True
+    assert duplicate.imputed_feature_count == 1
+    assert duplicate.imputed_cell_count == 1
+    assert duplicate.design_rank == 2
+    assert duplicate.gls_fit_status == "fit"
+    assert result.workflow_provenance is not None
+    assert (
+        result.workflow_provenance["imputation_inference"][
+            "residual_df_adjusted_for_imputation"
+        ]
+        is False
+    )
 
 
 def test_differential_imputation_subset_summary_uses_dataset_owned_summary_contract(

@@ -13,6 +13,7 @@ from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
     FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
     FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     Contrast,
     ExperimentalDesign,
@@ -76,6 +77,11 @@ class DifferentialExecutionDesignAssembler:
             coefficient_labels=coefficient_labels,
             paired_design_policy=paired_design_policy,
         )
+        block_ids = _build_duplicate_correlation_block_ids(
+            design=design,
+            sample_order=sample_order,
+            paired_design_policy=paired_design_policy,
+        )
         return DifferentialExecutionDesignInputs(
             design_matrix=design_matrix,
             contrast_matrix=contrast_matrix,
@@ -93,6 +99,7 @@ class DifferentialExecutionDesignAssembler:
             sample_order=sample_order,
             paired_design_policy=paired_design_policy,
             block_column_metadata=block_column_metadata,
+            block_ids=block_ids,
             condition_labels=condition_labels,
             coefficient_labels=coefficient_labels,
             design_decomposition=design_decomposition,
@@ -297,6 +304,47 @@ def _build_block_column_metadata(
         levels=design_build_result.block_levels,
         reference_level=design_build_result.block_reference_level,
         columns=columns,
+    )
+
+
+def _build_duplicate_correlation_block_ids(
+    *,
+    design: ExperimentalDesign,
+    sample_order: tuple[str, ...],
+    paired_design_policy: PairedDesignPolicy,
+) -> tuple[str, ...] | None:
+    if paired_design_policy != PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION:
+        return None
+    records_by_sample = {record.sample_id: record for record in design.samples}
+    missing_samples = [
+        sample_id for sample_id in sample_order if sample_id not in records_by_sample
+    ]
+    if missing_samples:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.duplicate_correlation_block_alignment",
+            next_action=(
+                "ensure every execution design sample has a validated design record"
+            ),
+            details={"missing_samples": missing_samples},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    missing_block_ids = [
+        sample_id
+        for sample_id in sample_order
+        if records_by_sample[sample_id].block_id is None
+    ]
+    if missing_block_ids:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.duplicate_correlation_block_alignment",
+            next_action=(
+                "ensure duplicate-correlation validation retains explicit block_id "
+                "values for every modelled sample"
+            ),
+            details={"missing_samples": missing_block_ids},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    return tuple(
+        str(records_by_sample[sample_id].block_id) for sample_id in sample_order
     )
 
 

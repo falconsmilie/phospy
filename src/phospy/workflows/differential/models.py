@@ -13,6 +13,8 @@ from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.configs.differential import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     DifferentialImputedValuePolicy,
     DifferentialReliabilityProfile,
     MultipleTestingMethod,
@@ -270,6 +272,7 @@ class DifferentialExecutionDesignInputs:
     sample_order: tuple[str, ...]
     paired_design_policy: PairedDesignPolicy
     block_column_metadata: DifferentialBlockColumnMetadata | None
+    block_ids: tuple[str, ...] | None
     condition_labels: tuple[str, ...]
     coefficient_labels: tuple[str, ...]
     design_decomposition: DifferentialDesignDecomposition
@@ -297,6 +300,56 @@ class DifferentialExecutionDesignInputs:
             "sample_order",
             tuple(str(value) for value in self.sample_order),
         )
+        block_ids = (
+            None
+            if self.block_ids is None
+            else tuple(str(value) for value in self.block_ids)
+        )
+        if block_ids is not None and len(block_ids) != len(self.sample_order):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.block_id_alignment",
+                next_action=(
+                    "carry duplicate-correlation block IDs in the exact execution "
+                    "sample order"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if (
+            self.paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+            and block_ids is None
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.duplicate_correlation_blocks",
+                next_action=(
+                    "retain the validated block_id vector separately from the "
+                    "fixed-effects design"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if (
+            self.paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+            and self.block_column_metadata is not None
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.duplicate_correlation_design",
+                next_action=(
+                    "do not combine fixed block coefficients with a block "
+                    "correlation structure"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if (
+            self.paired_design_policy == PAIRED_DESIGN_POLICY_FIXED_BLOCK
+            and block_ids is not None
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.fixed_block_block_vector",
+                next_action=(
+                    "represent fixed_block solely through fixed-effect block columns"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        object.__setattr__(self, "block_ids", block_ids)
         object.__setattr__(
             self,
             "condition_labels",

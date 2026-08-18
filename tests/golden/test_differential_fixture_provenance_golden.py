@@ -302,11 +302,12 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
                 "paired_design_policy='reject' does not construct fixed-block terms",
                 (
                     "explicit block_id metadata is rejected unless "
-                    "paired_design_policy='fixed_block'"
+                    "paired_design_policy='fixed_block' or "
+                    "paired_design_policy='duplicate_correlation'"
                 ),
                 (
                     "unpaired condition and covariate workflows do not fit "
-                    "duplicateCorrelation, mixed-effects, or random subject-effect "
+                    "duplicate_correlation, mixed-effects, or random subject-effect "
                     "models"
                 ),
             ],
@@ -357,9 +358,8 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "intentionally_rejected_features": [
                 (
                     "correlated repeated-measure differential modelling beyond "
-                    "explicit fixed blocks"
+                    "explicit fixed_block and duplicate_correlation policies"
                 ),
-                "duplicateCorrelation-style correlated-replicate modelling",
                 "mixed-effects differential modelling",
                 "random subject-effect differential modelling",
             ],

@@ -14,7 +14,7 @@ from phospy.science.statistics.multiple_testing import (
     MultipleTestingCorrection,
 )
 
-PairedDesignPolicy = Literal["reject", "fixed_block"]
+PairedDesignPolicy = Literal["reject", "fixed_block", "duplicate_correlation"]
 DifferentialImputedValuePolicy = Literal["reject", "withhold_imputed_features"]
 DifferentialReliabilityProfile = Literal[
     "production",
@@ -50,6 +50,7 @@ SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[MultipleTestingMethod, ...] = tuple(
 )
 PAIRED_DESIGN_POLICY_REJECT: PairedDesignPolicy = "reject"
 PAIRED_DESIGN_POLICY_FIXED_BLOCK: PairedDesignPolicy = "fixed_block"
+PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION: PairedDesignPolicy = "duplicate_correlation"
 IMPUTED_VALUE_POLICY_REJECT: DifferentialImputedValuePolicy = "reject"
 IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES: DifferentialImputedValuePolicy = (
     "withhold_imputed_features"
@@ -57,6 +58,7 @@ IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES: DifferentialImputedValuePolicy =
 SUPPORTED_PAIRED_DESIGN_POLICIES: tuple[PairedDesignPolicy, ...] = (
     PAIRED_DESIGN_POLICY_REJECT,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
 )
 SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES: tuple[
     DifferentialImputedValuePolicy,
@@ -81,6 +83,7 @@ __all__ = [
     "MULTIPLE_TESTING_METHOD_HOLM",
     "MULTIPLE_TESTING_METHOD_NONE",
     "MultipleTestingMethod",
+    "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
     "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
     "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",

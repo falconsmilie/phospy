@@ -72,15 +72,21 @@ coverage for each requested contrast. These ordinary fixed-effect linear-model
 terms are validated for required metadata, rank, and contrast estimability
 before execution.
 
+Differential analysis also supports explicit
+`paired_design_policy="duplicate_correlation"` for paired/correlated samples.
+That policy keeps block IDs out of the fixed-effects design, estimates one
+feature-wise REML consensus correlation, and fits a compound-symmetry GLS model.
+It remains distinct from `fixed_block`; neither policy is inferred from sample
+metadata or silently substituted for the other.
+
 Fixed-effect batch terms in differential analysis are model covariates; they
 do not correct the input data. They are not ComBat, not RUV, not limma
 `removeBatchEffect`, not limma `duplicateCorrelation`, not mixed-effects
 modelling, not random effects, and not a general batch-correction method.
 Fixed-block terms are ordinary fixed effects over explicit
 `SampleDesignRecord.block_id` values; they are not random subject modelling,
-mixed-effects modelling, or
-`duplicateCorrelation`-style correlated-replicate modelling. Correlated
-repeated-measure and mixed-effect differential modelling remain unsupported.
+mixed-effects modelling, or duplicate-correlation modelling. Broader
+random-effect and mixed-effect differential modelling remain unsupported.
 
 Dataset preprocessing supports one opt-in batch-residualisation method:
 `linear_residualize_batch`. It uses fixed-effect residualisation of batch terms
@@ -200,11 +206,12 @@ workflow stack:
 - additional semantic importers beyond the current generic, MaxQuant, and
   FragPipe/PTMProphet adapters, without bypassing dataset validation or site
   identity contracts
-- richer differential designs beyond ordinary fixed covariates and complete
-  fixed-block terms, especially correlated repeated-measure,
-  `duplicateCorrelation`-style, random-effect, mixed-effect, or additional
-  batch-effect methods, only after explicit design/result contracts and parity
-  or validation evidence exist
+- richer differential designs beyond ordinary fixed covariates, complete
+  fixed-block terms, and the explicit one-consensus `duplicate_correlation`
+  paired-design policy, especially broader random-effect, mixed-effect,
+  random-slope, multi-random-effect, or additional batch-effect methods, only
+  after explicit design/result contracts and parity or validation evidence
+  exist
 - enrichment workflows and resource integrations beyond current offline ORA,
   kept separate from kinase scoring unless the method is explicitly a kinase
   activity or substrate-set activity method
@@ -260,9 +267,11 @@ Phases are directional, not calendar commitments.
 
 - Preserve current fixed-effect covariate and complete fixed-block support as
   ordinary fixed-term linear-model execution.
-- Extend experimental-design contracts before adding correlated repeated-measure
-  execution, `duplicateCorrelation`-style modelling, random-effect or
-  mixed-effect modelling, or additional batch-effect methods.
+- Preserve the explicit `duplicate_correlation` paired-design lane as one
+  consensus compound-symmetry GLS model, distinct from `fixed_block`.
+- Extend experimental-design contracts before adding broader random-effect,
+  mixed-effect, random-slope, multi-random-effect, or additional batch-effect
+  methods.
 - Preserve explicit contrast definitions and provenance.
 - Add validation and parity/evidence tests before public support claims.
 

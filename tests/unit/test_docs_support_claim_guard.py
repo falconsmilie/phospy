@@ -786,7 +786,7 @@ def test_claim_guard_allows_current_limitation_language() -> None:
                 "Protein-aware preparation is preparation-only and does not claim MSstatsPTM equivalence.",
                 "ORA is not GSEA, ssGSEA, or PTM-SEA support.",
                 "No official Kinase Library compatibility or parity claim is made.",
-                "Fixed-block terms are not limma duplicateCorrelation or mixed-effects modelling.",
+                "Fixed-block terms are not duplicate_correlation or mixed-effects modelling.",
                 "limma-style moderated variance is supported for the scoped differential lane.",
                 "Do not interpret ruv_readiness as RUV support.",
                 "ruv_readiness remains diagnostic/report-only metadata readiness reporting.",

@@ -8,6 +8,7 @@ from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.contracts.configs.differential import (
     DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES,
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
 )
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -43,6 +44,9 @@ DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE = (
 )
 DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE = "differential_withheld_features"
 DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE = "differential_narrow_parity_envelope"
+DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE = (
+    "differential_duplicate_correlation_consensus"
+)
 DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE = (
     "differential_exploratory_single_replicate"
 )
@@ -123,6 +127,9 @@ def build_differential_result_caveats(
             )
         )
 
+    if config.paired_design_policy == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION:
+        caveats.append(_duplicate_correlation_consensus_caveat())
+
     withheld_feature_details = _withheld_feature_details(feature_eligibility_inputs)
     if withheld_feature_details is not None:
         caveats.append(_withheld_feature_caveat(details=withheld_feature_details))
@@ -138,11 +145,7 @@ def build_differential_result_caveats(
                 code=DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE,
                 severity="info",
                 message=(
-                    "Differential analysis used the supported scoped "
-                    "fixed-effect moderated OLS envelope; it is not full "
-                    "limma or PhosR parity, and unsupported repeated-measure, "
-                    "mixed-effect, RUV/SPS, and duplicateCorrelation-style "
-                    "models were not fit."
+                    _narrow_parity_envelope_message(policy_provenance=policy_provenance)
                 ),
                 details=parity_details,
             )
@@ -360,6 +363,24 @@ def _withheld_feature_caveat(
     )
 
 
+def _duplicate_correlation_consensus_caveat() -> ResultCaveat:
+    return ResultCaveat(
+        code=DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE,
+        severity="info",
+        message=(
+            "Differential analysis used one consensus compound-symmetry "
+            "within-block correlation for GLS; it did not fit feature-specific "
+            "random effects."
+        ),
+        details={
+            "paired_design_policy": PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+            "block_treatment": "consensus_correlation",
+            "covariance_structure": "compound_symmetry",
+            "feature_specific_random_effects": False,
+        },
+    )
+
+
 def _withheld_feature_details(
     inputs: DifferentialFeatureEligibilityInputs | None,
 ) -> dict[str, object] | None:
@@ -401,7 +422,12 @@ def _narrow_parity_envelope_details(
         return None
     return {
         "scope": "tested_design_and_contrast_envelope",
-        "model_type": "moderated_ols_fixed_effect",
+        "model_type": (
+            "moderated_gls_duplicate_correlation"
+            if policy_provenance.design.paired_design_policy
+            == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+            else "moderated_ols_fixed_effect"
+        ),
         "full_limma_or_phosr_parity_claimed": False,
         "paired_design_policy": policy_provenance.design.paired_design_policy,
         "unsupported_design_feature_count": unsupported_count,
@@ -411,6 +437,29 @@ def _narrow_parity_envelope_details(
             ruv_readiness_enabled or ruv_readiness_ready
         ),
     }
+
+
+def _narrow_parity_envelope_message(
+    *,
+    policy_provenance: DifferentialPolicyProvenance | None,
+) -> str:
+    if (
+        policy_provenance is not None
+        and policy_provenance.design.paired_design_policy
+        == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+    ):
+        return (
+            "Differential analysis used the supported duplicate-correlation "
+            "moderated GLS envelope; it is not full limma or PhosR parity, and "
+            "unsupported mixed-effect, random-slope, and RUV/SPS models were not "
+            "fit."
+        )
+    return (
+        "Differential analysis used the supported scoped fixed-effect moderated "
+        "OLS envelope; it is not full limma or PhosR parity, and unsupported "
+        "repeated-measure, mixed-effect, and RUV/SPS models were not fit; "
+        "duplicate_correlation was not selected."
+    )
 
 
 def _status_counts(result_status: pd.Series) -> dict[str, int]:
@@ -426,6 +475,7 @@ def _enum_value(value: object) -> str:
 __all__ = [
     "DIFFERENTIAL_DECLARED_SCALE_OVERRIDE_CAVEAT_CODE",
     "DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE",
+    "DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE",
     "DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE",
     "DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE",
     "DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE",
