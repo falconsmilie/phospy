@@ -64,3 +64,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0045 | Enrichment Derived Identifier-Set Provenance | Accepted | 2026-08-03 | [adr_0045_enrichment_derived_identifier_set_provenance.md](adr_0045_enrichment_derived_identifier_set_provenance.md) |
 | ADR-0046 | Kinase Activity Inferential Eligibility | Accepted | 2026-08-05 | [adr_0046_kinase_activity_inferential_eligibility.md](adr_0046_kinase_activity_inferential_eligibility.md) |
 | ADR-0047 | ssGSEA Tie-Block Policy | Accepted | 2026-08-05 | [adr_0047_ssgsea_tie_block_policy.md](adr_0047_ssgsea_tie_block_policy.md) |
+| ADR-0048 | Duplicate-Correlation Scientific Contract | Accepted | 2026-08-18 | [adr_0048_duplicate_correlation_scientific_contract.md](adr_0048_duplicate_correlation_scientific_contract.md) |
