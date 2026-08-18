@@ -20,6 +20,7 @@ tests/architecture/test_validation_ownership_governance.py,architecture,589,10,f
 tests/contract/test_public_differential_consumer.py,contract,121,1,true,false,,,,,,
 tests/contract/test_public_enrichment_consumer.py,contract,67,1,true,false,,,,,,
 tests/golden/test_differential_fixture_provenance_golden.py,golden,371,3,true,false,,,,,,
+tests/golden/test_duplicate_correlation_limma_fixture_integrity.py,golden,423,7,true,true,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,164,5,true,false,,,,,,
 tests/integration/test_dataset_batch_correction_validation.py,integration,296,6,true,false,,,,,,

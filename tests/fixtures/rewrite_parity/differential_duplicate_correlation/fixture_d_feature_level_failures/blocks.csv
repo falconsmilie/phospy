@@ -1,0 +1,11 @@
+"sample_order","sample_id","block_id","block_size","singleton_block"
+1,"failure_block_01_A","failure_block_01",2,FALSE
+2,"failure_block_01_B","failure_block_01",2,FALSE
+3,"failure_block_02_A","failure_block_02",2,FALSE
+4,"failure_block_02_B","failure_block_02",2,FALSE
+5,"failure_block_03_A","failure_block_03",2,FALSE
+6,"failure_block_03_B","failure_block_03",2,FALSE
+7,"failure_block_04_A","failure_block_04",2,FALSE
+8,"failure_block_04_B","failure_block_04",2,FALSE
+9,"failure_block_05_A","failure_block_05",2,FALSE
+10,"failure_block_05_B","failure_block_05",2,FALSE

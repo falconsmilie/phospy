@@ -1,0 +1,13 @@
+"sample_order","sample_id","block_id","block_size","singleton_block"
+1,"ib01_A","ib01",2,FALSE
+2,"ib01_B","ib01",2,FALSE
+3,"ib02_A","ib02",3,FALSE
+4,"ib02_B","ib02",3,FALSE
+5,"ib02_C","ib02",3,FALSE
+6,"ib03_A","ib03",1,TRUE
+7,"ib04_B","ib04",2,FALSE
+8,"ib04_C","ib04",2,FALSE
+9,"ib05_A","ib05",3,FALSE
+10,"ib05_C1","ib05",3,FALSE
+11,"ib05_C2","ib05",3,FALSE
+12,"ib06_C","ib06",1,TRUE

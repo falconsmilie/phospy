@@ -1,0 +1,10 @@
+"feature_order","feature_id","controlled_case","true_B_minus_A","true_C_minus_A"
+1,"FXC_01","null",0,0
+2,"FXC_02","condition_effect",0.45,0.7
+3,"FXC_03","condition_effect",-0.25,-0.4
+4,"FXC_04","condition_effect",0,0.55
+5,"FXC_05","condition_effect",0.8,1.05
+6,"FXC_06","condition_effect",-0.55,-0.75
+7,"FXC_07","null",0,0
+8,"FXC_08","condition_effect",0.3,0.5
+9,"FXC_09","condition_effect",-0.2,-0.35

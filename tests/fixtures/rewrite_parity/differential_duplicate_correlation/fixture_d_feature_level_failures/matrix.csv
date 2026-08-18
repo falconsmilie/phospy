@@ -1,0 +1,9 @@
+"feature_id","failure_block_01_A","failure_block_01_B","failure_block_02_A","failure_block_02_B","failure_block_03_A","failure_block_03_B","failure_block_04_A","failure_block_04_B","failure_block_05_A","failure_block_05_B"
+"D_valid_null",10,10.1,10.2,10,9.9,10,10.1,10.2,9.8,9.9
+"D_valid_effect",8,9,8.2,9.3,7.9,8.8,8.1,9.2,8,9.1
+"D_missing_still_estimable",6,6.4,6.1,NA,5.9,6.3,6.2,6.5,6.1,6.4
+"D_constant_all",5,5,5,5,5,5,5,5,5,5
+"D_near_constant",4,4.0000000001,3.9999999999,4.0000000002,4,3.9999999998,4.0000000001,4,3.9999999999,4.0000000002
+"D_rank_loss_only_A",7,NA,7.1,NA,7.2,NA,7.1,NA,7,NA
+"D_insufficient_one",NA,NA,NA,NA,3,NA,NA,NA,NA,NA
+"D_all_missing",NA,NA,NA,NA,NA,NA,NA,NA,NA,NA

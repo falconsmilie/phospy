@@ -1,0 +1,11 @@
+"feature_order","feature_id","controlled_case","true_B_minus_A"
+1,"FXA_01","null",0
+2,"FXA_02","null",0
+3,"FXA_03","non_null",0.85
+4,"FXA_04","non_null",1.1
+5,"FXA_05","non_null",-0.7
+6,"FXA_06","null",0
+7,"FXA_07","non_null",1.35
+8,"FXA_08","non_null",-1.05
+9,"FXA_09","non_null",0.45
+10,"FXA_10","null",0

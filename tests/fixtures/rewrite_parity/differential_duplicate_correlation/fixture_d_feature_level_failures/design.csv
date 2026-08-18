@@ -1,0 +1,11 @@
+"sample_id","A","B"
+"failure_block_01_A",1,0
+"failure_block_01_B",0,1
+"failure_block_02_A",1,0
+"failure_block_02_B",0,1
+"failure_block_03_A",1,0
+"failure_block_03_B",0,1
+"failure_block_04_A",1,0
+"failure_block_04_B",0,1
+"failure_block_05_A",1,0
+"failure_block_05_B",0,1

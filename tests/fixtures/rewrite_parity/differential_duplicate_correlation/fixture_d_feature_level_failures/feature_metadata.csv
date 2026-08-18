@@ -1,0 +1,9 @@
+"feature_order","feature_id","controlled_case","true_B_minus_A"
+1,"D_valid_null","valid_null",0
+2,"D_valid_effect","valid_non_null",1
+3,"D_missing_still_estimable","missing_observations_but_estimable",NA
+4,"D_constant_all","constant_feature",0
+5,"D_near_constant","near_constant_feature",0
+6,"D_rank_loss_only_A","feature_specific_rank_loss",NA
+7,"D_insufficient_one","insufficient_observed_values",NA
+8,"D_all_missing","all_observations_missing",NA

@@ -1,0 +1,15 @@
+"feature_order","feature_id","controlled_case","true_T1_minus_T0","true_T2_minus_T0","simulated_within_block_correlation"
+1,"FXB_01","null",0,0,-0.47
+2,"FXB_02","time_effect",0.35,0.7,-0.47
+3,"FXB_03","null",0,0,-0.47
+4,"FXB_04","time_effect",0.55,1.1,-0.47
+5,"FXB_05","time_effect",-0.3,-0.55,-0.47
+6,"FXB_06","null",0,0,-0.47
+7,"FXB_07","time_effect",0.8,1.25,-0.47
+8,"FXB_08","time_effect",-0.45,-0.85,-0.47
+9,"FXB_09","time_effect",0.15,0.35,-0.47
+10,"FXB_10","null",0,0,-0.47
+11,"FXB_11","time_effect",0.65,0.95,-0.47
+12,"FXB_12","time_effect",-0.2,-0.4,-0.47
+13,"FXB_13","null",0,0,-0.47
+14,"FXB_14","time_effect",0.45,0.75,-0.47

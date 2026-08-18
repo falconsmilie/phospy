@@ -1,0 +1,9 @@
+"feature_id","A","B"
+"D_valid_null",10,10.04
+"D_valid_effect",8.04,9.08
+"D_missing_still_estimable",6.06,6.40547884580619
+"D_constant_all",5,5
+"D_near_constant",3.99999999998,4.00000000006
+"D_rank_loss_only_A",7.08,NA
+"D_insufficient_one",3,NA
+"D_all_missing",NA,NA
