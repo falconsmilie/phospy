@@ -19,6 +19,11 @@ import numpy.typing as npt
 from scipy.linalg import solve_triangular
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.differential.compound_symmetry_gls import (
+    CompoundSymmetryGLSFit,
+    fit_compound_symmetry_gls,
+    fit_duplicate_correlation_gls,
+)
 from phospy.science.differential.models.duplicate_correlation import (
     DUPLICATE_CORRELATION_METHOD_REML_FISHER_TRIMMED_MEAN,
     DUPLICATE_CORRELATION_TRIM_FRACTION,
@@ -1086,10 +1091,13 @@ def _require_correlation(value: object) -> float:
 
 
 __all__ = [
+    "CompoundSymmetryGLSFit",
     "DUPLICATE_CORRELATION_BOUNDARY_DETECTION_TOLERANCE",
     "DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE",
     "DUPLICATE_CORRELATION_OPTIMIZER_ABSOLUTE_TOLERANCE",
     "DUPLICATE_CORRELATION_OPTIMIZER_MAX_ITERATIONS",
     "DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE",
     "estimate_duplicate_correlation_reml_consensus",
+    "fit_compound_symmetry_gls",
+    "fit_duplicate_correlation_gls",
 ]

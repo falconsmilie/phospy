@@ -102,6 +102,7 @@ tests/unit/references/test_reference_provenance_source_versions.py,references,66
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
+tests/unit/science/differential/test_compound_symmetry_gls.py,differential,492,9,true,true,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
 tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,620,17,true,true,,,,,,
 tests/unit/test_activity_science.py,unit,3779,100,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
