@@ -27,6 +27,16 @@ class DuplicateCorrelationFeatureStatus(StrEnum):
     """Feature-level status for REML correlation estimation."""
 
     ESTIMATED = "estimated"
+    BOUNDARY_CONVERGED = "boundary_converged"
+    INSUFFICIENT_FINITE_OBSERVATIONS = "insufficient_finite_observations"
+    LOST_FIXED_EFFECT_ESTIMABILITY = "lost_fixed_effect_estimability"
+    INSUFFICIENT_RESIDUAL_DEGREES_OF_FREEDOM = (
+        "insufficient_residual_degrees_of_freedom"
+    )
+    NO_REPEATED_OBSERVATIONS = "no_repeated_observations"
+    ZERO_OR_UNUSABLE_RESIDUAL_VARIATION = "zero_or_unusable_residual_variation"
+    OPTIMISATION_FAILED = "optimisation_failed"
+    NON_FINITE_OBJECTIVE_OR_ESTIMATE = "non_finite_objective_or_estimate"
     NOT_ESTIMABLE = "not_estimable"
     NON_CONVERGED = "non_converged"
     NON_FINITE = "non_finite"
@@ -51,6 +61,177 @@ class DuplicateCorrelationFailureReason(StrEnum):
     ALL_ELIGIBLE_FEATURE_ESTIMATES_NON_FINITE = (
         "all_eligible_feature_estimates_non_finite"
     )
+    INSUFFICIENT_FINITE_OBSERVATIONS = "insufficient_finite_observations"
+    LOST_FIXED_EFFECT_ESTIMABILITY = "lost_fixed_effect_estimability"
+    INSUFFICIENT_RESIDUAL_DEGREES_OF_FREEDOM = (
+        "insufficient_residual_degrees_of_freedom"
+    )
+    NO_REPEATED_OBSERVATIONS_AFTER_SUBSETTING = (
+        "no_repeated_observations_after_subsetting"
+    )
+    ZERO_OR_UNUSABLE_RESIDUAL_VARIATION = "zero_or_unusable_residual_variation"
+    OPTIMISATION_FAILED = "optimisation_failed"
+    NON_FINITE_OBJECTIVE_OR_ESTIMATE = "non_finite_objective_or_estimate"
+
+
+class DuplicateCorrelationBoundary(StrEnum):
+    """Numerical boundary reached by a feature-level optimisation."""
+
+    LOWER = "lower"
+    UPPER = "upper"
+
+
+_SUCCESS_FEATURE_STATUSES = frozenset(
+    {
+        DuplicateCorrelationFeatureStatus.ESTIMATED,
+        DuplicateCorrelationFeatureStatus.BOUNDARY_CONVERGED,
+    }
+)
+
+_NON_FINITE_FEATURE_STATUSES = frozenset(
+    {
+        DuplicateCorrelationFeatureStatus.NON_FINITE,
+        DuplicateCorrelationFeatureStatus.NON_FINITE_OBJECTIVE_OR_ESTIMATE,
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateCorrelationReasonCount:
+    """Count of feature-level failures for one typed reason."""
+
+    reason: DuplicateCorrelationFailureReason
+    count: int
+
+    def __post_init__(self) -> None:
+        reason = _optional_failure_reason(
+            self.reason,
+            field_name="duplicate_correlation.reason_count.reason",
+        )
+        if reason is None:
+            raise PhosPyInputError(
+                "duplicate_correlation.reason_count.reason must not be None"
+            )
+        object.__setattr__(self, "reason", reason)
+        object.__setattr__(
+            self,
+            "count",
+            _require_non_negative_int(
+                self.count,
+                field_name="duplicate_correlation.reason_count.count",
+            ),
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible reason-count payload."""
+
+        return {"reason": self.reason.value, "count": self.count}
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateCorrelationConvergenceSummary:
+    """Feature-level optimisation convergence counts."""
+
+    converged_feature_count: int
+    boundary_feature_count: int
+    failed_optimisation_feature_count: int
+    non_finite_objective_or_estimate_feature_count: int
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "converged_feature_count",
+            "boundary_feature_count",
+            "failed_optimisation_feature_count",
+            "non_finite_objective_or_estimate_feature_count",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _require_non_negative_int(
+                    getattr(self, field_name),
+                    field_name=f"duplicate_correlation.convergence.{field_name}",
+                ),
+            )
+        if self.boundary_feature_count > self.converged_feature_count:
+            raise PhosPyInputError(
+                "duplicate_correlation.convergence.boundary_feature_count cannot "
+                "exceed converged_feature_count"
+            )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible convergence summary."""
+
+        return {
+            "converged_feature_count": self.converged_feature_count,
+            "boundary_feature_count": self.boundary_feature_count,
+            "failed_optimisation_feature_count": (
+                self.failed_optimisation_feature_count
+            ),
+            "non_finite_objective_or_estimate_feature_count": (
+                self.non_finite_objective_or_estimate_feature_count
+            ),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateCorrelationBoundarySummary:
+    """Workflow-level positive-definite interval and boundary counts."""
+
+    lower_correlation_bound: float
+    upper_correlation_bound: float
+    lower_boundary_feature_count: int
+    upper_boundary_feature_count: int
+    positive_definite_tolerance: float
+    fisher_boundary_tolerance: float
+
+    def __post_init__(self) -> None:
+        lower = _require_finite_float(
+            self.lower_correlation_bound,
+            field_name="duplicate_correlation.boundary.lower_correlation_bound",
+        )
+        upper = _require_finite_float(
+            self.upper_correlation_bound,
+            field_name="duplicate_correlation.boundary.upper_correlation_bound",
+        )
+        if not -1.0 < lower < upper < 1.0:
+            raise PhosPyInputError(
+                "duplicate_correlation.boundary correlation bounds must satisfy "
+                "-1.0 < lower < upper < 1.0"
+            )
+        lower_count = _require_non_negative_int(
+            self.lower_boundary_feature_count,
+            field_name=("duplicate_correlation.boundary.lower_boundary_feature_count"),
+        )
+        upper_count = _require_non_negative_int(
+            self.upper_boundary_feature_count,
+            field_name=("duplicate_correlation.boundary.upper_boundary_feature_count"),
+        )
+        pd_tolerance = _require_positive_float(
+            self.positive_definite_tolerance,
+            field_name=("duplicate_correlation.boundary.positive_definite_tolerance"),
+        )
+        fisher_tolerance = _require_positive_float(
+            self.fisher_boundary_tolerance,
+            field_name="duplicate_correlation.boundary.fisher_boundary_tolerance",
+        )
+        object.__setattr__(self, "lower_correlation_bound", lower)
+        object.__setattr__(self, "upper_correlation_bound", upper)
+        object.__setattr__(self, "lower_boundary_feature_count", lower_count)
+        object.__setattr__(self, "upper_boundary_feature_count", upper_count)
+        object.__setattr__(self, "positive_definite_tolerance", pd_tolerance)
+        object.__setattr__(self, "fisher_boundary_tolerance", fisher_tolerance)
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible boundary summary."""
+
+        return {
+            "lower_correlation_bound": self.lower_correlation_bound,
+            "upper_correlation_bound": self.upper_correlation_bound,
+            "lower_boundary_feature_count": self.lower_boundary_feature_count,
+            "upper_boundary_feature_count": self.upper_boundary_feature_count,
+            "positive_definite_tolerance": self.positive_definite_tolerance,
+            "fisher_boundary_tolerance": self.fisher_boundary_tolerance,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +245,8 @@ class DuplicateCorrelationBlockStructureSummary:
     singleton_block_count: int
     correlated_pair_count: int
     block_levels: tuple[str, ...]
+    minimum_block_size: int | None = None
+    maximum_block_size: int | None = None
 
     def __post_init__(self) -> None:
         block_id_field_name = _require_non_empty_string(
@@ -93,6 +276,14 @@ class DuplicateCorrelationBlockStructureSummary:
         block_levels = _require_non_empty_string_tuple(
             self.block_levels,
             field_name="duplicate_correlation.block_structure.block_levels",
+        )
+        minimum_block_size = _optional_positive_int(
+            self.minimum_block_size,
+            field_name="duplicate_correlation.block_structure.minimum_block_size",
+        )
+        maximum_block_size = _optional_positive_int(
+            self.maximum_block_size,
+            field_name="duplicate_correlation.block_structure.maximum_block_size",
         )
         if len(set(block_levels)) != len(block_levels):
             raise PhosPyInputError(
@@ -129,6 +320,37 @@ class DuplicateCorrelationBlockStructureSummary:
                 "duplicate_correlation.block_structure.correlated_pair_count must "
                 "be at least repeated_block_count"
             )
+        if minimum_block_size is not None and maximum_block_size is not None:
+            if minimum_block_size > maximum_block_size:
+                raise PhosPyInputError(
+                    "duplicate_correlation.block_structure minimum_block_size "
+                    "cannot exceed maximum_block_size"
+                )
+            if maximum_block_size > sample_count:
+                raise PhosPyInputError(
+                    "duplicate_correlation.block_structure.maximum_block_size "
+                    "cannot exceed sample_count"
+                )
+            if singleton_block_count > 0 and minimum_block_size != 1:
+                raise PhosPyInputError(
+                    "duplicate_correlation.block_structure.minimum_block_size "
+                    "must be 1 when singleton blocks are present"
+                )
+            if singleton_block_count == 0 and minimum_block_size < 2:
+                raise PhosPyInputError(
+                    "duplicate_correlation.block_structure.minimum_block_size "
+                    "must be at least 2 when no singleton blocks are present"
+                )
+            if repeated_block_count > 0 and maximum_block_size < 2:
+                raise PhosPyInputError(
+                    "duplicate_correlation.block_structure.maximum_block_size "
+                    "must be at least 2 when repeated blocks are present"
+                )
+            if repeated_block_count == 0 and maximum_block_size != 1:
+                raise PhosPyInputError(
+                    "duplicate_correlation.block_structure.maximum_block_size "
+                    "must be 1 when no repeated blocks are present"
+                )
         object.__setattr__(self, "block_id_field_name", block_id_field_name)
         object.__setattr__(self, "sample_count", sample_count)
         object.__setattr__(self, "block_count", block_count)
@@ -136,6 +358,8 @@ class DuplicateCorrelationBlockStructureSummary:
         object.__setattr__(self, "singleton_block_count", singleton_block_count)
         object.__setattr__(self, "correlated_pair_count", correlated_pair_count)
         object.__setattr__(self, "block_levels", block_levels)
+        object.__setattr__(self, "minimum_block_size", minimum_block_size)
+        object.__setattr__(self, "maximum_block_size", maximum_block_size)
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible block-structure summary."""
@@ -148,6 +372,8 @@ class DuplicateCorrelationBlockStructureSummary:
             "singleton_block_count": self.singleton_block_count,
             "correlated_pair_count": self.correlated_pair_count,
             "block_levels": list(self.block_levels),
+            "minimum_block_size": self.minimum_block_size,
+            "maximum_block_size": self.maximum_block_size,
         }
 
 
@@ -159,6 +385,13 @@ class DuplicateCorrelationFeatureEstimate:
     status: DuplicateCorrelationFeatureStatus
     correlation: float | None = None
     failure_reason: DuplicateCorrelationFailureReason | None = None
+    observed_value_count: int | None = None
+    design_rank: int | None = None
+    residual_degrees_of_freedom: float | None = None
+    objective_value: float | None = None
+    lower_correlation_bound: float | None = None
+    upper_correlation_bound: float | None = None
+    boundary: DuplicateCorrelationBoundary | None = None
 
     def __post_init__(self) -> None:
         feature_id = _require_non_empty_string(
@@ -173,7 +406,7 @@ class DuplicateCorrelationFeatureEstimate:
             self.failure_reason,
             field_name="duplicate_correlation.feature_estimate.failure_reason",
         )
-        if status is DuplicateCorrelationFeatureStatus.ESTIMATED:
+        if status in _SUCCESS_FEATURE_STATUSES:
             if failure_reason is not None:
                 raise PhosPyInputError(
                     "successful duplicate-correlation feature estimates must not "
@@ -195,10 +428,91 @@ class DuplicateCorrelationFeatureEstimate:
                     "failure reason"
                 )
             correlation = None
+        observed_value_count = _optional_non_negative_int(
+            self.observed_value_count,
+            field_name="duplicate_correlation.feature_estimate.observed_value_count",
+        )
+        design_rank = _optional_non_negative_int(
+            self.design_rank,
+            field_name="duplicate_correlation.feature_estimate.design_rank",
+        )
+        residual_degrees_of_freedom = _optional_non_negative_float(
+            self.residual_degrees_of_freedom,
+            field_name=(
+                "duplicate_correlation.feature_estimate.residual_degrees_of_freedom"
+            ),
+        )
+        objective_value = _optional_finite_float(
+            self.objective_value,
+            field_name="duplicate_correlation.feature_estimate.objective_value",
+        )
+        lower_correlation_bound = _optional_correlation_bound(
+            self.lower_correlation_bound,
+            field_name=(
+                "duplicate_correlation.feature_estimate.lower_correlation_bound"
+            ),
+        )
+        upper_correlation_bound = _optional_correlation_bound(
+            self.upper_correlation_bound,
+            field_name=(
+                "duplicate_correlation.feature_estimate.upper_correlation_bound"
+            ),
+        )
+        if (
+            lower_correlation_bound is not None
+            and upper_correlation_bound is not None
+            and lower_correlation_bound >= upper_correlation_bound
+        ):
+            raise PhosPyInputError(
+                "duplicate_correlation.feature_estimate correlation bounds must "
+                "satisfy lower < upper"
+            )
+        boundary = _optional_boundary(
+            self.boundary,
+            field_name="duplicate_correlation.feature_estimate.boundary",
+        )
+        if status is DuplicateCorrelationFeatureStatus.BOUNDARY_CONVERGED:
+            if boundary is None:
+                raise PhosPyInputError(
+                    "boundary-converged duplicate-correlation feature estimates "
+                    "must identify the reached boundary"
+                )
+            if objective_value is None:
+                raise PhosPyInputError(
+                    "boundary-converged duplicate-correlation feature estimates "
+                    "must carry the finite REML objective value"
+                )
+        if (
+            status is DuplicateCorrelationFeatureStatus.ESTIMATED
+            and boundary is not None
+        ):
+            raise PhosPyInputError(
+                "interior duplicate-correlation feature estimates must not carry "
+                "a boundary marker"
+            )
         object.__setattr__(self, "feature_id", feature_id)
         object.__setattr__(self, "status", status)
         object.__setattr__(self, "correlation", correlation)
         object.__setattr__(self, "failure_reason", failure_reason)
+        object.__setattr__(self, "observed_value_count", observed_value_count)
+        object.__setattr__(self, "design_rank", design_rank)
+        object.__setattr__(
+            self,
+            "residual_degrees_of_freedom",
+            residual_degrees_of_freedom,
+        )
+        object.__setattr__(self, "objective_value", objective_value)
+        object.__setattr__(
+            self,
+            "lower_correlation_bound",
+            lower_correlation_bound,
+        )
+        object.__setattr__(
+            self,
+            "upper_correlation_bound",
+            upper_correlation_bound,
+        )
+        object.__setattr__(self, "boundary", boundary)
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible internal feature-estimate payload."""
@@ -210,6 +524,13 @@ class DuplicateCorrelationFeatureEstimate:
             "failure_reason": (
                 None if self.failure_reason is None else self.failure_reason.value
             ),
+            "observed_value_count": self.observed_value_count,
+            "design_rank": self.design_rank,
+            "residual_degrees_of_freedom": self.residual_degrees_of_freedom,
+            "objective_value": self.objective_value,
+            "lower_correlation_bound": self.lower_correlation_bound,
+            "upper_correlation_bound": self.upper_correlation_bound,
+            "boundary": None if self.boundary is None else self.boundary.value,
         }
 
 
@@ -290,6 +611,15 @@ class DuplicateCorrelationConsensusResult:
     non_finite_feature_count: int
     failure_reason: DuplicateCorrelationFailureReason | None = None
     feature_estimates: tuple[DuplicateCorrelationFeatureEstimate, ...] = ()
+    attempted_feature_count: int | None = None
+    trimmed_feature_count_each_tail: int = 0
+    retained_feature_count_after_trimming: int | None = None
+    failure_reason_counts: tuple[DuplicateCorrelationReasonCount, ...] = ()
+    convergence_summary: DuplicateCorrelationConvergenceSummary | None = None
+    boundary_summary: DuplicateCorrelationBoundarySummary | None = None
+    block_structure: DuplicateCorrelationBlockStructureSummary | None = None
+    design_rank: int | None = None
+    sample_count: int | None = None
 
     def __post_init__(self) -> None:
         (
@@ -317,6 +647,60 @@ class DuplicateCorrelationConsensusResult:
             self.feature_estimates,
             field_name="duplicate_correlation.consensus.feature_estimates",
         )
+        attempted = _optional_non_negative_int(
+            self.attempted_feature_count,
+            field_name="duplicate_correlation.consensus.attempted_feature_count",
+        )
+        if attempted is None:
+            attempted = eligible
+        if attempted < eligible:
+            raise PhosPyInputError(
+                "duplicate_correlation.consensus.attempted_feature_count cannot "
+                "be smaller than eligible_feature_count"
+            )
+        trimmed = _require_non_negative_int(
+            self.trimmed_feature_count_each_tail,
+            field_name=(
+                "duplicate_correlation.consensus.trimmed_feature_count_each_tail"
+            ),
+        )
+        retained = _optional_non_negative_int(
+            self.retained_feature_count_after_trimming,
+            field_name=(
+                "duplicate_correlation.consensus.retained_feature_count_after_trimming"
+            ),
+        )
+        if retained is None:
+            retained = max(estimated - (2 * trimmed), 0)
+        if retained + (2 * trimmed) > estimated:
+            raise PhosPyInputError(
+                "duplicate_correlation.consensus trimmed plus retained feature "
+                "counts cannot exceed estimated_feature_count"
+            )
+        failure_reason_counts = _require_reason_count_tuple(
+            self.failure_reason_counts,
+            field_name="duplicate_correlation.consensus.failure_reason_counts",
+        )
+        convergence_summary = _optional_convergence_summary(
+            self.convergence_summary,
+            field_name="duplicate_correlation.consensus.convergence_summary",
+        )
+        boundary_summary = _optional_boundary_summary(
+            self.boundary_summary,
+            field_name="duplicate_correlation.consensus.boundary_summary",
+        )
+        block_structure = _optional_block_structure(
+            self.block_structure,
+            field_name="duplicate_correlation.consensus.block_structure",
+        )
+        design_rank = _optional_non_negative_int(
+            self.design_rank,
+            field_name="duplicate_correlation.consensus.design_rank",
+        )
+        sample_count = _optional_non_negative_int(
+            self.sample_count,
+            field_name="duplicate_correlation.consensus.sample_count",
+        )
         if estimates:
             _validate_retained_feature_estimate_counts(
                 estimates=estimates,
@@ -325,6 +709,11 @@ class DuplicateCorrelationConsensusResult:
                 failed_feature_count=failed,
                 non_finite_feature_count=non_finite,
             )
+            if failure_reason_counts:
+                _validate_failure_reason_counts(
+                    estimates=estimates,
+                    failure_reason_counts=failure_reason_counts,
+                )
         object.__setattr__(self, "method", method)
         object.__setattr__(self, "trim_fraction", trim_fraction)
         object.__setattr__(self, "eligible_feature_count", eligible)
@@ -334,6 +723,19 @@ class DuplicateCorrelationConsensusResult:
         object.__setattr__(self, "failure_reason", failure_reason)
         object.__setattr__(self, "consensus_correlation", consensus_correlation)
         object.__setattr__(self, "feature_estimates", estimates)
+        object.__setattr__(self, "attempted_feature_count", attempted)
+        object.__setattr__(self, "trimmed_feature_count_each_tail", trimmed)
+        object.__setattr__(
+            self,
+            "retained_feature_count_after_trimming",
+            retained,
+        )
+        object.__setattr__(self, "failure_reason_counts", failure_reason_counts)
+        object.__setattr__(self, "convergence_summary", convergence_summary)
+        object.__setattr__(self, "boundary_summary", boundary_summary)
+        object.__setattr__(self, "block_structure", block_structure)
+        object.__setattr__(self, "design_rank", design_rank)
+        object.__setattr__(self, "sample_count", sample_count)
 
     def to_summary(self) -> DuplicateCorrelationConsensusSummary:
         """Return the feature-free summary suitable for workflow provenance."""
@@ -354,6 +756,31 @@ class DuplicateCorrelationConsensusResult:
         """Return a JSON-compatible internal estimator payload."""
 
         payload = self.to_summary().to_payload()
+        payload["attempted_feature_count"] = self.attempted_feature_count
+        payload["trimmed_feature_count_each_tail"] = (
+            self.trimmed_feature_count_each_tail
+        )
+        payload["retained_feature_count_after_trimming"] = (
+            self.retained_feature_count_after_trimming
+        )
+        payload["failure_reason_counts"] = [
+            reason_count.to_payload() for reason_count in self.failure_reason_counts
+        ]
+        payload["convergence_summary"] = (
+            None
+            if self.convergence_summary is None
+            else self.convergence_summary.to_payload()
+        )
+        payload["boundary_summary"] = (
+            None
+            if self.boundary_summary is None
+            else self.boundary_summary.to_payload()
+        )
+        payload["block_structure"] = (
+            None if self.block_structure is None else self.block_structure.to_payload()
+        )
+        payload["design_rank"] = self.design_rank
+        payload["sample_count"] = self.sample_count
         payload["feature_estimates"] = [
             estimate.to_payload() for estimate in self.feature_estimates
         ]
@@ -583,13 +1010,11 @@ def _validate_retained_feature_estimate_counts(
             "eligible_feature_count"
         )
     estimated = sum(
-        estimate.status is DuplicateCorrelationFeatureStatus.ESTIMATED
-        for estimate in estimates
+        estimate.status in _SUCCESS_FEATURE_STATUSES for estimate in estimates
     )
     failed = len(estimates) - estimated
     non_finite = sum(
-        estimate.status is DuplicateCorrelationFeatureStatus.NON_FINITE
-        for estimate in estimates
+        estimate.status in _NON_FINITE_FEATURE_STATUSES for estimate in estimates
     )
     if estimated != estimated_feature_count:
         raise PhosPyInputError(
@@ -608,6 +1033,24 @@ def _validate_retained_feature_estimate_counts(
         )
 
 
+def _validate_failure_reason_counts(
+    *,
+    estimates: tuple[DuplicateCorrelationFeatureEstimate, ...],
+    failure_reason_counts: tuple[DuplicateCorrelationReasonCount, ...],
+) -> None:
+    observed: dict[DuplicateCorrelationFailureReason, int] = {}
+    for estimate in estimates:
+        if estimate.failure_reason is None:
+            continue
+        observed[estimate.failure_reason] = observed.get(estimate.failure_reason, 0) + 1
+    expected = {item.reason: item.count for item in failure_reason_counts}
+    if expected != observed:
+        raise PhosPyInputError(
+            "duplicate_correlation.consensus.failure_reason_counts must match "
+            "retained feature estimate failure reasons"
+        )
+
+
 def _require_feature_estimate_tuple(
     values: object,
     *,
@@ -623,6 +1066,27 @@ def _require_feature_estimate_tuple(
             )
         estimates.append(estimate)
     return tuple(estimates)
+
+
+def _require_reason_count_tuple(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[DuplicateCorrelationReasonCount, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence")
+    reason_counts: list[DuplicateCorrelationReasonCount] = []
+    seen_reasons: set[DuplicateCorrelationFailureReason] = set()
+    for value in cast(Sequence[object], values):
+        if not isinstance(value, DuplicateCorrelationReasonCount):
+            raise PhosPyInputError(
+                f"{field_name} must contain DuplicateCorrelationReasonCount values"
+            )
+        if value.reason in seen_reasons:
+            raise PhosPyInputError(f"{field_name} cannot contain duplicate reasons")
+        seen_reasons.add(value.reason)
+        reason_counts.append(value)
+    return tuple(reason_counts)
 
 
 def _require_non_empty_string(value: object, *, field_name: str) -> str:
@@ -657,6 +1121,58 @@ def _require_non_negative_int(value: object, *, field_name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise PhosPyInputError(f"{field_name} must be a non-negative integer")
     return int(value)
+
+
+def _optional_non_negative_int(value: object, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    return _require_non_negative_int(value, field_name=field_name)
+
+
+def _optional_positive_int(value: object, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    return _require_positive_int(value, field_name=field_name)
+
+
+def _require_finite_float(value: object, *, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise PhosPyInputError(f"{field_name} must be numeric")
+    coerced = float(value)
+    if not math.isfinite(coerced):
+        raise PhosPyInputError(f"{field_name} must be finite")
+    return coerced
+
+
+def _require_positive_float(value: object, *, field_name: str) -> float:
+    coerced = _require_finite_float(value, field_name=field_name)
+    if coerced <= 0.0:
+        raise PhosPyInputError(f"{field_name} must be > 0.0")
+    return coerced
+
+
+def _optional_non_negative_float(value: object, *, field_name: str) -> float | None:
+    if value is None:
+        return None
+    coerced = _require_finite_float(value, field_name=field_name)
+    if coerced < 0.0:
+        raise PhosPyInputError(f"{field_name} must be non-negative")
+    return coerced
+
+
+def _optional_finite_float(value: object, *, field_name: str) -> float | None:
+    if value is None:
+        return None
+    return _require_finite_float(value, field_name=field_name)
+
+
+def _optional_correlation_bound(value: object, *, field_name: str) -> float | None:
+    if value is None:
+        return None
+    bound = _require_finite_float(value, field_name=field_name)
+    if not -1.0 < bound < 1.0:
+        raise PhosPyInputError(f"{field_name} must be in (-1.0, 1.0)")
+    return bound
 
 
 def _require_canonical_method(value: object, *, field_name: str) -> str:
@@ -725,14 +1241,75 @@ def _optional_failure_reason(
         ) from error
 
 
+def _optional_boundary(
+    value: object,
+    *,
+    field_name: str,
+) -> DuplicateCorrelationBoundary | None:
+    if value is None:
+        return None
+    try:
+        return DuplicateCorrelationBoundary(value)
+    except ValueError as error:
+        raise PhosPyInputError(
+            f"{field_name} must be a supported duplicate-correlation boundary"
+        ) from error
+
+
+def _optional_convergence_summary(
+    value: object,
+    *,
+    field_name: str,
+) -> DuplicateCorrelationConvergenceSummary | None:
+    if value is None:
+        return None
+    if not isinstance(value, DuplicateCorrelationConvergenceSummary):
+        raise PhosPyInputError(
+            f"{field_name} must be a DuplicateCorrelationConvergenceSummary"
+        )
+    return value
+
+
+def _optional_boundary_summary(
+    value: object,
+    *,
+    field_name: str,
+) -> DuplicateCorrelationBoundarySummary | None:
+    if value is None:
+        return None
+    if not isinstance(value, DuplicateCorrelationBoundarySummary):
+        raise PhosPyInputError(
+            f"{field_name} must be a DuplicateCorrelationBoundarySummary"
+        )
+    return value
+
+
+def _optional_block_structure(
+    value: object,
+    *,
+    field_name: str,
+) -> DuplicateCorrelationBlockStructureSummary | None:
+    if value is None:
+        return None
+    if not isinstance(value, DuplicateCorrelationBlockStructureSummary):
+        raise PhosPyInputError(
+            f"{field_name} must be a DuplicateCorrelationBlockStructureSummary"
+        )
+    return value
+
+
 __all__ = [
     "DUPLICATE_CORRELATION_METHOD_REML_FISHER_TRIMMED_MEAN",
     "DUPLICATE_CORRELATION_TRIM_FRACTION",
+    "DuplicateCorrelationBoundary",
+    "DuplicateCorrelationBoundarySummary",
     "DuplicateCorrelationBlockStructureSummary",
+    "DuplicateCorrelationConvergenceSummary",
     "DuplicateCorrelationConsensusResult",
     "DuplicateCorrelationConsensusSummary",
     "DuplicateCorrelationFailureReason",
     "DuplicateCorrelationFeatureEstimate",
     "DuplicateCorrelationFeatureStatus",
+    "DuplicateCorrelationReasonCount",
     "DuplicateCorrelationWorkflowProvenance",
 ]
