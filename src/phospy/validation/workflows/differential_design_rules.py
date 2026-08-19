@@ -638,11 +638,11 @@ class DuplicateCorrelationDesignValidator:
         )
         if (
             residual_degrees_of_freedom
-            < DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM
+            <= DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM
         ):
             raise WorkflowValidationError(
                 "differential.paired_design_policy='duplicate_correlation' requires "
-                "at least two residual degrees of freedom for REML correlation "
+                "more than two residual degrees of freedom for REML correlation "
                 "estimation; "
                 f"samples={len(analysis_sample_ids)}, "
                 f"design_rank={int(design_decomposition.rank)}, "

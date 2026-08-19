@@ -4,6 +4,7 @@ import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced.configs import (
+    DifferentialAnalysisConfig,
     KinasePredictionConfig,
     KinaseReferenceDisplayAmbiguityPolicy,
     KinaseScoringConfig,
@@ -26,6 +27,7 @@ from phospy.api.results import (
 )
 from phospy.contracts.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -144,6 +146,65 @@ def build_duplicate_display_differential_request(
         design=design,
         contrasts=(
             Contrast(name="B_vs_A", numerator_condition="B", denominator_condition="A"),
+        ),
+    )
+
+
+def build_duplicate_display_duplicate_correlation_differential_request() -> (
+    DifferentialAnalysisRequest
+):
+    site_index = duplicate_display_site_index()
+    sample_ids = (
+        "pair_1_A",
+        "pair_1_B",
+        "pair_2_A",
+        "pair_2_B",
+        "pair_3_A",
+        "pair_3_B",
+    )
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=pd.DataFrame(
+            {
+                "pair_1_A": [1.00, 2.00],
+                "pair_1_B": [2.05, 2.08],
+                "pair_2_A": [1.12, 2.04],
+                "pair_2_B": [2.18, 2.16],
+                "pair_3_A": [0.92, 1.96],
+                "pair_3_B": [2.02, 2.09],
+            },
+            index=site_index.copy(),
+        ),
+        site_metadata=duplicate_display_site_metadata(site_index),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    )
+    blocks = ("pair_1", "pair_1", "pair_2", "pair_2", "pair_3", "pair_3")
+    conditions = ("A", "B", "A", "B", "A", "B")
+    design = ExperimentalDesign(
+        samples=tuple(
+            SampleDesignRecord(
+                sample_id=sample_id,
+                condition=condition,
+                biological_replicate_id=f"{condition}_{position}",
+                block_id=block_id,
+            )
+            for position, (sample_id, condition, block_id) in enumerate(
+                zip(sample_ids, conditions, blocks, strict=True),
+                start=1,
+            )
+        )
+    )
+    return DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=design,
+        contrasts=(
+            Contrast(name="B_vs_A", numerator_condition="B", denominator_condition="A"),
+        ),
+        config=DifferentialAnalysisConfig(
+            paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
         ),
     )
 

@@ -40,10 +40,10 @@ estimates, Fisher `atanh` transformation, a `15%` trimmed mean from each tail,
 and inverse `tanh` transformation. The trim value is fixed at `0.15`; it is not
 a public tuning parameter.
 
-For the estimator to run, the full non-block fixed-effects design must leave at
-least two residual degrees of freedom, i.e. the analysed sample count must be at
-least two larger than the design rank. Feature-level REML estimates with fewer
-than two observed residual degrees of freedom are not eligible for consensus
+For the estimator to run, the full non-block fixed-effects design must leave
+more than two residual degrees of freedom, i.e. the analysed sample count must be
+more than two larger than the design rank. Feature-level REML estimates with two
+or fewer observed residual degrees of freedom are not eligible for consensus
 aggregation.
 
 The estimator uses the exact authoritative matrix entering differential model

@@ -239,7 +239,7 @@ Validated PhosPy fixed-effect support additionally includes execution for:
   complete coverage for each requested condition contrast
 - explicit `paired_design_policy="duplicate_correlation"` designs with complete
   block identities, at least one repeated block, a full-rank non-block
-  fixed-effects design with at least two residual degrees of freedom,
+  fixed-effects design with more than two residual degrees of freedom,
   feature-wise REML consensus-correlation estimation, and compound-symmetry GLS
   fitting
 - rank and contrast-estimability validation before execution

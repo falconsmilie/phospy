@@ -16,6 +16,7 @@ from tests.support.unsafe_dataset_states import unsafe_set_dataset_site_metadata
 from tests.support.workflow_identity_coherence import (
     DUPLICATE_DISPLAY_ID,
     build_duplicate_display_differential_request,
+    build_duplicate_display_duplicate_correlation_differential_request,
     build_duplicate_display_kinase_dataset,
     build_duplicate_display_kinase_request,
     build_duplicate_display_signalome_request,
@@ -71,6 +72,20 @@ def test_differential_workflow_preserves_duplicate_display_ids_by_site_key() -> 
         expected_site_keys[0]: pytest.approx(1.0),
         expected_site_keys[1]: pytest.approx(0.05),
     }
+
+
+def test_duplicate_correlation_preserves_duplicate_display_ids_by_site_key() -> None:
+    request = build_duplicate_display_duplicate_correlation_differential_request()
+    expected_site_keys = request.dataset.phospho.index.astype(str).tolist()
+
+    result = DifferentialAnalysisWorkflow().run(request)
+    table = result.table_for("B_vs_A")
+
+    _assert_duplicate_display_rows(table, expected_site_keys=expected_site_keys)
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.duplicate_correlation is not None
+    assert table.loc[:, "logFC"].notna().all()
+    assert table.loc[:, "P.Value"].notna().all()
 
 
 def test_kinase_workflow_preserves_duplicate_display_ids_by_site_key() -> None:

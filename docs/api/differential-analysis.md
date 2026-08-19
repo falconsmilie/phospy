@@ -211,7 +211,7 @@ and supported fixed covariates only. Block IDs are retained as covariance-group
 metadata and are not added as fixed block coefficients. This is not a general
 mixed-effects framework, feature-specific random-effects fitting, random
 slopes, or automatic policy selection. The non-block fixed-effects design must
-leave at least two residual degrees of freedom for REML correlation estimation.
+leave more than two residual degrees of freedom for REML correlation estimation.
 Simple unpaired workflows remain the default.
 
 </details>

@@ -31,7 +31,12 @@ FIXTURE_IDS = (
     "fixture_c_incomplete_unequal_blocks",
     "fixture_d_feature_level_failures",
 )
-FIXTURE_ABSOLUTE_TOLERANCE = 5.0e-9
+GLS_LINEAR_ABSOLUTE_TOLERANCE = 5.0e-9
+GLS_STDEV_UNSCALED_ABSOLUTE_TOLERANCE = 5.0e-9
+GLS_COVARIANCE_ABSOLUTE_TOLERANCE = 5.0e-9
+GLS_VARIANCE_ABSOLUTE_TOLERANCE = 5.0e-9
+GLS_DOF_ABSOLUTE_TOLERANCE = 1.0e-12
+GLS_PARITY_RELATIVE_TOLERANCE = 5.0e-9
 STRICT_ABSOLUTE_TOLERANCE = 1.0e-12
 
 
@@ -56,16 +61,19 @@ def test_compound_symmetry_gls_matches_limma_upstream_fit_fields(
     _assert_frame_close(
         _coefficient_frame(fit.coefficients, fit),
         _numeric_csv(fixture_id, "fit_coefficients.csv", index_col="feature_id"),
+        absolute_tolerance=GLS_LINEAR_ABSOLUTE_TOLERANCE,
     )
     _assert_frame_close(
         _coefficient_frame(fit.stdev_unscaled, fit),
         _numeric_csv(fixture_id, "fit_stdev_unscaled.csv", index_col="feature_id"),
+        absolute_tolerance=GLS_STDEV_UNSCALED_ABSOLUTE_TOLERANCE,
     )
     _assert_frame_close(
         _covariance_frame(fit.coefficient_covariance, fit.coefficient_names),
         _numeric_csv(fixture_id, "fit_cov_coefficients.csv", index_col="coefficient"),
+        absolute_tolerance=GLS_COVARIANCE_ABSOLUTE_TOLERANCE,
     )
-    _assert_frame_close(
+    _assert_frame_columns_close(
         pd.DataFrame(
             {
                 "sigma": fit.residual_standard_deviation,
@@ -76,6 +84,12 @@ def test_compound_symmetry_gls_matches_limma_upstream_fit_fields(
             index=pd.Index(fit.feature_ids, name="feature_id"),
         ),
         _numeric_csv(fixture_id, "fit_sigma_df.csv", index_col="feature_id"),
+        absolute_tolerances={
+            "sigma": GLS_VARIANCE_ABSOLUTE_TOLERANCE,
+            "residual_variance": GLS_VARIANCE_ABSOLUTE_TOLERANCE,
+            "residual_degrees_of_freedom": GLS_DOF_ABSOLUTE_TOLERANCE,
+            "average_expression": GLS_LINEAR_ABSOLUTE_TOLERANCE,
+        },
     )
     assert fit.contrast_coefficients is not None
     assert fit.contrast_stdev_unscaled is not None
@@ -87,6 +101,7 @@ def test_compound_symmetry_gls_matches_limma_upstream_fit_fields(
             "contrast_fit_coefficients.csv",
             index_col="feature_id",
         ),
+        absolute_tolerance=GLS_LINEAR_ABSOLUTE_TOLERANCE,
     )
     _assert_frame_close(
         _contrast_feature_frame(fit.contrast_stdev_unscaled, fit),
@@ -95,6 +110,7 @@ def test_compound_symmetry_gls_matches_limma_upstream_fit_fields(
             "contrast_fit_stdev_unscaled.csv",
             index_col="feature_id",
         ),
+        absolute_tolerance=GLS_STDEV_UNSCALED_ABSOLUTE_TOLERANCE,
     )
     _assert_frame_close(
         _covariance_frame(fit.contrast_covariance, fit.contrast_names),
@@ -103,6 +119,7 @@ def test_compound_symmetry_gls_matches_limma_upstream_fit_fields(
             "contrast_fit_cov_coefficients.csv",
             index_col="contrast",
         ),
+        absolute_tolerance=GLS_COVARIANCE_ABSOLUTE_TOLERANCE,
     )
 
 
@@ -334,6 +351,39 @@ def test_explicit_missingness_mask_omits_values_without_zero_filling() -> None:
     _assert_gls_numeric_fit_close(masked_fit, nan_fit)
 
 
+def test_repeated_missingness_masks_reuse_gls_factorizations() -> None:
+    matrix, design, blocks, contrasts = _fixture_inputs(
+        "fixture_d_feature_level_failures"
+    )
+    summary = _summary("fixture_d_feature_level_failures")
+
+    fit = fit_compound_symmetry_gls(
+        matrix.to_numpy(dtype=np.float64),
+        design.to_numpy(dtype=np.float64),
+        blocks,
+        float(summary["consensus_correlation"]),
+        feature_ids=tuple(str(value) for value in matrix.index.tolist()),
+        coefficient_names=tuple(str(value) for value in design.columns.tolist()),
+        contrasts=contrasts.to_numpy(dtype=np.float64),
+        contrast_names=tuple(str(value) for value in contrasts.columns.tolist()),
+    )
+
+    row_masks = [tuple(row) for row in np.isfinite(matrix.to_numpy(dtype=float))]
+    unique_masks = set(row_masks)
+    full_mask = tuple(True for _ in range(matrix.shape[1]))
+    seen_masks = {full_mask}
+    expected_cache_hits = 0
+    for row_mask in row_masks:
+        if row_mask in seen_masks:
+            expected_cache_hits += 1
+        else:
+            seen_masks.add(row_mask)
+
+    assert fit.factorization_cache_size == len(unique_masks)
+    assert fit.factorization_cache_hit_count == expected_cache_hits
+    assert fit.factorization_cache_hit_count > 0
+
+
 def test_rank_deficient_feature_subset_uses_explicit_non_estimable_outputs() -> None:
     matrix, design, blocks, contrasts = _fixture_inputs(
         "fixture_d_feature_level_failures"
@@ -433,7 +483,12 @@ def _covariance_frame(
     return pd.DataFrame(values, index=pd.Index(names), columns=pd.Index(names))
 
 
-def _assert_frame_close(observed: pd.DataFrame, expected: pd.DataFrame) -> None:
+def _assert_frame_close(
+    observed: pd.DataFrame,
+    expected: pd.DataFrame,
+    *,
+    absolute_tolerance: float,
+) -> None:
     assert observed.index.tolist() == expected.index.astype(str).tolist()
     assert (
         observed.columns.astype(str).tolist() == expected.columns.astype(str).tolist()
@@ -441,10 +496,30 @@ def _assert_frame_close(observed: pd.DataFrame, expected: pd.DataFrame) -> None:
     np.testing.assert_allclose(
         observed.to_numpy(dtype=np.float64),
         expected.to_numpy(dtype=np.float64),
-        rtol=5.0e-9,
-        atol=FIXTURE_ABSOLUTE_TOLERANCE,
+        rtol=GLS_PARITY_RELATIVE_TOLERANCE,
+        atol=absolute_tolerance,
         equal_nan=True,
     )
+
+
+def _assert_frame_columns_close(
+    observed: pd.DataFrame,
+    expected: pd.DataFrame,
+    *,
+    absolute_tolerances: dict[str, float],
+) -> None:
+    assert observed.index.tolist() == expected.index.astype(str).tolist()
+    assert (
+        observed.columns.astype(str).tolist() == expected.columns.astype(str).tolist()
+    )
+    for column_name, absolute_tolerance in absolute_tolerances.items():
+        np.testing.assert_allclose(
+            observed[column_name].to_numpy(dtype=np.float64),
+            expected[column_name].to_numpy(dtype=np.float64),
+            rtol=GLS_PARITY_RELATIVE_TOLERANCE,
+            atol=absolute_tolerance,
+            equal_nan=True,
+        )
 
 
 def _assert_gls_numeric_fit_close(

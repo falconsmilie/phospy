@@ -57,6 +57,7 @@ tests/parity/test_adaptive_replay_parity.py,parity,251,1,true,false,parity,keep,
 tests/parity/test_differential_analysis_parity.py,parity,226,2,true,false,parity,keep,"Loss of this file would remove Python-vs-reference parity guardrails for differential analysis, making release drift against accepted outputs unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_differential_limma_parity.py,parity,337,6,true,false,,,,,,
 tests/parity/test_differential_limma_trend_large.py,parity,305,3,true,false,,,,,,
+tests/parity/test_duplicate_correlation_limma_full_parity.py,parity,438,5,true,true,,,,,,
 tests/parity/test_kinase_workflow_parity.py,parity,389,4,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for kinase workflow parity, making release drift against accepted references unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/parity/test_l6_prediction_parity.py,parity,498,8,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for l6 prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_prediction_science_parity.py,parity,253,3,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for prediction science parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
@@ -102,9 +103,9 @@ tests/unit/references/test_reference_provenance_source_versions.py,references,66
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
-tests/unit/science/differential/test_compound_symmetry_gls.py,differential,492,9,true,true,,,,,,
+tests/unit/science/differential/test_compound_symmetry_gls.py,differential,567,10,true,true,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
-tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,633,17,true,true,,,,,,
+tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,818,20,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_activity_science.py,unit,3779,100,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,383,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
@@ -349,7 +350,7 @@ tests/unit/workflows/signalome/test_signalome_row_attrition.py,signalome,232,3,f
 tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,162,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/validation/test_shared_identity_contracts.py,validation,233,6,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
-tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,1020,19,true,true,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,1133,22,true,true,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/workflows/test_enrichment_workflow.py,workflows,949,29,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/workflows/test_identity_coherence.py,workflows,187,6,false,false,,,,,,
+tests/workflows/test_identity_coherence.py,workflows,202,7,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,243,1,false,false,,,,,,

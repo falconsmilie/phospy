@@ -10,13 +10,12 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
 import numpy.typing as npt
-from scipy.linalg import solve_triangular
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.differential.compound_symmetry_gls import (
@@ -44,8 +43,9 @@ DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE = (
     DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE
 )
 DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP = 0.99
-DUPLICATE_CORRELATION_OPTIMIZER_ABSOLUTE_TOLERANCE = 1.0e-10
-DUPLICATE_CORRELATION_OPTIMIZER_MAX_ITERATIONS = 500
+DUPLICATE_CORRELATION_LOWER_CORRELATION_BOUND_OFFSET = 0.01
+DUPLICATE_CORRELATION_OPTIMIZER_ABSOLUTE_TOLERANCE = 1.0e-6
+DUPLICATE_CORRELATION_OPTIMIZER_MAX_ITERATIONS = 20
 DUPLICATE_CORRELATION_BOUNDARY_DETECTION_TOLERANCE = 1.0e-7
 
 _ZERO_RESIDUAL_VARIATION_RELATIVE_TOLERANCE = np.finfo(np.float64).eps ** 2
@@ -58,11 +58,19 @@ class _FeatureBounds:
 
 
 @dataclass(frozen=True, slots=True)
-class _OptimizerResult:
+class _VarianceComponentFit:
     converged: bool
-    estimate: float
-    objective_value: float
+    residual_component: float
+    block_component: float
+    deviance: float
     iteration_count: int
+
+    @property
+    def correlation(self) -> float:
+        denominator = self.residual_component + self.block_component
+        if denominator == 0.0:
+            return math.nan
+        return float(self.block_component / denominator)
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,10 +155,10 @@ def estimate_duplicate_correlation_reml_consensus(
     residual_degrees_of_freedom = float(int(design_values.shape[0]) - design_rank)
     if (
         residual_degrees_of_freedom
-        < DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM
+        <= DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM
     ):
         raise PhosPyInputError(
-            "duplicate_correlation.design requires at least two residual degrees "
+            "duplicate_correlation.design requires more than two residual degrees "
             "of freedom for REML correlation estimation; "
             f"samples={int(design_values.shape[0])}, "
             f"design_rank={design_rank}, "
@@ -231,7 +239,7 @@ def _estimate_one_feature(
         )
 
     residual_dof = float(observed_count - observed_design_rank)
-    if residual_dof < DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM:
+    if residual_dof <= DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM:
         return _failed_feature_estimate(
             feature_id=feature_id,
             status=(
@@ -245,8 +253,13 @@ def _estimate_one_feature(
             residual_degrees_of_freedom=residual_dof,
         )
 
+    observed_block_count = len(set(observed_blocks))
     max_observed_block_size = _max_block_size(observed_blocks)
-    if max_observed_block_size < 2:
+    if (
+        max_observed_block_size < 2
+        or observed_block_count <= 1
+        or observed_block_count >= observed_count - 1
+    ):
         return _failed_feature_estimate(
             feature_id=feature_id,
             status=DuplicateCorrelationFeatureStatus.NO_REPEATED_OBSERVATIONS,
@@ -284,28 +297,18 @@ def _estimate_one_feature(
             residual_degrees_of_freedom=residual_dof,
         )
 
-    bounds = _feature_bounds(max_observed_block_size)
-
-    def objective(correlation: float) -> float:
-        return _restricted_reml_objective(
-            correlation=correlation,
-            observed_values=observed_values,
-            observed_design=observed_design,
-            observed_blocks=observed_blocks,
-            residual_degrees_of_freedom=residual_dof,
-        )
-
-    optimizer_result = _bounded_golden_section_minimize(
-        objective,
-        lower_bound=bounds.lower,
-        upper_bound=bounds.upper,
-        absolute_tolerance=optimizer_absolute_tolerance,
+    bounds = _feature_correlation_clamp_bounds(max_observed_block_size)
+    variance_fit = _fit_reml_variance_components(
+        observed_values=observed_values,
+        observed_design=observed_design,
+        observed_blocks=observed_blocks,
+        tolerance=optimizer_absolute_tolerance,
         max_iterations=optimizer_max_iterations,
     )
     if (
-        not math.isfinite(optimizer_result.estimate)
-        or not math.isfinite(optimizer_result.objective_value)
-        or not bounds.lower <= optimizer_result.estimate <= bounds.upper
+        not math.isfinite(variance_fit.residual_component)
+        or not math.isfinite(variance_fit.block_component)
+        or not math.isfinite(variance_fit.deviance)
     ):
         return _failed_feature_estimate(
             feature_id=feature_id,
@@ -319,7 +322,7 @@ def _estimate_one_feature(
             lower_correlation_bound=bounds.lower,
             upper_correlation_bound=bounds.upper,
         )
-    if not optimizer_result.converged:
+    if not variance_fit.converged:
         return _failed_feature_estimate(
             feature_id=feature_id,
             status=DuplicateCorrelationFeatureStatus.OPTIMISATION_FAILED,
@@ -331,8 +334,23 @@ def _estimate_one_feature(
             upper_correlation_bound=bounds.upper,
         )
 
+    raw_correlation = variance_fit.correlation
+    if not math.isfinite(raw_correlation):
+        return _failed_feature_estimate(
+            feature_id=feature_id,
+            status=(DuplicateCorrelationFeatureStatus.NON_FINITE_OBJECTIVE_OR_ESTIMATE),
+            failure_reason=(
+                DuplicateCorrelationFailureReason.NON_FINITE_OBJECTIVE_OR_ESTIMATE
+            ),
+            observed_value_count=observed_count,
+            design_rank=observed_design_rank,
+            residual_degrees_of_freedom=residual_dof,
+            lower_correlation_bound=bounds.lower,
+            upper_correlation_bound=bounds.upper,
+        )
+    estimate = min(max(raw_correlation, bounds.lower), bounds.upper)
     boundary = _boundary_kind(
-        optimizer_result.estimate,
+        estimate,
         lower_bound=bounds.lower,
         upper_bound=bounds.upper,
     )
@@ -343,11 +361,11 @@ def _estimate_one_feature(
             if boundary is None
             else DuplicateCorrelationFeatureStatus.BOUNDARY_CONVERGED
         ),
-        correlation=float(optimizer_result.estimate),
+        correlation=float(estimate),
         observed_value_count=observed_count,
         design_rank=observed_design_rank,
         residual_degrees_of_freedom=residual_dof,
-        objective_value=float(optimizer_result.objective_value),
+        objective_value=float(variance_fit.deviance),
         lower_correlation_bound=bounds.lower,
         upper_correlation_bound=bounds.upper,
         boundary=boundary,
@@ -463,219 +481,319 @@ def _build_consensus_result(
     )
 
 
-def _restricted_reml_objective(
+def _fit_reml_variance_components(
     *,
-    correlation: float,
     observed_values: npt.NDArray[np.float64],
     observed_design: npt.NDArray[np.float64],
     observed_blocks: tuple[str, ...],
-    residual_degrees_of_freedom: float,
-) -> float:
-    covariance = _compound_symmetry_correlation_matrix(
-        correlation,
-        block_ids=observed_blocks,
-    )
+    tolerance: float,
+    max_iterations: int,
+) -> _VarianceComponentFit:
+    """Fit residual and block variance components in REML residual space.
+
+    The duplicate-correlation fixtures use limma's block path, which delegates
+    the genewise REML problem to a two-component variance model.  This routine
+    follows the published model representation: residualize the response and
+    block-indicator design against the fixed effects, diagonalize the random
+    block component in residual space, and fit the two variance components to
+    squared residual-space coordinates with a Gamma mean-variance iteration.
+    """
+
     try:
-        cholesky_covariance = np.asarray(
-            np.linalg.cholesky(covariance),
-            dtype=np.float64,
+        residual_basis = _residual_space_basis(observed_design)
+        block_design = _block_indicator_matrix(observed_blocks)
+        residualized_blocks = residual_basis.T @ block_design
+        residualized_values = residual_basis.T @ observed_values
+        left_singular_vectors, singular_values, _ = np.linalg.svd(
+            residualized_blocks,
+            full_matrices=True,
         )
-        logdet_covariance = _cholesky_logdet(cholesky_covariance)
-        covariance_solved_design = _cholesky_solve(
-            cholesky_covariance,
-            observed_design,
-        )
-        gls_gram = np.asarray(
-            observed_design.T @ covariance_solved_design,
-            dtype=np.float64,
-        )
-        cholesky_gls_gram = np.asarray(
-            np.linalg.cholesky(gls_gram),
-            dtype=np.float64,
-        )
-        logdet_gls_gram = _cholesky_logdet(cholesky_gls_gram)
-        covariance_solved_values = _cholesky_solve(
-            cholesky_covariance,
-            observed_values,
-        )
-        gls_rhs = np.asarray(
-            observed_design.T @ covariance_solved_values,
-            dtype=np.float64,
-        )
-        coefficients = _cholesky_solve(cholesky_gls_gram, gls_rhs)
-        residuals = np.asarray(
-            observed_values - (observed_design @ coefficients),
-            dtype=np.float64,
-        )
-        whitened_residuals = solve_triangular(
-            cholesky_covariance,
-            residuals,
-            lower=True,
-            check_finite=False,
-        )
-        residual_quadratic_form = float(whitened_residuals @ whitened_residuals)
     except (ValueError, np.linalg.LinAlgError):
-        return math.inf
+        return _non_finite_variance_component_fit()
+
+    residual_dimension = int(residualized_values.shape[0])
+    if residual_dimension == 0:
+        return _non_finite_variance_component_fit()
+
+    rotated_values = np.asarray(
+        left_singular_vectors.T @ residualized_values,
+        dtype=np.float64,
+    )
+    block_eigenvalues = np.zeros(residual_dimension, dtype=np.float64)
+    singular_count = min(int(singular_values.size), residual_dimension)
+    block_eigenvalues[:singular_count] = np.asarray(
+        singular_values[:singular_count] ** 2,
+        dtype=np.float64,
+    )
+    component_design = np.column_stack(
+        (
+            np.ones(residual_dimension, dtype=np.float64),
+            block_eigenvalues,
+        )
+    )
+    component_response = np.asarray(rotated_values * rotated_values, dtype=np.float64)
+
+    initial_coefficients, initial_fitted = _least_squares_coefficients_and_fitted(
+        component_design,
+        component_response,
+    )
+    if initial_coefficients is None or initial_fitted is None:
+        return _non_finite_variance_component_fit()
+
+    coefficients = initial_coefficients
+    fitted_values = initial_fitted
+    converged = True
+    deviance = _gamma_deviance(component_response, fitted_values)
+    iteration_count = 0
 
     if (
-        not math.isfinite(logdet_covariance)
-        or not math.isfinite(logdet_gls_gram)
-        or not math.isfinite(residual_quadratic_form)
-        or residual_quadratic_form <= 0.0
-        or residual_degrees_of_freedom <= 0.0
+        residual_dimension > 2
+        and int(np.count_nonzero(np.abs(block_eigenvalues) > 1.0e-15)) > 1
+        and _sample_variance(block_eigenvalues) > 1.0e-15
     ):
-        return math.inf
-    objective = (
-        logdet_covariance
-        + logdet_gls_gram
-        + residual_degrees_of_freedom
-        * math.log(residual_quadratic_form / residual_degrees_of_freedom)
-    )
-    if not math.isfinite(objective):
-        return math.inf
-    return float(objective)
-
-
-def _bounded_golden_section_minimize(
-    objective: Callable[[float], float],
-    *,
-    lower_bound: float,
-    upper_bound: float,
-    absolute_tolerance: float,
-    max_iterations: int,
-) -> _OptimizerResult:
-    if not lower_bound < upper_bound:
-        return _OptimizerResult(
-            converged=False,
-            estimate=math.nan,
-            objective_value=math.inf,
-            iteration_count=0,
+        start = (
+            initial_coefficients
+            if bool(np.all(initial_fitted >= 0.0))
+            else np.array(
+                [float(np.mean(component_response)), 0.0],
+                dtype=np.float64,
+            )
         )
-    inverse_phi = (math.sqrt(5.0) - 1.0) / 2.0
-    lower = float(lower_bound)
-    upper = float(upper_bound)
-    left = upper - inverse_phi * (upper - lower)
-    right = lower + inverse_phi * (upper - lower)
-    left_value = objective(left)
-    right_value = objective(right)
-    best_estimate = lower_bound
-    best_objective = objective(lower_bound)
-    best_estimate, best_objective = _prefer_lower_objective(
-        current_estimate=best_estimate,
-        current_objective=best_objective,
-        candidate_estimate=upper_bound,
-        candidate_objective=objective(upper_bound),
-    )
-    best_estimate, best_objective = _prefer_lower_objective(
-        current_estimate=best_estimate,
-        current_objective=best_objective,
-        candidate_estimate=left,
-        candidate_objective=left_value,
-    )
-    best_estimate, best_objective = _prefer_lower_objective(
-        current_estimate=best_estimate,
-        current_objective=best_objective,
-        candidate_estimate=right,
-        candidate_objective=right_value,
-    )
-
-    iteration_count = 0
-    for iteration in range(1, max_iterations + 1):
-        iteration_count = iteration
-        if abs(upper - lower) <= absolute_tolerance:
-            break
-        if left_value <= right_value:
-            upper = right
-            right = left
-            right_value = left_value
-            left = upper - inverse_phi * (upper - lower)
-            left_value = objective(left)
-            candidate_estimate = left
-            candidate_objective = left_value
-        else:
-            lower = left
-            left = right
-            left_value = right_value
-            right = lower + inverse_phi * (upper - lower)
-            right_value = objective(right)
-            candidate_estimate = right
-            candidate_objective = right_value
-        best_estimate, best_objective = _prefer_lower_objective(
-            current_estimate=best_estimate,
-            current_objective=best_objective,
-            candidate_estimate=candidate_estimate,
-            candidate_objective=candidate_objective,
+        gamma_fit = _gamma_glm_fit(
+            component_design,
+            component_response,
+            start,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
         )
+        coefficients = gamma_fit.residual_component, gamma_fit.block_component
+        fitted_values = component_design @ np.asarray(coefficients, dtype=np.float64)
+        converged = gamma_fit.converged
+        deviance = gamma_fit.deviance
+        iteration_count = gamma_fit.iteration_count
 
-    converged = abs(upper - lower) <= absolute_tolerance and math.isfinite(
-        best_objective
-    )
-    return _OptimizerResult(
+    residual_component = float(coefficients[0])
+    block_component = float(coefficients[1])
+    if (
+        not math.isfinite(residual_component)
+        or not math.isfinite(block_component)
+        or not np.isfinite(fitted_values).all()
+        or np.any(fitted_values < 0.0)
+        or not math.isfinite(deviance)
+    ):
+        return _non_finite_variance_component_fit()
+    return _VarianceComponentFit(
         converged=converged,
-        estimate=float(best_estimate),
-        objective_value=float(best_objective),
+        residual_component=residual_component,
+        block_component=block_component,
+        deviance=float(deviance),
         iteration_count=iteration_count,
     )
 
 
-def _prefer_lower_objective(
-    *,
-    current_estimate: float,
-    current_objective: float,
-    candidate_estimate: float,
-    candidate_objective: float,
-) -> tuple[float, float]:
-    if not math.isfinite(candidate_objective):
-        return current_estimate, current_objective
-    if not math.isfinite(current_objective) or candidate_objective < current_objective:
-        return candidate_estimate, candidate_objective
-    return current_estimate, current_objective
+def _residual_space_basis(
+    design: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    rank = _scaled_design_rank(design)
+    q_matrix, _ = np.linalg.qr(design, mode="complete")
+    return np.asarray(q_matrix[:, rank:], dtype=np.float64)
 
 
-def _compound_symmetry_correlation_matrix(
-    correlation: float,
-    *,
+def _block_indicator_matrix(
     block_ids: tuple[str, ...],
 ) -> npt.NDArray[np.float64]:
-    sample_count = len(block_ids)
-    covariance = np.eye(sample_count, dtype=np.float64)
-    for row in range(sample_count):
-        for column in range(row + 1, sample_count):
-            if block_ids[row] == block_ids[column]:
-                covariance[row, column] = correlation
-                covariance[column, row] = correlation
-    return covariance
+    levels = tuple(sorted(set(block_ids)))
+    indicator = np.zeros((len(block_ids), len(levels)), dtype=np.float64)
+    level_positions = {level: position for position, level in enumerate(levels)}
+    for row_position, block_id in enumerate(block_ids):
+        indicator[row_position, level_positions[block_id]] = 1.0
+    return indicator
 
 
-def _cholesky_solve(
-    cholesky_factor: npt.NDArray[np.float64],
-    rhs: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    forward = cast(
-        npt.NDArray[np.float64],
-        solve_triangular(
-            cholesky_factor,
-            rhs,
-            lower=True,
-            check_finite=False,
-        ),
+def _least_squares_coefficients_and_fitted(
+    design: npt.NDArray[np.float64],
+    response: npt.NDArray[np.float64],
+) -> tuple[npt.NDArray[np.float64] | None, npt.NDArray[np.float64] | None]:
+    try:
+        coefficients = np.asarray(
+            np.linalg.lstsq(design, response, rcond=None)[0],
+            dtype=np.float64,
+        )
+    except np.linalg.LinAlgError:
+        return None, None
+    fitted = np.asarray(design @ coefficients, dtype=np.float64)
+    if not np.isfinite(coefficients).all() or not np.isfinite(fitted).all():
+        return None, None
+    return coefficients, fitted
+
+
+def _gamma_glm_fit(
+    design: npt.NDArray[np.float64],
+    response: npt.NDArray[np.float64],
+    start: npt.NDArray[np.float64],
+    *,
+    tolerance: float,
+    max_iterations: int,
+) -> _VarianceComponentFit:
+    design = np.asarray(design, dtype=np.float64)
+    response = np.asarray(response, dtype=np.float64)
+    beta = np.asarray(start, dtype=np.float64).copy()
+    if design.ndim != 2 or response.ndim != 1 or beta.ndim != 1:
+        return _non_finite_variance_component_fit()
+    if design.shape[0] != response.shape[0] or design.shape[1] != beta.shape[0]:
+        return _non_finite_variance_component_fit()
+    if response.size == 0:
+        return _non_finite_variance_component_fit()
+    if not np.isfinite(response).all() or not np.isfinite(design).all():
+        return _non_finite_variance_component_fit()
+    if np.any(response < 0.0) or not np.isfinite(beta).all():
+        return _non_finite_variance_component_fit()
+
+    maximum_response = float(np.max(response))
+    if maximum_response == 0.0:
+        return _VarianceComponentFit(
+            converged=True,
+            residual_component=0.0,
+            block_component=0.0,
+            deviance=math.nan,
+            iteration_count=0,
+        )
+
+    fitted = np.asarray(design @ beta, dtype=np.float64)
+    if not np.isfinite(fitted).all() or np.any(fitted < 0.0):
+        return _non_finite_variance_component_fit()
+
+    deviance = _gamma_deviance(response, fitted)
+    if not math.isfinite(deviance):
+        return _non_finite_variance_component_fit()
+
+    coefficient_count = int(design.shape[1])
+    damping: float | None = None
+    identity = np.eye(coefficient_count, dtype=np.float64)
+    converged = False
+    iteration_count = 0
+
+    while True:
+        iteration_count += 1
+        fitted_variance = fitted * fitted
+        maximum_fitted_variance = float(np.max(fitted_variance))
+        if maximum_fitted_variance <= 0.0 or not math.isfinite(maximum_fitted_variance):
+            return _non_finite_variance_component_fit()
+        fitted_variance = np.maximum(
+            fitted_variance,
+            maximum_fitted_variance / 1000.0,
+        )
+        information = np.asarray(
+            design.T @ (design / fitted_variance[:, np.newaxis]),
+            dtype=np.float64,
+        )
+        information_diagonal = np.diagonal(information)
+        if not np.isfinite(information_diagonal).all():
+            return _non_finite_variance_component_fit()
+        maximum_information = float(np.max(information_diagonal))
+        if maximum_information <= 0.0 or not math.isfinite(maximum_information):
+            return _non_finite_variance_component_fit()
+        if damping is None:
+            damping = abs(float(np.mean(information_diagonal))) / float(
+                coefficient_count
+            )
+        score = np.asarray(
+            design.T @ ((response - fitted) / fitted_variance),
+            dtype=np.float64,
+        )
+        previous_beta = beta.copy()
+        previous_deviance = deviance
+        step = np.zeros_like(beta)
+        damping_level = 0
+
+        while True:
+            damping_level += 1
+            try:
+                step = np.asarray(
+                    np.linalg.solve(information + float(damping) * identity, score),
+                    dtype=np.float64,
+                )
+            except np.linalg.LinAlgError:
+                return _non_finite_variance_component_fit()
+            beta = previous_beta + step
+            fitted = np.asarray(design @ beta, dtype=np.float64)
+            deviance = _gamma_deviance(response, fitted)
+            maximum_fitted = float(np.max(fitted))
+            if deviance <= previous_deviance or (
+                maximum_fitted != 0.0 and deviance / maximum_fitted < 1.0e-15
+            ):
+                break
+            if float(damping) / maximum_information > 1.0e15:
+                beta = previous_beta
+                fitted = np.asarray(design @ beta, dtype=np.float64)
+                deviance = previous_deviance
+                break
+            damping = float(damping) * 2.0
+
+        if float(damping) / maximum_information > 1.0e15:
+            break
+        if damping_level == 1:
+            damping = float(damping) / 10.0
+
+        score_step = float(score @ step)
+        maximum_fitted = float(np.max(fitted))
+        if score_step < tolerance or (
+            maximum_fitted != 0.0 and deviance / maximum_fitted < 1.0e-15
+        ):
+            converged = True
+            break
+        if iteration_count > max_iterations:
+            converged = False
+            break
+
+    if not np.isfinite(beta).all() or not np.isfinite(fitted).all():
+        return _non_finite_variance_component_fit()
+    return _VarianceComponentFit(
+        converged=converged,
+        residual_component=float(beta[0]),
+        block_component=float(beta[1]),
+        deviance=float(deviance),
+        iteration_count=iteration_count,
     )
-    return cast(
-        npt.NDArray[np.float64],
-        solve_triangular(
-            cholesky_factor.T,
-            forward,
-            lower=False,
-            check_finite=False,
-        ),
-    )
 
 
-def _cholesky_logdet(cholesky_factor: npt.NDArray[np.float64]) -> float:
-    diagonal = np.diagonal(cholesky_factor)
-    if not np.isfinite(diagonal).all() or np.any(diagonal <= 0.0):
+def _gamma_deviance(
+    response: npt.NDArray[np.float64],
+    fitted: npt.NDArray[np.float64],
+) -> float:
+    if not np.isfinite(response).all() or not np.isfinite(fitted).all():
         return math.inf
-    return float(2.0 * np.sum(np.log(diagonal)))
+    if np.any(fitted < 0.0):
+        return math.inf
+    jointly_zero = (response < 1.0e-15) & (fitted < 1.0e-15)
+    if np.any(jointly_zero):
+        if np.all(jointly_zero):
+            return 0.0
+        response = response[~jointly_zero]
+        fitted = fitted[~jointly_zero]
+    if np.any(fitted <= 0.0):
+        return math.inf
+    with np.errstate(divide="ignore", invalid="ignore"):
+        value = 2.0 * np.sum((response - fitted) / fitted - np.log(response / fitted))
+    if not math.isfinite(float(value)):
+        return math.inf
+    return float(value)
+
+
+def _sample_variance(values: npt.NDArray[np.float64]) -> float:
+    if int(values.size) < 2:
+        return 0.0
+    return float(np.var(values, ddof=1))
+
+
+def _non_finite_variance_component_fit() -> _VarianceComponentFit:
+    return _VarianceComponentFit(
+        converged=False,
+        residual_component=math.nan,
+        block_component=math.nan,
+        deviance=math.inf,
+        iteration_count=0,
+    )
 
 
 def _fisher_trimmed_mean_consensus(
@@ -815,6 +933,22 @@ def _workflow_bounds(
         )
     maximum_block_size = block_structure.maximum_block_size
     return _feature_bounds(maximum_block_size)
+
+
+def _feature_correlation_clamp_bounds(
+    maximum_observed_block_size: int,
+) -> _FeatureBounds:
+    if maximum_observed_block_size < 2:
+        return _FeatureBounds(
+            lower=-1.0 + DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE,
+            upper=1.0 - DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE,
+        )
+    lower = 1.0 / float(1 - maximum_observed_block_size)
+    lower += DUPLICATE_CORRELATION_LOWER_CORRELATION_BOUND_OFFSET
+    upper = DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP
+    if not lower < upper:
+        lower = math.nextafter(lower, -math.inf)
+    return _FeatureBounds(lower=float(lower), upper=float(upper))
 
 
 def _feature_bounds(maximum_observed_block_size: int) -> _FeatureBounds:

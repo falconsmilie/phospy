@@ -510,8 +510,10 @@ def _build_dataset(*, include_missing: bool):
         {
             "A_1": [10.0, 9.0, 7.5, 8.0],
             "A_2": [10.4, 9.1, 7.7, 8.2],
+            "A_3": [9.8, 8.8, 7.8, 7.9],
             "B_1": [12.0, 9.3, 7.4, 9.1],
             "B_2": [12.2, 9.4, 7.6, 9.0],
+            "B_3": [11.7, 9.2, 7.3, 9.4],
         },
         index=index,
     )
@@ -575,6 +577,11 @@ def _design() -> ExperimentalDesign:
                 biological_replicate_id="A_2",
             ),
             SampleDesignRecord(
+                sample_id="A_3",
+                condition="A",
+                biological_replicate_id="A_3",
+            ),
+            SampleDesignRecord(
                 sample_id="B_1",
                 condition="B",
                 biological_replicate_id="B_1",
@@ -583,6 +590,11 @@ def _design() -> ExperimentalDesign:
                 sample_id="B_2",
                 condition="B",
                 biological_replicate_id="B_2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_3",
+                condition="B",
+                biological_replicate_id="B_3",
             ),
         )
     )
@@ -604,6 +616,12 @@ def _paired_design() -> ExperimentalDesign:
                 block_id="pair_2",
             ),
             SampleDesignRecord(
+                sample_id="A_3",
+                condition="A",
+                biological_replicate_id="A_3",
+                block_id="pair_3",
+            ),
+            SampleDesignRecord(
                 sample_id="B_1",
                 condition="B",
                 biological_replicate_id="B_1",
@@ -614,6 +632,12 @@ def _paired_design() -> ExperimentalDesign:
                 condition="B",
                 biological_replicate_id="B_2",
                 block_id="pair_2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_3",
+                condition="B",
+                biological_replicate_id="B_3",
+                block_id="pair_3",
             ),
         )
     )

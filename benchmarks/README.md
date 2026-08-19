@@ -19,6 +19,9 @@ This directory contains rewrite-native benchmark scripts that track active code 
 - `measure_repeated_workflow_dataset_snapshot_reuse.py`
   - Measures repeated differential and kinase workflow runtime, tracemalloc peak memory, full-frame deep-copy counts, and dataset internal snapshot construction counts for the same unchanged dataset.
   - Targets `DifferentialAnalysisWorkflow.run`, `KinaseWorkflow.run`, and dataset-owned internal snapshot reuse.
+- `measure_duplicate_correlation_performance.py`
+  - Measures duplicate-correlation REML correlation-estimation time, consensus-based GLS time, total hot-path time, missingness-mask diversity, GLS factorisation-cache reuse, and approximate matrix memory on a bounded synthetic paired-block workload.
+  - Targets `estimate_duplicate_correlation_reml_consensus` and `fit_duplicate_correlation_gls`.
 - `measure_release_scale_builder_differential.py`
   - Measures the explicitly invoked 50,000-site x 48-sample public dataset-builder, preprocessing/provenance, and one-contrast differential workload.
   - Targets `AnalysisReadyDatasetBuilder.run` and `DifferentialAnalysisWorkflow.run`.

@@ -34,11 +34,12 @@ FIXTURE_ROOT = (
     / "differential_duplicate_correlation"
 )
 
-# Central tolerance for independent Cholesky-profiled REML estimates versus
-# pinned limma black-box fixtures. Boundary-adjacent positive correlations are
-# capped at the fixture policy value of 0.99; the tolerance keeps non-boundary
-# fixtures tight while allowing minor optimizer-path differences.
-REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE = 8.0e-3
+# Central tolerance for the residual-space two-variance-component REML route
+# used by limma/statmod black-box fixtures. Most rows compare at floating-point
+# noise; the small envelope covers QR/SVD basis differences on near-constant
+# rows while still detecting final p-value-relevant estimator drift.
+REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE = 1.0e-6
+REML_REFERENCE_FISHER_Z_ABSOLUTE_TOLERANCE = 1.0e-6
 STRICT_CORRELATION_ABSOLUTE_TOLERANCE = 1.0e-8
 
 FIXTURE_IDS = (
@@ -59,7 +60,10 @@ def test_reml_feature_correlations_match_limma_reference_fixtures(
     fixture_id: str,
 ) -> None:
     matrix, design, blocks, feature_ids = _fixture_inputs(fixture_id)
-    expected = pd.read_csv(FIXTURE_ROOT / fixture_id / "feature_correlations.csv")
+    expected = pd.read_csv(
+        FIXTURE_ROOT / fixture_id / "feature_correlations.csv",
+        keep_default_na=False,
+    )
 
     result = estimate_duplicate_correlation_reml_consensus(
         matrix,
@@ -80,9 +84,18 @@ def test_reml_feature_correlations_match_limma_reference_fixtures(
                 rel_tol=0.0,
                 abs_tol=REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE,
             )
+            assert math.isclose(
+                math.atanh(estimate.correlation),
+                float(expected_row.atanh_correlation),
+                rel_tol=0.0,
+                abs_tol=REML_REFERENCE_FISHER_Z_ABSOLUTE_TOLERANCE,
+            )
+            assert estimate.design_rank == int(expected_row.design_rank)
         else:
             assert estimate.status not in SUCCESS_STATUSES
             assert estimate.correlation is None
+            assert str(expected_row.atanh_correlation_missing_kind) in {"NA", "NaN"}
+        assert estimate.observed_value_count == int(expected_row.observed_value_count)
 
 
 @pytest.mark.parametrize("fixture_id", FIXTURE_IDS)
@@ -104,6 +117,12 @@ def test_reml_consensus_matches_limma_reference_fixtures(fixture_id: str) -> Non
         float(summary["consensus_correlation"]),
         rel_tol=0.0,
         abs_tol=REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE,
+    )
+    assert math.isclose(
+        math.atanh(result.consensus_correlation),
+        float(summary["consensus_atanh_correlation"]),
+        rel_tol=0.0,
+        abs_tol=REML_REFERENCE_FISHER_Z_ABSOLUTE_TOLERANCE,
     )
     assert result.attempted_feature_count == int(summary["feature_count"])
     assert result.eligible_feature_count == int(summary["feature_count"])
@@ -175,23 +194,13 @@ def test_feature_level_failures_are_typed_and_counted_by_reason() -> None:
     )
 
 
-def test_boundary_convergence_is_recorded_but_still_contributes(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def decreasing_objective(*, correlation: float, **_: object) -> float:
-        return -correlation
-
-    monkeypatch.setattr(
-        duplicate_correlation_module,
-        "_restricted_reml_objective",
-        decreasing_objective,
-    )
-
+def test_boundary_convergence_is_recorded_but_still_contributes() -> None:
+    matrix, design, blocks, feature_ids = _fixture_inputs("fixture_a_complete_pairs")
     result = estimate_duplicate_correlation_reml_consensus(
-        np.array([[1.0, 2.0, 2.0, 1.0, 1.5, 2.5, 2.5, 1.5]]),
-        np.ones((8, 1), dtype=np.float64),
-        ("b1", "b1", "b2", "b2", "b3", "b3", "b4", "b4"),
-        feature_ids=("boundary_feature",),
+        matrix[:1, :],
+        design,
+        blocks,
+        feature_ids=feature_ids[:1],
     )
 
     assert result.estimated_feature_count == 1
@@ -220,7 +229,7 @@ def test_negative_correlation_can_approach_pair_block_pd_lower_bound() -> None:
     assert estimate.status is DuplicateCorrelationFeatureStatus.BOUNDARY_CONVERGED
     assert estimate.boundary is DuplicateCorrelationBoundary.LOWER
     assert estimate.correlation is not None
-    assert -1.0 < estimate.correlation < -0.99
+    assert estimate.correlation == pytest.approx(-0.99)
 
 
 def test_exact_trim_count_semantics_for_small_and_large_feature_sets() -> None:
@@ -278,6 +287,34 @@ def test_zero_near_correlation_is_estimated_without_forcing_zero_fallback() -> N
     assert estimate.status is DuplicateCorrelationFeatureStatus.ESTIMATED
     assert estimate.correlation is not None
     assert abs(estimate.correlation) <= 5.0e-4
+
+
+def test_seeded_simulation_consensus_moves_with_known_correlation_strength() -> None:
+    low = _simulate_duplicate_correlation_matrix(known_correlation=0.05)
+    high = _simulate_duplicate_correlation_matrix(known_correlation=0.55)
+
+    low_result = estimate_duplicate_correlation_reml_consensus(
+        low[0],
+        low[1],
+        low[2],
+        feature_ids=low[3],
+    )
+    high_result = estimate_duplicate_correlation_reml_consensus(
+        high[0],
+        high[1],
+        high[2],
+        feature_ids=high[3],
+    )
+
+    assert low_result.success
+    assert high_result.success
+    assert low_result.consensus_correlation is not None
+    assert high_result.consensus_correlation is not None
+    assert low_result.estimated_feature_count == 300
+    assert high_result.estimated_feature_count == 300
+    assert low_result.consensus_correlation < 0.15
+    assert high_result.consensus_correlation > 0.45
+    assert high_result.consensus_correlation > low_result.consensus_correlation + 0.30
 
 
 def test_singleton_blocks_do_not_create_false_repeated_observations() -> None:
@@ -433,7 +470,23 @@ def test_affine_rescaling_one_feature_does_not_change_its_correlation() -> None:
     )
 
 
-def test_optimizer_non_convergence_is_a_typed_feature_outcome() -> None:
+def test_optimizer_non_convergence_is_a_typed_feature_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def non_converged_fit(**_: object) -> object:
+        return duplicate_correlation_module._VarianceComponentFit(
+            converged=False,
+            residual_component=1.0,
+            block_component=1.0,
+            deviance=1.0,
+            iteration_count=2,
+        )
+
+    monkeypatch.setattr(
+        duplicate_correlation_module,
+        "_fit_reml_variance_components",
+        non_converged_fit,
+    )
     matrix, design, blocks, feature_ids = _fixture_inputs("fixture_a_complete_pairs")
 
     result = estimate_duplicate_correlation_reml_consensus(
@@ -441,7 +494,6 @@ def test_optimizer_non_convergence_is_a_typed_feature_outcome() -> None:
         design,
         blocks,
         feature_ids=feature_ids[:2],
-        optimizer_max_iterations=1,
     )
 
     assert not result.success
@@ -459,13 +511,19 @@ def test_optimizer_non_convergence_is_a_typed_feature_outcome() -> None:
 def test_non_finite_objective_is_distinct_from_optimizer_non_convergence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def non_finite_objective(*, correlation: float, **_: object) -> float:
-        return math.inf
+    def non_finite_variance_fit(**_: object) -> object:
+        return duplicate_correlation_module._VarianceComponentFit(
+            converged=False,
+            residual_component=math.nan,
+            block_component=math.nan,
+            deviance=math.inf,
+            iteration_count=0,
+        )
 
     monkeypatch.setattr(
         duplicate_correlation_module,
-        "_restricted_reml_objective",
-        non_finite_objective,
+        "_fit_reml_variance_components",
+        non_finite_variance_fit,
     )
 
     result = estimate_duplicate_correlation_reml_consensus(
@@ -485,6 +543,78 @@ def test_non_finite_objective_is_distinct_from_optimizer_non_convergence(
     assert result.non_finite_feature_count == 1
 
 
+def test_no_eligible_feature_correlations_fails_without_zero_fallback() -> None:
+    design = np.array(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+
+    result = estimate_duplicate_correlation_reml_consensus(
+        np.array(
+            [
+                [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                [2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
+            ],
+            dtype=np.float64,
+        ),
+        design,
+        ("pair_1", "pair_1", "pair_2", "pair_2", "pair_3", "pair_3"),
+        feature_ids=("constant_1", "constant_2"),
+    )
+
+    assert not result.success
+    assert result.consensus_correlation is None
+    assert result.failure_reason is (
+        DuplicateCorrelationFailureReason.NO_FEATURE_WITH_ESTIMABLE_CORRELATION
+    )
+    assert result.estimated_feature_count == 0
+    assert {estimate.status for estimate in result.feature_estimates} == {
+        DuplicateCorrelationFeatureStatus.ZERO_OR_UNUSABLE_RESIDUAL_VARIATION
+    }
+    assert {item.reason: item.count for item in result.failure_reason_counts} == {
+        DuplicateCorrelationFailureReason.ZERO_OR_UNUSABLE_RESIDUAL_VARIATION: 2
+    }
+
+
+def test_invalid_consensus_correlation_is_a_typed_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def invalid_consensus(correlations: tuple[float, ...]) -> object:
+        return duplicate_correlation_module._TrimmedConsensus(
+            correlation=0.995,
+            trim_count_each_tail=0,
+            retained_count=len(correlations),
+        )
+
+    monkeypatch.setattr(
+        duplicate_correlation_module,
+        "_fisher_trimmed_mean_consensus",
+        invalid_consensus,
+    )
+    matrix, design, blocks, feature_ids = _fixture_inputs("fixture_a_complete_pairs")
+
+    result = estimate_duplicate_correlation_reml_consensus(
+        matrix[:2, :],
+        design,
+        blocks,
+        feature_ids=feature_ids[:2],
+    )
+
+    assert not result.success
+    assert result.consensus_correlation is None
+    assert result.estimated_feature_count == 2
+    assert result.failure_reason is (
+        DuplicateCorrelationFailureReason.INVALID_OR_NON_POSITIVE_DEFINITE_COVARIANCE
+    )
+
+
 def test_invalid_inputs_fail_with_domain_specific_errors() -> None:
     with pytest.raises(PhosPyInputError, match="block_ids length"):
         estimate_duplicate_correlation_reml_consensus(
@@ -500,7 +630,7 @@ def test_invalid_inputs_fail_with_domain_specific_errors() -> None:
             ("b1", "b1", "b2"),
         )
 
-    with pytest.raises(PhosPyInputError, match="at least two residual degrees"):
+    with pytest.raises(PhosPyInputError, match="more than two residual degrees"):
         estimate_duplicate_correlation_reml_consensus(
             np.array([[1.0, 2.0, 3.0]]),
             np.array(
@@ -595,8 +725,63 @@ def _summary(fixture_id: str) -> dict[str, str]:
     return {str(row.field): str(row.value) for row in frame.itertuples(index=False)}
 
 
+def _simulate_duplicate_correlation_matrix(
+    *,
+    known_correlation: float,
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    tuple[str, ...],
+    tuple[str, ...],
+]:
+    rng = np.random.default_rng(20_260_819)
+    feature_count = 300
+    block_count = 10
+    observations_per_block = 3
+    sample_count = block_count * observations_per_block
+    condition_positions = np.tile(
+        np.arange(observations_per_block, dtype=np.int64),
+        block_count,
+    )
+    block_positions = np.repeat(
+        np.arange(block_count, dtype=np.int64),
+        observations_per_block,
+    )
+    design = np.zeros((sample_count, observations_per_block), dtype=np.float64)
+    design[np.arange(sample_count, dtype=np.int64), condition_positions] = 1.0
+    feature_baseline = rng.normal(10.0, 1.0, size=(feature_count, 1))
+    condition_effects = rng.normal(
+        0.0,
+        0.15,
+        size=(feature_count, observations_per_block),
+    )
+    block_effects = rng.normal(
+        0.0,
+        math.sqrt(known_correlation),
+        size=(feature_count, block_count),
+    )
+    residuals = rng.normal(
+        0.0,
+        math.sqrt(1.0 - known_correlation),
+        size=(feature_count, sample_count),
+    )
+    matrix = np.asarray(
+        feature_baseline
+        + condition_effects[:, condition_positions]
+        + block_effects[:, block_positions]
+        + residuals,
+        dtype=np.float64,
+    )
+    block_ids = tuple(f"block_{position}" for position in block_positions.tolist())
+    feature_ids = tuple(f"simulated_{position}" for position in range(feature_count))
+    return matrix, design, block_ids, feature_ids
+
+
 def _design_rank_from_fixture(fixture_id: str) -> int:
-    expected = pd.read_csv(FIXTURE_ROOT / fixture_id / "feature_correlations.csv")
+    expected = pd.read_csv(
+        FIXTURE_ROOT / fixture_id / "feature_correlations.csv",
+        keep_default_na=False,
+    )
     return int(expected["design_rank"].iloc[0])
 
 

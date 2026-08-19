@@ -53,6 +53,15 @@ _DUPLICATE_CORRELATION_FIXTURE_ROOT = (
     / "differential_duplicate_correlation"
 )
 
+# Operation-specific fixture tolerances. Coefficients are direct GLS linear
+# solves, moderated t-statistics include posterior variance moderation, and
+# p-values include distribution-tail evaluation plus BH adjustment. These are
+# intentionally not broadened by fixture.
+DUPLICATE_CORRELATION_LOG_FC_ABSOLUTE_TOLERANCE = 1.0e-8
+DUPLICATE_CORRELATION_MODERATED_T_ABSOLUTE_TOLERANCE = 1.0e-8
+DUPLICATE_CORRELATION_P_VALUE_ABSOLUTE_TOLERANCE = 5.0e-12
+DUPLICATE_CORRELATION_PARITY_RELATIVE_TOLERANCE = 1.0e-7
+
 
 def _dataset_from_phospho(
     *,
@@ -278,6 +287,8 @@ def _fixture_statistics(
         ("fixture_a_complete_pairs", "B_vs_A"),
         ("fixture_b_three_observation_blocks", "T1_vs_T0"),
         ("fixture_b_three_observation_blocks", "T2_vs_T0"),
+        ("fixture_c_incomplete_unequal_blocks", "B_vs_A"),
+        ("fixture_c_incomplete_unequal_blocks", "C_vs_A"),
     ),
 )
 def test_differential_duplicate_correlation_public_workflow_statistics_match_reference(
@@ -295,33 +306,6 @@ def test_differential_duplicate_correlation_public_workflow_statistics_match_ref
     _assert_duplicate_correlation_reference_statistics_close(
         table=table,
         reference=reference,
-        log_fc_absolute_tolerance=1.0e-8,
-        t_absolute_tolerance=1.0e-6,
-        p_value_absolute_tolerance=5.0e-9,
-    )
-
-
-@pytest.mark.parametrize("contrast_name", ("B_vs_A", "C_vs_A"))
-def test_differential_duplicate_correlation_public_workflow_incomplete_block_statistics_match_reference_envelope(
-    contrast_name: str,
-) -> None:
-    result = DifferentialAnalysisWorkflow().run(
-        _duplicate_fixture_request("fixture_c_incomplete_unequal_blocks")
-    )
-
-    assert isinstance(result, DifferentialAnalysisResult)
-    table = result.table_for(contrast_name)
-    reference = _fixture_statistics(
-        "fixture_c_incomplete_unequal_blocks",
-        contrast_name=contrast_name,
-    )
-
-    _assert_duplicate_correlation_reference_statistics_close(
-        table=table,
-        reference=reference,
-        log_fc_absolute_tolerance=1.0e-4,
-        t_absolute_tolerance=5.0e-1,
-        p_value_absolute_tolerance=1.0e-2,
     )
 
 
@@ -329,28 +313,25 @@ def _assert_duplicate_correlation_reference_statistics_close(
     *,
     table: pd.DataFrame,
     reference: pd.DataFrame,
-    log_fc_absolute_tolerance: float,
-    t_absolute_tolerance: float,
-    p_value_absolute_tolerance: float,
 ) -> None:
     np.testing.assert_allclose(
         table["logFC"].to_numpy(dtype=float),
         reference["logFC"].to_numpy(dtype=float),
-        rtol=1.0e-7,
-        atol=log_fc_absolute_tolerance,
+        rtol=DUPLICATE_CORRELATION_PARITY_RELATIVE_TOLERANCE,
+        atol=DUPLICATE_CORRELATION_LOG_FC_ABSOLUTE_TOLERANCE,
     )
     np.testing.assert_allclose(
         table["t"].to_numpy(dtype=float),
         reference["t"].to_numpy(dtype=float),
-        rtol=1.0e-7,
-        atol=t_absolute_tolerance,
+        rtol=DUPLICATE_CORRELATION_PARITY_RELATIVE_TOLERANCE,
+        atol=DUPLICATE_CORRELATION_MODERATED_T_ABSOLUTE_TOLERANCE,
     )
     for column_name in ("P.Value", "adj.P.Val"):
         np.testing.assert_allclose(
             table[column_name].to_numpy(dtype=float),
             reference[column_name].to_numpy(dtype=float),
-            rtol=1.0e-7,
-            atol=p_value_absolute_tolerance,
+            rtol=DUPLICATE_CORRELATION_PARITY_RELATIVE_TOLERANCE,
+            atol=DUPLICATE_CORRELATION_P_VALUE_ABSOLUTE_TOLERANCE,
         )
 
 
@@ -497,20 +478,13 @@ def test_differential_duplicate_correlation_inputs_are_passed_to_executor() -> N
             captured["request"] = request
             return sentinel
 
-    design = ExperimentalDesign(
-        samples=(
-            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
-            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
-            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
-            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
-        )
-    )
+    design = _block_effect_design(include_blocks=True)
 
     result = DifferentialAnalysisWorkflow._with_components(
         executor=_ExecutorSpy(),  # type: ignore[arg-type]
     ).run(
         DifferentialAnalysisRequest(
-            dataset=_dataset(),
+            dataset=_block_effect_dataset(),
             design=design,
             contrasts=_b_vs_a_contrast(),
             config=DifferentialAnalysisConfig(
@@ -529,7 +503,14 @@ def test_differential_duplicate_correlation_inputs_are_passed_to_executor() -> N
         PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
     )
     assert execution_design.block_column_metadata is None
-    assert execution_design.block_ids == ("pair_1", "pair_2", "pair_1", "pair_2")
+    assert execution_design.block_ids == (
+        "pair_1",
+        "pair_1",
+        "pair_1",
+        "pair_2",
+        "pair_2",
+        "pair_2",
+    )
     assert interpreted.computation_request.design.to_dataframe().columns.tolist() == [
         "A",
         "B",
@@ -685,7 +666,146 @@ def test_differential_duplicate_correlation_rejects_no_repeated_blocks() -> None
         )
 
 
-def test_differential_duplicate_correlation_requires_two_residual_dof() -> None:
+def test_differential_duplicate_correlation_requires_block_id_for_every_sample() -> (
+    None
+):
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(WorkflowValidationError, match="missing block_id.*A_2"):
+        DifferentialAnalysisWorkflow().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=design,
+                contrasts=_b_vs_a_contrast(),
+                config=DifferentialAnalysisConfig(
+                    paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                ),
+            )
+        )
+
+
+def test_differential_duplicate_correlation_rejects_rank_deficient_non_block_design() -> (
+    None
+):
+    class _UnexpectedExecutor:
+        def run(self, *args: object, **kwargs: object) -> object:
+            raise AssertionError("workflow executor must not run")
+
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                block_id="pair_1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                block_id="pair_2",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                block_id="pair_1",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                block_id="pair_2",
+                covariates={"dose": 1.0},
+            ),
+        ),
+        fixed_effects=(ContinuousCovariate("dose"),),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="rank deficient.*collinear"):
+        DifferentialAnalysisWorkflow._with_components(
+            executor=_UnexpectedExecutor(),  # type: ignore[arg-type]
+        ).run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=design,
+                contrasts=_b_vs_a_contrast(),
+                config=DifferentialAnalysisConfig(
+                    paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                ),
+            )
+        )
+
+
+def test_differential_duplicate_correlation_rejects_invalid_contrast_before_executor() -> (
+    None
+):
+    class _UnexpectedExecutor:
+        def run(self, *args: object, **kwargs: object) -> object:
+            raise AssertionError("workflow executor must not run")
+
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(WorkflowValidationError, match="unknown numerator condition"):
+        DifferentialAnalysisWorkflow._with_components(
+            executor=_UnexpectedExecutor(),  # type: ignore[arg-type]
+        ).run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=design,
+                contrasts=(
+                    Contrast(
+                        name="C_vs_A",
+                        numerator_condition="C",
+                        denominator_condition="A",
+                    ),
+                ),
+                config=DifferentialAnalysisConfig(
+                    paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                ),
+            )
+        )
+
+
+def test_differential_duplicate_correlation_rejects_unsupported_weighting_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        AnalysisReadyPhosphoDataset,
+        "observation_weights",
+        property(lambda self: object()),
+        raising=False,
+    )
+
+    with pytest.raises(WorkflowValidationError, match="does not currently support"):
+        DifferentialAnalysisWorkflow().run(
+            DifferentialAnalysisRequest(
+                dataset=_block_effect_dataset(),
+                design=_block_effect_design(include_blocks=True),
+                contrasts=_b_vs_a_contrast(),
+                config=DifferentialAnalysisConfig(
+                    paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+                ),
+            )
+        )
+
+
+def test_differential_duplicate_correlation_requires_more_than_two_residual_dof() -> (
+    None
+):
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(
@@ -716,7 +836,7 @@ def test_differential_duplicate_correlation_requires_two_residual_dof() -> None:
         fixed_effects=(ContinuousCovariate("dose"),),
     )
 
-    with pytest.raises(WorkflowValidationError, match="at least two residual degrees"):
+    with pytest.raises(WorkflowValidationError, match="more than two residual degrees"):
         DifferentialAnalysisWorkflow().run(
             DifferentialAnalysisRequest(
                 dataset=_dataset(),
@@ -764,19 +884,12 @@ def test_differential_duplicate_correlation_forced_estimator_failure_stops() -> 
     executor = WorkflowDifferentialAnalysisExecutor(
         duplicate_correlation_executor=_FailingDuplicateCorrelationExecutor(),  # type: ignore[arg-type]
     )
-    design = ExperimentalDesign(
-        samples=(
-            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
-            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
-            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
-            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
-        )
-    )
+    design = _block_effect_design(include_blocks=True)
 
     with pytest.raises(WorkflowBoundaryError, match="duplicate-correlation"):
         DifferentialAnalysisWorkflow._with_components(executor=executor).run(
             DifferentialAnalysisRequest(
-                dataset=_dataset(),
+                dataset=_block_effect_dataset(),
                 design=design,
                 contrasts=_b_vs_a_contrast(),
                 config=DifferentialAnalysisConfig(
