@@ -61,13 +61,17 @@ coherent combined effect and inferential estimand, same-experiment dependence
 handling, multiple-testing semantics, and provenance. Resolve peptide evidence
 to site-level sample intensities during dataset preparation instead.
 
-## Example
+## Complete Public-API Example: Paired Duplicate-Correlation Design
 
 ```python
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.advanced import (
+    DatasetIntensityTransformConfig,
+    DifferentialAnalysisConfig,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
@@ -81,25 +85,29 @@ from phospy.api import (
 
 phospho = pd.DataFrame(
     {
-        "control_rep1": [1000.0, 900.0, 800.0],
-        "control_rep2": [1050.0, 880.0, 820.0],
-        "treatment_rep1": [1800.0, 930.0, 760.0],
-        "treatment_rep2": [1750.0, 920.0, 740.0],
+        "control_rep1": [1000.0, 900.0, 800.0, 700.0],
+        "control_rep2": [1050.0, 880.0, 820.0, 710.0],
+        "control_rep3": [980.0, 910.0, 790.0, 690.0],
+        "treatment_rep1": [1800.0, 930.0, 760.0, 740.0],
+        "treatment_rep2": [1750.0, 920.0, 740.0, 730.0],
+        "treatment_rep3": [1825.0, 940.0, 770.0, 760.0],
     },
-    index=["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;"],
+    index=["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;", "GSK3B;S9;"],
 )
 
 site_metadata = pd.DataFrame(
     {
-        "gene_symbol": ["MAPK14", "GSK3A", "TSC2"],
-        "site": ["Y182", "S21", "S939"],
+        "gene_symbol": ["MAPK14", "GSK3A", "TSC2", "GSK3B"],
+        "site": ["Y182", "S21", "S939", "S9"],
         "site_sequence": [
             ("A" * 15) + "Y" + ("A" * 15),
             ("A" * 15) + "S" + ("A" * 15),
             ("A" * 15) + "S" + ("A" * 15),
+            ("A" * 15) + "S" + ("A" * 15),
         ],
-        "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
-        "localisation_confidence": [0.95, 0.94, 0.96],
+        "protein_namespace": ["protein_id", "protein_id", "protein_id", "protein_id"],
+        "protein_identifier": ["MAPK14", "GSK3A", "TSC2", "GSK3B"],
+        "localisation_confidence": [0.95, 0.94, 0.96, 0.93],
     },
     index=phospho.index,
 )
@@ -109,6 +117,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        input_intensity_scale="linear",
         preprocessing_config=DatasetPreprocessingConfig(
             intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
             localisation=DatasetLocalisationConfig(
@@ -121,10 +130,24 @@ dataset = AnalysisReadyDatasetBuilder().run(
 
 design = ExperimentalDesign(
     samples=(
-        SampleDesignRecord("control_rep1", "control", "control_r1"),
-        SampleDesignRecord("control_rep2", "control", "control_r2"),
-        SampleDesignRecord("treatment_rep1", "treatment", "treatment_r1"),
-        SampleDesignRecord("treatment_rep2", "treatment", "treatment_r2"),
+        SampleDesignRecord(
+            "control_rep1", "control", "control_r1", block_id="subject_1"
+        ),
+        SampleDesignRecord(
+            "treatment_rep1", "treatment", "treatment_r1", block_id="subject_1"
+        ),
+        SampleDesignRecord(
+            "control_rep2", "control", "control_r2", block_id="subject_2"
+        ),
+        SampleDesignRecord(
+            "treatment_rep2", "treatment", "treatment_r2", block_id="subject_2"
+        ),
+        SampleDesignRecord(
+            "control_rep3", "control", "control_r3", block_id="subject_3"
+        ),
+        SampleDesignRecord(
+            "treatment_rep3", "treatment", "treatment_r3", block_id="subject_3"
+        ),
     )
 )
 
@@ -139,14 +162,22 @@ result = DifferentialAnalysisWorkflow().run(
                 denominator_condition="control",
             ),
         ),
+        config=DifferentialAnalysisConfig(
+            paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+        ),
     )
 )
+
+duplicate = result.policy_provenance.duplicate_correlation
+assert duplicate is not None
 
 print(
     result.table_for("treatment_vs_control").loc[
         :, ["display_id", "logFC", "P.Value", "adj.P.Val"]
     ]
 )
+print("consensus correlation:", duplicate.consensus.consensus_correlation)
+print("estimator features:", duplicate.consensus.estimated_feature_count)
 ```
 
 ## Request
@@ -199,20 +230,9 @@ Contrast direction is `numerator_condition - denominator_condition`.
 or `BatchCovariate` for common cases. Batch covariates are model terms, not
 batch correction.
 
-PhosPy supports two explicit paired-design policies. `fixed_block` represents
-block identity with ordinary fixed nuisance coefficients and requires every
-block to have complete within-block contrast coverage. Incomplete or partially
-covered blocks are rejected; PhosPy does not silently drop those blocks or
-samples.
-
-`duplicate_correlation` estimates one consensus within-block correlation by
-feature-wise REML, then fits a compound-symmetry GLS model with condition terms
-and supported fixed covariates only. Block IDs are retained as covariance-group
-metadata and are not added as fixed block coefficients. This is not a general
-mixed-effects framework, feature-specific random-effects fitting, random
-slopes, or automatic policy selection. The non-block fixed-effects design must
-leave more than two residual degrees of freedom for REML correlation estimation.
-Simple unpaired workflows remain the default.
+Paired and repeated-sample handling is controlled by
+`DifferentialAnalysisConfig.paired_design_policy`; the supported values,
+constructed designs, limitations, and provenance fields are documented below.
 
 </details>
 
@@ -233,6 +253,65 @@ Simple unpaired workflows remain the default.
 | `minimum_condition_replicates` | `int` | `2` | Minimum biological replicates per contrasted condition after policy resolution. |
 | `empirical_bayes` | `EmpiricalBayesConfig` | `EmpiricalBayesConfig()` | Moderation settings. |
 | `multiple_testing` | `MultipleTestingConfig` | `MultipleTestingConfig()` | Per-contrast *p*-value adjustment. |
+
+### `paired_design_policy`
+
+Set this on the request config:
+`DifferentialAnalysisRequest(config=DifferentialAnalysisConfig(paired_design_policy=...))`.
+The default remains `"reject"`. PhosPy does not inspect the design and choose a
+blocked model automatically.
+
+| Value | Use When | Design Constructed | Main Failure Behaviour |
+| --- | --- | --- | --- |
+| `"reject"` | Use for ordinary unblocked designs, or when paired/repeated `block_id` metadata must fail unless the caller deliberately selects a supported blocked model. | Condition terms and supported fixed covariates only. No block fixed effects and no block correlation structure are created. | If analysed samples carry `block_id` metadata, validation fails before fitting. |
+| `"fixed_block"` | Use for complete paired or blocked designs where block identity should be adjusted as an ordinary fixed nuisance effect. | Condition terms, supported fixed covariates, and block dummy columns are included in the fixed-effects design. One block level is the reference. | Every block must cover both sides of every requested contrast; incomplete contrast coverage, rank deficiency, or non-estimable contrasts fail before fitting. |
+| `"duplicate_correlation"` | Use for repeated, multi-condition, or incomplete blocked designs where one shared within-block correlation is appropriate and fixed block coefficients are not desired. | Condition terms and supported fixed covariates are included in the fixed-effects design. `block_id` is supplied separately as a correlation group and is not added as fixed block coefficients. | Missing block IDs, no repeated blocks, rank-deficient non-block design, insufficient residual degrees of freedom, unsupported weights, failed consensus estimation, or failed final GLS fitting fail without fallback. |
+
+`fixed_block` remains a valid supported policy. Block identity is included as a
+fixed nuisance effect, and the condition estimate is based on within-block
+comparisons. For a complete two-condition paired experiment, it is the
+linear-model analogue of a paired test. It does not estimate within-block
+correlation.
+
+`duplicate_correlation` supplies block identity as a correlation group rather
+than a fixed coefficient. PhosPy estimates feature-wise correlations by REML,
+combines eligible estimates into one consensus, and refits all features by GLS
+using that consensus. The model assumes one shared compound-symmetry
+correlation. It can be useful for repeated, multi-condition, or incomplete
+blocked designs, but it is not a general mixed-effects model and is not
+universally superior to `fixed_block`.
+
+!!! warning "First duplicate-correlation implementation limits"
+    The first implementation does not support multiple random effects, random
+    slopes, feature-specific final covariance models, arbitrary longitudinal
+    covariance, time-dependent correlation, nested or crossed random-effects
+    syntax, simultaneous fixed block coefficients and duplicate correlation,
+    automatic policy selection, user-supplied consensus correlation,
+    user-configurable trimming, or unsupported precision weights.
+
+    Do not add block dummy variables and a block-correlation structure to the
+    same model. Select `fixed_block` or `duplicate_correlation` explicitly.
+
+### Missing, Imputed, and Authoritative Matrix Policy
+
+Differential fitting consumes the workflow-approved analysis matrix. Actual
+missing values (`NaN`) are rejected before model fitting. By default,
+upstream-imputed datasets are also rejected.
+
+If `imputed_value_policy="withhold_imputed_features"` is selected, PhosPy uses
+dataset-owned observation metadata to decide which features remain `tested`.
+Withheld rows do not contribute to duplicate-correlation consensus estimation,
+GLS fitting, or multiple-testing adjustment. Tested rows are fitted on the
+workflow-approved matrix. If tested rows contain retained imputed cells, those
+cells participate in REML and GLS, and the result records this through
+imputation provenance and caveats. This is not observed-only fitting, does not
+use feature-specific residual degrees of freedom, and does not change the
+duplicate-correlation covariance model.
+
+For `duplicate_correlation`, provenance records the
+`analysis_matrix_fingerprint` and `authoritative_matrix_fingerprint`. They
+match by design: the approved fitting matrix is the matrix authority for both
+REML consensus estimation and final GLS.
 
 ### `EmpiricalBayesConfig`
 
@@ -275,6 +354,25 @@ version. It raises `WorkflowValidationError` before fitting when the dataset,
 design, contrasts, replication, scale, imputation state, or covariates do not
 meet the selected policy.
 
+### Failure Behaviour
+
+PhosPy fails closed for unsupported blocked designs.
+
+- `paired_design_policy="reject"` rejects paired or repeated designs when the
+  caller does not want PhosPy to select a supported blocked model.
+- `paired_design_policy="fixed_block"` rejects missing block IDs, incomplete
+  within-block contrast coverage, rank-deficient designs, non-estimable
+  contrasts, and insufficient residual degrees of freedom before fitting.
+- `paired_design_policy="duplicate_correlation"` rejects missing block IDs, no
+  repeated blocks, fixed block coefficients in the duplicate-correlation
+  design, unsupported precision weights, rank-deficient non-block designs,
+  non-estimable contrasts, and designs with two or fewer residual degrees of
+  freedom for REML. If REML consensus estimation or final GLS fitting fails,
+  the workflow reports a fitting failure.
+
+There is no silent fallback from `duplicate_correlation` to `fixed_block`,
+ordinary least squares, or correlation zero.
+
 ## Response
 
 `DifferentialAnalysisWorkflow.run(...)` returns a
@@ -299,6 +397,42 @@ meet the selected policy.
 | `input_dataset_preprocessing_report` | Report or `None` | Dataset preprocessing report carried into the result. |
 | `to_payload()` | JSON-compatible mapping | Serializable tables, diagnostics, provenance, and caveats. |
 | `scientifically_equals(...)` | `bool` | Scientific-result comparison helper. |
+
+### Policy and Duplicate-Correlation Provenance
+
+`result.policy_provenance` records the resolved design and fitting policy. The
+design summary includes `paired_design_policy`, `block_id_field_name`,
+`block_count`, `block_levels`, `block_column_names`,
+`condition_coverage_rule`, validation statuses, and limitations. For
+`fixed_block`, `block_column_names` names the fixed nuisance columns used in the
+linear model. For `duplicate_correlation`, `block_column_names` is empty because
+the block IDs are supplied as correlation groups instead.
+
+When `paired_design_policy="duplicate_correlation"`,
+`result.policy_provenance.duplicate_correlation` records:
+
+- requested and normalised paired-design policy;
+- `block_treatment="consensus_correlation"` and
+  `covariance_structure="compound_symmetry"`;
+- estimator name, estimator policy version, and fixed trim fraction;
+- matrix, design, and block-assignment fingerprints;
+- `block_structure`, including sample count, block count, repeated-block count,
+  singleton-block count, correlated-pair count, block levels, and minimum and
+  maximum block size;
+- `consensus.consensus_correlation`, eligible feature count, estimated feature
+  count, failed feature count, non-finite feature count, and the consensus
+  failure-reason field, which is normally empty in a returned successful result;
+- attempted, trimmed, and retained estimator-feature counts;
+- `failure_reason_counts`, `convergence_summary`, and `boundary_summary`;
+- `gls_fit_status`; and
+- `imputed_values_participated`, `imputed_feature_count`, and
+  `imputed_cell_count`.
+
+`result.workflow_provenance` also carries a serializable
+`duplicate_correlation` entry when the policy is selected. `result.caveats`
+contains an informational `differential_duplicate_correlation_consensus` caveat
+stating that one consensus compound-symmetry correlation was used and that
+feature-specific random effects were not fitted.
 
 Each contrast result table is indexed by the input `site_key`. The minimum
 public identity columns are `site_key`, `display_id`, `organism`,
@@ -362,6 +496,54 @@ peptide-to-site differential aggregation. A fixed-effect batch term is not
 ComBat, not RUV, not limma `removeBatchEffect` parity, and not mixed-effects
 modelling.
 
+For `fixed_block`, interpret the condition contrast as an estimate adjusted for
+ordinary block fixed effects. The estimate is driven by within-block
+comparisons where the requested contrast is covered by every block. This policy
+is valid and supported; it is not an unpaired analysis and is not deprecated by
+`duplicate_correlation`.
+
+For `duplicate_correlation`, interpret
+`policy_provenance.duplicate_correlation.consensus.consensus_correlation` as
+the one within-block compound-symmetry correlation used for all final GLS
+feature fits. Positive values increase the modelled covariance among samples in
+the same block; negative values decrease it within the valid
+compound-symmetry bounds for the observed block sizes. The value is a modelling
+parameter for this workflow, not a per-feature biological correlation.
+
+A feature can fail to contribute to the REML consensus and still receive final
+GLS statistics if the workflow obtains a valid consensus from other eligible
+features. Those estimator failures are summarized by
+`consensus.failed_feature_count`, `consensus.non_finite_feature_count`, and
+`failure_reason_counts`. A final GLS or moderated-statistic failure is
+different: it means the tested feature could not be fitted under the selected
+final model. Under `duplicate_correlation`, such a final fitting failure stops
+the workflow rather than being treated as only a consensus-contribution
+failure.
+
+Review `convergence_summary` and `boundary_summary` when interpreting a
+duplicate-correlation result. They report numerical optimisation failures,
+non-finite objectives or estimates, and estimates that converged at the valid
+compound-symmetry boundary. These summaries are caveats for the consensus
+estimate, not additional public estimator APIs.
+
+If `imputed_values_participated` is true, at least one tested row contained
+retained imputed cells under `imputed_value_policy="withhold_imputed_features"`.
+Those values participated in REML consensus estimation and GLS fitting because
+the workflow-approved matrix is authoritative. Review the imputation caveat and
+feature-eligibility table before interpreting those rows.
+
+`duplicate_correlation` is limited to one shared compound-symmetry correlation.
+It is not multiple random effects, random slopes, feature-specific final
+covariance, arbitrary longitudinal covariance, time-dependent correlation,
+nested or crossed random-effects syntax, simultaneous fixed block coefficients
+and duplicate correlation, automatic policy selection, user-supplied consensus
+correlation, user-configurable trimming, or unsupported precision weights.
+
+The committed differential limma parity fixtures demonstrate implementation
+agreement only for the fixture-scoped model envelopes they cover. They are not
+an independent scientific validation and do not make PhosPy generally identical
+to limma.
+
 ## Common Issues
 
 | Issue | What to Check |
@@ -371,8 +553,15 @@ modelling.
 | The scale is unsupported. | Build or declare a log2 dataset before running the workflow. |
 | Localization fails. | Add valid localization metadata and configure `DatasetLocalisationConfig` during dataset preparation. |
 | A fixed-block design fails. | Confirm that every block covers both sides of every requested contrast. |
+| A duplicate-correlation design fails. | Confirm every analysed sample has `block_id`, at least one block is repeated, the non-block fixed-effects design is full rank with more than two residual degrees of freedom, and no fixed block columns or unsupported weights are present. |
 | Imputation is rejected. | Keep the default rejection policy, or use withholding only with builder-owned observation metadata. |
 | Results contain withheld rows. | Review `feature_eligibility`, caveats, and the preprocessing report before interpreting absence biologically. |
+
+## Reference
+
+Smyth, G. K., Michaud, J., & Scott, H. S. (2005). Use of within-array replicate
+spots for assessing differential expression in microarray experiments.
+*Bioinformatics, 21*(9), 2067–2075. https://doi.org/10.1093/bioinformatics/bti270
 
 ## Related Guides
 

@@ -2260,6 +2260,8 @@ def test_installed_distribution_verifier_is_standalone_release_tooling() -> None
     assert "load_bundled_reference_manifest" in source
     assert "hashlib.sha256" in source
     assert "DifferentialAnalysisWorkflow" in source
+    assert "_exercise_duplicate_correlation_differential_contract" in source
+    assert "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION" in source
     assert "KinaseWorkflow" in source
     assert "ticket_1_posthoc_peptide_to_site_boundary" in source
     assert "withdrawn_asserted" in source
@@ -2361,6 +2363,10 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert (
         "test_manifest_fixture_byte_reproducibility.py::"
         "test_manifest_governed_fixtures_use_canonical_lf_bytes_and_valid_hashes"
+    ) in fixture_integrity
+    assert (
+        "test_manifest_fixture_byte_reproducibility.py::"
+        "test_duplicate_correlation_limma_fixture_manifest_hashes_match_checked_in_files"
     ) in fixture_integrity
     assert (
         "test_large_limma_trend_fixture_manifest_hashes_match_checked_in_files"

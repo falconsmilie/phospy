@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
 from phospy.advanced import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
@@ -15,6 +16,7 @@ from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
+    DifferentialAnalysisConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseReliabilityProfile,
@@ -851,6 +853,163 @@ def test_api_docs_differential_request_example_is_constructible() -> None:
     assert request.design.samples[0].sample_id == "A_1"
     assert request.contrasts[0].name == "treatment_vs_control"
     assert request.config.minimum_condition_replicates == 2
+
+
+def test_api_docs_duplicate_correlation_public_example_runs() -> None:
+    source = _read(DIFFERENTIAL_DOC)
+
+    _assert_python_imports(
+        source,
+        "phospy.advanced",
+        (
+            "DifferentialAnalysisConfig",
+            "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
+        ),
+        context="differential duplicate-correlation public example",
+    )
+    _assert_python_call_keyword(
+        source,
+        "DifferentialAnalysisConfig",
+        "paired_design_policy",
+        context="differential duplicate-correlation public example",
+    )
+    _assert_documented_terms(
+        source,
+        (
+            '"reject"',
+            '"fixed_block"',
+            '"duplicate_correlation"',
+            "consensus.consensus_correlation",
+            "singleton-block count",
+            "imputed_values_participated",
+            "feature-specific final covariance models",
+            "automatic policy selection",
+            "no silent fallback",
+            "not a general mixed-effects model",
+        ),
+        context="differential duplicate-correlation docs contract",
+    )
+    _assert_statement_contains_all(
+        source,
+        ("fixed_block", "valid supported policy"),
+        context="fixed-block validity guidance",
+    )
+    _assert_statement_contains_all(
+        source,
+        ("feature", "fail", "consensus", "final"),
+        context="duplicate-correlation estimator/final-fit distinction",
+    )
+
+    phospho = pd.DataFrame(
+        {
+            "control_rep1": [1000.0, 900.0, 800.0, 700.0],
+            "control_rep2": [1050.0, 880.0, 820.0, 710.0],
+            "control_rep3": [980.0, 910.0, 790.0, 690.0],
+            "treatment_rep1": [1800.0, 930.0, 760.0, 740.0],
+            "treatment_rep2": [1750.0, 920.0, 740.0, 730.0],
+            "treatment_rep3": [1825.0, 940.0, 770.0, 760.0],
+        },
+        index=["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;", "GSK3B;S9;"],
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3A", "TSC2", "GSK3B"],
+            "site": ["Y182", "S21", "S939", "S9"],
+            "site_sequence": [
+                ("A" * 15) + "Y" + ("A" * 15),
+                ("A" * 15) + "S" + ("A" * 15),
+                ("A" * 15) + "S" + ("A" * 15),
+                ("A" * 15) + "S" + ("A" * 15),
+            ],
+            "protein_namespace": [
+                "protein_id",
+                "protein_id",
+                "protein_id",
+                "protein_id",
+            ],
+            "protein_identifier": ["MAPK14", "GSK3A", "TSC2", "GSK3B"],
+            "localisation_confidence": [0.95, 0.94, 0.96, 0.93],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
+                localisation=DatasetLocalisationConfig(
+                    confidence_column="localisation_confidence",
+                    min_confidence=0.75,
+                ),
+            ),
+        )
+    )
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                "control_rep1",
+                "control",
+                "control_r1",
+                block_id="subject_1",
+            ),
+            SampleDesignRecord(
+                "treatment_rep1",
+                "treatment",
+                "treatment_r1",
+                block_id="subject_1",
+            ),
+            SampleDesignRecord(
+                "control_rep2",
+                "control",
+                "control_r2",
+                block_id="subject_2",
+            ),
+            SampleDesignRecord(
+                "treatment_rep2",
+                "treatment",
+                "treatment_r2",
+                block_id="subject_2",
+            ),
+            SampleDesignRecord(
+                "control_rep3",
+                "control",
+                "control_r3",
+                block_id="subject_3",
+            ),
+            SampleDesignRecord(
+                "treatment_rep3",
+                "treatment",
+                "treatment_r3",
+                block_id="subject_3",
+            ),
+        )
+    )
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=design,
+            contrasts=(
+                Contrast(
+                    name="treatment_vs_control",
+                    numerator_condition="treatment",
+                    denominator_condition="control",
+                ),
+            ),
+            config=DifferentialAnalysisConfig(
+                paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+            ),
+        )
+    )
+
+    duplicate = result.policy_provenance.duplicate_correlation
+    assert duplicate is not None
+    assert duplicate.normalised_paired_design_policy == "duplicate_correlation"
+    assert duplicate.block_structure.singleton_block_count == 0
+    assert duplicate.consensus.consensus_correlation is not None
+    assert result.table_for("treatment_vs_control").shape[0] == phospho.shape[0]
 
 
 def test_api_docs_kinase_request_example_is_constructible() -> None:

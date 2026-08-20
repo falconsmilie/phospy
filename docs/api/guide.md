@@ -14,6 +14,11 @@ for the import route you use:
 `phospy.advanced` is a supported advanced route for documented specialist
 configuration, diagnostics, references, and publishing helpers.
 Implementation modules are unsupported import targets for external callers.
+Non-default specialist policy objects, including
+`DifferentialAnalysisConfig` and paired-design policy constants such as
+`PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION`, are supported from
+`phospy.advanced`; they are intentionally outside the stable aggregate
+`phospy.api` export set during beta.
 The beta compatibility expectations are:
 
 | Stability tier | Supported import route | Compatibility expectation |

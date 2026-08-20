@@ -565,6 +565,10 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
     assert "manifest-declared resource hash mismatch" in INSTALLED_PROBE_SOURCE
     assert "load_bundled_reference_manifest" in INSTALLED_PROBE_SOURCE
     assert "DifferentialAnalysisWorkflow" in INSTALLED_PROBE_SOURCE
+    assert "_exercise_duplicate_correlation_differential_contract" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION" in INSTALLED_PROBE_SOURCE
     assert "KinaseWorkflow" in INSTALLED_PROBE_SOURCE
     assert "publish_dataset" in INSTALLED_PROBE_SOURCE
     assert "advanced_table_publisher" in INSTALLED_PROBE_SOURCE

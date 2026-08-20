@@ -24,6 +24,9 @@ RELEASE_VALIDATION_ROOT = FIXTURE_ROOT / "release_validation_regression"
 LARGE_LIMMA_TREND_ROOT = (
     FIXTURE_ROOT / "rewrite_parity" / "differential_limma_trend_large"
 )
+DUPLICATE_CORRELATION_LIMMA_ROOT = (
+    FIXTURE_ROOT / "rewrite_parity" / "differential_duplicate_correlation"
+)
 CANONICAL_BYTE_POLICY = "utf-8 LF with final newline"
 
 MANIFEST_GOVERNED_FIXTURE_DIRS = (
@@ -36,6 +39,7 @@ MANIFEST_GOVERNED_FIXTURE_DIRS = (
     RELEASE_VALIDATION_ROOT / "signalome_planted_modules",
     RELEASE_VALIDATION_ROOT / "importer_edge_cases",
     LARGE_LIMMA_TREND_ROOT,
+    DUPLICATE_CORRELATION_LIMMA_ROOT,
 )
 
 pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
@@ -167,6 +171,12 @@ def test_manifest_governed_fixtures_use_canonical_lf_bytes_and_valid_hashes() ->
             expected_sha256=reference.expected_sha256,
             repo_root=ROOT,
         )
+
+
+def test_duplicate_correlation_limma_fixture_manifest_hashes_match_checked_in_files() -> (
+    None
+):
+    _validate_manifest_hashes(DUPLICATE_CORRELATION_LIMMA_ROOT)
 
 
 def test_manifest_governed_text_fixtures_have_lf_gitattributes_coverage() -> None:

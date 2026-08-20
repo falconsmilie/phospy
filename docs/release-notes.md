@@ -79,6 +79,11 @@ proof of scientific validity.
 - Dataset group-coverage filtering, configurable multiple-testing correction,
   differential contrast helpers, differential result filtering/ranking helpers,
   and stronger biological-replicate reliability policy.
+- Explicit `paired_design_policy="duplicate_correlation"` support for blocked
+  differential designs. This additive option estimates one REML consensus
+  compound-symmetry within-block correlation and refits eligible features by
+  GLS; `fixed_block` and `reject` remain valid policies, and the default policy
+  remains `reject`.
 - Common structured `ResultCaveat` records surfaced by differential, kinase,
   signalome, and enrichment workflow results.
 - Typed row-attrition provenance across dataset building, differential,
@@ -209,5 +214,9 @@ consensus compound-symmetry correlation and GLS; it is not a general
 mixed-effects model or feature-specific random-effects fit. The preprocessing
 batch-correction methods are not ComBat, PhosR-equivalent RUV/SPS/RUV-III, or
 limma `removeBatchEffect` parity claims.
+
+Committed differential limma parity fixtures are implementation evidence for
+the exact fixture-scoped model envelopes they cover. They are not independent
+scientific validation and do not imply general limma equivalence.
 
 Next: [Quickstart](quickstart.md) or [API Guide](api/guide.md).

@@ -69,6 +69,11 @@ All notable changes to this project are documented here.
 - Added dataset group-coverage filtering, configurable multiple-testing
   correction, differential contrast helper functions, and differential result
   filtering/ranking helpers.
+- Added explicit `paired_design_policy="duplicate_correlation"` support for
+  blocked differential designs. The option estimates one REML consensus
+  compound-symmetry within-block correlation and refits eligible features by
+  GLS, while preserving `fixed_block` and `reject` as valid policies and
+  leaving the default policy unchanged.
 - Added shared structured `ResultCaveat` records for differential, kinase,
   signalome, and enrichment workflow results.
 - Added typed row-attrition provenance across dataset building, differential,
