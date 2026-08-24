@@ -40,6 +40,88 @@ estimates, Fisher `atanh` transformation, a `15%` trimmed mean from each tail,
 and inverse `tanh` transformation. The trim value is fixed at `0.15`; it is not
 a public tuning parameter.
 
+PhosPy intentionally uses the implemented limma-aligned residual-space
+variance-component REML formulation. It does not define the estimator as a
+direct one-dimensional profile-likelihood optimiser over correlation, and this
+ADR does not claim algebraic equivalence to that alternative formulation.
+PhosPy's scientific authority for this implementation is the residual-space
+estimator in `src/phospy/science/differential/duplicate_correlation.py` together
+with the version-pinned limma fixtures that verify feature-level estimates and
+the consensus correlation.
+
+For one feature, finite observations are selected first. Let `y_g` be the
+observed feature vector, `X_g` the corresponding non-block fixed-effects design,
+and `B_g` the corresponding block-indicator matrix. The rank of `X_g` is
+recomputed after this feature-specific subsetting. A residual-space basis `Q2_g`
+is formed for the orthogonal complement of `col(X_g)`, representing removal of
+the fixed-effects design. The estimator then works with `z_g = Q2_g.T @ y_g`
+and `W_g = Q2_g.T @ B_g`. After SVD of `W_g`, squared rotated residual-space
+coordinates are fitted against a two-column component design containing an
+intercept and the block eigenvalues. The fitted quantities are the residual
+component and block component; the raw feature correlation is calculated after
+that fit as:
+
+```text
+rho_raw = block_component / (residual_component + block_component)
+```
+
+Initial component coefficients come from least squares on the residual-space
+component design. When the residual-space information is adequate, the
+implementation refines them with the Gamma mean-variance iteration used by the
+current estimator. Non-finite components, non-finite objective values, and
+non-finite raw correlations become typed
+`non_finite_objective_or_estimate` feature outcomes. Finite component fits that
+do not converge become typed `optimisation_failed` feature outcomes.
+
+Feature-specific missingness is part of the estimator contract. Removing
+non-finite observations can change `X_g`, the observed block assignments, design
+rank, residual degrees of freedom, the maximum observed repeated-block size, and
+therefore the admissible lower correlation boundary for that feature. Features
+that lose fixed-effect estimability, have two or fewer observed residual
+degrees of freedom, have no repeated observations after subsetting, or have zero
+or unusable residual variation receive typed failure statuses and do not
+contribute to the consensus.
+
+Successful feature estimates include both interior estimates and boundary
+converged estimates. Their clamped correlations are Fisher transformed with
+`atanh`, sorted, trimmed by `floor(n * 0.15)` from each tail, averaged on the
+Fisher scale, and transformed back with `tanh`. Boundary-converged feature
+estimates are valid consensus contributors.
+
+The feature-level correlation clamp is applied after `rho_raw` is calculated
+from the fitted components. For a feature whose maximum observed repeated-block
+size is `m >= 2`, the compound-symmetry positive-definite lower boundary is
+`-1 / (m - 1)`. PhosPy clamps feature estimates to:
+
+```text
+lower = -1 / (m - 1) + 0.01
+upper = 0.99
+```
+
+The `0.01` lower-bound offset keeps lower-bound feature estimates strictly
+inside the positive-definite compound-symmetry interval. The `0.99` upper cap
+keeps estimates away from the unit-correlation singularity. Together these
+clamps avoid singular or effectively singular covariance matrices, keep Fisher
+aggregation finite and deterministic, preserve the limma-aligned numerical
+behaviour verified by fixtures, and make boundary handling reproducible.
+
+If the clamped estimate is within the boundary-detection tolerance of either
+clamp, the feature status is `boundary_converged` and the boundary is recorded
+as `lower` or `upper`; otherwise the feature status is `estimated`. Boundary
+counts and the workflow-level positive-definite interval are retained in typed
+diagnostics.
+
+After Fisher aggregation, the consensus correlation is validated against the
+full workflow block structure before GLS. This check uses the full maximum
+repeated-block size, not any one feature's missingness-reduced block structure.
+For full maximum repeated-block size `M >= 2`, the consensus lower bound is
+`-1 / (M - 1) + 1e-10`; the upper bound is `0.99`. A consensus outside that
+interval produces the typed
+`invalid_or_non_positive_definite_covariance` outcome. The GLS fitter then
+validates the supplied consensus again by requiring it to be finite, inside
+`(-1, 1)`, strictly above the compound-symmetry lower boundary for the supplied
+blocks, and Cholesky-factorable as a block covariance matrix.
+
 For the estimator to run, the full non-block fixed-effects design must leave
 more than two residual degrees of freedom, i.e. the analysed sample count must be
 more than two larger than the design rank. Feature-level REML estimates with two
@@ -117,6 +199,10 @@ thousands of feature-wise values.
    Rejected because silent fallback changes the scientific model.
 4. Make trim user-configurable now. Rejected because the first implementation
    uses the fixed published `15%` trimmed-mean contract.
+5. Replace the parity-verified residual-space variance-component REML estimator
+   with a direct bounded scalar optimiser over correlation. Rejected for this
+   corrective round because the implemented residual-space estimator already
+   matches the version-pinned limma feature and consensus fixtures.
 
 ## Implementation Notes
 

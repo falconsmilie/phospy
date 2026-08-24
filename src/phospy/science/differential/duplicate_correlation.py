@@ -42,7 +42,12 @@ DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE = 1.0e-10
 DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE = (
     DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE
 )
+# Keep REML component-ratio estimates away from the unit-correlation
+# singularity while preserving limma-aligned fixture behaviour.
 DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP = 0.99
+# Feature-level lower clamps sit inside the compound-symmetry positive-definite
+# boundary so Fisher aggregation and later GLS covariance construction remain
+# deterministic at boundary solutions.
 DUPLICATE_CORRELATION_LOWER_CORRELATION_BOUND_OFFSET = 0.01
 DUPLICATE_CORRELATION_OPTIMIZER_ABSOLUTE_TOLERANCE = 1.0e-6
 DUPLICATE_CORRELATION_OPTIMIZER_MAX_ITERATIONS = 20
@@ -67,6 +72,8 @@ class _VarianceComponentFit:
 
     @property
     def correlation(self) -> float:
+        """Map fitted residual/block components to within-block correlation."""
+
         denominator = self.residual_component + self.block_component
         if denominator == 0.0:
             return math.nan
@@ -98,7 +105,9 @@ def estimate_duplicate_correlation_reml_consensus(
     ``matrix`` is feature-by-sample. ``design`` is sample-by-fixed-effect.
     ``block_ids`` is aligned to the design rows and matrix columns. Missing
     feature observations are represented by non-finite matrix values and are
-    removed feature-by-feature before fitting.
+    removed feature-by-feature before fitting, so each feature receives its own
+    observed design, block structure, rank, residual degrees of freedom, and
+    admissible compound-symmetry boundary.
     """
 
     matrix_values = _as_float_matrix(
@@ -203,6 +212,8 @@ def _estimate_one_feature(
     optimizer_absolute_tolerance: float,
     optimizer_max_iterations: int,
 ) -> DuplicateCorrelationFeatureEstimate:
+    # Feature-specific missingness changes both the residual-space design and
+    # the positive-definite interval used to clamp the mapped correlation.
     finite_mask = np.isfinite(values)
     observed_count = int(np.count_nonzero(finite_mask))
     coefficient_count = int(design.shape[1])
@@ -348,7 +359,7 @@ def _estimate_one_feature(
             lower_correlation_bound=bounds.lower,
             upper_correlation_bound=bounds.upper,
         )
-    estimate = min(max(raw_correlation, bounds.lower), bounds.upper)
+    estimate = _clamp_feature_correlation(raw_correlation, bounds=bounds)
     boundary = _boundary_kind(
         estimate,
         lower_bound=bounds.lower,
@@ -914,6 +925,8 @@ def _correlation_within_workflow_bounds(
     *,
     block_structure: DuplicateCorrelationBlockStructureSummary,
 ) -> bool:
+    """Check the consensus against the full workflow covariance interval."""
+
     bounds = _workflow_bounds(block_structure)
     return bounds.lower <= correlation <= bounds.upper
 
@@ -938,6 +951,8 @@ def _workflow_bounds(
 def _feature_correlation_clamp_bounds(
     maximum_observed_block_size: int,
 ) -> _FeatureBounds:
+    """Return post-REML feature-correlation clamp bounds after subsetting."""
+
     if maximum_observed_block_size < 2:
         return _FeatureBounds(
             lower=-1.0 + DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE,
@@ -951,7 +966,19 @@ def _feature_correlation_clamp_bounds(
     return _FeatureBounds(lower=float(lower), upper=float(upper))
 
 
+def _clamp_feature_correlation(
+    raw_correlation: float,
+    *,
+    bounds: _FeatureBounds,
+) -> float:
+    """Project a raw REML component-ratio correlation into supported bounds."""
+
+    return float(min(max(raw_correlation, bounds.lower), bounds.upper))
+
+
 def _feature_bounds(maximum_observed_block_size: int) -> _FeatureBounds:
+    """Return the strict positive-definite interval for covariance validation."""
+
     if maximum_observed_block_size < 2:
         return _FeatureBounds(
             lower=-1.0 + DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE,

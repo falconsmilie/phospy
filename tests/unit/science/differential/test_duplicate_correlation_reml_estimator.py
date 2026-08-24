@@ -232,6 +232,190 @@ def test_negative_correlation_can_approach_pair_block_pd_lower_bound() -> None:
     assert estimate.correlation == pytest.approx(-0.99)
 
 
+def test_raw_correlation_above_upper_cap_is_clamped_deterministically(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_fit = _variance_fit_for_raw_correlation(0.995)
+    assert (
+        raw_fit.correlation
+        > duplicate_correlation_module.DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP
+    )
+
+    def high_correlation_fit(**_: object) -> object:
+        return raw_fit
+
+    monkeypatch.setattr(
+        duplicate_correlation_module,
+        "_fit_reml_variance_components",
+        high_correlation_fit,
+    )
+    matrix = np.array([[1.0, 2.0, 2.5, 1.5, 1.25, 2.25, 2.75, 1.75]])
+    design = np.ones((8, 1), dtype=np.float64)
+    blocks = ("b1", "b1", "b2", "b2", "b3", "b3", "b4", "b4")
+
+    first = estimate_duplicate_correlation_reml_consensus(
+        matrix,
+        design,
+        blocks,
+        feature_ids=("upper_clamped",),
+    )
+    second = estimate_duplicate_correlation_reml_consensus(
+        matrix,
+        design,
+        blocks,
+        feature_ids=("upper_clamped",),
+    )
+
+    estimate = first.feature_estimates[0]
+    assert first.success
+    assert first.to_payload() == second.to_payload()
+    assert estimate.status is DuplicateCorrelationFeatureStatus.BOUNDARY_CONVERGED
+    assert estimate.boundary is DuplicateCorrelationBoundary.UPPER
+    assert estimate.correlation == pytest.approx(
+        duplicate_correlation_module.DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP
+    )
+    assert estimate.upper_correlation_bound == pytest.approx(
+        duplicate_correlation_module.DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP
+    )
+    assert first.convergence_summary is not None
+    assert first.convergence_summary.boundary_feature_count == 1
+    assert first.boundary_summary is not None
+    assert first.boundary_summary.upper_boundary_feature_count == 1
+
+
+def test_feature_missingness_changes_lower_clamp_and_boundary_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_fit = _variance_fit_for_raw_correlation(-0.75)
+
+    def negative_correlation_fit(**_: object) -> object:
+        return raw_fit
+
+    monkeypatch.setattr(
+        duplicate_correlation_module,
+        "_fit_reml_variance_components",
+        negative_correlation_fit,
+    )
+    result = estimate_duplicate_correlation_reml_consensus(
+        np.array(
+            [
+                [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+                [1.0, 2.0, math.nan, 4.0, 5.0, math.nan, 7.0, 8.0, math.nan],
+            ],
+            dtype=np.float64,
+        ),
+        np.ones((9, 1), dtype=np.float64),
+        ("b1", "b1", "b1", "b2", "b2", "b2", "b3", "b3", "b3"),
+        feature_ids=("full_triples", "observed_pairs"),
+    )
+
+    estimates = {estimate.feature_id: estimate for estimate in result.feature_estimates}
+    triple_lower = (-1.0 / 2.0) + (
+        duplicate_correlation_module.DUPLICATE_CORRELATION_LOWER_CORRELATION_BOUND_OFFSET
+    )
+    pair_lower = -1.0 + (
+        duplicate_correlation_module.DUPLICATE_CORRELATION_LOWER_CORRELATION_BOUND_OFFSET
+    )
+
+    full_triples = estimates["full_triples"]
+    assert full_triples.status is DuplicateCorrelationFeatureStatus.BOUNDARY_CONVERGED
+    assert full_triples.boundary is DuplicateCorrelationBoundary.LOWER
+    assert full_triples.lower_correlation_bound == pytest.approx(triple_lower)
+    assert full_triples.correlation == pytest.approx(triple_lower)
+    assert full_triples.correlation is not None
+    assert full_triples.correlation > -1.0 / 2.0
+
+    observed_pairs = estimates["observed_pairs"]
+    assert observed_pairs.status is DuplicateCorrelationFeatureStatus.ESTIMATED
+    assert observed_pairs.boundary is None
+    assert observed_pairs.lower_correlation_bound == pytest.approx(pair_lower)
+    assert observed_pairs.correlation == pytest.approx(raw_fit.correlation)
+    assert observed_pairs.correlation is not None
+    assert observed_pairs.correlation > -1.0
+
+    assert result.boundary_summary is not None
+    assert result.boundary_summary.lower_boundary_feature_count == 1
+    assert result.boundary_summary.lower_correlation_bound == pytest.approx(
+        (-1.0 / 2.0)
+        + duplicate_correlation_module.DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE
+    )
+    assert not result.success
+    assert result.failure_reason is (
+        DuplicateCorrelationFailureReason.INVALID_OR_NON_POSITIVE_DEFINITE_COVARIANCE
+    )
+
+
+def test_valid_negative_interior_raw_correlation_is_not_forced_to_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_fit = _variance_fit_for_raw_correlation(-0.25)
+
+    def negative_correlation_fit(**_: object) -> object:
+        return raw_fit
+
+    monkeypatch.setattr(
+        duplicate_correlation_module,
+        "_fit_reml_variance_components",
+        negative_correlation_fit,
+    )
+
+    result = estimate_duplicate_correlation_reml_consensus(
+        np.array([[1.0, 2.0, 2.5, 1.5, 1.25, 2.25, 2.75, 1.75]]),
+        np.ones((8, 1), dtype=np.float64),
+        ("b1", "b1", "b2", "b2", "b3", "b3", "b4", "b4"),
+        feature_ids=("negative_interior",),
+    )
+
+    estimate = result.feature_estimates[0]
+    assert result.success
+    assert estimate.status is DuplicateCorrelationFeatureStatus.ESTIMATED
+    assert estimate.boundary is None
+    assert estimate.correlation == pytest.approx(raw_fit.correlation)
+    assert result.consensus_correlation == pytest.approx(raw_fit.correlation)
+
+
+@pytest.mark.parametrize("maximum_block_size", (2, 3, 4, 8))
+@pytest.mark.parametrize("which_clamp", ("lower", "upper"))
+def test_gls_covariance_is_positive_definite_at_supported_clamps(
+    maximum_block_size: int,
+    which_clamp: str,
+) -> None:
+    lower = (
+        -1.0 / float(maximum_block_size - 1)
+        + duplicate_correlation_module.DUPLICATE_CORRELATION_LOWER_CORRELATION_BOUND_OFFSET
+    )
+    correlation = (
+        lower
+        if which_clamp == "lower"
+        else duplicate_correlation_module.DUPLICATE_CORRELATION_UPPER_CORRELATION_CAP
+    )
+    one_block_covariance = np.full(
+        (maximum_block_size, maximum_block_size),
+        correlation,
+        dtype=np.float64,
+    )
+    np.fill_diagonal(one_block_covariance, 1.0)
+    assert float(np.min(np.linalg.eigvalsh(one_block_covariance))) > 0.0
+
+    blocks = tuple(
+        f"b{block_position}"
+        for block_position in range(2)
+        for _ in range(maximum_block_size)
+    )
+    sample_count = len(blocks)
+
+    fit = duplicate_correlation_module.fit_compound_symmetry_gls(
+        np.arange(1, sample_count + 1, dtype=np.float64)[np.newaxis, :],
+        np.ones((sample_count, 1), dtype=np.float64),
+        blocks,
+        correlation,
+        feature_ids=("supported_clamp",),
+    )
+
+    assert fit.consensus_correlation == pytest.approx(correlation)
+    assert fit.feature_fit_statuses == ("fit",)
+
+
 def test_exact_trim_count_semantics_for_small_and_large_feature_sets() -> None:
     small = tuple(math.tanh(value) for value in (-0.4, 0.0, 0.2, 0.3, 0.5, 0.7))
     small_consensus = _fisher_trimmed_mean_consensus(small)
@@ -723,6 +907,16 @@ def _fixture_inputs(
 def _summary(fixture_id: str) -> dict[str, str]:
     frame = pd.read_csv(FIXTURE_ROOT / fixture_id / "duplicate_correlation_summary.csv")
     return {str(row.field): str(row.value) for row in frame.itertuples(index=False)}
+
+
+def _variance_fit_for_raw_correlation(correlation: float) -> object:
+    return duplicate_correlation_module._VarianceComponentFit(
+        converged=True,
+        residual_component=1.0,
+        block_component=correlation / (1.0 - correlation),
+        deviance=1.0,
+        iteration_count=1,
+    )
 
 
 def _simulate_duplicate_correlation_matrix(
