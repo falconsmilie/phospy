@@ -24,6 +24,10 @@ from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationFeatureStatus,
     DuplicateCorrelationReasonCount,
 )
+from tests.support.duplicate_correlation_parity_scopes import (
+    ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS,
+    FULL_PIPELINE_FIXTURE_IDS,
+)
 
 ROOT = Path(__file__).resolve().parents[4]
 FIXTURE_ROOT = (
@@ -42,12 +46,7 @@ REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE = 1.0e-6
 REML_REFERENCE_FISHER_Z_ABSOLUTE_TOLERANCE = 1.0e-6
 STRICT_CORRELATION_ABSOLUTE_TOLERANCE = 1.0e-8
 
-FIXTURE_IDS = (
-    "fixture_a_complete_pairs",
-    "fixture_b_three_observation_blocks",
-    "fixture_c_incomplete_unequal_blocks",
-    "fixture_d_feature_level_failures",
-)
+FIXTURE_IDS = (*FULL_PIPELINE_FIXTURE_IDS, *ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS)
 
 SUCCESS_STATUSES = {
     DuplicateCorrelationFeatureStatus.ESTIMATED,

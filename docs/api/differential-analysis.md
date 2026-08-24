@@ -544,6 +544,14 @@ agreement only for the fixture-scoped model envelopes they cover. They are not
 an independent scientific validation and do not make PhosPy generally identical
 to limma.
 
+For the duplicate-correlation fixture lane, fixtures A-C cover the complete
+supported public path through final moderated statistics. Fixture D is narrower:
+it checks internal feature-level REML and compound-symmetry GLS behavior for
+controlled missingness/failure cases. It is not a public empirical-Bayes parity
+fixture because public analysis-ready inputs with actual missing values fail
+closed before fitting, and PhosPy does not return partial moderated output after
+final duplicate-correlation GLS failures.
+
 ## Common Issues
 
 | Issue | What to Check |

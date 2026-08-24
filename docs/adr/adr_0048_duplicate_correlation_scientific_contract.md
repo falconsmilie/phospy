@@ -169,6 +169,20 @@ consensus. It is not final differential row attrition by itself: the same
 feature may still be fitted later using a successfully estimated consensus
 correlation.
 
+The limma duplicate-correlation fixtures have explicit parity scopes. Fixtures
+A-C validate the complete supported public path through feature-wise REML,
+consensus aggregation, compound-symmetry GLS, contrasts, empirical Bayes, and
+final moderated statistics. Fixture D validates estimator and GLS parity for
+controlled feature-level missingness and failure cases, including raw
+feature-specific GLS residual degrees of freedom and final feature-fit
+statuses. Fixture D does not claim public empirical-Bayes parity: its actual
+missing values are outside the public `AnalysisReadyPhosphoDataset` input
+contract, and the internal duplicate-correlation executor also fails closed
+before moderation if final GLS returns any non-fit feature status. PhosPy does
+not expose a partial feature-specific moderated result after final GLS
+failures. This fixture-D boundary does not weaken the complete-case public
+parity claim made for fixtures A-C.
+
 Internal frozen typed models define feature-level status, consensus result,
 failure reasons, block-structure summary, and duplicate-correlation workflow
 provenance. Internal estimator results may retain feature-wise estimates for
@@ -211,6 +225,9 @@ thousands of feature-wise values.
   are re-exported through the supported configuration facades.
 - Internal typed contracts live in
   `src/phospy/science/differential/models/duplicate_correlation.py`.
+- Fixture parity scopes are declared in
+  `tests/support/duplicate_correlation_parity_scopes.py` and checked against the
+  committed fixture manifest by the release-gated fixture integrity tests.
 - Public-sized workflow provenance uses the existing `TableFingerprint`
   provenance model for the authoritative fitting matrix and serializes through
   narrow `to_payload()` methods that omit retained feature-wise estimates.

@@ -4,12 +4,21 @@ import hashlib
 import json
 import math
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import pytest
+
+from tests.support.duplicate_correlation_parity_scopes import (
+    DUPLICATE_CORRELATION_FIXTURE_PARITY_SCOPES,
+    DUPLICATE_CORRELATION_PARITY_SCOPE_FIXTURE_IDS,
+    ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS,
+    FULL_PIPELINE_FIXTURE_IDS,
+    DuplicateCorrelationParityScope,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_ROOT = (
@@ -27,12 +36,7 @@ GENERATOR_PATH = (
     / "generate_differential_duplicate_correlation_limma_fixtures.R"
 )
 
-EXPECTED_FIXTURE_IDS = (
-    "fixture_a_complete_pairs",
-    "fixture_b_three_observation_blocks",
-    "fixture_c_incomplete_unequal_blocks",
-    "fixture_d_feature_level_failures",
-)
+EXPECTED_FIXTURE_IDS = (*FULL_PIPELINE_FIXTURE_IDS, *ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS)
 REQUIRED_FIXTURE_FILES = {
     "matrix.csv",
     "sample_metadata.csv",
@@ -188,6 +192,58 @@ def test_duplicate_correlation_limma_manifest_hashes_match_fixture_bytes() -> No
             if item["fixture"] == fixture_id
         }
         assert present == REQUIRED_FIXTURE_FILES
+
+
+def test_duplicate_correlation_limma_fixture_parity_scopes_cover_manifest_once() -> (
+    None
+):
+    manifest_fixture_ids = tuple(str(entry["id"]) for entry in _manifest()["fixtures"])
+    assert Counter(manifest_fixture_ids) == {
+        fixture_id: 1 for fixture_id in manifest_fixture_ids
+    }
+
+    committed_fixture_dirs = tuple(
+        sorted(path.name for path in FIXTURE_ROOT.iterdir() if path.is_dir())
+    )
+    assert set(committed_fixture_dirs) == set(manifest_fixture_ids)
+
+    fixture_id_set = set(manifest_fixture_ids)
+    assignments = {fixture_id: [] for fixture_id in manifest_fixture_ids}
+    unknown_assignments: list[str] = []
+    for scope, fixture_ids in DUPLICATE_CORRELATION_PARITY_SCOPE_FIXTURE_IDS.items():
+        for fixture_id in fixture_ids:
+            if fixture_id not in fixture_id_set:
+                unknown_assignments.append(fixture_id)
+                continue
+            assignments[fixture_id].append(scope)
+
+    unclassified = [
+        fixture_id for fixture_id, scopes in assignments.items() if not scopes
+    ]
+    conflicting = {
+        fixture_id: [scope.value for scope in scopes]
+        for fixture_id, scopes in assignments.items()
+        if len(scopes) != 1
+    }
+    assert unknown_assignments == []
+    assert unclassified == []
+    assert conflicting == {}
+
+    assert FULL_PIPELINE_FIXTURE_IDS == (
+        "fixture_a_complete_pairs",
+        "fixture_b_three_observation_blocks",
+        "fixture_c_incomplete_unequal_blocks",
+    )
+    assert ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS == ("fixture_d_feature_level_failures",)
+    assert (
+        DUPLICATE_CORRELATION_FIXTURE_PARITY_SCOPES["fixture_d_feature_level_failures"]
+        is DuplicateCorrelationParityScope.ESTIMATOR_AND_GLS_ONLY
+    )
+    for fixture_id in FULL_PIPELINE_FIXTURE_IDS:
+        assert (
+            DUPLICATE_CORRELATION_FIXTURE_PARITY_SCOPES[fixture_id]
+            is DuplicateCorrelationParityScope.FULL_PIPELINE
+        )
 
 
 @pytest.mark.parametrize("fixture_id", EXPECTED_FIXTURE_IDS)

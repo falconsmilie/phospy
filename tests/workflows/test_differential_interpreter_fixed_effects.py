@@ -25,7 +25,11 @@ from phospy.contracts.configs import (
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
 )
-from phospy.errors import PhosPyInputError, WorkflowValidationError
+from phospy.errors import (
+    DatasetValidationError,
+    PhosPyInputError,
+    WorkflowValidationError,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.differential.models import DifferentialAnalysisResult
 from phospy.workflows.differential.caveats import (
@@ -641,6 +645,54 @@ def test_differential_duplicate_correlation_incomplete_blocks_execute() -> None:
     assert result.policy_provenance.design.block_columns == ()
     assert np.isfinite(result.table_for("B_vs_A")["t"]).all()
     assert np.isfinite(result.table_for("C_vs_A")["t"]).all()
+
+
+def test_differential_duplicate_correlation_fixture_d_fails_public_missingness_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ebayes_calls = 0
+
+    def _unexpected_empirical_bayes_call(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        nonlocal ebayes_calls
+        ebayes_calls += 1
+        raise AssertionError("empirical Bayes must not run for fixture D")
+
+    monkeypatch.setattr(
+        differential_executor_module,
+        "fit_empirical_bayes",
+        _unexpected_empirical_bayes_call,
+    )
+    fixture_matrix = pd.read_csv(
+        _DUPLICATE_CORRELATION_FIXTURE_ROOT
+        / "fixture_d_feature_level_failures"
+        / "matrix.csv"
+    )
+    feature_ids = fixture_matrix.pop("feature_id").astype(str)
+    non_finite_rows = ~np.isfinite(fixture_matrix.to_numpy(dtype=float)).all(axis=1)
+    assert len(feature_ids) == 8
+    assert tuple(feature_ids.loc[non_finite_rows].tolist()) == (
+        "D_missing_still_estimable",
+        "D_rank_loss_only_A",
+        "D_insufficient_one",
+        "D_all_missing",
+    )
+
+    request: DifferentialAnalysisRequest | None = None
+    result: DifferentialAnalysisResult | None = None
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.phospho must not contain missing values",
+    ) as exc_info:
+        request = _duplicate_fixture_request("fixture_d_feature_level_failures")
+        result = DifferentialAnalysisWorkflow().run(request)
+
+    assert request is None
+    assert result is None
+    assert ebayes_calls == 0
+    assert "dataset.processing_state.missing_data claims no missing values" in str(
+        exc_info.value
+    )
 
 
 def test_differential_duplicate_correlation_rejects_no_repeated_blocks() -> None:

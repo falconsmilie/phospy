@@ -15,6 +15,10 @@ from phospy.science.differential.compound_symmetry_gls import (
     fit_compound_symmetry_gls,
 )
 from phospy.science.differential.linear_model import decompose_differential_design
+from tests.support.duplicate_correlation_parity_scopes import (
+    ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS,
+    FULL_PIPELINE_FIXTURE_IDS,
+)
 
 ROOT = Path(__file__).resolve().parents[4]
 FIXTURE_ROOT = (
@@ -25,12 +29,7 @@ FIXTURE_ROOT = (
     / "differential_duplicate_correlation"
 )
 
-FIXTURE_IDS = (
-    "fixture_a_complete_pairs",
-    "fixture_b_three_observation_blocks",
-    "fixture_c_incomplete_unequal_blocks",
-    "fixture_d_feature_level_failures",
-)
+FIXTURE_IDS = (*FULL_PIPELINE_FIXTURE_IDS, *ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS)
 GLS_LINEAR_ABSOLUTE_TOLERANCE = 5.0e-9
 GLS_STDEV_UNSCALED_ABSOLUTE_TOLERANCE = 5.0e-9
 GLS_COVARIANCE_ABSOLUTE_TOLERANCE = 5.0e-9

@@ -17,6 +17,9 @@ from phospy.science.differential.models import (
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
 )
+from tests.support.duplicate_correlation_parity_scopes import (
+    FULL_PIPELINE_FIXTURE_IDS,
+)
 
 pytestmark = [pytest.mark.parity]
 
@@ -25,12 +28,6 @@ FIXTURE_ROOT = (
     / "fixtures"
     / "rewrite_parity"
     / "differential_duplicate_correlation"
-)
-
-EBAYES_FIXTURE_IDS = (
-    "fixture_a_complete_pairs",
-    "fixture_b_three_observation_blocks",
-    "fixture_c_incomplete_unequal_blocks",
 )
 
 
@@ -49,7 +46,7 @@ TOLERANCES = DuplicateCorrelationParityTolerances()
 SERIALIZED_POSITIVE_INFINITY_COLUMNS = frozenset({"df.prior"})
 
 
-@pytest.mark.parametrize("fixture_id", EBAYES_FIXTURE_IDS)
+@pytest.mark.parametrize("fixture_id", FULL_PIPELINE_FIXTURE_IDS)
 def test_duplicate_correlation_ebayes_priors_match_limma_fixture(
     fixture_id: str,
 ) -> None:
@@ -78,7 +75,7 @@ def test_duplicate_correlation_ebayes_priors_match_limma_fixture(
     )
 
 
-@pytest.mark.parametrize("fixture_id", EBAYES_FIXTURE_IDS)
+@pytest.mark.parametrize("fixture_id", FULL_PIPELINE_FIXTURE_IDS)
 def test_duplicate_correlation_public_and_derived_statistics_match_limma_fixture(
     fixture_id: str,
 ) -> None:
