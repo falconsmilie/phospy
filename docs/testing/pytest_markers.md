@@ -76,19 +76,19 @@ Based on that configuration:
 - External-consumer public API validation: `make test-contract`
 - Exclude slow tests in local loops: `pytest -m "not parity and not slow"`
 - Performance-only validation: `pytest tests/performance -m "performance or release_gate"`
-- Strict documentation validation: `make docs-build`
+- Standalone documentation maintenance: `make docs-build`
 - Optional local release-scale benchmark: `make benchmark-release-scale`
 - Release/golden validation: `make test-release-gates`
 - Installed wheel/sdist validation: `make verify-installed-distributions`
 - Full release-check command: `make release-check`
 
 The default local run deliberately omits contract tests, release tests, golden
-tests, threshold-bearing parity tests, documentation builds, and performance
-contracts unless they are selected separately. `make release-check` is the
-authoritative aggregate command for release-blocking checks. This marker model
+tests, threshold-bearing parity tests, and performance contracts unless they are
+selected separately. `make release-check` is the authoritative aggregate command
+for release-blocking checks. `make docs-build` is a standalone documentation
+maintenance command, not part of `make release-check`. This marker model
 provides normal CI/build confidence; final Git-backed staged-byte and built
-wheel/sdist release verification is described in
-[Maintenance](../maintenance.md).
+wheel/sdist release verification is described in [Maintenance](../maintenance.md).
 
 The release policy test suite includes a collection-only selector audit using
 `tools/testing/release_selector_coverage.py`. It compares actual collected node

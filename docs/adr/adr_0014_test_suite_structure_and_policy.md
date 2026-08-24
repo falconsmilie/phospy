@@ -153,7 +153,6 @@ adverse scientific cases.
    - threshold-bearing parity tests through
      `pytest tests/parity -m "parity and not parity_diagnostic" -s`
    - performance contract tests
-   - strict documentation build through `make docs-build`
    - archive-level wheel/sdist metadata and packaged-reference checks
    - installed wheel/sdist verification outside the checkout
 2. Fast local defaults may keep parity, release/golden, and performance suites
@@ -177,9 +176,10 @@ adverse scientific cases.
    machine-dependent and non-release-blocking.
 10. CI and publication workflows must run installed wheel/sdist verification
     against the single built artifact set on Python 3.11 and 3.12.
-11. CI must run `mkdocs build --strict` or an equivalent strict documentation
-    build so documentation warnings, including broken internal links, fail the
-    build.
+11. The standalone `make docs-build` target must continue to run strict MkDocs
+    validation when maintainers intentionally invoke it. It is not part of
+    package builds, installed-distribution verification, `make release-check`,
+    or CI release gates.
 12. Release-policy tests must audit the effective command and import closure of
     release Make targets and CI/publication workflow commands so the prohibited
     50,000 x 48 workload cannot become release-reachable through renaming,
@@ -235,7 +235,7 @@ adverse scientific cases.
   `test-contract`, `docs-build`, `verify-installed-distributions`)
 - `.github/workflows/publish.yml` (release-gate enforcement)
 - `.github/workflows/ci.yml` (supported-version release-science matrix and
-  minimum-dependency lane plus strict documentation gate)
+  minimum-dependency lane)
 - `constraints/minimum.txt`
 - `mkdocs.yml`
 - `src/phospy/science/signalomes/clustering/scale_guards.py`
@@ -275,8 +275,9 @@ Future changes must satisfy all the following:
 12. Do `tests/contract/` tests still use public construction/workflow routes
     only, avoid unsupported imports, receive typed results, and cover `site_key`
     table lookup behavior?
-13. Does CI still run strict documentation builds so broken internal links fail
-    before release?
+13. Does standalone `make docs-build` still run strict documentation validation
+    when intentionally invoked, and do maintained release docs avoid claiming
+    that it is part of `make release-check` or CI release gates?
 
 ## Amendment: Optional Release-Scale Benchmark Ownership (2026-07-29)
 

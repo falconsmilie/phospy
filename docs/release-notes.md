@@ -169,9 +169,10 @@ proof of scientific validity.
   pytest/CI performance contract. It is an explicitly invoked local benchmark
   with runtime, output, missingness, fingerprint/provenance, and RSS reporting.
 - `make release-check` now includes release/golden selector coverage,
-  threshold-bearing parity, performance contracts, strict documentation build,
-  archive validation, and installed wheel/sdist verification so release gates
-  cannot silently omit required nodes.
+  threshold-bearing parity, performance contracts, archive validation, and
+  installed wheel/sdist verification so release gates cannot silently omit
+  required nodes. Strict documentation validation remains a standalone
+  maintenance check through `make docs-build`.
 - DataFrame ownership, immutable scientific containers, provenance hashing,
   package dependency DAG checks, strict Pyright suppressions, and public
   boundary adversarial tests were strengthened.

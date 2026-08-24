@@ -58,9 +58,13 @@ public-contract behavior. The maintainer release command is
 confidence but is not sufficient for publishing:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
+pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 make release-check
 ```
+
+The `docs` extra is for standalone documentation maintenance. The
+`make release-check` command does not run MkDocs or validate rendered
+documentation.
 
 See [Maintenance](../docs/maintenance.md) for the detailed process. Final
 release verification requires a Git-backed checkout for staged-byte validation

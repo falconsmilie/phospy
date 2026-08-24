@@ -12,8 +12,11 @@ pip install -e ".[dev,parquet]"  # optional parquet support
 For CI-aligned dependency resolution:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,docs]"
+pip install -c constraints/ci.txt -e ".[dev,test]"
 ```
+
+The `docs` extra is for standalone documentation builds. MkDocs is not a
+package runtime dependency, build dependency, or release-check dependency.
 
 For minimum supported dependency validation, use the dedicated lower-bound
 constraint file rather than the current pinned CI stack:
@@ -28,7 +31,7 @@ pytest -o addopts= tests/release tests/golden -m "release_gate or golden or repr
 For release checks, install the release extras first:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
+pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 ```
 
 Then run the final aggregate maintainer command:
@@ -134,8 +137,9 @@ Release-blocking coverage in `make release-check` is:
 
 The optional `docs-build` and `benchmark-release-scale` targets are deliberately
 absent from this table. `docs-build` remains the explicit local documentation
-validation command. Benchmark runtime and memory observations are local
-benchmark data, not release-blocking evidence.
+maintenance command and is not part of wheel/sdist builds, installed
+distribution verification, or `make release-check`. Benchmark runtime and memory
+observations are local benchmark data, not release-blocking evidence.
 
 `parity_diagnostic` checks are intentionally excluded from the blocking parity
 target unless a maintainer deliberately promotes them into the release selector

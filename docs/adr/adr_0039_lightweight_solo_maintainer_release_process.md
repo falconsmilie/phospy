@@ -28,19 +28,20 @@ make release-check
 
 That command runs lint, type checking, the default non-parity test suite,
 external-consumer public API contract tests, threshold-bearing parity tests
-excluding `parity_diagnostic`, performance contracts, strict documentation
-build, release/golden/reproducibility tests, checked-in reference-bundle
-validation, and a fresh distribution build.
+excluding `parity_diagnostic`, performance contracts,
+release/golden/reproducibility tests, checked-in reference-bundle validation,
+and a fresh distribution build.
 
 CI expands the release-science evidence beyond the single local aggregate
 command by running the non-parity suite, external-consumer public API contract
 suite, threshold-bearing parity suite, bounded performance contracts, and
-release/golden gates on Python 3.11 and 3.12. CI also runs a strict MkDocs build
-so documentation warnings, including broken internal links, fail before release.
-Distribution building and archive-level packaged-reference validation remain a
-dedicated single-build job so wheel publication is not duplicated. The uploaded
-wheel and sdist from that job are then installed and executed by a separate
-installed-distribution verifier matrix on Python 3.11 and 3.12.
+release/golden gates on Python 3.11 and 3.12. Documentation validation remains
+a separate maintenance command through `make docs-build`; it is not part of the
+package release gate. Distribution building and archive-level packaged-reference
+validation remain a dedicated single-build job so wheel publication is not
+duplicated. The uploaded wheel and sdist from that job are then installed and
+executed by a separate installed-distribution verifier matrix on Python 3.11 and
+3.12.
 
 The performance-contract CI job is a release blocker for bounded tests under
 `tests/performance/`. The 50,000-site x 48-sample end-to-end workload is no
@@ -106,7 +107,7 @@ metadata and must not be weakened to simplify publishing.
 Release policy tests check the Makefile command flow, CI and publish workflow
 shape, dependency constraints, minimum-dependency lane, supported Python
 release-science and installed-distribution matrices, public-consumer contract
-reachability, strict documentation build reachability, selector coverage,
+reachability, standalone `docs-build` target shape, selector coverage,
 archive-level packaged-reference build checks, and installed-distribution
 verifier source constraints. They also audit release-reachable Make/workflow
 command and local-helper import closure for effective 50,000 x 48 workload

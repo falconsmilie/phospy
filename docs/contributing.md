@@ -93,7 +93,7 @@ For public documentation and examples:
 pytest tests/unit/test_public_contract_import_routes.py
 pytest tests/unit/test_public_examples_contract.py
 pytest tests/integration/test_public_examples_smoke.py
-python -m mkdocs build --strict
+make docs-build
 ```
 
 Run parity tests when scientific logic or fixture-backed behavior changes:
@@ -113,9 +113,13 @@ scientific, provenance, performance, distribution, reference-bundle, or
 public-contract behavior:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
+pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 make release-check
 ```
+
+The `docs` extra is for standalone documentation maintenance. The
+`make release-check` command does not run MkDocs or validate rendered
+documentation.
 
 The detailed procedure lives in [Maintenance](maintenance.md). Ordinary
 CI/build success and source-tree tests provide normal development confidence;

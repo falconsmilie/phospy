@@ -25,13 +25,15 @@ python -c "import phospy; print(phospy.__version__)"
 From a local clone:
 
 ```bash
-pip install -c constraints/ci.txt -e ".[dev,test,parquet,docs]"
+pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 ```
 
-Build the documentation with the project-supported command:
+For documentation maintenance only, install the docs extra and run the
+standalone strict build:
 
 ```bash
-mkdocs build --strict
+pip install -c constraints/ci.txt -e ".[docs]"
+make docs-build
 ```
 
 ## Continue
