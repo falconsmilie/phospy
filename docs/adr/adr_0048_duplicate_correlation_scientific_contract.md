@@ -205,7 +205,7 @@ thousands of feature-wise values.
 ## Alternatives Considered
 
 1. Add `duplicate_correlation` to public config before the estimator, GLS,
-   provenance, validation, and fixture parity were complete. Rejected because
+   provenance, validation, and independent fixture evidence were complete. Rejected because
    that would have exposed a selectable but unfinished policy.
 2. Treat duplicate-correlation as a fixed-block variant. Rejected because the
    statistical assumptions and design matrix differ.
@@ -213,9 +213,9 @@ thousands of feature-wise values.
    Rejected because silent fallback changes the scientific model.
 4. Make trim user-configurable now. Rejected because the first implementation
    uses the fixed published `15%` trimmed-mean contract.
-5. Replace the parity-verified residual-space variance-component REML estimator
+5. Replace the fixture-checked residual-space variance-component REML estimator
    with a direct bounded scalar optimiser over correlation. Rejected for this
-   corrective round because the implemented residual-space estimator already
+   corrective round because the current residual-space estimator already
    matches the version-pinned limma feature and consensus fixtures.
 
 ## Implementation Notes
