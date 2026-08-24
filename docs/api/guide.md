@@ -200,9 +200,7 @@ result = DifferentialAnalysisWorkflow().run(
     DifferentialAnalysisRequest(
         dataset=dataset,
         design=design,
-        contrasts=(
-            Contrast("treated_vs_control", "treated", "control"),
-        ),
+        contrasts=(Contrast("treated_vs_control", "treated", "control"),),
     )
 )
 ```
