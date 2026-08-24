@@ -2,8 +2,8 @@ cff-version: 1.2.0
 title: "PhosPy"
 message: "If you use PhosPy in scientific work, please cite this software and the upstream PhosR project."
 type: software
-version: "1.6.0"
-date-released: 2026-06-18
+version: "1.7.1"
+date-released: 2026-08-24
 license: GPL-3.0
 repository-code: "https://github.com/falconsmilie/phospy"
 url: "https://phospy.com"
@@ -20,8 +20,8 @@ abstract: "Python package for selected PhosR-inspired phosphoproteomics workflow
 preferred-citation:
   type: software
   title: "PhosPy"
-  version: "1.6.0"
-  date-released: 2026-06-18
+  version: "1.7.1"
+  date-released: 2026-08-24
   url: "https://phospy.com"
   authors:
     - name: "PhosPy Contributors"

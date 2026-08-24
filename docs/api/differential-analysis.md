@@ -281,6 +281,17 @@ correlation. It can be useful for repeated, multi-condition, or incomplete
 blocked designs, but it is not a general mixed-effects model and is not
 universally superior to `fixed_block`.
 
+The implemented estimator is the residual-space variance-component REML
+formulation recorded in ADR-0048. For each feature, finite observations are
+selected, the fixed-effects design is removed through a residual-space basis,
+and residual/block variance components are fitted before mapping the block
+component ratio to a raw correlation. Feature estimates are then clamped before
+Fisher aggregation: for maximum observed repeated-block size `m >= 2`, the
+feature-level lower clamp is `-1 / (m - 1) + 0.01` and the upper clamp is
+`0.99`. Boundary-clamped finite estimates can contribute to the consensus. The
+workflow-level consensus is checked again against the full block structure
+before GLS.
+
 !!! warning "First duplicate-correlation implementation limits"
     The first implementation does not support multiple random effects, random
     slopes, feature-specific final covariance models, arbitrary longitudinal

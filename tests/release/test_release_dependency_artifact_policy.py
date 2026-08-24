@@ -9,6 +9,8 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+CURRENT_RELEASE_VERSION = "1.7.1"
+CURRENT_RELEASE_DATE = "2026-08-24"
 SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12")
 EXPECTED_REQUIRES_PYTHON = ">=3.11,<3.13"
 UNSUPPORTED_PYTHON_310 = "3." + "10"
@@ -228,6 +230,21 @@ def test_release_gate_test_extra_declares_packaging_backend_tools() -> None:
     assert {"setuptools", "wheel"}.issubset(test_requirements)
 
 
+def test_current_citation_metadata_matches_release_version() -> None:
+    citation = _read("CITATION.cff")
+
+    assert f'version: "{CURRENT_RELEASE_VERSION}"' in citation
+    assert f"date-released: {CURRENT_RELEASE_DATE}" in citation
+    assert citation.count(f'version: "{CURRENT_RELEASE_VERSION}"') == 2
+    assert citation.count(f"date-released: {CURRENT_RELEASE_DATE}") == 2
+
+
+def test_runtime_version_accessor_matches_current_release() -> None:
+    import phospy
+
+    assert phospy.__version__ == CURRENT_RELEASE_VERSION
+
+
 def test_ci_and_publish_install_commands_share_the_ci_constraints() -> None:
     for workflow_path in WORKFLOW_PATHS:
         workflow = _read(workflow_path)
@@ -360,6 +377,8 @@ def test_installed_distribution_verifier_reports_current_supported_versions() ->
     assert f'EXPECTED_REQUIRES_PYTHON = "{EXPECTED_REQUIRES_PYTHON}"' in source
     assert '"supported_python_versions": SUPPORTED_PYTHON_VERSIONS' in source
     assert '"requires_python": report.requires_python' in source
+    assert '"distribution_version": report.distribution_version' in source
+    assert '"runtime_version": report.runtime_version' in source
     assert '"dependency_constraints": (' in source
     assert '"artifact_sha256": report.artifact_sha256' in source
     assert '"constraint_sha256": report.constraint_sha256' in source

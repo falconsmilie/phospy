@@ -105,6 +105,7 @@ def main() -> None:
                 "python": sys.version.split()[0],
                 "executable": str(pathlib.Path(sys.executable).resolve()),
                 "phospy_file": str(package_file),
+                "runtime_version": str(phospy.__version__),
                 "public_surface_report": public_surface_report,
                 "resource_report": resource_report,
                 "scientific_report": scientific_report,
@@ -677,6 +678,8 @@ class InstalledDistributionReport:
     artifact_kind: str
     artifact_path: Path
     artifact_sha256: str
+    distribution_version: str
+    runtime_version: str
     environment_root: Path
     run_directory: Path
     phospy_file: Path
@@ -749,6 +752,12 @@ def verify_installed_distributions(
                     ignore_requires_python=ignore_requires_python,
                 )
             )
+    distribution_versions = {report.distribution_version for report in reports}
+    if len(distribution_versions) != 1:
+        raise InstalledDistributionVerificationError(
+            "wheel and sdist metadata Version values differ: "
+            + ", ".join(sorted(distribution_versions))
+        )
     return tuple(reports)
 
 
@@ -766,6 +775,10 @@ def _verify_one_artifact(
     install_packaging_tools: bool = True,
     ignore_requires_python: bool = False,
 ) -> InstalledDistributionReport:
+    distribution_version = _artifact_version(
+        artifact_kind=artifact_kind,
+        artifact_path=artifact_path,
+    )
     requires_python = _validate_artifact_requires_python(
         artifact_kind=artifact_kind,
         artifact_path=artifact_path,
@@ -836,6 +849,13 @@ def _verify_one_artifact(
         context=f"execute installed {artifact_kind} probe",
     )
     payload = _probe_payload(result.stdout, artifact_kind=artifact_kind)
+    runtime_version = _required_string(payload, "runtime_version")
+    if runtime_version != distribution_version:
+        raise InstalledDistributionVerificationError(
+            f"installed {artifact_kind} runtime version mismatch for {artifact_path}: "
+            f"metadata Version={distribution_version!r}, "
+            f"phospy.__version__={runtime_version!r}"
+        )
     phospy_file = Path(_required_string(payload, "phospy_file")).resolve()
     _require_path_inside(
         phospy_file, environment_root.resolve(), label="phospy.__file__"
@@ -859,6 +879,8 @@ def _verify_one_artifact(
         artifact_kind=artifact_kind,
         artifact_path=artifact_path,
         artifact_sha256=_sha256_file(artifact_path),
+        distribution_version=distribution_version,
+        runtime_version=runtime_version,
         environment_root=environment_root.resolve(),
         run_directory=run_directory.resolve(),
         phospy_file=phospy_file,
@@ -892,6 +914,37 @@ def _validate_artifact_requires_python(
 
 
 def _artifact_requires_python(*, artifact_kind: str, artifact_path: Path) -> str:
+    value = _artifact_metadata_value(
+        artifact_kind=artifact_kind,
+        artifact_path=artifact_path,
+        field_name="Requires-Python",
+    )
+    if value is None or not value.strip():
+        raise InstalledDistributionVerificationError(
+            f"{artifact_kind} metadata is missing Requires-Python: {artifact_path}"
+        )
+    return value.strip()
+
+
+def _artifact_version(*, artifact_kind: str, artifact_path: Path) -> str:
+    value = _artifact_metadata_value(
+        artifact_kind=artifact_kind,
+        artifact_path=artifact_path,
+        field_name="Version",
+    )
+    if value is None or not value.strip():
+        raise InstalledDistributionVerificationError(
+            f"{artifact_kind} metadata is missing Version: {artifact_path}"
+        )
+    return value.strip()
+
+
+def _artifact_metadata_value(
+    *,
+    artifact_kind: str,
+    artifact_path: Path,
+    field_name: str,
+) -> str | None:
     if artifact_kind == "wheel":
         metadata_text = _wheel_metadata_text(artifact_path)
     elif artifact_kind == "sdist":
@@ -900,12 +953,7 @@ def _artifact_requires_python(*, artifact_kind: str, artifact_path: Path) -> str
         raise InstalledDistributionVerificationError(
             f"unsupported artifact kind for metadata verification: {artifact_kind!r}"
         )
-    value = Parser().parsestr(metadata_text).get("Requires-Python")
-    if value is None or not value.strip():
-        raise InstalledDistributionVerificationError(
-            f"{artifact_kind} metadata is missing Requires-Python: {artifact_path}"
-        )
-    return value.strip()
+    return Parser().parsestr(metadata_text).get(field_name)
 
 
 def _requires_python_specifiers(value: str) -> frozenset[str]:
@@ -1200,6 +1248,8 @@ def main(argv: list[str] | None = None) -> int:
                         "artifact_kind": report.artifact_kind,
                         "artifact_path": str(report.artifact_path),
                         "artifact_sha256": report.artifact_sha256,
+                        "distribution_version": report.distribution_version,
+                        "runtime_version": report.runtime_version,
                         "python": report.python_version,
                         "requires_python": report.requires_python,
                         "phospy_file": str(report.phospy_file),

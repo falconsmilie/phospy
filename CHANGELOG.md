@@ -2,6 +2,51 @@
 
 All notable changes to this project are documented here.
 
+## [1.7.1] - 2026-08-24
+
+### Added
+
+- Added explicit `paired_design_policy="duplicate_correlation"` support for
+  blocked differential designs. The policy keeps `block_id` as a correlation
+  group instead of fixed design coefficients, estimates feature-wise
+  within-block correlations with the implemented residual-space
+  variance-component REML formulation, combines eligible estimates through a
+  Fisher-`atanh` 15% trimmed consensus, and fits final feature models by
+  compound-symmetry GLS before using the existing contrast and empirical-Bayes
+  moderation pipeline.
+- Added typed duplicate-correlation provenance for the selected and normalized
+  paired-design policy, block treatment, covariance structure, estimator policy,
+  matrix/design/block fingerprints, block summaries, estimator feature counts,
+  typed failure reasons, convergence and boundary summaries, imputation
+  participation, design rank, and GLS fit status.
+- Added version-pinned R/limma duplicate-correlation parity fixtures and
+  release-gated fixture-integrity coverage. Fixtures A-C verify the complete
+  supported public workflow through final moderated statistics; fixture D is
+  scoped to estimator and GLS behavior for controlled feature-level
+  missingness/failure cases.
+- Added installed-distribution smoke coverage that exercises the public
+  duplicate-correlation workflow from built wheel and source-distribution
+  installations outside the source checkout.
+
+### Fixed
+
+- Preserved the existing paired-design default of `reject` and kept
+  `fixed_block` and `reject` as supported policies. PhosPy still does not choose
+  a paired-design policy automatically, and `fixed_block` remains a valid
+  fixed-nuisance-coefficient model rather than a deprecated or invalid route.
+- Hardened duplicate-correlation failure behavior so unsupported weighting,
+  missing or unusable block metadata, rank or residual-degree-of-freedom
+  failures, estimator failures, invalid covariance, and final GLS failures do
+  not silently fall back to fixed blocking, ordinary least squares, or zero
+  correlation.
+- Documented the estimator formulation, feature-level correlation clamp policy,
+  consensus positive-definite validation, fixture-D parity scope, and the
+  distinction between consensus-contribution failures and final GLS failures.
+- Corrected release documentation to state that MkDocs is a standalone
+  documentation-maintenance command only. It is not part of package building,
+  wheel or source-distribution verification, installed-distribution checks, or
+  `make release-check`.
+
 ## [1.7.0] - 2026-08-14
 
 ### API
@@ -69,11 +114,6 @@ All notable changes to this project are documented here.
 - Added dataset group-coverage filtering, configurable multiple-testing
   correction, differential contrast helper functions, and differential result
   filtering/ranking helpers.
-- Added explicit `paired_design_policy="duplicate_correlation"` support for
-  blocked differential designs. The option estimates one REML consensus
-  compound-symmetry within-block correlation and refits eligible features by
-  GLS, while preserving `fixed_block` and `reject` as valid policies and
-  leaving the default policy unchanged.
 - Added shared structured `ResultCaveat` records for differential, kinase,
   signalome, and enrichment workflow results.
 - Added typed row-attrition provenance across dataset building, differential,

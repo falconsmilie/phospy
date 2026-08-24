@@ -36,7 +36,7 @@
   "dependencies": {
     "numpy": "2.5.1",
     "pandas": "3.0.3",
-    "phospy": "1.7.0",
+    "phospy": "1.7.1",
     "scipy": "1.18.0"
   },
   "description": "Optional local 50,000-site x 48-sample builder, preprocessing, provenance/fingerprinting, and one-contrast differential benchmark.",
@@ -44,7 +44,7 @@
     "dependencies": {
       "numpy": "2.5.1",
       "pandas": "3.0.3",
-      "phospy": "1.7.0",
+      "phospy": "1.7.1",
       "scipy": "1.18.0"
     },
     "machine": {
@@ -388,11 +388,11 @@
       "pyproject_path": "pyproject.toml",
       "pyproject_sha256": "ef08b45aefa45533b9d404461b306c4e843b6784a8fbdd34229bc2f37c7d5882",
       "requires_python": ">=3.11,<3.13",
-      "version": "1.7.0"
+      "version": "1.7.1"
     },
     "runtime": {
-      "distribution_phospy_version": "1.7.0",
-      "phospy_version": "1.7.0",
+      "distribution_phospy_version": "1.7.1",
+      "phospy_version": "1.7.1",
       "python_executable": "C:\\Users\\Netts\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
       "python_version": "3.12.10",
       "python_version_info": [

@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -31,6 +32,7 @@ pytestmark = pytest.mark.release_gate
 
 ROOT = Path(__file__).resolve().parents[2]
 CONSTRAINT = ROOT / "constraints" / "ci.txt"
+CURRENT_RELEASE_VERSION = "1.7.1"
 WHEEL_DECLARED_RESOURCE = (
     "phospy/data/reference_bundles/rat/l6_native/substrate_map.csv"
 )
@@ -256,6 +258,8 @@ def test_verifier_dispatches_wheel_and_sdist_to_isolated_artifact_checks(
             artifact_kind=artifact_kind,
             artifact_path=artifact_path,
             artifact_sha256="0" * 64,
+            distribution_version=CURRENT_RELEASE_VERSION,
+            runtime_version=CURRENT_RELEASE_VERSION,
             environment_root=environment_root,
             run_directory=work_root / f"{artifact_kind}-run",
             phospy_file=(
@@ -372,7 +376,7 @@ def test_pip_installs_apply_explicit_constraint_to_build_dependencies(
         repo_root=repo_root,
         cwd=cwd,
         constraint=constraint,
-        arguments=["install", "phospy-1.7.0.tar.gz"],
+        arguments=["install", "phospy-1.7.1.tar.gz"],
     )
 
     assert captured["command"] == [
@@ -383,11 +387,45 @@ def test_pip_installs_apply_explicit_constraint_to_build_dependencies(
         "install",
         "-c",
         str(constraint),
-        "phospy-1.7.0.tar.gz",
+        "phospy-1.7.1.tar.gz",
     ]
     assert captured["environment_overrides"] == {
         "PIP_BUILD_CONSTRAINT": str(constraint)
     }
+
+
+def test_project_version_authority_reports_current_release() -> None:
+    with (ROOT / "pyproject.toml").open("rb") as handle:
+        pyproject = tomllib.load(handle)
+
+    assert pyproject["project"]["version"] == CURRENT_RELEASE_VERSION
+
+
+def test_built_artifact_names_and_metadata_report_current_release_version(
+    built_distribution_artifacts: DistributionArtifacts,
+) -> None:
+    assert (
+        built_distribution_artifacts.wheel.name
+        == f"phospy-{CURRENT_RELEASE_VERSION}-py3-none-any.whl"
+    )
+    assert (
+        built_distribution_artifacts.sdist.name
+        == f"phospy-{CURRENT_RELEASE_VERSION}.tar.gz"
+    )
+    assert (
+        verifier._artifact_version(
+            artifact_kind="wheel",
+            artifact_path=built_distribution_artifacts.wheel,
+        )
+        == CURRENT_RELEASE_VERSION
+    )
+    assert (
+        verifier._artifact_version(
+            artifact_kind="sdist",
+            artifact_path=built_distribution_artifacts.sdist,
+        )
+        == CURRENT_RELEASE_VERSION
+    )
 
 
 def test_built_artifact_metadata_declares_supported_python_contract(
@@ -444,6 +482,8 @@ def test_clean_wheel_and_sdist_install_and_execute_standalone_probe(
         assert report.resource_count >= 5
         assert report.ticket_1_boundary_status == "withdrawn_asserted"
         assert report.artifact_sha256 == _sha256_file(report.artifact_path)
+        assert report.distribution_version == CURRENT_RELEASE_VERSION
+        assert report.runtime_version == CURRENT_RELEASE_VERSION
         assert report.constraint_path == CONSTRAINT.resolve()
         assert report.constraint_sha256 == _sha256_file(CONSTRAINT)
 
