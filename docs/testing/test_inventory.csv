@@ -105,7 +105,7 @@ tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,
 tests/unit/science/datasets/test_processing_state.py,datasets,729,28,false,false,,,,,,
 tests/unit/science/differential/test_compound_symmetry_gls.py,differential,566,10,true,true,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,118,2,false,false,,,,,,
-tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,1011,24,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,1116,26,true,true,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/unit/test_activity_science.py,unit,3779,100,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,383,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
