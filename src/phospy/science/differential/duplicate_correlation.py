@@ -54,8 +54,9 @@ DUPLICATE_CORRELATION_OPTIMIZER_MAX_ITERATIONS = 20
 DUPLICATE_CORRELATION_BOUNDARY_DETECTION_TOLERANCE = 1.0e-7
 
 _ZERO_RESIDUAL_VARIATION_RELATIVE_TOLERANCE: float = float(
-    np.finfo(np.float64).eps ** 2
+    np.finfo(np.float64).eps ** 1.5
 )
+_VARIANCE_FITTED_VALUE_ROUNDOFF_RELATIVE_TOLERANCE = 1.0e-12
 
 
 @dataclass(frozen=True, slots=True)
@@ -566,7 +567,7 @@ def _fit_reml_variance_components(
     ):
         start = (
             initial_coefficients
-            if bool(np.all(initial_fitted >= 0.0))
+            if bool(np.all(initial_fitted > 0.0))
             else np.array(
                 [float(np.mean(component_response)), 0.0],
                 dtype=np.float64,
@@ -580,7 +581,9 @@ def _fit_reml_variance_components(
             max_iterations=max_iterations,
         )
         coefficients = gamma_fit.residual_component, gamma_fit.block_component
-        fitted_values = component_design @ np.asarray(coefficients, dtype=np.float64)
+        fitted_values = _normalise_variance_fitted_roundoff(
+            component_design @ np.asarray(coefficients, dtype=np.float64)
+        )
         converged = gamma_fit.converged
         deviance = gamma_fit.deviance
         iteration_count = gamma_fit.iteration_count
@@ -635,6 +638,7 @@ def _least_squares_coefficients_and_fitted(
     except np.linalg.LinAlgError:
         return None, None
     fitted = np.asarray(design @ coefficients, dtype=np.float64)
+    fitted = _normalise_variance_fitted_roundoff(fitted)
     if not np.isfinite(coefficients).all() or not np.isfinite(fitted).all():
         return None, None
     return coefficients, fitted
@@ -672,7 +676,7 @@ def _gamma_glm_fit(
             iteration_count=0,
         )
 
-    fitted = np.asarray(design @ beta, dtype=np.float64)
+    fitted = _normalise_variance_fitted_roundoff(design @ beta)
     if not np.isfinite(fitted).all() or np.any(fitted < 0.0):
         return _non_finite_variance_component_fit()
 
@@ -729,7 +733,7 @@ def _gamma_glm_fit(
             except np.linalg.LinAlgError:
                 return _non_finite_variance_component_fit()
             beta = previous_beta + step
-            fitted = np.asarray(design @ beta, dtype=np.float64)
+            fitted = _normalise_variance_fitted_roundoff(design @ beta)
             deviance = _gamma_deviance(response, fitted)
             maximum_fitted = float(np.max(fitted))
             if deviance <= previous_deviance or (
@@ -738,7 +742,7 @@ def _gamma_glm_fit(
                 break
             if float(damping) / maximum_information > 1.0e15:
                 beta = previous_beta
-                fitted = np.asarray(design @ beta, dtype=np.float64)
+                fitted = _normalise_variance_fitted_roundoff(design @ beta)
                 deviance = previous_deviance
                 break
             damping = float(damping) * 2.0
@@ -776,6 +780,7 @@ def _gamma_deviance(
 ) -> float:
     if not np.isfinite(response).all() or not np.isfinite(fitted).all():
         return math.inf
+    fitted = _normalise_variance_fitted_roundoff(fitted)
     if np.any(fitted < 0.0):
         return math.inf
     jointly_zero = (response < 1.0e-15) & (fitted < 1.0e-15)
@@ -797,6 +802,21 @@ def _sample_variance(values: npt.NDArray[np.float64]) -> float:
     if int(values.size) < 2:
         return 0.0
     return float(np.var(values, ddof=1))
+
+
+def _normalise_variance_fitted_roundoff(
+    values: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Snap variance fitted values that are negative only by roundoff to zero."""
+
+    fitted = np.asarray(values, dtype=np.float64).copy()
+    if fitted.size == 0 or not np.isfinite(fitted).all():
+        return fitted
+    scale = max(float(np.max(np.abs(fitted))), 1.0)
+    tolerance = _VARIANCE_FITTED_VALUE_ROUNDOFF_RELATIVE_TOLERANCE * scale
+    roundoff_negative = (fitted < 0.0) & (fitted >= -tolerance)
+    fitted[roundoff_negative] = 0.0
+    return fitted
 
 
 def _non_finite_variance_component_fit() -> _VarianceComponentFit:

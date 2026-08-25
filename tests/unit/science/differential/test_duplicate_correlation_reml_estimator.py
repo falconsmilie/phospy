@@ -231,6 +231,111 @@ def test_negative_correlation_can_approach_pair_block_pd_lower_bound() -> None:
     assert estimate.correlation == pytest.approx(-0.99)
 
 
+def test_gamma_glm_fit_accepts_lower_boundary_fitted_roundoff() -> None:
+    observed_values = np.array(
+        [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0],
+        dtype=np.float64,
+    )
+    observed_design = np.ones((8, 1), dtype=np.float64)
+    observed_blocks = ("b1", "b1", "b2", "b2", "b3", "b3", "b4", "b4")
+
+    residual_basis = duplicate_correlation_module._residual_space_basis(observed_design)
+    block_design = duplicate_correlation_module._block_indicator_matrix(observed_blocks)
+    residualized_blocks = residual_basis.T @ block_design
+    residualized_values = residual_basis.T @ observed_values
+    left_singular_vectors, singular_values, _ = np.linalg.svd(
+        residualized_blocks,
+        full_matrices=True,
+    )
+    rotated_values = np.asarray(
+        left_singular_vectors.T @ residualized_values,
+        dtype=np.float64,
+    )
+    residual_dimension = int(rotated_values.shape[0])
+    block_eigenvalues = np.zeros(residual_dimension, dtype=np.float64)
+    singular_count = min(int(singular_values.size), residual_dimension)
+    block_eigenvalues[:singular_count] = np.asarray(
+        singular_values[:singular_count] ** 2,
+        dtype=np.float64,
+    )
+    component_design = np.column_stack(
+        (
+            np.ones(residual_dimension, dtype=np.float64),
+            block_eigenvalues,
+        )
+    )
+    component_response = np.asarray(rotated_values * rotated_values, dtype=np.float64)
+    initial_coefficients, _ = (
+        duplicate_correlation_module._least_squares_coefficients_and_fitted(
+            component_design,
+            component_response,
+        )
+    )
+
+    assert initial_coefficients is not None
+    fit = duplicate_correlation_module._gamma_glm_fit(
+        component_design,
+        component_response,
+        initial_coefficients,
+        tolerance=(
+            duplicate_correlation_module.DUPLICATE_CORRELATION_OPTIMIZER_ABSOLUTE_TOLERANCE
+        ),
+        max_iterations=(
+            duplicate_correlation_module.DUPLICATE_CORRELATION_OPTIMIZER_MAX_ITERATIONS
+        ),
+    )
+
+    assert fit.converged
+    assert fit.correlation < -0.99
+
+
+def test_zero_residual_tolerance_keeps_near_constant_fixture_estimable() -> None:
+    design = np.array(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+    constant_values = np.full(10, 5.0, dtype=np.float64)
+    near_constant_values = np.array(
+        [
+            4.0,
+            4.0000000001,
+            3.9999999999,
+            4.0000000002,
+            4.0,
+            3.9999999998,
+            4.0000000001,
+            4.0,
+            3.9999999999,
+            4.0000000002,
+        ],
+        dtype=np.float64,
+    )
+
+    tolerance = duplicate_correlation_module._residual_variation_tolerance(
+        constant_values,
+        sample_count=int(constant_values.size),
+        coefficient_count=int(design.shape[1]),
+    )
+    near_constant_rss = duplicate_correlation_module._ols_residual_sum_of_squares(
+        near_constant_values,
+        design,
+    )
+
+    assert tolerance > 1.0e-27
+    assert near_constant_rss > tolerance * 100.0
+
+
 def test_raw_correlation_above_upper_cap_is_clamped_deterministically(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
