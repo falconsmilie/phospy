@@ -567,7 +567,7 @@ def _fit_reml_variance_components(
     ):
         start = (
             initial_coefficients
-            if bool(np.all(initial_fitted > 0.0))
+            if _is_supported_gamma_start(component_response, initial_fitted)
             else np.array(
                 [float(np.mean(component_response)), 0.0],
                 dtype=np.float64,
@@ -772,6 +772,15 @@ def _gamma_glm_fit(
         deviance=float(deviance),
         iteration_count=iteration_count,
     )
+
+
+def _is_supported_gamma_start(
+    response: npt.NDArray[np.float64],
+    fitted: npt.NDArray[np.float64],
+) -> bool:
+    if not np.isfinite(fitted).all() or np.any(fitted < 0.0):
+        return False
+    return math.isfinite(_gamma_deviance(response, fitted))
 
 
 def _gamma_deviance(

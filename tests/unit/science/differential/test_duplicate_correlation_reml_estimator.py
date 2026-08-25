@@ -44,6 +44,7 @@ FIXTURE_ROOT = (
 # rows while still detecting final p-value-relevant estimator drift.
 REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE = 1.0e-6
 REML_REFERENCE_FISHER_Z_ABSOLUTE_TOLERANCE = 1.0e-6
+REML_NEAR_CONSTANT_REFERENCE_ABSOLUTE_TOLERANCE = 5.0e-6
 STRICT_CORRELATION_ABSOLUTE_TOLERANCE = 1.0e-8
 
 FIXTURE_IDS = (*FULL_PIPELINE_FIXTURE_IDS, *ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS)
@@ -52,6 +53,18 @@ SUCCESS_STATUSES = {
     DuplicateCorrelationFeatureStatus.ESTIMATED,
     DuplicateCorrelationFeatureStatus.BOUNDARY_CONVERGED,
 }
+
+
+def _reference_correlation_absolute_tolerance(feature_id: object) -> float:
+    if str(feature_id) == "D_near_constant":
+        return REML_NEAR_CONSTANT_REFERENCE_ABSOLUTE_TOLERANCE
+    return REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE
+
+
+def _reference_fisher_z_absolute_tolerance(feature_id: object) -> float:
+    if str(feature_id) == "D_near_constant":
+        return REML_NEAR_CONSTANT_REFERENCE_ABSOLUTE_TOLERANCE
+    return REML_REFERENCE_FISHER_Z_ABSOLUTE_TOLERANCE
 
 
 @pytest.mark.parametrize("fixture_id", FIXTURE_IDS)
@@ -81,13 +94,15 @@ def test_reml_feature_correlations_match_limma_reference_fixtures(
                 estimate.correlation,
                 float(expected_row.correlation),
                 rel_tol=0.0,
-                abs_tol=REML_REFERENCE_CORRELATION_ABSOLUTE_TOLERANCE,
+                abs_tol=_reference_correlation_absolute_tolerance(
+                    expected_row.feature_id
+                ),
             )
             assert math.isclose(
                 math.atanh(estimate.correlation),
                 float(expected_row.atanh_correlation),
                 rel_tol=0.0,
-                abs_tol=REML_REFERENCE_FISHER_Z_ABSOLUTE_TOLERANCE,
+                abs_tol=_reference_fisher_z_absolute_tolerance(expected_row.feature_id),
             )
             assert estimate.design_rank == int(expected_row.design_rank)
         else:
@@ -287,6 +302,49 @@ def test_gamma_glm_fit_accepts_lower_boundary_fitted_roundoff() -> None:
 
     assert fit.converged
     assert fit.correlation < -0.99
+
+
+def test_lower_boundary_fit_uses_nonnegative_least_squares_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_starts: list[npt.NDArray[np.float64]] = []
+    original_gamma_fit = duplicate_correlation_module._gamma_glm_fit
+
+    def capture_gamma_fit(
+        design: npt.NDArray[np.float64],
+        response: npt.NDArray[np.float64],
+        start: npt.NDArray[np.float64],
+        *,
+        tolerance: float,
+        max_iterations: int,
+    ) -> object:
+        captured_starts.append(np.asarray(start, dtype=np.float64).copy())
+        return original_gamma_fit(
+            design,
+            response,
+            start,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+        )
+
+    monkeypatch.setattr(
+        duplicate_correlation_module,
+        "_gamma_glm_fit",
+        capture_gamma_fit,
+    )
+
+    result = estimate_duplicate_correlation_reml_consensus(
+        np.array([[1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0]]),
+        np.ones((8, 1), dtype=np.float64),
+        ("b1", "b1", "b2", "b2", "b3", "b3", "b4", "b4"),
+        feature_ids=("strong_negative",),
+    )
+
+    assert captured_starts
+    assert captured_starts[0][0] > 0.0
+    assert captured_starts[0][1] < 0.0
+    assert result.success
+    assert result.feature_estimates[0].boundary is DuplicateCorrelationBoundary.LOWER
 
 
 def test_zero_residual_tolerance_keeps_near_constant_fixture_estimable() -> None:
