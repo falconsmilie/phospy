@@ -120,6 +120,9 @@ normalise intensities, run differential modelling, or claim MSstatsPTM-style
 joint PTM/protein inference. It does not claim MSstatsPTM-style equivalence.
 Current `DifferentialAnalysisWorkflow` execution does not consume the prepared
 protein covariate matrix.
+[ADR-0049](adr_0049_protein_covariate_adjusted_differential_estimator.md)
+freezes the future opt-in protein-covariate-adjusted differential estimator
+contract; it does not change this current non-consumption state.
 
 Current kinase support provides profile/motif scoring, rank-weighted fusion,
 deterministic/adaptive prediction, and three explicit activity methods:
