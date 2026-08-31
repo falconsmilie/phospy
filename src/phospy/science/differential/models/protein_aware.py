@@ -41,6 +41,9 @@ from phospy.science.differential.models.empirical_bayes_config import (
     EmpiricalBayesConfig,
 )
 from phospy.science.differential.models.tables import (
+    DIFFERENTIAL_RESULT_PROTEIN_AWARE_STATUS_REASONS,
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     validate_computation_result_table_contract,
 )
 from phospy.science.statistics.multiple_testing import (
@@ -67,6 +70,28 @@ PROTEIN_AWARE_DIFFERENTIAL_MATCHED_PAIR_COLUMNS = (
     "site_key",
     "protein_identifier",
     "total_protein_row_key",
+)
+PROTEIN_AWARE_DIFFERENTIAL_SITE_FAILURE_DIAGNOSTIC_COLUMNS = (
+    "site_key",
+    "total_protein_row_key",
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    "failure_message",
+)
+PROTEIN_AWARE_DIFFERENTIAL_AUGMENTED_DESIGN_FAILURE_DIAGNOSTIC_COLUMNS = (
+    "total_protein_row_key",
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    "sample_count",
+    "coefficient_count",
+    "rank",
+    "residual_degrees_of_freedom",
+    "condition_number",
+    "max_condition_number",
+    "protein_raw_mean",
+    "protein_raw_standard_deviation",
+    "protein_centered_variance",
+    "failure_message",
 )
 
 
@@ -198,7 +223,7 @@ class ProteinAwareDifferentialComputationRequest:
             error_type=PhosPyInputError,
             assume_owned=assume_owned,
         )
-        _validate_finite_numeric_matrix(
+        _validate_numeric_matrix(
             resolved_protein_covariates,
             field_name="protein_aware_differential_request.resolved_protein_covariates",
         )
@@ -264,8 +289,13 @@ class ProteinAwareDifferentialComputationResult:
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
     protein_coefficient: pd.Series
+    coefficient_table: pd.DataFrame
+    residuals: pd.DataFrame
+    contrast_standard_error_scale: pd.DataFrame
     site_diagnostics: pd.DataFrame
     augmented_design_diagnostics: pd.DataFrame
+    site_failure_diagnostics: pd.DataFrame
+    augmented_design_failure_diagnostics: pd.DataFrame
     tested_site_ids: tuple[str, ...]
     method_id: DifferentialProteinAwareModelMethod
     _contrast_tables: Mapping[str, pd.DataFrame]
@@ -290,6 +320,11 @@ class ProteinAwareDifferentialComputationResult:
         site_diagnostics: pd.DataFrame,
         augmented_design_diagnostics: pd.DataFrame,
         tested_site_ids: Iterable[object],
+        coefficient_table: pd.DataFrame | None = None,
+        residuals: pd.DataFrame | None = None,
+        contrast_standard_error_scale: pd.DataFrame | None = None,
+        site_failure_diagnostics: pd.DataFrame | None = None,
+        augmented_design_failure_diagnostics: pd.DataFrame | None = None,
         method_id: DifferentialProteinAwareModelMethod = (
             DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1
         ),
@@ -327,6 +362,8 @@ class ProteinAwareDifferentialComputationResult:
                 "protein_aware_differential_result.prior_degrees_of_freedom_series"
             ),
             assume_owned=_assume_owned,
+            allow_positive_infinity=True,
+            require_non_negative=True,
         )
         protein_coefficient = _owned_numeric_series(
             protein_coefficient,
@@ -474,7 +511,7 @@ class ProteinAwareDifferentialComputationResult:
         object.__setattr__(
             self,
             "prior_degrees_of_freedom",
-            _require_positive_finite_float(
+            _require_non_negative_float_allowing_infinity(
                 prior_degrees_of_freedom,
                 field_name=(
                     "protein_aware_differential_result.prior_degrees_of_freedom"
@@ -492,11 +529,76 @@ class ProteinAwareDifferentialComputationResult:
             mean_variance_trend_diagnostics,
         )
         object.__setattr__(self, "protein_coefficient", protein_coefficient)
+        object.__setattr__(
+            self,
+            "coefficient_table",
+            _owned_numeric_dataframe(
+                coefficient_table,
+                expected_index=tested_index,
+                field_name="protein_aware_differential_result.coefficient_table",
+                assume_owned=_assume_owned,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "residuals",
+            _owned_numeric_dataframe(
+                residuals,
+                expected_index=tested_index,
+                field_name="protein_aware_differential_result.residuals",
+                assume_owned=_assume_owned,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "contrast_standard_error_scale",
+            _owned_numeric_dataframe(
+                contrast_standard_error_scale,
+                expected_index=tested_index,
+                field_name=(
+                    "protein_aware_differential_result.contrast_standard_error_scale"
+                ),
+                assume_owned=_assume_owned,
+                expected_columns=tuple(owned_tables),
+            ),
+        )
         object.__setattr__(self, "site_diagnostics", site_diagnostics)
         object.__setattr__(
             self,
             "augmented_design_diagnostics",
             augmented_design_diagnostics,
+        )
+        object.__setattr__(
+            self,
+            "site_failure_diagnostics",
+            _owned_failure_diagnostics(
+                site_failure_diagnostics,
+                required_columns=(
+                    PROTEIN_AWARE_DIFFERENTIAL_SITE_FAILURE_DIAGNOSTIC_COLUMNS
+                ),
+                label_column="site_key",
+                field_name=(
+                    "protein_aware_differential_result.site_failure_diagnostics"
+                ),
+                assume_owned=_assume_owned,
+                disallowed_index=tested_index,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "augmented_design_failure_diagnostics",
+            _owned_failure_diagnostics(
+                augmented_design_failure_diagnostics,
+                required_columns=(
+                    PROTEIN_AWARE_DIFFERENTIAL_AUGMENTED_DESIGN_FAILURE_DIAGNOSTIC_COLUMNS
+                ),
+                label_column="total_protein_row_key",
+                field_name=(
+                    "protein_aware_differential_result."
+                    "augmented_design_failure_diagnostics"
+                ),
+                assume_owned=_assume_owned,
+            ),
         )
         object.__setattr__(self, "tested_site_ids", tested_site_ids)
         object.__setattr__(
@@ -539,11 +641,26 @@ class ProteinAwareDifferentialComputationResult:
     def protein_coefficient_series(self) -> pd.Series:
         return export_series(self.protein_coefficient)
 
+    def coefficient_dataframe(self) -> pd.DataFrame:
+        return export_dataframe(self.coefficient_table)
+
+    def residuals_dataframe(self) -> pd.DataFrame:
+        return export_dataframe(self.residuals)
+
+    def contrast_standard_error_scale_dataframe(self) -> pd.DataFrame:
+        return export_dataframe(self.contrast_standard_error_scale)
+
     def site_diagnostics_dataframe(self) -> pd.DataFrame:
         return export_dataframe(self.site_diagnostics)
 
     def augmented_design_diagnostics_dataframe(self) -> pd.DataFrame:
         return export_dataframe(self.augmented_design_diagnostics)
+
+    def site_failure_diagnostics_dataframe(self) -> pd.DataFrame:
+        return export_dataframe(self.site_failure_diagnostics)
+
+    def augmented_design_failure_diagnostics_dataframe(self) -> pd.DataFrame:
+        return export_dataframe(self.augmented_design_failure_diagnostics)
 
 
 def _coerce_design_matrix(value: object) -> DesignMatrix:
@@ -598,6 +715,16 @@ def _normalize_label_sequence(value: object, *, field_name: str) -> tuple[str, .
 
 
 def _validate_finite_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
+    _validate_numeric_matrix(frame, field_name=field_name)
+    require_finite_numeric_dataframe(
+        frame,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+        allow_missing=False,
+    )
+
+
+def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
     require_non_empty_dataframe(
         frame,
         field_name=field_name,
@@ -608,12 +735,6 @@ def _validate_finite_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> 
         frame,
         field_name=field_name,
         error_type=PhosPyInputError,
-    )
-    require_finite_numeric_dataframe(
-        frame,
-        field_name=field_name,
-        error_type=PhosPyInputError,
-        allow_missing=False,
     )
 
 
@@ -764,6 +885,8 @@ def _owned_numeric_series(
     expected_index: pd.Index,
     field_name: str,
     assume_owned: bool,
+    allow_positive_infinity: bool = False,
+    require_non_negative: bool = False,
 ) -> pd.Series:
     series = own_series(
         value,
@@ -780,9 +903,160 @@ def _owned_numeric_series(
     if pd.api.types.is_bool_dtype(series) or not pd.api.types.is_numeric_dtype(series):
         raise PhosPyInputError(f"{field_name} must contain numeric values")
     values = np.asarray(series.to_numpy(dtype=float), dtype=float)
-    if not np.isfinite(values).all():
-        raise PhosPyInputError(f"{field_name} must contain finite numeric values")
+    if allow_positive_infinity:
+        invalid = np.isnan(values) | np.isneginf(values)
+    else:
+        invalid = ~np.isfinite(values)
+    if require_non_negative:
+        invalid |= values < 0.0
+    if invalid.any():
+        allowed = (
+            "non-negative numeric values"
+            if allow_positive_infinity
+            else "finite numeric values"
+        )
+        raise PhosPyInputError(f"{field_name} must contain {allowed}")
     return series
+
+
+def _owned_numeric_dataframe(
+    value: pd.DataFrame | None,
+    *,
+    expected_index: pd.Index,
+    field_name: str,
+    assume_owned: bool,
+    expected_columns: tuple[str, ...] | None = None,
+) -> pd.DataFrame:
+    provided = value is not None
+    if value is None:
+        value = pd.DataFrame(
+            index=expected_index.copy(),
+            columns=pd.Index((), dtype=object),
+        )
+    frame = own_dataframe(
+        value,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+        assume_owned=assume_owned,
+    )
+    _require_exact_index(
+        left=frame.index,
+        right=expected_index,
+        left_name=f"{field_name}.index",
+        right_name="protein_aware_differential_result.tested_site_ids",
+    )
+    require_unique_columns(
+        frame,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    if provided and expected_columns is not None:
+        _require_exact_index(
+            left=pd.Index(tuple(str(column) for column in frame.columns)),
+            right=pd.Index(expected_columns),
+            left_name=f"{field_name}.columns",
+            right_name="protein_aware_differential_result.contrast_tables.keys",
+        )
+    if frame.shape[1] == 0:
+        return frame
+    require_numeric_dataframe(
+        frame,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    require_finite_numeric_dataframe(
+        frame,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+        allow_missing=False,
+    )
+    return frame
+
+
+def _owned_failure_diagnostics(
+    value: pd.DataFrame | None,
+    *,
+    required_columns: tuple[str, ...],
+    label_column: str,
+    field_name: str,
+    assume_owned: bool,
+    disallowed_index: pd.Index | None = None,
+) -> pd.DataFrame:
+    if value is None:
+        value = pd.DataFrame(
+            columns=pd.Index(required_columns, dtype=object),
+            index=pd.Index((), name=label_column),
+        )
+    frame = own_dataframe(
+        value,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+        assume_owned=assume_owned,
+    )
+    require_unique_index(
+        frame,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    require_unique_columns(
+        frame,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    require_string_index(
+        frame.index,
+        field_name=f"{field_name}.index",
+        error_type=PhosPyInputError,
+    )
+    require_columns(
+        frame,
+        field_name=field_name,
+        required_columns=required_columns,
+        error_type=PhosPyInputError,
+    )
+    _require_exact_index(
+        left=pd.Index(tuple(str(value) for value in frame[label_column].tolist())),
+        right=frame.index,
+        left_name=f"{field_name}.{label_column}",
+        right_name=f"{field_name}.index",
+    )
+    if disallowed_index is not None:
+        overlapping = [label for label in frame.index if label in disallowed_index]
+        if overlapping:
+            preview = ", ".join(repr(label) for label in overlapping[:5])
+            suffix = "" if len(overlapping) <= 5 else " ..."
+            raise PhosPyInputError(
+                f"{field_name}.index must not overlap tested_site_ids; "
+                f"overlapping={preview}{suffix}"
+            )
+    _validate_failure_status_reason_codes(frame=frame, field_name=field_name)
+    return frame
+
+
+def _validate_failure_status_reason_codes(
+    *,
+    frame: pd.DataFrame,
+    field_name: str,
+) -> None:
+    invalid_rows: list[str] = []
+    for row_label, status, reason in zip(
+        frame.index.tolist(),
+        frame[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str).tolist(),
+        frame[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN].astype(str).tolist(),
+        strict=True,
+    ):
+        allowed_reasons = DIFFERENTIAL_RESULT_PROTEIN_AWARE_STATUS_REASONS.get(status)
+        if allowed_reasons is not None and reason in allowed_reasons:
+            continue
+        invalid_rows.append(f"{row_label!r}: status={status!r}, reason={reason!r}")
+    if not invalid_rows:
+        return
+    preview = ", ".join(invalid_rows[:3])
+    suffix = "" if len(invalid_rows) <= 3 else f", +{len(invalid_rows) - 3} more"
+    raise PhosPyInputError(
+        f"{field_name} contains unsupported protein-aware status/reason pairs: "
+        f"{preview}{suffix}"
+    )
 
 
 def _validate_site_diagnostics(
@@ -968,9 +1242,24 @@ def _require_positive_finite_float(value: object, *, field_name: str) -> float:
     return number
 
 
+def _require_non_negative_float_allowing_infinity(
+    value: object,
+    *,
+    field_name: str,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise PhosPyInputError(f"{field_name} must be numeric")
+    number = float(value)
+    if math.isnan(number) or number < 0.0:
+        raise PhosPyInputError(f"{field_name} must be >= 0.0")
+    return number
+
+
 __all__ = [
     "PROTEIN_AWARE_DIFFERENTIAL_AUGMENTED_DESIGN_DIAGNOSTIC_COLUMNS",
+    "PROTEIN_AWARE_DIFFERENTIAL_AUGMENTED_DESIGN_FAILURE_DIAGNOSTIC_COLUMNS",
     "PROTEIN_AWARE_DIFFERENTIAL_MATCHED_PAIR_COLUMNS",
+    "PROTEIN_AWARE_DIFFERENTIAL_SITE_FAILURE_DIAGNOSTIC_COLUMNS",
     "PROTEIN_AWARE_DIFFERENTIAL_SITE_DIAGNOSTIC_COLUMNS",
     "ProteinAwareDifferentialComputationRequest",
     "ProteinAwareDifferentialComputationResult",

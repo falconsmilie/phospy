@@ -1,0 +1,1109 @@
+"""Grouped protein-covariate-adjusted differential computation."""
+
+from __future__ import annotations
+
+import math
+from collections import Counter
+from dataclasses import dataclass
+from typing import cast
+
+import numpy as np
+import numpy.typing as npt
+import pandas as pd
+from scipy import stats
+
+from phospy.errors.input import PhosPyInputError
+from phospy.science.differential.empirical_bayes import (
+    EmpiricalBayesFit,
+    fit_empirical_bayes,
+)
+from phospy.science.differential.linear_model import (
+    DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
+    DifferentialDesignDecomposition,
+    DifferentialDesignDecompositionError,
+    decompose_differential_design,
+)
+from phospy.science.differential.models import (
+    ContrastMatrix,
+    DesignMatrix,
+    EmpiricalBayesPriorDiagnostics,
+    MeanVarianceTrendDiagnostics,
+)
+from phospy.science.differential.models.protein_aware import (
+    PROTEIN_AWARE_DIFFERENTIAL_AUGMENTED_DESIGN_FAILURE_DIAGNOSTIC_COLUMNS,
+    PROTEIN_AWARE_DIFFERENTIAL_SITE_FAILURE_DIAGNOSTIC_COLUMNS,
+    ProteinAwareDifferentialComputationRequest,
+    ProteinAwareDifferentialComputationResult,
+)
+from phospy.science.differential.models.tables import (
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_NON_POSITIVE_RESIDUAL_DOF,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE,
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+)
+from phospy.science.statistics.multiple_testing import adjust_p_values
+
+PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME = "protein_covariate"
+PROTEIN_AWARE_CENTERING_POLICY = "mean_centered_no_standardization"
+
+_FloatArray = npt.NDArray[np.float64]
+_PROTEIN_VARIANCE_RELATIVE_TOLERANCE = float(np.finfo(np.float64).eps ** 0.75)
+
+
+@dataclass(frozen=True, slots=True)
+class _AlignedInputs:
+    matrix: pd.DataFrame
+    base_design: pd.DataFrame
+    base_contrasts: pd.DataFrame
+    protein_covariates: pd.DataFrame
+
+
+@dataclass(frozen=True, slots=True)
+class _ProteinCovariateSummary:
+    raw_mean: float
+    raw_standard_deviation: float
+    centered_variance: float
+    centered_vector: _FloatArray
+
+
+@dataclass(frozen=True, slots=True)
+class _Failure:
+    total_protein_row_key: str
+    status: str
+    reason: str
+    failure_message: str
+    sample_count: int
+    coefficient_count: int
+    rank: int | None
+    residual_degrees_of_freedom: float | None
+    condition_number: float | None
+    max_condition_number: float
+    protein_raw_mean: float | None
+    protein_raw_standard_deviation: float | None
+    protein_centered_variance: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class _ScaledSvdDiagnostics:
+    rank: int | None
+    residual_degrees_of_freedom: float | None
+    condition_number: float | None
+
+
+class ProteinCovariateAdjustedDifferentialKernel:
+    """Run the version-1 protein-covariate-adjusted OLS kernel."""
+
+    def run(
+        self,
+        request: ProteinAwareDifferentialComputationRequest,
+    ) -> ProteinAwareDifferentialComputationResult:
+        aligned = _align_inputs(request)
+        sample_order = tuple(str(value) for value in request.sample_order)
+        base_design = aligned.base_design
+        base_contrasts = aligned.base_contrasts
+        if PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME in base_design.columns:
+            raise PhosPyInputError(
+                "protein-aware differential base_design must not already contain "
+                f"{PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME!r}"
+            )
+
+        site_ids = tuple(str(value) for value in aligned.matrix.index.tolist())
+        total_protein_row_keys = tuple(
+            str(value)
+            for value in request.matched_pairs.loc[:, "total_protein_row_key"].tolist()
+        )
+        protein_identifiers = tuple(
+            str(value)
+            for value in request.matched_pairs.loc[:, "protein_identifier"].tolist()
+        )
+        contrast_names = tuple(str(value) for value in base_contrasts.columns.tolist())
+        coefficient_names = (
+            *tuple(str(value) for value in base_design.columns.tolist()),
+            PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
+        )
+
+        residual_variance_by_position: dict[int, float] = {}
+        mean_intensity_by_position: dict[int, float] = {}
+        protein_coefficient_by_position: dict[int, float] = {}
+        coefficients_by_position: dict[int, _FloatArray] = {}
+        residuals_by_position: dict[int, _FloatArray] = {}
+        contrast_effects_by_position: dict[int, _FloatArray] = {}
+        contrast_scale_by_position: dict[int, _FloatArray] = {}
+        successful_group_rows: list[dict[str, object]] = []
+        site_failure_rows: list[dict[str, object]] = []
+        group_failure_rows: list[dict[str, object]] = []
+        residual_dof_by_group: list[float] = []
+
+        for row_key in dict.fromkeys(total_protein_row_keys):
+            positions = tuple(
+                position
+                for position, candidate_key in enumerate(total_protein_row_keys)
+                if candidate_key == row_key
+            )
+            protein_vector = (
+                aligned.protein_covariates.reindex(
+                    index=[row_key],
+                    columns=list(sample_order),
+                )
+                .iloc[0]
+                .to_numpy(dtype=float)
+            )
+            summary = _summarize_protein_covariate(protein_vector)
+            failure = _protein_covariate_failure(
+                row_key=row_key,
+                summary=summary,
+                sample_count=int(base_design.shape[0]),
+                coefficient_count=int(base_design.shape[1]) + 1,
+            )
+            if failure is None:
+                augmented_design = _augmented_design(
+                    base_design=base_design,
+                    centered_protein=summary.centered_vector,
+                )
+                augmented_contrasts = _augmented_contrasts(base_contrasts)
+                decomposition, failure = _decompose_augmented_design(
+                    row_key=row_key,
+                    augmented_design=augmented_design,
+                    augmented_contrasts=augmented_contrasts,
+                    summary=summary,
+                )
+            else:
+                decomposition = None
+                augmented_design = None
+                augmented_contrasts = None
+
+            if failure is not None:
+                group_failure_rows.append(_group_failure_row(failure))
+                site_failure_rows.extend(
+                    _site_failure_row(
+                        site_id=site_ids[position],
+                        row_key=row_key,
+                        failure=failure,
+                    )
+                    for position in positions
+                )
+                continue
+
+            if (
+                decomposition is None
+                or augmented_design is None
+                or augmented_contrasts is None
+            ):
+                raise PhosPyInputError(
+                    "protein-aware differential augmented design state is incomplete"
+                )
+            _fit_group(
+                matrix=aligned.matrix,
+                positions=positions,
+                decomposition=decomposition,
+                augmented_contrasts=augmented_contrasts,
+                residual_variance_by_position=residual_variance_by_position,
+                mean_intensity_by_position=mean_intensity_by_position,
+                protein_coefficient_by_position=protein_coefficient_by_position,
+                coefficients_by_position=coefficients_by_position,
+                residuals_by_position=residuals_by_position,
+                contrast_effects_by_position=contrast_effects_by_position,
+                contrast_scale_by_position=contrast_scale_by_position,
+            )
+            residual_dof_by_group.append(
+                float(decomposition.residual_degrees_of_freedom)
+            )
+            successful_group_rows.append(
+                _successful_group_row(
+                    row_key=row_key,
+                    decomposition=decomposition,
+                    contrast_names=contrast_names,
+                )
+            )
+
+        tested_positions = tuple(
+            position
+            for position in range(len(site_ids))
+            if position in residual_variance_by_position
+        )
+        if not tested_positions:
+            failure_report = _failure_report(
+                site_failure_rows=site_failure_rows,
+                group_failure_rows=group_failure_rows,
+            )
+            raise PhosPyInputError(
+                "protein-aware differential computation produced no successfully "
+                "tested sites after protein covariate and augmented-design checks; "
+                f"reason_counts={_reason_count_text(site_failure_rows)}",
+                diagnostics=failure_report,
+            )
+
+        residual_dof = _require_common_residual_dof(residual_dof_by_group)
+        tested_index = pd.Index(
+            [site_ids[position] for position in tested_positions],
+            name="site_key",
+        )
+        residual_variance = np.asarray(
+            [residual_variance_by_position[position] for position in tested_positions],
+            dtype=np.float64,
+        )
+        mean_intensity = np.asarray(
+            [mean_intensity_by_position[position] for position in tested_positions],
+            dtype=np.float64,
+        )
+
+        try:
+            eb_fit = fit_empirical_bayes(
+                variances=residual_variance,
+                residual_dof=residual_dof,
+                method=request.empirical_bayes.method,
+                trend=request.empirical_bayes.trend,
+                winsor_tail_p=request.empirical_bayes.winsor_tail_p,
+                mean_intensity=mean_intensity,
+            )
+        except ValueError as error:
+            raise PhosPyInputError(
+                "empirical-Bayes prior estimation failed for protein-aware "
+                "differential analysis"
+            ) from error
+
+        posterior_variance, moderated_dof = _moderated_variance_and_dof(
+            residual_variance=residual_variance,
+            residual_dof=residual_dof,
+            prior_variance=eb_fit.prior_variance,
+            prior_dof=eb_fit.prior_degrees_of_freedom,
+            tested_index=tested_index,
+        )
+        contrast_effects = np.vstack(
+            [contrast_effects_by_position[position] for position in tested_positions]
+        )
+        contrast_scales = np.vstack(
+            [contrast_scale_by_position[position] for position in tested_positions]
+        )
+        contrast_tables = _contrast_tables(
+            contrast_effects=contrast_effects,
+            contrast_scales=contrast_scales,
+            posterior_variance=posterior_variance,
+            moderated_dof=moderated_dof,
+            contrast_names=contrast_names,
+            tested_index=tested_index,
+            multiple_testing_method=request.multiple_testing_method,
+        )
+        residual_variance_series = pd.Series(
+            residual_variance.astype(float),
+            index=tested_index.copy(),
+            name="residual_variance",
+        )
+        posterior_variance_series = pd.Series(
+            posterior_variance.astype(float),
+            index=tested_index.copy(),
+            name="posterior_residual_variance",
+        )
+        prior_variance_series = pd.Series(
+            eb_fit.prior_variance.astype(float),
+            index=tested_index.copy(),
+            name="prior_residual_variance",
+        )
+        prior_dof_series = pd.Series(
+            eb_fit.prior_degrees_of_freedom.astype(float),
+            index=tested_index.copy(),
+            name="prior_degrees_of_freedom",
+        )
+        protein_coefficient = pd.Series(
+            [
+                protein_coefficient_by_position[position]
+                for position in tested_positions
+            ],
+            index=tested_index.copy(),
+            name="protein_coefficient",
+            dtype=float,
+        )
+        prior_diagnostics = EmpiricalBayesPriorDiagnostics(
+            method=request.empirical_bayes.method,
+            robust=request.empirical_bayes.method == "robust",
+            trend=request.empirical_bayes.trend,
+            winsor_tail_p=request.empirical_bayes.winsor_tail_p,
+            base_prior_variance=eb_fit.base_prior_variance,
+            base_prior_degrees_of_freedom=eb_fit.base_prior_degrees_of_freedom,
+            robust_outlier_count=eb_fit.robust_outlier_count,
+            robust_outlier_fraction=eb_fit.robust_outlier_fraction,
+            winsorized_low_count=eb_fit.winsorized_low_count,
+            winsorized_high_count=eb_fit.winsorized_high_count,
+            prior_variance=prior_variance_series,
+            prior_degrees_of_freedom=prior_dof_series,
+            _assume_owned=True,
+        )
+        trend_diagnostics = _trend_diagnostics(
+            eb_fit=eb_fit,
+            tested_index=tested_index,
+            enabled=request.empirical_bayes.trend,
+        )
+
+        return ProteinAwareDifferentialComputationResult(
+            residual_variance=residual_variance_series,
+            posterior_residual_variance=posterior_variance_series,
+            prior_residual_variance=prior_variance_series,
+            prior_degrees_of_freedom_series_value=prior_dof_series,
+            prior_variance=float(np.nanmedian(eb_fit.prior_variance)),
+            prior_degrees_of_freedom=float(
+                np.nanmedian(eb_fit.prior_degrees_of_freedom)
+            ),
+            residual_degrees_of_freedom=float(residual_dof),
+            empirical_bayes_method=request.empirical_bayes.method,
+            empirical_bayes_robust=request.empirical_bayes.method == "robust",
+            empirical_bayes_trend=request.empirical_bayes.trend,
+            prior_diagnostics=prior_diagnostics,
+            mean_variance_trend_diagnostics=trend_diagnostics,
+            contrast_tables=contrast_tables,
+            protein_coefficient=protein_coefficient,
+            site_diagnostics=_site_diagnostics(
+                tested_positions=tested_positions,
+                site_ids=site_ids,
+                protein_identifiers=protein_identifiers,
+                total_protein_row_keys=total_protein_row_keys,
+                protein_coefficient_by_position=protein_coefficient_by_position,
+                mean_intensity_by_position=mean_intensity_by_position,
+            ),
+            augmented_design_diagnostics=_augmented_design_diagnostics(
+                successful_group_rows
+            ),
+            tested_site_ids=tuple(tested_index.tolist()),
+            coefficient_table=_coefficient_table(
+                tested_positions=tested_positions,
+                tested_index=tested_index,
+                coefficient_names=coefficient_names,
+                coefficients_by_position=coefficients_by_position,
+            ),
+            residuals=_residual_table(
+                tested_positions=tested_positions,
+                tested_index=tested_index,
+                sample_order=sample_order,
+                residuals_by_position=residuals_by_position,
+            ),
+            contrast_standard_error_scale=pd.DataFrame(
+                contrast_scales,
+                index=tested_index.copy(),
+                columns=pd.Index(contrast_names, name=base_contrasts.columns.name),
+            ),
+            site_failure_diagnostics=_site_failure_diagnostics(site_failure_rows),
+            augmented_design_failure_diagnostics=(
+                _augmented_design_failure_diagnostics(group_failure_rows)
+            ),
+            method_id=request.method_id,
+            _assume_owned=True,
+        )
+
+
+def run_protein_covariate_adjusted_differential(
+    request: ProteinAwareDifferentialComputationRequest,
+) -> ProteinAwareDifferentialComputationResult:
+    """Run the private protein-covariate-adjusted computation kernel."""
+
+    return ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+
+def _align_inputs(
+    request: ProteinAwareDifferentialComputationRequest,
+) -> _AlignedInputs:
+    base_design_model = request.base_design
+    base_contrasts_model = request.base_contrasts
+    if not isinstance(base_design_model, DesignMatrix) or not isinstance(
+        base_contrasts_model,
+        ContrastMatrix,
+    ):
+        raise PhosPyInputError(
+            "protein-aware differential request must contain normalized base design "
+            "and contrast matrices"
+        )
+    sample_order = list(request.sample_order)
+    base_design = base_design_model.frame.loc[sample_order, :]
+    return _AlignedInputs(
+        matrix=request.phosphosite_matrix.loc[:, sample_order],
+        base_design=base_design,
+        base_contrasts=base_contrasts_model.frame.loc[list(base_design.columns), :],
+        protein_covariates=request.resolved_protein_covariates.loc[:, sample_order],
+    )
+
+
+def _summarize_protein_covariate(
+    protein_vector: _FloatArray,
+) -> _ProteinCovariateSummary:
+    vector = np.asarray(protein_vector, dtype=np.float64)
+    if not np.isfinite(vector).all():
+        return _ProteinCovariateSummary(
+            raw_mean=math.nan,
+            raw_standard_deviation=math.nan,
+            centered_variance=math.nan,
+            centered_vector=np.full(vector.shape, np.nan, dtype=np.float64),
+        )
+    raw_mean = float(np.mean(vector))
+    raw_standard_deviation = (
+        float(np.std(vector, ddof=1)) if int(vector.size) > 1 else 0.0
+    )
+    centered = cast(_FloatArray, np.asarray(vector - raw_mean, dtype=np.float64))
+    centered_variance = (
+        float(np.var(centered, ddof=1)) if int(centered.size) > 1 else 0.0
+    )
+    return _ProteinCovariateSummary(
+        raw_mean=raw_mean,
+        raw_standard_deviation=raw_standard_deviation,
+        centered_variance=centered_variance,
+        centered_vector=centered,
+    )
+
+
+def _protein_covariate_failure(
+    *,
+    row_key: str,
+    summary: _ProteinCovariateSummary,
+    sample_count: int,
+    coefficient_count: int,
+) -> _Failure | None:
+    if not np.isfinite(summary.centered_vector).all():
+        return _failure(
+            row_key=row_key,
+            status=DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+            reason=DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
+            message="protein covariate contains non-finite values",
+            sample_count=sample_count,
+            coefficient_count=coefficient_count,
+            summary=summary,
+        )
+    centered_sum_squares = float(summary.centered_vector @ summary.centered_vector)
+    scale = max(float(np.linalg.norm(summary.centered_vector)), 1.0)
+    tolerance = (
+        _PROTEIN_VARIANCE_RELATIVE_TOLERANCE
+        * float(max(sample_count, coefficient_count))
+        * scale
+    )
+    if (
+        not math.isfinite(centered_sum_squares)
+        or centered_sum_squares <= tolerance
+        or summary.centered_variance <= 0.0
+    ):
+        return _failure(
+            row_key=row_key,
+            status=DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+            reason=DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE,
+            message="protein covariate has zero or numerically unusable variance",
+            sample_count=sample_count,
+            coefficient_count=coefficient_count,
+            summary=summary,
+        )
+    return None
+
+
+def _augmented_design(
+    *,
+    base_design: pd.DataFrame,
+    centered_protein: _FloatArray,
+) -> pd.DataFrame:
+    frame = base_design.copy(deep=True)
+    frame.loc[:, PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME] = centered_protein
+    return frame
+
+
+def _augmented_contrasts(base_contrasts: pd.DataFrame) -> pd.DataFrame:
+    protein_row = pd.DataFrame(
+        np.zeros((1, int(base_contrasts.shape[1])), dtype=float),
+        index=pd.Index(
+            [PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME],
+            name=base_contrasts.index.name,
+        ),
+        columns=base_contrasts.columns.copy(),
+    )
+    return pd.concat([base_contrasts.copy(deep=True), protein_row], axis=0)
+
+
+def _decompose_augmented_design(
+    *,
+    row_key: str,
+    augmented_design: pd.DataFrame,
+    augmented_contrasts: pd.DataFrame,
+    summary: _ProteinCovariateSummary,
+) -> tuple[DifferentialDesignDecomposition | None, _Failure | None]:
+    design_values = augmented_design.to_numpy(dtype=float)
+    try:
+        decomposition = decompose_differential_design(design_values)
+    except DifferentialDesignDecompositionError as error:
+        diagnostics = _scaled_svd_diagnostics(design_values)
+        return None, _failure(
+            row_key=row_key,
+            status=DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
+            reason=_decomposition_failure_reason(str(error)),
+            message=str(error),
+            sample_count=int(augmented_design.shape[0]),
+            coefficient_count=int(augmented_design.shape[1]),
+            summary=summary,
+            rank=diagnostics.rank,
+            residual_degrees_of_freedom=diagnostics.residual_degrees_of_freedom,
+            condition_number=diagnostics.condition_number,
+            max_condition_number=DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
+        )
+
+    invalid_contrast_positions = decomposition.invalid_contrast_positions(
+        augmented_contrasts.to_numpy(dtype=float)
+    )
+    if invalid_contrast_positions:
+        contrast_names = tuple(
+            str(augmented_contrasts.columns[position])
+            for position in invalid_contrast_positions
+        )
+        return None, _failure(
+            row_key=row_key,
+            status=DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
+            reason=DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
+            message=(
+                "protein-aware augmented contrast is non-estimable or zero-length; "
+                f"contrasts={contrast_names}"
+            ),
+            sample_count=decomposition.sample_count,
+            coefficient_count=decomposition.coefficient_count,
+            summary=summary,
+            rank=decomposition.rank,
+            residual_degrees_of_freedom=decomposition.residual_degrees_of_freedom,
+            condition_number=decomposition.condition_number,
+            max_condition_number=decomposition.max_condition_number,
+        )
+    return decomposition, None
+
+
+def _fit_group(
+    *,
+    matrix: pd.DataFrame,
+    positions: tuple[int, ...],
+    decomposition: DifferentialDesignDecomposition,
+    augmented_contrasts: pd.DataFrame,
+    residual_variance_by_position: dict[int, float],
+    mean_intensity_by_position: dict[int, float],
+    protein_coefficient_by_position: dict[int, float],
+    coefficients_by_position: dict[int, _FloatArray],
+    residuals_by_position: dict[int, _FloatArray],
+    contrast_effects_by_position: dict[int, _FloatArray],
+    contrast_scale_by_position: dict[int, _FloatArray],
+) -> None:
+    response = matrix.iloc[list(positions), :].to_numpy(dtype=float).T
+    try:
+        linear_fit = decomposition.fit(response)
+    except DifferentialDesignDecompositionError as error:
+        raise PhosPyInputError(
+            "protein-aware differential model fitting failed under an already "
+            f"validated augmented decomposition: {error}"
+        ) from error
+
+    contrast_values = augmented_contrasts.to_numpy(dtype=float)
+    contrast_effects = cast(
+        _FloatArray,
+        np.asarray(linear_fit.coefficients.T @ contrast_values, dtype=np.float64),
+    )
+    contrast_scales = decomposition.contrast_scales(contrast_values)
+    if not np.isfinite(linear_fit.residual_variance).all():
+        raise PhosPyInputError(
+            "protein-aware differential fit produced invalid residual variances"
+        )
+    if (
+        not np.isfinite(contrast_effects).all()
+        or not np.isfinite(contrast_scales).all()
+    ):
+        raise PhosPyInputError(
+            "protein-aware differential fit produced invalid contrast quantities"
+        )
+    for local_position, site_position in enumerate(positions):
+        residual_variance_by_position[site_position] = float(
+            linear_fit.residual_variance[local_position]
+        )
+        mean_intensity_by_position[site_position] = float(
+            np.mean(response[:, local_position])
+        )
+        protein_coefficient_by_position[site_position] = float(
+            linear_fit.coefficients[-1, local_position]
+        )
+        coefficients_by_position[site_position] = cast(
+            _FloatArray,
+            np.asarray(linear_fit.coefficients[:, local_position], dtype=np.float64),
+        )
+        residuals_by_position[site_position] = cast(
+            _FloatArray,
+            np.asarray(linear_fit.residuals[:, local_position], dtype=np.float64),
+        )
+        contrast_effects_by_position[site_position] = cast(
+            _FloatArray,
+            np.asarray(contrast_effects[local_position, :], dtype=np.float64),
+        )
+        contrast_scale_by_position[site_position] = cast(
+            _FloatArray,
+            np.asarray(contrast_scales, dtype=np.float64),
+        )
+
+
+def _moderated_variance_and_dof(
+    *,
+    residual_variance: _FloatArray,
+    residual_dof: float,
+    prior_variance: _FloatArray,
+    prior_dof: _FloatArray,
+    tested_index: pd.Index,
+) -> tuple[_FloatArray, _FloatArray]:
+    total_residual_dof = residual_dof * float(tested_index.size)
+    posterior_variance = np.empty_like(residual_variance, dtype=float)
+    finite_prior_dof = np.isfinite(prior_dof)
+    if np.any(finite_prior_dof):
+        posterior_variance[finite_prior_dof] = (
+            prior_dof[finite_prior_dof] * prior_variance[finite_prior_dof]
+            + residual_dof * residual_variance[finite_prior_dof]
+        ) / (prior_dof[finite_prior_dof] + residual_dof)
+    if np.any(~finite_prior_dof):
+        posterior_variance[~finite_prior_dof] = prior_variance[~finite_prior_dof]
+
+    moderated_dof = cast(
+        _FloatArray,
+        np.asarray(
+            np.where(
+                finite_prior_dof,
+                np.minimum(residual_dof + prior_dof, total_residual_dof),
+                total_residual_dof,
+            ),
+            dtype=np.float64,
+        ),
+    )
+    invalid = ~np.isfinite(moderated_dof) | (moderated_dof <= 0.0)
+    if np.any(invalid):
+        raise PhosPyInputError(
+            "protein-aware differential analysis produced invalid moderated "
+            "degrees of freedom; degrees of freedom must be finite and > 0.0; "
+            f"{_preview_invalid_entries(invalid, moderated_dof, row_index=tested_index)}"
+        )
+    return cast(_FloatArray, posterior_variance), moderated_dof
+
+
+def _contrast_tables(
+    *,
+    contrast_effects: _FloatArray,
+    contrast_scales: _FloatArray,
+    posterior_variance: _FloatArray,
+    moderated_dof: _FloatArray,
+    contrast_names: tuple[str, ...],
+    tested_index: pd.Index,
+    multiple_testing_method: str,
+) -> dict[str, pd.DataFrame]:
+    posterior_sd = np.sqrt(posterior_variance)
+    contrast_tables: dict[str, pd.DataFrame] = {}
+    for column_idx, contrast_name in enumerate(contrast_names):
+        log_fc = contrast_effects[:, column_idx]
+        standard_error = posterior_sd * contrast_scales[:, column_idx]
+        invalid_standard_error = ~np.isfinite(standard_error) | (standard_error <= 0.0)
+        if np.any(invalid_standard_error):
+            raise PhosPyInputError(
+                "protein-aware differential analysis produced unstable standard "
+                f"errors for contrast {contrast_name!r}; standard errors must be "
+                "finite and > 0.0; "
+                f"{_preview_invalid_entries(invalid_standard_error, standard_error, row_index=tested_index)}"
+            )
+        moderated_t = log_fc / standard_error
+        p_values = np.asarray(
+            2.0 * stats.t.sf(np.abs(moderated_t), df=moderated_dof),
+            dtype=np.float64,
+        )
+        invalid_p_values = ~np.isfinite(p_values) | (p_values < 0.0) | (p_values > 1.0)
+        if np.any(invalid_p_values):
+            raise PhosPyInputError(
+                "protein-aware differential analysis produced invalid p-values for "
+                f"contrast {contrast_name!r}; P.Value must be finite and within "
+                "[0, 1]; "
+                f"{_preview_invalid_entries(invalid_p_values, p_values, row_index=tested_index)}"
+            )
+        adjusted = adjust_p_values(
+            p_values,
+            method=multiple_testing_method,
+        )
+        contrast_tables[contrast_name] = pd.DataFrame(
+            {
+                "logFC": log_fc.astype(float),
+                "t": moderated_t.astype(float),
+                "P.Value": p_values.astype(float),
+                "adj.P.Val": adjusted.astype(float),
+            },
+            index=tested_index.copy(),
+        )
+    return contrast_tables
+
+
+def _trend_diagnostics(
+    *,
+    eb_fit: EmpiricalBayesFit,
+    tested_index: pd.Index,
+    enabled: bool,
+) -> MeanVarianceTrendDiagnostics | None:
+    if not enabled:
+        return None
+    mean_intensity = eb_fit.mean_intensity
+    log_residual_variance = eb_fit.log_residual_variance
+    fitted_log_prior_variance = eb_fit.fitted_log_prior_variance
+    if (
+        mean_intensity is None
+        or log_residual_variance is None
+        or fitted_log_prior_variance is None
+    ):
+        raise PhosPyInputError(
+            "protein-aware differential empirical-Bayes trend diagnostics are "
+            "incomplete"
+        )
+    return MeanVarianceTrendDiagnostics(
+        mean_intensity=pd.Series(
+            mean_intensity,
+            index=tested_index.copy(),
+            name="mean_intensity",
+        ),
+        log_residual_variance=pd.Series(
+            log_residual_variance,
+            index=tested_index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            fitted_log_prior_variance,
+            index=tested_index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+        _assume_owned=True,
+    )
+
+
+def _site_diagnostics(
+    *,
+    tested_positions: tuple[int, ...],
+    site_ids: tuple[str, ...],
+    protein_identifiers: tuple[str, ...],
+    total_protein_row_keys: tuple[str, ...],
+    protein_coefficient_by_position: dict[int, float],
+    mean_intensity_by_position: dict[int, float],
+) -> pd.DataFrame:
+    index = pd.Index(
+        [site_ids[position] for position in tested_positions], name="site_key"
+    )
+    return pd.DataFrame(
+        {
+            "site_key": [site_ids[position] for position in tested_positions],
+            "protein_identifier": [
+                protein_identifiers[position] for position in tested_positions
+            ],
+            "total_protein_row_key": [
+                total_protein_row_keys[position] for position in tested_positions
+            ],
+            "protein_coefficient": [
+                protein_coefficient_by_position[position]
+                for position in tested_positions
+            ],
+            "mean_intensity": [
+                mean_intensity_by_position[position] for position in tested_positions
+            ],
+        },
+        index=index.copy(),
+    )
+
+
+def _coefficient_table(
+    *,
+    tested_positions: tuple[int, ...],
+    tested_index: pd.Index,
+    coefficient_names: tuple[str, ...],
+    coefficients_by_position: dict[int, _FloatArray],
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        np.vstack(
+            [coefficients_by_position[position] for position in tested_positions]
+        ),
+        index=tested_index.copy(),
+        columns=pd.Index(coefficient_names, name="coefficient"),
+    )
+
+
+def _residual_table(
+    *,
+    tested_positions: tuple[int, ...],
+    tested_index: pd.Index,
+    sample_order: tuple[str, ...],
+    residuals_by_position: dict[int, _FloatArray],
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        np.vstack([residuals_by_position[position] for position in tested_positions]),
+        index=tested_index.copy(),
+        columns=pd.Index(sample_order, name="sample_id"),
+    )
+
+
+def _successful_group_row(
+    *,
+    row_key: str,
+    decomposition: DifferentialDesignDecomposition,
+    contrast_names: tuple[str, ...],
+) -> dict[str, object]:
+    return {
+        "total_protein_row_key": row_key,
+        "sample_count": decomposition.sample_count,
+        "coefficient_count": decomposition.coefficient_count,
+        "rank": decomposition.rank,
+        "residual_degrees_of_freedom": decomposition.residual_degrees_of_freedom,
+        "condition_number": decomposition.condition_number,
+        "max_condition_number": decomposition.max_condition_number,
+        "decomposition_method": decomposition.decomposition_method,
+        "solver": decomposition.solver,
+        "column_scale_method": decomposition.column_scale_method,
+        "rank_tolerance": decomposition.rank_tolerance,
+        "rank_tolerance_policy": decomposition.rank_tolerance_policy,
+        "singular_values": decomposition.singular_values,
+        "contrast_names": contrast_names,
+        "protein_covariate_contrast_weights": tuple(0.0 for _ in contrast_names),
+        "protein_covariate_policy": PROTEIN_AWARE_CENTERING_POLICY,
+    }
+
+
+def _augmented_design_diagnostics(
+    rows: list[dict[str, object]],
+) -> pd.DataFrame:
+    frame = pd.DataFrame(rows)
+    frame.index = pd.Index(
+        [str(row["total_protein_row_key"]) for row in rows],
+        name="total_protein_row_key",
+    )
+    return frame
+
+
+def _site_failure_row(
+    *,
+    site_id: str,
+    row_key: str,
+    failure: _Failure,
+) -> dict[str, object]:
+    return {
+        "site_key": site_id,
+        "total_protein_row_key": row_key,
+        DIFFERENTIAL_RESULT_STATUS_COLUMN: failure.status,
+        DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN: failure.reason,
+        "failure_message": failure.failure_message,
+    }
+
+
+def _group_failure_row(failure: _Failure) -> dict[str, object]:
+    return {
+        "total_protein_row_key": failure.total_protein_row_key,
+        DIFFERENTIAL_RESULT_STATUS_COLUMN: failure.status,
+        DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN: failure.reason,
+        "sample_count": failure.sample_count,
+        "coefficient_count": failure.coefficient_count,
+        "rank": failure.rank,
+        "residual_degrees_of_freedom": failure.residual_degrees_of_freedom,
+        "condition_number": failure.condition_number,
+        "max_condition_number": failure.max_condition_number,
+        "protein_raw_mean": failure.protein_raw_mean,
+        "protein_raw_standard_deviation": failure.protein_raw_standard_deviation,
+        "protein_centered_variance": failure.protein_centered_variance,
+        "failure_message": failure.failure_message,
+    }
+
+
+def _site_failure_diagnostics(rows: list[dict[str, object]]) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame(
+            columns=pd.Index(
+                PROTEIN_AWARE_DIFFERENTIAL_SITE_FAILURE_DIAGNOSTIC_COLUMNS,
+                dtype=object,
+            ),
+            index=pd.Index((), name="site_key"),
+        )
+    frame = pd.DataFrame(rows)
+    frame.index = pd.Index(frame["site_key"].astype(str).tolist(), name="site_key")
+    return frame
+
+
+def _augmented_design_failure_diagnostics(
+    rows: list[dict[str, object]],
+) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame(
+            columns=pd.Index(
+                PROTEIN_AWARE_DIFFERENTIAL_AUGMENTED_DESIGN_FAILURE_DIAGNOSTIC_COLUMNS,
+                dtype=object,
+            ),
+            index=pd.Index((), name="total_protein_row_key"),
+        )
+    frame = pd.DataFrame(rows)
+    frame.index = pd.Index(
+        frame["total_protein_row_key"].astype(str).tolist(),
+        name="total_protein_row_key",
+    )
+    return frame
+
+
+def _failure_report(
+    *,
+    site_failure_rows: list[dict[str, object]],
+    group_failure_rows: list[dict[str, object]],
+) -> dict[str, pd.DataFrame]:
+    return {
+        "site_failure_diagnostics": _site_failure_diagnostics(site_failure_rows),
+        "augmented_design_failure_diagnostics": (
+            _augmented_design_failure_diagnostics(group_failure_rows)
+        ),
+    }
+
+
+def _failure(
+    *,
+    row_key: str,
+    status: str,
+    reason: str,
+    message: str,
+    sample_count: int,
+    coefficient_count: int,
+    summary: _ProteinCovariateSummary,
+    rank: int | None = None,
+    residual_degrees_of_freedom: float | None = None,
+    condition_number: float | None = None,
+    max_condition_number: float = DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
+) -> _Failure:
+    return _Failure(
+        total_protein_row_key=row_key,
+        status=status,
+        reason=reason,
+        failure_message=message,
+        sample_count=int(sample_count),
+        coefficient_count=int(coefficient_count),
+        rank=rank,
+        residual_degrees_of_freedom=residual_degrees_of_freedom,
+        condition_number=condition_number,
+        max_condition_number=float(max_condition_number),
+        protein_raw_mean=(
+            summary.raw_mean if math.isfinite(summary.raw_mean) else None
+        ),
+        protein_raw_standard_deviation=(
+            summary.raw_standard_deviation
+            if math.isfinite(summary.raw_standard_deviation)
+            else None
+        ),
+        protein_centered_variance=(
+            summary.centered_variance
+            if math.isfinite(summary.centered_variance)
+            else None
+        ),
+    )
+
+
+def _decomposition_failure_reason(message: str) -> str:
+    if "residual degrees of freedom must be positive" in message:
+        return DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_NON_POSITIVE_RESIDUAL_DOF
+    if "rank deficient" in message:
+        return DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT
+    if "too ill-conditioned" in message:
+        return DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED
+    return DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED
+
+
+def _scaled_svd_diagnostics(design_values: _FloatArray) -> _ScaledSvdDiagnostics:
+    sample_count = int(design_values.shape[0])
+    coefficient_count = int(design_values.shape[1])
+    try:
+        column_scales = np.asarray(np.linalg.norm(design_values, axis=0), dtype=float)
+        usable = np.isfinite(column_scales) & (column_scales > 0.0)
+        if not np.any(usable):
+            return _ScaledSvdDiagnostics(
+                rank=0,
+                residual_degrees_of_freedom=float(sample_count),
+                condition_number=math.inf,
+            )
+        scaled = design_values[:, usable] / column_scales[usable][np.newaxis, :]
+        singular_values = np.asarray(
+            np.linalg.svd(scaled, compute_uv=False),
+            dtype=np.float64,
+        )
+    except np.linalg.LinAlgError:
+        return _ScaledSvdDiagnostics(
+            rank=None,
+            residual_degrees_of_freedom=None,
+            condition_number=None,
+        )
+    if singular_values.size == 0 or not np.isfinite(singular_values).all():
+        return _ScaledSvdDiagnostics(
+            rank=None,
+            residual_degrees_of_freedom=None,
+            condition_number=None,
+        )
+    largest = float(singular_values[0])
+    tolerance = (
+        np.finfo(np.float64).eps * float(max(sample_count, coefficient_count)) * largest
+    )
+    rank = int(np.count_nonzero(singular_values > tolerance))
+    smallest = float(singular_values[-1])
+    condition_number = math.inf if smallest == 0.0 else float(largest / smallest)
+    return _ScaledSvdDiagnostics(
+        rank=rank,
+        residual_degrees_of_freedom=float(sample_count - rank),
+        condition_number=condition_number,
+    )
+
+
+def _require_common_residual_dof(values: list[float]) -> float:
+    if not values:
+        raise PhosPyInputError(
+            "protein-aware differential computation requires at least one "
+            "successful augmented design"
+        )
+    first = float(values[0])
+    if not math.isfinite(first) or first <= 0.0:
+        raise PhosPyInputError(
+            "protein-aware differential successful augmented designs must have "
+            "positive residual degrees of freedom"
+        )
+    disagree = [
+        value
+        for value in values
+        if not math.isclose(float(value), first, rel_tol=0.0, abs_tol=1.0e-12)
+    ]
+    if disagree:
+        raise PhosPyInputError(
+            "protein-aware differential successful augmented design groups produced "
+            "inconsistent residual degrees of freedom"
+        )
+    return first
+
+
+def _reason_count_text(rows: list[dict[str, object]]) -> str:
+    counts = Counter(str(row[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN]) for row in rows)
+    if not counts:
+        return "{}"
+    return (
+        "{"
+        + ", ".join(f"{reason}: {counts[reason]}" for reason in sorted(counts))
+        + "}"
+    )
+
+
+def _preview_invalid_entries(
+    invalid_mask: npt.NDArray[np.bool_],
+    values: _FloatArray,
+    *,
+    row_index: pd.Index,
+) -> str:
+    invalid_positions = np.flatnonzero(invalid_mask)
+    preview = ", ".join(
+        f"({row_index[position]!r}, {values[position]:.6g})"
+        for position in invalid_positions[:3]
+    )
+    suffix = (
+        ""
+        if invalid_positions.size <= 3
+        else f", +{int(invalid_positions.size - 3)} more"
+    )
+    return (
+        f"invalid values: {preview}{suffix}; "
+        f"invalid_entry_count={int(invalid_positions.size)}"
+    )
+
+
+__all__ = [
+    "PROTEIN_AWARE_CENTERING_POLICY",
+    "PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME",
+    "ProteinCovariateAdjustedDifferentialKernel",
+    "run_protein_covariate_adjusted_differential",
+]
