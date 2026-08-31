@@ -27,6 +27,8 @@ from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.provenance.hashing import fingerprint_optional_table_strict
+from phospy.provenance.serialization.tables import table_fingerprint_to_payload
 from phospy.science.configs.differential import (
     DifferentialImputedValuePolicy,
     PairedDesignPolicy,
@@ -171,8 +173,13 @@ def _protein_aware_preparation_for_dataset(
 ) -> ProteinAwarePreparationResult:
     phospho = dataset.phospho
     site_metadata = dataset.site_metadata
+    total = dataset.total
+    if total is None:
+        raise AssertionError("protein-aware preparation test dataset requires total")
     site_keys = tuple(phospho.index.astype(str).tolist())
-    total_row_keys = tuple(f"total_{position}" for position in range(len(site_keys)))
+    total_row_keys = tuple(
+        str(site_metadata.loc[site_key, "protein_identifier"]) for site_key in site_keys
+    )
     eligibility_status = (
         ProteinAwarePreparationEligibility.ELIGIBLE_FOR_PROTEIN_AWARE_PREPARATION
     )
@@ -219,18 +226,27 @@ def _protein_aware_preparation_for_dataset(
             "modifies_phospho_matrix": False,
             "performs_total_protein_subtraction": False,
             "performs_differential_model_adjustment": False,
+            "dataset_binding_table_fingerprints": [
+                table_fingerprint_to_payload(fingerprint)
+                for fingerprint in (
+                    fingerprint_optional_table_strict(
+                        phospho,
+                        name="dataset.phospho",
+                    ),
+                    fingerprint_optional_table_strict(
+                        site_metadata,
+                        name="dataset.site_metadata",
+                    ),
+                    fingerprint_optional_table_strict(total, name="dataset.total"),
+                )
+                if fingerprint is not None
+            ],
         },
     )
-    protein_covariates = pd.DataFrame(
-        {
-            sample_id: [
-                1000.0 + float(position * 100 + sample_position)
-                for position in range(len(total_row_keys))
-            ]
-            for sample_position, sample_id in enumerate(phospho.columns.astype(str))
-        },
-        index=pd.Index(total_row_keys, name="protein_id"),
-    )
+    protein_covariates = total.loc[
+        list(dict.fromkeys(total_row_keys)),
+        phospho.columns.tolist(),
+    ].copy(deep=True)
     return ProteinAwarePreparationResult(
         matched_pairs=pd.DataFrame(
             {
@@ -251,23 +267,51 @@ def _dataset_with_protein_aware_preparation() -> tuple[
     AnalysisReadyPhosphoDataset, ProteinAwarePreparationResult
 ]:
     base_dataset = _dataset()
-    preparation = _protein_aware_preparation_for_dataset(base_dataset)
+    site_metadata = base_dataset.site_metadata
+    site_keys = tuple(base_dataset.phospho.index.astype(str).tolist())
+    total_row_keys = tuple(
+        str(site_metadata.loc[site_key, "protein_identifier"]) for site_key in site_keys
+    )
+    total = pd.DataFrame(
+        {
+            sample_id: [
+                1000.0 + float(position * 100 + sample_position)
+                for position in range(len(total_row_keys))
+            ]
+            for sample_position, sample_id in enumerate(
+                base_dataset.phospho.columns.astype(str)
+            )
+        },
+        index=pd.Index(total_row_keys, name="protein_id"),
+    )
+    base_dataset_with_total = trusted_analysis_ready_dataset_from_tables(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata,
+        sample_metadata=base_dataset.sample_metadata,
+        total=total,
+        comparisons=base_dataset.comparisons,
+        organism=base_dataset.organism,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=True
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=True),
+    )
+    preparation = _protein_aware_preparation_for_dataset(base_dataset_with_total)
     preprocessing_report = DatasetPreprocessingReport.from_rows(
         protein_aware_preparation=preparation.report
     )
     return (
         trusted_analysis_ready_dataset_from_tables(
-            phospho=base_dataset.phospho,
-            site_metadata=base_dataset.site_metadata,
-            sample_metadata=base_dataset.sample_metadata,
-            total=base_dataset.total,
-            comparisons=base_dataset.comparisons,
-            organism=base_dataset.organism,
-            intensity_scale_state=base_dataset.intensity_scale_state,
-            processing_state=base_dataset.processing_state,
+            phospho=base_dataset_with_total.phospho,
+            site_metadata=base_dataset_with_total.site_metadata,
+            sample_metadata=base_dataset_with_total.sample_metadata,
+            total=base_dataset_with_total.total,
+            comparisons=base_dataset_with_total.comparisons,
+            organism=base_dataset_with_total.organism,
+            intensity_scale_state=base_dataset_with_total.intensity_scale_state,
+            processing_state=base_dataset_with_total.processing_state,
             preprocessing_report=preprocessing_report,
             protein_aware_preparation=preparation,
-            provenance=base_dataset.provenance,
         ),
         preparation,
     )

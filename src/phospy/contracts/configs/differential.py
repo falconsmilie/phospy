@@ -9,6 +9,7 @@ from phospy.errors.validation import ContractValidationError
 from phospy.science.configs.differential import (
     DIFFERENTIAL_EXPLORATORY_MINIMUM_CONDITION_REPLICATES,
     DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES,
+    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     DIFFERENTIAL_RELIABILITY_PROFILE_PRODUCTION,
     IMPUTED_VALUE_POLICY_REJECT,
@@ -22,10 +23,12 @@ from phospy.science.configs.differential import (
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES,
+    SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS,
     SUPPORTED_DIFFERENTIAL_RELIABILITY_PROFILES,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
     DifferentialImputedValuePolicy,
+    DifferentialProteinAwareModelMethod,
     DifferentialReliabilityProfile,
     MultipleTestingMethod,
     PairedDesignPolicy,
@@ -54,6 +57,28 @@ class MultipleTestingConfig:
             self,
             "method",
             cast(MultipleTestingMethod, self.method),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialProteinAwareModelConfig:
+    """Public opt-in protein-aware differential estimator configuration."""
+
+    method: DifferentialProteinAwareModelMethod = DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1
+
+    def __post_init__(self) -> None:
+        if self.method not in SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS:
+            supported = ", ".join(
+                repr(value)
+                for value in SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS
+            )
+            raise ContractValidationError(
+                f"differential.protein_aware_model.method must be one of: {supported}"
+            )
+        object.__setattr__(
+            self,
+            "method",
+            cast(DifferentialProteinAwareModelMethod, self.method),
         )
 
 
@@ -93,6 +118,7 @@ class DifferentialAnalysisConfig:
     multiple_testing: MultipleTestingConfig = field(
         default_factory=MultipleTestingConfig
     )
+    protein_aware_model: DifferentialProteinAwareModelConfig | None = None
 
     def __post_init__(self) -> None:
         if self.reliability_profile not in SUPPORTED_DIFFERENTIAL_RELIABILITY_PROFILES:
@@ -150,15 +176,25 @@ class DifferentialAnalysisConfig:
             "imputed_value_max_fraction",
             imputed_value_max_fraction,
         )
+        if self.protein_aware_model is not None and not isinstance(
+            cast(object, self.protein_aware_model),
+            DifferentialProteinAwareModelConfig,
+        ):
+            raise ContractValidationError(
+                "differential.protein_aware_model must be "
+                "DifferentialProteinAwareModelConfig or None"
+            )
 
 
 __all__ = [
     "DIFFERENTIAL_EXPLORATORY_MINIMUM_CONDITION_REPLICATES",
     "DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES",
+    "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
     "DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE",
     "DIFFERENTIAL_RELIABILITY_PROFILE_PRODUCTION",
     "DifferentialImputedValuePolicy",
     "DifferentialAnalysisConfig",
+    "DifferentialProteinAwareModelConfig",
     "DifferentialReliabilityProfile",
     "IMPUTED_VALUE_POLICY_REJECT",
     "IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES",

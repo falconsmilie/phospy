@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from phospy._api_inventory import ADVANCED_CONFIG_API
 from phospy.contracts.configs import (
+    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
@@ -52,6 +53,7 @@ from phospy.contracts.configs import (
     DatasetTotalProteinCorrectionUnmatchedPolicy,
     DifferentialAnalysisConfig,
     DifferentialImputedValuePolicy,
+    DifferentialProteinAwareModelConfig,
     DifferentialReliabilityProfile,
     EnrichmentIdentifierKind,
     EnrichmentMethod,

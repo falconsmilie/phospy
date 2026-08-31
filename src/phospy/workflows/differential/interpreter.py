@@ -100,6 +100,18 @@ class DifferentialAnalysisInterpreter:
         resolved_workflow_provenance = request.workflow_provenance
         resolved_design_build_result = request.design_build_result
         execution_config = _resolve_execution_config(request.config)
+        if execution_config.protein_aware_method is not None:
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.protein_aware_model_not_executable",
+                next_action=(
+                    "run ordinary differential analysis without protein_aware_model "
+                    "until protein-aware workflow activation is implemented"
+                ),
+                details={"method": execution_config.protein_aware_method},
+                message_prefix=(
+                    "differential protein-aware model is not yet executable"
+                ),
+            )
 
         if aggregation_plan is not None and aggregation_plan.requires_aggregation:
             technical_replicate_resolution = self._technical_replicate_aggregator.run(
@@ -474,6 +486,11 @@ def _resolve_execution_config(
         minimum_condition_replicates=resolved_minimum_condition_replicates(config),
         empirical_bayes=config.empirical_bayes,
         multiple_testing_method=config.multiple_testing.method,
+        protein_aware_method=(
+            None
+            if config.protein_aware_model is None
+            else config.protein_aware_model.method
+        ),
     )
 
 

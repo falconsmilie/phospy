@@ -9,6 +9,7 @@ from functools import lru_cache
 from typing import Literal
 
 from phospy._api_inventory import (
+    ADVANCED_API_COMPATIBILITY_EXCLUDED_NAMES,
     ADVANCED_CONFIG_API,
     ADVANCED_PUBLIC_API,
     ADVANCED_RESULT_API,
@@ -520,6 +521,8 @@ def _api_compatibility_deprecations() -> tuple[RetainedDeprecation, ...]:
     entries: dict[tuple[str, str], RetainedDeprecation] = {}
 
     for name in ADVANCED_PUBLIC_API:
+        if name in ADVANCED_API_COMPATIBILITY_EXCLUDED_NAMES:
+            continue
         _register_api_compatibility(
             entries,
             old_module="phospy.api",
@@ -541,6 +544,8 @@ def _api_compatibility_deprecations() -> tuple[RetainedDeprecation, ...]:
 
     advanced_config_routes = _advanced_config_routes()
     for name in ADVANCED_CONFIG_API:
+        if name in ADVANCED_API_COMPATIBILITY_EXCLUDED_NAMES:
+            continue
         for old_module in advanced_config_routes.get(name, ()):
             _register_api_compatibility(
                 entries,

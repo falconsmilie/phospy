@@ -16,6 +16,9 @@ from phospy.science.datasets.construction.fingerprints import (
     _fingerprints_for_analysis_ready_tables,
     _require_trusted_provenance_table_fingerprints,
 )
+from phospy.science.datasets.construction.protein_aware_binding import (
+    validate_protein_aware_preparation_binding,
+)
 from phospy.science.datasets.construction.trusted_assertions import (
     _require_complete_trusted_assertion_metadata,
     _require_complete_trusted_assertions,
@@ -465,6 +468,13 @@ class _AnalysisReadyDatasetConstructionService:
                 "dataset.trusted_construction_assertions must be "
                 "TrustedDatasetConstructionAssertions or None"
             ),
+        )
+        validate_protein_aware_preparation_binding(
+            phospho=phospho_table.frame,
+            site_metadata=site_metadata_table.frame,
+            total=None if total_table is None else total_table.frame,
+            preprocessing_report=preprocessing_report,
+            protein_aware_preparation=protein_aware_preparation,
         )
         _QUANTITATIVE_NUMERIC_DOMAIN_VALIDATOR.run(
             phospho=phospho_table.frame,

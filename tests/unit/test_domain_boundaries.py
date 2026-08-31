@@ -90,7 +90,11 @@ _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES = {
     "site_metadata",
     "total",
 }
-_DATASET_INTERNAL_VIEW_PUBLIC_MEMBERS = _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES | {
+_DATASET_INTERNAL_VIEW_SIDECAR_PROPERTIES = {"protein_aware_preparation"}
+_DATASET_INTERNAL_VIEW_PROPERTIES = (
+    _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES | _DATASET_INTERNAL_VIEW_SIDECAR_PROPERTIES
+)
+_DATASET_INTERNAL_VIEW_PUBLIC_MEMBERS = _DATASET_INTERNAL_VIEW_PROPERTIES | {
     "aggregate_imputation_observation_mask",
     "imputation_observation_summary",
 }
@@ -1157,7 +1161,7 @@ def test_dataset_internal_view_exposes_only_required_frames() -> None:
     }
 
     assert public_members == _DATASET_INTERNAL_VIEW_PUBLIC_MEMBERS
-    assert view_properties == _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES
+    assert view_properties == _DATASET_INTERNAL_VIEW_PROPERTIES
     assert hasattr(DatasetInternalView, "imputation_observation_summary")
     assert not hasattr(DatasetInternalView, "imputation_observed_mask")
     assert not hasattr(

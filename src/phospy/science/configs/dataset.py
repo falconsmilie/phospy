@@ -34,6 +34,7 @@ from phospy.science.configs.preprocessing import (
     SpsRuvBatchCorrectionConfig,
 )
 from phospy.science.configs.preprocessing._validation import (
+    reject_ambiguous_total_protein_adjustment_policies,
     validate_preprocessing_section_type,
 )
 
@@ -174,6 +175,11 @@ class DatasetPreprocessingConfig:
                 "dataset build request preprocessing_config.protein_aware_preparation"
             ),
             expected_type=DatasetProteinAwarePreparationConfig,
+        )
+        reject_ambiguous_total_protein_adjustment_policies(
+            total_protein_correction_policy=self.total_protein_correction.policy,
+            protein_aware_preparation_policy=self.protein_aware_preparation.policy,
+            field_prefix="dataset build request preprocessing_config",
         )
 
     @classmethod

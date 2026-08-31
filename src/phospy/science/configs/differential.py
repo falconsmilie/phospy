@@ -16,6 +16,9 @@ from phospy.science.statistics.multiple_testing import (
 
 PairedDesignPolicy = Literal["reject", "fixed_block", "duplicate_correlation"]
 DifferentialImputedValuePolicy = Literal["reject", "withhold_imputed_features"]
+DifferentialProteinAwareModelMethod = Literal[
+    "protein_covariate_adjusted_moderated_linear_model_v1"
+]
 DifferentialReliabilityProfile = Literal[
     "production",
     "exploratory_single_replicate",
@@ -55,6 +58,13 @@ IMPUTED_VALUE_POLICY_REJECT: DifferentialImputedValuePolicy = "reject"
 IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES: DifferentialImputedValuePolicy = (
     "withhold_imputed_features"
 )
+DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1: DifferentialProteinAwareModelMethod = "protein_covariate_adjusted_moderated_linear_model_v1"
+SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS: tuple[
+    DifferentialProteinAwareModelMethod,
+    ...,
+] = (
+    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
+)
 SUPPORTED_PAIRED_DESIGN_POLICIES: tuple[PairedDesignPolicy, ...] = (
     PAIRED_DESIGN_POLICY_REJECT,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
@@ -71,9 +81,11 @@ SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES: tuple[
 __all__ = [
     "DIFFERENTIAL_EXPLORATORY_MINIMUM_CONDITION_REPLICATES",
     "DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES",
+    "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
     "DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE",
     "DIFFERENTIAL_RELIABILITY_PROFILE_PRODUCTION",
     "DifferentialImputedValuePolicy",
+    "DifferentialProteinAwareModelMethod",
     "DifferentialReliabilityProfile",
     "IMPUTED_VALUE_POLICY_REJECT",
     "IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES",
@@ -88,6 +100,7 @@ __all__ = [
     "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",
     "SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES",
+    "SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS",
     "SUPPORTED_DIFFERENTIAL_RELIABILITY_PROFILES",
     "SUPPORTED_MULTIPLE_TESTING_METHODS",
     "SUPPORTED_PAIRED_DESIGN_POLICIES",

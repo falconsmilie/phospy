@@ -160,6 +160,7 @@ tests/unit/test_differential_fixed_effect_provenance.py,unit,380,5,false,false,,
 tests/unit/test_differential_imputation_policy.py,unit,610,13,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,1062,24,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,115,9,false,false,,,,,,
+tests/unit/test_differential_protein_aware_contracts.py,unit,669,19,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_differential_replicate_reliability_policy.py,unit,429,9,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,60,6,false,false,,,,,,
 tests/unit/test_differential_result_caveats.py,unit,357,6,false,false,,,,,,
@@ -167,12 +168,12 @@ tests/unit/test_differential_result_contract.py,unit,1001,33,false,false,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,147,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,887,19,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_differential_workflow_components.py,unit,1082,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
+tests/unit/test_differential_workflow_components.py,unit,1126,30,true,true,,,,,,[auto-orchestration] 14 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,250,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,828,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,
 tests/unit/test_docs_utf8_readability_smoke.py,unit,10,1,false,false,documentation contract,keep,Loss of this file would allow unreadable Markdown docs or encoding regressions to slip into user-facing documentation.,codex-audit,,Markdown encoding smoke coverage; intentionally no terminology-lint assertions.
-tests/unit/test_domain_boundaries.py,unit,1318,57,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/test_domain_boundaries.py,unit,1322,57,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_downstream_batch_correction_boundaries.py,unit,512,8,true,true,,,,,,
 tests/unit/test_duplicate_correlation_scientific_contract.py,unit,492,20,true,true,,,,,,
 tests/unit/test_duplicate_site_resolution_reports.py,unit,682,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for duplicate site resolution reports, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
@@ -242,7 +243,7 @@ tests/unit/test_preprocessing_stage_registry.py,unit,978,32,false,false,public A
 tests/unit/test_preprocessing_stage_results.py,unit,1642,41,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage results and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_processing_state_bundle_payload.py,unit,1074,26,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for processing state bundle payload, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_processing_state_import_contract.py,unit,71,2,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for processing state import contract and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_protein_aware_preparation_boundary.py,unit,178,3,false,false,,,,,,
+tests/unit/test_protein_aware_preparation_boundary.py,unit,795,24,false,false,,,,,,
 tests/unit/test_protein_aware_preparation_config.py,unit,100,6,false,false,,,,,,
 tests/unit/test_protein_aware_preparation_result.py,unit,285,9,false,false,,,,,,
 tests/unit/test_protein_aware_preparation_stage.py,unit,266,5,false,false,,,,,,

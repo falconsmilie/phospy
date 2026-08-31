@@ -9,10 +9,14 @@ import pandas as pd
 from phospy.contracts.configs import (
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
     MultipleTestingConfig,
 )
 from phospy.contracts.requests import DifferentialAnalysisRequest
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.configs.differential import (
+    SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS,
+)
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
@@ -108,6 +112,28 @@ class DifferentialAnalysisValidator:
                 "differential workflow request "
                 "allow_suspicious_declared_input_scale must be a bool"
             )
+        protein_aware_model = config.protein_aware_model
+        if protein_aware_model is not None:
+            if not isinstance(
+                cast(object, protein_aware_model),
+                DifferentialProteinAwareModelConfig,
+            ):
+                raise WorkflowValidationError(
+                    "differential workflow request protein_aware_model must be "
+                    "DifferentialProteinAwareModelConfig or None"
+                )
+            if (
+                protein_aware_model.method
+                not in SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS
+            ):
+                supported = ", ".join(
+                    repr(value)
+                    for value in SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS
+                )
+                raise WorkflowValidationError(
+                    "differential workflow request protein_aware_model.method "
+                    f"must be one of: {supported}"
+                )
         self._dataset_eligibility_validator.run(
             dataset=request.dataset,
             imputed_value_policy=config.imputed_value_policy,

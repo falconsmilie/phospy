@@ -15,7 +15,9 @@ from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.configs.differential import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS,
     DifferentialImputedValuePolicy,
+    DifferentialProteinAwareModelMethod,
     DifferentialReliabilityProfile,
     MultipleTestingMethod,
     PairedDesignPolicy,
@@ -99,6 +101,7 @@ class ResolvedDifferentialExecutionConfig:
     minimum_condition_replicates: int
     empirical_bayes: EmpiricalBayesConfig
     multiple_testing_method: MultipleTestingMethod
+    protein_aware_method: DifferentialProteinAwareModelMethod | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -136,6 +139,29 @@ class ResolvedDifferentialExecutionConfig:
             "minimum_condition_replicates",
             int(self.minimum_condition_replicates),
         )
+        if self.protein_aware_method is not None:
+            if (
+                self.protein_aware_method
+                not in SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS
+            ):
+                supported = ", ".join(
+                    repr(value)
+                    for value in SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS
+                )
+                raise WorkflowBoundaryError(
+                    seam="differential.execution_config.protein_aware_method",
+                    next_action=(
+                        "resolve protein-aware differential execution from a "
+                        "supported DifferentialProteinAwareModelConfig"
+                    ),
+                    details={"supported_methods": supported},
+                    message_prefix=("differential workflow boundary validation failed"),
+                )
+            object.__setattr__(
+                self,
+                "protein_aware_method",
+                str(self.protein_aware_method),
+            )
 
 
 @dataclass(frozen=True, slots=True)

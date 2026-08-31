@@ -8,6 +8,8 @@ import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
+from phospy.provenance.hashing import fingerprint_optional_table_strict
+from phospy.provenance.serialization.tables import table_fingerprint_to_payload
 from phospy.science.configs.preprocessing.total_protein import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
@@ -118,6 +120,9 @@ class ProteinAwarePreparationStage:
             ),
         )
         report = _build_preparation_report(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            total=total,
             mapping_result=mapping_result,
             site_eligibility=eligibility.site_eligibility,
             sample_alignment=eligibility.sample_alignment,
@@ -143,6 +148,9 @@ class ProteinAwarePreparationStage:
 
 def _build_preparation_report(
     *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    total: pd.DataFrame,
     mapping_result: ProteinMappingResult,
     site_eligibility: tuple[ProteinAwareSiteEligibilityDiagnostic, ...],
     sample_alignment: ProteinAwareSampleAlignmentDiagnostics,
@@ -182,6 +190,11 @@ def _build_preparation_report(
             "performs_model_adjustment": False,
             "performs_differential_modelling": False,
             "claims_msstatsptm_equivalence": False,
+            "dataset_binding_table_fingerprints": _binding_table_fingerprints(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                total=total,
+            ),
             "limitations": (
                 "preparation-only; aligned phosphosite/protein inputs and diagnostics",
                 "does not subtract total protein from phosphosite intensities",
@@ -191,6 +204,27 @@ def _build_preparation_report(
             ),
         },
     )
+
+
+def _binding_table_fingerprints(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    total: pd.DataFrame,
+) -> list[dict[str, object]]:
+    fingerprints = (
+        fingerprint_optional_table_strict(phospho, name="dataset.phospho"),
+        fingerprint_optional_table_strict(
+            site_metadata,
+            name="dataset.site_metadata",
+        ),
+        fingerprint_optional_table_strict(total, name="dataset.total"),
+    )
+    return [
+        table_fingerprint_to_payload(fingerprint)
+        for fingerprint in fingerprints
+        if fingerprint is not None
+    ]
 
 
 def _mapping_diagnostics_from_records(

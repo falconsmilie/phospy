@@ -360,6 +360,32 @@ def validate_protein_aware_preparation_config(
     )
 
 
+def reject_ambiguous_total_protein_adjustment_policies(
+    *,
+    total_protein_correction_policy: object,
+    protein_aware_preparation_policy: object,
+    field_prefix: str,
+) -> None:
+    """Reject simultaneous protein subtraction and model-input preparation."""
+
+    total_policy = _policy_value(total_protein_correction_policy)
+    preparation_policy = _policy_value(protein_aware_preparation_policy)
+    if (
+        total_policy != "subtract_log_total"
+        or preparation_policy != "prepare_model_inputs"
+    ):
+        return
+    raise PhosPyInputError(
+        f"{field_prefix} cannot combine "
+        "total_protein_correction.policy='subtract_log_total' with "
+        "protein_aware_preparation.policy='prepare_model_inputs'. "
+        "subtract_log_total changes phosphosite values through explicit "
+        "total-protein subtraction, while prepare_model_inputs keeps total "
+        "protein as a separate covariate for downstream modelling; selecting "
+        "both would create ambiguous double protein adjustment."
+    )
+
+
 def validate_protein_aware_sample_alignment_config(
     *,
     protein_mapping_policy: object,
@@ -1104,6 +1130,11 @@ def _coerce_internal_enum(
     )
 
 
+def _policy_value(value: object) -> str:
+    raw_value = getattr(value, "value", value)
+    return str(raw_value).strip()
+
+
 def reject_unsupported_ruv_iii_style_method(
     method: object,
     *,
@@ -1175,6 +1206,7 @@ def _validate_internal_missing_imputation_pair(
 
 __all__ = [
     "UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE",
+    "reject_ambiguous_total_protein_adjustment_policies",
     "reject_unsupported_ruv_iii_style_method",
     "validate_batch_correction_config",
     "validate_comparison_building_config",

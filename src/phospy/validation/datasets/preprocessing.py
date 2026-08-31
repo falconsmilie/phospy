@@ -22,6 +22,9 @@ from phospy.contracts.configs.preprocessing import (
     SpsRuvBatchCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.science.configs.preprocessing.validation import (
+    reject_ambiguous_total_protein_adjustment_policies,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
@@ -85,6 +88,7 @@ class DatasetPreprocessingConfigValidator:
         self._validate_localisation(config.localisation)
         self._validate_batch_correction(config.batch_correction)
         self._validate_protein_aware_preparation(config.protein_aware_preparation)
+        self._validate_total_protein_adjustment_policy_combination(config)
         self._validate_total_protein_correction_scale_contract(config)
         self._validate_minprob_scale_contract(config)
         return config
@@ -173,6 +177,16 @@ class DatasetPreprocessingConfigValidator:
                 "dataset build request preprocessing_config.protein_aware_preparation"
             ),
             expected_type=DatasetProteinAwarePreparationConfig,
+        )
+
+    def _validate_total_protein_adjustment_policy_combination(
+        self,
+        config: DatasetPreprocessingConfig,
+    ) -> None:
+        reject_ambiguous_total_protein_adjustment_policies(
+            total_protein_correction_policy=config.total_protein_correction.policy,
+            protein_aware_preparation_policy=config.protein_aware_preparation.policy,
+            field_prefix="dataset build request preprocessing_config",
         )
 
     def _validate_total_protein_correction_scale_contract(

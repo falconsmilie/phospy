@@ -36,12 +36,69 @@ DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION = "withheld_high_imputation"
 DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED = (
     "withheld_insufficient_observed_values"
 )
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE = (
+    "withheld_protein_preparation_ineligible"
+)
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID = (
+    "withheld_protein_covariate_invalid"
+)
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID = (
+    "withheld_protein_augmented_design_invalid"
+)
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE = (
+    "withheld_protein_contrast_non_estimable"
+)
+DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK = "protein_preparation_fallback"
+DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_EXCLUDED = "protein_preparation_excluded"
+DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE = "protein_covariate_non_finite"
+DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE = (
+    "protein_covariate_zero_variance"
+)
+DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT = (
+    "protein_augmented_design_rank_deficient"
+)
+DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED = (
+    "protein_augmented_design_ill_conditioned"
+)
+DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_NON_POSITIVE_RESIDUAL_DOF = (
+    "protein_augmented_design_non_positive_residual_dof"
+)
+DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE = (
+    "protein_contrast_non_estimable"
+)
+DIFFERENTIAL_RESULT_PROTEIN_AWARE_STATUS_REASONS: dict[str, tuple[str, ...]] = {
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE: (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK,
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_EXCLUDED,
+    ),
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID: (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE,
+    ),
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID: (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT,
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED,
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_NON_POSITIVE_RESIDUAL_DOF,
+    ),
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE: (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
+    ),
+}
+_DIFFERENTIAL_RESULT_PROTEIN_AWARE_REASON_CODES = frozenset(
+    reason
+    for reasons in DIFFERENTIAL_RESULT_PROTEIN_AWARE_STATUS_REASONS.values()
+    for reason in reasons
+)
 DIFFERENTIAL_RESULT_WITHHELD_STATUSES: tuple[str, ...] = (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INVALID_NUMERIC_VALUES,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
 )
 DIFFERENTIAL_IMPUTATION_RESULT_COLUMNS: tuple[str, ...] = (
     "imputed_cell_count",
@@ -192,6 +249,7 @@ def _validate_status_statistics(
             f"{field_name} rows with {DIFFERENTIAL_RESULT_STATUS_COLUMN} must include "
             f"{DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN}"
         )
+    validate_result_status_reason_contract(table, field_name=field_name)
 
     status_array = status_values.to_numpy(dtype=str)
     tested_mask: npt.NDArray[np.bool_] = np.asarray(
@@ -269,6 +327,68 @@ def _validate_status_statistics(
         )
 
 
+def validate_result_status_reason_contract(
+    table: pd.DataFrame,
+    *,
+    field_name: str,
+) -> None:
+    """Validate differential result status values and protein-aware reason codes."""
+
+    status_values = table[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str)
+    allowed_statuses = {
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+        *DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
+    }
+    unknown_statuses = sorted(set(status_values.tolist()) - allowed_statuses)
+    if unknown_statuses:
+        raise PhosPyInputError(
+            f"{field_name}.{DIFFERENTIAL_RESULT_STATUS_COLUMN} contains unsupported "
+            "values: " + ", ".join(repr(value) for value in unknown_statuses)
+        )
+    if DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN not in table.columns:
+        raise PhosPyInputError(
+            f"{field_name} rows with {DIFFERENTIAL_RESULT_STATUS_COLUMN} must include "
+            f"{DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN}"
+        )
+    _validate_protein_aware_status_reason_codes(
+        table=table,
+        status_values=status_values,
+        field_name=field_name,
+    )
+
+
+def _validate_protein_aware_status_reason_codes(
+    *,
+    table: pd.DataFrame,
+    status_values: pd.Series,
+    field_name: str,
+) -> None:
+    reason_values = table[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN].astype(str)
+    invalid_rows: list[str] = []
+    for row_label, status, reason in zip(
+        table.index.tolist(),
+        status_values.tolist(),
+        reason_values.tolist(),
+        strict=True,
+    ):
+        allowed_reasons = DIFFERENTIAL_RESULT_PROTEIN_AWARE_STATUS_REASONS.get(status)
+        if allowed_reasons is None:
+            if reason not in _DIFFERENTIAL_RESULT_PROTEIN_AWARE_REASON_CODES:
+                continue
+        elif reason in allowed_reasons:
+            continue
+        invalid_rows.append(f"{row_label!r}: status={status!r}, reason={reason!r}")
+    if not invalid_rows:
+        return
+    preview = ", ".join(invalid_rows[:3])
+    suffix = "" if len(invalid_rows) <= 3 else f", +{len(invalid_rows) - 3} more"
+    raise PhosPyInputError(
+        f"{field_name}.{DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN} contains "
+        "unsupported protein-aware reason codes: "
+        f"{preview}{suffix}"
+    )
+
+
 def _validate_unit_interval_column(
     *,
     table: pd.DataFrame,
@@ -300,6 +420,15 @@ def _validate_unit_interval_column(
 
 __all__ = [
     "DIFFERENTIAL_IMPUTATION_RESULT_COLUMNS",
+    "DIFFERENTIAL_RESULT_PROTEIN_AWARE_STATUS_REASONS",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_NON_POSITIVE_RESIDUAL_DOF",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_EXCLUDED",
+    "DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK",
     "DIFFERENTIAL_RESULT_STATUS_COLUMN",
     "DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN",
     "DIFFERENTIAL_RESULT_STATUS_TESTED",
@@ -308,5 +437,10 @@ __all__ = [
     "DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED",
     "DIFFERENTIAL_RESULT_STATUS_WITHHELD_INVALID_NUMERIC_VALUES",
     "DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER",
+    "DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID",
+    "DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE",
+    "DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID",
+    "DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE",
     "DIFFERENTIAL_RESULT_WITHHELD_STATUSES",
+    "validate_result_status_reason_contract",
 ]

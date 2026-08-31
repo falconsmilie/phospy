@@ -38,6 +38,7 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
+    validate_result_status_reason_contract,
     validate_result_table_contract,
 )
 from phospy.science.result_caveats import ResultCaveat, coerce_result_caveats
@@ -657,6 +658,10 @@ def _validate_feature_eligibility_table(
             "unsupported values: "
             + ", ".join(repr(value) for value in unknown_statuses)
         )
+    validate_result_status_reason_contract(
+        table,
+        field_name="differential_result.feature_eligibility",
+    )
     withheld_mask = np.isin(status_values, DIFFERENTIAL_RESULT_WITHHELD_STATUSES)
     reason_column = table[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN]
     empty_reason_mask = np.asarray(

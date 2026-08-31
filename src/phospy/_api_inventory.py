@@ -116,8 +116,10 @@ ADVANCED_CONFIG_API = (
     "DatasetTotalProteinCorrectionIdentityMode",
     "DatasetTotalProteinCorrectionPolicy",
     "DatasetTotalProteinCorrectionUnmatchedPolicy",
+    "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
     "DifferentialAnalysisConfig",
     "DifferentialImputedValuePolicy",
+    "DifferentialProteinAwareModelConfig",
     "DifferentialReliabilityProfile",
     "EmpiricalBayesConfig",
     "MultipleTestingConfig",
@@ -205,8 +207,10 @@ _ADVANCED_CONFIG_API_WITH_STABILITY_JUSTIFICATION = (
     "DatasetTotalProteinCorrectionIdentityMode",
     "DatasetTotalProteinCorrectionPolicy",
     "DatasetTotalProteinCorrectionUnmatchedPolicy",
+    "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
     "DifferentialAnalysisConfig",
     "DifferentialImputedValuePolicy",
+    "DifferentialProteinAwareModelConfig",
     "DifferentialReliabilityProfile",
     "EmpiricalBayesConfig",
     "MultipleTestingConfig",
@@ -285,7 +289,7 @@ ADVANCED_PUBLIC_API = (
 )
 
 STABLE_PUBLIC_API_BASELINE_COUNT = 68
-ADVANCED_PUBLIC_API_BASELINE_COUNT = 107
+ADVANCED_PUBLIC_API_BASELINE_COUNT = 109
 
 API_COMPATIBILITY_INTRODUCED_VERSION = "1.6.0"
 API_COMPATIBILITY_PLANNED_REMOVAL_VERSION = "2.0.0"
@@ -322,6 +326,11 @@ CONFIG_COMPATIBILITY_ADVANCED_ROUTE_OVERRIDES = {
         "phospy.api.configs.differential",
     ),
 }
+
+ADVANCED_API_COMPATIBILITY_EXCLUDED_NAMES = (
+    "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
+    "DifferentialProteinAwareModelConfig",
+)
 
 _ADVANCED_CONTROL_SITE_API = (
     "ControlSiteAnnotation",
@@ -559,6 +568,7 @@ STABLE_RESULT_API = (
 )
 
 __all__ = [
+    "ADVANCED_API_COMPATIBILITY_EXCLUDED_NAMES",
     "ADVANCED_API_STABILITY_JUSTIFICATIONS",
     "ADVANCED_CONFIG_API",
     "ADVANCED_PUBLIC_API_BASELINE_COUNT",

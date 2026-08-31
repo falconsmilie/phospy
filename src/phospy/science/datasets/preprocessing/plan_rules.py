@@ -19,6 +19,7 @@ from phospy.science.configs.preprocessing import (
     InternalBatchCorrectionRequest,
 )
 from phospy.science.configs.preprocessing._validation import (
+    reject_ambiguous_total_protein_adjustment_policies,
     reject_unsupported_ruv_iii_style_method,
     validate_group_coverage_filter_config,
 )
@@ -192,6 +193,26 @@ class PreprocessingDownstreamPlanPolicyRuleFamily:
             DatasetProteinAwarePreparationMappingPolicy
         ) = DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
     ) -> ResolvedDownstreamPreprocessingPlanPolicies:
+        resolved_total_policy = TotalProteinCorrectionPolicy.parse(
+            total_protein_correction_policy,
+            field_name=(
+                "dataset preprocessing plan total_protein_correction_policy "
+                "(internal model)"
+            ),
+        )
+        resolved_protein_aware_policy = cast(
+            DatasetProteinAwarePreparationPolicy,
+            str(protein_aware_preparation_policy).strip(),
+        )
+        resolved_protein_aware_mapping_policy = cast(
+            DatasetProteinAwarePreparationMappingPolicy,
+            str(protein_aware_preparation_mapping_policy).strip(),
+        )
+        reject_ambiguous_total_protein_adjustment_policies(
+            total_protein_correction_policy=resolved_total_policy,
+            protein_aware_preparation_policy=resolved_protein_aware_policy,
+            field_prefix="dataset preprocessing plan (internal model)",
+        )
         return ResolvedDownstreamPreprocessingPlanPolicies(
             site_sequence_resolution_mode=SiteSequenceResolutionMode.parse(
                 site_sequence_resolution_mode,
@@ -234,20 +255,10 @@ class PreprocessingDownstreamPlanPolicyRuleFamily:
                     "(internal model)"
                 ),
             ),
-            total_protein_correction_policy=TotalProteinCorrectionPolicy.parse(
-                total_protein_correction_policy,
-                field_name=(
-                    "dataset preprocessing plan total_protein_correction_policy "
-                    "(internal model)"
-                ),
-            ),
-            protein_aware_preparation_policy=cast(
-                DatasetProteinAwarePreparationPolicy,
-                str(protein_aware_preparation_policy).strip(),
-            ),
-            protein_aware_preparation_mapping_policy=cast(
-                DatasetProteinAwarePreparationMappingPolicy,
-                str(protein_aware_preparation_mapping_policy).strip(),
+            total_protein_correction_policy=resolved_total_policy,
+            protein_aware_preparation_policy=resolved_protein_aware_policy,
+            protein_aware_preparation_mapping_policy=(
+                resolved_protein_aware_mapping_policy
             ),
         )
 
@@ -387,24 +398,34 @@ class PreprocessingTotalProteinCorrectionPlanRuleFamily:
                 "dataset preprocessing plan total_protein_correction_identity_policy "
                 "(internal model) must be a TotalProteinCorrectionIdentityPolicy"
             )
-        return ResolvedTotalProteinCorrectionPlanFields(
-            total_protein_correction_policy=TotalProteinCorrectionPolicy.parse(
-                total_protein_correction_policy,
-                field_name=(
-                    "dataset preprocessing plan total_protein_correction_policy "
-                    "(internal model)"
-                ),
+        resolved_total_policy = TotalProteinCorrectionPolicy.parse(
+            total_protein_correction_policy,
+            field_name=(
+                "dataset preprocessing plan total_protein_correction_policy "
+                "(internal model)"
             ),
+        )
+        resolved_protein_aware_policy = cast(
+            DatasetProteinAwarePreparationPolicy,
+            str(protein_aware_preparation_policy).strip(),
+        )
+        resolved_protein_aware_mapping_policy = cast(
+            DatasetProteinAwarePreparationMappingPolicy,
+            str(protein_aware_preparation_mapping_policy).strip(),
+        )
+        reject_ambiguous_total_protein_adjustment_policies(
+            total_protein_correction_policy=resolved_total_policy,
+            protein_aware_preparation_policy=resolved_protein_aware_policy,
+            field_prefix="dataset preprocessing plan (internal model)",
+        )
+        return ResolvedTotalProteinCorrectionPlanFields(
+            total_protein_correction_policy=resolved_total_policy,
             total_protein_correction_identity_policy=(
                 total_protein_correction_identity_policy
             ),
-            protein_aware_preparation_policy=cast(
-                DatasetProteinAwarePreparationPolicy,
-                str(protein_aware_preparation_policy).strip(),
-            ),
-            protein_aware_preparation_mapping_policy=cast(
-                DatasetProteinAwarePreparationMappingPolicy,
-                str(protein_aware_preparation_mapping_policy).strip(),
+            protein_aware_preparation_policy=resolved_protein_aware_policy,
+            protein_aware_preparation_mapping_policy=(
+                resolved_protein_aware_mapping_policy
             ),
         )
 
