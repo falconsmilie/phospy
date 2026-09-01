@@ -10,7 +10,7 @@ import math
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, NoReturn, cast
+from typing import Any, NoReturn, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -19,6 +19,7 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance.serialization.references import reference_to_payload
 from phospy.science.configs.differential import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS,
@@ -94,6 +95,26 @@ from phospy.workflows.differential.models import (
 
 _FloatArray = npt.NDArray[np.float64]
 _PROTEIN_VARIANCE_RELATIVE_TOLERANCE = float(np.finfo(np.float64).eps ** 0.75)
+
+
+class _SidecarReportView(Protocol):
+    @property
+    def schema_version(self) -> int: ...
+
+    @property
+    def preparation_policy(self) -> str: ...
+
+    @property
+    def protein_mapping_policy(self) -> str: ...
+
+    @property
+    def policy_parameters(self) -> Mapping[str, object]: ...
+
+    @property
+    def provenance(self) -> Any: ...
+
+    @property
+    def transformation_state(self) -> Any: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,6 +325,22 @@ class ProteinAwareDifferentialInputResolver:
             eligibility_counts=eligibility_counts,
             status_counts=status_counts,
             reason_counts=reason_counts,
+            preparation_schema_version=int(sidecar.report.schema_version),
+            protein_mapping_policy_parameters=dict(sidecar.report.policy_parameters),
+            protein_reference_context=_protein_reference_context_payload(
+                sidecar.report
+            ),
+            phosphosite_transformation_state=_transformation_state_payload(
+                sidecar.report,
+                field_name="phospho_transformation_state",
+            ),
+            total_protein_transformation_state=_transformation_state_payload(
+                sidecar.report,
+                field_name="total_protein_transformation_state",
+            ),
+            prior_total_protein_correction_state=(
+                _prior_total_protein_correction_state_payload(request)
+            ),
         )
 
 
@@ -504,6 +541,81 @@ def _state_payload_for_details(
     return None if state is None else dict(state)
 
 
+def _protein_reference_context_payload(report: _SidecarReportView) -> dict[str, object]:
+    provenance = report.provenance
+    if provenance is None:
+        return {
+            "availability": "unavailable",
+            "reason": (
+                "protein-aware preparation report did not include run provenance"
+            ),
+        }
+    reference_context = provenance.reference_context
+    if reference_context is not None:
+        return {
+            "availability": "available",
+            "source": "protein_aware_preparation.provenance.reference_context",
+            "reference_context": dict(reference_context.to_payload()),
+        }
+    reference = provenance.reference
+    if reference is not None:
+        return {
+            "availability": "available",
+            "source": "protein_aware_preparation.provenance.reference",
+            "reference": reference_to_payload(reference),
+        }
+    return {
+        "availability": "unavailable",
+        "reason": (
+            "protein-aware preparation provenance did not record protein "
+            "reference/source context"
+        ),
+    }
+
+
+def _transformation_state_payload(
+    report: _SidecarReportView,
+    *,
+    field_name: str,
+) -> dict[str, object]:
+    diagnostics = report.transformation_state
+    state = None if diagnostics is None else getattr(diagnostics, field_name)
+    if state is None:
+        return {
+            "availability": "unavailable",
+            "reason": (
+                f"protein-aware preparation report did not include {field_name}"
+            ),
+        }
+    payload = dict(state)
+    payload["availability"] = "available"
+    payload["source"] = "protein_aware_preparation.report.transformation_state"
+    return payload
+
+
+def _prior_total_protein_correction_state_payload(
+    request: ValidatedDifferentialAnalysisRequest,
+) -> dict[str, object]:
+    correction = request.dataset.processing_state.total_protein_correction
+    payload: dict[str, object] = {
+        "availability": "available",
+        "policy": _enum_value(correction.policy),
+        "applied": bool(correction.applied),
+        "source": "analysis_ready_dataset.processing_state.total_protein_correction",
+    }
+    if correction.formula is not None:
+        payload["formula"] = correction.formula
+    if correction.requires_log_scale is not None:
+        payload["requires_log_scale"] = bool(correction.requires_log_scale)
+    if correction.input_scale is not None:
+        payload["input_scale"] = correction.input_scale
+    if correction.output_scale is not None:
+        payload["output_scale"] = correction.output_scale
+    if correction.quantitative_meaning is not None:
+        payload["quantitative_meaning"] = _enum_value(correction.quantitative_meaning)
+    return payload
+
+
 def _validate_no_prior_total_protein_subtraction(
     request: ValidatedDifferentialAnalysisRequest,
 ) -> None:
@@ -522,6 +634,11 @@ def _validate_no_prior_total_protein_subtraction(
                 "total_protein_correction_applied": bool(correction.applied),
             },
         )
+
+
+def _enum_value(value: object) -> str:
+    enum_value = getattr(value, "value", value)
+    return str(enum_value)
 
 
 def _validate_no_duplicate_correlation_policy(

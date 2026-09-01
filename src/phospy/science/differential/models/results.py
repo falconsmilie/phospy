@@ -437,7 +437,7 @@ class DifferentialAnalysisResult:
             "policy_provenance": (
                 None
                 if self.policy_provenance is None
-                else _json_payload(asdict(self.policy_provenance))
+                else _policy_provenance_payload(self.policy_provenance)
             ),
             "empirical_bayes": {
                 "method": self.empirical_bayes_method,
@@ -879,6 +879,15 @@ def _json_payload(value: object) -> object:
         values = cast(list[object], value)
         return [_json_payload(item) for item in values]
     return _json_scalar(value)
+
+
+def _policy_provenance_payload(
+    policy_provenance: DifferentialPolicyProvenance,
+) -> object:
+    payload = asdict(policy_provenance)
+    if policy_provenance.protein_aware is None:
+        payload.pop("protein_aware", None)
+    return _json_payload(payload)
 
 
 __all__ = ["DifferentialAnalysisResult"]

@@ -11,7 +11,9 @@ import pandas as pd
 
 from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.contracts.result_caveats import ResultCaveat
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance.immutability import freeze_json_mapping
 from phospy.science.configs.differential import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
@@ -396,6 +398,39 @@ class DifferentialExecutionDesignInputs:
         )
 
 
+def _unavailable_protein_reference_context() -> dict[str, object]:
+    return {
+        "availability": "unavailable",
+        "reason": (
+            "protein-aware preparation provenance did not record protein "
+            "reference/source context"
+        ),
+    }
+
+
+def _empty_json_mapping() -> dict[str, object]:
+    return {}
+
+
+def _unavailable_transformation_state() -> dict[str, object]:
+    return {
+        "availability": "unavailable",
+        "reason": (
+            "protein-aware preparation provenance did not record transformation "
+            "state evidence"
+        ),
+    }
+
+
+def _unavailable_total_protein_correction_state() -> dict[str, object]:
+    return {
+        "availability": "unavailable",
+        "policy": "not_recorded",
+        "applied": False,
+        "reason": "dataset total-protein correction state was not recorded",
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class ProteinAwareDifferentialResolvedInputs:
     """Execution-ready protein-aware inputs resolved before statistical fitting."""
@@ -417,6 +452,22 @@ class ProteinAwareDifferentialResolvedInputs:
     eligibility_counts: tuple[tuple[str, int], ...]
     status_counts: tuple[tuple[str, int], ...]
     reason_counts: tuple[tuple[str, int], ...]
+    preparation_schema_version: int = 1
+    protein_mapping_policy_parameters: Mapping[str, object] = field(
+        default_factory=_empty_json_mapping
+    )
+    protein_reference_context: Mapping[str, object] = field(
+        default_factory=_unavailable_protein_reference_context
+    )
+    phosphosite_transformation_state: Mapping[str, object] = field(
+        default_factory=_unavailable_transformation_state
+    )
+    total_protein_transformation_state: Mapping[str, object] = field(
+        default_factory=_unavailable_transformation_state
+    )
+    prior_total_protein_correction_state: Mapping[str, object] = field(
+        default_factory=_unavailable_total_protein_correction_state
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(
@@ -547,6 +598,36 @@ class ProteinAwareDifferentialResolvedInputs:
             self.protein_mapping_policy,
             seam="protein_mapping_policy",
             label="protein-aware mapping policy",
+        )
+        preparation_schema_version = _require_positive_protein_aware_int(
+            self.preparation_schema_version,
+            seam="preparation_schema_version",
+            label="protein-aware preparation schema version",
+        )
+        protein_mapping_policy_parameters = _freeze_protein_aware_json_mapping(
+            self.protein_mapping_policy_parameters,
+            seam="protein_mapping_policy_parameters",
+            label="protein-aware mapping policy parameters",
+        )
+        protein_reference_context = _freeze_protein_aware_json_mapping(
+            self.protein_reference_context,
+            seam="protein_reference_context",
+            label="protein reference/source context",
+        )
+        phosphosite_transformation_state = _freeze_protein_aware_json_mapping(
+            self.phosphosite_transformation_state,
+            seam="phosphosite_transformation_state",
+            label="phosphosite transformation state evidence",
+        )
+        total_protein_transformation_state = _freeze_protein_aware_json_mapping(
+            self.total_protein_transformation_state,
+            seam="total_protein_transformation_state",
+            label="total-protein transformation state evidence",
+        )
+        prior_total_protein_correction_state = _freeze_protein_aware_json_mapping(
+            self.prior_total_protein_correction_state,
+            seam="prior_total_protein_correction_state",
+            label="prior total-protein correction state",
         )
 
         feature_metadata = pd.DataFrame(
@@ -799,6 +880,36 @@ class ProteinAwareDifferentialResolvedInputs:
         )
         object.__setattr__(self, "preparation_policy", preparation_policy)
         object.__setattr__(self, "protein_mapping_policy", protein_mapping_policy)
+        object.__setattr__(
+            self,
+            "preparation_schema_version",
+            preparation_schema_version,
+        )
+        object.__setattr__(
+            self,
+            "protein_mapping_policy_parameters",
+            protein_mapping_policy_parameters,
+        )
+        object.__setattr__(
+            self,
+            "protein_reference_context",
+            protein_reference_context,
+        )
+        object.__setattr__(
+            self,
+            "phosphosite_transformation_state",
+            phosphosite_transformation_state,
+        )
+        object.__setattr__(
+            self,
+            "total_protein_transformation_state",
+            total_protein_transformation_state,
+        )
+        object.__setattr__(
+            self,
+            "prior_total_protein_correction_state",
+            prior_total_protein_correction_state,
+        )
 
 
 def _require_index_labels(
@@ -854,6 +965,44 @@ def _require_non_empty_protein_aware_text(
             next_action=f"carry a non-empty {label} with resolved inputs",
         )
     return text
+
+
+def _require_positive_protein_aware_int(
+    value: object,
+    *,
+    seam: str,
+    label: str,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        _raise_protein_aware_resolved_inputs_error(
+            seam=seam,
+            next_action=f"carry a positive integer {label} with resolved inputs",
+        )
+    if value < 1:
+        _raise_protein_aware_resolved_inputs_error(
+            seam=seam,
+            next_action=f"carry a positive integer {label} with resolved inputs",
+        )
+    return int(value)
+
+
+def _freeze_protein_aware_json_mapping(
+    value: object,
+    *,
+    seam: str,
+    label: str,
+) -> Mapping[str, object]:
+    try:
+        return freeze_json_mapping(
+            value,
+            field_name=f"differential.protein_aware_inputs.{seam}",
+        )
+    except PhosPyInputError as exc:
+        _raise_protein_aware_resolved_inputs_error(
+            seam=seam,
+            next_action=f"carry JSON-compatible {label} with resolved inputs",
+            details={"error": str(exc)},
+        )
 
 
 def _raise_protein_aware_resolved_inputs_error(

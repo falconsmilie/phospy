@@ -20,6 +20,7 @@ from phospy.provenance import (
     RowAttritionReport,
     fingerprint_matrix,
     fingerprint_table,
+    fingerprint_table_strict,
 )
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuildResult,
@@ -43,6 +44,7 @@ from phospy.science.differential.models import (
     DifferentialStatisticalTestingProvenance,
     DifferentialTechnicalReplicateGroup,
     DifferentialUnsupportedDesignPolicyProvenance,
+    ProteinAwareDifferentialDiagnostics,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
@@ -57,6 +59,23 @@ from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationConsensusResult,
     DuplicateCorrelationWorkflowProvenance,
 )
+from phospy.science.differential.models.provenance import (
+    DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL,
+    DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_SCOPE,
+    DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_STATISTIC,
+    DIFFERENTIAL_PROTEIN_AWARE_CONTRAST_MATRIX_FINGERPRINT_NAME,
+    DIFFERENTIAL_PROTEIN_AWARE_COVARIATE_MATRIX_FINGERPRINT_NAME,
+    DIFFERENTIAL_PROTEIN_AWARE_DESIGN_MATRIX_FINGERPRINT_NAME,
+    DIFFERENTIAL_PROTEIN_AWARE_LOGFC_INTERPRETATION,
+    DIFFERENTIAL_PROTEIN_AWARE_MATCHED_PAIRS_FINGERPRINT_NAME,
+    DIFFERENTIAL_PROTEIN_AWARE_MODEL_FORMULA,
+    DIFFERENTIAL_PROTEIN_AWARE_NUISANCE_COEFFICIENT_NAME,
+    DIFFERENTIAL_PROTEIN_AWARE_PHOSPHO_MATRIX_FINGERPRINT_NAME,
+    DIFFERENTIAL_PROTEIN_AWARE_POLICY_METHOD_VERSION,
+    DIFFERENTIAL_PROTEIN_AWARE_SITE_ELIGIBILITY_FINGERPRINT_NAME,
+    DifferentialProteinAwareInputFingerprints,
+    DifferentialProteinAwarePolicyProvenance,
+)
 from phospy.workflows.differential.imputation_inference import (
     imputation_inference_summary_payload,
     summarize_differential_imputation_inference,
@@ -65,6 +84,7 @@ from phospy.workflows.differential.models import (
     DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
     InterpretedDifferentialAnalysisRequest,
+    ProteinAwareDifferentialResolvedInputs,
     ValidatedDifferentialAnalysisRequest,
 )
 from phospy.workflows.differential.reliability import (
@@ -377,6 +397,7 @@ def finalize_differential_policy_provenance(
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None,
     feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None,
     duplicate_correlation: DuplicateCorrelationWorkflowProvenance | None = None,
+    protein_aware: DifferentialProteinAwarePolicyProvenance | None = None,
 ) -> DifferentialPolicyProvenance | None:
     """Refresh imputation inference counts after final row eligibility."""
 
@@ -410,6 +431,142 @@ def finalize_differential_policy_provenance(
             if duplicate_correlation is not None
             else policy_provenance.duplicate_correlation
         ),
+        protein_aware=(
+            protein_aware
+            if protein_aware is not None
+            else policy_provenance.protein_aware
+        ),
+    )
+
+
+def build_protein_aware_policy_provenance(
+    *,
+    request: InterpretedDifferentialAnalysisRequest,
+    resolved_inputs: ProteinAwareDifferentialResolvedInputs,
+    protein_aware_diagnostics: ProteinAwareDifferentialDiagnostics,
+) -> DifferentialProteinAwarePolicyProvenance:
+    """Build typed provenance for one protein-aware differential execution."""
+
+    input_fingerprints = DifferentialProteinAwareInputFingerprints(
+        phospho_matrix=fingerprint_table_strict(
+            resolved_inputs.computation_request.phosphosite_matrix,
+            name=DIFFERENTIAL_PROTEIN_AWARE_PHOSPHO_MATRIX_FINGERPRINT_NAME,
+        ),
+        protein_matched_pairs=fingerprint_table_strict(
+            resolved_inputs.matched_pairs,
+            name=DIFFERENTIAL_PROTEIN_AWARE_MATCHED_PAIRS_FINGERPRINT_NAME,
+        ),
+        protein_covariate_matrix=fingerprint_table_strict(
+            resolved_inputs.resolved_protein_covariates,
+            name=DIFFERENTIAL_PROTEIN_AWARE_COVARIATE_MATRIX_FINGERPRINT_NAME,
+        ),
+        protein_site_eligibility=fingerprint_table_strict(
+            resolved_inputs.site_eligibility_metadata,
+            name=DIFFERENTIAL_PROTEIN_AWARE_SITE_ELIGIBILITY_FINGERPRINT_NAME,
+        ),
+        design_matrix=fingerprint_table_strict(
+            resolved_inputs.base_design.frame,
+            name=DIFFERENTIAL_PROTEIN_AWARE_DESIGN_MATRIX_FINGERPRINT_NAME,
+        ),
+        contrast_matrix=fingerprint_table_strict(
+            resolved_inputs.base_contrasts.frame,
+            name=DIFFERENTIAL_PROTEIN_AWARE_CONTRAST_MATRIX_FINGERPRINT_NAME,
+        ),
+    )
+    return DifferentialProteinAwarePolicyProvenance(
+        method_id=protein_aware_diagnostics.method_id,
+        method_version=DIFFERENTIAL_PROTEIN_AWARE_POLICY_METHOD_VERSION,
+        claim_status=DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL,
+        model_formula=DIFFERENTIAL_PROTEIN_AWARE_MODEL_FORMULA,
+        logfc_interpretation=DIFFERENTIAL_PROTEIN_AWARE_LOGFC_INTERPRETATION,
+        nuisance_coefficient_name=(
+            DIFFERENTIAL_PROTEIN_AWARE_NUISANCE_COEFFICIENT_NAME
+        ),
+        preparation_schema_version=resolved_inputs.preparation_schema_version,
+        preparation_policy=resolved_inputs.preparation_policy,
+        protein_mapping_policy=resolved_inputs.protein_mapping_policy,
+        protein_mapping_policy_parameters=(
+            resolved_inputs.protein_mapping_policy_parameters
+        ),
+        protein_reference_context=resolved_inputs.protein_reference_context,
+        phosphosite_transformation_state=(
+            resolved_inputs.phosphosite_transformation_state
+        ),
+        total_protein_transformation_state=(
+            resolved_inputs.total_protein_transformation_state
+        ),
+        prior_total_protein_correction_state=(
+            resolved_inputs.prior_total_protein_correction_state
+        ),
+        phosphosite_normalisation_state=request.normalisation_state,
+        protein_covariate_centered=True,
+        protein_covariate_standardized=False,
+        automatic_protein_normalization=False,
+        protein_imputation=False,
+        phosphosite_only_fallback=False,
+        execution_sample_order=resolved_inputs.sample_order,
+        design_subset_behavior=_protein_aware_design_subset_behavior(request),
+        technical_aggregation_policy=(
+            "reject_actual_technical_replicate_aggregation_before_"
+            "protein_aware_differential_execution"
+        ),
+        duplicate_correlation_policy=(
+            "reject_duplicate_correlation_before_protein_aware_differential_execution"
+        ),
+        total_site_count=protein_aware_diagnostics.total_site_count,
+        ordinary_eligible_site_count=(
+            protein_aware_diagnostics.ordinary_eligible_site_count
+        ),
+        protein_preparation_eligible_site_count=(
+            protein_aware_diagnostics.protein_preparation_eligible_site_count
+        ),
+        distinct_matched_protein_row_count=(
+            protein_aware_diagnostics.distinct_matched_protein_row_count
+        ),
+        fitted_protein_row_count=protein_aware_diagnostics.fitted_protein_row_count,
+        tested_site_count=protein_aware_diagnostics.tested_site_count,
+        withheld_site_count=protein_aware_diagnostics.withheld_site_count,
+        status_counts=protein_aware_diagnostics.status_counts,
+        reason_counts=protein_aware_diagnostics.reason_counts,
+        base_design_rank=protein_aware_diagnostics.base_design_rank,
+        base_residual_degrees_of_freedom=(
+            protein_aware_diagnostics.base_residual_degrees_of_freedom
+        ),
+        expected_augmented_rank=protein_aware_diagnostics.expected_augmented_rank,
+        common_augmented_rank=protein_aware_diagnostics.common_augmented_rank,
+        common_augmented_residual_degrees_of_freedom=(
+            protein_aware_diagnostics.common_augmented_residual_degrees_of_freedom
+        ),
+        condition_number_summary_scope=(
+            DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_SCOPE
+        ),
+        condition_number_summary_statistic=(
+            DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_STATISTIC
+        ),
+        min_augmented_condition_number=(
+            protein_aware_diagnostics.min_augmented_condition_number
+        ),
+        median_augmented_condition_number=(
+            protein_aware_diagnostics.median_augmented_condition_number
+        ),
+        max_augmented_condition_number=(
+            protein_aware_diagnostics.max_augmented_condition_number
+        ),
+        input_fingerprints=input_fingerprints,
+    )
+
+
+def _protein_aware_design_subset_behavior(
+    request: InterpretedDifferentialAnalysisRequest,
+) -> str:
+    if request.execution_config.allow_design_subset:
+        return (
+            "allow_design_subset=True; fingerprints use the validator-resolved "
+            "execution sample order only"
+        )
+    return (
+        "allow_design_subset=False; fingerprints use the validator-resolved "
+        "analysis sample order"
     )
 
 
@@ -890,5 +1047,6 @@ __all__ = [
     "DifferentialWorkflowProvenanceAssembler",
     "build_differential_policy_provenance",
     "build_duplicate_correlation_workflow_provenance",
+    "build_protein_aware_policy_provenance",
     "finalize_differential_policy_provenance",
 ]

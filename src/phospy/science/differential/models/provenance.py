@@ -3,12 +3,85 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
-from typing import cast
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from typing import Any, cast
 
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.immutability import freeze_json_mapping
+from phospy.provenance.models import TableFingerprint
 from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationWorkflowProvenance,
+)
+
+DIFFERENTIAL_PROTEIN_AWARE_POLICY_METHOD_VERSION = "1"
+DIFFERENTIAL_PROTEIN_AWARE_MODEL_FORMULA = "y_s = X beta_s + z_p(s) gamma_s + error"
+DIFFERENTIAL_PROTEIN_AWARE_LOGFC_INTERPRETATION = (
+    "requested phosphosite condition contrast conditional on the matched "
+    "total-protein abundance covariate"
+)
+DIFFERENTIAL_PROTEIN_AWARE_NUISANCE_COEFFICIENT_NAME = "protein_covariate"
+DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL = "experimental"
+DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_SCOPE = (
+    "successfully_fitted_augmented_designs_by_total_protein_row"
+)
+DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_STATISTIC = (
+    "min_median_max_condition_number_across_fitted_augmented_designs"
+)
+DIFFERENTIAL_PROTEIN_AWARE_PHOSPHO_MATRIX_FINGERPRINT_NAME = (
+    "differential.input.phospho_matrix"
+)
+DIFFERENTIAL_PROTEIN_AWARE_MATCHED_PAIRS_FINGERPRINT_NAME = (
+    "differential.input.protein_matched_pairs"
+)
+DIFFERENTIAL_PROTEIN_AWARE_COVARIATE_MATRIX_FINGERPRINT_NAME = (
+    "differential.input.protein_covariate_matrix"
+)
+DIFFERENTIAL_PROTEIN_AWARE_SITE_ELIGIBILITY_FINGERPRINT_NAME = (
+    "differential.input.protein_site_eligibility"
+)
+DIFFERENTIAL_PROTEIN_AWARE_DESIGN_MATRIX_FINGERPRINT_NAME = (
+    "differential.input.design_matrix"
+)
+DIFFERENTIAL_PROTEIN_AWARE_CONTRAST_MATRIX_FINGERPRINT_NAME = (
+    "differential.input.contrast_matrix"
+)
+_DIFFERENTIAL_PROTEIN_AWARE_LIMITATIONS: tuple[str, ...] = (
+    "protein-aware differential analysis is experimental",
+    (
+        "condition effects are estimated conditional on the matched measured "
+        "total-protein covariate and are not causal separation of abundance and "
+        "phosphorylation regulation"
+    ),
+    (
+        "the estimator does not claim MSstatsPTM parity and does not fit a joint "
+        "phosphosite-total-protein model"
+    ),
+    "total-protein covariates are mean-centered and not standardized",
+    (
+        "differential analysis does not automatically normalize or impute "
+        "protein covariates"
+    ),
+    (
+        "there is no per-site fallback from the protein-aware lane to ordinary "
+        "phosphosite-only differential analysis"
+    ),
+    "stoichiometry and occupancy are not estimated",
+    "duplicate_correlation and mixed-effect protein-aware models are unsupported",
+    (
+        "upstream phosphosite normalization and protein preprocessing are recorded "
+        "as provenance and are not changed by differential analysis"
+    ),
+)
+_DIFFERENTIAL_PROTEIN_AWARE_UNSUPPORTED_CLAIMS: tuple[str, ...] = (
+    "MSstatsPTM parity",
+    "joint phosphosite-total-protein modelling",
+    "causal separation of protein abundance and phosphorylation regulation",
+    "stoichiometry or occupancy estimation",
+    "automatic protein normalization",
+    "protein covariate imputation",
+    "duplicate_correlation or mixed-effect protein-aware inference",
+    "fallback to ordinary phosphosite-only differential analysis",
 )
 
 
@@ -701,6 +774,522 @@ class DifferentialUnsupportedDesignPolicyProvenance:
 
 
 @dataclass(frozen=True, slots=True)
+class DifferentialProteinAwareInputFingerprints:
+    """Strict fingerprints for exact protein-aware differential inputs."""
+
+    phospho_matrix: TableFingerprint
+    protein_matched_pairs: TableFingerprint
+    protein_covariate_matrix: TableFingerprint
+    protein_site_eligibility: TableFingerprint
+    design_matrix: TableFingerprint
+    contrast_matrix: TableFingerprint
+
+    def __post_init__(self) -> None:
+        _require_fingerprint(
+            self.phospho_matrix,
+            field_name=(
+                "differential_policy_provenance.protein_aware.input_fingerprints."
+                "phospho_matrix"
+            ),
+            expected_name=DIFFERENTIAL_PROTEIN_AWARE_PHOSPHO_MATRIX_FINGERPRINT_NAME,
+        )
+        _require_fingerprint(
+            self.protein_matched_pairs,
+            field_name=(
+                "differential_policy_provenance.protein_aware.input_fingerprints."
+                "protein_matched_pairs"
+            ),
+            expected_name=DIFFERENTIAL_PROTEIN_AWARE_MATCHED_PAIRS_FINGERPRINT_NAME,
+        )
+        _require_fingerprint(
+            self.protein_covariate_matrix,
+            field_name=(
+                "differential_policy_provenance.protein_aware.input_fingerprints."
+                "protein_covariate_matrix"
+            ),
+            expected_name=DIFFERENTIAL_PROTEIN_AWARE_COVARIATE_MATRIX_FINGERPRINT_NAME,
+        )
+        _require_fingerprint(
+            self.protein_site_eligibility,
+            field_name=(
+                "differential_policy_provenance.protein_aware.input_fingerprints."
+                "protein_site_eligibility"
+            ),
+            expected_name=DIFFERENTIAL_PROTEIN_AWARE_SITE_ELIGIBILITY_FINGERPRINT_NAME,
+        )
+        _require_fingerprint(
+            self.design_matrix,
+            field_name=(
+                "differential_policy_provenance.protein_aware.input_fingerprints."
+                "design_matrix"
+            ),
+            expected_name=DIFFERENTIAL_PROTEIN_AWARE_DESIGN_MATRIX_FINGERPRINT_NAME,
+        )
+        _require_fingerprint(
+            self.contrast_matrix,
+            field_name=(
+                "differential_policy_provenance.protein_aware.input_fingerprints."
+                "contrast_matrix"
+            ),
+            expected_name=DIFFERENTIAL_PROTEIN_AWARE_CONTRAST_MATRIX_FINGERPRINT_NAME,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialProteinAwarePolicyProvenance:
+    """Typed statistical-policy provenance for the protein-aware estimator."""
+
+    method_id: str
+    method_version: str
+    claim_status: str
+    model_formula: str
+    logfc_interpretation: str
+    nuisance_coefficient_name: str
+    preparation_schema_version: int
+    preparation_policy: str
+    protein_mapping_policy: str
+    protein_mapping_policy_parameters: Mapping[str, object]
+    protein_reference_context: Mapping[str, object]
+    phosphosite_transformation_state: Mapping[str, object]
+    total_protein_transformation_state: Mapping[str, object]
+    prior_total_protein_correction_state: Mapping[str, object]
+    phosphosite_normalisation_state: str
+    protein_covariate_centered: bool
+    protein_covariate_standardized: bool
+    automatic_protein_normalization: bool
+    protein_imputation: bool
+    phosphosite_only_fallback: bool
+    execution_sample_order: tuple[str, ...]
+    design_subset_behavior: str
+    technical_aggregation_policy: str
+    duplicate_correlation_policy: str
+    total_site_count: int
+    ordinary_eligible_site_count: int
+    protein_preparation_eligible_site_count: int
+    distinct_matched_protein_row_count: int
+    fitted_protein_row_count: int
+    tested_site_count: int
+    withheld_site_count: int
+    status_counts: tuple[tuple[str, int], ...]
+    reason_counts: tuple[tuple[str, int], ...]
+    base_design_rank: int
+    base_residual_degrees_of_freedom: float
+    expected_augmented_rank: int
+    common_augmented_rank: int
+    common_augmented_residual_degrees_of_freedom: float
+    condition_number_summary_scope: str
+    condition_number_summary_statistic: str
+    min_augmented_condition_number: float | None
+    median_augmented_condition_number: float | None
+    max_augmented_condition_number: float | None
+    input_fingerprints: DifferentialProteinAwareInputFingerprints
+    limitations: tuple[str, ...] = _DIFFERENTIAL_PROTEIN_AWARE_LIMITATIONS
+    unsupported_claims: tuple[str, ...] = _DIFFERENTIAL_PROTEIN_AWARE_UNSUPPORTED_CLAIMS
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "method_id",
+            _require_non_empty_text(
+                self.method_id,
+                field_name="differential_policy_provenance.protein_aware.method_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "method_version",
+            _require_non_empty_text(
+                self.method_version,
+                field_name=(
+                    "differential_policy_provenance.protein_aware.method_version"
+                ),
+            ),
+        )
+        claim_status = _require_non_empty_text(
+            self.claim_status,
+            field_name="differential_policy_provenance.protein_aware.claim_status",
+        )
+        if claim_status != DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL:
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware.claim_status must be "
+                f"{DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL!r}"
+            )
+        object.__setattr__(self, "claim_status", claim_status)
+        model_formula = _require_non_empty_text(
+            self.model_formula,
+            field_name="differential_policy_provenance.protein_aware.model_formula",
+        )
+        if model_formula != DIFFERENTIAL_PROTEIN_AWARE_MODEL_FORMULA:
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware.model_formula must "
+                "match ADR-0049"
+            )
+        object.__setattr__(self, "model_formula", model_formula)
+        object.__setattr__(
+            self,
+            "logfc_interpretation",
+            _require_non_empty_text(
+                self.logfc_interpretation,
+                field_name=(
+                    "differential_policy_provenance.protein_aware.logfc_interpretation"
+                ),
+            ),
+        )
+        nuisance_coefficient_name = _require_non_empty_text(
+            self.nuisance_coefficient_name,
+            field_name=(
+                "differential_policy_provenance.protein_aware.nuisance_coefficient_name"
+            ),
+        )
+        if (
+            nuisance_coefficient_name
+            != DIFFERENTIAL_PROTEIN_AWARE_NUISANCE_COEFFICIENT_NAME
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware."
+                "nuisance_coefficient_name must be "
+                f"{DIFFERENTIAL_PROTEIN_AWARE_NUISANCE_COEFFICIENT_NAME!r}"
+            )
+        object.__setattr__(
+            self,
+            "nuisance_coefficient_name",
+            nuisance_coefficient_name,
+        )
+        object.__setattr__(
+            self,
+            "preparation_schema_version",
+            _require_positive_int(
+                self.preparation_schema_version,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "preparation_schema_version"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "preparation_policy",
+            _require_non_empty_text(
+                self.preparation_policy,
+                field_name=(
+                    "differential_policy_provenance.protein_aware.preparation_policy"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "protein_mapping_policy",
+            _require_non_empty_text(
+                self.protein_mapping_policy,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "protein_mapping_policy"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "protein_mapping_policy_parameters",
+            freeze_json_mapping(
+                self.protein_mapping_policy_parameters,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "protein_mapping_policy_parameters"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "protein_reference_context",
+            freeze_json_mapping(
+                self.protein_reference_context,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "protein_reference_context"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "phosphosite_transformation_state",
+            freeze_json_mapping(
+                self.phosphosite_transformation_state,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "phosphosite_transformation_state"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "total_protein_transformation_state",
+            freeze_json_mapping(
+                self.total_protein_transformation_state,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "total_protein_transformation_state"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "prior_total_protein_correction_state",
+            freeze_json_mapping(
+                self.prior_total_protein_correction_state,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "prior_total_protein_correction_state"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "phosphosite_normalisation_state",
+            _require_non_empty_text(
+                self.phosphosite_normalisation_state,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "phosphosite_normalisation_state"
+                ),
+            ),
+        )
+        _require_exact_bool(
+            self.protein_covariate_centered,
+            expected=True,
+            field_name=(
+                "differential_policy_provenance.protein_aware."
+                "protein_covariate_centered"
+            ),
+        )
+        _require_exact_bool(
+            self.protein_covariate_standardized,
+            expected=False,
+            field_name=(
+                "differential_policy_provenance.protein_aware."
+                "protein_covariate_standardized"
+            ),
+        )
+        _require_exact_bool(
+            self.automatic_protein_normalization,
+            expected=False,
+            field_name=(
+                "differential_policy_provenance.protein_aware."
+                "automatic_protein_normalization"
+            ),
+        )
+        _require_exact_bool(
+            self.protein_imputation,
+            expected=False,
+            field_name=(
+                "differential_policy_provenance.protein_aware.protein_imputation"
+            ),
+        )
+        _require_exact_bool(
+            self.phosphosite_only_fallback,
+            expected=False,
+            field_name=(
+                "differential_policy_provenance.protein_aware.phosphosite_only_fallback"
+            ),
+        )
+        object.__setattr__(
+            self,
+            "execution_sample_order",
+            _require_non_empty_text_tuple(
+                self.execution_sample_order,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "execution_sample_order"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "design_subset_behavior",
+            _require_non_empty_text(
+                self.design_subset_behavior,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "design_subset_behavior"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "technical_aggregation_policy",
+            _require_non_empty_text(
+                self.technical_aggregation_policy,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "technical_aggregation_policy"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "duplicate_correlation_policy",
+            _require_non_empty_text(
+                self.duplicate_correlation_policy,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "duplicate_correlation_policy"
+                ),
+            ),
+        )
+        for field_name in (
+            "total_site_count",
+            "ordinary_eligible_site_count",
+            "protein_preparation_eligible_site_count",
+            "distinct_matched_protein_row_count",
+            "fitted_protein_row_count",
+            "tested_site_count",
+            "withheld_site_count",
+            "base_design_rank",
+            "expected_augmented_rank",
+            "common_augmented_rank",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _require_non_negative_int(
+                    getattr(self, field_name),
+                    field_name=(
+                        f"differential_policy_provenance.protein_aware.{field_name}"
+                    ),
+                ),
+            )
+        if self.tested_site_count > self.total_site_count:
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware.tested_site_count "
+                "cannot exceed total_site_count"
+            )
+        if self.withheld_site_count > self.total_site_count:
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware.withheld_site_count "
+                "cannot exceed total_site_count"
+            )
+        object.__setattr__(
+            self,
+            "status_counts",
+            _require_count_pairs(
+                self.status_counts,
+                field_name="differential_policy_provenance.protein_aware.status_counts",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "reason_counts",
+            _require_count_pairs(
+                self.reason_counts,
+                field_name="differential_policy_provenance.protein_aware.reason_counts",
+            ),
+        )
+        _validate_protein_aware_count_consistency(self)
+        object.__setattr__(
+            self,
+            "base_residual_degrees_of_freedom",
+            _require_positive_finite_float(
+                self.base_residual_degrees_of_freedom,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "base_residual_degrees_of_freedom"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "common_augmented_residual_degrees_of_freedom",
+            _require_positive_finite_float(
+                self.common_augmented_residual_degrees_of_freedom,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "common_augmented_residual_degrees_of_freedom"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "condition_number_summary_scope",
+            _require_non_empty_text(
+                self.condition_number_summary_scope,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "condition_number_summary_scope"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "condition_number_summary_statistic",
+            _require_non_empty_text(
+                self.condition_number_summary_statistic,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "condition_number_summary_statistic"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "min_augmented_condition_number",
+            _require_optional_non_negative_finite_float(
+                self.min_augmented_condition_number,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "min_augmented_condition_number"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "median_augmented_condition_number",
+            _require_optional_non_negative_finite_float(
+                self.median_augmented_condition_number,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "median_augmented_condition_number"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "max_augmented_condition_number",
+            _require_optional_non_negative_finite_float(
+                self.max_augmented_condition_number,
+                field_name=(
+                    "differential_policy_provenance.protein_aware."
+                    "max_augmented_condition_number"
+                ),
+            ),
+        )
+        if not isinstance(
+            cast(object, self.input_fingerprints),
+            DifferentialProteinAwareInputFingerprints,
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware.input_fingerprints "
+                "must be DifferentialProteinAwareInputFingerprints"
+            )
+        object.__setattr__(
+            self,
+            "limitations",
+            _require_non_empty_text_tuple(
+                self.limitations,
+                field_name="differential_policy_provenance.protein_aware.limitations",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "unsupported_claims",
+            _require_non_empty_text_tuple(
+                self.unsupported_claims,
+                field_name=(
+                    "differential_policy_provenance.protein_aware.unsupported_claims"
+                ),
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DifferentialPolicyProvenance:
     """Structured differential-analysis statistical policy provenance."""
 
@@ -712,11 +1301,24 @@ class DifferentialPolicyProvenance:
     missing_values: DifferentialMissingValuePolicyProvenance
     unsupported_design: DifferentialUnsupportedDesignPolicyProvenance
     duplicate_correlation: DuplicateCorrelationWorkflowProvenance | None = None
+    protein_aware: DifferentialProteinAwarePolicyProvenance | None = field(
+        default=None,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         if not self.contrasts:
             raise PhosPyInputError(
                 "differential_policy_provenance.contrasts must be non-empty"
+            )
+        protein_aware = self.protein_aware
+        if protein_aware is not None and not isinstance(
+            cast(object, protein_aware),
+            DifferentialProteinAwarePolicyProvenance,
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware must be "
+                "DifferentialProteinAwarePolicyProvenance or None"
             )
         duplicate_correlation = self.duplicate_correlation
         if duplicate_correlation is not None and not isinstance(
@@ -733,7 +1335,14 @@ class DifferentialPolicyProvenance:
                     "differential_policy_provenance.duplicate_correlation is only "
                     "valid when design.paired_design_policy='duplicate_correlation'"
                 )
+            if protein_aware is not None:
+                return
             return
+        if protein_aware is not None:
+            raise PhosPyInputError(
+                "differential_policy_provenance.protein_aware is not valid with "
+                "paired_design_policy='duplicate_correlation'"
+            )
         if self.design.block_columns or self.design.block_column_names:
             raise PhosPyInputError(
                 "differential_policy_provenance duplicate_correlation design must "
@@ -766,13 +1375,208 @@ def _require_non_negative_int(value: object, *, field_name: str) -> int:
     return int(value)
 
 
+def _require_positive_int(value: object, *, field_name: str) -> int:
+    result = _require_non_negative_int(value, field_name=field_name)
+    if result < 1:
+        raise PhosPyInputError(f"{field_name} must be >= 1")
+    return result
+
+
+def _require_non_empty_text(value: object, *, field_name: str) -> str:
+    if value is None:
+        raise PhosPyInputError(f"{field_name} must be non-empty")
+    text = str(value).strip()
+    if not text:
+        raise PhosPyInputError(f"{field_name} must be non-empty")
+    return text
+
+
+def _require_non_empty_text_tuple(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(
+        values,
+        Sequence,
+    ):
+        raise PhosPyInputError(f"{field_name} must be a sequence of strings")
+    sequence = cast(Sequence[object], values)
+    result = tuple(
+        _require_non_empty_text(value, field_name=field_name) for value in sequence
+    )
+    if not result:
+        raise PhosPyInputError(f"{field_name} must be non-empty")
+    return result
+
+
+def _require_count_pairs(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[tuple[str, int], ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(
+        values,
+        Sequence,
+    ):
+        raise PhosPyInputError(f"{field_name} must be a sequence of pairs")
+    sequence = cast(Sequence[object], values)
+    pairs: list[tuple[str, int]] = []
+    for position, value in enumerate(sequence):
+        if isinstance(value, (str, bytes, bytearray)) or not isinstance(
+            value, Sequence
+        ):
+            raise PhosPyInputError(
+                f"{field_name}[{position}] must be a (name, count) pair"
+            )
+        pair = cast(Sequence[object], value)
+        if len(pair) != 2:
+            raise PhosPyInputError(
+                f"{field_name}[{position}] must be a (name, count) pair"
+            )
+        key = pair[0]
+        count = pair[1]
+        pairs.append(
+            (
+                _require_non_empty_text(
+                    key,
+                    field_name=f"{field_name}[{position}][0]",
+                ),
+                _require_non_negative_int(
+                    count,
+                    field_name=f"{field_name}[{position}][1]",
+                ),
+            )
+        )
+    return tuple(pairs)
+
+
+def _require_exact_bool(value: object, *, expected: bool, field_name: str) -> None:
+    if not isinstance(value, bool):
+        raise PhosPyInputError(f"{field_name} must be a bool")
+    if bool(value) is not expected:
+        raise PhosPyInputError(f"{field_name} must be {expected!r}")
+
+
+def _require_positive_finite_float(value: object, *, field_name: str) -> float:
+    numeric = _require_finite_float(value, field_name=field_name)
+    if numeric <= 0.0:
+        raise PhosPyInputError(f"{field_name} must be > 0.0")
+    return numeric
+
+
+def _require_optional_non_negative_finite_float(
+    value: object,
+    *,
+    field_name: str,
+) -> float | None:
+    if value is None:
+        return None
+    numeric = _require_finite_float(value, field_name=field_name)
+    if numeric < 0.0:
+        raise PhosPyInputError(f"{field_name} must be >= 0.0")
+    return numeric
+
+
+def _require_finite_float(value: object, *, field_name: str) -> float:
+    try:
+        numeric = float(cast(Any, value))
+    except (TypeError, ValueError) as exc:
+        raise PhosPyInputError(f"{field_name} must be a finite number") from exc
+    if not math.isfinite(numeric):
+        raise PhosPyInputError(f"{field_name} must be finite")
+    return numeric
+
+
+def _require_fingerprint(
+    fingerprint: object,
+    *,
+    field_name: str,
+    expected_name: str,
+) -> None:
+    if not isinstance(fingerprint, TableFingerprint):
+        raise PhosPyInputError(f"{field_name} must be a TableFingerprint")
+    if fingerprint.name != expected_name:
+        raise PhosPyInputError(
+            f"{field_name}.name must be {expected_name!r}; got {fingerprint.name!r}"
+        )
+
+
+def _validate_protein_aware_count_consistency(
+    provenance: DifferentialProteinAwarePolicyProvenance,
+) -> None:
+    field_prefix = "differential_policy_provenance.protein_aware"
+    if provenance.ordinary_eligible_site_count > provenance.total_site_count:
+        raise PhosPyInputError(
+            f"{field_prefix}.ordinary_eligible_site_count cannot exceed "
+            "total_site_count"
+        )
+    if (
+        provenance.protein_preparation_eligible_site_count
+        > provenance.ordinary_eligible_site_count
+    ):
+        raise PhosPyInputError(
+            f"{field_prefix}.protein_preparation_eligible_site_count cannot "
+            "exceed ordinary_eligible_site_count"
+        )
+    if (
+        provenance.tested_site_count
+        > provenance.protein_preparation_eligible_site_count
+    ):
+        raise PhosPyInputError(
+            f"{field_prefix}.tested_site_count cannot exceed "
+            "protein_preparation_eligible_site_count"
+        )
+    if (
+        provenance.fitted_protein_row_count
+        > provenance.distinct_matched_protein_row_count
+    ):
+        raise PhosPyInputError(
+            f"{field_prefix}.fitted_protein_row_count cannot exceed "
+            "distinct_matched_protein_row_count"
+        )
+    if (
+        provenance.tested_site_count + provenance.withheld_site_count
+        != provenance.total_site_count
+    ):
+        raise PhosPyInputError(
+            f"{field_prefix}.tested_site_count plus withheld_site_count must equal "
+            "total_site_count"
+        )
+    status_count_total = sum(count for _, count in provenance.status_counts)
+    if status_count_total != provenance.total_site_count:
+        raise PhosPyInputError(
+            f"{field_prefix}.status_counts must sum to total_site_count"
+        )
+    reason_count_total = sum(count for _, count in provenance.reason_counts)
+    if reason_count_total > provenance.withheld_site_count:
+        raise PhosPyInputError(
+            f"{field_prefix}.reason_counts cannot exceed withheld_site_count"
+        )
+
+
 __all__ = [
+    "DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL",
+    "DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_SCOPE",
+    "DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_STATISTIC",
+    "DIFFERENTIAL_PROTEIN_AWARE_CONTRAST_MATRIX_FINGERPRINT_NAME",
+    "DIFFERENTIAL_PROTEIN_AWARE_COVARIATE_MATRIX_FINGERPRINT_NAME",
+    "DIFFERENTIAL_PROTEIN_AWARE_DESIGN_MATRIX_FINGERPRINT_NAME",
+    "DIFFERENTIAL_PROTEIN_AWARE_LOGFC_INTERPRETATION",
+    "DIFFERENTIAL_PROTEIN_AWARE_MATCHED_PAIRS_FINGERPRINT_NAME",
+    "DIFFERENTIAL_PROTEIN_AWARE_MODEL_FORMULA",
+    "DIFFERENTIAL_PROTEIN_AWARE_NUISANCE_COEFFICIENT_NAME",
+    "DIFFERENTIAL_PROTEIN_AWARE_PHOSPHO_MATRIX_FINGERPRINT_NAME",
+    "DIFFERENTIAL_PROTEIN_AWARE_POLICY_METHOD_VERSION",
+    "DIFFERENTIAL_PROTEIN_AWARE_SITE_ELIGIBILITY_FINGERPRINT_NAME",
     "DifferentialContrastDefinition",
     "DifferentialDesignMatrixSummary",
     "DifferentialEmpiricalBayesProvenance",
     "DifferentialFixedEffectCovariateProvenance",
     "DifferentialMissingValuePolicyProvenance",
     "DifferentialPolicyProvenance",
+    "DifferentialProteinAwareInputFingerprints",
+    "DifferentialProteinAwarePolicyProvenance",
     "DifferentialReplicatePolicyProvenance",
     "DifferentialStatisticalTestingProvenance",
     "DifferentialTechnicalReplicateGroup",

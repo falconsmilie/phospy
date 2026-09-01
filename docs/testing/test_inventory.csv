@@ -162,7 +162,7 @@ tests/unit/test_differential_numerical_guards.py,unit,1062,24,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,115,9,false,false,,,,,,
 tests/unit/test_differential_protein_aware_contracts.py,unit,669,19,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_differential_protein_aware_kernel.py,unit,619,8,true,true,,,,,,
-tests/unit/test_differential_protein_aware_result_assembly.py,unit,1122,10,true,true,,,,,,
+tests/unit/test_differential_protein_aware_result_assembly.py,unit,1925,22,true,true,,,,,,
 tests/unit/test_differential_replicate_reliability_policy.py,unit,429,9,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,60,6,false,false,,,,,,
 tests/unit/test_differential_result_caveats.py,unit,357,6,false,false,,,,,,

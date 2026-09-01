@@ -54,6 +54,7 @@ from phospy.science.differential.protein_covariate_adjusted import (
     PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
 )
 from phospy.workflows.differential.caveats import (
+    build_protein_aware_result_caveats,
     finalize_differential_result_caveats,
 )
 from phospy.workflows.differential.eligibility import (
@@ -70,6 +71,7 @@ from phospy.workflows.differential.models import (
     ProteinAwareDifferentialResolvedInputs,
 )
 from phospy.workflows.differential.provenance import (
+    build_protein_aware_policy_provenance,
     finalize_differential_policy_provenance,
 )
 
@@ -256,17 +258,23 @@ class DifferentialResultAssembler:
             )
             for contrast_name, table in contrast_source_tables.items()
         }
-        policy_provenance = finalize_differential_policy_provenance(
-            policy_provenance=request.policy_provenance,
-            imputation_policy_inputs=request.imputation_policy_inputs,
-            feature_eligibility_inputs=feature_eligibility_inputs,
-            duplicate_correlation=None,
-        )
         protein_aware_diagnostics = _build_protein_aware_diagnostics(
             request=request,
             resolved_inputs=resolved_inputs,
             computation_result=computation_result,
             feature_eligibility_inputs=feature_eligibility_inputs,
+        )
+        protein_aware_policy_provenance = build_protein_aware_policy_provenance(
+            request=request,
+            resolved_inputs=resolved_inputs,
+            protein_aware_diagnostics=protein_aware_diagnostics,
+        )
+        policy_provenance = finalize_differential_policy_provenance(
+            policy_provenance=request.policy_provenance,
+            imputation_policy_inputs=request.imputation_policy_inputs,
+            feature_eligibility_inputs=feature_eligibility_inputs,
+            duplicate_correlation=None,
+            protein_aware=protein_aware_policy_provenance,
         )
         diagnostics = _build_protein_aware_model_diagnostics(
             request=request,
@@ -276,7 +284,12 @@ class DifferentialResultAssembler:
             protein_aware_diagnostics=protein_aware_diagnostics,
         )
         caveats = finalize_differential_result_caveats(
-            caveats=request.caveats,
+            caveats=(
+                *request.caveats,
+                *build_protein_aware_result_caveats(
+                    protein_aware=protein_aware_policy_provenance
+                ),
+            ),
             imputation_policy_inputs=request.imputation_policy_inputs,
             feature_eligibility_inputs=feature_eligibility_inputs,
         )

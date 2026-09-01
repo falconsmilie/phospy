@@ -17,6 +17,9 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DifferentialPolicyProvenance,
 )
+from phospy.science.differential.models.provenance import (
+    DifferentialProteinAwarePolicyProvenance,
+)
 from phospy.workflows.differential.imputation_inference import (
     DifferentialImputationInferenceSummary,
     imputation_inference_summary_payload,
@@ -49,6 +52,21 @@ DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE = (
 )
 DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE = (
     "differential_exploratory_single_replicate"
+)
+DIFFERENTIAL_PROTEIN_AWARE_EXPERIMENTAL_CAVEAT_CODE = (
+    "differential_protein_aware_experimental"
+)
+DIFFERENTIAL_PROTEIN_AWARE_CONDITIONAL_EFFECT_CAVEAT_CODE = (
+    "differential_protein_aware_conditional_effect"
+)
+DIFFERENTIAL_PROTEIN_AWARE_NO_PREPROCESSING_CAVEAT_CODE = (
+    "differential_protein_aware_no_automatic_protein_preprocessing"
+)
+DIFFERENTIAL_PROTEIN_AWARE_NO_FALLBACK_CAVEAT_CODE = (
+    "differential_protein_aware_no_ordinary_fallback"
+)
+DIFFERENTIAL_PROTEIN_AWARE_UNSUPPORTED_SCOPE_CAVEAT_CODE = (
+    "differential_protein_aware_unsupported_scope"
 )
 
 
@@ -195,6 +213,114 @@ def finalize_differential_result_caveats(
     if withheld_feature_details is not None and not saw_withheld_caveat:
         finalized.append(_withheld_feature_caveat(details=withheld_feature_details))
     return tuple(finalized)
+
+
+def build_protein_aware_result_caveats(
+    *,
+    protein_aware: DifferentialProteinAwarePolicyProvenance,
+) -> tuple[ResultCaveat, ...]:
+    """Build stable caveats specific to the protein-aware differential lane."""
+
+    return (
+        ResultCaveat(
+            code=DIFFERENTIAL_PROTEIN_AWARE_EXPERIMENTAL_CAVEAT_CODE,
+            severity="warning",
+            message=(
+                "Protein-aware differential analysis is experimental; the "
+                "method identifier, formula, and reproducibility contract are "
+                "recorded in policy provenance."
+            ),
+            details={
+                "method_id": protein_aware.method_id,
+                "method_version": protein_aware.method_version,
+                "claim_status": protein_aware.claim_status,
+                "model_formula": protein_aware.model_formula,
+            },
+        ),
+        ResultCaveat(
+            code=DIFFERENTIAL_PROTEIN_AWARE_CONDITIONAL_EFFECT_CAVEAT_CODE,
+            severity="warning",
+            message=(
+                "Protein-aware logFC values are condition contrasts conditional "
+                "on the measured matched total-protein covariate. They are not "
+                "causal separation of protein abundance and phosphorylation "
+                "regulation, and they are not stoichiometry or occupancy "
+                "estimates."
+            ),
+            details={
+                "logfc_interpretation": protein_aware.logfc_interpretation,
+                "nuisance_coefficient_name": protein_aware.nuisance_coefficient_name,
+                "protein_covariate_centered": protein_aware.protein_covariate_centered,
+                "protein_covariate_standardized": (
+                    protein_aware.protein_covariate_standardized
+                ),
+                "stoichiometry_or_occupancy_estimated": False,
+            },
+        ),
+        ResultCaveat(
+            code=DIFFERENTIAL_PROTEIN_AWARE_NO_PREPROCESSING_CAVEAT_CODE,
+            severity="info",
+            message=(
+                "Differential analysis did not automatically normalize or impute "
+                "protein covariates and did not alter upstream phosphosite "
+                "normalization or protein-aware preparation."
+            ),
+            details={
+                "automatic_protein_normalization": (
+                    protein_aware.automatic_protein_normalization
+                ),
+                "protein_imputation": protein_aware.protein_imputation,
+                "phosphosite_normalisation_state": (
+                    protein_aware.phosphosite_normalisation_state
+                ),
+                "preparation_schema_version": (
+                    protein_aware.preparation_schema_version
+                ),
+                "preparation_policy": protein_aware.preparation_policy,
+                "protein_mapping_policy": protein_aware.protein_mapping_policy,
+            },
+        ),
+        ResultCaveat(
+            code=DIFFERENTIAL_PROTEIN_AWARE_NO_FALLBACK_CAVEAT_CODE,
+            severity="warning",
+            message=(
+                "The protein-aware lane does not fall back to ordinary "
+                "phosphosite-only differential analysis for ineligible or failed "
+                "sites."
+            ),
+            details={
+                "phosphosite_only_fallback": protein_aware.phosphosite_only_fallback,
+                "tested_site_count": protein_aware.tested_site_count,
+                "withheld_site_count": protein_aware.withheld_site_count,
+                "status_counts": [
+                    {"status": status, "count": int(count)}
+                    for status, count in protein_aware.status_counts
+                ],
+                "reason_counts": [
+                    {"reason": reason, "count": int(count)}
+                    for reason, count in protein_aware.reason_counts
+                ],
+            },
+        ),
+        ResultCaveat(
+            code=DIFFERENTIAL_PROTEIN_AWARE_UNSUPPORTED_SCOPE_CAVEAT_CODE,
+            severity="info",
+            message=(
+                "Protein-aware differential analysis does not claim MSstatsPTM "
+                "parity, does not fit a joint phosphosite-total-protein model, "
+                "and does not support duplicate_correlation or mixed effects."
+            ),
+            details={
+                "unsupported_claims": list(protein_aware.unsupported_claims),
+                "duplicate_correlation_policy": (
+                    protein_aware.duplicate_correlation_policy
+                ),
+                "technical_aggregation_policy": (
+                    protein_aware.technical_aggregation_policy
+                ),
+            },
+        ),
+    )
 
 
 def _exploratory_single_replicate_details(
@@ -479,7 +605,13 @@ __all__ = [
     "DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE",
     "DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE",
     "DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE",
+    "DIFFERENTIAL_PROTEIN_AWARE_CONDITIONAL_EFFECT_CAVEAT_CODE",
+    "DIFFERENTIAL_PROTEIN_AWARE_EXPERIMENTAL_CAVEAT_CODE",
+    "DIFFERENTIAL_PROTEIN_AWARE_NO_FALLBACK_CAVEAT_CODE",
+    "DIFFERENTIAL_PROTEIN_AWARE_NO_PREPROCESSING_CAVEAT_CODE",
+    "DIFFERENTIAL_PROTEIN_AWARE_UNSUPPORTED_SCOPE_CAVEAT_CODE",
     "DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE",
     "build_differential_result_caveats",
+    "build_protein_aware_result_caveats",
     "finalize_differential_result_caveats",
 ]
