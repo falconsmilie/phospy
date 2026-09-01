@@ -3,11 +3,19 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import DatasetProteinAwarePreparationConfig
+from phospy.advanced import (
+    DatasetProteinAwarePreparationConfig,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
+)
 from phospy.api import (
+    Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
+    DifferentialAnalysisRequest,
+    ExperimentalDesign,
     Organism,
+    SampleDesignRecord,
 )
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
@@ -19,6 +27,10 @@ from phospy.science.datasets.preprocessing.protein_mapping import (
     ProteinMappingConfig,
     ProteinMappingResolver,
 )
+from phospy.workflows.differential.protein_aware_inputs import (
+    ProteinAwareDifferentialInputResolver,
+)
+from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 
 pytestmark = pytest.mark.integration
 
@@ -175,3 +187,92 @@ def test_dataset_builder_integrates_protein_aware_preparation_report() -> None:
     assert preparation_provenance["performs_normalisation"] is False
     assert preparation_provenance["performs_differential_modelling"] is False
     assert preparation_provenance["claims_msstatsptm_equivalence"] is False
+
+
+def test_dataset_builder_protein_aware_sidecar_feeds_private_differential_inputs() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0],
+            "A_2": [1.1, 2.1],
+            "B_1": [2.1, 2.0],
+            "B_2": [2.0, 2.2],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "protein_id": ["P53778", "P31749"],
+            "site_sequence": ["AAAAAYAAAAA", "AAAAATAAAAA"],
+            "localisation_confidence": [0.95, 0.96],
+        },
+        index=phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {
+            "A_1": [10.0, 20.0],
+            "A_2": [11.0, 21.0],
+            "B_1": [13.0, 24.0],
+            "B_2": [12.0, 23.0],
+        },
+        index=pd.Index(["P53778", "P31749"], name="protein_id"),
+    )
+    built = DatasetBuildExecutor().run(
+        DatasetBuildRequestInterpreter().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                total=total,
+                organism=Organism.RAT,
+                input_intensity_scale="log2",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    protein_aware_preparation=DatasetProteinAwarePreparationConfig(
+                        policy="prepare_model_inputs"
+                    )
+                ),
+            )
+        )
+    )
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A"),
+            SampleDesignRecord(sample_id="A_2", condition="A"),
+            SampleDesignRecord(sample_id="B_1", condition="B"),
+            SampleDesignRecord(sample_id="B_2", condition="B"),
+        )
+    )
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=built,
+                design=design,
+                contrasts=(
+                    Contrast(
+                        name="B_vs_A",
+                        numerator_condition="B",
+                        denominator_condition="A",
+                    ),
+                ),
+                config=DifferentialAnalysisConfig(
+                    protein_aware_model=DifferentialProteinAwareModelConfig()
+                ),
+            )
+        )
+    )
+
+    assert resolved.tested_site_ids == tuple(built.phospho.index.astype(str).tolist())
+    assert tuple(resolved.resolved_protein_covariates.columns.astype(str)) == (
+        "A_1",
+        "A_2",
+        "B_1",
+        "B_2",
+    )
+    assert tuple(
+        resolved.computation_request.matched_pairs.loc[:, "total_protein_row_key"]
+        .astype(str)
+        .tolist()
+    ) == ("P53778", "P31749")

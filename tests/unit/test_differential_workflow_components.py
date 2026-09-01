@@ -2,23 +2,28 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Mapping
-from dataclasses import fields
-from typing import Any
+from dataclasses import fields, replace
+from typing import Any, cast
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
     MultipleTestingConfig,
     TechnicalReplicatePolicy,
 )
 from phospy.api import (
+    ContinuousCovariate,
     Contrast,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
+    FixedEffectCovariate,
     Organism,
     SampleDesignRecord,
 )
@@ -33,9 +38,14 @@ from phospy.science.configs.differential import (
     DifferentialImputedValuePolicy,
     PairedDesignPolicy,
 )
-from phospy.science.datasets.internal_view import DatasetInternalView
+from phospy.science.datasets.internal_view import (
+    DatasetInternalView,
+    ProteinAwarePreparationInternalView,
+)
 from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+    PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
+    PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,
     ProteinAwarePreparationEligibility,
     ProteinAwareSampleAlignmentDiagnostics,
     ProteinAwareTransformationStateDiagnostics,
@@ -54,6 +64,21 @@ from phospy.science.differential.internal_view import (
 )
 from phospy.science.differential.linear_model import decompose_differential_design
 from phospy.science.differential.models import EmpiricalBayesConfig
+from phospy.science.differential.models.tables import (
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_EXCLUDED,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK,
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
+)
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -65,13 +90,18 @@ from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
+    ProteinAwareDifferentialResolvedInputs,
     ResolvedDifferentialExecutionConfig,
     ValidatedDifferentialAnalysisRequest,
+)
+from phospy.workflows.differential.protein_aware_inputs import (
+    ProteinAwareDifferentialInputResolver,
 )
 from phospy.workflows.differential.provenance import (
     build_differential_policy_provenance,
 )
 from phospy.workflows.differential.replicates import (
+    TechnicalReplicateAggregationGroup,
     TechnicalReplicateAggregationPlan,
 )
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
@@ -89,7 +119,11 @@ from tests.support.processing_state import (
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 from tests.support.unsafe_dataset_states import (
+    unsafe_mark_dataset_total_protein_correction_applied,
+    unsafe_remove_dataset_total_matrix,
     unsafe_replace_dataset_intensity_scale_state,
+    unsafe_replace_dataset_phospho_scale_state,
+    unsafe_replace_dataset_total_scale_state,
 )
 
 
@@ -266,29 +300,42 @@ def _protein_aware_preparation_for_dataset(
 def _dataset_with_protein_aware_preparation() -> tuple[
     AnalysisReadyPhosphoDataset, ProteinAwarePreparationResult
 ]:
+    return _dataset_with_custom_protein_aware_preparation()
+
+
+def _dataset_with_custom_protein_aware_preparation(
+    *,
+    phospho: pd.DataFrame | None = None,
+    total: pd.DataFrame | None = None,
+) -> tuple[AnalysisReadyPhosphoDataset, ProteinAwarePreparationResult]:
     base_dataset = _dataset()
+    resolved_phospho = base_dataset.phospho if phospho is None else phospho
     site_metadata = base_dataset.site_metadata
-    site_keys = tuple(base_dataset.phospho.index.astype(str).tolist())
+    site_keys = tuple(resolved_phospho.index.astype(str).tolist())
     total_row_keys = tuple(
         str(site_metadata.loc[site_key, "protein_identifier"]) for site_key in site_keys
     )
-    total = pd.DataFrame(
-        {
-            sample_id: [
-                1000.0 + float(position * 100 + sample_position)
-                for position in range(len(total_row_keys))
-            ]
-            for sample_position, sample_id in enumerate(
-                base_dataset.phospho.columns.astype(str)
-            )
-        },
-        index=pd.Index(total_row_keys, name="protein_id"),
+    resolved_total = (
+        pd.DataFrame(
+            {
+                sample_id: [
+                    1000.0 + float(position * 100 + sample_position)
+                    for position in range(len(total_row_keys))
+                ]
+                for sample_position, sample_id in enumerate(
+                    resolved_phospho.columns.astype(str)
+                )
+            },
+            index=pd.Index(total_row_keys, name="protein_id"),
+        )
+        if total is None
+        else total
     )
     base_dataset_with_total = trusted_analysis_ready_dataset_from_tables(
-        phospho=base_dataset.phospho,
+        phospho=resolved_phospho,
         site_metadata=base_dataset.site_metadata,
         sample_metadata=base_dataset.sample_metadata,
-        total=total,
+        total=resolved_total,
         comparisons=base_dataset.comparisons,
         organism=base_dataset.organism,
         intensity_scale_state=supported_log2_intensity_scale_state(
@@ -314,6 +361,202 @@ def _dataset_with_protein_aware_preparation() -> tuple[
             protein_aware_preparation=preparation,
         ),
         preparation,
+    )
+
+
+def _six_sample_dataset_with_protein_aware_preparation() -> tuple[
+    AnalysisReadyPhosphoDataset, ProteinAwarePreparationResult
+]:
+    base_dataset = _dataset()
+    phospho = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0, 1.0],
+            "A_2": [1.1, 2.1, 1.1],
+            "A_3": [0.9, 1.9, 0.8],
+            "B_1": [2.1, 2.0, 1.0],
+            "B_2": [2.0, 2.2, 0.9],
+            "B_3": [2.2, 2.3, 1.2],
+        },
+        index=base_dataset.phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {
+            "A_1": [10.0, 20.0, 30.0],
+            "A_2": [11.0, 21.0, 30.5],
+            "A_3": [9.0, 19.0, 32.0],
+            "B_1": [13.0, 24.0, 29.0],
+            "B_2": [12.0, 23.0, 31.0],
+            "B_3": [14.0, 25.0, 33.0],
+        },
+        index=pd.Index(["MAPK14", "GSK3B", "AKT1"], name="protein_id"),
+    )
+    return _dataset_with_custom_protein_aware_preparation(
+        phospho=phospho,
+        total=total,
+    )
+
+
+def _protein_aware_request(
+    dataset: AnalysisReadyPhosphoDataset,
+    *,
+    sample_ids: tuple[str, ...] = ("A_1", "A_2", "B_1", "B_2"),
+    paired_design_policy: str = "reject",
+    allow_design_subset: bool = False,
+    fixed_effects: tuple[FixedEffectCovariate, ...] = (),
+    sample_covariates: Mapping[str, Mapping[str, str | int | float]] | None = None,
+) -> DifferentialAnalysisRequest:
+    sample_blocks = {
+        "A_1": "block_1",
+        "B_1": "block_1",
+        "A_2": "block_2",
+        "B_2": "block_2",
+        "A_3": "block_3",
+        "B_3": "block_3",
+    }
+    return DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=ExperimentalDesign(
+            samples=tuple(
+                SampleDesignRecord(
+                    sample_id=sample_id,
+                    condition=sample_id.split("_", maxsplit=1)[0],
+                    biological_replicate_id=f"{sample_id}_bio",
+                    block_id=(
+                        sample_blocks[sample_id]
+                        if paired_design_policy
+                        in {PAIRED_DESIGN_POLICY_FIXED_BLOCK, "duplicate_correlation"}
+                        else None
+                    ),
+                    covariates=(
+                        sample_covariates.get(sample_id, {})
+                        if sample_covariates is not None
+                        else {}
+                    ),
+                )
+                for sample_id in sample_ids
+            ),
+            fixed_effects=fixed_effects,
+        ),
+        contrasts=(
+            Contrast(
+                name="B_vs_A",
+                numerator_condition="B",
+                denominator_condition="A",
+            ),
+        ),
+        config=DifferentialAnalysisConfig(
+            paired_design_policy=paired_design_policy,  # type: ignore[arg-type]
+            allow_design_subset=allow_design_subset,
+            protein_aware_model=DifferentialProteinAwareModelConfig(),
+        ),
+    )
+
+
+def _validated_protein_aware_request(
+    dataset: AnalysisReadyPhosphoDataset,
+    *,
+    sample_ids: tuple[str, ...] = ("A_1", "A_2", "B_1", "B_2"),
+    paired_design_policy: str = "reject",
+    allow_design_subset: bool = False,
+    fixed_effects: tuple[FixedEffectCovariate, ...] = (),
+    sample_covariates: Mapping[str, Mapping[str, str | int | float]] | None = None,
+) -> ValidatedDifferentialAnalysisRequest:
+    return DifferentialAnalysisValidator().run(
+        _protein_aware_request(
+            dataset,
+            sample_ids=sample_ids,
+            paired_design_policy=paired_design_policy,
+            allow_design_subset=allow_design_subset,
+            fixed_effects=fixed_effects,
+            sample_covariates=sample_covariates,
+        )
+    )
+
+
+def _preparation_report_with(
+    report: ProteinAwarePreparationReport,
+    *,
+    site_eligibility: tuple[ProteinAwareSiteEligibility, ...] | None = None,
+    transformation_state: ProteinAwareTransformationStateDiagnostics | None = None,
+    replace_transformation_state: bool = False,
+    preparation_policy: str | None = None,
+    schema_version: int | None = None,
+) -> ProteinAwarePreparationReport:
+    return ProteinAwarePreparationReport(
+        site_eligibility=(
+            report.site_eligibility if site_eligibility is None else site_eligibility
+        ),
+        mapping_diagnostics=report.mapping_diagnostics,
+        sample_alignment=report.sample_alignment,
+        transformation_state=(
+            transformation_state
+            if replace_transformation_state
+            else report.transformation_state
+        ),
+        preparation_policy=(
+            report.preparation_policy
+            if preparation_policy is None
+            else preparation_policy
+        ),
+        protein_mapping_policy=report.protein_mapping_policy,
+        policy_parameters=dict(report.policy_parameters),
+        provenance=report.provenance,
+        schema_version=report.schema_version
+        if schema_version is None
+        else schema_version,
+    )
+
+
+def _preparation_with(
+    preparation: ProteinAwarePreparationResult,
+    *,
+    matched_pairs: pd.DataFrame | None = None,
+    protein_covariate_matrix: pd.DataFrame | None = None,
+    report: ProteinAwarePreparationReport | None = None,
+) -> ProteinAwarePreparationResult:
+    return ProteinAwarePreparationResult(
+        matched_pairs=(
+            preparation.matched_pairs_dataframe()
+            if matched_pairs is None
+            else matched_pairs
+        ),
+        protein_covariate_matrix=(
+            preparation.protein_covariate_matrix_dataframe()
+            if protein_covariate_matrix is None
+            else protein_covariate_matrix
+        ),
+        report=preparation.report if report is None else report,
+    )
+
+
+def _replace_eligibility_row(
+    report: ProteinAwarePreparationReport,
+    *,
+    position: int = 0,
+    **changes: object,
+) -> tuple[ProteinAwareSiteEligibility, ...]:
+    rows = list(report.site_eligibility)
+    rows[position] = replace(rows[position], **changes)
+    return tuple(rows)
+
+
+def _dataset_replacing_protein_aware_preparation(
+    dataset: AnalysisReadyPhosphoDataset,
+    preparation: ProteinAwarePreparationResult,
+) -> AnalysisReadyPhosphoDataset:
+    return trusted_analysis_ready_dataset_from_tables(
+        phospho=dataset.phospho,
+        site_metadata=dataset.site_metadata,
+        sample_metadata=dataset.sample_metadata,
+        total=dataset.total,
+        comparisons=dataset.comparisons,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
+        preprocessing_report=DatasetPreprocessingReport.from_rows(
+            protein_aware_preparation=preparation.report
+        ),
+        protein_aware_preparation=preparation,
     )
 
 
@@ -459,6 +702,866 @@ def test_differential_workflow_does_not_consume_protein_aware_preparation_result
         is preparation.report
     )
     assert "protein_aware" not in repr(prepared_result.policy_provenance).lower()
+
+
+def test_protein_aware_public_workflow_branch_remains_inactive() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.interpreter.protein_aware_model_not_executable",
+    ):
+        DifferentialAnalysisWorkflow().run(_protein_aware_request(dataset))
+
+
+def test_protein_aware_input_resolver_builds_execution_request_from_sidecar() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    sample_ids = ("B_2", "B_1", "A_2", "A_1")
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(
+            dataset,
+            sample_ids=sample_ids,
+            allow_design_subset=True,
+        )
+    )
+
+    assert isinstance(resolved, ProteinAwareDifferentialResolvedInputs)
+    assert resolved.sample_order == sample_ids
+    assert resolved.full_site_ids == tuple(dataset.phospho.index.astype(str).tolist())
+    assert resolved.tested_site_ids == resolved.full_site_ids
+    assert resolved.status_counts == ((DIFFERENTIAL_RESULT_STATUS_TESTED, 3),)
+    assert dict(resolved.eligibility_counts) == {
+        "total_site_count": 3,
+        "ordinary_testable_site_count": 3,
+        "protein_preparation_candidate_site_count": 3,
+        "protein_aware_tested_site_count": 3,
+    }
+    assert list(resolved.resolved_protein_covariates.columns.astype(str)) == list(
+        sample_ids
+    )
+    assert list(
+        resolved.computation_request.phosphosite_matrix.columns.astype(str)
+    ) == list(sample_ids)
+    assert (
+        tuple(
+            resolved.computation_request.matched_pairs.loc[:, "site_key"]
+            .astype(str)
+            .tolist()
+        )
+        == resolved.tested_site_ids
+    )
+    assert (
+        tuple(resolved.candidate_matched_pairs.loc[:, "site_key"].astype(str).tolist())
+        == resolved.full_site_ids
+    )
+    assert resolved.feature_eligibility_inputs.attach_to_result_tables is True
+    assert (
+        resolved.site_eligibility_metadata.loc[
+            :, "protein_aware_centering_policy"
+        ].unique()
+        == ["mean_centered_no_standardization"]
+    ).all()
+
+
+def test_protein_aware_input_resolver_uses_analysis_sample_subset_only() -> None:
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+    sample_ids = ("B_2", "A_2", "B_1", "A_1")
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(
+            dataset,
+            sample_ids=sample_ids,
+            allow_design_subset=True,
+        )
+    )
+
+    assert tuple(resolved.resolved_protein_covariates.columns.astype(str)) == sample_ids
+    assert (
+        tuple(resolved.computation_request.resolved_protein_covariates.columns)
+        == sample_ids
+    )
+    assert tuple(resolved.computation_request.phosphosite_matrix.columns) == sample_ids
+    assert "A_3" not in resolved.resolved_protein_covariates.columns
+    assert "B_3" not in resolved.resolved_protein_covariates.columns
+
+
+def test_protein_aware_input_resolver_rejects_missing_sidecar() -> None:
+    validated = _validated_protein_aware_request(_dataset())
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.sidecar_missing",
+    ):
+        ProteinAwareDifferentialInputResolver().run(validated)
+
+
+def test_protein_aware_input_resolver_rejects_unsupported_sidecar_schema() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    object.__setattr__(preparation.report, "schema_version", 99)
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.sidecar_schema",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(dataset)
+        )
+
+
+def test_protein_aware_input_resolver_rejects_unsupported_sidecar_policy() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    object.__setattr__(preparation.report, "preparation_policy", "legacy_policy")
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.sidecar_policy",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(dataset)
+        )
+
+
+def test_protein_aware_input_resolver_rejects_missing_total_matrix() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    validated = _validated_protein_aware_request(dataset)
+    unsafe_remove_dataset_total_matrix(validated.dataset)
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.total_matrix_missing",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            replace(validated, dataset_view=DatasetInternalView(validated.dataset))
+        )
+
+
+def test_protein_aware_input_resolver_rejects_non_log2_total_scale() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    validated = _validated_protein_aware_request(dataset)
+    unsafe_replace_dataset_total_scale_state(
+        validated.dataset,
+        MatrixIntensityScaleState.linear(established_by="test.linear_total"),
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.total_scale",
+    ):
+        ProteinAwareDifferentialInputResolver().run(validated)
+
+
+def test_protein_aware_input_resolver_rejects_non_log2_phosphosite_scale() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    validated = _validated_protein_aware_request(dataset)
+    unsafe_replace_dataset_phospho_scale_state(
+        validated.dataset,
+        MatrixIntensityScaleState.linear(established_by="test.linear_phospho"),
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.phospho_scale",
+    ):
+        ProteinAwareDifferentialInputResolver().run(validated)
+
+
+def test_protein_aware_input_resolver_rejects_non_log2_sidecar_covariate_evidence() -> (
+    None
+):
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    report = _preparation_report_with(
+        preparation.report,
+        transformation_state=ProteinAwareTransformationStateDiagnostics(
+            compatible=True,
+            phospho_transformation_state={
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "test.phospho",
+            },
+            total_protein_transformation_state={
+                "kind": "linear",
+                "transformed": False,
+                "established_by": "test.linear_total",
+            },
+        ),
+        replace_transformation_state=True,
+    )
+    modified_dataset = _dataset_replacing_protein_aware_preparation(
+        dataset,
+        _preparation_with(preparation, report=report),
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.prepared_covariate_scale",
+    ) as exc_info:
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(modified_dataset)
+        )
+
+    assert (
+        exc_info.value.details["total_protein_transformation_state"]["kind"] == "linear"
+    )
+
+
+def test_protein_aware_input_resolver_rejects_unestablished_sidecar_covariate_evidence() -> (
+    None
+):
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    report = _preparation_report_with(
+        preparation.report,
+        transformation_state=ProteinAwareTransformationStateDiagnostics(
+            compatible=True,
+            phospho_transformation_state={
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "test.phospho",
+            },
+            total_protein_transformation_state={
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "",
+            },
+        ),
+        replace_transformation_state=True,
+    )
+    modified_dataset = _dataset_replacing_protein_aware_preparation(
+        dataset,
+        _preparation_with(preparation, report=report),
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.prepared_covariate_scale",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(modified_dataset)
+        )
+
+
+def test_protein_aware_input_resolver_rejects_non_log2_sidecar_phospho_evidence() -> (
+    None
+):
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    report = _preparation_report_with(
+        preparation.report,
+        transformation_state=ProteinAwareTransformationStateDiagnostics(
+            compatible=True,
+            phospho_transformation_state={
+                "kind": "linear",
+                "transformed": False,
+                "established_by": "test.linear_phospho",
+            },
+            total_protein_transformation_state={
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "test.total",
+            },
+        ),
+        replace_transformation_state=True,
+    )
+    modified_dataset = _dataset_replacing_protein_aware_preparation(
+        dataset,
+        _preparation_with(preparation, report=report),
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.prepared_phospho_scale",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(modified_dataset)
+        )
+
+
+def test_protein_aware_input_resolver_rejects_prior_total_subtraction() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    validated = _validated_protein_aware_request(dataset)
+    unsafe_mark_dataset_total_protein_correction_applied(validated.dataset)
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.prior_total_protein_subtraction",
+    ):
+        ProteinAwareDifferentialInputResolver().run(validated)
+
+
+def test_protein_aware_input_resolver_rejects_stale_sidecar_binding() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    mutated_covariates = preparation.protein_covariate_matrix_dataframe()
+    mutated_covariates.iloc[0, 0] = mutated_covariates.iloc[0, 0] + 100.0
+    object.__setattr__(preparation, "_protein_covariate_matrix", mutated_covariates)
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.sidecar_binding",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(dataset)
+        )
+
+
+def test_protein_aware_input_resolver_all_fallback_fails_with_status_counts() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    fallback_rows = tuple(
+        replace(
+            row,
+            eligibility=ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY,
+            mapping_status=ProteinMappingStatus.MISSING_TOTAL_PROTEIN_ROW,
+            total_protein_row_key=None,
+            reasons=(PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,),
+        )
+        for row in preparation.report.site_eligibility
+    )
+    modified_preparation = _preparation_with(
+        preparation,
+        matched_pairs=preparation.matched_pairs_dataframe().iloc[0:0, :],
+        protein_covariate_matrix=preparation.protein_covariate_matrix_dataframe().iloc[
+            0:0, :
+        ],
+        report=_preparation_report_with(
+            preparation.report,
+            site_eligibility=fallback_rows,
+        ),
+    )
+    modified_dataset = _dataset_replacing_protein_aware_preparation(
+        dataset,
+        modified_preparation,
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.all_sites_withheld",
+    ) as exc_info:
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(modified_dataset)
+        )
+
+    assert exc_info.value.details["status_counts"] == {
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE: 3
+    }
+    assert exc_info.value.details["reason_counts"] == {
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK: 3
+    }
+    assert exc_info.value.details["eligibility_counts"] == {
+        "total_site_count": 3,
+        "ordinary_testable_site_count": 3,
+        "protein_preparation_candidate_site_count": 0,
+        "protein_aware_tested_site_count": 0,
+    }
+
+
+def test_protein_aware_input_resolver_rejects_duplicate_correlation() -> None:
+    sample_ids = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.duplicate_correlation",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(
+                dataset,
+                sample_ids=sample_ids,
+                paired_design_policy="duplicate_correlation",
+            )
+        )
+
+
+def test_protein_aware_input_resolver_rejects_actual_technical_aggregation() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    validated = _validated_protein_aware_request(dataset)
+    plan = TechnicalReplicateAggregationPlan(
+        technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+        groups=(
+            TechnicalReplicateAggregationGroup(
+                condition="A",
+                biological_replicate_id="A_r1",
+                output_sample_id="A_r1",
+                input_sample_ids=("A_1", "A_2"),
+                technical_replicate_ids=("tech_1", "tech_2"),
+                batch=None,
+                block_id=None,
+                covariates={},
+            ),
+        ),
+        aggregate_phospho=True,
+        aggregate_total_protein=True,
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.technical_replicate_aggregation",
+    ):
+        ProteinAwareDifferentialInputResolver().run(
+            replace(validated, technical_replicate_aggregation_plan=plan)
+        )
+
+
+def test_protein_aware_input_resolver_accepts_noop_technical_aggregation_plan() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    validated = _validated_protein_aware_request(dataset)
+    plan = TechnicalReplicateAggregationPlan(
+        technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+        groups=(),
+        aggregate_phospho=True,
+        aggregate_total_protein=True,
+    )
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        replace(validated, technical_replicate_aggregation_plan=plan)
+    )
+
+    assert resolved.tested_site_ids == resolved.full_site_ids
+    assert resolved.status_counts == ((DIFFERENTIAL_RESULT_STATUS_TESTED, 3),)
+
+
+def test_protein_aware_input_resolver_marks_preparation_fallback_rows() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    fallback_site = str(dataset.phospho.index[1])
+    fallback_rows = _replace_eligibility_row(
+        preparation.report,
+        position=1,
+        eligibility=ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY,
+        mapping_status=ProteinMappingStatus.MISSING_TOTAL_PROTEIN_ROW,
+        total_protein_row_key=None,
+        reasons=(PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,),
+    )
+    report = _preparation_report_with(
+        preparation.report,
+        site_eligibility=fallback_rows,
+    )
+    matched_pairs = preparation.matched_pairs_dataframe()
+    matched_pairs = (
+        matched_pairs.loc[matched_pairs.loc[:, "site_key"] != fallback_site, :]
+        .reset_index(drop=True)
+        .copy(deep=True)
+    )
+    protein_covariates = preparation.protein_covariate_matrix_dataframe()
+    protein_covariates = protein_covariates.drop(index="GSK3B")
+    modified_preparation = _preparation_with(
+        preparation,
+        matched_pairs=matched_pairs,
+        protein_covariate_matrix=protein_covariates,
+        report=report,
+    )
+    modified_dataset = _dataset_replacing_protein_aware_preparation(
+        dataset,
+        modified_preparation,
+    )
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(modified_dataset)
+    )
+
+    metadata = resolved.site_eligibility_metadata
+    assert metadata.loc[fallback_site, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE
+    )
+    assert metadata.loc[fallback_site, "result_status_reason"] == (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK
+    )
+    assert fallback_site in resolved.full_site_ids
+    assert fallback_site not in resolved.tested_site_ids
+    assert tuple(
+        resolved.computation_request.matched_pairs.loc[:, "site_key"]
+        .astype(str)
+        .tolist()
+    ) == tuple(site for site in resolved.full_site_ids if site != fallback_site)
+
+
+def test_protein_aware_input_resolver_marks_unmatched_and_ambiguous_rows() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    unmatched_site = str(dataset.phospho.index[1])
+    ambiguous_site = str(dataset.phospho.index[2])
+    rows = list(preparation.report.site_eligibility)
+    rows[1] = replace(
+        rows[1],
+        eligibility=ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY,
+        mapping_status=ProteinMappingStatus.MISSING_TOTAL_PROTEIN_ROW,
+        total_protein_row_key=None,
+        reasons=(PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,),
+    )
+    rows[2] = replace(
+        rows[2],
+        eligibility=ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION,
+        mapping_status=ProteinMappingStatus.AMBIGUOUS_TOTAL_PROTEIN_MAPPING,
+        total_protein_row_key=None,
+        reasons=(PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,),
+    )
+    matched_pairs = preparation.matched_pairs_dataframe()
+    matched_pairs = matched_pairs.loc[
+        ~matched_pairs.loc[:, "site_key"].isin({unmatched_site, ambiguous_site}),
+        :,
+    ].reset_index(drop=True)
+    protein_covariates = preparation.protein_covariate_matrix_dataframe()
+    protein_covariates = protein_covariates.drop(index=["GSK3B", "AKT1"])
+    modified_preparation = _preparation_with(
+        preparation,
+        matched_pairs=matched_pairs,
+        protein_covariate_matrix=protein_covariates,
+        report=_preparation_report_with(
+            preparation.report,
+            site_eligibility=tuple(rows),
+        ),
+    )
+    modified_dataset = _dataset_replacing_protein_aware_preparation(
+        dataset,
+        modified_preparation,
+    )
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(modified_dataset)
+    )
+
+    metadata = resolved.site_eligibility_metadata
+    assert metadata.loc[unmatched_site, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE
+    )
+    assert metadata.loc[unmatched_site, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] == (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK
+    )
+    assert metadata.loc[ambiguous_site, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE
+    )
+    assert metadata.loc[ambiguous_site, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] == (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_EXCLUDED
+    )
+    assert metadata.loc[unmatched_site, "protein_aware_preparation_reasons"] == (
+        PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,
+    )
+    assert metadata.loc[ambiguous_site, "protein_aware_preparation_reasons"] == (
+        PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
+    )
+    assert resolved.tested_site_ids == (str(dataset.phospho.index[0]),)
+    assert (
+        tuple(
+            resolved.computation_request.matched_pairs.loc[:, "site_key"]
+            .astype(str)
+            .tolist()
+        )
+        == resolved.tested_site_ids
+    )
+
+
+def test_protein_aware_input_resolver_preserves_ordinary_numeric_precedence() -> None:
+    base_dataset = _dataset()
+    phospho = base_dataset.phospho
+    ordinary_withheld_site = str(phospho.index[0])
+    phospho.loc[ordinary_withheld_site, :] = 42.0
+    dataset, _ = _dataset_with_custom_protein_aware_preparation(phospho=phospho)
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(dataset)
+    )
+
+    metadata = resolved.site_eligibility_metadata
+    assert (
+        metadata.loc[ordinary_withheld_site, DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+    assert (
+        bool(metadata.loc[ordinary_withheld_site, "protein_aware_candidate"]) is False
+    )
+    assert ordinary_withheld_site in resolved.full_site_ids
+    assert ordinary_withheld_site not in resolved.tested_site_ids
+
+
+def test_protein_aware_input_resolver_marks_non_finite_protein_covariates() -> None:
+    dataset, preparation = _six_sample_dataset_with_protein_aware_preparation()
+    non_finite_covariates = preparation.protein_covariate_matrix_dataframe()
+    non_finite_covariates.loc["MAPK14", "A_2"] = np.nan
+    non_finite_preparation = _preparation_with(
+        preparation,
+        protein_covariate_matrix=non_finite_covariates,
+    )
+    non_finite_site = str(dataset.phospho.index[0])
+
+    class _TrustedMalformedDatasetView:
+        def __init__(
+            self,
+            dataset: AnalysisReadyPhosphoDataset,
+            preparation: ProteinAwarePreparationResult,
+        ) -> None:
+            self._delegate = DatasetInternalView(dataset)
+            self._preparation = preparation
+
+        @property
+        def phospho(self) -> pd.DataFrame:
+            return self._delegate.phospho
+
+        @property
+        def total(self) -> pd.DataFrame | None:
+            return self._delegate.total
+
+        @property
+        def protein_aware_preparation(self) -> ProteinAwarePreparationInternalView:
+            return ProteinAwarePreparationInternalView(self._preparation)
+
+        def validate_protein_aware_preparation_binding(self) -> None:
+            return None
+
+    validated = _validated_protein_aware_request(
+        dataset,
+        sample_ids=("A_1", "A_2", "A_3", "B_1", "B_2", "B_3"),
+    )
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        replace(
+            validated,
+            dataset_view=cast(
+                Any,
+                _TrustedMalformedDatasetView(dataset, non_finite_preparation),
+            ),
+        )
+    )
+
+    metadata = resolved.site_eligibility_metadata
+    assert metadata.loc[non_finite_site, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID
+    )
+    assert metadata.loc[non_finite_site, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] == (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE
+    )
+    assert non_finite_site not in resolved.tested_site_ids
+    assert len(resolved.tested_site_ids) == 2
+
+
+def test_protein_aware_input_resolver_marks_rank_deficient_augmented_designs() -> None:
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+    total = dataset.total
+    if total is None:
+        raise AssertionError("protein-aware test dataset requires total")
+    rank_deficient_total = total.copy(deep=True)
+    rank_deficient_total.loc["MAPK14", :] = [10.0, 10.0, 10.0, 20.0, 20.0, 20.0]
+    rank_deficient_dataset, _ = _dataset_with_custom_protein_aware_preparation(
+        phospho=dataset.phospho, total=rank_deficient_total
+    )
+    rank_deficient_site = str(rank_deficient_dataset.phospho.index[0])
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(
+            rank_deficient_dataset,
+            sample_ids=("A_1", "A_2", "A_3", "B_1", "B_2", "B_3"),
+        )
+    )
+
+    metadata = resolved.site_eligibility_metadata
+    assert metadata.loc[rank_deficient_site, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID
+    )
+    assert metadata.loc[
+        rank_deficient_site,
+        DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    ] == (DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT)
+    assert rank_deficient_site not in resolved.tested_site_ids
+    assert len(resolved.tested_site_ids) == 2
+
+
+def test_protein_aware_input_resolver_marks_ill_conditioned_augmented_designs() -> None:
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+    total = dataset.total
+    if total is None:
+        raise AssertionError("protein-aware test dataset requires total")
+    ill_conditioned_total = total.copy(deep=True)
+    ill_conditioned_total.loc["MAPK14", :] = [
+        10.0,
+        10.0 + 1.0e-12,
+        10.0 + 2.0e-12,
+        20.0,
+        20.0 + 1.0e-12,
+        20.0 + 2.0e-12,
+    ]
+    ill_conditioned_dataset, _ = _dataset_with_custom_protein_aware_preparation(
+        phospho=dataset.phospho, total=ill_conditioned_total
+    )
+    ill_conditioned_site = str(ill_conditioned_dataset.phospho.index[0])
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(
+            ill_conditioned_dataset,
+            sample_ids=("A_1", "A_2", "A_3", "B_1", "B_2", "B_3"),
+        )
+    )
+
+    metadata = resolved.site_eligibility_metadata
+    assert metadata.loc[ill_conditioned_site, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID
+    )
+    assert metadata.loc[
+        ill_conditioned_site,
+        DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    ] == (DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED)
+    assert ill_conditioned_site not in resolved.tested_site_ids
+    assert len(resolved.tested_site_ids) == 2
+
+
+def test_protein_aware_input_resolver_allows_fixed_covariate_when_augmented_design_valid() -> (
+    None
+):
+    sample_ids = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+    sample_covariates = {
+        "A_1": {"dose": 0.0},
+        "A_2": {"dose": 1.0},
+        "A_3": {"dose": 2.0},
+        "B_1": {"dose": 0.5},
+        "B_2": {"dose": 1.5},
+        "B_3": {"dose": 2.5},
+    }
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(
+            dataset,
+            sample_ids=sample_ids,
+            fixed_effects=(ContinuousCovariate("dose"),),
+            sample_covariates=sample_covariates,
+        )
+    )
+
+    assert resolved.tested_site_ids == tuple(dataset.phospho.index.astype(str).tolist())
+    assert "dose" in resolved.base_design.frame.columns
+    assert (
+        resolved.site_eligibility_metadata.loc[
+            :, "protein_augmented_design_residual_degrees_of_freedom"
+        ]
+        > 0.0
+    ).all()
+
+
+def test_protein_aware_input_resolver_does_not_mutate_sidecar_or_input_frames() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    phospho_before = dataset.phospho
+    total_before = dataset.total
+    if total_before is None:
+        raise AssertionError("protein-aware test dataset requires total")
+    matched_pairs_before = preparation.matched_pairs_dataframe()
+    covariates_before = preparation.protein_covariate_matrix_dataframe()
+    site_eligibility_before = preparation.site_eligibility_table
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(dataset)
+    )
+
+    pd.testing.assert_frame_equal(dataset.phospho, phospho_before)
+    pd.testing.assert_frame_equal(dataset.total, total_before)
+    pd.testing.assert_frame_equal(
+        preparation.matched_pairs_dataframe(),
+        matched_pairs_before,
+    )
+    pd.testing.assert_frame_equal(
+        preparation.protein_covariate_matrix_dataframe(),
+        covariates_before,
+    )
+    pd.testing.assert_frame_equal(
+        preparation.site_eligibility_table,
+        site_eligibility_before,
+    )
+
+    resolved.resolved_protein_covariates.iloc[0, 0] = -999.0
+    resolved.matched_pairs.iloc[0, 0] = "mutated"
+    assert (
+        resolved.computation_request.resolved_protein_covariates.iloc[0, 0]
+        == covariates_before.iloc[0, 0]
+    )
+    assert (
+        resolved.computation_request.matched_pairs.iloc[0, 0]
+        == (matched_pairs_before.iloc[0, 0])
+    )
+    pd.testing.assert_frame_equal(
+        preparation.protein_covariate_matrix_dataframe(),
+        covariates_before,
+    )
+
+
+def test_protein_aware_resolved_inputs_reject_trusted_construction_mismatch() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(dataset)
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.tested_site_order",
+    ):
+        ProteinAwareDifferentialResolvedInputs(
+            computation_request=resolved.computation_request,
+            feature_eligibility_inputs=resolved.feature_eligibility_inputs,
+            matched_pairs=resolved.matched_pairs,
+            candidate_matched_pairs=resolved.candidate_matched_pairs,
+            resolved_protein_covariates=resolved.resolved_protein_covariates,
+            site_eligibility_metadata=resolved.site_eligibility_metadata,
+            full_site_ids=resolved.full_site_ids,
+            tested_site_ids=tuple(reversed(resolved.tested_site_ids)),
+            sample_order=resolved.sample_order,
+            base_design=resolved.base_design,
+            base_contrasts=resolved.base_contrasts,
+            method_id=resolved.method_id,
+            preparation_policy=resolved.preparation_policy,
+            protein_mapping_policy=resolved.protein_mapping_policy,
+            eligibility_counts=resolved.eligibility_counts,
+            status_counts=resolved.status_counts,
+            reason_counts=resolved.reason_counts,
+        )
+
+
+def test_protein_aware_input_resolver_all_withheld_fails_with_counts() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    total = dataset.total
+    if total is None:
+        raise AssertionError("protein-aware test dataset requires total")
+    constant_total = total.copy(deep=True)
+    for row_key, value in zip(constant_total.index, (10.0, 20.0, 30.0), strict=True):
+        constant_total.loc[row_key, :] = value
+    constant_dataset, _ = _dataset_with_custom_protein_aware_preparation(
+        total=constant_total
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.all_sites_withheld",
+    ) as exc_info:
+        ProteinAwareDifferentialInputResolver().run(
+            _validated_protein_aware_request(constant_dataset)
+        )
+
+    assert exc_info.value.details["status_counts"] == {
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID: 3
+    }
+    assert exc_info.value.details["reason_counts"] == {
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE: 3
+    }
+    assert exc_info.value.details["eligibility_counts"] == {
+        "total_site_count": 3,
+        "ordinary_testable_site_count": 3,
+        "protein_preparation_candidate_site_count": 3,
+        "protein_aware_tested_site_count": 0,
+    }
+
+
+def test_protein_aware_input_resolver_allows_fixed_block_when_augmented_design_valid() -> (
+    None
+):
+    sample_ids = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+
+    resolved = ProteinAwareDifferentialInputResolver().run(
+        _validated_protein_aware_request(
+            dataset,
+            sample_ids=sample_ids,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+    )
+
+    assert resolved.tested_site_ids == tuple(dataset.phospho.index.astype(str).tolist())
+    assert resolved.computation_request.base_design.frame.shape[1] == 4
+    assert (
+        resolved.site_eligibility_metadata.loc[
+            :, "protein_augmented_design_residual_degrees_of_freedom"
+        ]
+        > 0.0
+    ).all()
 
 
 def test_differential_result_references_input_dataset_preprocessing_report() -> None:

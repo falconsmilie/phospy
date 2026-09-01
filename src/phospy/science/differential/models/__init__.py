@@ -13,6 +13,7 @@ from phospy.science.differential.models.diagnostics import (
     DifferentialModelDiagnostics,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+    ProteinAwareDifferentialDiagnostics,
 )
 from phospy.science.differential.models.empirical_bayes_config import (
     EMPIRICAL_BAYES_METHOD_ROBUST,
@@ -70,6 +71,7 @@ __all__ = [
     "DifferentialDesignMatrixSummary",
     "DifferentialEmpiricalBayesProvenance",
     "DifferentialModelDiagnostics",
+    "ProteinAwareDifferentialDiagnostics",
     "DifferentialFixedEffectCovariateProvenance",
     "DifferentialMissingValuePolicyProvenance",
     "DifferentialPolicyProvenance",

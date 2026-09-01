@@ -97,6 +97,7 @@ _DATASET_INTERNAL_VIEW_PROPERTIES = (
 _DATASET_INTERNAL_VIEW_PUBLIC_MEMBERS = _DATASET_INTERNAL_VIEW_PROPERTIES | {
     "aggregate_imputation_observation_mask",
     "imputation_observation_summary",
+    "validate_protein_aware_preparation_binding",
 }
 
 

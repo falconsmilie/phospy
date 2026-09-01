@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, NoReturn, Protocol, cast
 
 import pandas as pd
 
@@ -41,6 +41,9 @@ from phospy.science.differential.models import (
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
+)
+from phospy.science.differential.models.protein_aware import (
+    ProteinAwareDifferentialComputationRequest,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 from phospy.workflows.differential.replicates import (
@@ -394,6 +397,480 @@ class DifferentialExecutionDesignInputs:
 
 
 @dataclass(frozen=True, slots=True)
+class ProteinAwareDifferentialResolvedInputs:
+    """Execution-ready protein-aware inputs resolved before statistical fitting."""
+
+    computation_request: ProteinAwareDifferentialComputationRequest
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs
+    matched_pairs: pd.DataFrame
+    candidate_matched_pairs: pd.DataFrame
+    resolved_protein_covariates: pd.DataFrame
+    site_eligibility_metadata: pd.DataFrame
+    full_site_ids: tuple[str, ...]
+    tested_site_ids: tuple[str, ...]
+    sample_order: tuple[str, ...]
+    base_design: DesignMatrix
+    base_contrasts: ContrastMatrix
+    method_id: DifferentialProteinAwareModelMethod
+    preparation_policy: str
+    protein_mapping_policy: str
+    eligibility_counts: tuple[tuple[str, int], ...]
+    status_counts: tuple[tuple[str, int], ...]
+    reason_counts: tuple[tuple[str, int], ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(
+            cast(object, self.computation_request),
+            ProteinAwareDifferentialComputationRequest,
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.protein_aware_inputs.computation_request",
+                next_action=(
+                    "resolve a ProteinAwareDifferentialComputationRequest before "
+                    "protein-aware differential fitting"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if not isinstance(
+            cast(object, self.feature_eligibility_inputs),
+            DifferentialFeatureEligibilityInputs,
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.protein_aware_inputs.feature_eligibility",
+                next_action=(
+                    "carry full-index protein-aware eligibility metadata with "
+                    "resolved computation inputs"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if self.method_id not in SUPPORTED_DIFFERENTIAL_PROTEIN_AWARE_MODEL_METHODS:
+            raise WorkflowBoundaryError(
+                seam="differential.protein_aware_inputs.method",
+                next_action="select a supported protein-aware differential method",
+                details={"method": str(self.method_id)},
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if not isinstance(cast(object, self.base_design), DesignMatrix):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="base_design",
+                next_action=(
+                    "carry the validated ordinary design matrix with resolved "
+                    "protein-aware inputs"
+                ),
+            )
+        if not isinstance(cast(object, self.base_contrasts), ContrastMatrix):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="base_contrasts",
+                next_action=(
+                    "carry the validated ordinary contrast matrix with resolved "
+                    "protein-aware inputs"
+                ),
+            )
+        full_site_ids = tuple(str(value) for value in self.full_site_ids)
+        tested_site_ids = tuple(str(value) for value in self.tested_site_ids)
+        sample_order = tuple(str(value) for value in self.sample_order)
+        if not full_site_ids:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="site_ids",
+                next_action="carry the full phosphosite index with resolved inputs",
+            )
+        if len(set(full_site_ids)) != len(full_site_ids):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="site_ids",
+                next_action="carry unique full phosphosite identifiers",
+                details={"duplicate_full_site_ids": _duplicates(full_site_ids)[:5]},
+            )
+        if len(set(tested_site_ids)) != len(tested_site_ids):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="tested_site_ids",
+                next_action="carry unique tested phosphosite identifiers",
+                details={"duplicate_tested_site_ids": _duplicates(tested_site_ids)[:5]},
+            )
+        full_site_id_set = set(full_site_ids)
+        unexpected_tested_ids = [
+            site_id for site_id in tested_site_ids if site_id not in full_site_id_set
+        ]
+        if unexpected_tested_ids:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="tested_site_ids",
+                next_action="carry tested phosphosite identifiers from the full index",
+                details={"unexpected_tested_site_ids": unexpected_tested_ids[:5]},
+            )
+        tested_site_id_set = set(tested_site_ids)
+        expected_tested_order = tuple(
+            site_id for site_id in full_site_ids if site_id in tested_site_id_set
+        )
+        if tested_site_ids != expected_tested_order:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="tested_site_order",
+                next_action=(
+                    "preserve full-index phosphosite order when carrying tested "
+                    "protein-aware identifiers"
+                ),
+                details={
+                    "tested_site_ids": list(tested_site_ids),
+                    "expected_tested_site_ids": list(expected_tested_order),
+                },
+            )
+        if self.computation_request.sample_order != sample_order:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="sample_order",
+                next_action=(
+                    "carry one validated analysis sample order through the resolved "
+                    "artifact and computation request"
+                ),
+                details={
+                    "sample_order": list(sample_order),
+                    "computation_sample_order": list(
+                        self.computation_request.sample_order
+                    ),
+                },
+            )
+        if self.method_id != self.computation_request.method_id:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="method",
+                next_action=(
+                    "carry one supported protein-aware method through the resolved "
+                    "artifact and computation request"
+                ),
+                details={
+                    "method_id": str(self.method_id),
+                    "computation_method_id": str(self.computation_request.method_id),
+                },
+            )
+        preparation_policy = _require_non_empty_protein_aware_text(
+            self.preparation_policy,
+            seam="preparation_policy",
+            label="protein-aware preparation policy",
+        )
+        protein_mapping_policy = _require_non_empty_protein_aware_text(
+            self.protein_mapping_policy,
+            seam="protein_mapping_policy",
+            label="protein-aware mapping policy",
+        )
+
+        feature_metadata = pd.DataFrame(
+            self.feature_eligibility_inputs.feature_metadata,
+            copy=True,
+        )
+        result_status = pd.Series(
+            self.feature_eligibility_inputs.result_status,
+            copy=True,
+        )
+        feature_eligibility_inputs = DifferentialFeatureEligibilityInputs(
+            feature_metadata=feature_metadata,
+            result_status=result_status,
+            testable_feature_ids=tested_site_ids,
+            attach_to_result_tables=(
+                self.feature_eligibility_inputs.attach_to_result_tables
+            ),
+        )
+        matched_pairs = pd.DataFrame(self.matched_pairs, copy=True)
+        candidate_matched_pairs = pd.DataFrame(
+            self.candidate_matched_pairs,
+            copy=True,
+        )
+        resolved_protein_covariates = pd.DataFrame(
+            self.resolved_protein_covariates,
+            copy=True,
+        )
+        site_eligibility_metadata = pd.DataFrame(
+            self.site_eligibility_metadata,
+            copy=True,
+        )
+
+        _require_index_labels(
+            feature_eligibility_inputs.feature_metadata.index,
+            expected=full_site_ids,
+            seam="feature_eligibility_metadata",
+            label="feature eligibility metadata",
+        )
+        _require_index_labels(
+            feature_eligibility_inputs.result_status.index,
+            expected=full_site_ids,
+            seam="feature_eligibility_status",
+            label="feature eligibility result status",
+        )
+        if self.feature_eligibility_inputs.testable_feature_ids != tested_site_ids:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="feature_eligibility_tested_ids",
+                next_action=(
+                    "carry the same tested phosphosite identifiers in eligibility "
+                    "and computation inputs"
+                ),
+                details={
+                    "feature_testable_site_ids": list(
+                        self.feature_eligibility_inputs.testable_feature_ids
+                    ),
+                    "tested_site_ids": list(tested_site_ids),
+                },
+            )
+        _require_index_labels(
+            site_eligibility_metadata.index,
+            expected=full_site_ids,
+            seam="site_eligibility_metadata",
+            label="site eligibility metadata",
+        )
+        if not site_eligibility_metadata.equals(feature_metadata):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="site_eligibility_metadata",
+                next_action=(
+                    "carry the full-index protein-aware eligibility metadata used "
+                    "by feature eligibility"
+                ),
+            )
+        _require_index_labels(
+            self.computation_request.phosphosite_matrix.index,
+            expected=tested_site_ids,
+            seam="computation_phosphosite_matrix",
+            label="computation phosphosite matrix",
+        )
+        _require_index_labels(
+            self.computation_request.phosphosite_matrix.columns,
+            expected=sample_order,
+            seam="sample_order",
+            label="computation phosphosite matrix columns",
+        )
+        _require_index_labels(
+            self.computation_request.base_design.frame.index,
+            expected=sample_order,
+            seam="base_design",
+            label="base design rows",
+        )
+        _require_index_labels(
+            self.computation_request.resolved_protein_covariates.columns,
+            expected=sample_order,
+            seam="resolved_protein_covariates",
+            label="resolved protein covariate columns",
+        )
+        computation_design_frame = pd.DataFrame(
+            self.computation_request.base_design.frame,
+            copy=False,
+        )
+        base_design_frame = pd.DataFrame(self.base_design.frame, copy=False)
+        computation_contrast_frame = pd.DataFrame(
+            self.computation_request.base_contrasts.frame,
+            copy=False,
+        )
+        base_contrast_frame = pd.DataFrame(self.base_contrasts.frame, copy=False)
+        if not computation_design_frame.equals(base_design_frame):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="base_design",
+                next_action=(
+                    "carry the same ordinary design matrix into the resolved artifact "
+                    "and computation request"
+                ),
+            )
+        if not computation_contrast_frame.equals(base_contrast_frame):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="base_contrasts",
+                next_action=(
+                    "carry the same ordinary contrast matrix into the resolved "
+                    "artifact and computation request"
+                ),
+            )
+        if not self.computation_request.matched_pairs.equals(matched_pairs):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="matched_pairs",
+                next_action=(
+                    "carry the same tested site-to-protein matches into the resolved "
+                    "artifact and computation request"
+                ),
+            )
+        if not self.computation_request.resolved_protein_covariates.equals(
+            resolved_protein_covariates
+        ):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="resolved_protein_covariates",
+                next_action=(
+                    "carry the same resolved protein covariates into the resolved "
+                    "artifact and computation request"
+                ),
+            )
+        matched_site_ids = _frame_column_strings(
+            matched_pairs,
+            "site_key",
+            seam="matched_pairs",
+        )
+        if matched_site_ids != tested_site_ids:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="matched_pairs",
+                next_action=(
+                    "align tested matched pairs one-to-one with tested phosphosite "
+                    "identifiers"
+                ),
+                details={
+                    "matched_pair_site_ids": list(matched_site_ids),
+                    "tested_site_ids": list(tested_site_ids),
+                },
+            )
+        candidate_site_ids = _frame_column_strings(
+            candidate_matched_pairs,
+            "site_key",
+            seam="candidate_matched_pairs",
+        )
+        if len(set(candidate_site_ids)) != len(candidate_site_ids):
+            _raise_protein_aware_resolved_inputs_error(
+                seam="candidate_matched_pairs",
+                next_action="carry candidate matched pairs with unique site_key values",
+                details={
+                    "duplicate_candidate_site_ids": _duplicates(candidate_site_ids)[:5]
+                },
+            )
+        unexpected_candidate_ids = [
+            site_id for site_id in candidate_site_ids if site_id not in full_site_id_set
+        ]
+        if unexpected_candidate_ids:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="candidate_matched_pairs",
+                next_action="carry candidate matched pairs from the full site index",
+                details={"unexpected_candidate_site_ids": unexpected_candidate_ids[:5]},
+            )
+        candidate_site_id_set = set(candidate_site_ids)
+        expected_candidate_order = tuple(
+            site_id for site_id in full_site_ids if site_id in candidate_site_id_set
+        )
+        if candidate_site_ids != expected_candidate_order:
+            _raise_protein_aware_resolved_inputs_error(
+                seam="candidate_matched_pairs",
+                next_action=(
+                    "preserve full-index phosphosite order when carrying candidate "
+                    "matched pairs"
+                ),
+                details={
+                    "candidate_site_ids": list(candidate_site_ids),
+                    "expected_candidate_site_ids": list(expected_candidate_order),
+                },
+            )
+        tested_total_row_keys = _frame_column_strings(
+            matched_pairs,
+            "total_protein_row_key",
+            seam="matched_pairs",
+        )
+        expected_covariate_index = tuple(dict.fromkeys(tested_total_row_keys))
+        _require_index_labels(
+            resolved_protein_covariates.index,
+            expected=expected_covariate_index,
+            seam="resolved_protein_covariates",
+            label="resolved protein covariate rows",
+        )
+        object.__setattr__(self, "full_site_ids", full_site_ids)
+        object.__setattr__(self, "tested_site_ids", tested_site_ids)
+        object.__setattr__(self, "sample_order", sample_order)
+        object.__setattr__(
+            self,
+            "feature_eligibility_inputs",
+            feature_eligibility_inputs,
+        )
+        object.__setattr__(
+            self,
+            "matched_pairs",
+            matched_pairs,
+        )
+        object.__setattr__(
+            self,
+            "candidate_matched_pairs",
+            candidate_matched_pairs,
+        )
+        object.__setattr__(
+            self,
+            "resolved_protein_covariates",
+            resolved_protein_covariates,
+        )
+        object.__setattr__(
+            self,
+            "site_eligibility_metadata",
+            site_eligibility_metadata,
+        )
+        object.__setattr__(
+            self,
+            "eligibility_counts",
+            tuple((str(name), int(count)) for name, count in self.eligibility_counts),
+        )
+        object.__setattr__(
+            self,
+            "status_counts",
+            tuple((str(status), int(count)) for status, count in self.status_counts),
+        )
+        object.__setattr__(
+            self,
+            "reason_counts",
+            tuple((str(reason), int(count)) for reason, count in self.reason_counts),
+        )
+        object.__setattr__(self, "preparation_policy", preparation_policy)
+        object.__setattr__(self, "protein_mapping_policy", protein_mapping_policy)
+
+
+def _require_index_labels(
+    index: pd.Index,
+    *,
+    expected: tuple[str, ...],
+    seam: str,
+    label: str,
+) -> None:
+    actual = tuple(str(value) for value in index.tolist())
+    if actual == expected:
+        return
+    _raise_protein_aware_resolved_inputs_error(
+        seam=seam,
+        next_action=f"align {label} with resolved protein-aware inputs",
+        details={"actual": list(actual), "expected": list(expected)},
+    )
+
+
+def _frame_column_strings(
+    frame: pd.DataFrame,
+    column: str,
+    *,
+    seam: str,
+) -> tuple[str, ...]:
+    if column not in frame.columns:
+        _raise_protein_aware_resolved_inputs_error(
+            seam=seam,
+            next_action=f"carry a {column!r} column in resolved protein-aware inputs",
+        )
+    return tuple(str(value) for value in frame.loc[:, column].tolist())
+
+
+def _duplicates(values: tuple[str, ...]) -> list[str]:
+    return [value for value in dict.fromkeys(values) if values.count(value) > 1]
+
+
+def _require_non_empty_protein_aware_text(
+    value: object,
+    *,
+    seam: str,
+    label: str,
+) -> str:
+    if value is None:
+        _raise_protein_aware_resolved_inputs_error(
+            seam=seam,
+            next_action=f"carry a non-empty {label} with resolved inputs",
+        )
+    text = str(value).strip()
+    if not text:
+        _raise_protein_aware_resolved_inputs_error(
+            seam=seam,
+            next_action=f"carry a non-empty {label} with resolved inputs",
+        )
+    return text
+
+
+def _raise_protein_aware_resolved_inputs_error(
+    *,
+    seam: str,
+    next_action: str,
+    details: dict[str, object] | None = None,
+) -> NoReturn:
+    raise WorkflowBoundaryError(
+        seam=f"differential.protein_aware_inputs.{seam}",
+        next_action=next_action,
+        details=details,
+        message_prefix="differential workflow boundary validation failed",
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class InterpretedDifferentialAnalysisRequest:
     """Execution-ready differential request produced by interpretation."""
 
@@ -568,5 +1045,6 @@ __all__ = [
     "DifferentialTechnicalReplicatePlannerContract",
     "DifferentialAnalysisValidatorContract",
     "InterpretedDifferentialAnalysisRequest",
+    "ProteinAwareDifferentialResolvedInputs",
     "ValidatedDifferentialAnalysisRequest",
 ]

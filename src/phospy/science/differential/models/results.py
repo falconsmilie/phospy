@@ -31,6 +31,7 @@ from phospy.science.differential.models.diagnostics import (
     DifferentialModelDiagnostics,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+    ProteinAwareDifferentialDiagnostics,
 )
 from phospy.science.differential.models.provenance import DifferentialPolicyProvenance
 from phospy.science.differential.models.tables import (
@@ -75,6 +76,7 @@ class DifferentialAnalysisResult:
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
     diagnostics: DifferentialModelDiagnostics
+    protein_aware_diagnostics: ProteinAwareDifferentialDiagnostics | None
     policy_provenance: DifferentialPolicyProvenance | None
     workflow_provenance: Mapping[str, object] | None
     caveats: tuple[ResultCaveat, ...]
@@ -104,6 +106,7 @@ class DifferentialAnalysisResult:
         caveats: tuple[ResultCaveat, ...] = (),
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
+        protein_aware_diagnostics: ProteinAwareDifferentialDiagnostics | None = None,
     ) -> None:
         self._init_differential_result(
             residual_variance=residual_variance,
@@ -127,6 +130,7 @@ class DifferentialAnalysisResult:
             caveats=caveats,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
             feature_eligibility=feature_eligibility,
+            protein_aware_diagnostics=protein_aware_diagnostics,
             assume_owned=False,
         )
 
@@ -152,6 +156,7 @@ class DifferentialAnalysisResult:
         caveats: tuple[ResultCaveat, ...] = (),
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
+        protein_aware_diagnostics: ProteinAwareDifferentialDiagnostics | None = None,
         assume_owned: bool,
     ) -> None:
         residual_variance = own_series(
@@ -241,6 +246,23 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.diagnostics must be DifferentialModelDiagnostics"
             )
+        if protein_aware_diagnostics is not None and not isinstance(
+            cast(object, protein_aware_diagnostics),
+            ProteinAwareDifferentialDiagnostics,
+        ):
+            raise PhosPyInputError(
+                "differential_result.protein_aware_diagnostics must be "
+                "ProteinAwareDifferentialDiagnostics or None"
+            )
+        if protein_aware_diagnostics is not None:
+            protein_aware_index = (
+                protein_aware_diagnostics.per_site_diagnostics_dataframe().index
+            )
+            if not protein_aware_index.equals(residual_variance.index):
+                raise PhosPyInputError(
+                    "differential_result.protein_aware_diagnostics "
+                    "per-site diagnostics index must match matrix feature index"
+                )
         frozen_workflow_provenance = freeze_optional_json_mapping(
             workflow_provenance,
             field_name="differential_result.workflow_provenance",
@@ -327,6 +349,11 @@ class DifferentialAnalysisResult:
             mean_variance_trend_diagnostics,
         )
         object.__setattr__(self, "diagnostics", diagnostics)
+        object.__setattr__(
+            self,
+            "protein_aware_diagnostics",
+            protein_aware_diagnostics,
+        )
         object.__setattr__(self, "policy_provenance", policy_provenance)
         object.__setattr__(
             self,
@@ -359,6 +386,11 @@ class DifferentialAnalysisResult:
             return None
         return export_dataframe(self._feature_eligibility)
 
+    def protein_aware_site_diagnostics_dataframe(self) -> pd.DataFrame | None:
+        if self.protein_aware_diagnostics is None:
+            return None
+        return self.protein_aware_diagnostics.per_site_diagnostics_dataframe()
+
     def table_for(self, contrast_name: str) -> pd.DataFrame:
         if contrast_name not in self._contrast_tables:
             available = ", ".join(sorted(self._contrast_tables))
@@ -385,6 +417,15 @@ class DifferentialAnalysisResult:
         return {
             "caveats": [caveat.to_payload() for caveat in self.caveats],
             "diagnostics": self.diagnostics.to_payload(),
+            **(
+                {}
+                if self.protein_aware_diagnostics is None
+                else {
+                    "protein_aware_diagnostics": (
+                        self.protein_aware_diagnostics.to_payload()
+                    )
+                }
+            ),
             "workflow_provenance": (
                 None
                 if self.workflow_provenance is None
@@ -459,6 +500,10 @@ class DifferentialAnalysisResult:
                 other.mean_variance_trend_diagnostics,
             )
             and self.diagnostics == other.diagnostics
+            and _optional_protein_aware_diagnostics_equals(
+                self.protein_aware_diagnostics,
+                other.protein_aware_diagnostics,
+            )
             and self.policy_provenance == other.policy_provenance
             and self.caveats == other.caveats
             and _optional_preprocessing_report_equals(
@@ -503,6 +548,7 @@ class DifferentialAnalysisResult:
         caveats: tuple[ResultCaveat, ...] = (),
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
+        protein_aware_diagnostics: ProteinAwareDifferentialDiagnostics | None = None,
     ) -> DifferentialAnalysisResult:
         """Construct from already-owned tables at trusted workflow boundaries."""
 
@@ -526,6 +572,7 @@ class DifferentialAnalysisResult:
             caveats=caveats,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
             feature_eligibility=feature_eligibility,
+            protein_aware_diagnostics=protein_aware_diagnostics,
         )
 
     @classmethod
@@ -551,6 +598,7 @@ class DifferentialAnalysisResult:
         caveats: tuple[ResultCaveat, ...] = (),
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
+        protein_aware_diagnostics: ProteinAwareDifferentialDiagnostics | None = None,
     ) -> DifferentialAnalysisResult:
         result = object.__new__(cls)
         DifferentialAnalysisResult._init_differential_result(
@@ -574,6 +622,7 @@ class DifferentialAnalysisResult:
             caveats=caveats,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
             feature_eligibility=feature_eligibility,
+            protein_aware_diagnostics=protein_aware_diagnostics,
             assume_owned=True,
         )
         return result
@@ -595,6 +644,15 @@ def _is_dataset_preprocessing_report(value: object) -> bool:
 def _optional_trend_diagnostics_equals(
     left: MeanVarianceTrendDiagnostics | None,
     right: MeanVarianceTrendDiagnostics | None,
+) -> bool:
+    if left is None or right is None:
+        return left is right
+    return left.scientifically_equals(right)
+
+
+def _optional_protein_aware_diagnostics_equals(
+    left: ProteinAwareDifferentialDiagnostics | None,
+    right: ProteinAwareDifferentialDiagnostics | None,
 ) -> bool:
     if left is None or right is None:
         return left is right

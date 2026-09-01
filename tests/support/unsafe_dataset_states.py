@@ -14,7 +14,10 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset
-from phospy.science.transformations.models import IntensityScaleState
+from phospy.science.transformations.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 
 
 def unsafe_corrupt_dataset_to_display_index(
@@ -97,11 +100,45 @@ def unsafe_replace_dataset_intensity_scale_state(
     object.__setattr__(dataset, "intensity_scale_state", intensity_scale_state)
 
 
+def unsafe_remove_dataset_total_matrix(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> None:
+    object.__setattr__(dataset, "_total", None)
+
+
+def unsafe_replace_dataset_phospho_scale_state(
+    dataset: AnalysisReadyPhosphoDataset,
+    phospho_scale_state: MatrixIntensityScaleState,
+) -> None:
+    object.__setattr__(dataset.intensity_scale_state, "phospho", phospho_scale_state)
+
+
+def unsafe_replace_dataset_total_scale_state(
+    dataset: AnalysisReadyPhosphoDataset,
+    total_scale_state: MatrixIntensityScaleState,
+) -> None:
+    object.__setattr__(dataset.intensity_scale_state, "total", total_scale_state)
+
+
+def unsafe_mark_dataset_total_protein_correction_applied(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> None:
+    object.__setattr__(
+        dataset.processing_state.total_protein_correction,
+        "applied",
+        True,
+    )
+
+
 __all__ = [
     "unsafe_corrupt_dataset_to_display_index",
     "unsafe_drop_dataset_site_metadata_columns",
+    "unsafe_mark_dataset_total_protein_correction_applied",
+    "unsafe_remove_dataset_total_matrix",
     "unsafe_replace_dataset_intensity_scale_state",
+    "unsafe_replace_dataset_phospho_scale_state",
     "unsafe_replace_dataset_site_metadata",
+    "unsafe_replace_dataset_total_scale_state",
     "unsafe_reverse_dataset_site_metadata_index",
     "unsafe_set_dataset_site_metadata_columns",
     "unsafe_set_dataset_site_metadata_index",

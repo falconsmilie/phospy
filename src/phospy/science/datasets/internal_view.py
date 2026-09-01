@@ -6,6 +6,9 @@ from collections.abc import Sequence
 
 import pandas as pd
 
+from phospy.science.datasets.construction.protein_aware_binding import (
+    validate_protein_aware_preparation_binding,
+)
 from phospy.science.datasets.internal_frame_store import DatasetInternalFrameStore
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.protein_aware_models import (
@@ -78,6 +81,17 @@ class DatasetInternalView:
         if preparation is None:
             return None
         return ProteinAwarePreparationInternalView(preparation)
+
+    def validate_protein_aware_preparation_binding(self) -> None:
+        """Raise if the attached protein-aware sidecar no longer matches the dataset."""
+
+        validate_protein_aware_preparation_binding(
+            phospho=self.phospho,
+            site_metadata=self.site_metadata,
+            total=self.total,
+            preprocessing_report=self._dataset.preprocessing_report,
+            protein_aware_preparation=self._dataset.protein_aware_preparation,
+        )
 
     def imputation_observation_summary(
         self,

@@ -51,8 +51,22 @@ _FORBIDDEN_DIFFERENTIAL_PREPARATION_TOKENS = (
     "ProteinAwarePreparationResult",
     "ProteinAwarePreparationReport",
     "ProteinAwarePreparationStage",
-    "protein_aware_preparation",
-    "protein_covariate_matrix",
+    "ProteinAwareAlignmentEligibilityResolver",
+    "ProteinMappingResolver",
+    "ProteinMappingConfig",
+    "ProteinMappingResult",
+    "ProteinMappingRecord",
+)
+_FORBIDDEN_DIFFERENTIAL_PREPARATION_MODULE_FRAGMENTS = (
+    "phospy.science.datasets.preprocessing.stages.protein_aware_preparation",
+    "phospy.science.datasets.preprocessing.protein_mapping import",
+)
+_FORBIDDEN_DIFFERENTIAL_PREPARATION_MUTATION_TOKENS = (
+    'object.__setattr__(preparation, "_protein_covariate_matrix"',
+    'object.__setattr__(preparation, "_matched_pairs"',
+    "._protein_covariate_matrix",
+    "._matched_pairs",
+    "protein_aware_preparation=",
 )
 
 
@@ -782,14 +796,18 @@ def test_differential_domains_do_not_import_or_own_protein_aware_preparation() -
     for directory in _DIFFERENTIAL_CODE_DIRS:
         for path in directory.rglob("*.py"):
             source = path.read_text(encoding="utf-8")
-            for token in _FORBIDDEN_DIFFERENTIAL_PREPARATION_TOKENS:
+            for token in (
+                _FORBIDDEN_DIFFERENTIAL_PREPARATION_TOKENS
+                + _FORBIDDEN_DIFFERENTIAL_PREPARATION_MODULE_FRAGMENTS
+                + _FORBIDDEN_DIFFERENTIAL_PREPARATION_MUTATION_TOKENS
+            ):
                 if token not in source:
                     continue
                 relative_path = path.relative_to(ROOT).as_posix()
                 violations.append(f"{relative_path}: contains {token!r}")
 
     assert not violations, (
-        "protein-aware preparation must stay in dataset preprocessing/building "
-        "domains and must not move into differential workflow or result code:\n"
-        + "\n".join(violations)
+        "protein-aware preparation and mapping implementation must stay in dataset "
+        "preprocessing/building domains; differential may only consume the "
+        "dataset-owned typed sidecar view:\n" + "\n".join(violations)
     )
