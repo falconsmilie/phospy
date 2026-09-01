@@ -85,6 +85,7 @@ tests/release/test_release_gate_policy.py,release,2388,40,true,true,,,,,,[auto-o
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,172,6,true,false,,,,,,
 tests/science/test_differential_adverse_design_contracts.py,science,371,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/science/test_differential_protein_aware_scientific_validation.py,science,1657,12,true,true,,,,,,
 tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
 tests/science/test_evidence_resolution_regression_fixtures.py,science,153,5,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
