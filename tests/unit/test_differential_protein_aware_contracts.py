@@ -166,11 +166,11 @@ def test_resolved_execution_config_carries_normalized_protein_aware_method() -> 
     )
 
 
-def test_selected_protein_aware_workflow_lane_fails_until_activation() -> None:
+def test_selected_protein_aware_workflow_lane_requires_dataset_sidecar() -> None:
     with pytest.raises(
         WorkflowBoundaryError,
-        match="differential protein-aware model is not yet executable",
-    ) as exc_info:
+        match="differential.protein_aware_inputs.sidecar_missing",
+    ):
         DifferentialAnalysisWorkflow().run(
             DifferentialAnalysisRequest(
                 dataset=_public_dataset(),
@@ -181,8 +181,6 @@ def test_selected_protein_aware_workflow_lane_fails_until_activation() -> None:
                 ),
             )
         )
-
-    assert exc_info.value.details["method"] == METHOD_ID
 
 
 @pytest.mark.parametrize(

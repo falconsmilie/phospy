@@ -45,6 +45,9 @@ from phospy.workflows.differential.models import (
     ResolvedDifferentialExecutionConfig,
     ValidatedDifferentialAnalysisRequest,
 )
+from phospy.workflows.differential.protein_aware_inputs import (
+    ProteinAwareDifferentialInputResolver,
+)
 from phospy.workflows.differential.provenance import (
     build_differential_policy_provenance,
 )
@@ -72,6 +75,8 @@ class DifferentialAnalysisInterpreter:
         pre_fit_eligibility_resolver: DifferentialPreFitEligibilityResolver
         | None = None,
         execution_design_assembler: DifferentialExecutionDesignAssembler | None = None,
+        protein_aware_input_resolver: ProteinAwareDifferentialInputResolver
+        | None = None,
     ) -> None:
         self._design_validator: DifferentialDesignValidatorContract = (
             design_validator or ExperimentalDesignContractValidator()
@@ -84,6 +89,9 @@ class DifferentialAnalysisInterpreter:
         )
         self._execution_design_assembler = (
             execution_design_assembler or DifferentialExecutionDesignAssembler()
+        )
+        self._protein_aware_input_resolver = (
+            protein_aware_input_resolver or ProteinAwareDifferentialInputResolver()
         )
 
     def run(
@@ -100,18 +108,9 @@ class DifferentialAnalysisInterpreter:
         resolved_workflow_provenance = request.workflow_provenance
         resolved_design_build_result = request.design_build_result
         execution_config = _resolve_execution_config(request.config)
+        protein_aware_inputs = None
         if execution_config.protein_aware_method is not None:
-            raise WorkflowBoundaryError(
-                seam="differential.interpreter.protein_aware_model_not_executable",
-                next_action=(
-                    "run ordinary differential analysis without protein_aware_model "
-                    "until protein-aware workflow activation is implemented"
-                ),
-                details={"method": execution_config.protein_aware_method},
-                message_prefix=(
-                    "differential protein-aware model is not yet executable"
-                ),
-            )
+            protein_aware_inputs = self._protein_aware_input_resolver.run(request)
 
         if aggregation_plan is not None and aggregation_plan.requires_aggregation:
             technical_replicate_resolution = self._technical_replicate_aggregator.run(
@@ -316,6 +315,7 @@ class DifferentialAnalysisInterpreter:
             execution_design=execution_design,
             imputation_policy_inputs=imputation_policy_inputs,
             feature_eligibility_inputs=feature_eligibility_inputs,
+            protein_aware_inputs=protein_aware_inputs,
             normalisation_state=_normalisation_state_label(resolved_dataset),
             ruv_readiness_enabled=ruv_readiness_enabled,
             ruv_readiness_ready=ruv_readiness_ready,

@@ -31,7 +31,11 @@ from phospy.api.results import DifferentialAnalysisResult
 from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.errors import (
+    PhosPyInputError,
+    WorkflowBoundaryError,
+    WorkflowValidationError,
+)
 from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.serialization.tables import table_fingerprint_to_payload
 from phospy.science.configs.differential import (
@@ -473,6 +477,14 @@ def _validated_protein_aware_request(
     )
 
 
+def _interpreted_protein_aware_request(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> InterpretedDifferentialAnalysisRequest:
+    return DifferentialAnalysisInterpreter().run(
+        _validated_protein_aware_request(dataset)
+    )
+
+
 def _preparation_report_with(
     report: ProteinAwarePreparationReport,
     *,
@@ -704,14 +716,118 @@ def test_differential_workflow_does_not_consume_protein_aware_preparation_result
     assert "protein_aware" not in repr(prepared_result.policy_provenance).lower()
 
 
-def test_protein_aware_public_workflow_branch_remains_inactive() -> None:
+def test_protein_aware_public_workflow_branch_runs_end_to_end() -> None:
     dataset, _ = _dataset_with_protein_aware_preparation()
+
+    result = DifferentialAnalysisWorkflow().run(_protein_aware_request(dataset))
+
+    diagnostics = result.protein_aware_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.method_id == DifferentialProteinAwareModelConfig().method
+    assert diagnostics.tested_site_count == 3
+    assert diagnostics.withheld_site_count == 0
+    assert diagnostics.execution_sample_order == ("A_1", "A_2", "B_1", "B_2")
+    assert diagnostics.protein_covariate_centered is True
+    assert diagnostics.protein_covariate_standardized is False
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.protein_aware is not None
+
+    table = result.table_for("B_vs_A")
+    assert (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN].tolist()
+        == [DIFFERENTIAL_RESULT_STATUS_TESTED] * 3
+    )
+    assert table.loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]].notna().all().all()
+
+
+def test_interpreted_request_rejects_inconsistent_protein_aware_boundary_state() -> (
+    None
+):
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    interpreted = _interpreted_protein_aware_request(dataset)
+    resolved_inputs = interpreted.protein_aware_inputs
+    assert resolved_inputs is not None
+
+    ordinary_execution_config = replace(
+        interpreted.execution_config,
+        protein_aware_method=None,
+    )
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.interpreter.unselected_protein_aware_inputs",
+    ):
+        replace(interpreted, execution_config=ordinary_execution_config)
 
     with pytest.raises(
         WorkflowBoundaryError,
-        match="differential.interpreter.protein_aware_model_not_executable",
+        match="differential.interpreter.protein_aware_inputs",
     ):
-        DifferentialAnalysisWorkflow().run(_protein_aware_request(dataset))
+        replace(interpreted, protein_aware_inputs=None)
+
+    object.__setattr__(resolved_inputs, "method_id", "mismatched_method_for_test")
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.interpreter.protein_aware_method",
+    ) as exc_info:
+        replace(interpreted, protein_aware_inputs=resolved_inputs)
+
+    assert exc_info.value.details == {
+        "execution_method": DifferentialProteinAwareModelConfig().method,
+        "resolved_method": "mismatched_method_for_test",
+    }
+
+
+def test_protein_aware_executor_translates_kernel_input_errors_with_diagnostics() -> (
+    None
+):
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    interpreted = _interpreted_protein_aware_request(dataset)
+
+    class _FailingProteinAwareKernel:
+        def run(self, request: object) -> object:
+            raise PhosPyInputError(
+                "protein-aware kernel rejected trusted test input",
+                diagnostics={
+                    "site_failure_diagnostics": pd.DataFrame(
+                        {
+                            DIFFERENTIAL_RESULT_STATUS_COLUMN: [
+                                DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID
+                            ],
+                            DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN: [
+                                DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE
+                            ],
+                        },
+                        index=pd.Index(["site_a"], name="site_key"),
+                    ),
+                    "augmented_design_failure_diagnostics": pd.DataFrame(
+                        {"failure_message": ["zero-variance protein covariate"]},
+                        index=pd.Index(["protein_a"], name="total_protein_row_key"),
+                    ),
+                },
+            )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.executor.protein_aware_fit",
+    ) as exc_info:
+        DifferentialAnalysisExecutor(
+            protein_aware_kernel=_FailingProteinAwareKernel(),  # type: ignore[arg-type]
+        ).run(interpreted)
+
+    assert exc_info.value.next_action is not None
+    assert "protein-aware eligible phosphosite" in exc_info.value.next_action
+    assert exc_info.value.details == {
+        "error": "protein-aware kernel rejected trusted test input",
+        "diagnostics_type": "dict",
+        "diagnostic_keys": (
+            "site_failure_diagnostics",
+            "augmented_design_failure_diagnostics",
+        ),
+        "diagnostic_row_counts": {
+            "site_failure_diagnostics": 1,
+            "augmented_design_failure_diagnostics": 1,
+        },
+    }
 
 
 def test_protein_aware_input_resolver_builds_execution_request_from_sidecar() -> None:

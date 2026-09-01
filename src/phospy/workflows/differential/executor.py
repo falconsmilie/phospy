@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import cast
 
 from phospy.contracts.configs.differential import (
@@ -16,6 +17,9 @@ from phospy.science.differential.executor import (
     DuplicateCorrelationDifferentialAnalysisExecutor,
 )
 from phospy.science.differential.models import DifferentialAnalysisResult
+from phospy.science.differential.protein_covariate_adjusted import (
+    ProteinCovariateAdjustedDifferentialKernel,
+)
 from phospy.workflows.differential.eligibility import (
     DifferentialComputationEligibilityResolver,
     DifferentialPostFitEligibilityResolver,
@@ -43,6 +47,7 @@ class DifferentialAnalysisExecutor:
         duplicate_correlation_executor: (
             DuplicateCorrelationDifferentialAnalysisExecutor | None
         ) = None,
+        protein_aware_kernel: ProteinCovariateAdjustedDifferentialKernel | None = None,
         result_assembler: DifferentialResultAssembler | None = None,
         provenance_assembler: DifferentialWorkflowProvenanceAssembler | None = None,
     ) -> None:
@@ -58,6 +63,9 @@ class DifferentialAnalysisExecutor:
         self._duplicate_correlation_executor = (
             duplicate_correlation_executor
             or DuplicateCorrelationDifferentialAnalysisExecutor()
+        )
+        self._protein_aware_kernel = (
+            protein_aware_kernel or ProteinCovariateAdjustedDifferentialKernel()
         )
         self._result_assembler = result_assembler or DifferentialResultAssembler()
         self._provenance_assembler = (
@@ -77,6 +85,9 @@ class DifferentialAnalysisExecutor:
                 ),
                 message_prefix="differential workflow boundary validation failed",
             )
+
+        if request.execution_config.protein_aware_method is not None:
+            return self._run_protein_aware(request)
 
         eligibility = self._eligibility_resolver.run(request)
         duplicate_correlation_provenance = None
@@ -142,6 +153,103 @@ class DifferentialAnalysisExecutor:
             workflow_provenance=workflow_provenance,
             duplicate_correlation=duplicate_correlation_provenance,
         )
+
+    def _run_protein_aware(
+        self,
+        request: InterpretedDifferentialAnalysisRequest,
+    ) -> DifferentialAnalysisResult:
+        resolved_inputs = request.protein_aware_inputs
+        if resolved_inputs is None:
+            raise WorkflowBoundaryError(
+                seam="differential.executor.protein_aware_inputs",
+                next_action=(
+                    "pass interpreter output with resolved protein-aware inputs into "
+                    "DifferentialAnalysisExecutor.run"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        if (
+            request.execution_config.paired_design_policy
+            == PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.executor.protein_aware_duplicate_correlation",
+                next_action=(
+                    "use fixed_block for paired protein-aware differential analysis; "
+                    "duplicate-correlation modelling is not supported for "
+                    "protein-aware adjustment"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        try:
+            computation_result = self._protein_aware_kernel.run(
+                resolved_inputs.computation_request
+            )
+        except PhosPyInputError as error:
+            raise WorkflowBoundaryError(
+                seam="differential.executor.protein_aware_fit",
+                next_action=(
+                    "provide at least one protein-aware eligible phosphosite with "
+                    "usable matched total-protein covariates and an admissible "
+                    "augmented design"
+                ),
+                details=_protein_aware_fit_error_details(error),
+                message_prefix="differential protein-aware fitting failed",
+            ) from error
+
+        failed_site_ids = tuple(
+            str(value)
+            for value in computation_result.site_failure_diagnostics.index.tolist()
+        )
+        workflow_provenance = self._provenance_assembler.run(
+            workflow_provenance=request.workflow_provenance,
+            input_feature_ids=resolved_inputs.full_site_ids,
+            model_fit_feature_ids=resolved_inputs.tested_site_ids,
+            failed_model_fit_feature_ids=failed_site_ids,
+            multiple_testing_feature_ids=tuple(
+                str(value) for value in computation_result.tested_site_ids
+            ),
+            imputation_policy_inputs=request.imputation_policy_inputs,
+            feature_eligibility_inputs=resolved_inputs.feature_eligibility_inputs,
+        )
+        return self._result_assembler.run_protein_aware(
+            request=request,
+            resolved_inputs=resolved_inputs,
+            computation_result=computation_result,
+            workflow_provenance=workflow_provenance,
+        )
+
+
+def _protein_aware_fit_error_details(error: PhosPyInputError) -> dict[str, object]:
+    details: dict[str, object] = {"error": str(error)}
+    diagnostics = error.diagnostics
+    if diagnostics is None:
+        return details
+    details["diagnostics_type"] = type(diagnostics).__name__
+    if not isinstance(diagnostics, Mapping):
+        return details
+
+    diagnostic_mapping = cast(Mapping[object, object], diagnostics)
+    details["diagnostic_keys"] = tuple(str(key) for key in diagnostic_mapping)
+    row_counts: dict[str, int] = {}
+    for key, value in diagnostic_mapping.items():
+        row_count = _diagnostic_row_count(value)
+        if row_count is not None:
+            row_counts[str(key)] = row_count
+    if row_counts:
+        details["diagnostic_row_counts"] = row_counts
+    return details
+
+
+def _diagnostic_row_count(value: object) -> int | None:
+    shape = getattr(value, "shape", None)
+    if not isinstance(shape, tuple) or not shape:
+        return None
+    shape_tuple = cast(tuple[object, ...], shape)
+    row_count = shape_tuple[0]
+    if not isinstance(row_count, int):
+        return None
+    return int(row_count)
 
 
 __all__ = ["DifferentialAnalysisExecutor"]

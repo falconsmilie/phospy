@@ -1037,6 +1037,7 @@ class InterpretedDifferentialAnalysisRequest:
     execution_design: DifferentialExecutionDesignInputs | None = None
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None
     feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None
+    protein_aware_inputs: ProteinAwareDifferentialResolvedInputs | None = None
     normalisation_state: str = "not_recorded"
     ruv_readiness_enabled: bool = False
     ruv_readiness_ready: bool = False
@@ -1088,6 +1089,50 @@ class InterpretedDifferentialAnalysisRequest:
                     "derive interpreted residual degrees of freedom from the "
                     "shared design decomposition"
                 ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        protein_aware_inputs = self.protein_aware_inputs
+        if self.execution_config.protein_aware_method is None:
+            if protein_aware_inputs is not None:
+                raise WorkflowBoundaryError(
+                    seam="differential.interpreter.unselected_protein_aware_inputs",
+                    next_action=(
+                        "only carry protein-aware resolved inputs when "
+                        "DifferentialAnalysisConfig.protein_aware_model is selected"
+                    ),
+                    message_prefix="differential workflow boundary validation failed",
+                )
+            return
+        if not isinstance(
+            cast(object, protein_aware_inputs),
+            ProteinAwareDifferentialResolvedInputs,
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.protein_aware_inputs",
+                next_action=(
+                    "resolve protein-aware inputs before executing the selected "
+                    "protein-aware differential method"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        resolved_protein_aware_inputs = cast(
+            ProteinAwareDifferentialResolvedInputs,
+            protein_aware_inputs,
+        )
+        if (
+            resolved_protein_aware_inputs.method_id
+            != self.execution_config.protein_aware_method
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.protein_aware_method",
+                next_action=(
+                    "carry the same protein-aware method from configuration through "
+                    "input resolution"
+                ),
+                details={
+                    "execution_method": str(self.execution_config.protein_aware_method),
+                    "resolved_method": str(resolved_protein_aware_inputs.method_id),
+                },
                 message_prefix="differential workflow boundary validation failed",
             )
 
