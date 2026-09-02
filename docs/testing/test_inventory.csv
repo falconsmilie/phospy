@@ -95,7 +95,7 @@ tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,
 tests/science/test_signalome_safety_regression_fixtures.py,science,177,6,true,false,,,,,,
 tests/unit/api/test_api_compatibility_deprecations.py,api,165,5,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_api_deprecation_governance.py,api,935,22,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
-tests/unit/api/test_api_stability_tiers.py,api,200,13,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
+tests/unit/api/test_api_stability_tiers.py,api,205,13,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/unit/api/test_public_api_dataset_construction.py,api,204,5,false,false,,,,,,
 tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
@@ -172,7 +172,7 @@ tests/unit/test_differential_result_contract.py,unit,1001,33,false,false,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,147,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,887,19,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_differential_workflow_components.py,unit,2345,61,true,true,,,,,,[auto-orchestration] 19 hit(s); indicators: private_member_access
+tests/unit/test_differential_workflow_components.py,unit,2427,62,true,true,,,,,,[auto-orchestration] 19 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,250,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,828,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,
@@ -247,7 +247,7 @@ tests/unit/test_preprocessing_stage_registry.py,unit,978,32,false,false,public A
 tests/unit/test_preprocessing_stage_results.py,unit,1642,41,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage results and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_processing_state_bundle_payload.py,unit,1074,26,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for processing state bundle payload, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_processing_state_import_contract.py,unit,71,2,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for processing state import contract and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_protein_aware_preparation_boundary.py,unit,813,24,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_protein_aware_preparation_boundary.py,unit,982,24,false,false,,,,,,
 tests/unit/test_protein_aware_preparation_config.py,unit,100,6,false,false,,,,,,
 tests/unit/test_protein_aware_preparation_result.py,unit,285,9,false,false,,,,,,
 tests/unit/test_protein_aware_preparation_stage.py,unit,266,5,false,false,,,,,,

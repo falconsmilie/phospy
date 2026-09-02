@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
@@ -47,26 +48,52 @@ _DIFFERENTIAL_CODE_DIRS = (
     ROOT / "src" / "phospy" / "workflows" / "differential",
     ROOT / "src" / "phospy" / "science" / "differential",
 )
-_FORBIDDEN_DIFFERENTIAL_PREPARATION_TOKENS = (
-    "ProteinAwarePreparationResult",
-    "ProteinAwarePreparationReport",
-    "ProteinAwarePreparationStage",
-    "ProteinAwareAlignmentEligibilityResolver",
-    "ProteinMappingResolver",
-    "ProteinMappingConfig",
-    "ProteinMappingResult",
-    "ProteinMappingRecord",
-)
-_FORBIDDEN_DIFFERENTIAL_PREPARATION_MODULE_FRAGMENTS = (
+_FORBIDDEN_DIFFERENTIAL_OWNER_MODULE_PREFIXES = (
+    "phospy.science.datasets.construction",
+    "phospy.science.datasets.preprocessing.pipeline",
+    "phospy.science.datasets.preprocessing.plan",
+    "phospy.science.datasets.preprocessing.plan_",
+    "phospy.science.datasets.preprocessing.stage_",
     "phospy.science.datasets.preprocessing.stages.protein_aware_preparation",
-    "phospy.science.datasets.preprocessing.protein_mapping import",
+    "phospy.science.datasets.preprocessing.state_builder",
+    "phospy.science.datasets.preprocessing.trace_builder",
+    "phospy.science.datasets.preprocessing.protein_aware_preparation",
+    "phospy.science.datasets.preprocessing.protein_mapping",
 )
-_FORBIDDEN_DIFFERENTIAL_PREPARATION_MUTATION_TOKENS = (
-    'object.__setattr__(preparation, "_protein_covariate_matrix"',
-    'object.__setattr__(preparation, "_matched_pairs"',
-    "._protein_covariate_matrix",
-    "._matched_pairs",
-    "protein_aware_preparation=",
+_FORBIDDEN_DIFFERENTIAL_OWNER_AGGREGATE_MODULES = (
+    "phospy.science.datasets.preprocessing",
+)
+_FORBIDDEN_DIFFERENTIAL_OWNER_NAMES = (
+    "AnalysisReadyDatasetBuilder",
+    "DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION",
+    "DatasetBuildRequest",
+    "DatasetProteinAwarePreparationConfig",
+    "PreprocessingPlan",
+    "PreprocessingPipeline",
+    "PreprocessingStage",
+    "PreprocessingStageResult",
+    "PreprocessingState",
+    "ProteinAwareAlignmentConfig",
+    "ProteinAwareAlignmentEligibilityDiagnostics",
+    "ProteinAwareAlignmentEligibilityResolver",
+    "ProteinAwareSiteEligibilityDiagnostic",
+    "ProteinAwarePreparationStage",
+    "ProteinMappingConfig",
+    "ProteinMappingResolver",
+    "ProteinMappingRecord",
+    "ProteinMappingResult",
+)
+_FORBIDDEN_DIFFERENTIAL_PREPARATION_CONSTRUCTORS = (
+    "ProteinAwarePreparationReport",
+    "ProteinAwarePreparationResult",
+)
+_FORBIDDEN_DIFFERENTIAL_PREPARATION_PRIVATE_FIELDS = (
+    "_matched_pairs",
+    "_protein_covariate_matrix",
+)
+_FORBIDDEN_DIFFERENTIAL_PREPARATION_SETATTR_FIELDS = (
+    *_FORBIDDEN_DIFFERENTIAL_PREPARATION_PRIVATE_FIELDS,
+    "report",
 )
 
 
@@ -791,23 +818,165 @@ def test_protein_aware_diagnostics_are_retained_apart_from_phospho_matrix() -> N
         assert diagnostic_column not in prepared.phospho.columns
 
 
-def test_differential_domains_do_not_import_or_own_protein_aware_preparation() -> None:
+def test_differential_domains_only_consume_typed_protein_aware_sidecar_view() -> None:
     violations: list[str] = []
-    for directory in _DIFFERENTIAL_CODE_DIRS:
-        for path in directory.rglob("*.py"):
-            source = path.read_text(encoding="utf-8")
-            for token in (
-                _FORBIDDEN_DIFFERENTIAL_PREPARATION_TOKENS
-                + _FORBIDDEN_DIFFERENTIAL_PREPARATION_MODULE_FRAGMENTS
-                + _FORBIDDEN_DIFFERENTIAL_PREPARATION_MUTATION_TOKENS
-            ):
-                if token not in source:
-                    continue
-                relative_path = path.relative_to(ROOT).as_posix()
-                violations.append(f"{relative_path}: contains {token!r}")
+    for path in _differential_python_sources():
+        source = path.read_text(encoding="utf-8")
+        relative_path = path.relative_to(ROOT).as_posix()
+        tree = ast.parse(source, filename=str(path))
+        forbidden_call_names = _forbidden_local_call_names(tree)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    module = alias.name
+                    if _is_forbidden_differential_owner_module(module):
+                        violations.append(
+                            f"{relative_path}:{node.lineno}: imports {module!r}"
+                        )
+                    if module in _FORBIDDEN_DIFFERENTIAL_OWNER_AGGREGATE_MODULES:
+                        violations.append(
+                            f"{relative_path}:{node.lineno}: imports aggregate "
+                            f"owner module {module!r}"
+                        )
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                if _is_forbidden_differential_owner_module(module):
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: imports from {module!r}"
+                    )
+                if module in _FORBIDDEN_DIFFERENTIAL_OWNER_AGGREGATE_MODULES:
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: imports from aggregate "
+                        f"owner module {module!r}"
+                    )
+                forbidden_names = sorted(
+                    alias.name
+                    for alias in node.names
+                    if alias.name in _FORBIDDEN_DIFFERENTIAL_OWNER_NAMES
+                )
+                if forbidden_names:
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: imports owner names "
+                        f"{forbidden_names!r}"
+                    )
+            elif isinstance(node, ast.Call):
+                called_name = _qualified_name(node.func)
+                called_leaf = called_name.rsplit(".", maxsplit=1)[-1]
+                if (
+                    called_name in forbidden_call_names
+                    or called_leaf in forbidden_call_names
+                ):
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: constructs {called_name}"
+                    )
+                setattr_field = _forbidden_setattr_field(node)
+                if setattr_field is not None:
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: mutates sidecar field "
+                        f"{setattr_field!r}"
+                    )
+            elif isinstance(node, ast.Assign | ast.AnnAssign | ast.AugAssign):
+                for field_name in _assigned_forbidden_private_fields(node):
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: assigns sidecar private "
+                        f"field {field_name!r}"
+                    )
+            elif isinstance(node, ast.Delete):
+                for field_name in _deleted_forbidden_private_fields(node):
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: deletes sidecar private "
+                        f"field {field_name!r}"
+                    )
 
     assert not violations, (
         "protein-aware preparation and mapping implementation must stay in dataset "
-        "preprocessing/building domains; differential may only consume the "
-        "dataset-owned typed sidecar view:\n" + "\n".join(violations)
+        "preprocessing/building domains. Differential may import the dataset "
+        "internal view or typed passive sidecar models, but it must not import "
+        "preparation stages, mapping resolvers, preprocessing planners, builder "
+        "orchestration, or create/mutate preparation sidecars:\n"
+        + "\n".join(violations)
     )
+
+
+def _differential_python_sources() -> tuple[Path, ...]:
+    paths: list[Path] = []
+    for directory in _DIFFERENTIAL_CODE_DIRS:
+        paths.extend(sorted(directory.rglob("*.py")))
+    return tuple(paths)
+
+
+def _is_forbidden_differential_owner_module(module: str) -> bool:
+    return any(
+        module == prefix
+        or module.startswith(f"{prefix}.")
+        or (prefix.endswith("_") and module.startswith(prefix))
+        for prefix in _FORBIDDEN_DIFFERENTIAL_OWNER_MODULE_PREFIXES
+    )
+
+
+def _forbidden_local_call_names(tree: ast.AST) -> frozenset[str]:
+    forbidden_names = set(_FORBIDDEN_DIFFERENTIAL_PREPARATION_CONSTRUCTORS)
+    forbidden_names.update(_FORBIDDEN_DIFFERENTIAL_OWNER_NAMES)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        for alias in node.names:
+            if alias.name in forbidden_names and alias.asname is not None:
+                forbidden_names.add(alias.asname)
+    return frozenset(forbidden_names)
+
+
+def _forbidden_setattr_field(node: ast.Call) -> str | None:
+    if _qualified_name(node.func) not in {"setattr", "object.__setattr__"}:
+        return None
+    if len(node.args) < 2:
+        return None
+    field_name = _literal_string(node.args[1])
+    if field_name in _FORBIDDEN_DIFFERENTIAL_PREPARATION_SETATTR_FIELDS:
+        return field_name
+    return None
+
+
+def _assigned_forbidden_private_fields(
+    node: ast.Assign | ast.AnnAssign | ast.AugAssign,
+) -> tuple[str, ...]:
+    targets: list[ast.expr] = []
+    if isinstance(node, ast.Assign):
+        targets.extend(node.targets)
+    else:
+        targets.append(node.target)
+    return _target_forbidden_private_fields(tuple(targets))
+
+
+def _deleted_forbidden_private_fields(node: ast.Delete) -> tuple[str, ...]:
+    return _target_forbidden_private_fields(tuple(node.targets))
+
+
+def _target_forbidden_private_fields(targets: tuple[ast.expr, ...]) -> tuple[str, ...]:
+    fields: list[str] = []
+    for target in targets:
+        for nested in ast.walk(target):
+            if (
+                isinstance(nested, ast.Attribute)
+                and nested.attr in _FORBIDDEN_DIFFERENTIAL_PREPARATION_PRIVATE_FIELDS
+            ):
+                fields.append(nested.attr)
+    return tuple(fields)
+
+
+def _qualified_name(node: ast.expr) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        owner = _qualified_name(node.value)
+        if owner:
+            return f"{owner}.{node.attr}"
+        return node.attr
+    return ""
+
+
+def _literal_string(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None

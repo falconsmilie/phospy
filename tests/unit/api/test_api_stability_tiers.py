@@ -87,6 +87,8 @@ def test_advanced_exports_are_grouped_and_documented() -> None:
         "rank_differential_results",
     } <= advanced
     assert {
+        "DifferentialAnalysisConfig",
+        "DifferentialProteinAwareModelConfig",
         "DifferentialModelDiagnostics",
         "KinaseEligibilityReport",
         "KinaseWorkflowAttritionProvenance",
@@ -116,6 +118,9 @@ def test_advanced_exports_are_not_stable_api_exports() -> None:
 
     assert advanced.isdisjoint(public_api.__all__)
     assert not any(name.endswith("Validator") for name in advanced_api.__all__)
+    assert "DifferentialProteinAwareModelConfig" in advanced
+    assert "DifferentialProteinAwareModelConfig" not in public_api.__all__
+    assert not hasattr(public_api, "DifferentialProteinAwareModelConfig")
 
 
 def test_internal_inventory_documents_removed_previous_exports() -> None:

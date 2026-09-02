@@ -664,23 +664,56 @@ def test_differential_request_has_no_protein_aware_preparation_channel() -> None
         "config",
     ]
     request = _request()
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        DifferentialAnalysisRequest(
-            dataset=request.dataset,
-            design=request.design,
-            contrasts=request.contrasts,
-            protein_aware_preparation=object(),  # type: ignore[call-arg]
-        )
+    forbidden_inputs = {
+        "protein_aware_preparation": object(),
+        "matched_pairs": pd.DataFrame(
+            {"site_key": ["site_a"], "total_protein_row_key": ["protein_a"]}
+        ),
+        "protein_covariate_matrix": pd.DataFrame(
+            {"sample_a": [1.0]},
+            index=pd.Index(["protein_a"], name="total_protein_row_key"),
+        ),
+        "protein_matrix": pd.DataFrame(
+            {"sample_a": [1.0]},
+            index=pd.Index(["protein_a"], name="total_protein_row_key"),
+        ),
+    }
+    request_type = cast(Any, DifferentialAnalysisRequest)
+
+    for keyword, value in forbidden_inputs.items():
+        with pytest.raises(TypeError, match="unexpected keyword argument"):
+            request_type(
+                dataset=request.dataset,
+                design=request.design,
+                contrasts=request.contrasts,
+                **{keyword: value},
+            )
 
 
-def test_differential_workflow_does_not_consume_protein_aware_preparation_result() -> (
+def test_ordinary_differential_lane_ignores_dataset_owned_protein_aware_sidecar() -> (
     None
 ):
-    base_request = _request()
     dataset_with_preparation, preparation = _dataset_with_protein_aware_preparation()
+    dataset_without_preparation = trusted_analysis_ready_dataset_from_tables(
+        phospho=dataset_with_preparation.phospho,
+        site_metadata=dataset_with_preparation.site_metadata,
+        sample_metadata=dataset_with_preparation.sample_metadata,
+        total=dataset_with_preparation.total,
+        comparisons=dataset_with_preparation.comparisons,
+        organism=dataset_with_preparation.organism,
+        intensity_scale_state=dataset_with_preparation.intensity_scale_state,
+        processing_state=dataset_with_preparation.processing_state,
+    )
+    base_request = _request()
 
-    base_result = DifferentialAnalysisWorkflow().run(base_request)
-    prepared_result = DifferentialAnalysisWorkflow().run(
+    absent_result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset_without_preparation,
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+        )
+    )
+    present_result = DifferentialAnalysisWorkflow().run(
         DifferentialAnalysisRequest(
             dataset=dataset_with_preparation,
             design=base_request.design,
@@ -688,32 +721,81 @@ def test_differential_workflow_does_not_consume_protein_aware_preparation_result
         )
     )
 
-    pd.testing.assert_frame_equal(
-        prepared_result.table_for("B_vs_A"),
-        base_result.table_for("B_vs_A"),
-    )
-    pd.testing.assert_series_equal(
-        prepared_result.residual_variance_series(),
-        base_result.residual_variance_series(),
-    )
-    assert not hasattr(prepared_result, "protein_aware_preparation")
-    assert not hasattr(prepared_result, "protein_covariate_matrix")
-    assert prepared_result.workflow_provenance is not None
-    assert prepared_result.workflow_provenance["input_intensity_scale"] == "log2"
+    assert present_result.to_payload() == absent_result.to_payload()
+    assert present_result.protein_aware_diagnostics is None
+    assert absent_result.protein_aware_diagnostics is None
+    assert not hasattr(present_result, "protein_aware_preparation")
+    assert not hasattr(present_result, "protein_covariate_matrix")
+    assert present_result.workflow_provenance is not None
+    assert present_result.workflow_provenance["input_intensity_scale"] == "log2"
     assert (
-        prepared_result.workflow_provenance["input_intensity_scale_evidence_level"]
+        present_result.workflow_provenance["input_intensity_scale_evidence_level"]
         == "declared_by_user"
     )
     assert (
-        prepared_result.workflow_provenance["input_intensity_scale_source"]
+        present_result.workflow_provenance["input_intensity_scale_source"]
         == "declared_by_user"
     )
-    assert prepared_result.input_dataset_preprocessing_report is not None
     assert (
-        prepared_result.input_dataset_preprocessing_report.protein_aware_preparation
+        present_result.input_dataset_preprocessing_report is not None
+        and present_result.input_dataset_preprocessing_report.protein_aware_preparation
         is preparation.report
     )
-    assert "protein_aware" not in repr(prepared_result.policy_provenance).lower()
+    assert absent_result.input_dataset_preprocessing_report is None
+    assert "protein_aware" not in repr(present_result.policy_provenance).lower()
+
+
+def test_protein_aware_public_workflow_branch_consumes_dataset_owned_sidecar() -> None:
+    dataset, preparation = _dataset_with_protein_aware_preparation()
+    withheld_site = str(dataset.phospho.index[1])
+    fallback_rows = _replace_eligibility_row(
+        preparation.report,
+        position=1,
+        eligibility=ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY,
+        mapping_status=ProteinMappingStatus.MISSING_TOTAL_PROTEIN_ROW,
+        total_protein_row_key=None,
+        reasons=(PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,),
+    )
+    matched_pairs = preparation.matched_pairs_dataframe()
+    matched_pairs = (
+        matched_pairs.loc[matched_pairs.loc[:, "site_key"] != withheld_site, :]
+        .reset_index(drop=True)
+        .copy(deep=True)
+    )
+    protein_covariates = preparation.protein_covariate_matrix_dataframe().drop(
+        index="GSK3B"
+    )
+    modified_dataset = _dataset_replacing_protein_aware_preparation(
+        dataset,
+        _preparation_with(
+            preparation,
+            matched_pairs=matched_pairs,
+            protein_covariate_matrix=protein_covariates,
+            report=_preparation_report_with(
+                preparation.report,
+                site_eligibility=fallback_rows,
+            ),
+        ),
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        _protein_aware_request(modified_dataset)
+    )
+
+    table = result.table_for("B_vs_A")
+    diagnostics = result.protein_aware_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.tested_site_count == 2
+    assert diagnostics.withheld_site_count == 1
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.protein_aware is not None
+    assert table.loc[withheld_site, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE
+    )
+    assert table.loc[withheld_site, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] == (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_PREPARATION_FALLBACK
+    )
+    assert pd.isna(table.loc[withheld_site, "logFC"])
 
 
 def test_protein_aware_public_workflow_branch_runs_end_to_end() -> None:
