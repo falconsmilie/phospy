@@ -23,6 +23,12 @@ The current workflow is limited to tested design and contrast envelopes. It is
 not full limma or PhosR parity. Batch covariates are fixed model terms, not a
 general batch-correction system.
 
+The experimental protein-aware differential lane reports a condition contrast
+conditional on the matched measured total-protein covariate. It is not
+phosphosite/protein subtraction, stoichiometry, occupancy, causal separation of
+protein abundance and phosphorylation regulation, MSstatsPTM parity, or
+MSstatsPTM-style joint PTM/protein inference.
+
 ## Kinase Analysis
 
 Kinase scores express relative support within a run. Higher values indicate

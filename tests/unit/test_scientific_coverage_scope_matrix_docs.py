@@ -156,6 +156,7 @@ def test_scope_matrix_columns_and_required_rows_are_present() -> None:
 
     for row_name in (
         "differential analysis",
+        "protein-aware differential analysis: `protein_covariate_adjusted_moderated_linear_model_v1`",
         "peptide-to-site differential evidence",
         "kinase scoring",
         "kinase activity scoring",
@@ -197,6 +198,7 @@ def test_validation_evidence_matrix_records_required_fields_and_methods() -> Non
         assert category in normalized
     for method in (
         "differential analysis",
+        "protein-aware differential analysis",
         "native sps/ruv-style correction",
         "peptide-to-site aggregation",
         "kinase scoring and prediction",
@@ -749,6 +751,10 @@ def test_protein_aware_preparation_scope_is_separate_from_modelling() -> None:
         in normalized
     )
     assert (
+        "| protein-aware differential analysis: `protein_covariate_adjusted_moderated_linear_model_v1` | `experimental` |"
+        in normalized
+    )
+    assert (
         "| joint ptm/protein modelling and msstatsptm-style inference | `open gap` |"
     ) in normalized
     assert "`log2_phospho - log2_total`" in normalized
@@ -756,9 +762,25 @@ def test_protein_aware_preparation_scope_is_separate_from_modelling() -> None:
     assert "does not modify phosphosite values" in normalized
     assert "does not subtract total protein" in normalized
     assert "does not run joint ptm/protein differential modelling" in normalized
-    assert "does not adjust differential models" in normalized
+    assert "does not adjust differential models by itself" in normalized
     assert "does not claim msstatsptm-style inference" in normalized
-    assert "current `differentialanalysisworkflow` does not consume" in normalized
+    assert (
+        "experimental protein-aware differential lane consumes this dataset-owned"
+        in (normalized)
+    )
+    assert "only when explicitly selected" in normalized
+    assert "ordinary differential lane ignores it" in normalized
+    assert "ordinary differential analysis ignores a protein-aware sidecar" in (
+        normalized
+    )
+    assert (
+        "the only executable protein+phosphosite differential lane is the "
+        "separately listed experimental version-1 matched-covariate estimator"
+        in normalized
+    )
+    assert "broader joint/separate-model adjusted inference remains an open gap" in (
+        normalized
+    )
 
 
 def test_enrichment_scope_is_offline_ora_with_user_supplied_collections() -> None:

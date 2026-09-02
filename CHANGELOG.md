@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Added
+
+- Documented the experimental opt-in
+  `protein_covariate_adjusted_moderated_linear_model_v1` differential lane,
+  including dataset-owned protein-aware preparation prerequisites, explicit
+  advanced configuration, typed full-index attrition, diagnostics/provenance,
+  caveats, and strict no-fallback behavior. The ordinary differential default
+  remains unchanged when `protein_aware_model` is absent.
+
 ## [1.7.1] - 2026-08-24
 
 ### Added

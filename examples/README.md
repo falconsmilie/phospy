@@ -18,6 +18,10 @@ Use `enrichment_provenance_demo.py` when you need to see manual and
 PhosPy-derived quantitative identifier-set provenance on enrichment requests and
 results.
 
+Use `differential_protein_aware_demo.py` when you need a compact example of the
+experimental opt-in protein-aware differential lane with tested and withheld
+rows.
+
 They intentionally keep the story small:
 
 - rat bundled-reference lane first
@@ -26,6 +30,8 @@ They intentionally keep the story small:
 - explicit protein context (`organism`, `protein_namespace`, and
   `protein_identifier`) so the builder can derive `site_key`
 - explicit `protein_group_id` where the signalome lane needs grouping metadata
+- explicit advanced config for the experimental protein-aware differential lane
+  when that demo is selected
 - output tables that expose `site_key`, `display_id`, `gene_symbol`, `site`, and
   protein-context metadata
 - explicit reporting of both numeric scale and quantitative meaning (for example, `log2` with `phosphosite_log_abundance`)

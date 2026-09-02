@@ -180,6 +180,234 @@ print("consensus correlation:", duplicate.consensus.consensus_correlation)
 print("estimator features:", duplicate.consensus.estimated_feature_count)
 ```
 
+## Experimental Protein-Aware Differential Analysis
+
+`protein_covariate_adjusted_moderated_linear_model_v1` is an experimental,
+opt-in differential estimator. It reports the requested phosphosite condition
+contrast conditional on measured matched total-protein abundance under
+`y_s = X beta_s + z_p(s) gamma_s + error`. It requires established log2
+phosphosite and total-protein inputs; centres, but does not standardize,
+normalize, subtract, or impute, the total-protein covariate; withholds
+inadmissible sites rather than falling back to the ordinary estimator; and is
+not stoichiometry, occupancy, causal decomposition, MSstatsPTM parity, or
+MSstatsPTM-style joint PTM/protein inference.
+
+Use this lane when the dataset already carries dataset-owned protein-aware
+preparation from
+`DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` and the
+scientific question calls for a condition effect adjusted for the measured
+matched total-protein abundance. The workflow request still has only
+`dataset`, `design`, `contrasts`, and `config`; do not pass a protein matrix,
+mapping table, or preparation result to `DifferentialAnalysisRequest`.
+Differential analysis does not rerun protein mapping or automatically
+preprocess total-protein values.
+
+The ordinary differential lane remains the default. A dataset may carry
+`dataset.protein_aware_preparation`, but `DifferentialAnalysisWorkflow` ignores
+that sidecar unless `DifferentialAnalysisConfig.protein_aware_model` is set.
+
+### Complete Protein-Aware Example
+
+```python
+import pandas as pd
+
+from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy.advanced import (
+    DatasetProteinAwarePreparationConfig,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
+)
+from phospy.api import (
+    Contrast,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    DifferentialAnalysisRequest,
+    ExperimentalDesign,
+    Organism,
+    SampleDesignRecord,
+)
+
+phospho = pd.DataFrame(
+    {
+        "A_1": [1.00, 2.05, 1.48],
+        "A_2": [1.15, 2.10, 1.50],
+        "A_3": [0.95, 1.92, 1.46],
+        "B_1": [1.75, 2.48, 1.55],
+        "B_2": [1.83, 2.57, 1.58],
+        "B_3": [1.69, 2.41, 1.62],
+    },
+    index=["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"],
+)
+
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+        "site": ["Y182", "T308", "S9"],
+        "protein_id": ["P53778", "P31749", "P49841"],
+        "site_sequence": [
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+        ],
+        "localisation_confidence": [0.95, 0.96, 0.97],
+    },
+    index=phospho.index.copy(),
+)
+
+total = pd.DataFrame(
+    {
+        "A_1": [10.0, 8.0, 12.5],
+        "A_2": [10.4, 8.5, 12.5],
+        "A_3": [9.7, 7.8, 12.5],
+        "B_1": [11.8, 8.9, 12.5],
+        "B_2": [12.2, 9.7, 12.5],
+        "B_3": [11.4, 8.8, 12.5],
+    },
+    index=pd.Index(["P53778", "P31749", "P49841"], name="protein_id"),
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        total=total,
+        organism=Organism.RAT,
+        input_intensity_scale="log2",
+        preprocessing_config=DatasetPreprocessingConfig(
+            protein_aware_preparation=DatasetProteinAwarePreparationConfig(
+                policy="prepare_model_inputs"
+            )
+        ),
+    )
+)
+
+design = ExperimentalDesign(
+    samples=(
+        SampleDesignRecord(
+            sample_id="A_1",
+            condition="A",
+            biological_replicate_id="A_1_bio",
+        ),
+        SampleDesignRecord(
+            sample_id="A_2",
+            condition="A",
+            biological_replicate_id="A_2_bio",
+        ),
+        SampleDesignRecord(
+            sample_id="A_3",
+            condition="A",
+            biological_replicate_id="A_3_bio",
+        ),
+        SampleDesignRecord(
+            sample_id="B_1",
+            condition="B",
+            biological_replicate_id="B_1_bio",
+        ),
+        SampleDesignRecord(
+            sample_id="B_2",
+            condition="B",
+            biological_replicate_id="B_2_bio",
+        ),
+        SampleDesignRecord(
+            sample_id="B_3",
+            condition="B",
+            biological_replicate_id="B_3_bio",
+        ),
+    )
+)
+
+result = DifferentialAnalysisWorkflow().run(
+    DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=design,
+        contrasts=(
+            Contrast(
+                name="B_vs_A",
+                numerator_condition="B",
+                denominator_condition="A",
+            ),
+        ),
+        config=DifferentialAnalysisConfig(
+            protein_aware_model=DifferentialProteinAwareModelConfig(
+                method="protein_covariate_adjusted_moderated_linear_model_v1"
+            )
+        ),
+    )
+)
+
+table = result.table_for("B_vs_A")
+tested = table.loc[table["result_status"] == "tested"]
+withheld = table.loc[table["result_status"] != "tested"]
+diagnostics = result.protein_aware_diagnostics
+assert diagnostics is not None
+
+print(tested.loc[:, ["display_id", "logFC", "P.Value", "adj.P.Val"]])
+print(withheld.loc[:, ["display_id", "result_status", "result_status_reason"]])
+print("method:", diagnostics.method_id)
+print("claim:", diagnostics.claim_status)
+print("tested sites:", diagnostics.tested_site_count)
+print("withheld sites:", diagnostics.withheld_site_count)
+print("fallback policy:", diagnostics.fallback_policy)
+print(
+    diagnostics.per_site_diagnostics_dataframe().loc[
+        :, ["total_protein_row_key", "protein_covariate_coefficient"]
+    ]
+)
+print([caveat.code for caveat in result.caveats])
+```
+
+### Protein-Aware Compatibility
+
+| Capability | Protein-Aware Version 1 |
+| --- | --- |
+| Fixed condition design | Supported when each augmented design is admissible. |
+| Declared fixed covariates | Supported when each augmented design is admissible. |
+| `fixed_block` | Supported when each augmented design is admissible. |
+| `duplicate_correlation` | Rejected before fitting. |
+| No-op technical-replicate policy | Supported. |
+| Actual technical-replicate aggregation | Rejected before fitting. |
+| `allow_design_subset=True` | Supported by exact deterministic protein-covariate subsetting and reordering. |
+| Existing phosphosite imputation policy | Preserved for phosphosite eligibility. |
+| Protein-covariate imputation | Not performed; non-finite covariates are withheld. |
+| Prior `subtract_log_total` | Rejected before fitting. |
+| Protein-aware fallback to ordinary fitting | Not allowed. Withheld rows stay visible in the full result index. |
+| Mixed effects | Not supported in version 1. |
+
+### Protein-Aware Results
+
+Each contrast table keeps the full `site_key` index. Tested rows contain the
+usual `logFC`, `t`, `P.Value`, and `adj.P.Val` values. Withheld rows keep their
+identity columns and receive missing statistics with typed `result_status` and
+`result_status_reason` values such as:
+
+- `withheld_protein_preparation_ineligible`
+- `withheld_protein_covariate_invalid`
+- `withheld_protein_augmented_design_invalid`
+- `withheld_protein_contrast_non_estimable`
+
+The protein covariate coefficient is reported only as a nuisance coefficient in
+diagnostics. It is not a separate inferential result and has no public
+protein-covariate *p* value or adjusted *p* value claim.
+
+`result.protein_aware_diagnostics` records the selected method and
+`experimental` claim status, preparation and mapping policies, execution sample
+order, centring/no-standardization policy, no-imputation and no-fallback
+policies, tested/withheld counts, reason counts, base-design diagnostics,
+augmented-design condition-number summaries, and full per-site diagnostics.
+Use `result.protein_aware_site_diagnostics_dataframe()` or
+`result.protein_aware_diagnostics.per_site_diagnostics_dataframe()` for an
+independent diagnostics table.
+
+`result.policy_provenance.protein_aware` records the method version, model
+formula, conditional `logFC` interpretation, transformation and prior
+total-protein-correction state, design-subset behavior, duplicate-correlation
+and technical-aggregation rejection policies, order-sensitive input
+fingerprints for the phosphosite matrix, matched pairs, protein-covariate
+matrix, eligibility table, design matrix, and contrast matrix, plus limitations
+and unsupported claims. Scalar diagnostics on `result.diagnostics` describe the
+base design; augmented-design summaries are aggregates across successfully
+fitted total-protein-row groups.
+
 ## Request
 
 Create a `DifferentialAnalysisRequest`.
@@ -189,7 +417,7 @@ Create a `DifferentialAnalysisRequest`.
 | `dataset` | `AnalysisReadyPhosphoDataset` | Required | Dataset to test. | Must be complete, `site_key` indexed, and established as log2. |
 | `design` | `ExperimentalDesign` | Required | Explicit sample and model design. | Sample IDs must match dataset columns unless subsetting is enabled. |
 | `contrasts` | `tuple[Contrast, ...]` | Required | Comparisons to estimate. | Names must be unique; numerator and denominator conditions must exist and differ. |
-| `config` | `DifferentialAnalysisConfig` | `DifferentialAnalysisConfig()` | Reliability, replicate, imputation, moderation, and multiple-testing policy. | Unsupported combinations fail before fitting. |
+| `config` | `DifferentialAnalysisConfig` | `DifferentialAnalysisConfig()` | Reliability, replicate, imputation, moderation, multiple-testing, and optional protein-aware model policy. | Unsupported combinations fail before fitting. |
 
 <details markdown="1">
 <summary><strong>Experimental Design Parameters</strong></summary>
@@ -253,6 +481,13 @@ constructed designs, limitations, and provenance fields are documented below.
 | `minimum_condition_replicates` | `int` | `2` | Minimum biological replicates per contrasted condition after policy resolution. |
 | `empirical_bayes` | `EmpiricalBayesConfig` | `EmpiricalBayesConfig()` | Moderation settings. |
 | `multiple_testing` | `MultipleTestingConfig` | `MultipleTestingConfig()` | Per-contrast *p*-value adjustment. |
+| `protein_aware_model` | `DifferentialProteinAwareModelConfig` or `None` | `None` | Selects the experimental protein-covariate-adjusted lane. When absent, ordinary differential analysis ignores any dataset-owned protein-aware preparation sidecar. |
+
+### `DifferentialProteinAwareModelConfig`
+
+| Parameter | Default | Supported Values |
+| --- | --- | --- |
+| `method` | `"protein_covariate_adjusted_moderated_linear_model_v1"` | `"protein_covariate_adjusted_moderated_linear_model_v1"` |
 
 ### `paired_design_policy`
 
@@ -384,6 +619,17 @@ PhosPy fails closed for unsupported blocked designs.
 There is no silent fallback from `duplicate_correlation` to `fixed_block`,
 ordinary least squares, or correlation zero.
 
+The protein-aware lane also fails closed before fitting when the selected
+method lacks a current dataset-owned preparation sidecar, the sidecar is
+unsupported or cannot be proven to belong to the current dataset, the dataset
+has no total-protein matrix, sample identities are inconsistent, phosphosite or
+total-protein values are not established log2, prior `subtract_log_total` was
+applied, actual technical-replicate aggregation is required,
+`paired_design_policy="duplicate_correlation"` is selected, or every site is
+withheld. Row-level protein mapping, protein-covariate numeric, augmented-rank,
+conditioning, residual-DF, and contrast-estimability failures are reported as
+typed withheld rows when at least one site remains testable.
+
 ## Response
 
 `DifferentialAnalysisWorkflow.run(...)` returns a
@@ -403,6 +649,8 @@ ordinary least squares, or correlation zero.
 | `prior_diagnostics` | `EmpiricalBayesPriorDiagnostics` | Feature-level prior estimates and fitting diagnostics. |
 | `mean_variance_trend_diagnostics` | `MeanVarianceTrendDiagnostics` or `None` | Trend diagnostics when trend moderation is enabled. |
 | `diagnostics` | `DifferentialModelDiagnostics` | Design, contrast, scale, and model diagnostics. |
+| `protein_aware_diagnostics` | `ProteinAwareDifferentialDiagnostics` or `None` | Experimental protein-aware method, counts, group summaries, and per-site diagnostics when the opt-in lane is selected. |
+| `protein_aware_site_diagnostics_dataframe()` | `pandas.DataFrame` or `None` | Independent snapshot of per-site protein-aware diagnostics. |
 | `policy_provenance`, `workflow_provenance` | Typed or mapping-like provenance | Resolved scientific policy and execution metadata. |
 | `caveats` | `tuple[ResultCaveat, ...]` | Structured interpretation limits. |
 | `input_dataset_preprocessing_report` | Report or `None` | Dataset preprocessing report carried into the result. |
@@ -444,6 +692,12 @@ When `paired_design_policy="duplicate_correlation"`,
 contains an informational `differential_duplicate_correlation_consensus` caveat
 stating that one consensus compound-symmetry correlation was used and that
 feature-specific random effects were not fitted.
+
+When `protein_aware_model` is selected,
+`result.policy_provenance.protein_aware` records the experimental estimator
+policy and exact input fingerprints. `result.workflow_provenance` also carries
+protein-aware row-attrition metrics, and `result.caveats` records the
+experimental interpretation limits and unsupported claims.
 
 Each contrast result table is indexed by the input `site_key`. The minimum
 public identity columns are `site_key`, `display_id`, `organism`,
@@ -493,6 +747,14 @@ result object.
 `logFC` is the fitted log2 difference between numerator and denominator.
 Positive values indicate higher fitted phosphorylation in the numerator
 condition; negative values indicate lower fitted phosphorylation.
+
+For `protein_covariate_adjusted_moderated_linear_model_v1`, `logFC` is the
+requested phosphosite condition contrast conditional on the matched measured
+total-protein covariate. It is not a phosphosite/protein subtraction,
+stoichiometry, occupancy, or a causal decomposition of protein abundance and
+phosphorylation regulation. Adjustment can change the estimand when protein
+abundance is part of the biological pathway, and it does not establish causal
+independence.
 
 `P.Value` is the raw *p* value for the contrast. `adj.P.Val` is adjusted within
 that contrast. Smaller values indicate stronger evidence under the fitted model,
@@ -550,6 +812,13 @@ nested or crossed random-effects syntax, simultaneous fixed block coefficients
 and duplicate correlation, automatic policy selection, user-supplied consensus
 correlation, user-configurable trimming, or unsupported precision weights.
 
+The experimental protein-aware lane is different from MSstatsPTM. MSstatsPTM
+uses separate PTM-site and global-protein model outputs for adjusted PTM
+inference. PhosPy version 1 instead fits one phosphosite-row model with a
+matched total-protein abundance vector as a row-specific nuisance covariate.
+Do not interpret the PhosPy result as MSstatsPTM parity, an MSstatsPTM-style
+joint model, or a substitute for that workflow.
+
 The committed differential limma parity fixtures demonstrate implementation
 agreement only for the fixture-scoped model envelopes they cover. They are not
 an independent scientific validation and do not make PhosPy generally identical
@@ -575,12 +844,23 @@ final duplicate-correlation GLS failures.
 | A duplicate-correlation design fails. | Confirm every analysed sample has `block_id`, at least one block is repeated, the non-block fixed-effects design is full rank with more than two residual degrees of freedom, and no fixed block columns or unsupported weights are present. |
 | Imputation is rejected. | Keep the default rejection policy, or use withholding only with builder-owned observation metadata. |
 | Results contain withheld rows. | Review `feature_eligibility`, caveats, and the preprocessing report before interpreting absence biologically. |
+| A protein-aware request reports a missing sidecar. | Build the dataset with `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")`; do not pass the preparation result separately to the workflow request. |
+| A protein-aware request reports incompatible scales. | Rebuild or transform both phosphosite and total-protein inputs so their log2 scale is established before differential analysis. |
+| A protein-aware request reports mapping or preparation ineligibility. | Inspect `dataset.protein_aware_preparation`, the preparation report, and the row-level `result_status_reason` values. |
+| A protein-aware request reports augmented-design rank or contrast failures. | Check fixed covariates, fixed blocks, sample subset order, and protein covariate variation for the affected total-protein-row groups. |
+| A protein-aware request uses duplicate correlation or technical aggregation. | Use the ordinary lane for those policies, or use the protein-aware lane only with no actual technical aggregation and without `duplicate_correlation`. |
 
 ## Reference
 
 Smyth, G. K., Michaud, J., & Scott, H. S. (2005). Use of within-array replicate
 spots for assessing differential expression in microarray experiments.
 *Bioinformatics, 21*(9), 2067–2075. https://doi.org/10.1093/bioinformatics/bti270
+
+Kohler, D., Tsai, T.-H., Verschueren, E., Huang, T., Hinkle, T., Phu, L.,
+Choi, M., & Vitek, O. (2023). MSstatsPTM: Statistical relative quantification
+of posttranslational modifications in bottom-up mass spectrometry-based
+proteomics. *Molecular & Cellular Proteomics, 22*(1), 100477.
+https://doi.org/10.1016/j.mcpro.2022.100477
 
 ## Related Guides
 

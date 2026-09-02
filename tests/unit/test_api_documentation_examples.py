@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -21,6 +22,7 @@ from phospy.advanced import (
     KinasePredictionConfig,
     KinaseReliabilityProfile,
     KinaseScoringConfig,
+    KinaseSiteSequenceConflictPolicy,
     ObservationMask,
     OriginallyMissingCellTracking,
     SignalomeClusteringConfig,
@@ -95,6 +97,18 @@ def _parse_python_code_blocks(source: str) -> tuple[ast.Module, ...]:
     return tuple(parsed_blocks)
 
 
+def _python_code_block_containing(source: str, *terms: str) -> str:
+    matches = [
+        block
+        for block in _iter_python_code_blocks(source)
+        if all(term in block for term in terms)
+    ]
+    assert len(matches) == 1, (
+        f"expected one Python code block containing {terms!r}; found {len(matches)}"
+    )
+    return matches[0]
+
+
 def _imported_names(source: str, module_name: str) -> set[str]:
     names: set[str] = set()
     for tree in _parse_python_code_blocks(source):
@@ -132,6 +146,41 @@ def _call_name(call: ast.Call) -> str | None:
     if isinstance(call.func, ast.Name):
         return call.func.id
     return None
+
+
+def _calls_named_in_tree(tree: ast.Module, call_name: str) -> tuple[ast.Call, ...]:
+    return tuple(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and _call_name(node) == call_name
+    )
+
+
+def _keyword_names(call: ast.Call) -> set[str]:
+    return {keyword.arg for keyword in call.keywords if keyword.arg is not None}
+
+
+def _assert_call_keyword_is_call(
+    tree: ast.Module,
+    call_name: str,
+    keyword_name: str,
+    nested_call_name: str,
+    *,
+    context: str,
+) -> None:
+    for call in _calls_named_in_tree(tree, call_name):
+        for keyword in call.keywords:
+            value = keyword.value
+            if (
+                keyword.arg == keyword_name
+                and isinstance(value, ast.Call)
+                and _call_name(value) == nested_call_name
+            ):
+                return
+    raise AssertionError(
+        f"{context} must document {call_name}("
+        f"{keyword_name}={nested_call_name}(...), ...)"
+    )
 
 
 def _is_workflow_run_call(call: ast.Call, workflow_name: str) -> bool:
@@ -765,7 +814,7 @@ def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:
         temporary_imputation=TemporaryImputationPolicy(
             allowed=True,
             method=TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
-            method_parameters={"min_observed_values": 2},
+            method_parameters=(("min_observed_values", 2),),
         ),
         originally_missing_cells_tracked_by=(
             OriginallyMissingCellTracking.OBSERVATION_MASK
@@ -1004,12 +1053,139 @@ def test_api_docs_duplicate_correlation_public_example_runs() -> None:
         )
     )
 
+    assert result.policy_provenance is not None
     duplicate = result.policy_provenance.duplicate_correlation
     assert duplicate is not None
     assert duplicate.normalised_paired_design_policy == "duplicate_correlation"
     assert duplicate.block_structure.singleton_block_count == 0
     assert duplicate.consensus.consensus_correlation is not None
     assert result.table_for("treatment_vs_control").shape[0] == phospho.shape[0]
+
+
+def test_api_docs_protein_aware_differential_contract_is_documented() -> None:
+    source = _read(DIFFERENTIAL_DOC)
+    normalised_source = _normalise_whitespace(source)
+    example = _python_code_block_containing(
+        source,
+        "DatasetProteinAwarePreparationConfig",
+        "DifferentialProteinAwareModelConfig",
+        "DifferentialAnalysisWorkflow().run",
+    )
+    example_tree = ast.parse(example)
+
+    _assert_python_imports(
+        source,
+        "phospy.advanced",
+        (
+            "DatasetProteinAwarePreparationConfig",
+            "DifferentialAnalysisConfig",
+            "DifferentialProteinAwareModelConfig",
+        ),
+        context="protein-aware differential public example",
+    )
+    _assert_python_call_keyword(
+        source,
+        "DatasetProteinAwarePreparationConfig",
+        "policy",
+        "prepare_model_inputs",
+        context="protein-aware differential preparation example",
+    )
+    _assert_python_call_keyword(
+        source,
+        "DifferentialAnalysisConfig",
+        "protein_aware_model",
+        context="protein-aware differential opt-in example",
+    )
+    _assert_python_call_keyword(
+        source,
+        "DifferentialProteinAwareModelConfig",
+        "method",
+        "protein_covariate_adjusted_moderated_linear_model_v1",
+        context="protein-aware differential method example",
+    )
+    _assert_documented_terms(
+        normalised_source,
+        (
+            "protein_covariate_adjusted_moderated_linear_model_v1",
+            "experimental",
+            "y_s = X beta_s + z_p(s) gamma_s + error",
+            "established log2",
+            "no-fallback",
+            "withheld_protein_covariate_invalid",
+            "protein_aware_diagnostics",
+            "result.policy_provenance.protein_aware",
+            "ordinary differential lane remains the default",
+            "automatically preprocess total-protein values",
+            "does not establish causal independence",
+            "Mixed effects",
+            "technical-replicate aggregation",
+            "duplicate correlation",
+            "MSstatsPTM-style joint PTM/protein inference",
+        ),
+        context="protein-aware differential documentation contract",
+    )
+    assert any(
+        _is_workflow_run_call(call, "DifferentialAnalysisWorkflow")
+        for call in ast.walk(example_tree)
+        if isinstance(call, ast.Call)
+    ), "protein-aware example must call DifferentialAnalysisWorkflow().run(...)"
+    _assert_call_keyword_is_call(
+        example_tree,
+        "DifferentialAnalysisConfig",
+        "protein_aware_model",
+        "DifferentialProteinAwareModelConfig",
+        context="protein-aware differential executable documentation example",
+    )
+    request_calls = _calls_named_in_tree(example_tree, "DifferentialAnalysisRequest")
+    assert request_calls, "protein-aware example must construct a workflow request"
+    for call in request_calls:
+        assert _keyword_names(call) == {"dataset", "design", "contrasts", "config"}
+    assert len(_calls_named_in_tree(example_tree, "SampleDesignRecord")) == 6
+    assert not any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "split"
+        for node in ast.walk(example_tree)
+    ), "protein-aware example must use explicit sample design records"
+    _assert_statement_contains_all(
+        source,
+        ("protein matrix", "mapping table", "preparation result", "do not pass"),
+        context="protein-aware request boundary",
+    )
+    assert "protein_covariate_p_value" not in source
+    assert "protein_covariate_q_value" not in source
+
+
+def test_api_docs_protein_aware_differential_example_runs() -> None:
+    source = _read(DIFFERENTIAL_DOC)
+    example = _python_code_block_containing(
+        source,
+        "DatasetProteinAwarePreparationConfig",
+        "DifferentialProteinAwareModelConfig",
+        "DifferentialAnalysisWorkflow().run",
+    )
+    namespace: dict[str, Any] = {}
+
+    exec(example, namespace)
+
+    result = namespace["result"]
+    table = result.table_for("B_vs_A")
+    diagnostics = result.protein_aware_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.method_id == (
+        "protein_covariate_adjusted_moderated_linear_model_v1"
+    )
+    assert diagnostics.claim_status == "experimental"
+    assert diagnostics.tested_site_count == 2
+    assert diagnostics.withheld_site_count == 1
+    assert diagnostics.fallback_policy == "no_fallback_to_ordinary_differential_lane"
+    assert int((table["result_status"].astype(str) == "tested").sum()) == 2
+    assert int((table["result_status"].astype(str) != "tested").sum()) == 1
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.protein_aware is not None
+    assert "differential_protein_aware_experimental" in {
+        caveat.code for caveat in result.caveats
+    }
 
 
 def test_api_docs_kinase_request_example_is_constructible() -> None:
@@ -1035,12 +1211,15 @@ def test_api_docs_kinase_request_example_is_constructible() -> None:
             min_substrates=3,
             top_n_substrates=20,
         ),
-        site_sequence_conflict_policy="prefer_reference",
+        site_sequence_conflict_policy=KinaseSiteSequenceConflictPolicy.PREFER_REFERENCE,
     )
 
     assert request.references is ReferencePreset.AUTO
     assert request.prediction_config.mode == "deterministic_ranking"
-    assert request.site_sequence_conflict_policy == "prefer_reference"
+    assert (
+        request.site_sequence_conflict_policy
+        is KinaseSiteSequenceConflictPolicy.PREFER_REFERENCE
+    )
 
 
 def test_api_docs_signalome_request_example_is_constructible() -> None:

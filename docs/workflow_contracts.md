@@ -186,8 +186,10 @@ control metadata, and caller controls missing audit metadata without rationale.
 `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` is
 preparation-only. It does not modify phosphosite values, does not subtract total
 protein, does not run joint PTM/protein differential modelling, does not adjust
-differential models, and does not claim MSstatsPTM-style inference. Current
-`DifferentialAnalysisWorkflow` does not consume `ProteinAwarePreparationResult`.
+differential models by itself, and does not claim MSstatsPTM-style inference.
+The experimental protein-aware differential lane consumes this dataset-owned
+sidecar only when `DifferentialAnalysisConfig.protein_aware_model` is selected;
+ordinary differential analysis ignores it.
 
 ## Differential Analysis Contract
 
@@ -235,6 +237,14 @@ Important user-facing assumptions:
   declaration provenance records diagnostics. The explicit
   `allow_suspicious_declared_input_scale` differential override is recorded in
   policy provenance when used.
+- `protein_aware_model=None` is the default. The experimental
+  `protein_covariate_adjusted_moderated_linear_model_v1` lane consumes only the
+  current dataset's `ProteinAwarePreparationResult`, keeps
+  `DifferentialAnalysisRequest` free of caller-supplied protein matrices or
+  mappings, reports the requested condition `logFC` conditional on measured
+  matched total-protein abundance, and withholds inadmissible rows instead of
+  falling back to ordinary fitting. It is not stoichiometry, occupancy,
+  MSstatsPTM parity, or MSstatsPTM-style joint PTM/protein inference.
 
 Each contrast result table is indexed by the input `site_key` and includes the
 minimum public identity columns documented in the

@@ -530,8 +530,8 @@ processing state when you intentionally allow partial correction.
 
 `DatasetProteinAwarePreparationConfig` prepares aligned phosphosite and protein
 model inputs and diagnostics. It does not change the phosphosite matrix, does
-not subtract total protein, does not normalise intensities, and does not run
-differential analysis. It also does not claim MSstatsPTM-style inference.
+not subtract total protein, does not normalise intensities, and does not itself
+run differential analysis. It also does not claim MSstatsPTM-style inference.
 
 ```python
 from phospy.advanced import DatasetProteinAwarePreparationConfig
@@ -552,7 +552,10 @@ report = dataset.preprocessing_report.protein_aware_preparation
 site_eligibility = report.site_eligibility_dataframe()
 ```
 
-The current differential workflow does not consume this preparation result.
+The experimental protein-aware differential lane consumes this dataset-owned
+preparation result only when the caller explicitly selects
+`DifferentialAnalysisConfig.protein_aware_model`. The ordinary differential
+lane ignores the sidecar.
 
 ## Peptide-Evidence Input
 

@@ -61,6 +61,16 @@ pytestmark = pytest.mark.integration
                 "Run-provenance source type: phospy_derived_quantitative",
             ],
         ),
+        (
+            "differential_protein_aware_demo.py",
+            [
+                "Experimental protein-aware differential workflow",
+                "Method: protein_covariate_adjusted_moderated_linear_model_v1",
+                "Claim: experimental",
+                "Withheld sites: 1",
+                "Fallback policy: no_fallback_to_ordinary_differential_lane",
+            ],
+        ),
     ],
 )
 def test_public_example_script_runs(
