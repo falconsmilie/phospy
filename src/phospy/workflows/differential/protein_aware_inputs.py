@@ -174,6 +174,8 @@ class ProteinAwareDifferentialInputResolver:
     def run(
         self,
         request: ValidatedDifferentialAnalysisRequest,
+        *,
+        minimum_condition_replicates: int,
     ) -> ProteinAwareDifferentialResolvedInputs:
         if not isinstance(request, ValidatedDifferentialAnalysisRequest):
             _raise_boundary(
@@ -228,7 +230,7 @@ class ProteinAwareDifferentialInputResolver:
             contrasts=request.contrasts,
             policy=request.config.imputed_value_policy,
             max_fraction=request.config.imputed_value_max_fraction,
-            minimum_condition_replicates=request.config.minimum_condition_replicates,
+            minimum_condition_replicates=minimum_condition_replicates,
         ).feature_eligibility_inputs
 
         protein_covariates = _selected_protein_covariates(

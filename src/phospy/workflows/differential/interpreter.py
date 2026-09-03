@@ -110,7 +110,12 @@ class DifferentialAnalysisInterpreter:
         execution_config = _resolve_execution_config(request.config)
         protein_aware_inputs = None
         if execution_config.protein_aware_method is not None:
-            protein_aware_inputs = self._protein_aware_input_resolver.run(request)
+            protein_aware_inputs = self._protein_aware_input_resolver.run(
+                request,
+                minimum_condition_replicates=(
+                    execution_config.minimum_condition_replicates
+                ),
+            )
 
         if aggregation_plan is not None and aggregation_plan.requires_aggregation:
             technical_replicate_resolution = self._technical_replicate_aggregator.run(
@@ -282,6 +287,7 @@ class DifferentialAnalysisInterpreter:
         policy_provenance = build_differential_policy_provenance(
             request=provenance_request,
             design_decomposition=resolved_design_decomposition,
+            execution_config=execution_config,
             imputation_policy_inputs=imputation_policy_inputs,
             feature_eligibility_inputs=feature_eligibility_inputs,
         )

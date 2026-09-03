@@ -261,7 +261,8 @@ def test_dataset_builder_protein_aware_sidecar_feeds_private_differential_inputs
                     protein_aware_model=DifferentialProteinAwareModelConfig()
                 ),
             )
-        )
+        ),
+        minimum_condition_replicates=2,
     )
 
     assert resolved.tested_site_ids == tuple(built.phospho.index.astype(str).tolist())

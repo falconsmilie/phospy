@@ -571,6 +571,9 @@ def _build_protein_aware_diagnostics(
         protein_covariate_centering_policy=PROTEIN_AWARE_CENTERING_POLICY,
         protein_covariate_imputation_policy="none",
         fallback_policy="no_fallback_to_ordinary_differential_lane",
+        minimum_condition_replicates=(
+            request.execution_config.minimum_condition_replicates
+        ),
         total_site_count=total_site_count,
         ordinary_eligible_site_count=_count_from_pairs(
             resolved_inputs.eligibility_counts,

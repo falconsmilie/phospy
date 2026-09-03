@@ -547,6 +547,7 @@ class ProteinAwareDifferentialDiagnostics:
     protein_covariate_centering_policy: str
     protein_covariate_imputation_policy: str
     fallback_policy: str
+    minimum_condition_replicates: int
     total_site_count: int
     ordinary_eligible_site_count: int
     protein_preparation_eligible_site_count: int
@@ -581,6 +582,7 @@ class ProteinAwareDifferentialDiagnostics:
         protein_covariate_centering_policy: str,
         protein_covariate_imputation_policy: str,
         fallback_policy: str,
+        minimum_condition_replicates: int,
         total_site_count: int,
         ordinary_eligible_site_count: int,
         protein_preparation_eligible_site_count: int,
@@ -662,6 +664,10 @@ class ProteinAwareDifferentialDiagnostics:
                 "protein_aware_diagnostics residual degrees of freedom values must "
                 "be >= 0.0"
             )
+        resolved_minimum_condition_replicates = _require_positive_int(
+            minimum_condition_replicates,
+            field_name="protein_aware_diagnostics.minimum_condition_replicates",
+        )
 
         matched_protein_rows = _require_non_negative_int(
             distinct_matched_protein_row_count,
@@ -786,6 +792,11 @@ class ProteinAwareDifferentialDiagnostics:
                 field_name="protein_aware_diagnostics.fallback_policy",
                 expected=PROTEIN_AWARE_DIFFERENTIAL_FALLBACK_POLICY,
             ),
+        )
+        object.__setattr__(
+            self,
+            "minimum_condition_replicates",
+            resolved_minimum_condition_replicates,
         )
         object.__setattr__(self, "total_site_count", total_site_count)
         object.__setattr__(
@@ -925,6 +936,7 @@ class ProteinAwareDifferentialDiagnostics:
             and self.protein_covariate_imputation_policy
             == other.protein_covariate_imputation_policy
             and self.fallback_policy == other.fallback_policy
+            and self.minimum_condition_replicates == other.minimum_condition_replicates
             and self.total_site_count == other.total_site_count
             and self.ordinary_eligible_site_count == other.ordinary_eligible_site_count
             and self.protein_preparation_eligible_site_count
@@ -975,6 +987,7 @@ class ProteinAwareDifferentialDiagnostics:
                 "imputation_policy": self.protein_covariate_imputation_policy,
                 "fallback_policy": self.fallback_policy,
             },
+            "minimum_condition_replicates": self.minimum_condition_replicates,
             "counts": {
                 "total_site_count": self.total_site_count,
                 "ordinary_eligible_site_count": self.ordinary_eligible_site_count,
@@ -1079,6 +1092,14 @@ def _require_non_negative_int(value: object, *, field_name: str) -> int:
         raise PhosPyInputError(f"{field_name} must be a non-negative integer")
     if value < 0:
         raise PhosPyInputError(f"{field_name} must be >= 0")
+    return int(value)
+
+
+def _require_positive_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(f"{field_name} must be a positive integer")
+    if value < 1:
+        raise PhosPyInputError(f"{field_name} must be >= 1")
     return int(value)
 
 

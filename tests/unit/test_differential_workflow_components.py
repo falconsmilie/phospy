@@ -79,6 +79,7 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
@@ -91,7 +92,10 @@ from phospy.validation.workflows.differential import (
     ValidatedExperimentalDesignContract,
 )
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
-from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
+from phospy.workflows.differential.interpreter import (
+    DifferentialAnalysisInterpreter,
+    _resolve_execution_config,
+)
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
     ProteinAwareDifferentialResolvedInputs,
@@ -311,6 +315,7 @@ def _dataset_with_custom_protein_aware_preparation(
     *,
     phospho: pd.DataFrame | None = None,
     total: pd.DataFrame | None = None,
+    imputation_observation_mask: pd.DataFrame | None = None,
 ) -> tuple[AnalysisReadyPhosphoDataset, ProteinAwarePreparationResult]:
     base_dataset = _dataset()
     resolved_phospho = base_dataset.phospho if phospho is None else phospho
@@ -335,6 +340,10 @@ def _dataset_with_custom_protein_aware_preparation(
         if total is None
         else total
     )
+    intensity_scale_state = supported_log2_intensity_scale_state(has_total_matrix=True)
+    processing_state = supported_log2_processing_state(has_total_matrix=True)
+    if imputation_observation_mask is not None:
+        processing_state = valid_imputed_processing_state(processing_state)
     base_dataset_with_total = trusted_analysis_ready_dataset_from_tables(
         phospho=resolved_phospho,
         site_metadata=base_dataset.site_metadata,
@@ -342,10 +351,9 @@ def _dataset_with_custom_protein_aware_preparation(
         total=resolved_total,
         comparisons=base_dataset.comparisons,
         organism=base_dataset.organism,
-        intensity_scale_state=supported_log2_intensity_scale_state(
-            has_total_matrix=True
-        ),
-        processing_state=supported_log2_processing_state(has_total_matrix=True),
+        imputation_observation_mask=imputation_observation_mask,
+        intensity_scale_state=intensity_scale_state,
+        processing_state=processing_state,
     )
     preparation = _protein_aware_preparation_for_dataset(base_dataset_with_total)
     preprocessing_report = DatasetPreprocessingReport.from_rows(
@@ -359,8 +367,9 @@ def _dataset_with_custom_protein_aware_preparation(
             total=base_dataset_with_total.total,
             comparisons=base_dataset_with_total.comparisons,
             organism=base_dataset_with_total.organism,
-            intensity_scale_state=base_dataset_with_total.intensity_scale_state,
-            processing_state=base_dataset_with_total.processing_state,
+            imputation_observation_mask=imputation_observation_mask,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
             preprocessing_report=preprocessing_report,
             protein_aware_preparation=preparation,
         ),
@@ -368,9 +377,10 @@ def _dataset_with_custom_protein_aware_preparation(
     )
 
 
-def _six_sample_dataset_with_protein_aware_preparation() -> tuple[
-    AnalysisReadyPhosphoDataset, ProteinAwarePreparationResult
-]:
+def _six_sample_dataset_with_protein_aware_preparation(
+    *,
+    imputation_observation_mask: pd.DataFrame | None = None,
+) -> tuple[AnalysisReadyPhosphoDataset, ProteinAwarePreparationResult]:
     base_dataset = _dataset()
     phospho = pd.DataFrame(
         {
@@ -397,7 +407,28 @@ def _six_sample_dataset_with_protein_aware_preparation() -> tuple[
     return _dataset_with_custom_protein_aware_preparation(
         phospho=phospho,
         total=total,
+        imputation_observation_mask=imputation_observation_mask,
     )
+
+
+def _single_observed_replicate_per_condition_mask(
+    phospho: pd.DataFrame,
+) -> pd.DataFrame:
+    mask = pd.DataFrame(
+        True, index=phospho.index.copy(), columns=phospho.columns.copy()
+    )
+    mask.loc[:, ["A_2", "B_2"]] = False
+    return mask
+
+
+def _two_observed_replicates_per_condition_mask(
+    phospho: pd.DataFrame,
+) -> pd.DataFrame:
+    mask = pd.DataFrame(
+        True, index=phospho.index.copy(), columns=phospho.columns.copy()
+    )
+    mask.loc[:, ["A_3", "B_3"]] = False
+    return mask
 
 
 def _protein_aware_request(
@@ -474,6 +505,17 @@ def _validated_protein_aware_request(
             fixed_effects=fixed_effects,
             sample_covariates=sample_covariates,
         )
+    )
+
+
+def _run_protein_aware_input_resolver(
+    request: ValidatedDifferentialAnalysisRequest,
+    *,
+    minimum_condition_replicates: int = 2,
+) -> ProteinAwareDifferentialResolvedInputs:
+    return ProteinAwareDifferentialInputResolver().run(
+        request,
+        minimum_condition_replicates=minimum_condition_replicates,
     )
 
 
@@ -916,7 +958,7 @@ def test_protein_aware_input_resolver_builds_execution_request_from_sidecar() ->
     dataset, _ = _dataset_with_protein_aware_preparation()
     sample_ids = ("B_2", "B_1", "A_2", "A_1")
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(
             dataset,
             sample_ids=sample_ids,
@@ -962,11 +1004,237 @@ def test_protein_aware_input_resolver_builds_execution_request_from_sidecar() ->
     ).all()
 
 
+def test_protein_aware_interpreter_passes_resolved_exploratory_threshold() -> None:
+    dataset, _ = _dataset_with_protein_aware_preparation()
+    base_request = _protein_aware_request(dataset)
+    validated = DifferentialAnalysisValidator().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+            config=DifferentialAnalysisConfig(
+                reliability_profile=(
+                    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+                ),
+                protein_aware_model=DifferentialProteinAwareModelConfig(),
+            ),
+        )
+    )
+
+    class _ProteinAwareInputResolverSpy:
+        def __init__(self) -> None:
+            self.raw_minimum_condition_replicates: int | None = None
+            self.minimum_condition_replicates: int | None = None
+            self._real_resolver = ProteinAwareDifferentialInputResolver()
+
+        def run(
+            self,
+            request: ValidatedDifferentialAnalysisRequest,
+            *,
+            minimum_condition_replicates: int,
+        ) -> ProteinAwareDifferentialResolvedInputs:
+            self.raw_minimum_condition_replicates = (
+                request.config.minimum_condition_replicates
+            )
+            self.minimum_condition_replicates = minimum_condition_replicates
+            return self._real_resolver.run(
+                request,
+                minimum_condition_replicates=minimum_condition_replicates,
+            )
+
+    input_resolver = _ProteinAwareInputResolverSpy()
+    interpreted = DifferentialAnalysisInterpreter(
+        protein_aware_input_resolver=input_resolver,  # type: ignore[arg-type]
+    ).run(validated)
+
+    assert input_resolver.raw_minimum_condition_replicates == 2
+    assert input_resolver.minimum_condition_replicates == 1
+    assert interpreted.execution_config.minimum_condition_replicates == 1
+    assert interpreted.policy_provenance is not None
+    assert interpreted.policy_provenance.replicates.minimum_condition_replicates == 1
+
+
+def test_protein_aware_imputation_eligibility_uses_resolved_exploratory_threshold() -> (
+    None
+):
+    base_dataset, _ = _dataset_with_protein_aware_preparation()
+    dataset, _ = _dataset_with_custom_protein_aware_preparation(
+        imputation_observation_mask=_single_observed_replicate_per_condition_mask(
+            base_dataset.phospho
+        )
+    )
+    base_request = _protein_aware_request(dataset)
+    protein_aware_request = DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=base_request.design,
+        contrasts=base_request.contrasts,
+        config=DifferentialAnalysisConfig(
+            reliability_profile=(
+                DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+            ),
+            imputed_value_policy="withhold_imputed_features",
+            imputed_value_max_fraction=0.5,
+            protein_aware_model=DifferentialProteinAwareModelConfig(),
+        ),
+    )
+    ordinary_request = DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=base_request.design,
+        contrasts=base_request.contrasts,
+        config=DifferentialAnalysisConfig(
+            reliability_profile=(
+                DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE
+            ),
+            imputed_value_policy="withhold_imputed_features",
+            imputed_value_max_fraction=0.5,
+        ),
+    )
+
+    protein_aware_result = DifferentialAnalysisWorkflow().run(protein_aware_request)
+    ordinary_result = DifferentialAnalysisWorkflow().run(ordinary_request)
+
+    protein_aware_table = protein_aware_result.table_for("B_vs_A")
+    ordinary_table = ordinary_result.table_for("B_vs_A")
+    assert protein_aware_result.policy_provenance is not None
+    assert (
+        protein_aware_result.policy_provenance.replicates.minimum_condition_replicates
+        == 1
+    )
+    protein_aware_diagnostics = protein_aware_result.protein_aware_diagnostics
+    assert protein_aware_diagnostics is not None
+    assert protein_aware_diagnostics.minimum_condition_replicates == 1
+    assert protein_aware_diagnostics.ordinary_eligible_site_count == len(
+        dataset.phospho.index
+    )
+    assert protein_aware_diagnostics.tested_site_count == len(dataset.phospho.index)
+    assert (
+        protein_aware_table[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str).tolist()
+        == ordinary_table[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str).tolist()
+        == [DIFFERENTIAL_RESULT_STATUS_TESTED] * len(dataset.phospho.index)
+    )
+    assert DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED not in set(
+        protein_aware_table[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str)
+    )
+
+
+def test_protein_aware_imputation_eligibility_respects_production_threshold() -> None:
+    base_dataset, _ = _dataset_with_protein_aware_preparation()
+    dataset, _ = _dataset_with_custom_protein_aware_preparation(
+        imputation_observation_mask=_single_observed_replicate_per_condition_mask(
+            base_dataset.phospho
+        )
+    )
+    base_request = _protein_aware_request(dataset)
+    validated = DifferentialAnalysisValidator().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+            config=DifferentialAnalysisConfig(
+                imputed_value_policy="withhold_imputed_features",
+                imputed_value_max_fraction=0.5,
+                protein_aware_model=DifferentialProteinAwareModelConfig(),
+            ),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.all_sites_withheld",
+    ) as exc_info:
+        _run_protein_aware_input_resolver(
+            validated,
+            minimum_condition_replicates=2,
+        )
+
+    assert exc_info.value.details["status_counts"] == {
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED: len(
+            dataset.phospho.index
+        )
+    }
+
+
+def test_protein_aware_interpreter_passes_explicit_production_threshold() -> None:
+    sample_ids = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+    base_request = _protein_aware_request(dataset, sample_ids=sample_ids)
+    validated = DifferentialAnalysisValidator().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+            config=DifferentialAnalysisConfig(
+                minimum_condition_replicates=3,
+                protein_aware_model=DifferentialProteinAwareModelConfig(),
+            ),
+        )
+    )
+
+    class _ProteinAwareInputResolverSpy:
+        def __init__(self) -> None:
+            self.minimum_condition_replicates: int | None = None
+            self._real_resolver = ProteinAwareDifferentialInputResolver()
+
+        def run(
+            self,
+            request: ValidatedDifferentialAnalysisRequest,
+            *,
+            minimum_condition_replicates: int,
+        ) -> ProteinAwareDifferentialResolvedInputs:
+            self.minimum_condition_replicates = minimum_condition_replicates
+            return self._real_resolver.run(
+                request,
+                minimum_condition_replicates=minimum_condition_replicates,
+            )
+
+    input_resolver = _ProteinAwareInputResolverSpy()
+    interpreted = DifferentialAnalysisInterpreter(
+        protein_aware_input_resolver=input_resolver,  # type: ignore[arg-type]
+    ).run(validated)
+
+    assert input_resolver.minimum_condition_replicates == 3
+    assert interpreted.execution_config.minimum_condition_replicates == 3
+
+
+def test_protein_aware_imputation_eligibility_respects_explicit_threshold() -> None:
+    sample_ids = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
+    base_dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
+    dataset, _ = _six_sample_dataset_with_protein_aware_preparation(
+        imputation_observation_mask=_two_observed_replicates_per_condition_mask(
+            base_dataset.phospho
+        )
+    )
+    base_request = _protein_aware_request(dataset, sample_ids=sample_ids)
+    request = DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=base_request.design,
+        contrasts=base_request.contrasts,
+        config=DifferentialAnalysisConfig(
+            minimum_condition_replicates=3,
+            imputed_value_policy="withhold_imputed_features",
+            imputed_value_max_fraction=0.5,
+            protein_aware_model=DifferentialProteinAwareModelConfig(),
+        ),
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.all_sites_withheld",
+    ) as exc_info:
+        DifferentialAnalysisWorkflow().run(request)
+
+    assert exc_info.value.details["status_counts"] == {
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED: len(
+            dataset.phospho.index
+        )
+    }
+
+
 def test_protein_aware_input_resolver_uses_analysis_sample_subset_only() -> None:
     dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
     sample_ids = ("B_2", "A_2", "B_1", "A_1")
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(
             dataset,
             sample_ids=sample_ids,
@@ -991,7 +1259,7 @@ def test_protein_aware_input_resolver_rejects_missing_sidecar() -> None:
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.sidecar_missing",
     ):
-        ProteinAwareDifferentialInputResolver().run(validated)
+        _run_protein_aware_input_resolver(validated)
 
 
 def test_protein_aware_input_resolver_rejects_unsupported_sidecar_schema() -> None:
@@ -1002,9 +1270,7 @@ def test_protein_aware_input_resolver_rejects_unsupported_sidecar_schema() -> No
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.sidecar_schema",
     ):
-        ProteinAwareDifferentialInputResolver().run(
-            _validated_protein_aware_request(dataset)
-        )
+        _run_protein_aware_input_resolver(_validated_protein_aware_request(dataset))
 
 
 def test_protein_aware_input_resolver_rejects_unsupported_sidecar_policy() -> None:
@@ -1015,9 +1281,7 @@ def test_protein_aware_input_resolver_rejects_unsupported_sidecar_policy() -> No
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.sidecar_policy",
     ):
-        ProteinAwareDifferentialInputResolver().run(
-            _validated_protein_aware_request(dataset)
-        )
+        _run_protein_aware_input_resolver(_validated_protein_aware_request(dataset))
 
 
 def test_protein_aware_input_resolver_rejects_missing_total_matrix() -> None:
@@ -1029,7 +1293,7 @@ def test_protein_aware_input_resolver_rejects_missing_total_matrix() -> None:
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.total_matrix_missing",
     ):
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             replace(validated, dataset_view=DatasetInternalView(validated.dataset))
         )
 
@@ -1046,7 +1310,7 @@ def test_protein_aware_input_resolver_rejects_non_log2_total_scale() -> None:
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.total_scale",
     ):
-        ProteinAwareDifferentialInputResolver().run(validated)
+        _run_protein_aware_input_resolver(validated)
 
 
 def test_protein_aware_input_resolver_rejects_non_log2_phosphosite_scale() -> None:
@@ -1061,7 +1325,7 @@ def test_protein_aware_input_resolver_rejects_non_log2_phosphosite_scale() -> No
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.phospho_scale",
     ):
-        ProteinAwareDifferentialInputResolver().run(validated)
+        _run_protein_aware_input_resolver(validated)
 
 
 def test_protein_aware_input_resolver_rejects_non_log2_sidecar_covariate_evidence() -> (
@@ -1094,7 +1358,7 @@ def test_protein_aware_input_resolver_rejects_non_log2_sidecar_covariate_evidenc
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.prepared_covariate_scale",
     ) as exc_info:
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             _validated_protein_aware_request(modified_dataset)
         )
 
@@ -1133,7 +1397,7 @@ def test_protein_aware_input_resolver_rejects_unestablished_sidecar_covariate_ev
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.prepared_covariate_scale",
     ):
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             _validated_protein_aware_request(modified_dataset)
         )
 
@@ -1168,7 +1432,7 @@ def test_protein_aware_input_resolver_rejects_non_log2_sidecar_phospho_evidence(
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.prepared_phospho_scale",
     ):
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             _validated_protein_aware_request(modified_dataset)
         )
 
@@ -1182,7 +1446,7 @@ def test_protein_aware_input_resolver_rejects_prior_total_subtraction() -> None:
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.prior_total_protein_subtraction",
     ):
-        ProteinAwareDifferentialInputResolver().run(validated)
+        _run_protein_aware_input_resolver(validated)
 
 
 def test_protein_aware_input_resolver_rejects_stale_sidecar_binding() -> None:
@@ -1195,9 +1459,7 @@ def test_protein_aware_input_resolver_rejects_stale_sidecar_binding() -> None:
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.sidecar_binding",
     ):
-        ProteinAwareDifferentialInputResolver().run(
-            _validated_protein_aware_request(dataset)
-        )
+        _run_protein_aware_input_resolver(_validated_protein_aware_request(dataset))
 
 
 def test_protein_aware_input_resolver_all_fallback_fails_with_status_counts() -> None:
@@ -1232,7 +1494,7 @@ def test_protein_aware_input_resolver_all_fallback_fails_with_status_counts() ->
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.all_sites_withheld",
     ) as exc_info:
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             _validated_protein_aware_request(modified_dataset)
         )
 
@@ -1258,7 +1520,7 @@ def test_protein_aware_input_resolver_rejects_duplicate_correlation() -> None:
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.duplicate_correlation",
     ):
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             _validated_protein_aware_request(
                 dataset,
                 sample_ids=sample_ids,
@@ -1292,7 +1554,7 @@ def test_protein_aware_input_resolver_rejects_actual_technical_aggregation() -> 
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.technical_replicate_aggregation",
     ):
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             replace(validated, technical_replicate_aggregation_plan=plan)
         )
 
@@ -1307,7 +1569,7 @@ def test_protein_aware_input_resolver_accepts_noop_technical_aggregation_plan() 
         aggregate_total_protein=True,
     )
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         replace(validated, technical_replicate_aggregation_plan=plan)
     )
 
@@ -1349,7 +1611,7 @@ def test_protein_aware_input_resolver_marks_preparation_fallback_rows() -> None:
         modified_preparation,
     )
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(modified_dataset)
     )
 
@@ -1409,7 +1671,7 @@ def test_protein_aware_input_resolver_marks_unmatched_and_ambiguous_rows() -> No
         modified_preparation,
     )
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(modified_dataset)
     )
 
@@ -1450,7 +1712,7 @@ def test_protein_aware_input_resolver_preserves_ordinary_numeric_precedence() ->
     phospho.loc[ordinary_withheld_site, :] = 42.0
     dataset, _ = _dataset_with_custom_protein_aware_preparation(phospho=phospho)
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(dataset)
     )
 
@@ -1505,7 +1767,7 @@ def test_protein_aware_input_resolver_marks_non_finite_protein_covariates() -> N
         sample_ids=("A_1", "A_2", "A_3", "B_1", "B_2", "B_3"),
     )
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         replace(
             validated,
             dataset_view=cast(
@@ -1538,7 +1800,7 @@ def test_protein_aware_input_resolver_marks_rank_deficient_augmented_designs() -
     )
     rank_deficient_site = str(rank_deficient_dataset.phospho.index[0])
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(
             rank_deficient_dataset,
             sample_ids=("A_1", "A_2", "A_3", "B_1", "B_2", "B_3"),
@@ -1576,7 +1838,7 @@ def test_protein_aware_input_resolver_marks_ill_conditioned_augmented_designs() 
     )
     ill_conditioned_site = str(ill_conditioned_dataset.phospho.index[0])
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(
             ill_conditioned_dataset,
             sample_ids=("A_1", "A_2", "A_3", "B_1", "B_2", "B_3"),
@@ -1609,7 +1871,7 @@ def test_protein_aware_input_resolver_allows_fixed_covariate_when_augmented_desi
         "B_3": {"dose": 2.5},
     }
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(
             dataset,
             sample_ids=sample_ids,
@@ -1638,7 +1900,7 @@ def test_protein_aware_input_resolver_does_not_mutate_sidecar_or_input_frames() 
     covariates_before = preparation.protein_covariate_matrix_dataframe()
     site_eligibility_before = preparation.site_eligibility_table
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(dataset)
     )
 
@@ -1675,7 +1937,7 @@ def test_protein_aware_input_resolver_does_not_mutate_sidecar_or_input_frames() 
 
 def test_protein_aware_resolved_inputs_reject_trusted_construction_mismatch() -> None:
     dataset, _ = _dataset_with_protein_aware_preparation()
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(dataset)
     )
 
@@ -1720,7 +1982,7 @@ def test_protein_aware_input_resolver_all_withheld_fails_with_counts() -> None:
         WorkflowBoundaryError,
         match="differential.protein_aware_inputs.all_sites_withheld",
     ) as exc_info:
-        ProteinAwareDifferentialInputResolver().run(
+        _run_protein_aware_input_resolver(
             _validated_protein_aware_request(constant_dataset)
         )
 
@@ -1744,7 +2006,7 @@ def test_protein_aware_input_resolver_allows_fixed_block_when_augmented_design_v
     sample_ids = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
     dataset, _ = _six_sample_dataset_with_protein_aware_preparation()
 
-    resolved = ProteinAwareDifferentialInputResolver().run(
+    resolved = _run_protein_aware_input_resolver(
         _validated_protein_aware_request(
             dataset,
             sample_ids=sample_ids,
@@ -1939,6 +2201,7 @@ def test_differential_policy_provenance_rejects_different_decomposition_object()
         build_differential_policy_provenance(
             request=validated,
             design_decomposition=rebuilt_decomposition,
+            execution_config=_resolve_execution_config(validated.config),
         )
 
 

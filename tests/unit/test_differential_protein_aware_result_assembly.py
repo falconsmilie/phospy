@@ -174,6 +174,7 @@ def test_protein_aware_diagnostics_are_defensive_and_site_scoped() -> None:
     assert diagnostics.protein_mapping_policy == "require_unambiguous"
     assert diagnostics.protein_covariate_centered is True
     assert diagnostics.protein_covariate_standardized is False
+    assert diagnostics.minimum_condition_replicates == 2
     assert diagnostics.total_site_count == 6
     assert diagnostics.ordinary_eligible_site_count == 6
     assert diagnostics.protein_preparation_eligible_site_count == 4
@@ -249,6 +250,11 @@ def test_protein_aware_payload_is_json_compatible_and_deterministic() -> None:
         ]
     )
     assert "protein_aware_diagnostics" in first_payload
+    protein_aware_diagnostics_payload = cast(
+        dict[str, object],
+        first_payload["protein_aware_diagnostics"],
+    )
+    assert protein_aware_diagnostics_payload["minimum_condition_replicates"] == 2
     json.dumps(first_payload, sort_keys=True)
     serialized_keys = json.dumps(first_payload, sort_keys=True)
     assert "protein_covariate_p_value" not in serialized_keys
@@ -351,7 +357,10 @@ def test_protein_aware_policy_provenance_records_supplied_preparation_context() 
     interpreted = DifferentialAnalysisInterpreter().run(
         DifferentialAnalysisValidator().run(_request(dataset=dataset))
     )
-    resolved_inputs = ProteinAwareDifferentialInputResolver().run(validated)
+    resolved_inputs = ProteinAwareDifferentialInputResolver().run(
+        validated,
+        minimum_condition_replicates=2,
+    )
     result = DifferentialResultAssembler().run_protein_aware(
         request=interpreted,
         resolved_inputs=resolved_inputs,
@@ -415,7 +424,10 @@ def test_protein_aware_policy_provenance_preserves_reference_payload_when_suppli
     interpreted = DifferentialAnalysisInterpreter().run(
         DifferentialAnalysisValidator().run(_request(dataset=dataset))
     )
-    resolved_inputs = ProteinAwareDifferentialInputResolver().run(validated)
+    resolved_inputs = ProteinAwareDifferentialInputResolver().run(
+        validated,
+        minimum_condition_replicates=2,
+    )
     result = DifferentialResultAssembler().run_protein_aware(
         request=interpreted,
         resolved_inputs=resolved_inputs,
@@ -714,6 +726,7 @@ def test_protein_aware_result_rejects_misaligned_diagnostics_index() -> None:
         ),
         ("protein_covariate_imputation_policy", "mean", "imputation_policy"),
         ("fallback_policy", "fallback_to_ordinary", "fallback_policy"),
+        ("minimum_condition_replicates", 0, "minimum_condition_replicates"),
     ),
 )
 def test_protein_aware_diagnostics_rejects_adr_inconsistent_contract_values(
@@ -1414,6 +1427,7 @@ def _protein_aware_diagnostics_copy(
     protein_covariate_centering_policy: str | None = None,
     protein_covariate_imputation_policy: str | None = None,
     fallback_policy: str | None = None,
+    minimum_condition_replicates: int | None = None,
     per_site_diagnostics: pd.DataFrame | None = None,
 ) -> ProteinAwareDifferentialDiagnostics:
     return ProteinAwareDifferentialDiagnostics(
@@ -1444,6 +1458,11 @@ def _protein_aware_diagnostics_copy(
         fallback_policy=diagnostics.fallback_policy
         if fallback_policy is None
         else fallback_policy,
+        minimum_condition_replicates=(
+            diagnostics.minimum_condition_replicates
+            if minimum_condition_replicates is None
+            else minimum_condition_replicates
+        ),
         total_site_count=diagnostics.total_site_count,
         ordinary_eligible_site_count=diagnostics.ordinary_eligible_site_count,
         protein_preparation_eligible_site_count=(
@@ -1522,6 +1541,11 @@ def _protein_aware_diagnostics_copy_with_override(
         return _protein_aware_diagnostics_copy(
             diagnostics,
             fallback_policy=cast(str, value),
+        )
+    if field_name == "minimum_condition_replicates":
+        return _protein_aware_diagnostics_copy(
+            diagnostics,
+            minimum_condition_replicates=cast(int, value),
         )
     raise AssertionError(f"unsupported diagnostics override: {field_name}")
 

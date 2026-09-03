@@ -85,11 +85,8 @@ from phospy.workflows.differential.models import (
     DifferentialImputationPolicyInputs,
     InterpretedDifferentialAnalysisRequest,
     ProteinAwareDifferentialResolvedInputs,
+    ResolvedDifferentialExecutionConfig,
     ValidatedDifferentialAnalysisRequest,
-)
-from phospy.workflows.differential.reliability import (
-    resolved_minimum_condition_replicates,
-    resolved_reliability_profile,
 )
 from phospy.workflows.intensity_scale_evidence import (
     input_intensity_scale_evidence_from_dataset,
@@ -220,6 +217,7 @@ def build_differential_policy_provenance(
     *,
     request: ValidatedDifferentialAnalysisRequest,
     design_decomposition: DifferentialDesignDecomposition,
+    execution_config: ResolvedDifferentialExecutionConfig,
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None,
     feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
 ) -> DifferentialPolicyProvenance:
@@ -321,10 +319,10 @@ def build_differential_policy_provenance(
         ),
         contrasts=tuple(contrast_definitions),
         replicates=DifferentialReplicatePolicyProvenance(
-            minimum_condition_replicates=resolved_minimum_condition_replicates(
-                request.config
+            minimum_condition_replicates=(
+                execution_config.minimum_condition_replicates
             ),
-            reliability_profile=resolved_reliability_profile(request.config),
+            reliability_profile=execution_config.reliability_profile,
             technical_replicate_policy=(
                 request.config.technical_replicate_policy.value
             ),
