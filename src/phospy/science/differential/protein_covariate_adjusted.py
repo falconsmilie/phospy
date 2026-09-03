@@ -151,12 +151,10 @@ class ProteinCovariateAdjustedDifferentialKernel:
         site_failure_rows: list[dict[str, object]] = []
         group_failure_rows: list[dict[str, object]] = []
 
-        for row_key in dict.fromkeys(total_protein_row_keys):
-            positions = tuple(
-                position
-                for position, candidate_key in enumerate(total_protein_row_keys)
-                if candidate_key == row_key
-            )
+        positions_by_row_key = _positions_by_total_protein_row_key(
+            total_protein_row_keys
+        )
+        for row_key, positions in positions_by_row_key.items():
             protein_vector = (
                 aligned.protein_covariates.reindex(
                     index=[row_key],
@@ -438,6 +436,17 @@ def run_protein_covariate_adjusted_differential(
     """Run the private protein-covariate-adjusted computation kernel."""
 
     return ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+
+def _positions_by_total_protein_row_key(
+    total_protein_row_keys: tuple[str, ...],
+) -> dict[str, tuple[int, ...]]:
+    positions_by_row_key: dict[str, list[int]] = {}
+    for position, row_key in enumerate(total_protein_row_keys):
+        positions_by_row_key.setdefault(row_key, []).append(position)
+    return {
+        row_key: tuple(positions) for row_key, positions in positions_by_row_key.items()
+    }
 
 
 def _align_inputs(

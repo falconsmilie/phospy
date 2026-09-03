@@ -1312,9 +1312,7 @@ def _require_counts_match_per_site_diagnostics(
         str(value)
         for value in per_site_diagnostics[DIFFERENTIAL_RESULT_STATUS_COLUMN].tolist()
     ]
-    expected_status_counts = tuple(
-        (status, status_values.count(status)) for status in dict.fromkeys(status_values)
-    )
+    expected_status_counts = _ordered_count_items(status_values)
     if status_counts != expected_status_counts:
         raise PhosPyInputError(
             "protein_aware_diagnostics.status_counts must match "
@@ -1328,14 +1326,19 @@ def _require_counts_match_per_site_diagnostics(
         ].tolist()
         if str(value).strip()
     ]
-    expected_reason_counts = tuple(
-        (reason, reason_values.count(reason)) for reason in dict.fromkeys(reason_values)
-    )
+    expected_reason_counts = _ordered_count_items(reason_values)
     if reason_counts != expected_reason_counts:
         raise PhosPyInputError(
             "protein_aware_diagnostics.reason_counts must match "
             "per_site_diagnostics.result_status_reason counts"
         )
+
+
+def _ordered_count_items(values: list[str]) -> tuple[tuple[str, int], ...]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return tuple((value, count) for value, count in counts.items())
 
 
 def _dataframe_records_payload(frame: pd.DataFrame) -> list[dict[str, object]]:

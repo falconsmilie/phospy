@@ -246,6 +246,7 @@ def test_private_protein_aware_request_owns_and_validates_alignment() -> None:
         ("reordered_samples", "phosphosite_matrix.columns must exactly match"),
         ("reordered_matched_pairs", "matched_pairs.site_key must exactly match"),
         ("duplicate_matched_pair_columns", "matched_pairs.columns must be unique"),
+        ("duplicate_matched_pair_site_key", "matched_pairs.site_key must be unique"),
         (
             "missing_protein_covariate",
             "must contain each matched total_protein_row_key",
@@ -277,6 +278,12 @@ def test_private_protein_aware_request_rejects_invalid_contracts(
             allow_duplicates=True,
         )
         kwargs["matched_pairs"] = duplicate_pairs
+    elif mutation == "duplicate_matched_pair_site_key":
+        pairs = kwargs["matched_pairs"]
+        assert isinstance(pairs, pd.DataFrame)
+        duplicate_pairs = pairs.copy(deep=True)
+        duplicate_pairs.loc[1, "site_key"] = "site_a"
+        kwargs["matched_pairs"] = duplicate_pairs
     elif mutation == "missing_protein_covariate":
         covariates = kwargs["resolved_protein_covariates"]
         assert isinstance(covariates, pd.DataFrame)
@@ -288,6 +295,29 @@ def test_private_protein_aware_request_rejects_invalid_contracts(
         ProteinAwareDifferentialComputationRequest(**kwargs)  # type: ignore[arg-type]
 
 
+def test_private_protein_aware_request_allows_repeated_protein_identifiers_and_row_keys() -> (
+    None
+):
+    kwargs = _request_kwargs()
+    pairs = kwargs["matched_pairs"]
+    assert isinstance(pairs, pd.DataFrame)
+    repeated_pairs = pairs.copy(deep=True)
+    repeated_pairs.loc[:, "protein_identifier"] = ["P_SHARED", "P_SHARED"]
+    repeated_pairs.loc[:, "total_protein_row_key"] = ["protein_a", "protein_a"]
+    kwargs["matched_pairs"] = repeated_pairs
+
+    request = ProteinAwareDifferentialComputationRequest(**kwargs)  # type: ignore[arg-type]
+
+    assert request.matched_pairs["protein_identifier"].tolist() == [
+        "P_SHARED",
+        "P_SHARED",
+    ]
+    assert request.matched_pairs["total_protein_row_key"].tolist() == [
+        "protein_a",
+        "protein_a",
+    ]
+
+
 def test_private_protein_aware_request_from_owned_still_validates_alignment() -> None:
     kwargs = _request_kwargs()
     matrix = kwargs["phosphosite_matrix"]
@@ -295,6 +325,18 @@ def test_private_protein_aware_request_from_owned_still_validates_alignment() ->
     kwargs["phosphosite_matrix"] = matrix.loc[:, list(reversed(SAMPLE_ORDER))]
 
     with pytest.raises(PhosPyInputError, match="phosphosite_matrix.columns"):
+        ProteinAwareDifferentialComputationRequest._from_owned(**kwargs)  # type: ignore[arg-type]
+
+
+def test_private_protein_aware_request_from_owned_rejects_duplicate_site_key() -> None:
+    kwargs = _request_kwargs()
+    pairs = kwargs["matched_pairs"]
+    assert isinstance(pairs, pd.DataFrame)
+    duplicate_pairs = pairs.copy(deep=True)
+    duplicate_pairs.loc[1, "site_key"] = "site_a"
+    kwargs["matched_pairs"] = duplicate_pairs
+
+    with pytest.raises(PhosPyInputError, match="matched_pairs.site_key must be unique"):
         ProteinAwareDifferentialComputationRequest._from_owned(**kwargs)  # type: ignore[arg-type]
 
 

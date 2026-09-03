@@ -790,12 +790,13 @@ class ProteinAwareDifferentialResolvedInputs:
             "site_key",
             seam="candidate_matched_pairs",
         )
-        if len(set(candidate_site_ids)) != len(candidate_site_ids):
+        duplicate_candidate_site_ids = _duplicates(candidate_site_ids)
+        if duplicate_candidate_site_ids:
             _raise_protein_aware_resolved_inputs_error(
                 seam="candidate_matched_pairs",
                 next_action="carry candidate matched pairs with unique site_key values",
                 details={
-                    "duplicate_candidate_site_ids": _duplicates(candidate_site_ids)[:5]
+                    "duplicate_candidate_site_ids": duplicate_candidate_site_ids[:5]
                 },
             )
         unexpected_candidate_ids = [
@@ -944,7 +945,17 @@ def _frame_column_strings(
 
 
 def _duplicates(values: tuple[str, ...]) -> list[str]:
-    return [value for value in dict.fromkeys(values) if values.count(value) > 1]
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    duplicate_seen: set[str] = set()
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            continue
+        if value not in duplicate_seen:
+            duplicates.append(value)
+            duplicate_seen.add(value)
+    return duplicates
 
 
 def _require_non_empty_protein_aware_text(

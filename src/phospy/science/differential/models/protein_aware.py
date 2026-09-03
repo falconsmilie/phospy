@@ -702,9 +702,7 @@ def _normalize_label_sequence(value: object, *, field_name: str) -> tuple[str, .
             f"invalid_count={invalid_count}"
         )
     labels = cast(tuple[str, ...], raw_labels)
-    duplicate_labels = [
-        label for label in dict.fromkeys(labels) if labels.count(label) > 1
-    ]
+    duplicate_labels = _duplicate_values(labels)
     if duplicate_labels:
         preview = ", ".join(repr(label) for label in duplicate_labels[:5])
         suffix = "" if len(duplicate_labels) <= 5 else " ..."
@@ -818,9 +816,7 @@ def _require_non_empty_string_column_values(
             f"invalid_count={invalid_count}"
         )
     values = cast(tuple[str, ...], raw_values)
-    duplicate_values = [
-        value for value in dict.fromkeys(values) if values.count(value) > 1
-    ]
+    duplicate_values = _duplicate_values(values) if column_name == "site_key" else []
     if column_name == "site_key" and duplicate_values:
         preview = ", ".join(repr(value) for value in duplicate_values[:5])
         suffix = "" if len(duplicate_values) <= 5 else " ..."
@@ -828,6 +824,20 @@ def _require_non_empty_string_column_values(
             f"{field_name}.{column_name} must be unique; duplicate_values={preview}{suffix}"
         )
     return values
+
+
+def _duplicate_values(values: tuple[str, ...]) -> list[str]:
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    duplicate_seen: set[str] = set()
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            continue
+        if value not in duplicate_seen:
+            duplicates.append(value)
+            duplicate_seen.add(value)
+    return duplicates
 
 
 def _require_matched_protein_rows(

@@ -675,12 +675,8 @@ def _normalize_site_eligibility(
                 "protein_aware_preparation_report.site_eligibility entries must be "
                 f"ProteinAwareSiteEligibility; invalid_position={position}"
             )
-    site_keys = [row.site_key for row in rows]
-    duplicate_keys = [
-        site_key
-        for site_key in dict.fromkeys(site_keys)
-        if site_keys.count(site_key) > 1
-    ]
+    site_keys = tuple(row.site_key for row in rows)
+    duplicate_keys = _duplicate_values(site_keys)
     if duplicate_keys:
         preview = ", ".join(repr(value) for value in duplicate_keys[:5])
         suffix = "" if len(duplicate_keys) <= 5 else " ..."
@@ -689,6 +685,20 @@ def _normalize_site_eligibility(
             f"must be unique; duplicate_site_keys={preview}{suffix}"
         )
     return rows
+
+
+def _duplicate_values(values: tuple[str, ...]) -> list[str]:
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    duplicate_seen: set[str] = set()
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            continue
+        if value not in duplicate_seen:
+            duplicates.append(value)
+            duplicate_seen.add(value)
+    return duplicates
 
 
 def _site_eligibility_table(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -174,6 +175,136 @@ def test_grouped_fit_restores_site_order_and_decomposes_once_per_protein(
     scales = result.contrast_standard_error_scale_dataframe()["B_vs_A"]
     assert scales.loc["site_a"] == pytest.approx(scales.loc["site_c"])
     assert not math.isclose(float(scales.loc["site_a"]), float(scales.loc["site_b"]))
+
+
+def test_ordered_grouping_reuses_one_vectorized_fit_per_protein_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    row_key_sequence = (
+        "protein_b",
+        "protein_a",
+        "protein_b",
+        "protein_c",
+        "protein_a",
+    )
+    groups = kernel_module._positions_by_total_protein_row_key(row_key_sequence)
+
+    assert list(groups) == ["protein_b", "protein_a", "protein_c"]
+    assert {row_key: list(positions) for row_key, positions in groups.items()} == {
+        "protein_b": [0, 2],
+        "protein_a": [1, 4],
+        "protein_c": [3],
+    }
+
+    protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
+    protein_c = np.array([1.4, 0.2, 2.1, 0.7, 1.8, 2.6], dtype=float)
+    values = {
+        "site_0": _site_values(
+            beta_a=4.0,
+            beta_b=4.8,
+            gamma=0.3,
+            protein=protein_b,
+            seed=NOISE_SEED[::-1],
+        ),
+        "site_1": _site_values(
+            beta_a=5.0,
+            beta_b=6.0,
+            gamma=-0.2,
+            protein=protein_a,
+        ),
+        "site_2": _site_values(
+            beta_a=3.0,
+            beta_b=4.1,
+            gamma=0.7,
+            protein=protein_b,
+            seed=np.roll(NOISE_SEED, 1),
+        ),
+        "site_3": _site_values(
+            beta_a=2.5,
+            beta_b=3.4,
+            gamma=-0.4,
+            protein=protein_c,
+            seed=np.roll(NOISE_SEED, 2),
+        ),
+        "site_4": _site_values(
+            beta_a=6.2,
+            beta_b=6.9,
+            gamma=0.5,
+            protein=protein_a,
+            seed=np.roll(NOISE_SEED, 3),
+        ),
+    }
+    decompose_calls: list[np.ndarray] = []
+    fit_calls: list[tuple[int, ...]] = []
+    real_decompose = kernel_module.decompose_differential_design
+    real_fit_group = kernel_module._fit_group
+
+    def _counting_decompose(
+        design: np.ndarray,
+        *,
+        max_condition_number: float = 1.0e10,
+    ):
+        decompose_calls.append(np.asarray(design, dtype=float).copy())
+        return real_decompose(
+            design,
+            max_condition_number=max_condition_number,
+        )
+
+    def _counting_fit_group(**kwargs: Any) -> None:
+        fit_calls.append(tuple(int(value) for value in kwargs["positions"]))
+        real_fit_group(**kwargs)
+
+    monkeypatch.setattr(
+        kernel_module,
+        "decompose_differential_design",
+        _counting_decompose,
+    )
+    monkeypatch.setattr(kernel_module, "_fit_group", _counting_fit_group)
+
+    request = _request(
+        matrix=_matrix(values),
+        proteins=_proteins(
+            {
+                "protein_b": protein_b,
+                "protein_a": protein_a,
+                "protein_c": protein_c,
+            }
+        ),
+        pairs=_pairs(
+            {
+                "site_0": ("P_B", "protein_b"),
+                "site_1": ("P_A", "protein_a"),
+                "site_2": ("P_B", "protein_b"),
+                "site_3": ("P_C", "protein_c"),
+                "site_4": ("P_A", "protein_a"),
+            }
+        ),
+    )
+
+    result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    assert len(decompose_calls) == 3
+    assert fit_calls == [(0, 2), (1, 4), (3,)]
+    assert result.tested_site_ids == (
+        "site_0",
+        "site_1",
+        "site_2",
+        "site_3",
+        "site_4",
+    )
+    assert result.augmented_design_diagnostics_dataframe().index.tolist() == [
+        "protein_b",
+        "protein_a",
+        "protein_c",
+    ]
+    assert result.site_diagnostics_dataframe()["protein_identifier"].tolist() == [
+        "P_B",
+        "P_A",
+        "P_B",
+        "P_C",
+        "P_A",
+    ]
 
 
 def test_invalid_protein_covariate_and_augmented_design_groups_are_typed() -> None:

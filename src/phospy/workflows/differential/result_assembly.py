@@ -1135,7 +1135,7 @@ def _count_from_pairs(
 
 def _status_count_items(status: pd.Series) -> tuple[tuple[str, int], ...]:
     values = [str(value) for value in status.tolist()]
-    return tuple((value, values.count(value)) for value in dict.fromkeys(values))
+    return _ordered_count_items(values)
 
 
 def _reason_count_items(feature_metadata: pd.DataFrame) -> tuple[tuple[str, int], ...]:
@@ -1146,7 +1146,14 @@ def _reason_count_items(feature_metadata: pd.DataFrame) -> tuple[tuple[str, int]
         for value in feature_metadata[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN].tolist()
         if str(value).strip()
     ]
-    return tuple((value, values.count(value)) for value in dict.fromkeys(values))
+    return _ordered_count_items(values)
+
+
+def _ordered_count_items(values: list[str]) -> tuple[tuple[str, int], ...]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return tuple((value, count) for value, count in counts.items())
 
 
 def _optional_text(value: object) -> str | None:
