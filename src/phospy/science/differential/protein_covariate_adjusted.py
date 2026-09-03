@@ -42,11 +42,15 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_FIT_QUANTITIES_NON_FINITE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_FINITE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE,
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
 from phospy.science.statistics.multiple_testing import adjust_p_values
 
@@ -97,6 +101,12 @@ class _ScaledSvdDiagnostics:
     condition_number: float | None
 
 
+@dataclass(frozen=True, slots=True)
+class _PostFitValidation:
+    failed_positions: frozenset[int]
+    failure_rows: tuple[dict[str, object], ...]
+
+
 class ProteinCovariateAdjustedDifferentialKernel:
     """Run the version-1 protein-covariate-adjusted OLS kernel."""
 
@@ -136,10 +146,10 @@ class ProteinCovariateAdjustedDifferentialKernel:
         residuals_by_position: dict[int, _FloatArray] = {}
         contrast_effects_by_position: dict[int, _FloatArray] = {}
         contrast_scale_by_position: dict[int, _FloatArray] = {}
-        successful_group_rows: list[dict[str, object]] = []
+        successful_group_rows_by_key: dict[str, dict[str, object]] = {}
+        successful_group_residual_dof_by_key: dict[str, float] = {}
         site_failure_rows: list[dict[str, object]] = []
         group_failure_rows: list[dict[str, object]] = []
-        residual_dof_by_group: list[float] = []
 
         for row_key in dict.fromkeys(total_protein_row_keys):
             positions = tuple(
@@ -212,27 +222,45 @@ class ProteinCovariateAdjustedDifferentialKernel:
                 contrast_effects_by_position=contrast_effects_by_position,
                 contrast_scale_by_position=contrast_scale_by_position,
             )
-            residual_dof_by_group.append(
-                float(decomposition.residual_degrees_of_freedom)
+            successful_group_rows_by_key[row_key] = _successful_group_row(
+                row_key=row_key,
+                decomposition=decomposition,
+                contrast_names=contrast_names,
             )
-            successful_group_rows.append(
-                _successful_group_row(
-                    row_key=row_key,
-                    decomposition=decomposition,
-                    contrast_names=contrast_names,
-                )
+            successful_group_residual_dof_by_key[row_key] = float(
+                decomposition.residual_degrees_of_freedom
             )
 
+        post_fit_validation = _post_fit_validation(
+            site_ids=site_ids,
+            total_protein_row_keys=total_protein_row_keys,
+            residual_variance_by_position=residual_variance_by_position,
+            mean_intensity_by_position=mean_intensity_by_position,
+            protein_coefficient_by_position=protein_coefficient_by_position,
+            coefficients_by_position=coefficients_by_position,
+            residuals_by_position=residuals_by_position,
+            contrast_effects_by_position=contrast_effects_by_position,
+            contrast_scale_by_position=contrast_scale_by_position,
+        )
+        site_failure_rows.extend(post_fit_validation.failure_rows)
         tested_positions = tuple(
             position
             for position in range(len(site_ids))
             if position in residual_variance_by_position
+            and position not in post_fit_validation.failed_positions
         )
         if not tested_positions:
             failure_report = _failure_report(
                 site_failure_rows=site_failure_rows,
                 group_failure_rows=group_failure_rows,
             )
+            if residual_variance_by_position:
+                raise PhosPyInputError(
+                    "protein-aware differential computation produced no successfully "
+                    "tested sites after post-fit numerical eligibility; "
+                    f"reason_counts={_reason_count_text(site_failure_rows)}",
+                    diagnostics=failure_report,
+                )
             raise PhosPyInputError(
                 "protein-aware differential computation produced no successfully "
                 "tested sites after protein covariate and augmented-design checks; "
@@ -240,7 +268,15 @@ class ProteinCovariateAdjustedDifferentialKernel:
                 diagnostics=failure_report,
             )
 
-        residual_dof = _require_common_residual_dof(residual_dof_by_group)
+        residual_dof = _require_common_residual_dof(
+            [
+                successful_group_residual_dof_by_key[row_key]
+                for row_key in dict.fromkeys(
+                    total_protein_row_keys[position] for position in tested_positions
+                )
+            ]
+        )
+        successful_group_rows = list(successful_group_rows_by_key.values())
         tested_index = pd.Index(
             [site_ids[position] for position in tested_positions],
             name="site_key",
@@ -599,17 +635,6 @@ def _fit_group(
         np.asarray(linear_fit.coefficients.T @ contrast_values, dtype=np.float64),
     )
     contrast_scales = decomposition.contrast_scales(contrast_values)
-    if not np.isfinite(linear_fit.residual_variance).all():
-        raise PhosPyInputError(
-            "protein-aware differential fit produced invalid residual variances"
-        )
-    if (
-        not np.isfinite(contrast_effects).all()
-        or not np.isfinite(contrast_scales).all()
-    ):
-        raise PhosPyInputError(
-            "protein-aware differential fit produced invalid contrast quantities"
-        )
     for local_position, site_position in enumerate(positions):
         residual_variance_by_position[site_position] = float(
             linear_fit.residual_variance[local_position]
@@ -636,6 +661,126 @@ def _fit_group(
             _FloatArray,
             np.asarray(contrast_scales, dtype=np.float64),
         )
+
+
+def _post_fit_validation(
+    *,
+    site_ids: tuple[str, ...],
+    total_protein_row_keys: tuple[str, ...],
+    residual_variance_by_position: dict[int, float],
+    mean_intensity_by_position: dict[int, float],
+    protein_coefficient_by_position: dict[int, float],
+    coefficients_by_position: dict[int, _FloatArray],
+    residuals_by_position: dict[int, _FloatArray],
+    contrast_effects_by_position: dict[int, _FloatArray],
+    contrast_scale_by_position: dict[int, _FloatArray],
+) -> _PostFitValidation:
+    failed_positions: set[int] = set()
+    rows: list[dict[str, object]] = []
+    for position in sorted(residual_variance_by_position):
+        row = _post_fit_failure_row(
+            position=position,
+            site_id=site_ids[position],
+            row_key=total_protein_row_keys[position],
+            residual_variance=residual_variance_by_position[position],
+            mean_intensity=mean_intensity_by_position[position],
+            protein_coefficient=protein_coefficient_by_position[position],
+            coefficients=coefficients_by_position[position],
+            residuals=residuals_by_position[position],
+            contrast_effects=contrast_effects_by_position[position],
+            contrast_scales=contrast_scale_by_position[position],
+        )
+        if row is None:
+            continue
+        failed_positions.add(position)
+        rows.append(row)
+    return _PostFitValidation(
+        failed_positions=frozenset(failed_positions),
+        failure_rows=tuple(rows),
+    )
+
+
+def _post_fit_failure_row(
+    *,
+    position: int,
+    site_id: str,
+    row_key: str,
+    residual_variance: float,
+    mean_intensity: float,
+    protein_coefficient: float,
+    coefficients: _FloatArray,
+    residuals: _FloatArray,
+    contrast_effects: _FloatArray,
+    contrast_scales: _FloatArray,
+) -> dict[str, object] | None:
+    residual_variance_value = float(residual_variance)
+    coefficient_non_finite_count = _non_finite_count(coefficients)
+    residual_non_finite_count = _non_finite_count(residuals)
+    contrast_effect_non_finite_count = _non_finite_count(contrast_effects)
+    contrast_scale_non_finite_count = _non_finite_count(contrast_scales)
+    contrast_scale_non_positive_count = _non_positive_count(contrast_scales)
+    mean_intensity_value = float(mean_intensity)
+    protein_coefficient_value = float(protein_coefficient)
+
+    reason: str | None
+    message: str
+    if not math.isfinite(residual_variance_value):
+        reason = DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_FINITE
+        message = "protein-aware fitted residual variance is non-finite"
+    elif residual_variance_value <= 0.0:
+        reason = DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE
+        message = "protein-aware fitted residual variance is not greater than zero"
+    elif (
+        coefficient_non_finite_count
+        or residual_non_finite_count
+        or contrast_effect_non_finite_count
+        or contrast_scale_non_finite_count
+        or contrast_scale_non_positive_count
+        or not math.isfinite(mean_intensity_value)
+        or not math.isfinite(protein_coefficient_value)
+    ):
+        reason = DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_FIT_QUANTITIES_NON_FINITE
+        message = (
+            "protein-aware fitted coefficients, residuals, mean intensity, nuisance "
+            "coefficient, contrast effects, or contrast scales are non-finite or "
+            "inadmissible"
+        )
+    else:
+        return None
+
+    return {
+        "site_key": site_id,
+        "total_protein_row_key": row_key,
+        DIFFERENTIAL_RESULT_STATUS_COLUMN: (
+            DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID
+        ),
+        DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN: reason,
+        "failure_message": message,
+        "post_fit_validation_stage": "protein_aware_model_fit_numerical_eligibility",
+        "raw_fit_position": int(position),
+        "residual_variance": _finite_or_none(residual_variance_value),
+        "mean_intensity": _finite_or_none(mean_intensity_value),
+        "protein_coefficient": _finite_or_none(protein_coefficient_value),
+        "coefficient_non_finite_count": coefficient_non_finite_count,
+        "residual_non_finite_count": residual_non_finite_count,
+        "contrast_effect_non_finite_count": contrast_effect_non_finite_count,
+        "contrast_scale_non_finite_count": contrast_scale_non_finite_count,
+        "contrast_scale_non_positive_count": contrast_scale_non_positive_count,
+    }
+
+
+def _non_finite_count(values: _FloatArray) -> int:
+    numeric = np.asarray(values, dtype=np.float64)
+    return int(np.count_nonzero(~np.isfinite(numeric)))
+
+
+def _non_positive_count(values: _FloatArray) -> int:
+    numeric = np.asarray(values, dtype=np.float64)
+    return int(np.count_nonzero(np.isfinite(numeric) & (numeric <= 0.0)))
+
+
+def _finite_or_none(value: float) -> float | None:
+    return float(value) if math.isfinite(float(value)) else None
 
 
 def _moderated_variance_and_dof(
@@ -940,11 +1085,19 @@ def _failure_report(
     *,
     site_failure_rows: list[dict[str, object]],
     group_failure_rows: list[dict[str, object]],
-) -> dict[str, pd.DataFrame]:
+) -> dict[str, object]:
     return {
         "site_failure_diagnostics": _site_failure_diagnostics(site_failure_rows),
         "augmented_design_failure_diagnostics": (
             _augmented_design_failure_diagnostics(group_failure_rows)
+        ),
+        "status_counts": _failure_count_mapping(
+            rows=site_failure_rows,
+            column_name=DIFFERENTIAL_RESULT_STATUS_COLUMN,
+        ),
+        "reason_counts": _failure_count_mapping(
+            rows=site_failure_rows,
+            column_name=DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
         ),
     }
 
@@ -1077,6 +1230,15 @@ def _reason_count_text(rows: list[dict[str, object]]) -> str:
         + ", ".join(f"{reason}: {counts[reason]}" for reason in sorted(counts))
         + "}"
     )
+
+
+def _failure_count_mapping(
+    *,
+    rows: list[dict[str, object]],
+    column_name: str,
+) -> dict[str, int]:
+    counts = Counter(str(row[column_name]) for row in rows if str(row[column_name]))
+    return {key: int(counts[key]) for key in sorted(counts)}
 
 
 def _preview_invalid_entries(

@@ -20,11 +20,14 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_FINITE,
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE,
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
 from phospy.science.differential.protein_covariate_adjusted import (
     PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
@@ -439,6 +442,169 @@ def test_multiple_testing_uses_successfully_tested_sites_only_per_contrast() -> 
             table["adj.P.Val"].to_numpy(dtype=float),
             np.clip(p_values * 3.0, 0.0, 1.0),
         )
+
+
+def test_post_fit_non_finite_site_does_not_abort_valid_shared_group() -> None:
+    protein = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    overflowing = np.array(
+        [1.0e308, -1.0e308, 1.0e308, -1.0e308, 1.0e308, -1.0e308],
+        dtype=float,
+    )
+    request = _request(
+        matrix=_matrix(
+            {
+                "valid_site": _site_values(5.0, 6.0, 0.2, protein),
+                "overflowing_site": overflowing,
+            }
+        ),
+        proteins=_proteins({"protein_a": protein}),
+        pairs=_pairs(
+            {
+                "valid_site": ("MAPK14", "protein_a"),
+                "overflowing_site": ("AKT1", "protein_a"),
+            }
+        ),
+    )
+
+    with np.errstate(over="ignore"):
+        result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    assert result.tested_site_ids == ("valid_site",)
+    assert result.table_for("B_vs_A").index.tolist() == ["valid_site"]
+    assert result.prior_diagnostics.prior_variance.index.tolist() == ["valid_site"]
+    assert result.augmented_design_diagnostics_dataframe().index.tolist() == [
+        "protein_a"
+    ]
+    failures = result.site_failure_diagnostics_dataframe()
+    assert failures.index.tolist() == ["overflowing_site"]
+    assert failures.loc["overflowing_site", DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID
+    )
+    assert (
+        failures.loc[
+            "overflowing_site",
+            DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+        ]
+        == DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_FINITE
+    )
+
+
+def test_zero_residual_variance_site_is_withheld_before_moderation() -> None:
+    protein = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    request = _request(
+        matrix=_matrix(
+            {
+                "exact_site": _site_values(
+                    5.0,
+                    6.0,
+                    0.2,
+                    protein,
+                    noise_scale=0.0,
+                ),
+                "noisy_site_a": _site_values(4.0, 4.8, -0.3, protein),
+                "noisy_site_b": _site_values(
+                    2.0,
+                    2.5,
+                    0.4,
+                    protein,
+                    seed=np.roll(NOISE_SEED, 1),
+                ),
+            }
+        ),
+        proteins=_proteins({"protein_a": protein}),
+        pairs=_pairs(
+            {
+                "exact_site": ("MAPK14", "protein_a"),
+                "noisy_site_a": ("AKT1", "protein_a"),
+                "noisy_site_b": ("GSK3B", "protein_a"),
+            }
+        ),
+        multiple_testing_method=MULTIPLE_TESTING_CORRECTION_BONFERRONI,
+    )
+
+    result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    assert result.tested_site_ids == ("noisy_site_a", "noisy_site_b")
+    residual_variance = result.residual_variance_series()
+    assert np.isfinite(residual_variance.to_numpy(dtype=float)).all()
+    assert (residual_variance.to_numpy(dtype=float) > 0.0).all()
+    failures = result.site_failure_diagnostics_dataframe()
+    assert failures.loc["exact_site", DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID
+    )
+    assert failures.loc["exact_site", DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] == (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE
+    )
+    table = result.table_for("B_vs_A")
+    p_values = table["P.Value"].to_numpy(dtype=float)
+    np.testing.assert_allclose(
+        table["adj.P.Val"].to_numpy(dtype=float),
+        adjust_p_values(p_values, method=MULTIPLE_TESTING_CORRECTION_BONFERRONI),
+    )
+    np.testing.assert_allclose(
+        table["adj.P.Val"].to_numpy(dtype=float),
+        np.clip(p_values * 2.0, 0.0, 1.0),
+    )
+    assert not np.array_equal(
+        table["adj.P.Val"].to_numpy(dtype=float),
+        np.clip(p_values * 3.0, 0.0, 1.0),
+    )
+    exported_failures = result.site_failure_diagnostics_dataframe()
+    exported_failures.loc["exact_site", DIFFERENTIAL_RESULT_STATUS_COLUMN] = "changed"
+    assert (
+        result.site_failure_diagnostics_dataframe().loc[
+            "exact_site",
+            DIFFERENTIAL_RESULT_STATUS_COLUMN,
+        ]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID
+    )
+
+
+def test_all_post_fit_failed_sites_raise_typed_global_error() -> None:
+    protein = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    request = _request(
+        matrix=_matrix(
+            {
+                "exact_site_a": _site_values(
+                    5.0,
+                    6.0,
+                    0.2,
+                    protein,
+                    noise_scale=0.0,
+                ),
+                "exact_site_b": _site_values(
+                    4.0,
+                    4.5,
+                    -0.1,
+                    protein,
+                    noise_scale=0.0,
+                ),
+            }
+        ),
+        proteins=_proteins({"protein_a": protein}),
+        pairs=_pairs(
+            {
+                "exact_site_a": ("MAPK14", "protein_a"),
+                "exact_site_b": ("AKT1", "protein_a"),
+            }
+        ),
+    )
+
+    with pytest.raises(PhosPyInputError, match="post-fit numerical eligibility") as exc:
+        ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    report = exc.value.diagnostics
+    assert isinstance(report, dict)
+    assert report["status_counts"] == {
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID: 2
+    }
+    assert report["reason_counts"] == {
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE: 2
+    }
+    failures = report["site_failure_diagnostics"]
+    assert isinstance(failures, pd.DataFrame)
+    assert failures.index.tolist() == ["exact_site_a", "exact_site_b"]
+    assert "Traceback" not in str(exc.value)
 
 
 def test_kernel_does_not_mutate_request_owned_frames() -> None:

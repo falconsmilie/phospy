@@ -70,6 +70,9 @@ from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
     ProteinAwareDifferentialResolvedInputs,
 )
+from phospy.workflows.differential.protein_aware_eligibility import (
+    protein_aware_feature_eligibility_after_computation,
+)
 from phospy.workflows.differential.provenance import (
     build_protein_aware_policy_provenance,
     finalize_differential_policy_provenance,
@@ -201,6 +204,7 @@ class DifferentialResultAssembler:
         resolved_inputs: ProteinAwareDifferentialResolvedInputs,
         computation_result: ProteinAwareDifferentialComputationResult,
         workflow_provenance: Mapping[str, object],
+        feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
     ) -> DifferentialAnalysisResult:
         _require_protein_aware_assembly_alignment(
             request=request,
@@ -208,12 +212,28 @@ class DifferentialResultAssembler:
             computation_result=computation_result,
         )
         full_index = request.result_identity_metadata.index
-        feature_eligibility_inputs = (
-            _protein_aware_feature_eligibility_after_computation(
-                resolved_inputs=resolved_inputs,
-                computation_result=computation_result,
+        if feature_eligibility_inputs is None:
+            feature_eligibility_inputs = (
+                protein_aware_feature_eligibility_after_computation(
+                    resolved_inputs=resolved_inputs,
+                    computation_result=computation_result,
+                )
             )
-        )
+        else:
+            feature_eligibility_inputs = DifferentialFeatureEligibilityInputs(
+                feature_metadata=pd.DataFrame(
+                    feature_eligibility_inputs.feature_metadata,
+                    copy=True,
+                ),
+                result_status=pd.Series(
+                    feature_eligibility_inputs.result_status,
+                    copy=True,
+                ),
+                testable_feature_ids=feature_eligibility_inputs.testable_feature_ids,
+                attach_to_result_tables=(
+                    feature_eligibility_inputs.attach_to_result_tables
+                ),
+            )
 
         residual_variance = _expand_series_to_full_index(
             computation_result.residual_variance,
@@ -472,76 +492,6 @@ def _require_protein_aware_assembly_alignment(
                 "expected_contrasts": sorted(expected_contrasts),
             },
         )
-
-
-def _protein_aware_feature_eligibility_after_computation(
-    *,
-    resolved_inputs: ProteinAwareDifferentialResolvedInputs,
-    computation_result: ProteinAwareDifferentialComputationResult,
-) -> DifferentialFeatureEligibilityInputs:
-    feature_metadata = pd.DataFrame(
-        resolved_inputs.feature_eligibility_inputs.feature_metadata,
-        copy=True,
-    )
-    result_status = pd.Series(
-        resolved_inputs.feature_eligibility_inputs.result_status,
-        copy=True,
-    )
-    result_status = result_status.astype(str)
-    if DIFFERENTIAL_RESULT_STATUS_COLUMN not in feature_metadata.columns:
-        feature_metadata[DIFFERENTIAL_RESULT_STATUS_COLUMN] = result_status.to_numpy()
-    if DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN not in feature_metadata.columns:
-        feature_metadata[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] = ""
-
-    successful_site_ids = set(computation_result.tested_site_ids)
-    for site_id in computation_result.tested_site_ids:
-        feature_metadata.loc[site_id, DIFFERENTIAL_RESULT_STATUS_COLUMN] = (
-            DIFFERENTIAL_RESULT_STATUS_TESTED
-        )
-        feature_metadata.loc[site_id, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] = ""
-        result_status.loc[site_id] = DIFFERENTIAL_RESULT_STATUS_TESTED
-        if "protein_aware_tested" in feature_metadata.columns:
-            feature_metadata.loc[site_id, "protein_aware_tested"] = True
-
-    failure_diagnostics = computation_result.site_failure_diagnostics
-    for site_id, row in failure_diagnostics.iterrows():
-        site_key = str(site_id)
-        if site_key in successful_site_ids:
-            _raise_protein_aware_assembly_error(
-                seam="failure_overlap",
-                next_action=(
-                    "do not report a phosphosite as both successfully tested and "
-                    "withheld by protein-aware computation"
-                ),
-                details={"site_key": site_key},
-            )
-        status = str(row[DIFFERENTIAL_RESULT_STATUS_COLUMN])
-        reason = str(row[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN])
-        feature_metadata.loc[site_key, DIFFERENTIAL_RESULT_STATUS_COLUMN] = status
-        feature_metadata.loc[
-            site_key,
-            DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
-        ] = reason
-        result_status.loc[site_key] = status
-        if "protein_aware_tested" in feature_metadata.columns:
-            feature_metadata.loc[site_key, "protein_aware_tested"] = False
-        if "protein_aware_failure_message" in feature_metadata.columns:
-            feature_metadata.loc[site_key, "protein_aware_failure_message"] = str(
-                row.get("failure_message", "")
-            )
-
-    return DifferentialFeatureEligibilityInputs(
-        feature_metadata=feature_metadata,
-        result_status=pd.Series(
-            feature_metadata[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str),
-            index=feature_metadata.index.copy(),
-            name=DIFFERENTIAL_RESULT_STATUS_COLUMN,
-        ),
-        testable_feature_ids=tuple(
-            str(value) for value in computation_result.tested_site_ids
-        ),
-        attach_to_result_tables=True,
-    )
 
 
 def _build_protein_aware_diagnostics(

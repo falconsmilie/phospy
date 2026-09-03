@@ -26,6 +26,9 @@ from phospy.workflows.differential.eligibility import (
 )
 from phospy.workflows.differential.fitting import DifferentialModelFitter
 from phospy.workflows.differential.models import InterpretedDifferentialAnalysisRequest
+from phospy.workflows.differential.protein_aware_eligibility import (
+    protein_aware_feature_eligibility_after_computation,
+)
 from phospy.workflows.differential.provenance import (
     DifferentialWorkflowProvenanceAssembler,
     build_duplicate_correlation_workflow_provenance,
@@ -201,6 +204,12 @@ class DifferentialAnalysisExecutor:
             str(value)
             for value in computation_result.site_failure_diagnostics.index.tolist()
         )
+        feature_eligibility_inputs = (
+            protein_aware_feature_eligibility_after_computation(
+                resolved_inputs=resolved_inputs,
+                computation_result=computation_result,
+            )
+        )
         workflow_provenance = self._provenance_assembler.run(
             workflow_provenance=request.workflow_provenance,
             input_feature_ids=resolved_inputs.full_site_ids,
@@ -210,13 +219,14 @@ class DifferentialAnalysisExecutor:
                 str(value) for value in computation_result.tested_site_ids
             ),
             imputation_policy_inputs=request.imputation_policy_inputs,
-            feature_eligibility_inputs=resolved_inputs.feature_eligibility_inputs,
+            feature_eligibility_inputs=feature_eligibility_inputs,
         )
         return self._result_assembler.run_protein_aware(
             request=request,
             resolved_inputs=resolved_inputs,
             computation_result=computation_result,
             workflow_provenance=workflow_provenance,
+            feature_eligibility_inputs=feature_eligibility_inputs,
         )
 
 
@@ -236,6 +246,14 @@ def _protein_aware_fit_error_details(error: PhosPyInputError) -> dict[str, objec
         row_count = _diagnostic_row_count(value)
         if row_count is not None:
             row_counts[str(key)] = row_count
+        if str(key) in {"status_counts", "reason_counts"} and isinstance(
+            value,
+            Mapping,
+        ):
+            details[str(key)] = {
+                str(name): int(count)
+                for name, count in cast(Mapping[object, int], value).items()
+            }
     if row_counts:
         details["diagnostic_row_counts"] = row_counts
     return details

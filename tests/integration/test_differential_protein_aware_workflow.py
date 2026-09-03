@@ -32,12 +32,17 @@ from phospy.api import (
 from phospy.api.results import DifferentialAnalysisResult
 from phospy.errors import WorkflowBoundaryError
 from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE,
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
-from phospy.science.statistics.multiple_testing import adjust_p_values
+from phospy.science.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    adjust_p_values,
+)
 from tests.support.unsafe_dataset_states import (
     unsafe_mark_dataset_total_protein_correction_applied,
 )
@@ -80,6 +85,8 @@ def _build_dataset(
     *,
     protein_aware_preparation: bool = True,
     constant_total_proteins: frozenset[str] = frozenset(),
+    exact_fit_first_site: bool = False,
+    exact_fit_site_ids: frozenset[str] = frozenset(),
 ) -> AnalysisReadyPhosphoDataset:
     phospho = pd.DataFrame(
         {
@@ -92,6 +99,29 @@ def _build_dataset(
         },
         index=pd.Index(_DISPLAY_IDS, name="site_id"),
     )
+    exact_site_ids: set[str] = set(exact_fit_site_ids)
+    if exact_fit_first_site:
+        exact_site_ids.add(_DISPLAY_IDS[0])
+    for position, (site_id, protein_id) in enumerate(
+        zip(_DISPLAY_IDS, _PROTEIN_IDS, strict=True)
+    ):
+        if site_id not in exact_site_ids:
+            continue
+        protein = np.array(
+            [_TOTAL_VALUES[protein_id][sample_id] for sample_id in _SAMPLE_IDS],
+            dtype=float,
+        )
+        centered = protein - float(np.mean(protein))
+        condition_a = np.array(
+            [1.0 if sample_id.startswith("A_") else 0.0 for sample_id in _SAMPLE_IDS],
+            dtype=float,
+        )
+        condition_b = 1.0 - condition_a
+        phospho.loc[site_id, list(_SAMPLE_IDS)] = (
+            (1.2 + 0.3 * position) * condition_a
+            + (2.4 + 0.2 * position) * condition_b
+            + (0.35 + 0.1 * position) * centered
+        )
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ("MAPK14", "AKT1", "GSK3B"),
@@ -483,6 +513,99 @@ def test_differential_protein_aware_public_workflow_rejects_all_withheld() -> No
         match="differential.protein_aware_inputs.all_sites_withheld",
     ):
         DifferentialAnalysisWorkflow().run(_request(dataset))
+
+
+def test_differential_protein_aware_public_workflow_rejects_all_post_fit_failed() -> (
+    None
+):
+    dataset = _build_dataset(exact_fit_site_ids=frozenset(_DISPLAY_IDS))
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.executor.protein_aware_fit",
+    ) as exc_info:
+        DifferentialAnalysisWorkflow().run(_request(dataset))
+
+    assert exc_info.value.details["status_counts"] == {
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID: 3
+    }
+    assert exc_info.value.details["reason_counts"] == {
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE: 3
+    }
+    assert "post-fit numerical eligibility" in str(exc_info.value)
+    assert "Traceback" not in str(exc_info.value)
+
+
+def test_differential_protein_aware_public_workflow_withholds_post_fit_failure() -> (
+    None
+):
+    dataset = _build_dataset(exact_fit_first_site=True)
+    failed_site_key = str(dataset.phospho.index[0])
+
+    result = DifferentialAnalysisWorkflow().run(_request(dataset))
+
+    diagnostics = result.protein_aware_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.tested_site_count == 2
+    assert diagnostics.withheld_site_count == 1
+    assert (
+        dict(diagnostics.status_counts)[
+            DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID
+        ]
+        == 1
+    )
+    assert (
+        dict(diagnostics.reason_counts)[
+            DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE
+        ]
+        == 1
+    )
+    table = result.table_for("B_vs_A")
+    assert table.index.tolist() == list(dataset.phospho.index.astype(str))
+    assert table.loc[failed_site_key, DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID
+    )
+    assert table.loc[failed_site_key, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] == (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE
+    )
+    assert (
+        table.loc[failed_site_key, ["logFC", "t", "P.Value", "adj.P.Val"]].isna().all()
+    )
+    assert np.isnan(float(result.residual_variance_series().loc[failed_site_key]))
+
+    tested = table[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str) == (
+        DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+    assert int(tested.sum()) == 2
+    p_values = table.loc[tested, "P.Value"].to_numpy(dtype=float)
+    np.testing.assert_allclose(
+        table.loc[tested, "adj.P.Val"].to_numpy(dtype=float),
+        adjust_p_values(
+            p_values,
+            method=MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+        ),
+    )
+
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.protein_aware is not None
+    assert result.policy_provenance.protein_aware.tested_site_count == 2
+    assert result.policy_provenance.protein_aware.withheld_site_count == 1
+    assert result.workflow_provenance is not None
+    assert result.workflow_provenance["row_attrition_metrics"] == {
+        "input_sites": 3,
+        "sites_retained_for_model_fitting": 3,
+        "sites_excluded_before_testing": 0,
+        "sites_with_failed_model_fit": 1,
+        "sites_included_in_multiple_testing_family": 2,
+    }
+    payload_text = str(result.to_payload())
+    assert DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID in payload_text
+    assert (
+        DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE
+        in payload_text
+    )
+    rerun = DifferentialAnalysisWorkflow().run(_request(dataset))
+    assert result.scientifically_equals(rerun)
 
 
 def test_differential_protein_aware_ordinary_workflow_ignores_sidecar() -> None:

@@ -102,7 +102,7 @@ def test_protein_differential_known_effects_match_independent_oracle() -> None:
     site_specs = {
         "protein_only_apparent": (10.0, 10.0, 1.5, shifted_protein, 0.02),
         "phospho_and_protein": (7.0, 8.25, -0.7, independent_protein, 0.03),
-        "exact_coefficient_identity": (3.0, 4.2, 0.6, exact_protein, 0.0),
+        "exact_coefficient_identity": (3.0, 4.2, 0.6, exact_protein, 0.01),
         "moderation_stabilizer": (5.0, 5.35, 0.25, stabilizer_protein, 0.04),
     }
     matrix = _matrix(
