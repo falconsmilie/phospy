@@ -156,7 +156,9 @@ def test_protein_aware_assembly_expands_to_full_index_with_withholding_statuses(
         DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
     ]
     assert np.isfinite(
-        table.loc[table.index[0], ["logFC", "t", "P.Value", "adj.P.Val"]]
+        table.loc[[table.index[0]], ["logFC", "t", "P.Value", "adj.P.Val"]].to_numpy(
+            dtype=float
+        )
     ).all()
     assert table.iloc[1:][["logFC", "t", "P.Value", "adj.P.Val"]].isna().all().all()
 
