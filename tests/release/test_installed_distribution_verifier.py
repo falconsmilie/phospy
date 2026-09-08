@@ -32,7 +32,7 @@ pytestmark = pytest.mark.release_gate
 
 ROOT = Path(__file__).resolve().parents[2]
 CONSTRAINT = ROOT / "constraints" / "ci.txt"
-CURRENT_RELEASE_VERSION = "1.7.1"
+CURRENT_RELEASE_VERSION = "1.7.2"
 WHEEL_DECLARED_RESOURCE = (
     "phospy/data/reference_bundles/rat/l6_native/substrate_map.csv"
 )
@@ -370,13 +370,15 @@ def test_pip_installs_apply_explicit_constraint_to_build_dependencies(
 
     monkeypatch.setattr(verifier, "_run", fake_run)
 
+    sdist_name = f"phospy-{CURRENT_RELEASE_VERSION}.tar.gz"
+
     verifier._run_pip(
         tmp_path / "venv" / "bin" / "python",
         "install sdist",
         repo_root=repo_root,
         cwd=cwd,
         constraint=constraint,
-        arguments=["install", "phospy-1.7.1.tar.gz"],
+        arguments=["install", sdist_name],
     )
 
     assert captured["command"] == [
@@ -387,7 +389,7 @@ def test_pip_installs_apply_explicit_constraint_to_build_dependencies(
         "install",
         "-c",
         str(constraint),
-        "phospy-1.7.1.tar.gz",
+        sdist_name,
     ]
     assert captured["environment_overrides"] == {
         "PIP_BUILD_CONSTRAINT": str(constraint)
@@ -609,6 +611,13 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
         INSTALLED_PROBE_SOURCE
     )
     assert "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION" in INSTALLED_PROBE_SOURCE
+    assert "DatasetProteinAwarePreparationConfig" in INSTALLED_PROBE_SOURCE
+    assert "DifferentialProteinAwareModelConfig" in INSTALLED_PROBE_SOURCE
+    assert "protein_aware_configuration" in INSTALLED_PROBE_SOURCE
+    assert (
+        "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1"
+        in INSTALLED_PROBE_SOURCE
+    )
     assert "KinaseWorkflow" in INSTALLED_PROBE_SOURCE
     assert "publish_dataset" in INSTALLED_PROBE_SOURCE
     assert "advanced_table_publisher" in INSTALLED_PROBE_SOURCE

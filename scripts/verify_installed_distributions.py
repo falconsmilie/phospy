@@ -45,9 +45,14 @@ import phospy
 import phospy.advanced as advanced
 import phospy.api as api
 import phospy.contracts.configs as contract_configs
+from phospy.advanced import (
+    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
+)
 from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.advanced import DatasetMissingDataConfig, DatasetNormalisationConfig
+from phospy.advanced import DatasetProteinAwarePreparationConfig
 from phospy.advanced import DatasetSiteMatrixConfig, KinaseReliabilityProfile
+from phospy.advanced import DifferentialProteinAwareModelConfig
 from phospy.advanced import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
 from phospy.advanced import KinaseScoringConfig
 from phospy.advanced import ReferenceContextCompatibilityPolicy
@@ -122,6 +127,9 @@ def _verify_public_surface() -> dict[str, object]:
         getattr(api, name)
     for name in (
         "DatasetIntensityTransformConfig",
+        "DatasetProteinAwarePreparationConfig",
+        "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
+        "DifferentialProteinAwareModelConfig",
         "KinaseScoringConfig",
         "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
         "ReferenceContextCompatibilityPolicy",
@@ -146,10 +154,45 @@ def _verify_public_surface() -> dict[str, object]:
         raise AssertionError("root DifferentialAnalysisWorkflow is not api export")
     if phospy.KinaseWorkflow is not api.KinaseWorkflow:
         raise AssertionError("root KinaseWorkflow is not api export")
+    protein_aware_report = _exercise_protein_aware_configuration_contract()
     ticket_1_report = _verify_withdrawn_peptide_to_site_boundary()
     return {
         "required_api_names": list(REQUIRED_API_NAMES),
+        "protein_aware_configuration": protein_aware_report,
         "ticket_1_posthoc_peptide_to_site_boundary": ticket_1_report,
+    }
+
+
+def _exercise_protein_aware_configuration_contract() -> dict[str, object]:
+    preparation = DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")
+    if preparation.policy != "prepare_model_inputs":
+        raise AssertionError("protein-aware preparation policy changed")
+
+    model = DifferentialProteinAwareModelConfig()
+    if (
+        model.method
+        != DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1
+    ):
+        raise AssertionError("protein-aware default method changed")
+
+    differential_config = advanced.DifferentialAnalysisConfig(
+        protein_aware_model=model,
+    )
+    if differential_config.protein_aware_model is not model:
+        raise AssertionError("protein-aware differential config did not retain model")
+
+    preprocessing_config = DatasetPreprocessingConfig(
+        protein_aware_preparation=preparation,
+    )
+    if preprocessing_config.protein_aware_preparation is not preparation:
+        raise AssertionError(
+            "dataset preprocessing config did not retain protein-aware preparation"
+        )
+
+    return {
+        "status": "constructed",
+        "preparation_policy": str(preparation.policy),
+        "method": str(model.method),
     }
 
 

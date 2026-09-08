@@ -2,16 +2,53 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## [1.7.2] - 2026-09-08
 
 ### Added
 
-- Documented the experimental opt-in
-  `protein_covariate_adjusted_moderated_linear_model_v1` differential lane,
-  including dataset-owned protein-aware preparation prerequisites, explicit
-  advanced configuration, typed full-index attrition, diagnostics/provenance,
-  caveats, and strict no-fallback behavior. The ordinary differential default
-  remains unchanged when `protein_aware_model` is absent.
+- Added an explicit, opt-in experimental protein-aware differential-analysis
+  lane selected through `DifferentialProteinAwareModelConfig` and the method
+  identifier
+  `protein_covariate_adjusted_moderated_linear_model_v1`.
+- Added consumption of dataset-owned protein-aware model inputs prepared with
+  `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")`,
+  including dataset and sidecar binding so stale or unrelated preparation
+  records fail closed.
+- Added grouped protein-covariate-adjusted modelling, full-index typed
+  attrition, typed mapping, eligibility, model, and post-fit diagnostics,
+  protein-aware provenance, and quantitative input fingerprints for
+  release-auditable protein-aware runs.
+- Added public protein-aware workflow documentation, an executable public
+  example, ADR-0049, synthetic scientific validation, independent-oracle
+  estimator validation, and ordinary differential regression protection.
+
+### Changed
+
+- Differential analysis can now consume prepared total-protein covariates when
+  callers explicitly select the experimental protein-aware model. The ordinary
+  phosphosite differential path remains the default and ignores protein-aware
+  preparation sidecars when `protein_aware_model` is absent.
+- Clarified that protein-aware `logFC` is the requested phosphosite condition
+  contrast conditional on the included matched total-protein covariate. It is
+  not `subtract_log_total`, phosphorylation stoichiometry, causal separation of
+  protein abundance and phosphorylation regulation, MSstatsPTM-style joint
+  PTM/protein inference, or an MSstatsPTM parity claim.
+- Protein-aware requests now validate sample alignment, established-log2
+  transformation state, mapping eligibility, model rank, residual degrees of
+  freedom, and contrast estimability explicitly, and reject unsupported
+  combinations rather than silently downgrading to ordinary fitting.
+
+### Fixed
+
+- Protein-aware site eligibility now uses the resolved reliability-profile
+  replicate threshold, so exploratory and production replicate policies are
+  applied consistently.
+- Protein-aware post-fit numerical failures are withheld per site instead of
+  aborting valid sites, and invalid post-fit sites are excluded from
+  empirical-Bayes moderation and multiple-testing families.
+- Protein-row grouping and duplicate validation avoid unnecessary quadratic
+  scans, improving release-scale behavior without changing supported
+  scientific claims.
 
 ## [1.7.1] - 2026-08-24
 

@@ -1,23 +1,22 @@
 # PhosPy Release Notes
 
-## Version 1.7.1
+## Version 1.7.2
 
-Release date: 2026-08-24.
+Release date: 2026-09-08.
 
-These notes describe the changes since Version 1.7.0.
+These notes describe the changes since Version 1.7.1.
 
 ## Release Overview
 
-PhosPy 1.7.1 is a paired-design differential-analysis and release-documentation
-release. It adds the explicit `duplicate_correlation` paired-design policy for
-blocked differential designs, documents the final estimator and GLS contract,
-names the exact version-pinned R/limma `duplicateCorrelation` fixture scope, and
-corrects release documentation so MkDocs remains a standalone
-documentation-maintenance command rather than a package release gate.
+PhosPy 1.7.2 is an experimental protein-aware differential-analysis release. It
+adds an explicit opt-in lane that can fit phosphosite condition contrasts with a
+matched total-protein covariate prepared during dataset building.
 
-No breaking public API change is introduced relative to 1.7.0. The default
-paired-design policy remains `reject`; PhosPy still does not infer or
-automatically select a paired-design model from block metadata.
+The ordinary phosphosite differential workflow remains the default. A dataset
+may carry protein-aware preparation sidecars, but `DifferentialAnalysisWorkflow`
+uses them only when the caller supplies `DifferentialAnalysisConfig` with a
+`DifferentialProteinAwareModelConfig`. No breaking public API change is
+introduced relative to 1.7.1.
 
 ## Kinase Scientific-Policy Versions
 
@@ -40,86 +39,75 @@ proof of scientific validity.
 
 ## Compatibility and Migration
 
-- `DifferentialAnalysisConfig.paired_design_policy` now supports
-  `"duplicate_correlation"` in addition to the existing `"reject"` and
-  `"fixed_block"` values.
-- `fixed_block` remains a valid supported design. It models block identity as
-  ordinary fixed nuisance coefficients and does not estimate within-block
-  correlation.
-- `duplicate_correlation` is opt-in. It uses block identity as a correlation
-  group, not as fixed block coefficients, and it is not selected automatically.
-- Unsupported duplicate-correlation requests and fit failures fail closed. There
-  is no fallback to `fixed_block`, ordinary least squares, or correlation zero.
-- MkDocs remains available only through the standalone documentation path such
-  as `make docs-build`. It is not part of `make release-check`, package
-  building, wheel/source-distribution verification, or installed-distribution
-  smoke checks.
+- The new protein-aware estimator is selected with
+  `DifferentialProteinAwareModelConfig(method="protein_covariate_adjusted_moderated_linear_model_v1")`
+  inside `DifferentialAnalysisConfig`.
+- Dataset inputs for this lane must be prepared with
+  `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` during
+  dataset building. This preparation records aligned phosphosite/protein model
+  inputs and diagnostics; it does not transform the phosphosite matrix.
+- The estimator requires established log2 phosphosite and total-protein values.
+  Requests with prior `subtract_log_total` correction are rejected because
+  subtraction and covariate adjustment are different analyses.
+- `fixed_block` remains supported when each augmented protein-aware design is
+  admissible. `duplicate_correlation` and actual technical-replicate
+  aggregation are rejected for the protein-aware lane in this release.
+- Unsupported protein-aware requests fail closed before fitting. Withheld rows
+  remain visible in the full result index with typed status and reason fields.
 
 ## Major Additions
 
-- Explicit `paired_design_policy="duplicate_correlation"` support for blocked
-  differential designs through the public `DifferentialAnalysisRequest` and
-  `DifferentialAnalysisConfig` contract. The supported constant is
-  `PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION` from `phospy.advanced` and the
-  configuration facades.
-- Feature-wise duplicate-correlation estimation using PhosPy's implemented
-  residual-space variance-component REML formulation. Eligible feature
-  correlations are combined into one robust consensus on the Fisher `atanh`
-  scale with the fixed 15% trim policy.
-- Final duplicate-correlation fitting by compound-symmetry GLS. Contrasts and
-  empirical-Bayes moderation reuse the existing differential pipeline after the
-  GLS fit.
-- Typed result provenance for duplicate correlation, including selected and
-  normalized policy, covariance treatment and structure, estimator policy,
-  matrix/design/block fingerprints, block summaries, consensus correlation,
-  attempted/eligible/failed feature counts, typed failure summaries,
-  convergence and boundary summaries, imputation participation, design rank,
-  and GLS fit status.
-- Version-pinned R/limma duplicate-correlation fixtures. Fixtures A-C validate
-  the complete supported public path through final moderated output; fixture D
-  validates estimator and GLS behavior for controlled feature-level
-  missingness/failure cases only.
-- Installed wheel and source-distribution smoke coverage now exercises the
-  public duplicate-correlation workflow outside the source checkout.
+- Added the experimental
+  `protein_covariate_adjusted_moderated_linear_model_v1` differential method.
+  It reports the requested phosphosite condition contrast conditional on the
+  matched measured total-protein covariate.
+- Added dataset-owned protein-aware preparation inputs, sidecar binding, sample
+  alignment checks, transformation-state checks, mapping eligibility checks,
+  and no-fallback validation for protein-aware execution.
+- Added grouped augmented linear modelling, per-site attrition, mapping/model
+  diagnostics, post-fit diagnostics, protein-aware provenance, and quantitative
+  input fingerprints.
+- Added public documentation and an executable example for the preparation and
+  differential workflow.
+- Added synthetic scientific-validation fixtures and an independent-oracle
+  estimator check for the implemented method. These are PhosPy-owned validation
+  contracts, not external empirical validation or parity evidence.
 
 ## Fixes and Hardening
 
-- The duplicate-correlation estimator contract now documents the residual-space
-  REML formulation and correlation clamp policy. Feature-level estimates use
-  the observed repeated-block size after feature-specific subsetting, clamp the
-  lower bound to `-1 / (m - 1) + 0.01`, cap the upper bound at `0.99`, and
-  validate the final consensus against the full workflow block structure before
-  GLS.
-- Validation rejects missing block IDs, designs without repeated blocks,
-  fixed-block columns in duplicate-correlation designs, unsupported precision
-  weights, rank-deficient non-block designs, insufficient residual degrees of
-  freedom, and non-estimable contrasts before unsupported models can run.
-- The workflow distinguishes feature-level REML failures from final GLS
-  failures. A feature that fails to contribute to the consensus may still be
-  fitted by GLS if a valid consensus is obtained from other features; a final
-  GLS failure stops the duplicate-correlation workflow.
-- Release process documentation now consistently states that successful package
-  release checks do not validate rendered documentation. Documentation builds
-  are maintained separately.
+- Protein-aware eligibility now uses the resolved reliability-profile replicate
+  threshold, so production and exploratory replicate policies apply
+  consistently.
+- Post-fit numerical failures are withheld for the affected site instead of
+  aborting valid sites. Invalid post-fit sites are excluded from
+  empirical-Bayes moderation and multiple-testing families.
+- Protein-row grouping and duplicate validation avoid unnecessary quadratic
+  scans while preserving the same supported semantics.
+- Ordinary differential behavior is protected by regression coverage. The
+  default non-protein-aware path remains unchanged when the protein-aware model
+  is not requested.
 
 ## Scientific Scope
 
-`duplicate_correlation` is a narrow paired-design differential model. It uses
-one shared consensus within-block correlation and compound-symmetry covariance
-for the final GLS fit. It is not a general mixed-effects framework, does not
-fit random slopes or multiple random effects, does not support arbitrary
-longitudinal covariance, and does not combine fixed block coefficients with a
-block-correlation structure.
+The protein-aware differential estimator is experimental. It is a matched
+protein-covariate adjustment lane for a single phosphosite differential
+workflow, not MSstatsPTM-style joint PTM/protein inference, not MSstatsPTM
+parity, not production validation, not phosphorylation stoichiometry, not
+occupancy estimation, and not causal separation of protein abundance and
+phosphorylation regulation.
 
-The committed duplicate-correlation limma fixtures are implementation evidence
-for their declared fixture scopes. They are not independent biological
-validation and do not imply general limma equivalence.
+`subtract_log_total` remains a direct preprocessing transformation:
+`log2_phospho - log2_total`. The protein-aware lane is different: it keeps the
+phosphosite response intact and includes the matched measured total-protein
+value as a covariate in the differential model.
 
-The broader PhosPy scientific boundaries from 1.7.0 remain in force:
+The broader PhosPy scientific boundaries from 1.7.1 remain in force:
 differential analysis is limited to tested design and contrast envelopes;
 bundled runtime references are rat-only; enrichment is offline ORA over
 caller-supplied collections; native SPS/RUV-style correction is not
-PhosR-equivalent RUV/SPS/RUV-III parity; and kinase/signalome outputs should be
-interpreted through the documented workflow assumptions and caveats.
+PhosR-equivalent RUV/SPS/RUV-III parity; `duplicate_correlation` is a narrow
+paired-design GLS route rather than a mixed-effects framework; and
+kinase/signalome outputs should be interpreted through the documented workflow
+assumptions and caveats.
 
 Next: [Quickstart](quickstart.md) or [API Guide](api/guide.md).
