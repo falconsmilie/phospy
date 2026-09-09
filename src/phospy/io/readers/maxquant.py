@@ -6,6 +6,7 @@ import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from typing import cast
 
 import pandas as pd
 
@@ -23,6 +24,7 @@ from phospy.io.readers._table_parsing import (
     build_row_ids,
     build_unique_feature_ids,
     first_list_token,
+    is_missing,
     multi_value_count,
     optional_text,
     raise_for_forbidden_flags,
@@ -37,6 +39,14 @@ from phospy.io.readers._table_parsing import (
 from phospy.io.readers.importers import (
     MappedPhosphositeTableImporter,
     _read_upstream_table,
+)
+from phospy.science.differential.models import (
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+    QuantificationDepthKind,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
 )
 from phospy.science.evidence.multi_site import parse_phospho_site_tokens
 from phospy.validation.datasets.maxquant import (
@@ -60,6 +70,7 @@ _ADAPTED_MODIFIED_PEPTIDE_SEQUENCE_COLUMN = (
     "__phospy_maxquant_modified_peptide_sequence"
 )
 _ADAPTED_PEPTIDE_SITE_STRING_COLUMN = "__phospy_maxquant_peptide_site_string"
+_ADAPTED_QUANTIFICATION_DEPTH_COLUMN = "__phospy_maxquant_quantification_depth"
 _MAXQUANT_CONTAMINANT_OUTPUT_COLUMN = "maxquant_potential_contaminant"
 _MAXQUANT_REVERSE_OUTPUT_COLUMN = "maxquant_reverse"
 _DEFAULT_INTENSITY_PREFIXES = (
@@ -157,6 +168,8 @@ class MaxQuantColumnMapping:
     row_id: str | None = None
     unique_feature_id: str | None = None
     site_sequence: str | None = None
+    quantification_depth: str | None = None
+    quantification_depth_kind: QuantificationDepthKind | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +207,8 @@ class _ResolvedMaxQuantColumns:
     row_id: str | None
     unique_feature_id: str | None
     site_sequence: str | None
+    quantification_depth: str | None
+    quantification_depth_kind: QuantificationDepthKind | None
 
 
 class MaxQuantPhosphositeImporter:
@@ -355,6 +370,17 @@ def _resolve_maxquant_columns(
         mapping.intensity_columns,
         intensity_column_prefixes=intensity_column_prefixes,
     )
+    quantification_depth = _resolve_column(
+        columns,
+        explicit=mapping.quantification_depth,
+        candidates=(),
+        field_name="maxquant column_mapping.quantification_depth",
+        required=False,
+    )
+    quantification_depth_kind = _resolve_quantification_depth_kind(
+        mapping.quantification_depth_kind,
+        source_column=quantification_depth,
+    )
     return _ResolvedMaxQuantColumns(
         protein_accession=protein_accession,
         gene_symbol=gene_symbol,
@@ -400,6 +426,8 @@ def _resolve_maxquant_columns(
             field_name="maxquant column_mapping.site_sequence",
             required=False,
         ),
+        quantification_depth=quantification_depth,
+        quantification_depth_kind=quantification_depth_kind,
     )
 
 
@@ -566,9 +594,15 @@ def _adapt_maxquant_source(
             optional_text(value)
             for value in source.loc[:, resolved.site_sequence].tolist()
         ]
+    quantification_depth_diagnostics = _adapt_quantification_depth(
+        adapted=adapted,
+        source=source,
+        resolved=resolved,
+    )
 
     diagnostics = {
         "resolved_columns": _resolved_columns_payload(resolved),
+        "quantification_depth": quantification_depth_diagnostics,
         "protein_group_rows_collapsed_to_first_accession": int(protein_group_rows),
         "gene_group_rows_collapsed_to_first_symbol": int(gene_group_rows),
         "multi_site_rows": int(
@@ -639,6 +673,26 @@ def _augment_mapped_result(
                 .astype(bool)
                 .tolist()
             )
+    if resolved.quantification_depth is not None:
+        depth_values = pd.Series(
+            adapted.loc[:, _ADAPTED_QUANTIFICATION_DEPTH_COLUMN].to_numpy(
+                dtype=float,
+                copy=True,
+            ),
+            index=pd.Index(
+                adapted.loc[:, _ADAPTED_ROW_ID_COLUMN].astype(str).tolist(),
+                name=_ADAPTED_ROW_ID_COLUMN,
+            ),
+            name=QUANTIFICATION_DEPTH_COLUMN,
+            dtype=float,
+        )
+        site_metadata.loc[:, QUANTIFICATION_DEPTH_COLUMN] = depth_values.loc[
+            site_metadata.index
+        ].to_numpy(dtype=float, copy=True)
+        if peptide_evidence is not None:
+            peptide_evidence.loc[:, QUANTIFICATION_DEPTH_COLUMN] = depth_values.loc[
+                peptide_evidence.index
+            ].to_numpy(dtype=float, copy=True)
 
     diagnostics = dict(mapped_result.diagnostics)
     diagnostics["maxquant"] = {
@@ -799,6 +853,31 @@ def _resolve_intensity_columns(
         mapping_class_name="MaxQuantColumnMapping",
         reject_duplicate_inferred_sample_ids=True,
     )
+
+
+def _resolve_quantification_depth_kind(
+    value: object,
+    *,
+    source_column: str | None,
+) -> QuantificationDepthKind | None:
+    if source_column is None:
+        if value is None:
+            return None
+        raise PhosPyInputError(
+            "maxquant column_mapping.quantification_depth_kind requires "
+            "column_mapping.quantification_depth"
+        )
+    if not isinstance(value, str) or value.strip() not in (
+        SUPPORTED_QUANTIFICATION_DEPTH_KINDS
+    ):
+        supported = ", ".join(
+            repr(item) for item in SUPPORTED_QUANTIFICATION_DEPTH_KINDS
+        )
+        raise PhosPyInputError(
+            "maxquant column_mapping.quantification_depth_kind must be one of "
+            f"{supported} when column_mapping.quantification_depth is provided"
+        )
+    return cast(QuantificationDepthKind, value.strip())
 
 
 def _raise_for_forbidden_flags(
@@ -974,6 +1053,111 @@ def _resolve_modified_peptide_sequences(
     ]
 
 
+def _adapt_quantification_depth(
+    *,
+    adapted: pd.DataFrame,
+    source: pd.DataFrame,
+    resolved: _ResolvedMaxQuantColumns,
+) -> dict[str, object]:
+    if resolved.quantification_depth is None:
+        return {
+            "status": "not_mapped",
+            "source_column": None,
+            "output_column": QUANTIFICATION_DEPTH_COLUMN,
+            "quantification_depth_kind": None,
+        }
+    values = _normalise_quantification_depth_source_values(
+        source.loc[:, resolved.quantification_depth],
+        source_column=resolved.quantification_depth,
+    )
+    adapted.loc[:, _ADAPTED_QUANTIFICATION_DEPTH_COLUMN] = pd.Series(
+        values,
+        index=adapted.index.copy(),
+        dtype=float,
+    )
+    return {
+        "status": "reported",
+        "source_column": resolved.quantification_depth,
+        "adapted_column": _ADAPTED_QUANTIFICATION_DEPTH_COLUMN,
+        "output_column": QUANTIFICATION_DEPTH_COLUMN,
+        "quantification_depth_kind": resolved.quantification_depth_kind,
+        "row_count": int(len(values)),
+        "missing_count": 0,
+        "minimum_count": float(min(values)),
+        "maximum_count": float(max(values)),
+    }
+
+
+def _normalise_quantification_depth_source_values(
+    series: pd.Series,
+    *,
+    source_column: str,
+) -> list[float]:
+    return [
+        _normalise_quantification_depth_value(
+            value,
+            source_column=source_column,
+            row_position=position,
+        )
+        for position, value in enumerate(series.tolist())
+    ]
+
+
+def _normalise_quantification_depth_value(
+    value: object,
+    *,
+    source_column: str,
+    row_position: int,
+) -> float:
+    field_name = f"MaxQuant {source_column} quantification_depth"
+    if _is_missing_quantification_depth_value(value):
+        raise PhosPyInputError(
+            f"{field_name} must not contain missing values; row_position={row_position}"
+        )
+    if isinstance(value, bool) or type(value).__name__ == "bool_":
+        raise PhosPyInputError(
+            f"{field_name} must contain numeric count values, not booleans; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    try:
+        numeric = float(str(value).strip())
+    except (TypeError, ValueError) as exc:
+        raise PhosPyInputError(
+            f"{field_name} must contain numeric count values; "
+            f"row_position={row_position}, offending_value={value!r}"
+        ) from exc
+    if not math.isfinite(numeric):
+        raise PhosPyInputError(
+            f"{field_name} must contain finite numeric count values; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    if numeric < 1.0:
+        raise PhosPyInputError(
+            f"{field_name} values must be >= 1; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    if not math.isclose(
+        numeric,
+        round(numeric),
+        rel_tol=0.0,
+        abs_tol=QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
+    ):
+        raise PhosPyInputError(
+            f"{field_name} count values must be integer-valued within tolerance "
+            f"{QUANTIFICATION_DEPTH_INTEGER_TOLERANCE:g}; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    return float(round(numeric))
+
+
+def _is_missing_quantification_depth_value(value: object) -> bool:
+    if is_missing(value):
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() in {"", "na", "n/a", "nan", "null"}
+    return False
+
+
 def _build_row_ids(
     *,
     source: pd.DataFrame,
@@ -1024,6 +1208,8 @@ def _resolved_columns_payload(resolved: _ResolvedMaxQuantColumns) -> dict[str, o
         "row_id": resolved.row_id,
         "unique_feature_id": resolved.unique_feature_id,
         "site_sequence": resolved.site_sequence,
+        "quantification_depth": resolved.quantification_depth,
+        "quantification_depth_kind": resolved.quantification_depth_kind,
     }
 
 

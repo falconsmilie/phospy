@@ -128,6 +128,8 @@ import_result = MaxQuantPhosphositeImporter().run(
             localisation_confidence="Localization prob",
             peptide_sequence="Sequence",
             modified_peptide_sequence="Modified sequence",
+            quantification_depth="Depth",
+            quantification_depth_kind="psm_count",
             intensity_columns={
                 "Intensity Control": "control",
                 "Intensity Stim": "stim",
@@ -148,6 +150,21 @@ MaxQuant probability strings such as `S(0.95)` are parsed by the MaxQuant
 adapter; raw score-difference columns are not converted into probabilities.
 If you map a score-like column, it must already be threshold-ready on the
 configured scale.
+
+Quantification depth is opt-in. MaxQuant imports do not infer PSM or peptide
+counts from arbitrary numeric columns. To emit the shared
+`quantification_depth` metadata column, set both
+`MaxQuantColumnMapping.quantification_depth` and
+`MaxQuantColumnMapping.quantification_depth_kind`. Supported depth kinds match
+the differential empirical-Bayes contract: `psm_count` and `peptide_count`.
+Mapped depth values must be finite integer counts greater than or equal to one.
+Importer diagnostics and `quality_report.format_specific["maxquant"]` record
+the source column, output column, and depth kind.
+
+When peptide evidence or duplicate site rows later collapse several source
+observations to one site, depth is not summed. PhosPy preserves an identical
+unambiguous site-level count, and leaves the site-level depth unavailable when
+the evidence is split across sites or has conflicting counts.
 
 Contaminant and reverse handling is explicit:
 

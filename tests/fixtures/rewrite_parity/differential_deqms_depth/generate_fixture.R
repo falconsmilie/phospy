@@ -227,7 +227,14 @@ sha256_text <- function(text) {
 
 aggregate_role_hash <- function(file_table, roles) {
   selected <- file_table[file_table$role %in% roles, , drop = FALSE]
-  selected <- selected[order(selected$relative_path), , drop = FALSE]
+  sort_keys <- vapply(
+    selected$relative_path,
+    function(path) {
+      paste(sprintf("%03d", as.integer(charToRaw(enc2utf8(path)))), collapse = ".")
+    },
+    character(1)
+  )
+  selected <- selected[order(sort_keys), , drop = FALSE]
   text <- paste(
     paste(selected$relative_path, selected$sha256, sep = "\t"),
     collapse = "\n"

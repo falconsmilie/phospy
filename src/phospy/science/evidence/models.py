@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -22,6 +24,10 @@ from phospy.frames.validation import (
     require_non_empty_dataframe,
     require_unique_columns,
     require_unique_row_pairs,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
 )
 from phospy.science.evidence.multi_site import (
     MultiSiteHandlingConfig,
@@ -46,6 +52,7 @@ _REQUIRED_EVIDENCE_COLUMNS: tuple[str, ...] = (
 _OPTIONAL_EVIDENCE_COLUMNS: tuple[str, ...] = (
     "site_sequence",
     "localisation_confidence",
+    QUANTIFICATION_DEPTH_COLUMN,
     "missingness_flags",
     "imputation_flags",
 )
@@ -72,6 +79,7 @@ class PeptideEvidenceRecord:
     modified_peptide_sequence: str
     site_sequence: str | None
     localisation_confidence: float | None
+    quantification_depth: float | None
     missingness_flags: tuple[str, ...]
     imputation_flags: tuple[str, ...]
     multi_site: bool
@@ -91,6 +99,7 @@ class PeptideEvidenceRecord:
         modified_peptide_sequence: str,
         site_sequence: str | None = None,
         localisation_confidence: float | None = None,
+        quantification_depth: object = None,
         missingness_flags: Sequence[str] = (),
         imputation_flags: Sequence[str] = (),
         multi_site: bool,
@@ -143,6 +152,15 @@ class PeptideEvidenceRecord:
             minimum=0.0,
             maximum=1.0,
         )
+        quantification_depth_record_value = _canonical_optional_quantification_depth(
+            quantification_depth,
+            field_name="peptide_evidence_record.quantification_depth",
+        )
+        quantification_depth_value = (
+            None
+            if quantification_depth_record_value is pd.NA
+            else float(cast(float, quantification_depth_record_value))
+        )
         missingness_flags_value = _canonical_flag_values(
             missingness_flags,
             field_name="peptide_evidence_record.missingness_flags",
@@ -182,6 +200,7 @@ class PeptideEvidenceRecord:
         object.__setattr__(
             self, "localisation_confidence", localisation_confidence_value
         )
+        object.__setattr__(self, "quantification_depth", quantification_depth_value)
         object.__setattr__(self, "missingness_flags", missingness_flags_value)
         object.__setattr__(self, "imputation_flags", imputation_flags_value)
         object.__setattr__(self, "multi_site", multi_site)
@@ -422,6 +441,14 @@ class PeptideEvidenceTable:
                     )
                 )
                 continue
+            if optional_column == QUANTIFICATION_DEPTH_COLUMN:
+                canonical[optional_column] = canonical.loc[:, optional_column].map(
+                    lambda value: _canonical_optional_quantification_depth(
+                        value,
+                        field_name=("peptide_evidence_table.quantification_depth"),
+                    )
+                )
+                continue
             if optional_column in ("missingness_flags", "imputation_flags"):
                 field_name = f"peptide_evidence_table.{optional_column}"
                 canonical[optional_column] = canonical.loc[:, optional_column].map(
@@ -552,6 +579,12 @@ class PeptideEvidenceTable:
                         if "localisation_confidence" not in self._frame.columns
                         or pd.isna(row.get("localisation_confidence", None))
                         else float(row.loc["localisation_confidence"])
+                    ),
+                    quantification_depth=(
+                        None
+                        if QUANTIFICATION_DEPTH_COLUMN not in self._frame.columns
+                        or pd.isna(row.get(QUANTIFICATION_DEPTH_COLUMN, None))
+                        else row.loc[QUANTIFICATION_DEPTH_COLUMN]
                     ),
                     missingness_flags=missingness_flags,
                     imputation_flags=imputation_flags,
@@ -795,6 +828,42 @@ def _canonical_optional_float(
             f"{field_name} must be less than or equal to {maximum} when provided"
         )
     return resolved
+
+
+def _canonical_optional_quantification_depth(
+    value: object,
+    *,
+    field_name: str,
+) -> object:
+    if _is_missing(value):
+        return pd.NA
+    if isinstance(value, str):
+        token = value.strip()
+        if token.lower() in {"", "na", "n/a", "nan", "null"}:
+            return pd.NA
+        raw_value: object = token
+    else:
+        raw_value = value
+    if isinstance(raw_value, bool) or type(raw_value).__name__ == "bool_":
+        raise PhosPyInputError(f"{field_name} must contain numeric count values")
+    try:
+        numeric = float(str(raw_value).strip())
+    except (TypeError, ValueError) as exc:
+        raise PhosPyInputError(
+            f"{field_name} must contain numeric count values"
+        ) from exc
+    if not math.isfinite(numeric):
+        raise PhosPyInputError(f"{field_name} must contain finite count values")
+    if numeric < 1.0:
+        raise PhosPyInputError(f"{field_name} values must be >= 1")
+    if not math.isclose(
+        numeric,
+        round(numeric),
+        rel_tol=0.0,
+        abs_tol=QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
+    ):
+        raise PhosPyInputError(f"{field_name} count values must be integer-valued")
+    return float(round(numeric))
 
 
 def _canonical_mapping_weight(value: object, *, field_name: str) -> float:

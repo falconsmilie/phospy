@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.differential.quantification_depth import QUANTIFICATION_DEPTH_COLUMN
 from phospy.science.evidence.dataset_resolution.models import (
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
@@ -49,6 +50,8 @@ def join_peptide_rows_to_site_mapping(
         peptide_fields.append("site_sequence")
     if "localisation_confidence" in evidence_frame.columns:
         peptide_fields.append("localisation_confidence")
+    if QUANTIFICATION_DEPTH_COLUMN in evidence_frame.columns:
+        peptide_fields.append(QUANTIFICATION_DEPTH_COLUMN)
     peptide_rows = evidence_frame.loc[:, peptide_fields + list(sample_columns)].copy(
         deep=True
     )

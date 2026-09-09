@@ -15,6 +15,10 @@ from phospy.science.datasets.preprocessing.report_schema import (
     METADATA_CONFLICT_COLUMNS,
     dataframe_from_metadata_conflict_rows,
 )
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    validate_quantification_depth_series,
+)
 from phospy.science.sites.identifiers import canonicalize_site_series
 from phospy.science.sites.validation import require_site_key_series
 
@@ -273,6 +277,18 @@ def resolve_aggregate_site_metadata(
         grouped_metadata.index.astype(str), name=_SITE_KEY_COLUMN
     )
 
+    if QUANTIFICATION_DEPTH_COLUMN in metadata_columns:
+        depth_values = _aggregate_quantification_depth_by_site_key(
+            site_metadata=site_metadata,
+            scientific_row_key=scientific_row_key,
+        ).reindex(grouped_metadata.index)
+        grouped_metadata[QUANTIFICATION_DEPTH_COLUMN] = pd.Series(
+            depth_values.to_numpy(dtype=float, copy=True),
+            index=grouped_metadata.index.copy(),
+            name=QUANTIFICATION_DEPTH_COLUMN,
+            dtype=float,
+        )
+
     if metadata_conflicts.empty:
         return cast(pd.DataFrame, grouped_metadata)
 
@@ -282,10 +298,44 @@ def resolve_aggregate_site_metadata(
     for conflict in conflict_records.to_dict(orient="records"):
         site_key = str(conflict["site_key"])
         field = str(conflict["field"])
+        if field == QUANTIFICATION_DEPTH_COLUMN:
+            continue
         if site_key in grouped_metadata.index and field in grouped_metadata.columns:
             grouped_metadata.at[site_key, field] = pd.NA
 
     return cast(pd.DataFrame, grouped_metadata)
+
+
+def _aggregate_quantification_depth_by_site_key(
+    *,
+    site_metadata: pd.DataFrame,
+    scientific_row_key: pd.Series,
+) -> pd.Series:
+    grouped = site_metadata.assign(
+        **{_SITE_KEY_COLUMN: scientific_row_key.astype(str).to_numpy()}
+    ).groupby(_SITE_KEY_COLUMN, sort=False)
+    resolved: dict[str, float] = {}
+    for site_key, group in grouped:
+        values = group.loc[:, QUANTIFICATION_DEPTH_COLUMN]
+        if values.isna().any():
+            resolved[str(site_key)] = float("nan")
+            continue
+        numeric = pd.to_numeric(values, errors="coerce")
+        if numeric.isna().any():
+            resolved[str(site_key)] = float("nan")
+            continue
+        validated = validate_quantification_depth_series(
+            numeric,
+            field_name=(
+                "dataset site_metadata quantification_depth for "
+                f"site_key={str(site_key)!r}"
+            ),
+        )
+        distinct = tuple(dict.fromkeys(validated.astype(float).tolist()))
+        resolved[str(site_key)] = (
+            float(distinct[0]) if len(distinct) == 1 else float("nan")
+        )
+    return pd.Series(resolved, name=QUANTIFICATION_DEPTH_COLUMN, dtype=float)
 
 
 def _empty_metadata_conflicts() -> pd.DataFrame:

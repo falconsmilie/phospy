@@ -16,7 +16,7 @@
     "deqms_version": "1.28.0"
   },
   "generator": "tests/fixtures/rewrite_parity/differential_deqms_depth/generate_fixture.R",
-  "generator_sha256": "ed04aa20cd7ab34f98ed283dab423c29a018400cc3d1c6edee5e49d24e3948f6",
+  "generator_sha256": "691393efe7854c320c76893775392eab3bbd921c5cc417371bac92494eba279b",
   "command": "Rscript tests/fixtures/rewrite_parity/differential_deqms_depth/generate_fixture.R --outdir tests/fixtures/rewrite_parity/differential_deqms_depth --seed 20260909 --timestamp 2026-09-09T00:00:00Z --allow-unpinned-environment false",
   "seed": 20260909,
   "generation_timestamp_utc": "2026-09-09T00:00:00Z",
@@ -68,13 +68,13 @@
     "input_files_sha256": "a374b3d2039df90d58a89b67c874f570ba04cd21ad9062b6ff41dbcddea1c008",
     "metadata_files_sha256": "de3ccc39981b4a56facd5523b575546053c3d4d8b465f16d4a85ba17e4319817",
     "output_files_sha256": "87fbd6adc17c29039210f26600a103c4dafcf4c5f9caf29fb46aba1f9c747b78",
-    "governance_files_sha256": "6514da6fb2bbfcc90b891d2969b6a20c9db4e521aa7eae6ba34c0dcd29b78554"
+    "governance_files_sha256": "119f27576f4b4628972ebfdaafd2fba5ba1e66f19c2d660a24da4af166136953"
   },
   "files": [
     {
       "role": "generator",
       "relative_path": "generate_fixture.R",
-      "sha256": "ed04aa20cd7ab34f98ed283dab423c29a018400cc3d1c6edee5e49d24e3948f6"
+      "sha256": "691393efe7854c320c76893775392eab3bbd921c5cc417371bac92494eba279b"
     },
     {
       "role": "input",
@@ -119,7 +119,7 @@
     {
       "role": "governance",
       "relative_path": "PROVENANCE.md",
-      "sha256": "c6c1ca0576b8715911e70859b3bc177cb9fe05307b906232ef7cd1303a98b858"
+      "sha256": "3fb5eda8cd3bb30d74fa7124a42e3c5792ed95a7be8728752db1b183fef55c3b"
     }
   ]
 }

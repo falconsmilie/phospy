@@ -7,7 +7,7 @@ DEqMS version: 1.28.0
 Seed: 20260909
 Generation timestamp (UTC): 2026-09-09T00:00:00Z
 Command: `Rscript tests/fixtures/rewrite_parity/differential_deqms_depth/generate_fixture.R --outdir tests/fixtures/rewrite_parity/differential_deqms_depth --seed 20260909 --timestamp 2026-09-09T00:00:00Z --allow-unpinned-environment false`
-Generator SHA-256: ed04aa20cd7ab34f98ed283dab423c29a018400cc3d1c6edee5e49d24e3948f6
+Generator SHA-256: 691393efe7854c320c76893775392eab3bbd921c5cc417371bac92494eba279b
 Byte policy: utf-8 LF with final newline
 Serialization policy: CSV uses comma separators, a header row, row.names=FALSE, UTF-8, LF line endings, a final newline, options(digits=17, scipen=999), and the literal NA token for missing numeric values. R NaN and +/-Inf numeric outputs are serialized as NA. JSON manifests use stable key ordering and UTF-8 LF bytes.
 Source policy: deterministic synthetic fixture generated locally without network access; DEqMS::spectraCounteBayes and limma outputs are the external scientific authority for expected numerical columns.

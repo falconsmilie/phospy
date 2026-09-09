@@ -63,6 +63,27 @@ def test_evidence_preserves_duplicate_peptide_sequences_as_distinct_rows() -> No
     assert set(duplicated_sequences) == {"row_1", "row_2"}
 
 
+def test_evidence_records_preserve_optional_quantification_depth() -> None:
+    frame = _base_frame()
+    frame.loc[:, "quantification_depth"] = [3, "4", pd.NA]
+
+    evidence = PeptideEvidenceTable(
+        frame=frame,
+        sample_intensity_columns=("sample_a", "sample_b"),
+    )
+
+    output = evidence.to_dataframe()
+    assert output.loc[:, "quantification_depth"].iloc[:2].tolist() == pytest.approx(
+        [3.0, 4.0]
+    )
+    assert pd.isna(output.loc[:, "quantification_depth"].iloc[2])
+    assert [record.quantification_depth for record in evidence.records()] == [
+        3.0,
+        4.0,
+        None,
+    ]
+
+
 def test_evidence_allows_missing_site_ids_and_mapping_excludes_missing_rows() -> None:
     frame = _base_frame()
     frame.loc[2, "site_id"] = None
@@ -130,6 +151,39 @@ def test_evidence_mapping_preserves_optional_weight_metadata_columns() -> None:
         "is_multi_site",
     }
     assert mapped.loc[:, "mapping_weight"].tolist() == [0.75, 0.25]
+
+
+def test_evidence_rejects_quantification_depth_as_sample_intensity_column() -> None:
+    frame = _base_frame()
+    frame.loc[:, "quantification_depth"] = [3, 4, 5]
+
+    with pytest.raises(PhosPyInputError, match="reserved metadata columns"):
+        PeptideEvidenceTable(
+            frame=frame,
+            sample_intensity_columns=("sample_a", "quantification_depth"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("depth_values", "message"),
+    (
+        ([3, 0, 5], ">= 1"),
+        ([3, 4.5, 5], "integer-valued"),
+        ([3, "bad", 5], "numeric count values"),
+    ),
+)
+def test_evidence_rejects_invalid_quantification_depth_values(
+    depth_values: list[object],
+    message: str,
+) -> None:
+    frame = _base_frame()
+    frame.loc[:, "quantification_depth"] = depth_values
+
+    with pytest.raises(PhosPyInputError, match=message):
+        PeptideEvidenceTable(
+            frame=frame,
+            sample_intensity_columns=("sample_a", "sample_b"),
+        )
 
 
 @pytest.mark.parametrize(

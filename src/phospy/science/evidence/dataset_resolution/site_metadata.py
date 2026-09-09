@@ -7,12 +7,18 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    validate_quantification_depth_series,
+)
 from phospy.science.evidence.dataset_resolution.allocation import AllocatedEvidence
 from phospy.science.evidence.dataset_resolution.models import (
     DATASET_PEPTIDE_LOCALISATION_COMPATIBILITY_ALIAS_COLUMN,
     DATASET_PEPTIDE_LOCALISATION_SUMMARY_COLUMN,
     DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS,
     DATASET_PEPTIDE_LOCALISATION_SUMMARY_SEMANTICS_COLUMN,
+    MAPPING_FRACTION_COLUMN,
+    MAPPING_WEIGHT_SUM_TOLERANCE,
     SITE_SEQUENCE_SOURCE_MISSING,
     SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
     SITE_SEQUENCE_SOURCE_PROVIDED,
@@ -44,6 +50,7 @@ def aggregate_site_metadata_and_localisation(
     mapped_rows = allocated_evidence.rows
     grouped = mapped_rows.groupby("site_id", sort=True)
     include_localisation_confidence = "localisation_confidence" in mapped_rows.columns
+    include_quantification_depth = QUANTIFICATION_DEPTH_COLUMN in mapped_rows.columns
     site_rows: list[dict[str, object]] = []
     provided_site_sequence_used_count = 0
     peptide_context_derived_site_sequence_count = 0
@@ -89,6 +96,10 @@ def aggregate_site_metadata_and_localisation(
                 "protein_identifier": protein_accession,
             }
         )
+        if include_quantification_depth:
+            site_rows[-1][QUANTIFICATION_DEPTH_COLUMN] = aggregate_quantification_depth(
+                group=group, site_id=site_id
+            )
         if include_localisation_confidence:
             localisation_summary = aggregate_localisation_confidence(
                 group.loc[:, "localisation_confidence"]
@@ -125,6 +136,28 @@ def aggregate_localisation_confidence(values: pd.Series) -> float | None:
     return float(finite.mean())
 
 
+def aggregate_quantification_depth(
+    *,
+    group: pd.DataFrame,
+    site_id: str,
+) -> object:
+    if QUANTIFICATION_DEPTH_COLUMN not in group.columns:
+        return pd.NA
+    if _has_ambiguous_site_depth_assignment(group):
+        return pd.NA
+    numeric = pd.to_numeric(group.loc[:, QUANTIFICATION_DEPTH_COLUMN], errors="coerce")
+    if numeric.isna().any():
+        return pd.NA
+    validated = validate_quantification_depth_series(
+        numeric,
+        field_name=f"dataset peptide evidence quantification_depth for {site_id!r}",
+    )
+    distinct = tuple(dict.fromkeys(validated.astype(float).tolist()))
+    if len(distinct) == 1:
+        return float(distinct[0])
+    return pd.NA
+
+
 def single_non_empty_string_or_error(
     values: pd.Series,
     *,
@@ -144,7 +177,19 @@ def single_non_empty_string_or_error(
     )
 
 
+def _has_ambiguous_site_depth_assignment(group: pd.DataFrame) -> bool:
+    if "multi_site" in group.columns and bool(group.loc[:, "multi_site"].any()):
+        return True
+    if MAPPING_FRACTION_COLUMN not in group.columns:
+        return True
+    fractions = pd.to_numeric(group.loc[:, MAPPING_FRACTION_COLUMN], errors="coerce")
+    if fractions.isna().any():
+        return True
+    return bool(((fractions - 1.0).abs() > MAPPING_WEIGHT_SUM_TOLERANCE).any())
+
+
 __all__ = [
+    "aggregate_quantification_depth",
     "SiteMetadataResolution",
     "aggregate_localisation_confidence",
     "aggregate_site_metadata_and_localisation",
