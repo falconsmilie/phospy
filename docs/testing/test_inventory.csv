@@ -7,7 +7,7 @@ tests/architecture/test_config_ownership.py,architecture,279,6,false,false,,,,,,
 tests/architecture/test_dataset_builder_preprocessor_contract.py,architecture,128,3,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_deprecation_governance.py,architecture,54,1,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_duplicate_correlation_internal_contracts.py,architecture,137,2,false,false,,,,,,
-tests/architecture/test_exported_json_state_immutability.py,architecture,377,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/architecture/test_exported_json_state_immutability.py,architecture,527,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_package_dependency_dag.py,architecture,1198,22,true,true,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/architecture/test_public_constructor_signatures.py,architecture,92,3,false,false,,,,,,
@@ -19,7 +19,7 @@ tests/architecture/test_validation_componentization.py,architecture,150,2,false,
 tests/architecture/test_validation_ownership_governance.py,architecture,589,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/contract/test_public_differential_consumer.py,contract,121,1,true,false,,,,,,
 tests/contract/test_public_enrichment_consumer.py,contract,67,1,true,false,,,,,,
-tests/golden/test_differential_fixture_provenance_golden.py,golden,371,3,true,false,,,,,,
+tests/golden/test_differential_fixture_provenance_golden.py,golden,381,3,true,false,,,,,,
 tests/golden/test_duplicate_correlation_limma_fixture_integrity.py,golden,479,8,true,true,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,164,5,true,false,,,,,,
@@ -30,7 +30,7 @@ tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration
 tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,,,,,
 tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1783,40,true,true,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,279,3,true,false,,,,,,
-tests/integration/test_differential_protein_aware_workflow.py,integration,793,18,true,false,,,,,,
+tests/integration/test_differential_protein_aware_workflow.py,integration,794,18,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,203,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
@@ -154,7 +154,7 @@ tests/unit/test_dataset_transformation_state_establishment.py,unit,1246,39,false
 tests/unit/test_decomposed_ownership_facades.py,unit,101,2,false,false,,,,,,
 tests/unit/test_derived_quantitative_state_certification.py,unit,707,16,true,true,,,,,,
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
-tests/unit/test_differential_analysis.py,unit,1544,37,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,1691,38,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
 tests/unit/test_differential_feature_eligibility.py,unit,506,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
@@ -162,13 +162,13 @@ tests/unit/test_differential_fixed_effect_provenance.py,unit,380,5,false,false,,
 tests/unit/test_differential_imputation_policy.py,unit,610,13,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,1238,27,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_paired_block_policy_contract.py,unit,115,9,false,false,,,,,,
-tests/unit/test_differential_protein_aware_contracts.py,unit,874,26,true,true,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
-tests/unit/test_differential_protein_aware_kernel.py,unit,1264,18,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_differential_protein_aware_result_assembly.py,unit,1951,22,true,true,,,,,,
+tests/unit/test_differential_protein_aware_contracts.py,unit,959,28,true,true,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/unit/test_differential_protein_aware_kernel.py,unit,1266,18,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_differential_protein_aware_result_assembly.py,unit,2025,23,true,true,,,,,,
 tests/unit/test_differential_replicate_reliability_policy.py,unit,429,9,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,60,6,false,false,,,,,,
 tests/unit/test_differential_result_caveats.py,unit,357,6,false,false,,,,,,
-tests/unit/test_differential_result_contract.py,unit,1001,33,false,false,,,,,,
+tests/unit/test_differential_result_contract.py,unit,1293,44,true,true,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,147,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,887,19,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -196,7 +196,7 @@ tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API c
 tests/unit/test_final_numeric_semantic_dataset_coherence.py,unit,418,9,true,true,,,,,,
 tests/unit/test_fixture_byte_policy.py,unit,121,5,true,true,,,,,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,379,14,false,false,,,,,,
-tests/unit/test_frame_ownership_policy.py,unit,3813,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 89 hit(s); indicators: private_member_access
+tests/unit/test_frame_ownership_policy.py,unit,3844,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 89 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
 tests/unit/test_group_coverage_filter_preprocessing.py,unit,261,7,false,false,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing_config.py,unit,193,10,true,true,,,,,,
@@ -258,13 +258,13 @@ tests/unit/test_provenance_hashing.py,unit,653,31,true,true,provenance/golden co
 tests/unit/test_provenance_immutability.py,unit,303,10,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_provenance_regressions.py,unit,717,14,true,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for provenance regressions, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_config_self_validation.py,unit,1306,50,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public config self validation and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_public_container_equality_contracts.py,unit,574,9,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_public_container_equality_contracts.py,unit,646,10,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_boundary_honesty.py,unit,323,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract boundary honesty and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_dataset.py,unit,404,16,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract dataset and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_enrichment.py,unit,389,14,true,true,,,,,,
 tests/unit/test_public_contract_errors.py,unit,775,25,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_import_routes.py,unit,360,19,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_public_contract_results.py,unit,417,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/unit/test_public_contract_results.py,unit,418,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_workflows.py,unit,197,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,604,11,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,153,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.

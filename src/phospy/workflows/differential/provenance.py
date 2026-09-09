@@ -59,6 +59,10 @@ from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationConsensusResult,
     DuplicateCorrelationWorkflowProvenance,
 )
+from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    EmpiricalBayesConfig,
+)
 from phospy.science.differential.models.provenance import (
     DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL,
     DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_SCOPE,
@@ -75,6 +79,9 @@ from phospy.science.differential.models.provenance import (
     DIFFERENTIAL_PROTEIN_AWARE_SITE_ELIGIBILITY_FINGERPRINT_NAME,
     DifferentialProteinAwareInputFingerprints,
     DifferentialProteinAwarePolicyProvenance,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
 )
 from phospy.workflows.differential.imputation_inference import (
     imputation_inference_summary_payload,
@@ -336,6 +343,17 @@ def build_differential_policy_provenance(
             robust=request.config.empirical_bayes.method == "robust",
             trend=request.config.empirical_bayes.trend,
             winsor_tail_p=request.config.empirical_bayes.winsor_tail_p,
+            trend_covariate=_empirical_bayes_trend_covariate(
+                request.config.empirical_bayes
+            ),
+            trend_covariate_transformation=(
+                _empirical_bayes_trend_covariate_transformation(
+                    request.config.empirical_bayes
+                )
+            ),
+            quantification_depth_kind=_empirical_bayes_quantification_depth_kind(
+                request.config.empirical_bayes
+            ),
         ),
         statistical_testing=DifferentialStatisticalTestingProvenance(
             test_statistic=_DIFFERENTIAL_TEST_STATISTIC,
@@ -387,6 +405,39 @@ def build_differential_policy_provenance(
             enforcement_stage=_DIFFERENTIAL_UNSUPPORTED_ENFORCEMENT_STAGE,
         ),
     )
+
+
+def _empirical_bayes_trend_covariate(
+    empirical_bayes: EmpiricalBayesConfig,
+) -> str | None:
+    if not empirical_bayes.trend:
+        return None
+    return empirical_bayes.trend_covariate
+
+
+def _empirical_bayes_trend_covariate_transformation(
+    empirical_bayes: EmpiricalBayesConfig,
+) -> str | None:
+    if not empirical_bayes.trend:
+        return None
+    if (
+        empirical_bayes.trend_covariate
+        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return QUANTIFICATION_DEPTH_TREND_TRANSFORMATION
+    return "identity"
+
+
+def _empirical_bayes_quantification_depth_kind(
+    empirical_bayes: EmpiricalBayesConfig,
+) -> str | None:
+    if (
+        empirical_bayes.trend
+        and empirical_bayes.trend_covariate
+        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return empirical_bayes.quantification_depth_kind
+    return None
 
 
 def finalize_differential_policy_provenance(

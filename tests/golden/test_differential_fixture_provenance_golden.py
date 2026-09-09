@@ -236,6 +236,13 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "method": policy.empirical_bayes.method,
             "robust": policy.empirical_bayes.robust,
             "trend": policy.empirical_bayes.trend,
+            "trend_covariate": policy.empirical_bayes.trend_covariate,
+            "trend_covariate_transformation": (
+                policy.empirical_bayes.trend_covariate_transformation
+            ),
+            "quantification_depth_kind": (
+                policy.empirical_bayes.quantification_depth_kind
+            ),
             "winsor_tail_p": list(policy.empirical_bayes.winsor_tail_p),
         },
         "statistical_testing": {
@@ -337,6 +344,9 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "method": "standard",
             "robust": False,
             "trend": False,
+            "trend_covariate": None,
+            "trend_covariate_transformation": None,
+            "quantification_depth_kind": None,
             "winsor_tail_p": [0.05, 0.1],
         },
         "statistical_testing": {

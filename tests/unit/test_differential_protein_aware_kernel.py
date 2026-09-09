@@ -515,6 +515,7 @@ def test_empirical_bayes_modes_match_existing_direct_helper(
     assert (result.mean_variance_trend_diagnostics is not None) is (
         empirical_bayes.trend
     )
+    assert result.quantification_depth_trend_diagnostics is None
     np.testing.assert_allclose(
         result.prior_residual_variance_series().to_numpy(dtype=float),
         expected.prior_variance,
@@ -582,7 +583,8 @@ def test_quantification_depth_empirical_bayes_matches_existing_helper(
         trend_covariate=np.log2(np.asarray(depth_values, dtype=float)),
     )
 
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
     assert result.empirical_bayes_method == method
     assert result.empirical_bayes_robust is (method == "robust")
@@ -675,9 +677,9 @@ def test_quantification_depth_uses_final_tested_sites_only(
         rtol=1e-12,
         atol=1e-12,
     )
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
-    assert diagnostics.quantification_depth is not None
     assert diagnostics.quantification_depth.index.tolist() == ["tested_a", "tested_b"]
     assert diagnostics.quantification_depth.tolist() == [8.0, 16.0]
     assert "withheld_constant" not in diagnostics.trend_covariate.index
@@ -719,9 +721,9 @@ def test_quantification_depth_missing_excluded_site_does_not_invalidate_tested_s
     result = ProteinCovariateAdjustedDifferentialKernel().run(request)
 
     assert result.tested_site_ids == ("tested_a", "tested_b")
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
-    assert diagnostics.quantification_depth is not None
     assert diagnostics.quantification_depth.index.tolist() == ["tested_a", "tested_b"]
 
 
@@ -834,9 +836,9 @@ def test_quantification_depth_alignment_uses_site_keys_after_reordering() -> Non
 
     result = ProteinCovariateAdjustedDifferentialKernel().run(request)
 
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
-    assert diagnostics.quantification_depth is not None
     pd.testing.assert_series_equal(
         diagnostics.quantification_depth,
         pd.Series(

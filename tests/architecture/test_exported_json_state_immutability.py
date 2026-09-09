@@ -5,6 +5,7 @@ import inspect
 from collections.abc import Mapping
 from typing import cast
 
+import numpy as np
 import pandas as pd
 
 import phospy.api as public_api
@@ -37,6 +38,7 @@ from phospy.science.datasets.preprocessing.protein_mapping import ProteinMapping
 from phospy.science.differential.models import (
     DifferentialAnalysisResult,
     EmpiricalBayesPriorDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.enrichment.models import GeneSetCollection
 from phospy.science.prediction.models import KinaseScoringResult
@@ -372,6 +374,154 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
     ) == hash_json_payload(cast(JsonValue, enrichment_result.diagnostics.copy()))
 
 
+def test_differential_depth_trend_json_payload_is_export_owned() -> None:
+    result = _minimal_differential_depth_trend_result()
+
+    first_payload = result.to_payload()
+    diagnostics_payload = cast(
+        dict[str, object],
+        first_payload["quantification_depth_trend_diagnostics"],
+    )
+    quantification_depth_payload = cast(
+        list[dict[str, object]],
+        diagnostics_payload["quantification_depth"],
+    )
+    empirical_bayes_payload = cast(dict[str, object], first_payload["empirical_bayes"])
+    prior_variance_payload = cast(
+        list[dict[str, object]],
+        empirical_bayes_payload["prior_residual_variance_by_feature"],
+    )
+    quantification_depth_payload[0]["value"] = 999.0
+    prior_variance_payload[0]["value"] = 999.0
+
+    second_payload = result.to_payload()
+    second_diagnostics_payload = cast(
+        dict[str, object],
+        second_payload["quantification_depth_trend_diagnostics"],
+    )
+    second_quantification_depth_payload = cast(
+        list[dict[str, object]],
+        second_diagnostics_payload["quantification_depth"],
+    )
+    second_empirical_bayes_payload = cast(
+        dict[str, object],
+        second_payload["empirical_bayes"],
+    )
+    second_prior_variance_payload = cast(
+        list[dict[str, object]],
+        second_empirical_bayes_payload["prior_residual_variance_by_feature"],
+    )
+    assert second_quantification_depth_payload[0]["value"] == 8.0
+    assert second_prior_variance_payload[0]["value"] == 1.0
+    diagnostics = result.quantification_depth_trend_diagnostics
+    assert diagnostics is not None
+    assert float(diagnostics.quantification_depth_series().iloc[0]) == 8.0
+
+
 def test_no_result_api_exports_new_immutable_container() -> None:
     for module in (public_api, public_results, contract_results):
         assert "FrozenJsonMapping" not in getattr(module, "__all__", ())
+
+
+def _minimal_differential_depth_trend_result() -> DifferentialAnalysisResult:
+    index = protein_site_key_index(
+        protein_identifiers=["MAPK14"],
+        sites=["Y182"],
+    )
+    context = site_key_context_columns(index)
+    table = pd.DataFrame(
+        {
+            "site_key": index.tolist(),
+            "display_id": ["MAPK14;Y182;"],
+            "organism": context["organism"],
+            "protein_namespace": context["protein_namespace"],
+            "protein_identifier": context["protein_identifier"],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "protein_id": ["MAPK14"],
+            "logFC": [1.0],
+            "t": [2.0],
+            "P.Value": [0.05],
+            "adj.P.Val": [0.10],
+        },
+        index=index.copy(),
+    )
+    prior_diagnostics = EmpiricalBayesPriorDiagnostics(
+        method="standard",
+        robust=False,
+        trend=True,
+        winsor_tail_p=(0.05, 0.1),
+        base_prior_variance=1.0,
+        base_prior_degrees_of_freedom=10.0,
+        robust_outlier_count=0,
+        robust_outlier_fraction=0.0,
+        winsorized_low_count=0,
+        winsorized_high_count=0,
+        prior_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom=pd.Series(
+            [10.0],
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+    )
+    return DifferentialAnalysisResult(
+        residual_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="residual_variance",
+        ),
+        posterior_residual_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="posterior_residual_variance",
+        ),
+        prior_residual_variance=pd.Series(
+            [1.0],
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom_series_value=pd.Series(
+            [10.0],
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+        prior_variance=1.0,
+        prior_degrees_of_freedom=10.0,
+        residual_degrees_of_freedom=4.0,
+        empirical_bayes_method="standard",
+        empirical_bayes_robust=False,
+        empirical_bayes_trend=True,
+        prior_diagnostics=prior_diagnostics,
+        mean_variance_trend_diagnostics=None,
+        quantification_depth_trend_diagnostics=QuantificationDepthTrendDiagnostics(
+            quantification_depth=pd.Series(
+                [8.0],
+                index=index.copy(),
+                name="quantification_depth",
+            ),
+            trend_covariate=pd.Series(
+                np.log2(np.asarray([8.0], dtype=float)),
+                index=index.copy(),
+                name="log2_quantification_depth",
+            ),
+            trend_covariate_name="quantification_depth",
+            trend_covariate_transformation="log2",
+            quantification_depth_kind="psm_count",
+            log_residual_variance=pd.Series(
+                [0.0],
+                index=index.copy(),
+                name="log_residual_variance",
+            ),
+            fitted_log_prior_variance=pd.Series(
+                [0.0],
+                index=index.copy(),
+                name="fitted_log_prior_variance",
+            ),
+        ),
+        contrast_tables={"B_vs_A": table},
+        workflow_provenance={"nested": {"items": [1]}},
+    )

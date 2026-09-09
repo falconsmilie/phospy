@@ -10,7 +10,10 @@ aliases that callers should import deliberately.
 from __future__ import annotations
 
 from phospy._api_inventory import ADVANCED_RESULT_API
-from phospy.contracts.results import DifferentialModelDiagnostics
+from phospy.contracts.results import (
+    DifferentialModelDiagnostics,
+    QuantificationDepthTrendDiagnostics,
+)
 from phospy.contracts.results.kinase import (
     KinaseEligibilityReport,
     KinaseWorkflowAttritionProvenance,

@@ -42,6 +42,8 @@ from phospy.science.differential.models import (
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
     EmpiricalBayesConfig,
     EmpiricalBayesPriorDiagnostics,
+    MeanVarianceTrendDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
@@ -453,6 +455,37 @@ def test_private_protein_aware_result_owns_alignment_without_global_decompositio
     )
 
 
+def test_private_protein_aware_result_rejects_depth_diagnostics_when_nontrend() -> None:
+    kwargs = _result_kwargs()
+    kwargs["quantification_depth_trend_diagnostics"] = _depth_trend_diagnostics(
+        pd.Index(kwargs["tested_site_ids"], name="site_key")
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="trend diagnostics must be None when empirical_bayes_trend is False",
+    ):
+        ProteinAwareDifferentialComputationResult(**kwargs)  # type: ignore[arg-type]
+
+
+def test_private_protein_aware_result_assume_owned_rejects_both_trend_payloads() -> (
+    None
+):
+    kwargs = _result_kwargs(empirical_bayes_trend=True)
+    index = pd.Index(kwargs["tested_site_ids"], name="site_key")
+    kwargs["mean_variance_trend_diagnostics"] = _mean_trend_diagnostics(index)
+    kwargs["quantification_depth_trend_diagnostics"] = _depth_trend_diagnostics(index)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="must not include both mean-variance and quantification-depth",
+    ):
+        ProteinAwareDifferentialComputationResult(
+            **kwargs,
+            _assume_owned=True,
+        )  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     ("mutation", "pattern"),
     [
@@ -612,7 +645,10 @@ def _depth_empirical_bayes_config() -> EmpiricalBayesConfig:
     )
 
 
-def _result_kwargs() -> dict[str, object]:
+def _result_kwargs(
+    *,
+    empirical_bayes_trend: bool = False,
+) -> dict[str, object]:
     index = pd.Index(["site_a", "site_b"], name="site_key")
     residual_variance = pd.Series([0.2, 0.4], index=index.copy())
     prior_variance = pd.Series([0.3, 0.3], index=index.copy())
@@ -632,11 +668,11 @@ def _result_kwargs() -> dict[str, object]:
         "residual_degrees_of_freedom": 1.0,
         "empirical_bayes_method": "standard",
         "empirical_bayes_robust": False,
-        "empirical_bayes_trend": False,
+        "empirical_bayes_trend": empirical_bayes_trend,
         "prior_diagnostics": EmpiricalBayesPriorDiagnostics(
             method="standard",
             robust=False,
-            trend=False,
+            trend=empirical_bayes_trend,
             winsor_tail_p=(0.05, 0.1),
             base_prior_variance=0.3,
             base_prior_degrees_of_freedom=8.0,
@@ -686,6 +722,55 @@ def _result_kwargs() -> dict[str, object]:
         "tested_site_ids": ("site_a", "site_b"),
         "method_id": METHOD_ID,
     }
+
+
+def _mean_trend_diagnostics(index: pd.Index) -> MeanVarianceTrendDiagnostics:
+    mean_intensity = pd.Series([10.0, 11.0], index=index.copy(), name="mean_intensity")
+    return MeanVarianceTrendDiagnostics(
+        mean_intensity=mean_intensity,
+        trend_covariate=mean_intensity.copy(deep=True),
+        trend_covariate_name="mean_intensity",
+        trend_covariate_transformation="identity",
+        log_residual_variance=pd.Series(
+            [-1.0, -0.5],
+            index=index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            [-0.9, -0.4],
+            index=index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+    )
+
+
+def _depth_trend_diagnostics(index: pd.Index) -> QuantificationDepthTrendDiagnostics:
+    quantification_depth = pd.Series(
+        [4.0, 8.0],
+        index=index.copy(),
+        name="quantification_depth",
+    )
+    return QuantificationDepthTrendDiagnostics(
+        quantification_depth=quantification_depth,
+        trend_covariate=pd.Series(
+            np.log2(quantification_depth.to_numpy(dtype=float)),
+            index=index.copy(),
+            name="log2_quantification_depth",
+        ),
+        trend_covariate_name="quantification_depth",
+        trend_covariate_transformation="log2",
+        quantification_depth_kind="psm_count",
+        log_residual_variance=pd.Series(
+            [-1.0, -0.5],
+            index=index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            [-0.9, -0.4],
+            index=index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+    )
 
 
 def _protein_aware_status_table() -> pd.DataFrame:

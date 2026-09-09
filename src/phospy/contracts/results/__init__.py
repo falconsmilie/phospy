@@ -33,6 +33,7 @@ from phospy.contracts.results.differential import (
     DifferentialStatisticalTestingProvenance,
     DifferentialTechnicalReplicateGroup,
     DifferentialUnsupportedDesignPolicyProvenance,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.contracts.results.enrichment import (
     EnrichmentResultRecord,
@@ -118,6 +119,7 @@ __all__ = [
     "ProteinAwareMappingDiagnostics",
     "ProteinAwarePreparationReport",
     "ProteinAwarePreparationResult",
+    "QuantificationDepthTrendDiagnostics",
     "ProteinAwareSiteEligibility",
     "ResultCaveat",
     "ResultCaveatSeverity",

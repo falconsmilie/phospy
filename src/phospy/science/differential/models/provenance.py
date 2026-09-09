@@ -13,6 +13,15 @@ from phospy.provenance.models import TableFingerprint
 from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationWorkflowProvenance,
 )
+from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES,
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
+)
 
 DIFFERENTIAL_PROTEIN_AWARE_POLICY_METHOD_VERSION = "1"
 DIFFERENTIAL_PROTEIN_AWARE_MODEL_FORMULA = "y_s = X beta_s + z_p(s) gamma_s + error"
@@ -495,6 +504,9 @@ class DifferentialEmpiricalBayesProvenance:
     robust: bool
     trend: bool
     winsor_tail_p: tuple[float, float]
+    trend_covariate: str | None = None
+    trend_covariate_transformation: str | None = None
+    quantification_depth_kind: str | None = None
 
     def __post_init__(self) -> None:
         if not self.method:
@@ -502,6 +514,123 @@ class DifferentialEmpiricalBayesProvenance:
                 "differential_policy_provenance.empirical_bayes.method must be "
                 "non-empty"
             )
+        if not isinstance(cast(object, self.robust), bool):
+            raise PhosPyInputError(
+                "differential_policy_provenance.empirical_bayes.robust must be a bool"
+            )
+        if not isinstance(cast(object, self.trend), bool):
+            raise PhosPyInputError(
+                "differential_policy_provenance.empirical_bayes.trend must be a bool"
+            )
+        winsor_tail_p = self.winsor_tail_p
+        if (
+            not isinstance(cast(object, winsor_tail_p), tuple)
+            or len(winsor_tail_p) != 2
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.empirical_bayes.winsor_tail_p "
+                "must be a two-value tuple"
+            )
+        winsor_tail_p = (float(winsor_tail_p[0]), float(winsor_tail_p[1]))
+        trend_covariate = (
+            None if self.trend_covariate is None else str(self.trend_covariate)
+        )
+        trend_covariate_transformation = (
+            None
+            if self.trend_covariate_transformation is None
+            else str(self.trend_covariate_transformation)
+        )
+        quantification_depth_kind = (
+            None
+            if self.quantification_depth_kind is None
+            else str(self.quantification_depth_kind)
+        )
+        if not self.trend:
+            if trend_covariate is not None:
+                raise PhosPyInputError(
+                    "differential_policy_provenance.empirical_bayes."
+                    "trend_covariate must be None when trend is False"
+                )
+            if trend_covariate_transformation is not None:
+                raise PhosPyInputError(
+                    "differential_policy_provenance.empirical_bayes."
+                    "trend_covariate_transformation must be None when trend is False"
+                )
+            if quantification_depth_kind is not None:
+                raise PhosPyInputError(
+                    "differential_policy_provenance.empirical_bayes."
+                    "quantification_depth_kind must be None when trend is False"
+                )
+        else:
+            if trend_covariate is None:
+                trend_covariate = EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY
+            if trend_covariate not in SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES:
+                supported = ", ".join(
+                    repr(value) for value in SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES
+                )
+                raise PhosPyInputError(
+                    "differential_policy_provenance.empirical_bayes.trend_covariate "
+                    f"must be one of: {supported}"
+                )
+            if trend_covariate == EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY:
+                if trend_covariate_transformation is None:
+                    trend_covariate_transformation = "identity"
+                if trend_covariate_transformation != "identity":
+                    raise PhosPyInputError(
+                        "differential_policy_provenance.empirical_bayes."
+                        "trend_covariate_transformation must be 'identity' for "
+                        "mean-intensity trends"
+                    )
+                if quantification_depth_kind is not None:
+                    raise PhosPyInputError(
+                        "differential_policy_provenance.empirical_bayes."
+                        "quantification_depth_kind must be None for mean-intensity "
+                        "trends"
+                    )
+            elif trend_covariate == (
+                EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+            ):
+                if trend_covariate_transformation is None:
+                    trend_covariate_transformation = (
+                        QUANTIFICATION_DEPTH_TREND_TRANSFORMATION
+                    )
+                if (
+                    trend_covariate_transformation
+                    != QUANTIFICATION_DEPTH_TREND_TRANSFORMATION
+                ):
+                    raise PhosPyInputError(
+                        "differential_policy_provenance.empirical_bayes."
+                        "trend_covariate_transformation must be "
+                        f"{QUANTIFICATION_DEPTH_TREND_TRANSFORMATION!r} for "
+                        "quantification-depth trends"
+                    )
+                if (
+                    quantification_depth_kind
+                    not in SUPPORTED_QUANTIFICATION_DEPTH_KINDS
+                ):
+                    supported = ", ".join(
+                        repr(value) for value in SUPPORTED_QUANTIFICATION_DEPTH_KINDS
+                    )
+                    raise PhosPyInputError(
+                        "differential_policy_provenance.empirical_bayes."
+                        "quantification_depth_kind must be one of: "
+                        f"{supported} for quantification-depth trends"
+                    )
+        object.__setattr__(self, "method", str(self.method))
+        object.__setattr__(self, "robust", self.robust)
+        object.__setattr__(self, "trend", self.trend)
+        object.__setattr__(self, "winsor_tail_p", winsor_tail_p)
+        object.__setattr__(self, "trend_covariate", trend_covariate)
+        object.__setattr__(
+            self,
+            "trend_covariate_transformation",
+            trend_covariate_transformation,
+        )
+        object.__setattr__(
+            self,
+            "quantification_depth_kind",
+            quantification_depth_kind,
+        )
 
 
 @dataclass(frozen=True, slots=True)

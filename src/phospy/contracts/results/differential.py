@@ -15,6 +15,7 @@ from phospy.science.differential.models import (
     DifferentialStatisticalTestingProvenance,
     DifferentialTechnicalReplicateGroup,
     DifferentialUnsupportedDesignPolicyProvenance,
+    QuantificationDepthTrendDiagnostics,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "DifferentialStatisticalTestingProvenance",
     "DifferentialTechnicalReplicateGroup",
     "DifferentialUnsupportedDesignPolicyProvenance",
+    "QuantificationDepthTrendDiagnostics",
 ]

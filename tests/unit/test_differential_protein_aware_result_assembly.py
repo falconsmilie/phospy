@@ -53,6 +53,7 @@ from phospy.science.differential.models import (
     DifferentialAnalysisResult,
     EmpiricalBayesPriorDiagnostics,
     ProteinAwareDifferentialDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
@@ -835,6 +836,71 @@ def test_protein_aware_assembly_carries_computation_time_failure_diagnostics() -
     )
 
 
+def test_protein_aware_assembly_expands_depth_trend_diagnostics_to_full_index() -> None:
+    interpreted = _interpreted_request()
+    resolved_inputs = _resolved_inputs(
+        interpreted,
+        protein_coefficient=0.25,
+        tested_positions=(0,),
+    )
+    tested_index = pd.Index(resolved_inputs.tested_site_ids, name="site_key")
+    depth_diagnostics = QuantificationDepthTrendDiagnostics(
+        quantification_depth=pd.Series(
+            [8.0],
+            index=tested_index.copy(),
+            name="quantification_depth",
+        ),
+        trend_covariate=pd.Series(
+            np.log2(np.asarray([8.0], dtype=float)),
+            index=tested_index.copy(),
+            name="log2_quantification_depth",
+        ),
+        trend_covariate_name="quantification_depth",
+        trend_covariate_transformation="log2",
+        quantification_depth_kind="psm_count",
+        log_residual_variance=pd.Series(
+            [-1.0],
+            index=tested_index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            [-0.9],
+            index=tested_index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+    )
+    computation_result = _computation_result(
+        interpreted,
+        resolved_inputs,
+        protein_coefficient=0.25,
+        quantification_depth_trend_diagnostics=depth_diagnostics,
+    )
+
+    result = DifferentialResultAssembler().run_protein_aware(
+        request=interpreted,
+        resolved_inputs=resolved_inputs,
+        computation_result=computation_result,
+        workflow_provenance={"stage": "qdeb-04-depth-expansion-test"},
+    )
+
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
+    assert diagnostics is not None
+    full_index = interpreted.result_identity_metadata.index
+    assert diagnostics.quantification_depth.index.equals(full_index)
+    assert diagnostics.trend_covariate.index.equals(full_index)
+    assert diagnostics.log_residual_variance.index.equals(full_index)
+    assert diagnostics.fitted_log_prior_variance.index.equals(full_index)
+    pd.testing.assert_series_equal(
+        diagnostics.quantification_depth.loc[tested_index],
+        depth_diagnostics.quantification_depth,
+        check_dtype=False,
+    )
+    withheld_index = full_index.difference(tested_index, sort=False)
+    assert diagnostics.quantification_depth.loc[withheld_index].isna().all()
+    assert diagnostics.trend_covariate.loc[withheld_index].isna().all()
+
+
 def _protein_aware_result(
     *,
     protein_coefficient: float = 0.25,
@@ -1096,6 +1162,9 @@ def _computation_result(
     protein_coefficient: float,
     failure_site_id: str | None = None,
     failure_total_protein_row_key: str | None = None,
+    quantification_depth_trend_diagnostics: (
+        QuantificationDepthTrendDiagnostics | None
+    ) = None,
 ) -> ProteinAwareDifferentialComputationResult:
     failure_site_ids = () if failure_site_id is None else (failure_site_id,)
     tested_index = pd.Index(
@@ -1106,10 +1175,11 @@ def _computation_result(
         ),
         name="site_key",
     )
+    empirical_bayes_trend = quantification_depth_trend_diagnostics is not None
     prior_diagnostics = EmpiricalBayesPriorDiagnostics(
         method="standard",
         robust=False,
-        trend=False,
+        trend=empirical_bayes_trend,
         winsor_tail_p=(0.05, 0.1),
         base_prior_variance=0.5,
         base_prior_degrees_of_freedom=4.0,
@@ -1146,9 +1216,10 @@ def _computation_result(
         residual_degrees_of_freedom=3.0,
         empirical_bayes_method="standard",
         empirical_bayes_robust=False,
-        empirical_bayes_trend=False,
+        empirical_bayes_trend=empirical_bayes_trend,
         prior_diagnostics=prior_diagnostics,
         mean_variance_trend_diagnostics=None,
+        quantification_depth_trend_diagnostics=(quantification_depth_trend_diagnostics),
         contrast_tables={
             "B_vs_A": pd.DataFrame(
                 {
@@ -1570,6 +1641,9 @@ def _result_with_protein_aware_diagnostics(
         empirical_bayes_trend=result.empirical_bayes_trend,
         prior_diagnostics=result.prior_diagnostics,
         mean_variance_trend_diagnostics=result.mean_variance_trend_diagnostics,
+        quantification_depth_trend_diagnostics=(
+            result.quantification_depth_trend_diagnostics
+        ),
         contrast_tables=result.contrast_tables,
         diagnostics=result.diagnostics,
         policy_provenance=result.policy_provenance,

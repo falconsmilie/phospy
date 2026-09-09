@@ -481,12 +481,12 @@ def test_differential_protein_aware_public_workflow_accepts_psm_depth() -> None:
     )
 
     _assert_adjusted_public_result(result)
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
     assert diagnostics.trend_covariate_name == "quantification_depth"
     assert diagnostics.trend_covariate_transformation == "log2"
     assert diagnostics.quantification_depth_kind == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
-    assert diagnostics.quantification_depth is not None
     pd.testing.assert_series_equal(
         diagnostics.quantification_depth,
         pd.Series(
@@ -523,7 +523,8 @@ def test_differential_protein_aware_public_workflow_accepts_robust_peptide_depth
     )
 
     _assert_adjusted_public_result(result)
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
     assert result.empirical_bayes_robust is True
     assert (
@@ -553,9 +554,9 @@ def test_differential_protein_aware_depth_ignores_invalid_depth_on_withheld_site
     tested = (
         table[DIFFERENTIAL_RESULT_STATUS_COLUMN] == DIFFERENTIAL_RESULT_STATUS_TESTED
     )
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
-    assert diagnostics.quantification_depth is not None
     np.testing.assert_allclose(
         diagnostics.quantification_depth.loc[tested].to_numpy(dtype=float),
         np.asarray([1.0, 2.0], dtype=float),

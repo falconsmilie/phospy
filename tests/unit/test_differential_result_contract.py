@@ -33,7 +33,10 @@ from phospy.science.differential.models import (
 from phospy.science.differential.models import (
     DifferentialAnalysisResult,
     DifferentialComputationResult,
+    DifferentialEmpiricalBayesProvenance,
     EmpiricalBayesPriorDiagnostics,
+    MeanVarianceTrendDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
@@ -89,6 +92,7 @@ def test_differential_model_domain_modules_preserve_legacy_import_identity() -> 
         DifferentialModelDiagnostics,
         EmpiricalBayesPriorDiagnostics,
         MeanVarianceTrendDiagnostics,
+        QuantificationDepthTrendDiagnostics,
     )
     from phospy.science.differential.models.empirical_bayes_config import (
         EmpiricalBayesConfig,
@@ -114,6 +118,10 @@ def test_differential_model_domain_modules_preserve_legacy_import_identity() -> 
     )
     assert (
         differential_models.MeanVarianceTrendDiagnostics is MeanVarianceTrendDiagnostics
+    )
+    assert (
+        differential_models.QuantificationDepthTrendDiagnostics
+        is QuantificationDepthTrendDiagnostics
     )
     assert (
         differential_models.DifferentialModelDiagnostics is DifferentialModelDiagnostics
@@ -256,11 +264,15 @@ def _request_for_reverse_contrasts(
     )
 
 
-def _prior_diagnostics(index: pd.Index) -> EmpiricalBayesPriorDiagnostics:
+def _prior_diagnostics(
+    index: pd.Index,
+    *,
+    trend: bool = False,
+) -> EmpiricalBayesPriorDiagnostics:
     return EmpiricalBayesPriorDiagnostics(
         method="standard",
         robust=False,
-        trend=False,
+        trend=trend,
         winsor_tail_p=(0.05, 0.1),
         base_prior_variance=1.0,
         base_prior_degrees_of_freedom=10.0,
@@ -281,7 +293,85 @@ def _prior_diagnostics(index: pd.Index) -> EmpiricalBayesPriorDiagnostics:
     )
 
 
-def _manual_result_with_table(table: pd.DataFrame) -> DifferentialAnalysisResult:
+def _mean_trend_diagnostics(index: pd.Index) -> MeanVarianceTrendDiagnostics:
+    values = np.linspace(1.0, 2.0, index.size, dtype=float)
+    mean_intensity = pd.Series(
+        values,
+        index=index.copy(),
+        name="mean_intensity",
+    )
+    return MeanVarianceTrendDiagnostics(
+        mean_intensity=mean_intensity,
+        trend_covariate=mean_intensity.copy(deep=True),
+        trend_covariate_name="mean_intensity",
+        trend_covariate_transformation="identity",
+        log_residual_variance=pd.Series(
+            np.full(index.size, -1.0),
+            index=index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            np.full(index.size, -0.9),
+            index=index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+    )
+
+
+def _depth_trend_diagnostics_kwargs(
+    index: pd.Index,
+    *,
+    depth: tuple[float, ...] | None = None,
+) -> dict[str, object]:
+    if depth is None:
+        depth = tuple(float(2 ** (position + 1)) for position in range(index.size))
+    return {
+        "quantification_depth": pd.Series(
+            depth,
+            index=index.copy(),
+            name="quantification_depth",
+        ),
+        "trend_covariate": pd.Series(
+            np.log2(np.asarray(depth, dtype=float)),
+            index=index.copy(),
+            name="log2_quantification_depth",
+        ),
+        "trend_covariate_name": "quantification_depth",
+        "trend_covariate_transformation": "log2",
+        "quantification_depth_kind": "psm_count",
+        "log_residual_variance": pd.Series(
+            np.full(index.size, -1.0),
+            index=index.copy(),
+            name="log_residual_variance",
+        ),
+        "fitted_log_prior_variance": pd.Series(
+            np.full(index.size, -0.9),
+            index=index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+    }
+
+
+def _depth_trend_diagnostics(
+    index: pd.Index,
+    *,
+    depth: tuple[float, ...] | None = None,
+) -> QuantificationDepthTrendDiagnostics:
+    return QuantificationDepthTrendDiagnostics(
+        **_depth_trend_diagnostics_kwargs(index, depth=depth)
+    )
+
+
+def _manual_result_with_table(
+    table: pd.DataFrame,
+    *,
+    empirical_bayes_trend: bool = False,
+    mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None = None,
+    quantification_depth_trend_diagnostics: (
+        QuantificationDepthTrendDiagnostics | None
+    ) = None,
+    trusted: bool = False,
+) -> DifferentialAnalysisResult:
     index = table.index.copy()
     payload = {
         "residual_variance": pd.Series(
@@ -309,16 +399,27 @@ def _manual_result_with_table(table: pd.DataFrame) -> DifferentialAnalysisResult
         "residual_degrees_of_freedom": 4.0,
         "empirical_bayes_method": "standard",
         "empirical_bayes_robust": False,
-        "empirical_bayes_trend": False,
-        "prior_diagnostics": _prior_diagnostics(index),
-        "mean_variance_trend_diagnostics": None,
+        "empirical_bayes_trend": empirical_bayes_trend,
+        "prior_diagnostics": _prior_diagnostics(index, trend=empirical_bayes_trend),
+        "mean_variance_trend_diagnostics": mean_variance_trend_diagnostics,
+        "quantification_depth_trend_diagnostics": (
+            quantification_depth_trend_diagnostics
+        ),
         "contrast_tables": {"B_vs_A": table},
     }
+    if trusted:
+        return DifferentialAnalysisResult.from_trusted_owned(**payload)
     return DifferentialAnalysisResult(**payload)
 
 
 def _manual_computation_result_with_table(
     table: pd.DataFrame,
+    *,
+    empirical_bayes_trend: bool = False,
+    mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None = None,
+    quantification_depth_trend_diagnostics: (
+        QuantificationDepthTrendDiagnostics | None
+    ) = None,
 ) -> DifferentialComputationResult:
     index = table.index.copy()
     design_decomposition = decompose_differential_design(
@@ -361,9 +462,10 @@ def _manual_computation_result_with_table(
         residual_degrees_of_freedom=4.0,
         empirical_bayes_method="standard",
         empirical_bayes_robust=False,
-        empirical_bayes_trend=False,
-        prior_diagnostics=_prior_diagnostics(index),
-        mean_variance_trend_diagnostics=None,
+        empirical_bayes_trend=empirical_bayes_trend,
+        prior_diagnostics=_prior_diagnostics(index, trend=empirical_bayes_trend),
+        mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+        quantification_depth_trend_diagnostics=(quantification_depth_trend_diagnostics),
         contrast_tables={"B_vs_A": table},
     )
 
@@ -446,6 +548,196 @@ def test_direct_result_construction_accepts_site_key_identity_table() -> None:
     assert list(table.columns) == IDENTITY_COLUMNS + STATISTIC_COLUMNS
     assert table.index.name == "site_key"
     assert table.loc[:, "site_key"].tolist() == table.index.tolist()
+
+
+def test_direct_result_rejects_depth_trend_diagnostics_when_nontrend() -> None:
+    table = _strict_result_table()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="trend diagnostics must be None when empirical_bayes_trend is False",
+    ):
+        _manual_result_with_table(
+            table,
+            quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+                table.index
+            ),
+        )
+
+
+def test_trusted_result_rejects_depth_trend_diagnostics_when_nontrend() -> None:
+    table = _strict_result_table()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="trend diagnostics must be None when empirical_bayes_trend is False",
+    ):
+        _manual_result_with_table(
+            table,
+            quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+                table.index
+            ),
+            trusted=True,
+        )
+
+
+def test_direct_result_rejects_both_trend_diagnostic_payloads() -> None:
+    table = _strict_result_table()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="must not include both mean-variance and quantification-depth",
+    ):
+        _manual_result_with_table(
+            table,
+            empirical_bayes_trend=True,
+            mean_variance_trend_diagnostics=_mean_trend_diagnostics(table.index),
+            quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+                table.index
+            ),
+        )
+
+
+def test_direct_result_labels_depth_trend_without_policy_provenance() -> None:
+    table = _strict_result_table()
+    result = _manual_result_with_table(
+        table,
+        empirical_bayes_trend=True,
+        quantification_depth_trend_diagnostics=_depth_trend_diagnostics(table.index),
+    )
+
+    assert (
+        result.diagnostics.moderation_method
+        == "empirical_bayes_standard_quantification_depth_trend"
+    )
+
+
+def test_direct_computation_result_rejects_depth_trend_diagnostics_when_nontrend() -> (
+    None
+):
+    table = _stat_only_site_key_table()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="trend diagnostics must be None when empirical_bayes_trend is False",
+    ):
+        _manual_computation_result_with_table(
+            table,
+            quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+                table.index
+            ),
+        )
+
+
+def test_direct_computation_result_rejects_both_trend_diagnostic_payloads() -> None:
+    table = _stat_only_site_key_table()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="must not include both mean-variance and quantification-depth",
+    ):
+        _manual_computation_result_with_table(
+            table,
+            empirical_bayes_trend=True,
+            mean_variance_trend_diagnostics=_mean_trend_diagnostics(table.index),
+            quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+                table.index
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    ("override", "match"),
+    (
+        (
+            {"trend_covariate_name": "mean_intensity"},
+            "trend_covariate_name must be 'quantification_depth'",
+        ),
+        (
+            {"trend_covariate_transformation": "identity"},
+            "trend_covariate_transformation must be 'log2'",
+        ),
+        (
+            {"quantification_depth_kind": "spectral_count"},
+            "quantification_depth_kind must be one of",
+        ),
+    ),
+)
+def test_quantification_depth_diagnostics_reject_non_depth_contract(
+    override: dict[str, object],
+    match: str,
+) -> None:
+    kwargs = _depth_trend_diagnostics_kwargs(_strict_result_table().index)
+    kwargs.update(override)
+
+    with pytest.raises(PhosPyInputError, match=match):
+        QuantificationDepthTrendDiagnostics(**kwargs)
+
+
+def test_mean_variance_diagnostics_reject_depth_covariate_label() -> None:
+    index = _strict_result_table().index
+    with pytest.raises(PhosPyInputError, match="trend_covariate_name"):
+        MeanVarianceTrendDiagnostics(
+            mean_intensity=pd.Series(
+                [1.0, 2.0],
+                index=index.copy(),
+                name="mean_intensity",
+            ),
+            trend_covariate=pd.Series(
+                [1.0, 3.0],
+                index=index.copy(),
+                name="log2_quantification_depth",
+            ),
+            trend_covariate_name="quantification_depth",
+            trend_covariate_transformation="log2",
+            log_residual_variance=pd.Series(
+                [-1.0, -0.5],
+                index=index.copy(),
+                name="log_residual_variance",
+            ),
+            fitted_log_prior_variance=pd.Series(
+                [-0.9, -0.4],
+                index=index.copy(),
+                name="fitted_log_prior_variance",
+            ),
+        )
+
+
+def test_empirical_bayes_provenance_rejects_depth_metadata_for_global_prior() -> None:
+    with pytest.raises(PhosPyInputError, match="trend_covariate must be None"):
+        DifferentialEmpiricalBayesProvenance(
+            method="standard",
+            robust=False,
+            trend=False,
+            winsor_tail_p=(0.05, 0.1),
+            trend_covariate="quantification_depth",
+            trend_covariate_transformation="log2",
+            quantification_depth_kind="psm_count",
+        )
+
+
+def test_empirical_bayes_provenance_rejects_mean_trend_transform() -> None:
+    with pytest.raises(PhosPyInputError, match="identity"):
+        DifferentialEmpiricalBayesProvenance(
+            method="standard",
+            robust=False,
+            trend=True,
+            winsor_tail_p=(0.05, 0.1),
+            trend_covariate="mean_intensity",
+            trend_covariate_transformation="log2",
+        )
+
+
+def test_empirical_bayes_provenance_requires_depth_kind_for_depth_trend() -> None:
+    with pytest.raises(PhosPyInputError, match="quantification_depth_kind"):
+        DifferentialEmpiricalBayesProvenance(
+            method="standard",
+            robust=False,
+            trend=True,
+            winsor_tail_p=(0.05, 0.1),
+            trend_covariate="quantification_depth",
+            trend_covariate_transformation="log2",
+        )
 
 
 def test_direct_result_construction_rejects_display_indexed_stat_only_table() -> None:

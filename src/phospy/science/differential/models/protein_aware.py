@@ -37,6 +37,8 @@ from phospy.science.differential.models.design import ContrastMatrix, DesignMatr
 from phospy.science.differential.models.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+    QuantificationDepthTrendDiagnostics,
+    validate_empirical_bayes_trend_diagnostics_contract,
 )
 from phospy.science.differential.models.empirical_bayes_config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
@@ -320,6 +322,7 @@ class ProteinAwareDifferentialComputationResult:
     empirical_bayes_trend: bool
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
+    quantification_depth_trend_diagnostics: QuantificationDepthTrendDiagnostics | None
     protein_coefficient: pd.Series
     coefficient_table: pd.DataFrame
     residuals: pd.DataFrame
@@ -352,6 +355,9 @@ class ProteinAwareDifferentialComputationResult:
         site_diagnostics: pd.DataFrame,
         augmented_design_diagnostics: pd.DataFrame,
         tested_site_ids: Iterable[object],
+        quantification_depth_trend_diagnostics: (
+            QuantificationDepthTrendDiagnostics | None
+        ) = None,
         coefficient_table: pd.DataFrame | None = None,
         residuals: pd.DataFrame | None = None,
         contrast_standard_error_scale: pd.DataFrame | None = None,
@@ -428,6 +434,14 @@ class ProteinAwareDifferentialComputationResult:
             ),
             right_name="protein_aware_differential_result.tested_site_ids",
         )
+        validate_empirical_bayes_trend_diagnostics_contract(
+            empirical_bayes_trend=empirical_bayes_trend,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
+            field_name="protein_aware_differential_result",
+        )
         if mean_variance_trend_diagnostics is not None:
             if not isinstance(
                 cast(object, mean_variance_trend_diagnostics),
@@ -444,6 +458,28 @@ class ProteinAwareDifferentialComputationResult:
                 left_name=(
                     "protein_aware_differential_result."
                     "mean_variance_trend_diagnostics.mean_intensity.index"
+                ),
+                right_name="protein_aware_differential_result.tested_site_ids",
+            )
+        if quantification_depth_trend_diagnostics is not None:
+            if not isinstance(
+                cast(object, quantification_depth_trend_diagnostics),
+                QuantificationDepthTrendDiagnostics,
+            ):
+                raise PhosPyInputError(
+                    "protein_aware_differential_result."
+                    "quantification_depth_trend_diagnostics must be "
+                    "QuantificationDepthTrendDiagnostics or None"
+                )
+            _require_exact_index(
+                left=(
+                    quantification_depth_trend_diagnostics.quantification_depth.index
+                ),
+                right=tested_index,
+                left_name=(
+                    "protein_aware_differential_result."
+                    "quantification_depth_trend_diagnostics."
+                    "quantification_depth.index"
                 ),
                 right_name="protein_aware_differential_result.tested_site_ids",
             )
@@ -559,6 +595,11 @@ class ProteinAwareDifferentialComputationResult:
             self,
             "mean_variance_trend_diagnostics",
             mean_variance_trend_diagnostics,
+        )
+        object.__setattr__(
+            self,
+            "quantification_depth_trend_diagnostics",
+            quantification_depth_trend_diagnostics,
         )
         object.__setattr__(self, "protein_coefficient", protein_coefficient)
         object.__setattr__(

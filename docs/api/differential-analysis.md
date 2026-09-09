@@ -647,7 +647,8 @@ typed withheld rows when at least one site remains testable.
 | `prior_variance`, `prior_degrees_of_freedom`, `residual_degrees_of_freedom` | Numeric | Model-wide moderation summaries. |
 | `empirical_bayes_method`, `empirical_bayes_robust`, `empirical_bayes_trend` | String and booleans | Resolved empirical Bayes settings used by the fit. |
 | `prior_diagnostics` | `EmpiricalBayesPriorDiagnostics` | Feature-level prior estimates and fitting diagnostics. |
-| `mean_variance_trend_diagnostics` | `MeanVarianceTrendDiagnostics` or `None` | Trend diagnostics when trend moderation is enabled. |
+| `mean_variance_trend_diagnostics` | `MeanVarianceTrendDiagnostics` or `None` | Legacy mean-intensity trend diagnostics when mean-intensity trend moderation is enabled. |
+| `quantification_depth_trend_diagnostics` | `QuantificationDepthTrendDiagnostics` or `None` | Depth-aware trend diagnostics when quantification-depth trend moderation is enabled; includes original depth values, log2 trend covariate, depth kind, residual log variance, and fitted log prior variance. |
 | `diagnostics` | `DifferentialModelDiagnostics` | Design, contrast, scale, and model diagnostics. |
 | `protein_aware_diagnostics` | `ProteinAwareDifferentialDiagnostics` or `None` | Experimental protein-aware method, counts, group summaries, and per-site diagnostics when the opt-in lane is selected. |
 | `protein_aware_site_diagnostics_dataframe()` | `pandas.DataFrame` or `None` | Independent snapshot of per-site protein-aware diagnostics. |
@@ -666,6 +667,41 @@ design summary includes `paired_design_policy`, `block_id_field_name`,
 `fixed_block`, `block_column_names` names the fixed nuisance columns used in the
 linear model. For `duplicate_correlation`, `block_column_names` is empty because
 the block IDs are supplied as correlation groups instead.
+
+`result.policy_provenance.empirical_bayes` records the empirical-Bayes method,
+robust status, winsor settings, whether variance trending occurred, the trend
+covariate, and the covariate transformation. Global-prior fits record no trend
+covariate. Mean-intensity trend fits record `trend_covariate="mean_intensity"`
+with `trend_covariate_transformation="identity"`. Depth-aware trend fits record
+`trend_covariate="quantification_depth"`,
+`trend_covariate_transformation="log2"`, and the selected
+`quantification_depth_kind` (`psm_count` or `peptide_count`).
+
+Depth-aware variance moderation is opt-in. The workflow reads
+`site_metadata["quantification_depth"]` as a feature-aligned count and requires
+finite integer-valued values greater than or equal to one for every feature in
+the differential matrix. Use `quantification_depth_kind="psm_count"` when the
+depth is the number of peptide-spectrum matches supporting the feature, and
+`quantification_depth_kind="peptide_count"` when it is the number of unique
+peptides or peptide forms supporting the feature. PhosPy does not infer these
+counts from arbitrary metadata columns; callers must provide the exact
+feature-level evidence count they want treated as quantification depth.
+
+The depth-aware path fits the existing empirical-Bayes trend estimator with
+`log2(quantification_depth)` as the trend covariate. It is a
+quantification-depth-aware moderation strategy, but this release does not claim
+DEqMS numerical compatibility. The fitted trend describes a population-level
+mean relationship between depth and residual variance; it should not be read as
+a guarantee that every higher-depth feature has lower variance than every
+lower-depth feature.
+
+`result.prior_residual_variance`, `result.prior_diagnostics.prior_variance`,
+and `result.to_payload()["empirical_bayes"]["prior_residual_variance_by_feature"]`
+expose the feature-level prior variances used by moderation. Trend diagnostics
+are split by covariate: mean-intensity analyses populate
+`mean_variance_trend_diagnostics`, depth-aware analyses populate
+`quantification_depth_trend_diagnostics`, and non-trend analyses populate
+neither trend diagnostics payload.
 
 When `paired_design_policy="duplicate_correlation"`,
 `result.policy_provenance.duplicate_correlation` records:

@@ -85,6 +85,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
 )
 from phospy.science.differential.models.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.prediction.models import KinaseScoringResult
 from phospy.science.signalomes.constants import (
@@ -1018,6 +1019,36 @@ def _public_series_owner_cases() -> tuple[_PublicSeriesOwnerCase, ...]:
             ),
             construct=_activity_result_from_thresholded_counts,
             observe=lambda owner: owner.thresholded_substrate_counts,
+        ),
+        _PublicSeriesOwnerCase(
+            name="quantification-depth-trend-diagnostics-depth",
+            make_source=lambda: pd.Series(
+                [8.0, 16.0],
+                index=_SITE_INDEX.copy(),
+                name="quantification_depth",
+            ),
+            construct=lambda series: QuantificationDepthTrendDiagnostics(
+                quantification_depth=series,
+                trend_covariate=pd.Series(
+                    np.log2(series.to_numpy(dtype=float)),
+                    index=_SITE_INDEX.copy(),
+                    name="log2_quantification_depth",
+                ),
+                trend_covariate_name="quantification_depth",
+                trend_covariate_transformation="log2",
+                quantification_depth_kind="psm_count",
+                log_residual_variance=pd.Series(
+                    [-1.0, -0.5],
+                    index=_SITE_INDEX.copy(),
+                    name="log_residual_variance",
+                ),
+                fitted_log_prior_variance=pd.Series(
+                    [-0.9, -0.4],
+                    index=_SITE_INDEX.copy(),
+                    name="fitted_log_prior_variance",
+                ),
+            ),
+            observe=lambda owner: owner.quantification_depth_series(),
         ),
     )
 

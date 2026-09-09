@@ -32,6 +32,7 @@ from phospy.science.differential.models import (
     DifferentialComputationResult,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationConsensusResult,
@@ -231,11 +232,18 @@ class DifferentialAnalysisExecutor:
             prior_degrees_of_freedom=prior_dof_series,
             _assume_owned=True,
         )
-        trend_diagnostics = _build_mean_variance_trend_diagnostics(
+        mean_variance_trend_diagnostics = _build_mean_variance_trend_diagnostics(
             request=request,
             eb_fit=eb_fit,
             row_index=row_index,
             mean_intensity=mean_intensity,
+        )
+        quantification_depth_trend_diagnostics = (
+            _build_quantification_depth_trend_diagnostics(
+                request=request,
+                eb_fit=eb_fit,
+                row_index=row_index,
+            )
         )
 
         return DifferentialComputationResult._from_owned(
@@ -251,7 +259,10 @@ class DifferentialAnalysisExecutor:
             empirical_bayes_robust=request.empirical_bayes.method == "robust",
             empirical_bayes_trend=request.empirical_bayes.trend,
             prior_diagnostics=prior_diagnostics,
-            mean_variance_trend_diagnostics=trend_diagnostics,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             contrast_tables=contrast_tables,
         )
 
@@ -564,11 +575,18 @@ def _duplicate_correlation_computation_result(
         prior_degrees_of_freedom=prior_dof_series,
         _assume_owned=True,
     )
-    trend_diagnostics = _build_mean_variance_trend_diagnostics(
+    mean_variance_trend_diagnostics = _build_mean_variance_trend_diagnostics(
         request=request,
         eb_fit=eb_fit,
         row_index=row_index,
         mean_intensity=mean_intensity,
+    )
+    quantification_depth_trend_diagnostics = (
+        _build_quantification_depth_trend_diagnostics(
+            request=request,
+            eb_fit=eb_fit,
+            row_index=row_index,
+        )
     )
 
     return DifferentialComputationResult._from_owned(
@@ -584,7 +602,8 @@ def _duplicate_correlation_computation_result(
         empirical_bayes_robust=request.empirical_bayes.method == "robust",
         empirical_bayes_trend=request.empirical_bayes.trend,
         prior_diagnostics=prior_diagnostics,
-        mean_variance_trend_diagnostics=trend_diagnostics,
+        mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+        quantification_depth_trend_diagnostics=(quantification_depth_trend_diagnostics),
         contrast_tables=contrast_tables,
     )
 
@@ -632,6 +651,11 @@ def _build_mean_variance_trend_diagnostics(
 ) -> MeanVarianceTrendDiagnostics | None:
     if not request.empirical_bayes.trend:
         return None
+    if (
+        request.empirical_bayes.trend_covariate
+        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return None
     trend_covariate = _required_trend_array(
         eb_fit.trend_covariate,
         field_name="empirical-Bayes trend covariate",
@@ -649,46 +673,70 @@ def _build_mean_variance_trend_diagnostics(
         index=row_index.copy(),
         name="mean_intensity",
     )
-    if (
-        request.empirical_bayes.trend_covariate
-        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
-    ):
-        quantification_depth = request.quantification_depth
-        if quantification_depth is None:
-            raise PhosPyInputError(
-                "differential.quantification_depth must be provided for "
-                "quantification-depth empirical-Bayes diagnostics"
-            )
-        quantification_depth = _validated_quantification_depth(
-            request=request,
-            row_index=row_index,
-            field_name="differential.quantification_depth",
-        )
-        return MeanVarianceTrendDiagnostics(
-            mean_intensity=mean_intensity_series,
-            trend_covariate=pd.Series(
-                trend_covariate,
-                index=row_index.copy(),
-                name=QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
-            ),
-            trend_covariate_name=request.empirical_bayes.trend_covariate,
-            trend_covariate_transformation=QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
-            quantification_depth=quantification_depth,
-            quantification_depth_kind=request.empirical_bayes.quantification_depth_kind,
-            log_residual_variance=pd.Series(
-                log_residual_variance,
-                index=row_index.copy(),
-                name="log_residual_variance",
-            ),
-            fitted_log_prior_variance=pd.Series(
-                fitted_log_prior_variance,
-                index=row_index.copy(),
-                name="fitted_log_prior_variance",
-            ),
-            _assume_owned=True,
-        )
     return MeanVarianceTrendDiagnostics(
         mean_intensity=mean_intensity_series,
+        trend_covariate=pd.Series(
+            trend_covariate,
+            index=row_index.copy(),
+            name="mean_intensity",
+        ),
+        trend_covariate_name=request.empirical_bayes.trend_covariate,
+        trend_covariate_transformation="identity",
+        log_residual_variance=pd.Series(
+            log_residual_variance,
+            index=row_index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            fitted_log_prior_variance,
+            index=row_index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+        _assume_owned=True,
+    )
+
+
+def _build_quantification_depth_trend_diagnostics(
+    *,
+    request: DifferentialAnalysisRequest,
+    eb_fit: EmpiricalBayesFit,
+    row_index: pd.Index,
+) -> QuantificationDepthTrendDiagnostics | None:
+    if not request.empirical_bayes.trend:
+        return None
+    if (
+        request.empirical_bayes.trend_covariate
+        != EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return None
+    trend_covariate = _required_trend_array(
+        eb_fit.trend_covariate,
+        field_name="empirical-Bayes trend covariate",
+    )
+    log_residual_variance = _required_trend_array(
+        eb_fit.log_residual_variance,
+        field_name="empirical-Bayes log residual variance",
+    )
+    fitted_log_prior_variance = _required_trend_array(
+        eb_fit.fitted_log_prior_variance,
+        field_name="empirical-Bayes fitted log prior variance",
+    )
+    quantification_depth = _validated_quantification_depth(
+        request=request,
+        row_index=row_index,
+        field_name="differential.quantification_depth",
+    )
+    return QuantificationDepthTrendDiagnostics(
+        quantification_depth=quantification_depth,
+        trend_covariate=pd.Series(
+            trend_covariate,
+            index=row_index.copy(),
+            name=QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
+        ),
+        trend_covariate_name=request.empirical_bayes.trend_covariate,
+        trend_covariate_transformation=QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
+        quantification_depth_kind=request.empirical_bayes.quantification_depth_kind
+        or "",
         log_residual_variance=pd.Series(
             log_residual_variance,
             index=row_index.copy(),

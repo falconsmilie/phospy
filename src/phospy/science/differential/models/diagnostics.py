@@ -14,15 +14,12 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.comparison import (
     dataframe_equals,
-    optional_series_equals,
     series_equals,
 )
 from phospy.frames.ownership import (
     export_dataframe,
-    export_optional_series,
     export_series,
     own_dataframe,
-    own_optional_series,
     own_series,
 )
 from phospy.frames.validation import (
@@ -36,6 +33,11 @@ from phospy.frames.validation import (
 from phospy.science.configs.differential import (
     DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1 as _PROTEIN_AWARE_SUPPORTED_METHOD_ID,
 )
+from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+)
 from phospy.science.differential.models.provenance import (
     DifferentialContrastDefinition,
 )
@@ -45,6 +47,9 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
     validate_result_status_reason_contract,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
 )
 
 PROTEIN_AWARE_DIFFERENTIAL_CLAIM_STATUS_EXPERIMENTAL = "experimental"
@@ -206,8 +211,6 @@ class MeanVarianceTrendDiagnostics:
     trend_covariate: pd.Series
     trend_covariate_name: str
     trend_covariate_transformation: str | None
-    quantification_depth: pd.Series | None
-    quantification_depth_kind: str | None
     log_residual_variance: pd.Series
     fitted_log_prior_variance: pd.Series
 
@@ -220,8 +223,6 @@ class MeanVarianceTrendDiagnostics:
         trend_covariate: pd.Series | None = None,
         trend_covariate_name: str = "mean_intensity",
         trend_covariate_transformation: str | None = None,
-        quantification_depth: pd.Series | None = None,
-        quantification_depth_kind: str | None = None,
         _assume_owned: bool = False,
     ) -> None:
         mean_intensity = own_series(
@@ -235,12 +236,6 @@ class MeanVarianceTrendDiagnostics:
         trend_covariate = own_series(
             trend_covariate,
             field_name="differential_result.mean_variance_trend.trend_covariate",
-            error_type=PhosPyInputError,
-            assume_owned=_assume_owned,
-        )
-        quantification_depth = own_optional_series(
-            quantification_depth,
-            field_name="differential_result.mean_variance_trend.quantification_depth",
             error_type=PhosPyInputError,
             assume_owned=_assume_owned,
         )
@@ -275,50 +270,37 @@ class MeanVarianceTrendDiagnostics:
                 "mean-variance trend diagnostics index mismatch for mean_intensity and "
                 "fitted_log_prior_variance"
             )
-        if quantification_depth is not None and not mean_intensity.index.equals(
-            quantification_depth.index
-        ):
-            raise PhosPyInputError(
-                "mean-variance trend diagnostics index mismatch for mean_intensity and "
-                "quantification_depth"
-            )
-        if quantification_depth is None and quantification_depth_kind is not None:
-            raise PhosPyInputError(
-                "mean-variance trend diagnostics quantification_depth_kind requires "
-                "quantification_depth"
-            )
-        if quantification_depth is not None and not quantification_depth_kind:
-            raise PhosPyInputError(
-                "mean-variance trend diagnostics quantification_depth requires "
-                "quantification_depth_kind"
-            )
-        if not str(trend_covariate_name):
+        trend_covariate_name = str(trend_covariate_name)
+        trend_covariate_transformation = (
+            None
+            if trend_covariate_transformation is None
+            else str(trend_covariate_transformation)
+        )
+        if not trend_covariate_name:
             raise PhosPyInputError(
                 "mean-variance trend diagnostics trend_covariate_name must be non-empty"
+            )
+        if trend_covariate_name != EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY:
+            raise PhosPyInputError(
+                "mean-variance trend diagnostics trend_covariate_name must be "
+                f"{EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY!r}"
+            )
+        if trend_covariate_transformation not in (None, "identity"):
+            raise PhosPyInputError(
+                "mean-variance trend diagnostics trend_covariate_transformation "
+                "must be None or 'identity'"
             )
         object.__setattr__(self, "mean_intensity", mean_intensity)
         object.__setattr__(self, "trend_covariate", trend_covariate)
         object.__setattr__(
             self,
             "trend_covariate_name",
-            str(trend_covariate_name),
+            trend_covariate_name,
         )
         object.__setattr__(
             self,
             "trend_covariate_transformation",
-            (
-                None
-                if trend_covariate_transformation is None
-                else str(trend_covariate_transformation)
-            ),
-        )
-        object.__setattr__(self, "quantification_depth", quantification_depth)
-        object.__setattr__(
-            self,
-            "quantification_depth_kind",
-            None
-            if quantification_depth_kind is None
-            else str(quantification_depth_kind),
+            trend_covariate_transformation,
         )
         object.__setattr__(self, "log_residual_variance", log_residual_variance)
         object.__setattr__(
@@ -332,9 +314,6 @@ class MeanVarianceTrendDiagnostics:
 
     def trend_covariate_series(self) -> pd.Series:
         return export_series(self.trend_covariate)
-
-    def quantification_depth_series(self) -> pd.Series | None:
-        return export_optional_series(self.quantification_depth)
 
     def log_residual_variance_series(self) -> pd.Series:
         return export_series(self.log_residual_variance)
@@ -353,10 +332,179 @@ class MeanVarianceTrendDiagnostics:
             and self.trend_covariate_name == other.trend_covariate_name
             and self.trend_covariate_transformation
             == other.trend_covariate_transformation
-            and optional_series_equals(
-                self.quantification_depth,
-                other.quantification_depth,
+            and series_equals(
+                self.log_residual_variance,
+                other.log_residual_variance,
             )
+            and series_equals(
+                self.fitted_log_prior_variance,
+                other.fitted_log_prior_variance,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False)
+class QuantificationDepthTrendDiagnostics:
+    """Diagnostics payload for quantification-depth variance trend fitting.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit diagnostics-content comparison.
+    """
+
+    __hash__ = object.__hash__
+
+    quantification_depth: pd.Series
+    trend_covariate: pd.Series
+    trend_covariate_name: str
+    trend_covariate_transformation: str
+    quantification_depth_kind: str
+    log_residual_variance: pd.Series
+    fitted_log_prior_variance: pd.Series
+
+    def __init__(
+        self,
+        *,
+        quantification_depth: pd.Series,
+        trend_covariate: pd.Series,
+        trend_covariate_name: str,
+        trend_covariate_transformation: str,
+        quantification_depth_kind: str,
+        log_residual_variance: pd.Series,
+        fitted_log_prior_variance: pd.Series,
+        _assume_owned: bool = False,
+    ) -> None:
+        quantification_depth = own_series(
+            quantification_depth,
+            field_name=(
+                "differential_result.quantification_depth_trend.quantification_depth"
+            ),
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        trend_covariate = own_series(
+            trend_covariate,
+            field_name=(
+                "differential_result.quantification_depth_trend.trend_covariate"
+            ),
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        log_residual_variance = own_series(
+            log_residual_variance,
+            field_name=(
+                "differential_result.quantification_depth_trend.log_residual_variance"
+            ),
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        fitted_log_prior_variance = own_series(
+            fitted_log_prior_variance,
+            field_name=(
+                "differential_result.quantification_depth_trend."
+                "fitted_log_prior_variance"
+            ),
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        if not quantification_depth.index.equals(trend_covariate.index):
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics index mismatch for "
+                "quantification_depth and trend_covariate"
+            )
+        if not quantification_depth.index.equals(log_residual_variance.index):
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics index mismatch for "
+                "quantification_depth and log_residual_variance"
+            )
+        if not quantification_depth.index.equals(fitted_log_prior_variance.index):
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics index mismatch for "
+                "quantification_depth and fitted_log_prior_variance"
+            )
+        trend_covariate_name = str(trend_covariate_name)
+        trend_covariate_transformation = str(trend_covariate_transformation)
+        quantification_depth_kind = str(quantification_depth_kind)
+        if not trend_covariate_name:
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics trend_covariate_name must "
+                "be non-empty"
+            )
+        if trend_covariate_name != EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH:
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics trend_covariate_name must be "
+                f"{EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH!r}"
+            )
+        if not trend_covariate_transformation:
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics "
+                "trend_covariate_transformation must be non-empty"
+            )
+        if trend_covariate_transformation != QUANTIFICATION_DEPTH_TREND_TRANSFORMATION:
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics "
+                "trend_covariate_transformation must be "
+                f"{QUANTIFICATION_DEPTH_TREND_TRANSFORMATION!r}"
+            )
+        if not quantification_depth_kind:
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics quantification_depth_kind "
+                "must be non-empty"
+            )
+        if quantification_depth_kind not in SUPPORTED_QUANTIFICATION_DEPTH_KINDS:
+            supported = ", ".join(
+                repr(value) for value in SUPPORTED_QUANTIFICATION_DEPTH_KINDS
+            )
+            raise PhosPyInputError(
+                "quantification-depth trend diagnostics quantification_depth_kind "
+                f"must be one of: {supported}"
+            )
+        object.__setattr__(self, "quantification_depth", quantification_depth)
+        object.__setattr__(self, "trend_covariate", trend_covariate)
+        object.__setattr__(
+            self,
+            "trend_covariate_name",
+            trend_covariate_name,
+        )
+        object.__setattr__(
+            self,
+            "trend_covariate_transformation",
+            trend_covariate_transformation,
+        )
+        object.__setattr__(
+            self,
+            "quantification_depth_kind",
+            quantification_depth_kind,
+        )
+        object.__setattr__(self, "log_residual_variance", log_residual_variance)
+        object.__setattr__(
+            self,
+            "fitted_log_prior_variance",
+            fitted_log_prior_variance,
+        )
+
+    def quantification_depth_series(self) -> pd.Series:
+        return export_series(self.quantification_depth)
+
+    def trend_covariate_series(self) -> pd.Series:
+        return export_series(self.trend_covariate)
+
+    def log_residual_variance_series(self) -> pd.Series:
+        return export_series(self.log_residual_variance)
+
+    def fitted_log_prior_variance_series(self) -> pd.Series:
+        return export_series(self.fitted_log_prior_variance)
+
+    def scientifically_equals(self, other: object) -> bool:
+        """Return ``True`` when another depth diagnostics object has same content."""
+
+        if not isinstance(other, QuantificationDepthTrendDiagnostics):
+            return False
+        return (
+            series_equals(self.quantification_depth, other.quantification_depth)
+            and series_equals(self.trend_covariate, other.trend_covariate)
+            and self.trend_covariate_name == other.trend_covariate_name
+            and self.trend_covariate_transformation
+            == other.trend_covariate_transformation
             and self.quantification_depth_kind == other.quantification_depth_kind
             and series_equals(
                 self.log_residual_variance,
@@ -366,6 +514,49 @@ class MeanVarianceTrendDiagnostics:
                 self.fitted_log_prior_variance,
                 other.fitted_log_prior_variance,
             )
+        )
+
+
+def validate_empirical_bayes_trend_diagnostics_contract(
+    *,
+    empirical_bayes_trend: bool,
+    mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+    quantification_depth_trend_diagnostics: QuantificationDepthTrendDiagnostics | None,
+    field_name: str,
+) -> None:
+    """Validate mutually exclusive trend diagnostics for direct result models."""
+
+    if mean_variance_trend_diagnostics is not None and not isinstance(
+        cast(object, mean_variance_trend_diagnostics),
+        MeanVarianceTrendDiagnostics,
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.mean_variance_trend_diagnostics must be "
+            "MeanVarianceTrendDiagnostics or None"
+        )
+    if quantification_depth_trend_diagnostics is not None and not isinstance(
+        cast(object, quantification_depth_trend_diagnostics),
+        QuantificationDepthTrendDiagnostics,
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.quantification_depth_trend_diagnostics must be "
+            "QuantificationDepthTrendDiagnostics or None"
+        )
+    if (
+        mean_variance_trend_diagnostics is not None
+        and quantification_depth_trend_diagnostics is not None
+    ):
+        raise PhosPyInputError(
+            f"{field_name} must not include both mean-variance and "
+            "quantification-depth trend diagnostics"
+        )
+    if not bool(empirical_bayes_trend) and (
+        mean_variance_trend_diagnostics is not None
+        or quantification_depth_trend_diagnostics is not None
+    ):
+        raise PhosPyInputError(
+            f"{field_name} trend diagnostics must be None when "
+            "empirical_bayes_trend is False"
         )
 
 
@@ -1480,4 +1671,5 @@ __all__ = [
     "PROTEIN_AWARE_DIFFERENTIAL_MODEL_TYPE",
     "PROTEIN_AWARE_DIFFERENTIAL_PER_SITE_DIAGNOSTIC_COLUMNS",
     "ProteinAwareDifferentialDiagnostics",
+    "QuantificationDepthTrendDiagnostics",
 ]

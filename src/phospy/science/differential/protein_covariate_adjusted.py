@@ -28,6 +28,7 @@ from phospy.science.differential.models import (
     DesignMatrix,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.differential.models.empirical_bayes_config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
@@ -394,6 +395,15 @@ class ProteinCovariateAdjustedDifferentialKernel:
             enabled=request.empirical_bayes.trend,
             quantification_depth=quantification_depth,
         )
+        quantification_depth_trend_diagnostics = (
+            _quantification_depth_trend_diagnostics(
+                request=request,
+                eb_fit=eb_fit,
+                tested_index=tested_index,
+                enabled=request.empirical_bayes.trend,
+                quantification_depth=quantification_depth,
+            )
+        )
 
         return ProteinAwareDifferentialComputationResult(
             residual_variance=residual_variance_series,
@@ -410,6 +420,9 @@ class ProteinCovariateAdjustedDifferentialKernel:
             empirical_bayes_trend=request.empirical_bayes.trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             contrast_tables=contrast_tables,
             protein_coefficient=protein_coefficient,
             site_diagnostics=_site_diagnostics(
@@ -967,6 +980,8 @@ def _trend_diagnostics(
 ) -> MeanVarianceTrendDiagnostics | None:
     if not enabled:
         return None
+    if quantification_depth is not None:
+        return None
     trend_covariate = eb_fit.trend_covariate
     log_residual_variance = eb_fit.log_residual_variance
     fitted_log_prior_variance = eb_fit.fitted_log_prior_variance
@@ -984,32 +999,62 @@ def _trend_diagnostics(
         index=tested_index.copy(),
         name="mean_intensity",
     )
-    if quantification_depth is not None:
-        return MeanVarianceTrendDiagnostics(
-            mean_intensity=mean_intensity_series,
-            trend_covariate=pd.Series(
-                trend_covariate,
-                index=tested_index.copy(),
-                name=QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
-            ),
-            trend_covariate_name=request.empirical_bayes.trend_covariate,
-            trend_covariate_transformation=QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
-            quantification_depth=quantification_depth,
-            quantification_depth_kind=request.empirical_bayes.quantification_depth_kind,
-            log_residual_variance=pd.Series(
-                log_residual_variance,
-                index=tested_index.copy(),
-                name="log_residual_variance",
-            ),
-            fitted_log_prior_variance=pd.Series(
-                fitted_log_prior_variance,
-                index=tested_index.copy(),
-                name="fitted_log_prior_variance",
-            ),
-            _assume_owned=True,
-        )
     return MeanVarianceTrendDiagnostics(
         mean_intensity=mean_intensity_series,
+        trend_covariate=pd.Series(
+            trend_covariate,
+            index=tested_index.copy(),
+            name="mean_intensity",
+        ),
+        trend_covariate_name=request.empirical_bayes.trend_covariate,
+        trend_covariate_transformation="identity",
+        log_residual_variance=pd.Series(
+            log_residual_variance,
+            index=tested_index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            fitted_log_prior_variance,
+            index=tested_index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+        _assume_owned=True,
+    )
+
+
+def _quantification_depth_trend_diagnostics(
+    *,
+    request: ProteinAwareDifferentialComputationRequest,
+    eb_fit: EmpiricalBayesFit,
+    tested_index: pd.Index,
+    enabled: bool,
+    quantification_depth: pd.Series | None,
+) -> QuantificationDepthTrendDiagnostics | None:
+    if not enabled or quantification_depth is None:
+        return None
+    trend_covariate = eb_fit.trend_covariate
+    log_residual_variance = eb_fit.log_residual_variance
+    fitted_log_prior_variance = eb_fit.fitted_log_prior_variance
+    if (
+        trend_covariate is None
+        or log_residual_variance is None
+        or fitted_log_prior_variance is None
+    ):
+        raise PhosPyInputError(
+            "protein-aware differential empirical-Bayes depth trend diagnostics "
+            "are incomplete"
+        )
+    return QuantificationDepthTrendDiagnostics(
+        quantification_depth=quantification_depth,
+        trend_covariate=pd.Series(
+            trend_covariate,
+            index=tested_index.copy(),
+            name=QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
+        ),
+        trend_covariate_name=request.empirical_bayes.trend_covariate,
+        trend_covariate_transformation=QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
+        quantification_depth_kind=request.empirical_bayes.quantification_depth_kind
+        or "",
         log_residual_variance=pd.Series(
             log_residual_variance,
             index=tested_index.copy(),

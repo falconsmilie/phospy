@@ -818,12 +818,12 @@ def test_protein_differential_quantification_depth_moderation_uses_tested_rows()
         atol=1.0e-12,
     )
     assert "withheld_constant" not in result.prior_residual_variance_series().index
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
     assert diagnostics.trend_covariate_name == "quantification_depth"
     assert diagnostics.trend_covariate_transformation == "log2"
     assert diagnostics.quantification_depth_kind == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
-    assert diagnostics.quantification_depth is not None
     pd.testing.assert_series_equal(
         diagnostics.quantification_depth,
         pd.Series(

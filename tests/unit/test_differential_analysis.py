@@ -368,7 +368,13 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
     assert result.empirical_bayes_robust is False
     assert result.empirical_bayes_trend is False
     assert result.mean_variance_trend_diagnostics is None
+    assert result.quantification_depth_trend_diagnostics is None
     assert result.policy_provenance is not None
+    assert result.policy_provenance.empirical_bayes.trend_covariate is None
+    assert (
+        result.policy_provenance.empirical_bayes.trend_covariate_transformation is None
+    )
+    assert result.policy_provenance.empirical_bayes.quantification_depth_kind is None
     assert result.policy_provenance.design.formula == "~0 + condition"
     assert result.policy_provenance.design.rank == 3
     assert result.policy_provenance.design.residual_degrees_of_freedom == pytest.approx(
@@ -938,7 +944,8 @@ def _assert_depth_trend_diagnostics(
     expected_depth: list[float],
     kind: str,
 ) -> None:
-    diagnostics = result.mean_variance_trend_diagnostics
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
     assert diagnostics is not None
     expected_index = _dataset().phospho.index
     expected_depth_series = pd.Series(
@@ -964,6 +971,29 @@ def _assert_depth_trend_diagnostics(
         expected_log_depth_series,
         check_dtype=False,
     )
+    assert diagnostics.log_residual_variance.index.equals(expected_index)
+    assert diagnostics.fitted_log_prior_variance.index.equals(expected_index)
+    assert result.diagnostics.moderation_method.endswith("quantification_depth_trend")
+    payload = result.to_payload()
+    assert "mean_variance_trend_diagnostics" not in payload
+    depth_payload = payload["quantification_depth_trend_diagnostics"]
+    assert isinstance(depth_payload, dict)
+    assert depth_payload["trend_covariate_name"] == "quantification_depth"
+    assert depth_payload["trend_covariate_transformation"] == "log2"
+    assert depth_payload["quantification_depth_kind"] == kind
+    assert {
+        "quantification_depth",
+        "trend_covariate",
+        "trend_covariate_name",
+        "trend_covariate_transformation",
+        "quantification_depth_kind",
+        "log_residual_variance",
+        "fitted_log_prior_variance",
+    }.issubset(depth_payload)
+    empirical_bayes_payload = payload["empirical_bayes"]
+    assert isinstance(empirical_bayes_payload, dict)
+    assert "prior_residual_variance_by_feature" in empirical_bayes_payload
+    assert "prior_degrees_of_freedom_by_feature" in empirical_bayes_payload
 
 
 def test_empirical_bayes_trend_covariate_constants_are_supported() -> None:
@@ -1025,6 +1055,17 @@ def test_standard_empirical_bayes_accepts_psm_count_depth() -> None:
 
     assert result.empirical_bayes_trend is True
     assert result.empirical_bayes_robust is False
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.empirical_bayes.trend_covariate == (
+        "quantification_depth"
+    )
+    assert (
+        result.policy_provenance.empirical_bayes.trend_covariate_transformation
+        == "log2"
+    )
+    assert result.policy_provenance.empirical_bayes.quantification_depth_kind == (
+        QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    )
     _assert_depth_trend_diagnostics(
         result,
         expected_depth=depth,
@@ -1046,6 +1087,19 @@ def test_robust_empirical_bayes_accepts_peptide_count_depth() -> None:
 
     assert result.empirical_bayes_trend is True
     assert result.empirical_bayes_robust is True
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.empirical_bayes.method == "robust"
+    assert result.policy_provenance.empirical_bayes.robust is True
+    assert result.policy_provenance.empirical_bayes.trend_covariate == (
+        "quantification_depth"
+    )
+    assert (
+        result.policy_provenance.empirical_bayes.trend_covariate_transformation
+        == "log2"
+    )
+    assert result.policy_provenance.empirical_bayes.quantification_depth_kind == (
+        QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT
+    )
     _assert_depth_trend_diagnostics(
         result,
         expected_depth=depth,
@@ -1168,6 +1222,51 @@ def test_duplicate_correlation_empirical_bayes_accepts_depth_trend() -> None:
     )
 
 
+def test_depth_trend_full_index_expansion_preserves_site_index_for_withheld_feature() -> (
+    None
+):
+    matrix = _matrix().copy()
+    withheld_display_id = "AKT1;T308;"
+    matrix.loc[withheld_display_id, :] = 3.0
+    depth = [1.0, 2.0, 4.0, 8.0, 16.0]
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset_with_quantification_depth(depth, matrix=matrix),
+            empirical_bayes=_depth_empirical_bayes_config(),
+        )
+    )
+
+    expected_index = _dataset(matrix).phospho.index
+    withheld_site_key = _site_key_for_display_id(withheld_display_id)
+    assert result.table_for("B_vs_A").index.tolist() == expected_index.tolist()
+    assert result.mean_variance_trend_diagnostics is None
+
+    feature_eligibility = result.feature_eligibility
+    assert feature_eligibility is not None
+    assert (
+        feature_eligibility.loc[withheld_site_key, DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+    result_table = result.table_for("B_vs_A")
+    assert (
+        result_table.loc[withheld_site_key, DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+
+    diagnostics = result.quantification_depth_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.quantification_depth.index.tolist() == expected_index.tolist()
+    assert diagnostics.trend_covariate.index.tolist() == expected_index.tolist()
+    assert diagnostics.log_residual_variance.index.tolist() == expected_index.tolist()
+    assert diagnostics.fitted_log_prior_variance.index.tolist() == (
+        expected_index.tolist()
+    )
+    assert pd.isna(diagnostics.quantification_depth.loc[withheld_site_key])
+    tested_depth = diagnostics.quantification_depth.drop(index=withheld_site_key)
+    assert tested_depth.notna().all()
+
+
 def test_existing_mean_intensity_trend_results_are_unchanged() -> None:
     matrix = _matrix().copy()
     matrix.loc["MAPK14;Y182;"] = matrix.loc["MAPK14;Y182;"] * 0.1
@@ -1191,9 +1290,52 @@ def test_existing_mean_intensity_trend_results_are_unchanged() -> None:
 
     assert implicit.mean_variance_trend_diagnostics is not None
     assert explicit.mean_variance_trend_diagnostics is not None
+    assert implicit.quantification_depth_trend_diagnostics is None
+    assert explicit.quantification_depth_trend_diagnostics is None
     assert implicit.mean_variance_trend_diagnostics.trend_covariate_name == (
         "mean_intensity"
     )
+    assert (
+        implicit.mean_variance_trend_diagnostics.trend_covariate_transformation
+        == "identity"
+    )
+    assert (
+        explicit.mean_variance_trend_diagnostics.trend_covariate_transformation
+        == "identity"
+    )
+    assert (
+        implicit.diagnostics.moderation_method
+        == "empirical_bayes_standard_mean_intensity_trend"
+    )
+    assert (
+        explicit.diagnostics.moderation_method
+        == "empirical_bayes_standard_mean_intensity_trend"
+    )
+    assert implicit.policy_provenance is not None
+    assert explicit.policy_provenance is not None
+    assert implicit.policy_provenance.empirical_bayes.trend_covariate == (
+        "mean_intensity"
+    )
+    assert (
+        implicit.policy_provenance.empirical_bayes.trend_covariate_transformation
+        == "identity"
+    )
+    assert implicit.policy_provenance.empirical_bayes.quantification_depth_kind is None
+    assert explicit.policy_provenance.empirical_bayes.trend_covariate == (
+        "mean_intensity"
+    )
+    assert (
+        explicit.policy_provenance.empirical_bayes.trend_covariate_transformation
+        == "identity"
+    )
+    assert explicit.policy_provenance.empirical_bayes.quantification_depth_kind is None
+    implicit_payload = implicit.to_payload()
+    assert "mean_variance_trend_diagnostics" in implicit_payload
+    assert "quantification_depth_trend_diagnostics" not in implicit_payload
+    mean_payload = implicit_payload["mean_variance_trend_diagnostics"]
+    assert isinstance(mean_payload, dict)
+    assert mean_payload["trend_covariate_name"] == "mean_intensity"
+    assert mean_payload["trend_covariate_transformation"] == "identity"
     pdt.assert_series_equal(
         implicit.mean_variance_trend_diagnostics.mean_intensity,
         implicit.mean_variance_trend_diagnostics.trend_covariate,
@@ -1228,6 +1370,10 @@ def test_existing_default_nontrend_results_are_unchanged() -> None:
 
     assert default.mean_variance_trend_diagnostics is None
     assert explicit.mean_variance_trend_diagnostics is None
+    assert default.quantification_depth_trend_diagnostics is None
+    assert explicit.quantification_depth_trend_diagnostics is None
+    assert "mean_variance_trend_diagnostics" not in default.to_payload()
+    assert "quantification_depth_trend_diagnostics" not in default.to_payload()
     pdt.assert_series_equal(
         default.prior_residual_variance_series(),
         explicit.prior_residual_variance_series(),
@@ -1293,6 +1439,7 @@ def test_trend_mode_stores_mean_variance_diagnostics() -> None:
     )
     assert result.empirical_bayes_trend is True
     assert result.mean_variance_trend_diagnostics is not None
+    assert result.quantification_depth_trend_diagnostics is None
     diagnostics = result.mean_variance_trend_diagnostics
     expected_index = _dataset(matrix).phospho.index.tolist()
     assert diagnostics.mean_intensity.index.tolist() == expected_index

@@ -30,6 +30,7 @@ from phospy.science.differential.models import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
     ProteinAwareDifferentialDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.differential.models.diagnostics import (
     PROTEIN_AWARE_DIFFERENTIAL_CLAIM_STATUS_EXPERIMENTAL,
@@ -105,6 +106,9 @@ class DifferentialResultAssembler:
         mean_variance_trend_diagnostics = (
             computation_result.mean_variance_trend_diagnostics
         )
+        quantification_depth_trend_diagnostics = (
+            computation_result.quantification_depth_trend_diagnostics
+        )
         contrast_source_tables: Mapping[str, pd.DataFrame] = (
             DifferentialComputationResultInternalView(
                 computation_result
@@ -135,6 +139,12 @@ class DifferentialResultAssembler:
             mean_variance_trend_diagnostics = _expand_trend_diagnostics_to_full_index(
                 computation_result.mean_variance_trend_diagnostics,
                 full_index=full_index,
+            )
+            quantification_depth_trend_diagnostics = (
+                _expand_quantification_depth_trend_diagnostics_to_full_index(
+                    computation_result.quantification_depth_trend_diagnostics,
+                    full_index=full_index,
+                )
             )
             contrast_source_tables = {
                 contrast_name: _expand_stat_table_to_full_index(
@@ -184,6 +194,9 @@ class DifferentialResultAssembler:
             empirical_bayes_trend=computation_result.empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             diagnostics=diagnostics,
             policy_provenance=policy_provenance,
             contrast_tables=contrast_tables,
@@ -259,6 +272,12 @@ class DifferentialResultAssembler:
             computation_result.mean_variance_trend_diagnostics,
             full_index=full_index,
         )
+        quantification_depth_trend_diagnostics = (
+            _expand_quantification_depth_trend_diagnostics_to_full_index(
+                computation_result.quantification_depth_trend_diagnostics,
+                full_index=full_index,
+            )
+        )
         contrast_source_tables = {
             contrast_name: _expand_stat_table_to_full_index(
                 table,
@@ -328,6 +347,9 @@ class DifferentialResultAssembler:
             empirical_bayes_trend=computation_result.empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             diagnostics=diagnostics,
             protein_aware_diagnostics=protein_aware_diagnostics,
             policy_provenance=policy_provenance,
@@ -807,6 +829,11 @@ def _build_protein_aware_model_diagnostics(
             computation_result.empirical_bayes_method,
             robust=bool(computation_result.empirical_bayes_robust),
             trend=bool(computation_result.empirical_bayes_trend),
+            trend_covariate=(
+                resolved_inputs.computation_request.empirical_bayes.trend_covariate
+                if computation_result.empirical_bayes_trend
+                else None
+            ),
         ),
         multiple_testing_method=str(
             resolved_inputs.computation_request.multiple_testing_method
@@ -930,6 +957,11 @@ def _build_model_diagnostics(
             result.empirical_bayes_method,
             robust=bool(result.empirical_bayes_robust),
             trend=bool(result.empirical_bayes_trend),
+            trend_covariate=(
+                request.computation_request.empirical_bayes.trend_covariate
+                if result.empirical_bayes_trend
+                else None
+            ),
         ),
         multiple_testing_method=request.execution_config.multiple_testing_method,
         imputation_policy=request.execution_config.imputed_value_policy,
@@ -1366,12 +1398,21 @@ def _batch_correction_report(
     return preprocessing_report.batch_correction
 
 
-def _moderation_method(method: str, *, robust: bool, trend: bool) -> str:
+def _moderation_method(
+    method: str,
+    *,
+    robust: bool,
+    trend: bool,
+    trend_covariate: str | None,
+) -> str:
     parts = ["empirical_bayes", str(method)]
     if robust and str(method) != "robust":
         parts.append("robust")
     if trend:
-        parts.append("trend")
+        if trend_covariate is None:
+            parts.append("mean_intensity_trend")
+        else:
+            parts.append(f"{trend_covariate}_trend")
     return "_".join(parts)
 
 
@@ -1566,14 +1607,36 @@ def _expand_trend_diagnostics_to_full_index(
         ),
         trend_covariate_name=diagnostics.trend_covariate_name,
         trend_covariate_transformation=diagnostics.trend_covariate_transformation,
-        quantification_depth=(
-            None
-            if diagnostics.quantification_depth is None
-            else _expand_series_to_full_index(
-                diagnostics.quantification_depth,
-                full_index=full_index,
-            )
+        log_residual_variance=_expand_series_to_full_index(
+            diagnostics.log_residual_variance,
+            full_index=full_index,
         ),
+        fitted_log_prior_variance=_expand_series_to_full_index(
+            diagnostics.fitted_log_prior_variance,
+            full_index=full_index,
+        ),
+        _assume_owned=True,
+    )
+
+
+def _expand_quantification_depth_trend_diagnostics_to_full_index(
+    diagnostics: QuantificationDepthTrendDiagnostics | None,
+    *,
+    full_index: pd.Index,
+) -> QuantificationDepthTrendDiagnostics | None:
+    if diagnostics is None:
+        return None
+    return QuantificationDepthTrendDiagnostics(
+        quantification_depth=_expand_series_to_full_index(
+            diagnostics.quantification_depth,
+            full_index=full_index,
+        ),
+        trend_covariate=_expand_series_to_full_index(
+            diagnostics.trend_covariate,
+            full_index=full_index,
+        ),
+        trend_covariate_name=diagnostics.trend_covariate_name,
+        trend_covariate_transformation=diagnostics.trend_covariate_transformation,
         quantification_depth_kind=diagnostics.quantification_depth_kind,
         log_residual_variance=_expand_series_to_full_index(
             diagnostics.log_residual_variance,

@@ -66,6 +66,7 @@ EXPECTED_STABLE_RESULT_EXPORTS = {
 
 EXPECTED_ADVANCED_RESULT_EXPORTS = {
     "DifferentialModelDiagnostics",
+    "QuantificationDepthTrendDiagnostics",
 } | INTENTIONAL_RESULT_COMPATIBILITY_ALIASES
 
 

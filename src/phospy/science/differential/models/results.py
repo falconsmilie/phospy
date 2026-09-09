@@ -32,6 +32,8 @@ from phospy.science.differential.models.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
     ProteinAwareDifferentialDiagnostics,
+    QuantificationDepthTrendDiagnostics,
+    validate_empirical_bayes_trend_diagnostics_contract,
 )
 from phospy.science.differential.models.provenance import DifferentialPolicyProvenance
 from phospy.science.differential.models.tables import (
@@ -75,6 +77,7 @@ class DifferentialAnalysisResult:
     empirical_bayes_trend: bool
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
+    quantification_depth_trend_diagnostics: QuantificationDepthTrendDiagnostics | None
     diagnostics: DifferentialModelDiagnostics
     protein_aware_diagnostics: ProteinAwareDifferentialDiagnostics | None
     policy_provenance: DifferentialPolicyProvenance | None
@@ -100,6 +103,9 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        quantification_depth_trend_diagnostics: (
+            QuantificationDepthTrendDiagnostics | None
+        ) = None,
         diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
@@ -123,6 +129,9 @@ class DifferentialAnalysisResult:
             empirical_bayes_trend=empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             contrast_tables=contrast_tables,
             diagnostics=diagnostics,
             policy_provenance=policy_provenance,
@@ -150,6 +159,9 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        quantification_depth_trend_diagnostics: (
+            QuantificationDepthTrendDiagnostics | None
+        ) = None,
         diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
@@ -212,6 +224,14 @@ class DifferentialAnalysisResult:
                 "differential_result.prior_diagnostics.prior_degrees_of_freedom index "
                 "must match matrix feature index"
             )
+        validate_empirical_bayes_trend_diagnostics_contract(
+            empirical_bayes_trend=empirical_bayes_trend,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
+            field_name="differential_result",
+        )
         if (
             mean_variance_trend_diagnostics is not None
             and not mean_variance_trend_diagnostics.mean_intensity.index.equals(
@@ -221,6 +241,24 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.mean_variance_trend_diagnostics index must match "
                 "matrix feature index"
+            )
+        if quantification_depth_trend_diagnostics is not None and not isinstance(
+            cast(object, quantification_depth_trend_diagnostics),
+            QuantificationDepthTrendDiagnostics,
+        ):
+            raise PhosPyInputError(
+                "differential_result.quantification_depth_trend_diagnostics must "
+                "be QuantificationDepthTrendDiagnostics or None"
+            )
+        if (
+            quantification_depth_trend_diagnostics is not None
+            and not quantification_depth_trend_diagnostics.quantification_depth.index.equals(
+                residual_variance.index
+            )
+        ):
+            raise PhosPyInputError(
+                "differential_result.quantification_depth_trend_diagnostics index "
+                "must match matrix feature index"
             )
         if policy_provenance is not None and not isinstance(
             cast(object, policy_provenance), DifferentialPolicyProvenance
@@ -241,6 +279,10 @@ class DifferentialAnalysisResult:
                 empirical_bayes_robust=empirical_bayes_robust,
                 empirical_bayes_trend=empirical_bayes_trend,
                 policy_provenance=policy_provenance,
+                mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+                quantification_depth_trend_diagnostics=(
+                    quantification_depth_trend_diagnostics
+                ),
             )
         if not isinstance(cast(object, diagnostics), DifferentialModelDiagnostics):
             raise PhosPyInputError(
@@ -348,6 +390,11 @@ class DifferentialAnalysisResult:
             "mean_variance_trend_diagnostics",
             mean_variance_trend_diagnostics,
         )
+        object.__setattr__(
+            self,
+            "quantification_depth_trend_diagnostics",
+            quantification_depth_trend_diagnostics,
+        )
         object.__setattr__(self, "diagnostics", diagnostics)
         object.__setattr__(
             self,
@@ -448,7 +495,35 @@ class DifferentialAnalysisResult:
                 "residual_degrees_of_freedom": _json_scalar(
                     self.residual_degrees_of_freedom
                 ),
+                "prior_residual_variance_by_feature": _series_records_payload(
+                    self.prior_residual_variance
+                ),
+                "prior_degrees_of_freedom_by_feature": _series_records_payload(
+                    self.prior_degrees_of_freedom_series_value
+                ),
             },
+            **(
+                {}
+                if self.mean_variance_trend_diagnostics is None
+                else {
+                    "mean_variance_trend_diagnostics": (
+                        _mean_variance_trend_payload(
+                            self.mean_variance_trend_diagnostics
+                        )
+                    )
+                }
+            ),
+            **(
+                {}
+                if self.quantification_depth_trend_diagnostics is None
+                else {
+                    "quantification_depth_trend_diagnostics": (
+                        _quantification_depth_trend_payload(
+                            self.quantification_depth_trend_diagnostics
+                        )
+                    )
+                }
+            ),
             "contrast_tables": {
                 contrast_name: _dataframe_records_payload(table)
                 for contrast_name, table in self._contrast_tables.items()
@@ -499,6 +574,10 @@ class DifferentialAnalysisResult:
                 self.mean_variance_trend_diagnostics,
                 other.mean_variance_trend_diagnostics,
             )
+            and _optional_quantification_depth_trend_diagnostics_equals(
+                self.quantification_depth_trend_diagnostics,
+                other.quantification_depth_trend_diagnostics,
+            )
             and self.diagnostics == other.diagnostics
             and _optional_protein_aware_diagnostics_equals(
                 self.protein_aware_diagnostics,
@@ -542,6 +621,9 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        quantification_depth_trend_diagnostics: (
+            QuantificationDepthTrendDiagnostics | None
+        ) = None,
         diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
@@ -565,6 +647,9 @@ class DifferentialAnalysisResult:
             empirical_bayes_trend=empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             contrast_tables=contrast_tables,
             diagnostics=diagnostics,
             policy_provenance=policy_provenance,
@@ -592,6 +677,9 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        quantification_depth_trend_diagnostics: (
+            QuantificationDepthTrendDiagnostics | None
+        ) = None,
         diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
@@ -615,6 +703,9 @@ class DifferentialAnalysisResult:
             empirical_bayes_trend=empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             diagnostics=diagnostics,
             policy_provenance=policy_provenance,
             contrast_tables=contrast_tables,
@@ -644,6 +735,15 @@ def _is_dataset_preprocessing_report(value: object) -> bool:
 def _optional_trend_diagnostics_equals(
     left: MeanVarianceTrendDiagnostics | None,
     right: MeanVarianceTrendDiagnostics | None,
+) -> bool:
+    if left is None or right is None:
+        return left is right
+    return left.scientifically_equals(right)
+
+
+def _optional_quantification_depth_trend_diagnostics_equals(
+    left: QuantificationDepthTrendDiagnostics | None,
+    right: QuantificationDepthTrendDiagnostics | None,
 ) -> bool:
     if left is None or right is None:
         return left is right
@@ -745,6 +845,8 @@ def _build_default_model_diagnostics(
     empirical_bayes_robust: bool,
     empirical_bayes_trend: bool,
     policy_provenance: DifferentialPolicyProvenance | None,
+    mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+    quantification_depth_trend_diagnostics: QuantificationDepthTrendDiagnostics | None,
 ) -> DifferentialModelDiagnostics:
     if policy_provenance is not None:
         design = policy_provenance.design
@@ -777,6 +879,7 @@ def _build_default_model_diagnostics(
                 empirical_bayes_method,
                 robust=empirical_bayes_robust,
                 trend=empirical_bayes_trend,
+                trend_covariate=(policy_provenance.empirical_bayes.trend_covariate),
             ),
             multiple_testing_method=(
                 policy_provenance.statistical_testing.adjusted_p_value_method
@@ -809,6 +912,12 @@ def _build_default_model_diagnostics(
             empirical_bayes_method,
             robust=empirical_bayes_robust,
             trend=empirical_bayes_trend,
+            trend_covariate=_diagnostic_trend_covariate(
+                mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+                quantification_depth_trend_diagnostics=(
+                    quantification_depth_trend_diagnostics
+                ),
+            ),
         ),
         multiple_testing_method="not_recorded",
         imputation_policy="not_recorded",
@@ -821,12 +930,33 @@ def _build_default_model_diagnostics(
     )
 
 
-def _moderation_method(method: str, *, robust: bool, trend: bool) -> str:
+def _diagnostic_trend_covariate(
+    *,
+    mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+    quantification_depth_trend_diagnostics: QuantificationDepthTrendDiagnostics | None,
+) -> str | None:
+    if quantification_depth_trend_diagnostics is not None:
+        return quantification_depth_trend_diagnostics.trend_covariate_name
+    if mean_variance_trend_diagnostics is not None:
+        return mean_variance_trend_diagnostics.trend_covariate_name
+    return None
+
+
+def _moderation_method(
+    method: str,
+    *,
+    robust: bool,
+    trend: bool,
+    trend_covariate: str | None,
+) -> str:
     parts = ["empirical_bayes", str(method)]
     if robust and str(method) != "robust":
         parts.append("robust")
     if trend:
-        parts.append("trend")
+        if trend_covariate is None:
+            parts.append("mean_intensity_trend")
+        else:
+            parts.append(f"{trend_covariate}_trend")
     return "_".join(parts)
 
 
@@ -839,6 +969,53 @@ def _unique_text(values: tuple[str, ...]) -> tuple[str, ...]:
         seen.add(value)
         ordered.append(value)
     return tuple(ordered)
+
+
+def _mean_variance_trend_payload(
+    diagnostics: MeanVarianceTrendDiagnostics,
+) -> dict[str, object]:
+    return {
+        "mean_intensity": _series_records_payload(diagnostics.mean_intensity),
+        "trend_covariate": _series_records_payload(diagnostics.trend_covariate),
+        "trend_covariate_name": diagnostics.trend_covariate_name,
+        "trend_covariate_transformation": (diagnostics.trend_covariate_transformation),
+        "log_residual_variance": _series_records_payload(
+            diagnostics.log_residual_variance
+        ),
+        "fitted_log_prior_variance": _series_records_payload(
+            diagnostics.fitted_log_prior_variance
+        ),
+    }
+
+
+def _quantification_depth_trend_payload(
+    diagnostics: QuantificationDepthTrendDiagnostics,
+) -> dict[str, object]:
+    return {
+        "quantification_depth": _series_records_payload(
+            diagnostics.quantification_depth
+        ),
+        "trend_covariate": _series_records_payload(diagnostics.trend_covariate),
+        "trend_covariate_name": diagnostics.trend_covariate_name,
+        "trend_covariate_transformation": (diagnostics.trend_covariate_transformation),
+        "quantification_depth_kind": diagnostics.quantification_depth_kind,
+        "log_residual_variance": _series_records_payload(
+            diagnostics.log_residual_variance
+        ),
+        "fitted_log_prior_variance": _series_records_payload(
+            diagnostics.fitted_log_prior_variance
+        ),
+    }
+
+
+def _series_records_payload(series: pd.Series) -> list[dict[str, object]]:
+    return [
+        {
+            "feature_id": _json_scalar(index_value),
+            "value": _json_scalar(value),
+        }
+        for index_value, value in series.items()
+    ]
 
 
 def _dataframe_records_payload(frame: pd.DataFrame) -> list[dict[str, object]]:

@@ -20,6 +20,7 @@ from phospy.science.differential.models import (
     DesignMatrix,
     DifferentialAnalysisResult,
     EmpiricalBayesPriorDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.science.tables.activity import ActivityMatrix
 from tests.support.analysis_ready_dataset_factories import (
@@ -123,6 +124,36 @@ def test_differential_result_equality_hash_and_content_contract() -> None:
         provenance_b,
         include_provenance=False,
     )
+
+
+def test_differential_result_scientific_equality_includes_depth_trend_diagnostics() -> (
+    None
+):
+    table = _strict_result_table()
+    result = _differential_result(
+        table,
+        quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+            table.index,
+            depth=(8.0, 16.0),
+        ),
+    )
+    equivalent = _differential_result(
+        table,
+        quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+            table.index,
+            depth=(8.0, 16.0),
+        ),
+    )
+    different = _differential_result(
+        table,
+        quantification_depth_trend_diagnostics=_depth_trend_diagnostics(
+            table.index,
+            depth=(8.0, 32.0),
+        ),
+    )
+
+    assert result.scientifically_equals(equivalent)
+    assert not result.scientifically_equals(different)
 
 
 def test_differential_result_workflow_provenance_is_frozen_json_state() -> None:
@@ -434,11 +465,15 @@ def _strict_result_table() -> pd.DataFrame:
     )
 
 
-def _prior_diagnostics(index: pd.Index) -> EmpiricalBayesPriorDiagnostics:
+def _prior_diagnostics(
+    index: pd.Index,
+    *,
+    trend: bool = False,
+) -> EmpiricalBayesPriorDiagnostics:
     return EmpiricalBayesPriorDiagnostics(
         method="standard",
         robust=False,
-        trend=False,
+        trend=trend,
         winsor_tail_p=(0.05, 0.1),
         base_prior_variance=1.0,
         base_prior_degrees_of_freedom=10.0,
@@ -463,8 +498,12 @@ def _differential_result(
     table: pd.DataFrame,
     *,
     workflow_provenance: Mapping[str, object] | None = None,
+    quantification_depth_trend_diagnostics: (
+        QuantificationDepthTrendDiagnostics | None
+    ) = None,
 ) -> DifferentialAnalysisResult:
     index = table.index.copy()
+    empirical_bayes_trend = quantification_depth_trend_diagnostics is not None
     return DifferentialAnalysisResult(
         residual_variance=pd.Series(
             np.full(index.size, 1.0),
@@ -491,11 +530,44 @@ def _differential_result(
         residual_degrees_of_freedom=4.0,
         empirical_bayes_method="standard",
         empirical_bayes_robust=False,
-        empirical_bayes_trend=False,
-        prior_diagnostics=_prior_diagnostics(index),
+        empirical_bayes_trend=empirical_bayes_trend,
+        prior_diagnostics=_prior_diagnostics(index, trend=empirical_bayes_trend),
         mean_variance_trend_diagnostics=None,
+        quantification_depth_trend_diagnostics=(quantification_depth_trend_diagnostics),
         contrast_tables={"B_vs_A": table},
         workflow_provenance=workflow_provenance,
+    )
+
+
+def _depth_trend_diagnostics(
+    index: pd.Index,
+    *,
+    depth: tuple[float, ...],
+) -> QuantificationDepthTrendDiagnostics:
+    return QuantificationDepthTrendDiagnostics(
+        quantification_depth=pd.Series(
+            depth,
+            index=index.copy(),
+            name="quantification_depth",
+        ),
+        trend_covariate=pd.Series(
+            np.log2(np.asarray(depth, dtype=float)),
+            index=index.copy(),
+            name="log2_quantification_depth",
+        ),
+        trend_covariate_name="quantification_depth",
+        trend_covariate_transformation="log2",
+        quantification_depth_kind="psm_count",
+        log_residual_variance=pd.Series(
+            np.full(index.size, -1.0),
+            index=index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            np.full(index.size, -0.9),
+            index=index.copy(),
+            name="fitted_log_prior_variance",
+        ),
     )
 
 

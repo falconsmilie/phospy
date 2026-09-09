@@ -20,6 +20,8 @@ from phospy.science.differential.linear_model import DifferentialDesignDecomposi
 from phospy.science.differential.models.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+    QuantificationDepthTrendDiagnostics,
+    validate_empirical_bayes_trend_diagnostics_contract,
 )
 from phospy.science.differential.models.tables import (
     validate_computation_result_table_contract,
@@ -48,6 +50,7 @@ class DifferentialComputationResult:
     empirical_bayes_trend: bool
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
+    quantification_depth_trend_diagnostics: QuantificationDepthTrendDiagnostics | None
     _contrast_tables: Mapping[str, pd.DataFrame]
 
     def __init__(
@@ -67,6 +70,9 @@ class DifferentialComputationResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        quantification_depth_trend_diagnostics: (
+            QuantificationDepthTrendDiagnostics | None
+        ) = None,
         _assume_owned: bool = False,
     ) -> None:
         if not isinstance(
@@ -132,6 +138,14 @@ class DifferentialComputationResult:
                 "differential_computation_result.prior_diagnostics."
                 "prior_degrees_of_freedom index must match matrix feature index"
             )
+        validate_empirical_bayes_trend_diagnostics_contract(
+            empirical_bayes_trend=empirical_bayes_trend,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
+            field_name="differential_computation_result",
+        )
         if (
             mean_variance_trend_diagnostics is not None
             and not mean_variance_trend_diagnostics.mean_intensity.index.equals(
@@ -141,6 +155,26 @@ class DifferentialComputationResult:
             raise PhosPyInputError(
                 "differential_computation_result.mean_variance_trend_diagnostics "
                 "index must match matrix feature index"
+            )
+        if quantification_depth_trend_diagnostics is not None and not isinstance(
+            cast(object, quantification_depth_trend_diagnostics),
+            QuantificationDepthTrendDiagnostics,
+        ):
+            raise PhosPyInputError(
+                "differential_computation_result."
+                "quantification_depth_trend_diagnostics must be "
+                "QuantificationDepthTrendDiagnostics or None"
+            )
+        if (
+            quantification_depth_trend_diagnostics is not None
+            and not quantification_depth_trend_diagnostics.quantification_depth.index.equals(
+                residual_variance.index
+            )
+        ):
+            raise PhosPyInputError(
+                "differential_computation_result."
+                "quantification_depth_trend_diagnostics index must match matrix "
+                "feature index"
             )
         if not contrast_tables:
             raise PhosPyInputError(
@@ -226,6 +260,11 @@ class DifferentialComputationResult:
             "mean_variance_trend_diagnostics",
             mean_variance_trend_diagnostics,
         )
+        object.__setattr__(
+            self,
+            "quantification_depth_trend_diagnostics",
+            quantification_depth_trend_diagnostics,
+        )
         object.__setattr__(self, "_contrast_tables", owned_tables)
 
     @property
@@ -279,6 +318,9 @@ class DifferentialComputationResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        quantification_depth_trend_diagnostics: (
+            QuantificationDepthTrendDiagnostics | None
+        ) = None,
     ) -> DifferentialComputationResult:
         return cls(
             design_decomposition=design_decomposition,
@@ -294,6 +336,9 @@ class DifferentialComputationResult:
             empirical_bayes_trend=empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            quantification_depth_trend_diagnostics=(
+                quantification_depth_trend_diagnostics
+            ),
             contrast_tables=contrast_tables,
             _assume_owned=True,
         )
