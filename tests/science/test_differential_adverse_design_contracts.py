@@ -361,7 +361,7 @@ def test_empirical_bayes_trend_above_1024_features_uses_large_branch_contract() 
         method="standard",
         trend=True,
         winsor_tail_p=(0.05, 0.10),
-        mean_intensity=mean_intensity,
+        trend_covariate=mean_intensity,
     )
 
     assert result.prior_variance.shape == (n_features,)

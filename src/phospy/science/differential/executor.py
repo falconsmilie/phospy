@@ -90,7 +90,7 @@ class DifferentialAnalysisExecutor:
                 method=request.empirical_bayes.method,
                 trend=request.empirical_bayes.trend,
                 winsor_tail_p=request.empirical_bayes.winsor_tail_p,
-                mean_intensity=mean_intensity,
+                trend_covariate=mean_intensity,
             )
         except ValueError as error:
             raise PhosPyInputError(
@@ -218,7 +218,7 @@ class DifferentialAnalysisExecutor:
         if request.empirical_bayes.trend:
             trend_diagnostics = MeanVarianceTrendDiagnostics(
                 mean_intensity=pd.Series(
-                    eb_fit.mean_intensity,
+                    eb_fit.trend_covariate,
                     index=row_index.copy(),
                     name="mean_intensity",
                 ),
@@ -323,7 +323,7 @@ class DuplicateCorrelationDifferentialAnalysisExecutor:
             design_decomposition=design_decomposition,
             residual_dof=residual_dof,
             residual_variance=gls_fit.residual_variance,
-            mean_intensity=gls_fit.average_expression,
+            trend_covariate=gls_fit.average_expression,
             contrast_effects=cast(np.ndarray, gls_fit.contrast_coefficients).T,
             contrast_stdev_unscaled=cast(np.ndarray, gls_fit.contrast_stdev_unscaled).T,
             contrast_names=contrast_names,
@@ -407,14 +407,14 @@ def _duplicate_correlation_computation_result(
     design_decomposition: DifferentialDesignDecomposition,
     residual_dof: float,
     residual_variance: np.ndarray,
-    mean_intensity: np.ndarray,
+    trend_covariate: np.ndarray,
     contrast_effects: np.ndarray,
     contrast_stdev_unscaled: np.ndarray,
     contrast_names: tuple[str, ...],
     row_index: pd.Index,
 ) -> DifferentialComputationResult:
     residual_variance = np.asarray(residual_variance, dtype=float)
-    mean_intensity = np.asarray(mean_intensity, dtype=float)
+    trend_covariate = np.asarray(trend_covariate, dtype=float)
     invalid_residual_variance = ~np.isfinite(residual_variance) | (
         residual_variance <= 0.0
     )
@@ -431,7 +431,7 @@ def _duplicate_correlation_computation_result(
             method=request.empirical_bayes.method,
             trend=request.empirical_bayes.trend,
             winsor_tail_p=request.empirical_bayes.winsor_tail_p,
-            mean_intensity=mean_intensity,
+            trend_covariate=trend_covariate,
         )
     except ValueError as error:
         raise PhosPyInputError(
@@ -560,7 +560,7 @@ def _duplicate_correlation_computation_result(
     if request.empirical_bayes.trend:
         trend_diagnostics = MeanVarianceTrendDiagnostics(
             mean_intensity=pd.Series(
-                eb_fit.mean_intensity,
+                eb_fit.trend_covariate,
                 index=row_index.copy(),
                 name="mean_intensity",
             ),

@@ -715,7 +715,7 @@ def test_protein_differential_empirical_bayes_uses_only_tested_augmented_rows(
     assert captured["trend"] is empirical_bayes.trend
     assert captured["winsor_tail_p"] == empirical_bayes.winsor_tail_p
     np.testing.assert_allclose(
-        cast(_FloatArray, captured["mean_intensity"]),
+        cast(_FloatArray, captured["trend_covariate"]),
         matrix.loc[list(expected_sites)].mean(axis=1).to_numpy(dtype=float),
         rtol=1.0e-12,
         atol=1.0e-12,

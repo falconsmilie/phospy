@@ -79,7 +79,7 @@ def _assert_trend_fit_performance(
             method="standard",
             trend=True,
             winsor_tail_p=(0.05, 0.10),
-            mean_intensity=mean_intensity,
+            trend_covariate=mean_intensity,
         )
 
     measured_result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
@@ -90,8 +90,8 @@ def _assert_trend_fit_performance(
 
     assert result.prior_variance.shape == (n_features,)
     assert result.prior_degrees_of_freedom.shape == (n_features,)
-    assert result.mean_intensity is not None
-    assert result.mean_intensity.shape == (n_features,)
+    assert result.trend_covariate is not None
+    assert result.trend_covariate.shape == (n_features,)
     assert result.log_residual_variance is not None
     assert result.log_residual_variance.shape == (n_features,)
     assert result.fitted_log_prior_variance is not None

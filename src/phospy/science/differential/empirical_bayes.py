@@ -28,9 +28,15 @@ class EmpiricalBayesFit:
     robust_outlier_fraction: float
     winsorized_low_count: int
     winsorized_high_count: int
-    mean_intensity: _FloatArray | None = None
+    trend_covariate: _FloatArray | None = None
     log_residual_variance: _FloatArray | None = None
     fitted_log_prior_variance: _FloatArray | None = None
+
+    @property
+    def mean_intensity(self) -> _FloatArray | None:
+        """Compatibility alias for existing mean-intensity trend consumers."""
+
+        return self.trend_covariate
 
 
 def fit_f_dist(
@@ -84,9 +90,25 @@ def fit_empirical_bayes(
     method: str,
     trend: bool,
     winsor_tail_p: tuple[float, float],
-    mean_intensity: _FloatArray | None = None,
+    trend_covariate: _FloatArray | None = None,
+    **legacy_kwargs: object,
 ) -> EmpiricalBayesFit:
     """Estimate prior variance/df with optional robust and trend modes."""
+
+    if legacy_kwargs:
+        if set(legacy_kwargs) == {"mean_intensity"}:
+            if trend_covariate is not None:
+                raise TypeError(
+                    "fit_empirical_bayes received both trend_covariate and "
+                    "mean_intensity"
+                )
+            trend_covariate = cast(
+                _FloatArray | None,
+                legacy_kwargs["mean_intensity"],
+            )
+        else:
+            names = ", ".join(sorted(str(name) for name in legacy_kwargs))
+            raise TypeError(f"unexpected empirical-Bayes fit argument(s): {names}")
 
     residual_dof = float(residual_dof)
     if not np.isfinite(residual_dof) or residual_dof <= 0.0:
@@ -113,18 +135,18 @@ def fit_empirical_bayes(
     log_variances = np.log(variances)
 
     if trend:
-        if mean_intensity is None:
-            raise ValueError("mean_intensity is required when trend=True")
-        mean_intensity = cast(_FloatArray, np.asarray(mean_intensity, dtype=float))
-        if mean_intensity.shape != variances.shape:
-            raise ValueError("mean_intensity must match variances length")
-        trend_component = _fit_mean_variance_trend(mean_intensity, log_variances)
-        trend_component = trend_component - float(np.mean(trend_component))
+        if trend_covariate is None:
+            raise ValueError("trend_covariate is required when trend=True")
+        trend_covariate = cast(_FloatArray, np.asarray(trend_covariate, dtype=float))
+        if trend_covariate.shape != variances.shape:
+            raise ValueError("trend_covariate must match variances length")
+        log_variance_trend = _fit_variance_trend(trend_covariate, log_variances)
+        log_variance_trend = log_variance_trend - float(np.mean(log_variance_trend))
     else:
-        trend_component = np.zeros_like(log_variances)
-        mean_intensity = None
+        log_variance_trend = np.zeros_like(log_variances)
+        trend_covariate = None
 
-    detrended_log = log_variances - trend_component
+    detrended_log = log_variances - log_variance_trend
     robust_outlier_count = 0
     robust_outlier_fraction = 0.0
     winsorized_low_count = 0
@@ -156,7 +178,7 @@ def fit_empirical_bayes(
     if np.isnan(base_prior_dof) or base_prior_dof < 0.0:
         raise ValueError("failed to estimate prior degrees of freedom")
 
-    prior_variance = np.exp(trend_component) * float(base_prior_variance)
+    prior_variance = np.exp(log_variance_trend) * float(base_prior_variance)
     prior_dof = np.full_like(variances, float(base_prior_dof))
 
     if method == "robust" and np.isfinite(base_prior_dof) and base_prior_dof > 0.0:
@@ -233,7 +255,7 @@ def fit_empirical_bayes(
         robust_outlier_fraction=float(robust_outlier_fraction),
         winsorized_low_count=winsorized_low_count,
         winsorized_high_count=winsorized_high_count,
-        mean_intensity=mean_intensity,
+        trend_covariate=trend_covariate,
         log_residual_variance=log_variances,
         fitted_log_prior_variance=np.log(prior_variance) if trend else None,
     )
@@ -288,24 +310,24 @@ def _winsorize_log_values(
     return winsorized, low_count, high_count, lower, upper
 
 
-def _fit_mean_variance_trend(
-    mean_intensity: _FloatArray,
+def _fit_variance_trend(
+    trend_covariate: _FloatArray,
     log_variances: _FloatArray,
     *,
     span: float = 0.4,
 ) -> _FloatArray:
-    """Fit a smooth mean-variance trend using deterministic local regression.
+    """Fit a smooth variance trend against an aligned numeric covariate.
 
     Small inputs use the exact per-feature tricube local-linear smoother. Larger
     inputs evaluate the same local fit at deterministic sorted-rank anchors and
     interpolate between anchors to avoid the previous quadratic full-matrix scan.
     """
 
-    if mean_intensity.size < 3:
+    if trend_covariate.size < 3:
         return np.full_like(log_variances, float(np.mean(log_variances)))
 
-    order: _IndexArray = np.argsort(mean_intensity).astype(np.intp, copy=False)
-    x: _FloatArray = mean_intensity[order]
+    order: _IndexArray = np.argsort(trend_covariate).astype(np.intp, copy=False)
+    x: _FloatArray = trend_covariate[order]
     y: _FloatArray = log_variances[order]
     n = x.size
     if x[0] == x[-1]:

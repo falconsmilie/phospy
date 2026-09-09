@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import phospy.science.differential.executor as differential_executor_module
 from phospy.errors import PhosPyInputError
 from phospy.science.differential.empirical_bayes import (
     EmpiricalBayesFit,
@@ -19,6 +20,8 @@ from phospy.science.differential.linear_model import (
     decompose_differential_design,
 )
 from phospy.science.differential.models import (
+    ContrastMatrix,
+    DesignMatrix,
     DifferentialAnalysisRequest,
     DifferentialAnalysisResult,
     EmpiricalBayesConfig,
@@ -925,6 +928,117 @@ def test_executor_remains_stable_for_tiny_group_sizes() -> None:
     assert np.isfinite(table.loc[:, "P.Value"]).all()
     assert (table.loc[:, "P.Value"] >= 0.0).all()
     assert (table.loc[:, "P.Value"] <= 1.0).all()
+
+
+def test_ordinary_executor_passes_mean_intensity_as_trend_covariate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    matrix = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0, 0.8],
+            "A_2": [1.1, 2.3, 1.0],
+            "B_1": [1.8, 2.2, 0.7],
+            "B_2": [1.9, 2.5, 0.9],
+        },
+        index=pd.Index(
+            ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
+            name="site_id",
+        ),
+    )
+    captured: dict[str, object] = {}
+
+    def _spy_fit_empirical_bayes(**kwargs: object) -> EmpiricalBayesFit:
+        captured.update(kwargs)
+        return fit_empirical_bayes(**kwargs)
+
+    monkeypatch.setattr(
+        differential_executor_module,
+        "fit_empirical_bayes",
+        _spy_fit_empirical_bayes,
+    )
+
+    DifferentialAnalysisExecutor().run(
+        _base_request(
+            matrix=matrix,
+            empirical_bayes=EmpiricalBayesConfig(method="standard", trend=True),
+        )
+    )
+
+    assert "mean_intensity" not in captured
+    np.testing.assert_allclose(
+        captured["trend_covariate"],
+        matrix.mean(axis=1).to_numpy(dtype=float),
+        rtol=0.0,
+        atol=0.0,
+    )
+
+
+def test_duplicate_correlation_result_passes_average_expression_as_trend_covariate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 1.0, 1.0],
+        },
+        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+    )
+    contrasts = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0]},
+        index=pd.Index(["A", "B"], name="coefficient"),
+    )
+    row_index = pd.Index(("site_a", "site_b", "site_c"), name="site_id")
+    matrix = pd.DataFrame(
+        np.array(
+            [
+                [1.0, 1.1, 1.8, 1.9],
+                [2.0, 2.3, 2.2, 2.5],
+                [0.8, 1.0, 0.7, 0.9],
+            ],
+            dtype=float,
+        ),
+        index=row_index.copy(),
+        columns=design.index.copy(),
+    )
+    average_expression = matrix.mean(axis=1).to_numpy(dtype=float)
+    captured: dict[str, object] = {}
+
+    def _spy_fit_empirical_bayes(**kwargs: object) -> EmpiricalBayesFit:
+        captured.update(kwargs)
+        return fit_empirical_bayes(**kwargs)
+
+    monkeypatch.setattr(
+        differential_executor_module,
+        "fit_empirical_bayes",
+        _spy_fit_empirical_bayes,
+    )
+
+    differential_executor_module._duplicate_correlation_computation_result(
+        request=DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=DesignMatrix(design),
+            contrasts=ContrastMatrix(contrasts),
+            empirical_bayes=EmpiricalBayesConfig(method="standard", trend=True),
+        ),
+        design_decomposition=decompose_differential_design(
+            design.to_numpy(dtype=float)
+        ),
+        residual_dof=2.0,
+        residual_variance=np.array([0.04, 0.09, 0.16], dtype=float),
+        trend_covariate=average_expression,
+        contrast_effects=np.array([[0.8], [0.2], [-0.1]], dtype=float),
+        contrast_stdev_unscaled=np.ones((3, 1), dtype=float),
+        contrast_names=("B_vs_A",),
+        row_index=row_index.copy(),
+    )
+
+    assert "mean_intensity" not in captured
+    np.testing.assert_allclose(
+        captured["trend_covariate"],
+        average_expression,
+        rtol=0.0,
+        atol=0.0,
+    )
 
 
 def test_fit_empirical_bayes_rejects_invalid_residual_degrees_of_freedom() -> None:

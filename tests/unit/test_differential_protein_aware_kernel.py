@@ -499,7 +499,7 @@ def test_empirical_bayes_modes_match_existing_direct_helper(
         method=empirical_bayes.method,
         trend=empirical_bayes.trend,
         winsor_tail_p=empirical_bayes.winsor_tail_p,
-        mean_intensity=result.site_diagnostics_dataframe()
+        trend_covariate=result.site_diagnostics_dataframe()
         .loc[:, "mean_intensity"]
         .to_numpy(dtype=float),
     )

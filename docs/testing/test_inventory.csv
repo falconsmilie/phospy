@@ -86,7 +86,7 @@ tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,172,6,true,false,,,,,,
 tests/science/test_differential_adverse_design_contracts.py,science,371,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/science/test_differential_protein_aware_scientific_validation.py,science,1657,12,true,true,,,,,,
-tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
+tests/science/test_empirical_bayes_trend_smoothing.py,science,202,4,false,false,,,,,,
 tests/science/test_evidence_resolution_regression_fixtures.py,science,153,5,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_kinase_sparse_support_regression_fixtures.py,science,319,5,true,false,,,,,,
@@ -160,7 +160,7 @@ tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,f
 tests/unit/test_differential_feature_eligibility.py,unit,506,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_differential_fixed_effect_provenance.py,unit,380,5,false,false,,,,,,
 tests/unit/test_differential_imputation_policy.py,unit,610,13,false,false,,,,,,
-tests/unit/test_differential_numerical_guards.py,unit,1062,24,true,true,,,,,,
+tests/unit/test_differential_numerical_guards.py,unit,1176,26,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_paired_block_policy_contract.py,unit,115,9,false,false,,,,,,
 tests/unit/test_differential_protein_aware_contracts.py,unit,782,21,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_differential_protein_aware_kernel.py,unit,916,12,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access

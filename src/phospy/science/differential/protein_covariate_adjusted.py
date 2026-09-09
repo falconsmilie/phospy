@@ -295,7 +295,7 @@ class ProteinCovariateAdjustedDifferentialKernel:
                 method=request.empirical_bayes.method,
                 trend=request.empirical_bayes.trend,
                 winsor_tail_p=request.empirical_bayes.winsor_tail_p,
-                mean_intensity=mean_intensity,
+                trend_covariate=mean_intensity,
             )
         except ValueError as error:
             raise PhosPyInputError(
@@ -892,7 +892,7 @@ def _trend_diagnostics(
 ) -> MeanVarianceTrendDiagnostics | None:
     if not enabled:
         return None
-    mean_intensity = eb_fit.mean_intensity
+    mean_intensity = eb_fit.trend_covariate
     log_residual_variance = eb_fit.log_residual_variance
     fitted_log_prior_variance = eb_fit.fitted_log_prior_variance
     if (

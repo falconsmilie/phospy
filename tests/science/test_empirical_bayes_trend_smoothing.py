@@ -11,12 +11,12 @@ from tests.support.performance_contracts import DEFAULT_PERFORMANCE_SEED
 
 def _build_trend_inputs(*, n_features: int) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(DEFAULT_PERFORMANCE_SEED + int(n_features))
-    mean_intensity = np.sort(rng.beta(2.0, 5.0, int(n_features))) * 6.0 + 7.5
+    trend_covariate = np.sort(rng.beta(2.0, 5.0, int(n_features))) * 6.0 + 7.5
     feature_phase = np.linspace(0.0, 2.0 * np.pi, int(n_features), dtype=float)
     trend = (
-        0.18 * np.sin(mean_intensity * 1.4)
+        0.18 * np.sin(trend_covariate * 1.4)
         + 0.08 * np.cos(feature_phase * 3.0)
-        - 0.05 * (mean_intensity - float(np.mean(mean_intensity)))
+        - 0.05 * (trend_covariate - float(np.mean(trend_covariate)))
     )
     log_variances = (
         -1.4
@@ -28,20 +28,23 @@ def _build_trend_inputs(*, n_features: int) -> tuple[np.ndarray, np.ndarray]:
         )
     )
     permutation = rng.permutation(int(n_features))
-    return np.exp(log_variances[permutation]).astype(float), mean_intensity[permutation]
+    return (
+        np.exp(log_variances[permutation]).astype(float),
+        trend_covariate[permutation],
+    )
 
 
-def _previous_exact_mean_variance_trend(
-    mean_intensity: np.ndarray,
+def _previous_exact_variance_trend(
+    trend_covariate: np.ndarray,
     log_variances: np.ndarray,
     *,
     span: float = 0.4,
 ) -> np.ndarray:
-    if mean_intensity.size < 3:
+    if trend_covariate.size < 3:
         return np.full_like(log_variances, float(np.mean(log_variances)))
 
-    order = np.argsort(mean_intensity)
-    x = mean_intensity[order]
+    order = np.argsort(trend_covariate)
+    x = trend_covariate[order]
     y = log_variances[order]
     n = x.size
     window = min(n, max(5, int(np.ceil(span * n))))
@@ -76,23 +79,72 @@ def _previous_exact_mean_variance_trend(
 def _fit_with_trend(
     *,
     variances: np.ndarray,
-    mean_intensity: np.ndarray,
+    trend_covariate: np.ndarray,
+    method: str = "standard",
 ):
     return fit_empirical_bayes(
         variances=variances,
         residual_dof=8.0,
-        method="standard",
+        method=method,
         trend=True,
         winsor_tail_p=(0.05, 0.10),
-        mean_intensity=mean_intensity,
+        trend_covariate=trend_covariate,
     )
 
 
-def test_empirical_bayes_trend_smoothing_is_deterministic() -> None:
-    variances, mean_intensity = _build_trend_inputs(n_features=3_000)
+def test_empirical_bayes_global_fit_ignores_trend_covariate_when_disabled() -> None:
+    variances, trend_covariate = _build_trend_inputs(n_features=48)
 
-    first = _fit_with_trend(variances=variances, mean_intensity=mean_intensity)
-    second = _fit_with_trend(variances=variances, mean_intensity=mean_intensity)
+    baseline = fit_empirical_bayes(
+        variances=variances,
+        residual_dof=8.0,
+        method="standard",
+        trend=False,
+        winsor_tail_p=(0.05, 0.10),
+    )
+    with_covariate = fit_empirical_bayes(
+        variances=variances,
+        residual_dof=8.0,
+        method="standard",
+        trend=False,
+        winsor_tail_p=(0.05, 0.10),
+        trend_covariate=trend_covariate,
+    )
+
+    np.testing.assert_array_equal(
+        baseline.prior_variance,
+        with_covariate.prior_variance,
+    )
+    np.testing.assert_array_equal(
+        baseline.prior_degrees_of_freedom,
+        with_covariate.prior_degrees_of_freedom,
+    )
+    assert with_covariate.trend_covariate is None
+    assert with_covariate.fitted_log_prior_variance is None
+
+
+def test_empirical_bayes_trend_accepts_generic_covariate_for_supported_modes() -> None:
+    variances, trend_covariate = _build_trend_inputs(n_features=96)
+
+    for method in ("standard", "robust"):
+        result = _fit_with_trend(
+            variances=variances,
+            trend_covariate=trend_covariate,
+            method=method,
+        )
+
+        assert result.trend_covariate is not None
+        np.testing.assert_array_equal(result.trend_covariate, trend_covariate)
+        assert result.fitted_log_prior_variance is not None
+        assert np.isfinite(result.prior_variance).all()
+        assert np.isfinite(result.fitted_log_prior_variance).all()
+
+
+def test_empirical_bayes_trend_smoothing_is_deterministic() -> None:
+    variances, trend_covariate = _build_trend_inputs(n_features=3_000)
+
+    first = _fit_with_trend(variances=variances, trend_covariate=trend_covariate)
+    second = _fit_with_trend(variances=variances, trend_covariate=trend_covariate)
 
     np.testing.assert_array_equal(first.prior_variance, second.prior_variance)
     np.testing.assert_array_equal(
@@ -110,10 +162,10 @@ def test_empirical_bayes_trend_smoothing_is_deterministic() -> None:
 def test_empirical_bayes_trend_smoothing_matches_previous_behavior_within_tolerance() -> (
     None
 ):
-    variances, mean_intensity = _build_trend_inputs(n_features=2_500)
+    variances, trend_covariate = _build_trend_inputs(n_features=2_500)
     log_variances = np.log(variances)
-    previous_trend = _previous_exact_mean_variance_trend(
-        mean_intensity,
+    previous_trend = _previous_exact_variance_trend(
+        trend_covariate,
         log_variances,
     )
     previous_trend = previous_trend - float(np.mean(previous_trend))
@@ -125,7 +177,7 @@ def test_empirical_bayes_trend_smoothing_matches_previous_behavior_within_tolera
         previous_base_prior_variance
     )
 
-    result = _fit_with_trend(variances=variances, mean_intensity=mean_intensity)
+    result = _fit_with_trend(variances=variances, trend_covariate=trend_covariate)
 
     assert result.fitted_log_prior_variance is not None
     # Large feature counts use deterministic anchor interpolation. Keep the
