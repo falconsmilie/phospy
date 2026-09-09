@@ -29,6 +29,9 @@ from phospy.science.differential.models import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
 )
+from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+)
 from phospy.science.differential.models.protein_aware import (
     PROTEIN_AWARE_DIFFERENTIAL_AUGMENTED_DESIGN_FAILURE_DIAGNOSTIC_COLUMNS,
     PROTEIN_AWARE_DIFFERENTIAL_SITE_FAILURE_DIAGNOSTIC_COLUMNS,
@@ -51,6 +54,12 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
+    QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
+    log2_quantification_depth_series,
+    validate_quantification_depth_series,
 )
 from phospy.science.statistics.multiple_testing import adjust_p_values
 
@@ -287,6 +296,14 @@ class ProteinCovariateAdjustedDifferentialKernel:
             [mean_intensity_by_position[position] for position in tested_positions],
             dtype=np.float64,
         )
+        quantification_depth = _quantification_depth_for_tested_sites(
+            request=request,
+            tested_index=tested_index,
+        )
+        trend_covariate = _resolve_empirical_bayes_trend_covariate(
+            mean_intensity=mean_intensity,
+            quantification_depth=quantification_depth,
+        )
 
         try:
             eb_fit = fit_empirical_bayes(
@@ -295,7 +312,7 @@ class ProteinCovariateAdjustedDifferentialKernel:
                 method=request.empirical_bayes.method,
                 trend=request.empirical_bayes.trend,
                 winsor_tail_p=request.empirical_bayes.winsor_tail_p,
-                trend_covariate=mean_intensity,
+                trend_covariate=trend_covariate,
             )
         except ValueError as error:
             raise PhosPyInputError(
@@ -370,9 +387,12 @@ class ProteinCovariateAdjustedDifferentialKernel:
             _assume_owned=True,
         )
         trend_diagnostics = _trend_diagnostics(
+            request=request,
             eb_fit=eb_fit,
             tested_index=tested_index,
+            mean_intensity=mean_intensity,
             enabled=request.empirical_bayes.trend,
+            quantification_depth=quantification_depth,
         )
 
         return ProteinAwareDifferentialComputationResult(
@@ -832,6 +852,58 @@ def _moderated_variance_and_dof(
     return cast(_FloatArray, posterior_variance), moderated_dof
 
 
+def _quantification_depth_for_tested_sites(
+    *,
+    request: ProteinAwareDifferentialComputationRequest,
+    tested_index: pd.Index,
+) -> pd.Series | None:
+    if (
+        request.empirical_bayes.trend_covariate
+        != EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return None
+    depth = request.quantification_depth
+    if depth is None:
+        raise PhosPyInputError(
+            "protein_aware_differential_request.quantification_depth must be "
+            "provided for quantification-depth empirical-Bayes variance trends"
+        )
+    try:
+        selected = depth.loc[tested_index]
+    except KeyError as exc:
+        raise PhosPyInputError(
+            "protein_aware_differential_request.quantification_depth.index must "
+            "contain every protein-aware tested site_key"
+        ) from exc
+    if not selected.index.equals(tested_index):
+        raise PhosPyInputError(
+            "protein_aware_differential_request.quantification_depth.index must "
+            "align to the protein-aware tested site_key order"
+        )
+    return validate_quantification_depth_series(
+        selected,
+        field_name="protein_aware_differential_request.quantification_depth",
+        expected_index=tested_index,
+    )
+
+
+def _resolve_empirical_bayes_trend_covariate(
+    *,
+    mean_intensity: _FloatArray,
+    quantification_depth: pd.Series | None,
+) -> _FloatArray:
+    if quantification_depth is None:
+        return np.asarray(mean_intensity, dtype=np.float64)
+    return np.asarray(
+        log2_quantification_depth_series(
+            quantification_depth,
+            field_name="protein_aware_differential_request.quantification_depth",
+            expected_index=quantification_depth.index,
+        ).to_numpy(dtype=float),
+        dtype=np.float64,
+    )
+
+
 def _contrast_tables(
     *,
     contrast_effects: _FloatArray,
@@ -886,17 +958,20 @@ def _contrast_tables(
 
 def _trend_diagnostics(
     *,
+    request: ProteinAwareDifferentialComputationRequest,
     eb_fit: EmpiricalBayesFit,
     tested_index: pd.Index,
+    mean_intensity: _FloatArray,
     enabled: bool,
+    quantification_depth: pd.Series | None,
 ) -> MeanVarianceTrendDiagnostics | None:
     if not enabled:
         return None
-    mean_intensity = eb_fit.trend_covariate
+    trend_covariate = eb_fit.trend_covariate
     log_residual_variance = eb_fit.log_residual_variance
     fitted_log_prior_variance = eb_fit.fitted_log_prior_variance
     if (
-        mean_intensity is None
+        trend_covariate is None
         or log_residual_variance is None
         or fitted_log_prior_variance is None
     ):
@@ -904,12 +979,37 @@ def _trend_diagnostics(
             "protein-aware differential empirical-Bayes trend diagnostics are "
             "incomplete"
         )
+    mean_intensity_series = pd.Series(
+        mean_intensity,
+        index=tested_index.copy(),
+        name="mean_intensity",
+    )
+    if quantification_depth is not None:
+        return MeanVarianceTrendDiagnostics(
+            mean_intensity=mean_intensity_series,
+            trend_covariate=pd.Series(
+                trend_covariate,
+                index=tested_index.copy(),
+                name=QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
+            ),
+            trend_covariate_name=request.empirical_bayes.trend_covariate,
+            trend_covariate_transformation=QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
+            quantification_depth=quantification_depth,
+            quantification_depth_kind=request.empirical_bayes.quantification_depth_kind,
+            log_residual_variance=pd.Series(
+                log_residual_variance,
+                index=tested_index.copy(),
+                name="log_residual_variance",
+            ),
+            fitted_log_prior_variance=pd.Series(
+                fitted_log_prior_variance,
+                index=tested_index.copy(),
+                name="fitted_log_prior_variance",
+            ),
+            _assume_owned=True,
+        )
     return MeanVarianceTrendDiagnostics(
-        mean_intensity=pd.Series(
-            mean_intensity,
-            index=tested_index.copy(),
-            name="mean_intensity",
-        ),
+        mean_intensity=mean_intensity_series,
         log_residual_variance=pd.Series(
             log_residual_variance,
             index=tested_index.copy(),

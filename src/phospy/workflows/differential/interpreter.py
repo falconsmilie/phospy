@@ -227,18 +227,28 @@ class DifferentialAnalysisInterpreter:
                 },
                 message_prefix="differential workflow boundary validation failed",
             )
-        matrix_for_computation = filter_matrix_for_feature_ids(
-            matrix=matrix_aligned,
-            feature_ids=feature_eligibility_inputs.testable_feature_ids,
-        )
-        (
-            variance_trend_covariate,
-            quantification_depth,
-        ) = _resolve_empirical_bayes_trend_covariates(
-            site_metadata=resolved_site_metadata,
-            feature_index=matrix_for_computation.index,
-            empirical_bayes=execution_config.empirical_bayes,
-        )
+        if protein_aware_inputs is None:
+            matrix_for_computation = filter_matrix_for_feature_ids(
+                matrix=matrix_aligned,
+                feature_ids=feature_eligibility_inputs.testable_feature_ids,
+            )
+            (
+                variance_trend_covariate,
+                quantification_depth,
+            ) = _resolve_empirical_bayes_trend_covariates(
+                site_metadata=resolved_site_metadata,
+                feature_index=matrix_for_computation.index,
+                empirical_bayes=execution_config.empirical_bayes,
+            )
+        else:
+            matrix_for_computation = dataframe_copy(
+                protein_aware_inputs.computation_request.phosphosite_matrix,
+                deep=False,
+            )
+            variance_trend_covariate = None
+            quantification_depth = (
+                protein_aware_inputs.computation_request.quantification_depth
+            )
 
         rank = int(resolved_design_decomposition.rank)
         residual_dof = float(resolved_design_decomposition.residual_degrees_of_freedom)

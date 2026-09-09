@@ -62,6 +62,7 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     ContrastMatrix,
     DesignMatrix,
     EmpiricalBayesConfig,
@@ -73,6 +74,9 @@ from phospy.science.differential.models.protein_aware import (
 from phospy.science.differential.protein_covariate_adjusted import (
     PROTEIN_AWARE_CENTERING_POLICY,
     PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
 )
 from phospy.science.statistics.multiple_testing import MultipleTestingCorrection
 from phospy.science.transformations.models import IntensityScaleKind
@@ -294,6 +298,16 @@ class ProteinAwareDifferentialInputResolver:
             list(tested_row_keys),
             list(sample_order),
         )
+        quantification_depth = None
+        if (
+            request.config.empirical_bayes.trend_covariate
+            == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+        ):
+            quantification_depth = _resolve_quantification_depth_for_sites(
+                site_metadata=dataset_view.site_metadata,
+                tested_site_ids=tested_site_ids,
+                empirical_bayes=request.config.empirical_bayes,
+            )
         computation_request = _build_computation_request(
             matrix=matrix,
             tested_site_ids=tested_site_ids,
@@ -303,6 +317,7 @@ class ProteinAwareDifferentialInputResolver:
             resolved_protein_covariates=resolved_covariates,
             sample_order=sample_order,
             empirical_bayes=request.config.empirical_bayes,
+            quantification_depth=quantification_depth,
             multiple_testing_method=request.config.multiple_testing.method,
             method_id=method_id,
         )
@@ -1319,6 +1334,7 @@ def _build_computation_request(
     resolved_protein_covariates: pd.DataFrame,
     sample_order: tuple[str, ...],
     empirical_bayes: EmpiricalBayesConfig,
+    quantification_depth: pd.Series | None,
     multiple_testing_method: MultipleTestingCorrection,
     method_id: DifferentialProteinAwareModelMethod,
 ) -> ProteinAwareDifferentialComputationRequest:
@@ -1334,6 +1350,7 @@ def _build_computation_request(
             matched_pairs=matched_pairs,
             resolved_protein_covariates=resolved_protein_covariates,
             empirical_bayes=empirical_bayes,
+            quantification_depth=quantification_depth,
             multiple_testing_method=multiple_testing_method,
             method_id=method_id,
         )
@@ -1346,6 +1363,69 @@ def _build_computation_request(
             ),
             details={"input_error": str(exc)},
         )
+
+
+def _resolve_quantification_depth_for_sites(
+    *,
+    site_metadata: pd.DataFrame,
+    tested_site_ids: tuple[str, ...],
+    empirical_bayes: EmpiricalBayesConfig,
+) -> pd.Series | None:
+    if (
+        empirical_bayes.trend_covariate
+        != EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return None
+    if QUANTIFICATION_DEPTH_COLUMN not in site_metadata.columns:
+        _raise_boundary(
+            seam="differential.protein_aware_inputs.quantification_depth_column",
+            next_action=(
+                "provide dataset.site_metadata['quantification_depth'] with one "
+                "explicit numeric count for every protein-aware tested site"
+            ),
+            details={
+                "missing_column": QUANTIFICATION_DEPTH_COLUMN,
+                "expected_feature_count": int(len(tested_site_ids)),
+            },
+        )
+    feature_index = pd.Index(tested_site_ids, name="site_key")
+    try:
+        aligned_depth_frame = dataframe_loc(
+            site_metadata,
+            rows=feature_index,
+            columns=[QUANTIFICATION_DEPTH_COLUMN],
+        )
+    except KeyError:
+        _raise_boundary(
+            seam="differential.protein_aware_inputs.quantification_depth_alignment",
+            next_action=(
+                "ensure dataset.site_metadata is indexed by the exact site_key "
+                "labels selected for protein-aware empirical-Bayes moderation"
+            ),
+            details={
+                "expected_feature_count": int(feature_index.size),
+                "column": QUANTIFICATION_DEPTH_COLUMN,
+            },
+        )
+    if not aligned_depth_frame.index.equals(feature_index):
+        _raise_boundary(
+            seam="differential.protein_aware_inputs.quantification_depth_alignment",
+            next_action=(
+                "ensure dataset.site_metadata quantification_depth can be aligned "
+                "to the protein-aware tested site_key order"
+            ),
+            details={
+                "expected_feature_count": int(feature_index.size),
+                "actual_feature_count": int(aligned_depth_frame.index.size),
+            },
+        )
+    return pd.Series(
+        dataframe_column(aligned_depth_frame, QUANTIFICATION_DEPTH_COLUMN).to_numpy(
+            copy=True
+        ),
+        index=feature_index.copy(),
+        name=QUANTIFICATION_DEPTH_COLUMN,
+    )
 
 
 def _status_count_items(result_status: pd.Series) -> tuple[tuple[str, int], ...]:

@@ -37,7 +37,12 @@ from phospy.api import (
 from phospy.errors import ContractValidationError, PhosPyInputError
 from phospy.errors.validation import WorkflowValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.differential.models import EmpiricalBayesPriorDiagnostics
+from phospy.science.differential.models import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    EmpiricalBayesConfig,
+    EmpiricalBayesPriorDiagnostics,
+)
 from phospy.science.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
     ProteinAwareDifferentialComputationResult,
@@ -318,6 +323,50 @@ def test_private_protein_aware_request_allows_repeated_protein_identifiers_and_r
     ]
 
 
+def test_private_protein_aware_request_carries_depth_covariate_by_site_key() -> None:
+    kwargs = _request_kwargs()
+    kwargs["empirical_bayes"] = _depth_empirical_bayes_config()
+    quantification_depth = pd.Series(
+        [8.0, 4.0],
+        index=pd.Index(["site_b", "site_a"], name="site_key"),
+        name="quantification_depth",
+    )
+    kwargs["quantification_depth"] = quantification_depth
+
+    request = ProteinAwareDifferentialComputationRequest(**kwargs)  # type: ignore[arg-type]
+
+    assert request.quantification_depth is not None
+    pd.testing.assert_series_equal(
+        request.quantification_depth,
+        quantification_depth,
+        check_dtype=False,
+    )
+    quantification_depth.loc["site_a"] = 999.0
+    assert float(request.quantification_depth.loc["site_a"]) == 4.0
+
+
+def test_private_protein_aware_request_requires_depth_for_depth_trend() -> None:
+    kwargs = _request_kwargs()
+    kwargs["empirical_bayes"] = _depth_empirical_bayes_config()
+
+    with pytest.raises(PhosPyInputError, match="quantification_depth must be provided"):
+        ProteinAwareDifferentialComputationRequest(**kwargs)  # type: ignore[arg-type]
+
+
+def test_private_protein_aware_request_rejects_depth_when_mean_intensity_selected() -> (
+    None
+):
+    kwargs = _request_kwargs()
+    kwargs["quantification_depth"] = pd.Series(
+        [4.0, 8.0],
+        index=pd.Index(["site_a", "site_b"], name="site_key"),
+        name="quantification_depth",
+    )
+
+    with pytest.raises(PhosPyInputError, match="quantification_depth is only valid"):
+        ProteinAwareDifferentialComputationRequest(**kwargs)  # type: ignore[arg-type]
+
+
 def test_private_protein_aware_request_from_owned_still_validates_alignment() -> None:
     kwargs = _request_kwargs()
     matrix = kwargs["phosphosite_matrix"]
@@ -337,6 +386,41 @@ def test_private_protein_aware_request_from_owned_rejects_duplicate_site_key() -
     kwargs["matched_pairs"] = duplicate_pairs
 
     with pytest.raises(PhosPyInputError, match="matched_pairs.site_key must be unique"):
+        ProteinAwareDifferentialComputationRequest._from_owned(**kwargs)  # type: ignore[arg-type]
+
+
+def test_private_protein_aware_request_from_owned_carries_depth_covariate() -> None:
+    kwargs = _request_kwargs()
+    kwargs["empirical_bayes"] = _depth_empirical_bayes_config()
+    quantification_depth = pd.Series(
+        [4.0, 8.0],
+        index=pd.Index(["site_a", "site_b"], name="site_key"),
+        name="quantification_depth",
+    )
+    kwargs["quantification_depth"] = quantification_depth
+
+    request = ProteinAwareDifferentialComputationRequest._from_owned(**kwargs)  # type: ignore[arg-type]
+
+    assert request.quantification_depth is not None
+    pd.testing.assert_series_equal(
+        request.quantification_depth,
+        quantification_depth,
+        check_dtype=False,
+    )
+
+
+def test_private_protein_aware_request_from_owned_rejects_duplicate_depth_site_key() -> (
+    None
+):
+    kwargs = _request_kwargs()
+    kwargs["empirical_bayes"] = _depth_empirical_bayes_config()
+    kwargs["quantification_depth"] = pd.Series(
+        [4.0, 8.0],
+        index=pd.Index(["site_a", "site_a"], name="site_key"),
+        name="quantification_depth",
+    )
+
+    with pytest.raises(PhosPyInputError, match="unique site_key labels"):
         ProteinAwareDifferentialComputationRequest._from_owned(**kwargs)  # type: ignore[arg-type]
 
 
@@ -518,6 +602,14 @@ def _request_kwargs() -> dict[str, object]:
         "resolved_protein_covariates": resolved_protein_covariates,
         "method_id": METHOD_ID,
     }
+
+
+def _depth_empirical_bayes_config() -> EmpiricalBayesConfig:
+    return EmpiricalBayesConfig(
+        trend=True,
+        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    )
 
 
 def _result_kwargs() -> dict[str, object]:

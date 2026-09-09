@@ -10,7 +10,12 @@ import pytest
 import phospy.science.differential.protein_covariate_adjusted as kernel_module
 from phospy.errors import PhosPyInputError
 from phospy.science.differential.empirical_bayes import fit_empirical_bayes
-from phospy.science.differential.models import EmpiricalBayesConfig
+from phospy.science.differential.models import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    EmpiricalBayesConfig,
+)
 from phospy.science.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
 )
@@ -524,6 +529,334 @@ def test_empirical_bayes_modes_match_existing_direct_helper(
     )
 
 
+@pytest.mark.parametrize(
+    ("method", "kind", "depth_values"),
+    [
+        ("standard", QUANTIFICATION_DEPTH_KIND_PSM_COUNT, [1.0, 2.0, 4.0, 8.0]),
+        ("robust", QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT, [3.0, 6.0, 6.0, 12.0]),
+    ],
+)
+def test_quantification_depth_empirical_bayes_matches_existing_helper(
+    method: str,
+    kind: str,
+    depth_values: list[float],
+) -> None:
+    protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
+    matrix = _matrix(
+        {
+            "site_a": _site_values(5.0, 6.0, 0.25, protein_a),
+            "site_b": _site_values(4.0, 4.3, -0.2, protein_a),
+            "site_c": _site_values(1.5, 2.1, 0.8, protein_b),
+            "site_d": _site_values(3.0, 2.2, -0.5, protein_b),
+        }
+    )
+    quantification_depth = pd.Series(
+        depth_values,
+        index=matrix.index.copy(),
+        name="quantification_depth",
+    )
+    empirical_bayes = _depth_empirical_bayes_config(method=method, kind=kind)
+    request = _request(
+        matrix=matrix,
+        proteins=_proteins({"protein_a": protein_a, "protein_b": protein_b}),
+        pairs=_pairs(
+            {
+                "site_a": ("MAPK14", "protein_a"),
+                "site_b": ("AKT1", "protein_a"),
+                "site_c": ("GSK3B", "protein_b"),
+                "site_d": ("RPS6", "protein_b"),
+            }
+        ),
+        empirical_bayes=empirical_bayes,
+        quantification_depth=quantification_depth,
+    )
+
+    result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+    expected = fit_empirical_bayes(
+        variances=result.residual_variance_series().to_numpy(dtype=float),
+        residual_dof=result.residual_degrees_of_freedom,
+        method=empirical_bayes.method,
+        trend=True,
+        winsor_tail_p=empirical_bayes.winsor_tail_p,
+        trend_covariate=np.log2(np.asarray(depth_values, dtype=float)),
+    )
+
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert result.empirical_bayes_method == method
+    assert result.empirical_bayes_robust is (method == "robust")
+    assert diagnostics.trend_covariate_name == "quantification_depth"
+    assert diagnostics.trend_covariate_transformation == "log2"
+    assert diagnostics.quantification_depth_kind == kind
+    pd.testing.assert_series_equal(
+        diagnostics.quantification_depth,
+        quantification_depth,
+        check_dtype=False,
+    )
+    pd.testing.assert_series_equal(
+        diagnostics.trend_covariate,
+        pd.Series(
+            np.log2(np.asarray(depth_values, dtype=float)),
+            index=matrix.index.copy(),
+            name="log2_quantification_depth",
+        ),
+        check_dtype=False,
+    )
+    np.testing.assert_allclose(
+        result.prior_residual_variance_series().to_numpy(dtype=float),
+        expected.prior_variance,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        result.prior_degrees_of_freedom_series().to_numpy(dtype=float),
+        expected.prior_degrees_of_freedom,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+
+@pytest.mark.parametrize("unused_depth", [0.0, np.nan])
+def test_quantification_depth_uses_final_tested_sites_only(
+    unused_depth: float,
+) -> None:
+    protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
+    constant = np.full(6, 3.0, dtype=float)
+    matrix = _matrix(
+        {
+            "tested_a": _site_values(5.0, 6.0, 0.25, protein_a),
+            "tested_b": _site_values(4.0, 4.3, -0.2, protein_b),
+            "withheld_constant": _site_values(1.5, 2.1, 0.8, protein_a),
+        }
+    )
+    empirical_bayes = _depth_empirical_bayes_config()
+    request = _request(
+        matrix=matrix,
+        proteins=_proteins(
+            {"protein_a": protein_a, "protein_b": protein_b, "constant": constant}
+        ),
+        pairs=_pairs(
+            {
+                "tested_a": ("MAPK14", "protein_a"),
+                "tested_b": ("GSK3B", "protein_b"),
+                "withheld_constant": ("AKT1", "constant"),
+            }
+        ),
+        empirical_bayes=empirical_bayes,
+        quantification_depth=pd.Series(
+            [8.0, 16.0, unused_depth],
+            index=matrix.index.copy(),
+            name="quantification_depth",
+        ),
+    )
+
+    result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    assert result.tested_site_ids == ("tested_a", "tested_b")
+    expected = fit_empirical_bayes(
+        variances=result.residual_variance_series().to_numpy(dtype=float),
+        residual_dof=result.residual_degrees_of_freedom,
+        method=empirical_bayes.method,
+        trend=True,
+        winsor_tail_p=empirical_bayes.winsor_tail_p,
+        trend_covariate=np.log2(np.asarray([8.0, 16.0], dtype=float)),
+    )
+    np.testing.assert_allclose(
+        result.prior_residual_variance_series().to_numpy(dtype=float),
+        expected.prior_variance,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        result.prior_degrees_of_freedom_series().to_numpy(dtype=float),
+        expected.prior_degrees_of_freedom,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.quantification_depth is not None
+    assert diagnostics.quantification_depth.index.tolist() == ["tested_a", "tested_b"]
+    assert diagnostics.quantification_depth.tolist() == [8.0, 16.0]
+    assert "withheld_constant" not in diagnostics.trend_covariate.index
+
+
+def test_quantification_depth_missing_excluded_site_does_not_invalidate_tested_sites() -> (
+    None
+):
+    protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
+    constant = np.full(6, 3.0, dtype=float)
+    matrix = _matrix(
+        {
+            "tested_a": _site_values(5.0, 6.0, 0.25, protein_a),
+            "tested_b": _site_values(4.0, 4.3, -0.2, protein_b),
+            "withheld_constant": _site_values(1.5, 2.1, 0.8, protein_a),
+        }
+    )
+    request = _request(
+        matrix=matrix,
+        proteins=_proteins(
+            {"protein_a": protein_a, "protein_b": protein_b, "constant": constant}
+        ),
+        pairs=_pairs(
+            {
+                "tested_a": ("MAPK14", "protein_a"),
+                "tested_b": ("GSK3B", "protein_b"),
+                "withheld_constant": ("AKT1", "constant"),
+            }
+        ),
+        empirical_bayes=_depth_empirical_bayes_config(),
+        quantification_depth=pd.Series(
+            [8.0, 16.0],
+            index=pd.Index(["tested_a", "tested_b"], name="site_key"),
+            name="quantification_depth",
+        ),
+    )
+
+    result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    assert result.tested_site_ids == ("tested_a", "tested_b")
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.quantification_depth is not None
+    assert diagnostics.quantification_depth.index.tolist() == ["tested_a", "tested_b"]
+
+
+def test_quantification_depth_invalid_tested_site_fails_explicitly() -> None:
+    protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
+    matrix = _matrix(
+        {
+            "site_a": _site_values(5.0, 6.0, 0.25, protein_a),
+            "site_b": _site_values(4.0, 4.3, -0.2, protein_b),
+            "site_c": _site_values(
+                2.0,
+                2.5,
+                0.4,
+                protein_a,
+                seed=np.roll(NOISE_SEED, 1),
+            ),
+        }
+    )
+    request = _request(
+        matrix=matrix,
+        proteins=_proteins({"protein_a": protein_a, "protein_b": protein_b}),
+        pairs=_pairs(
+            {
+                "site_a": ("MAPK14", "protein_a"),
+                "site_b": ("GSK3B", "protein_b"),
+                "site_c": ("AKT1", "protein_a"),
+            }
+        ),
+        empirical_bayes=_depth_empirical_bayes_config(),
+        quantification_depth=pd.Series(
+            [8.0, 0.0, 16.0],
+            index=matrix.index.copy(),
+            name="quantification_depth",
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError, match="quantification_depth values must be >= 1"
+    ):
+        ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+
+def test_quantification_depth_missing_tested_site_fails_explicitly() -> None:
+    protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
+    matrix = _matrix(
+        {
+            "site_a": _site_values(5.0, 6.0, 0.25, protein_a),
+            "site_b": _site_values(4.0, 4.3, -0.2, protein_b),
+        }
+    )
+    request = _request(
+        matrix=matrix,
+        proteins=_proteins({"protein_a": protein_a, "protein_b": protein_b}),
+        pairs=_pairs(
+            {
+                "site_a": ("MAPK14", "protein_a"),
+                "site_b": ("GSK3B", "protein_b"),
+            }
+        ),
+        empirical_bayes=_depth_empirical_bayes_config(),
+        quantification_depth=pd.Series(
+            [8.0],
+            index=pd.Index(["site_a"], name="site_key"),
+            name="quantification_depth",
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="quantification_depth.index must contain every protein-aware tested site_key",
+    ):
+        ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+
+def test_quantification_depth_alignment_uses_site_keys_after_reordering() -> None:
+    protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
+    protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
+    matrix = _matrix(
+        {
+            "site_b": _site_values(4.0, 4.3, -0.2, protein_b),
+            "site_a": _site_values(5.0, 6.0, 0.25, protein_a),
+            "site_c": _site_values(
+                2.0,
+                2.5,
+                0.4,
+                protein_a,
+                seed=np.roll(NOISE_SEED, 1),
+            ),
+        }
+    )
+    request = _request(
+        matrix=matrix,
+        proteins=_proteins({"protein_a": protein_a, "protein_b": protein_b}),
+        pairs=_pairs(
+            {
+                "site_b": ("GSK3B", "protein_b"),
+                "site_a": ("MAPK14", "protein_a"),
+                "site_c": ("AKT1", "protein_a"),
+            }
+        ),
+        empirical_bayes=_depth_empirical_bayes_config(),
+        quantification_depth=pd.Series(
+            [32.0, 2.0, 8.0],
+            index=pd.Index(["site_c", "site_b", "site_a"], name="site_key"),
+            name="quantification_depth",
+        ),
+    )
+
+    result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.quantification_depth is not None
+    pd.testing.assert_series_equal(
+        diagnostics.quantification_depth,
+        pd.Series(
+            [2.0, 8.0, 32.0],
+            index=matrix.index.copy(),
+            name="quantification_depth",
+        ),
+        check_dtype=False,
+    )
+    pd.testing.assert_series_equal(
+        diagnostics.trend_covariate,
+        pd.Series(
+            np.log2(np.asarray([2.0, 8.0, 32.0], dtype=float)),
+            index=matrix.index.copy(),
+            name="log2_quantification_depth",
+        ),
+        check_dtype=False,
+    )
+
+
 def test_multiple_testing_uses_successfully_tested_sites_only_per_contrast() -> None:
     protein_a = np.array([0.0, 1.0, 2.0, 0.0, 1.0, 2.0], dtype=float)
     protein_b = np.array([2.0, 1.1, 0.3, 1.7, 0.4, 2.2], dtype=float)
@@ -803,6 +1136,7 @@ def _request(
     contrasts: pd.DataFrame | None = None,
     sample_order: tuple[str, ...] = SAMPLES,
     empirical_bayes: EmpiricalBayesConfig | None = None,
+    quantification_depth: pd.Series | None = None,
     multiple_testing_method: str = "benjamini_hochberg",
 ) -> ProteinAwareDifferentialComputationRequest:
     return ProteinAwareDifferentialComputationRequest(
@@ -815,6 +1149,7 @@ def _request(
         empirical_bayes=(
             EmpiricalBayesConfig() if empirical_bayes is None else empirical_bayes
         ),
+        quantification_depth=quantification_depth,
         multiple_testing_method=multiple_testing_method,
     )
 
@@ -859,6 +1194,19 @@ def _proteins(
             for position, sample in enumerate(samples)
         },
         index=pd.Index(tuple(values_by_protein), name="total_protein_row_key"),
+    )
+
+
+def _depth_empirical_bayes_config(
+    *,
+    method: str = "standard",
+    kind: str = QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+) -> EmpiricalBayesConfig:
+    return EmpiricalBayesConfig(
+        method=method,  # type: ignore[arg-type]
+        trend=True,
+        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        quantification_depth_kind=kind,  # type: ignore[arg-type]
     )
 
 

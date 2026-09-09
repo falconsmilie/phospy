@@ -38,6 +38,10 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    EmpiricalBayesConfig,
 )
 from phospy.science.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
@@ -87,6 +91,7 @@ def _build_dataset(
     constant_total_proteins: frozenset[str] = frozenset(),
     exact_fit_first_site: bool = False,
     exact_fit_site_ids: frozenset[str] = frozenset(),
+    quantification_depth: tuple[object, ...] | pd.Series | None = None,
 ) -> AnalysisReadyPhosphoDataset:
     phospho = pd.DataFrame(
         {
@@ -136,6 +141,8 @@ def _build_dataset(
         },
         index=phospho.index.copy(),
     )
+    if quantification_depth is not None:
+        site_metadata["quantification_depth"] = quantification_depth
     total = pd.DataFrame(
         {
             sample_id: [
@@ -260,6 +267,7 @@ def _request(
     technical_replicate_policy: TechnicalReplicatePolicy = TechnicalReplicatePolicy.REJECT,
     technical_replicates: bool = False,
     reciprocal_contrast: bool = False,
+    empirical_bayes: EmpiricalBayesConfig | None = None,
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
         dataset=dataset,
@@ -275,6 +283,9 @@ def _request(
             paired_design_policy=paired_design_policy,  # type: ignore[arg-type]
             allow_design_subset=allow_design_subset,
             technical_replicate_policy=technical_replicate_policy,
+            empirical_bayes=empirical_bayes
+            if empirical_bayes is not None
+            else EmpiricalBayesConfig(),
             protein_aware_model=DifferentialProteinAwareModelConfig(),
         ),
     )
@@ -287,6 +298,19 @@ def _ordinary_request(
         dataset=dataset,
         design=_design(),
         contrasts=_contrasts(),
+    )
+
+
+def _depth_empirical_bayes_config(
+    *,
+    method: str = "standard",
+    kind: str = QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+) -> EmpiricalBayesConfig:
+    return EmpiricalBayesConfig(
+        method=method,  # type: ignore[arg-type]
+        trend=True,
+        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        quantification_depth_kind=kind,  # type: ignore[arg-type]
     )
 
 
@@ -447,6 +471,123 @@ def test_differential_protein_aware_public_workflow_retains_withheld_rows() -> N
         rtol=1e-12,
         atol=1e-12,
     )
+
+
+def test_differential_protein_aware_public_workflow_accepts_psm_depth() -> None:
+    dataset = _build_dataset(quantification_depth=(1.0, 2.0, 4.0))
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(dataset, empirical_bayes=_depth_empirical_bayes_config())
+    )
+
+    _assert_adjusted_public_result(result)
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.trend_covariate_name == "quantification_depth"
+    assert diagnostics.trend_covariate_transformation == "log2"
+    assert diagnostics.quantification_depth_kind == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    assert diagnostics.quantification_depth is not None
+    pd.testing.assert_series_equal(
+        diagnostics.quantification_depth,
+        pd.Series(
+            [1.0, 2.0, 4.0],
+            index=dataset.phospho.index.copy(),
+            name="quantification_depth",
+        ),
+        check_dtype=False,
+    )
+    pd.testing.assert_series_equal(
+        diagnostics.trend_covariate,
+        pd.Series(
+            np.log2(np.asarray([1.0, 2.0, 4.0], dtype=float)),
+            index=dataset.phospho.index.copy(),
+            name="log2_quantification_depth",
+        ),
+        check_dtype=False,
+    )
+
+
+def test_differential_protein_aware_public_workflow_accepts_robust_peptide_depth() -> (
+    None
+):
+    dataset = _build_dataset(quantification_depth=(3.0, 6.0, 12.0))
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset,
+            empirical_bayes=_depth_empirical_bayes_config(
+                method="robust",
+                kind=QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+            ),
+        )
+    )
+
+    _assert_adjusted_public_result(result)
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert result.empirical_bayes_robust is True
+    assert (
+        diagnostics.quantification_depth_kind == QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT
+    )
+    assert diagnostics.trend_covariate_name == "quantification_depth"
+
+
+def test_differential_protein_aware_depth_ignores_invalid_depth_on_withheld_site() -> (
+    None
+):
+    dataset = _build_dataset(
+        constant_total_proteins=frozenset({"P49841"}),
+        quantification_depth=(1.0, 2.0, np.nan),
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(dataset, empirical_bayes=_depth_empirical_bayes_config())
+    )
+
+    _assert_adjusted_public_result(
+        result,
+        tested_site_count=2,
+        withheld_site_count=1,
+    )
+    table = result.table_for("B_vs_A")
+    tested = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN] == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.quantification_depth is not None
+    np.testing.assert_allclose(
+        diagnostics.quantification_depth.loc[tested].to_numpy(dtype=float),
+        np.asarray([1.0, 2.0], dtype=float),
+    )
+    assert diagnostics.quantification_depth.loc[~tested].isna().all()
+
+
+def test_differential_protein_aware_depth_rejects_invalid_tested_site() -> None:
+    dataset = _build_dataset(quantification_depth=(1.0, 0.0, 4.0))
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.executor.protein_aware_fit",
+    ) as exc_info:
+        DifferentialAnalysisWorkflow().run(
+            _request(dataset, empirical_bayes=_depth_empirical_bayes_config())
+        )
+
+    assert "quantification_depth" in exc_info.value.details["error"]
+    assert ">= 1" in exc_info.value.details["error"]
+
+
+def test_differential_protein_aware_depth_rejects_missing_depth_column() -> None:
+    dataset = _build_dataset()
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.protein_aware_inputs.quantification_depth_column",
+    ):
+        DifferentialAnalysisWorkflow().run(
+            _request(dataset, empirical_bayes=_depth_empirical_bayes_config())
+        )
 
 
 def test_differential_protein_aware_public_workflow_rejects_missing_sidecar() -> None:

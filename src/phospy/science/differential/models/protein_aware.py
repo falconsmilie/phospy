@@ -15,6 +15,7 @@ from phospy.frames.ownership import (
     export_dataframe,
     export_series,
     own_dataframe,
+    own_optional_series,
     own_series,
 )
 from phospy.frames.validation import (
@@ -38,6 +39,7 @@ from phospy.science.differential.models.diagnostics import (
     MeanVarianceTrendDiagnostics,
 )
 from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     EmpiricalBayesConfig,
 )
 from phospy.science.differential.models.tables import (
@@ -108,6 +110,7 @@ class ProteinAwareDifferentialComputationRequest:
     matched_pairs: pd.DataFrame
     resolved_protein_covariates: pd.DataFrame
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
+    quantification_depth: pd.Series | None = None
     multiple_testing_method: MultipleTestingCorrection = (
         MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
     )
@@ -127,6 +130,7 @@ class ProteinAwareDifferentialComputationRequest:
         matched_pairs: pd.DataFrame,
         resolved_protein_covariates: pd.DataFrame,
         empirical_bayes: EmpiricalBayesConfig | None = None,
+        quantification_depth: pd.Series | None = None,
         multiple_testing_method: MultipleTestingCorrection = (
             MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
         ),
@@ -150,6 +154,7 @@ class ProteinAwareDifferentialComputationRequest:
             "empirical_bayes",
             empirical_bayes if empirical_bayes is not None else EmpiricalBayesConfig(),
         )
+        object.__setattr__(request, "quantification_depth", quantification_depth)
         object.__setattr__(
             request,
             "multiple_testing_method",
@@ -244,6 +249,32 @@ class ProteinAwareDifferentialComputationRequest:
                 "protein_aware_differential_request.empirical_bayes must be "
                 "EmpiricalBayesConfig"
             )
+        quantification_depth = own_optional_series(
+            self.quantification_depth,
+            field_name="protein_aware_differential_request.quantification_depth",
+            error_type=PhosPyInputError,
+            assume_owned=assume_owned,
+        )
+        if (
+            self.empirical_bayes.trend_covariate
+            == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+        ):
+            if quantification_depth is None:
+                raise PhosPyInputError(
+                    "protein_aware_differential_request.quantification_depth must "
+                    "be provided when empirical_bayes.trend_covariate is "
+                    "'quantification_depth'"
+                )
+            _validate_site_key_series_index(
+                quantification_depth,
+                field_name=("protein_aware_differential_request.quantification_depth"),
+            )
+        elif quantification_depth is not None:
+            raise PhosPyInputError(
+                "protein_aware_differential_request.quantification_depth is only "
+                "valid when empirical_bayes.trend_covariate is "
+                "'quantification_depth'"
+            )
 
         object.__setattr__(self, "phosphosite_matrix", phosphosite_matrix)
         object.__setattr__(self, "base_design", base_design)
@@ -255,6 +286,7 @@ class ProteinAwareDifferentialComputationRequest:
             "resolved_protein_covariates",
             resolved_protein_covariates,
         )
+        object.__setattr__(self, "quantification_depth", quantification_depth)
         object.__setattr__(
             self,
             "multiple_testing_method",
@@ -838,6 +870,24 @@ def _duplicate_values(values: tuple[str, ...]) -> list[str]:
             duplicates.append(value)
             duplicate_seen.add(value)
     return duplicates
+
+
+def _validate_site_key_series_index(series: pd.Series, *, field_name: str) -> None:
+    require_string_index(
+        series.index,
+        field_name=f"{field_name}.index",
+        error_type=PhosPyInputError,
+    )
+    duplicate_labels = _duplicate_values(
+        tuple(str(value) for value in series.index.tolist())
+    )
+    if duplicate_labels:
+        preview = ", ".join(repr(label) for label in duplicate_labels[:5])
+        suffix = "" if len(duplicate_labels) <= 5 else " ..."
+        raise PhosPyInputError(
+            f"{field_name}.index must contain unique site_key labels; "
+            f"duplicate_labels={preview}{suffix}"
+        )
 
 
 def _require_matched_protein_rows(

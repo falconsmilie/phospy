@@ -1121,16 +1121,13 @@ def test_depth_trend_rejects_internal_index_misalignment() -> None:
     )
     computation_request = interpreted.computation_request
     reversed_index = list(reversed(computation_request.matrix.index))
-    misaligned_depth = pd.Series(
-        [1.0, 2.0, 4.0, 8.0, 16.0],
-        index=reversed_index,
-        name="quantification_depth",
-    )
     misaligned_log_depth = pd.Series(
-        np.log2(misaligned_depth.to_numpy(dtype=float)),
+        np.log2(np.asarray([1.0, 2.0, 4.0, 8.0, 16.0], dtype=float)),
         index=reversed_index,
         name="log2_quantification_depth",
     )
+    aligned_depth = computation_request.quantification_depth
+    assert aligned_depth is not None
 
     with pytest.raises(PhosPyInputError, match="variance_trend_covariate.index"):
         DifferentialComputationRequest(
@@ -1140,7 +1137,7 @@ def test_depth_trend_rejects_internal_index_misalignment() -> None:
             design_decomposition=computation_request.design_decomposition,
             empirical_bayes=_depth_empirical_bayes_config(),
             variance_trend_covariate=misaligned_log_depth,
-            quantification_depth=misaligned_depth,
+            quantification_depth=aligned_depth,
             multiple_testing_method=computation_request.multiple_testing_method,
         )
 

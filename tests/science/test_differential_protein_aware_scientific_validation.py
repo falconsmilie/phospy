@@ -34,6 +34,10 @@ from phospy.provenance.hashing import fingerprint_table_strict
 from phospy.science.differential.linear_model import (
     DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
 )
+from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
 from phospy.science.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
 )
@@ -734,6 +738,103 @@ def test_protein_differential_empirical_bayes_uses_only_tested_augmented_rows(
         )
 
 
+def test_protein_differential_quantification_depth_moderation_uses_tested_rows() -> (
+    None
+):
+    protein_a = np.array([0.0, 1.0, 2.0, 3.0, 0.5, 1.5, 2.5, 3.5])
+    protein_b = np.array([2.0, 0.5, 3.0, 1.0, 2.8, 1.2, 3.6, 1.9])
+    constant = np.full(len(SAMPLES), 4.0)
+    matrix = _matrix(
+        {
+            "tested_a": _site_values(
+                beta={"A": 4.0, "B": 5.0},
+                gamma=0.2,
+                protein=protein_a,
+            ),
+            "tested_b": _site_values(
+                beta={"A": 3.0, "B": 2.4},
+                gamma=-0.6,
+                protein=protein_b,
+                noise_seed=NOISE_SEEDS[1],
+            ),
+            "tested_c": _site_values(
+                beta={"A": 6.0, "B": 6.7},
+                gamma=0.9,
+                protein=protein_a,
+                noise_seed=NOISE_SEEDS[2],
+            ),
+            "withheld_constant": _site_values(
+                beta={"A": 5.0, "B": 5.2},
+                gamma=0.4,
+                protein=protein_a,
+            ),
+        }
+    )
+    quantification_depth = pd.Series(
+        [32.0, 8.0, 16.0],
+        index=pd.Index(["tested_c", "tested_a", "tested_b"], name="site_key"),
+        name="quantification_depth",
+    )
+    empirical_bayes = _depth_empirical_bayes_config()
+    request = _kernel_request(
+        matrix=matrix,
+        proteins=_proteins(
+            {"protein_a": protein_a, "protein_b": protein_b, "constant": constant}
+        ),
+        pairs=_pairs(
+            {
+                "tested_a": ("ID_A", "protein_a"),
+                "tested_b": ("ID_B", "protein_b"),
+                "tested_c": ("ID_C", "protein_a"),
+                "withheld_constant": ("ID_D", "constant"),
+            }
+        ),
+        empirical_bayes=empirical_bayes,
+        quantification_depth=quantification_depth,
+    )
+
+    result = ProteinCovariateAdjustedDifferentialKernel().run(request)
+
+    expected_sites = ("tested_a", "tested_b", "tested_c")
+    assert result.tested_site_ids == expected_sites
+    expected = kernel_module.fit_empirical_bayes(
+        variances=result.residual_variance_series().to_numpy(dtype=float),
+        residual_dof=result.residual_degrees_of_freedom,
+        method=empirical_bayes.method,
+        trend=True,
+        winsor_tail_p=empirical_bayes.winsor_tail_p,
+        trend_covariate=np.log2(np.asarray([8.0, 16.0, 32.0], dtype=float)),
+    )
+    np.testing.assert_allclose(
+        result.prior_residual_variance_series().to_numpy(dtype=float),
+        expected.prior_variance,
+        rtol=1.0e-12,
+        atol=1.0e-12,
+    )
+    np.testing.assert_allclose(
+        result.prior_degrees_of_freedom_series().to_numpy(dtype=float),
+        expected.prior_degrees_of_freedom,
+        rtol=1.0e-12,
+        atol=1.0e-12,
+    )
+    assert "withheld_constant" not in result.prior_residual_variance_series().index
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.trend_covariate_name == "quantification_depth"
+    assert diagnostics.trend_covariate_transformation == "log2"
+    assert diagnostics.quantification_depth_kind == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    assert diagnostics.quantification_depth is not None
+    pd.testing.assert_series_equal(
+        diagnostics.quantification_depth,
+        pd.Series(
+            [8.0, 16.0, 32.0],
+            index=pd.Index(expected_sites, name="site_key"),
+            name="quantification_depth",
+        ),
+        check_dtype=False,
+    )
+
+
 def test_protein_differential_public_workflow_reports_no_fallback_mapping_attrition() -> (
     None
 ):
@@ -993,6 +1094,7 @@ def _kernel_request(
     design: pd.DataFrame = BASE_DESIGN,
     contrasts: pd.DataFrame = BASE_CONTRASTS,
     empirical_bayes: EmpiricalBayesConfig | None = None,
+    quantification_depth: pd.Series | None = None,
     multiple_testing_method: str = "benjamini_hochberg",
 ) -> ProteinAwareDifferentialComputationRequest:
     return ProteinAwareDifferentialComputationRequest(
@@ -1003,7 +1105,16 @@ def _kernel_request(
         matched_pairs=pairs,
         resolved_protein_covariates=proteins.loc[:, list(design.index)],
         empirical_bayes=empirical_bayes if empirical_bayes else EmpiricalBayesConfig(),
+        quantification_depth=quantification_depth,
         multiple_testing_method=multiple_testing_method,
+    )
+
+
+def _depth_empirical_bayes_config() -> EmpiricalBayesConfig:
+    return EmpiricalBayesConfig(
+        trend=True,
+        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
     )
 
 

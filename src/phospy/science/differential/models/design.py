@@ -34,9 +34,6 @@ from phospy.science.differential.models.empirical_bayes_config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     EmpiricalBayesConfig,
 )
-from phospy.science.differential.quantification_depth import (
-    validate_quantification_depth_series,
-)
 from phospy.science.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MultipleTestingCorrection,
@@ -252,26 +249,22 @@ class DifferentialAnalysisRequest:
             empirical_bayes.trend_covariate
             == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
         ):
-            if variance_trend_covariate is None:
-                raise PhosPyInputError(
-                    "differential.variance_trend_covariate must be provided when "
-                    "empirical_bayes.trend_covariate is 'quantification_depth'"
-                )
-            _validate_variance_trend_covariate(
-                variance_trend_covariate,
-                matrix_index=matrix.index,
-                field_name="differential.variance_trend_covariate",
-            )
             if quantification_depth is None:
                 raise PhosPyInputError(
                     "differential.quantification_depth must be provided when "
                     "empirical_bayes.trend_covariate is 'quantification_depth'"
                 )
-            quantification_depth = validate_quantification_depth_series(
+            _validate_quantification_depth_index(
                 quantification_depth,
+                matrix_index=matrix.index,
                 field_name="differential.quantification_depth",
-                expected_index=matrix.index,
             )
+            if variance_trend_covariate is not None:
+                _validate_variance_trend_covariate(
+                    variance_trend_covariate,
+                    matrix_index=matrix.index,
+                    field_name="differential.variance_trend_covariate",
+                )
         else:
             if variance_trend_covariate is not None:
                 raise PhosPyInputError(
@@ -398,6 +391,21 @@ def _validate_variance_trend_covariate(
         field_name=field_name,
         error_type=PhosPyInputError,
         allow_missing=False,
+    )
+
+
+def _validate_quantification_depth_index(
+    series: pd.Series,
+    *,
+    matrix_index: pd.Index,
+    field_name: str,
+) -> None:
+    require_exact_index_match(
+        left=series.index,
+        right=matrix_index,
+        left_name=f"{field_name}.index",
+        right_name="differential.matrix.index",
+        error_type=PhosPyInputError,
     )
 
 

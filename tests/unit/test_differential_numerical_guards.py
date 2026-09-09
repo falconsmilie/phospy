@@ -20,6 +20,8 @@ from phospy.science.differential.linear_model import (
     decompose_differential_design,
 )
 from phospy.science.differential.models import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
     ContrastMatrix,
     DesignMatrix,
     DifferentialAnalysisRequest,
@@ -181,6 +183,66 @@ def _base_request(*, matrix: pd.DataFrame, empirical_bayes: EmpiricalBayesConfig
         contrasts=contrasts,
         empirical_bayes=empirical_bayes,
     )
+
+
+def test_ordinary_executor_validates_raw_depth_before_precomputed_trend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    matrix = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0, 0.8],
+            "A_2": [1.1, 2.3, 1.0],
+            "B_1": [1.8, 2.2, 0.7],
+            "B_2": [1.9, 2.5, 0.9],
+        },
+        index=pd.Index(
+            ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
+            name="site_id",
+        ),
+    )
+    empirical_bayes = EmpiricalBayesConfig(
+        method="standard",
+        trend=True,
+        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    )
+    request = DifferentialAnalysisRequest(
+        matrix=matrix,
+        design=_base_request(
+            matrix=matrix,
+            empirical_bayes=EmpiricalBayesConfig(),
+        ).design,
+        contrasts=_base_request(
+            matrix=matrix,
+            empirical_bayes=EmpiricalBayesConfig(),
+        ).contrasts,
+        empirical_bayes=empirical_bayes,
+        variance_trend_covariate=pd.Series(
+            np.log2(np.asarray([1.0, 2.0, 4.0], dtype=float)),
+            index=matrix.index.copy(),
+            name="log2_quantification_depth",
+        ),
+        quantification_depth=pd.Series(
+            [1.0, 0.0, 4.0],
+            index=matrix.index.copy(),
+            name="quantification_depth",
+        ),
+    )
+
+    def _unexpected_fit_empirical_bayes(**kwargs: object) -> EmpiricalBayesFit:
+        raise AssertionError("raw quantification depth was not validated first")
+
+    monkeypatch.setattr(
+        differential_executor_module,
+        "fit_empirical_bayes",
+        _unexpected_fit_empirical_bayes,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="quantification_depth values must be >= 1",
+    ):
+        DifferentialAnalysisExecutor().run(request)
 
 
 def _manual_contrast_effects(
