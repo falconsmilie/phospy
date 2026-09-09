@@ -232,6 +232,7 @@ regeneration target and the release fixture reproducibility gate:
 ```bash
 make fixtures-release-validation-regression
 make fixtures-large-differential-limma-trend
+make fixtures-deqms-depth
 pytest -o addopts= tests/release/test_manifest_fixture_byte_reproducibility.py
 ```
 

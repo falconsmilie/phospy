@@ -51,6 +51,9 @@ Current active parity coverage includes:
 - differential parity envelope contracts (`tests/parity/test_differential_limma_parity.py`)
 - large-feature differential trend parity against R/limma
   (`tests/parity/test_differential_limma_trend_large.py`)
+- depth-aware differential moderation fixture against R/DEqMS
+  `spectraCounteBayes`
+  (`tests/parity/test_differential_deqms_depth_parity.py`)
 - kinase scoring and prediction surfaces:
   `tests/parity/test_kinase_workflow_parity.py`,
   `tests/parity/test_prediction_science_parity.py`,
@@ -112,7 +115,7 @@ validated PhosPy implementations:
 
 | Lane | Main fixture/evidence scope |
 | --- | --- |
-| Differential | Two-condition unpaired simple contrasts and related limma-envelope checks (`tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`), duplicate-correlation paired-design fixtures (`tests/fixtures/rewrite_parity/differential_duplicate_correlation/`), plus the large-feature trend fixture (`tests/fixtures/rewrite_parity/differential_limma_trend_large/`) |
+| Differential | Two-condition unpaired simple contrasts and related limma-envelope checks (`tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`), duplicate-correlation paired-design fixtures (`tests/fixtures/rewrite_parity/differential_duplicate_correlation/`), the large-feature trend fixture (`tests/fixtures/rewrite_parity/differential_limma_trend_large/`), and the R/DEqMS count-aware depth-moderation fixture (`tests/fixtures/rewrite_parity/differential_deqms_depth/`) |
 | Release-validation regression | PhosPy-owned regression fixtures for evidence resolution, sparse kinase support, and signalome safety (`tests/fixtures/release_validation_regression/`) |
 | Kinase scoring/prediction | L6 and public workflow reference lanes (`tests/fixtures/rewrite_parity/r_reference_l6/`, `tests/fixtures/public_workflow_reference/`) plus sparse-support regression fixtures under `tests/fixtures/release_validation_regression/kinase_sparse_support/` |
 | Signalome | Public workflow reference and backend parity lanes (`tests/fixtures/public_workflow_reference/`) plus safety regression fixtures under `tests/fixtures/release_validation_regression/signalome_safety/` |
@@ -177,7 +180,7 @@ pytest tests/parity -m "parity_diagnostic" -s
 | Parity tests | `tests/parity/` |
 | Shared parity helpers | `tests/support/` |
 | Public workflow reference fixtures | `tests/fixtures/public_workflow_reference/` |
-| Differential limma parity fixtures | `tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`, `tests/fixtures/rewrite_parity/differential_limma_trend_large/` |
+| Differential external reference fixtures | `tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`, `tests/fixtures/rewrite_parity/differential_limma_trend_large/`, `tests/fixtures/rewrite_parity/differential_deqms_depth/` |
 | PhosPy release-validation regression fixtures | `tests/fixtures/release_validation_regression/` |
 | Regeneration scripts | `scripts/active/` |
 
@@ -220,6 +223,32 @@ pytest tests/parity -m "parity_diagnostic" -s
   < 0.015, p99 p-value absolute difference < 0.08, p99 adjusted-p-value
   absolute difference < 0.15, and p99 standard-error absolute difference
   < 0.035.
+- The DEqMS depth fixture compares PhosPy's quantification-depth-aware
+  empirical-Bayes moderation with R/DEqMS `spectraCounteBayes` count-aware
+  outputs over a 144-feature synthetic phosphosite matrix with an unbalanced
+  5/7 two-condition design. It checks exact/tight ordinary least-squares
+  `logFC` agreement, prior degrees of freedom within `0.05`, log-prior-variance
+  correlation > `0.998`, median log-prior-variance absolute difference <
+  `0.03`, p99 log-prior-variance absolute difference < `0.07`,
+  posterior-variance correlation > `0.999`, p99 log-posterior-variance
+  absolute difference < `0.06`, moderated-t correlation > `0.9998`, p99
+  moderated-t absolute difference < `0.05`, raw-p correlation > `0.9997`,
+  median raw-p absolute difference < `0.004`, p99 raw-p absolute difference <
+  `0.014`, adjusted-p correlation > `0.995`, and p99 adjusted-p absolute
+  difference < `0.06`. Lower-depth and higher-depth feature subsets are checked
+  separately, including posterior variance and adjusted p-values. The lower-
+  and higher-depth subgroup posterior-variance checks use correlation > `0.997`
+  and subgroup adjusted-p checks use correlation > `0.988` plus the same p99
+  absolute-difference envelope. These subgroup-specific thresholds are lower
+  than the full-fixture thresholds because each group covers only about
+  one-third of the fixture and has less within-group dynamic range; adjusted
+  p-values are also plateaued by Benjamini-Hochberg correction. An otherwise
+  identical low/high-depth pair demonstrates that depth can change the fitted
+  prior variance.
+- The DEqMS depth fixture validates PhosPy as quantification-depth-aware
+  empirical Bayes moderation inspired by DEqMS. It does not establish exact
+  DEqMS-compatible numerical equivalence because PhosPy preserves its existing
+  deterministic trend smoother while DEqMS uses R loess span 0.75.
 - Missing-value handling is an intentional contract difference:
   `AnalysisReadyPhosphoDataset` requires complete matrices, so missing values
   are rejected before differential execution.
@@ -240,6 +269,22 @@ Its manifest records R version `4.5.2`, limma version `3.66.0`, seed
 `~0 + condition` design, and contrast `B_vs_A = B - A`. Only the exported
 limma scientific result columns are external-reference comparison targets;
 simulation diagnostics are sanity metadata.
+
+### DEqMS Depth Fixture Provenance
+
+The checked-in DEqMS depth fixture was generated by:
+
+```bash
+Rscript tests/fixtures/rewrite_parity/differential_deqms_depth/generate_fixture.R --outdir tests/fixtures/rewrite_parity/differential_deqms_depth --seed 20260909 --timestamp 2026-09-09T00:00:00Z --allow-unpinned-environment false
+```
+
+Its manifest records R version `4.5.2`, Bioconductor version `3.22`, limma
+version `3.66.0`, DEqMS version `1.28.0`, seed `20260909`, output file SHA-256
+hashes, generator SHA-256, the explicit `~0 + condition` design, contrast
+`B_vs_A = B - A`, and the `spectraCounteBayes(fit.method='loess')` reference
+model over `log2(fit$count)`. The generated DEqMS and limma numeric output
+columns are external-reference comparison targets; synthetic feature metadata
+are fixture sanity metadata.
 
 The PhosPy-owned regression fixtures were generated by:
 

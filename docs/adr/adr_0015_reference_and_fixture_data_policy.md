@@ -271,6 +271,11 @@ Current release-validation fixture families include:
 
 - `tests/fixtures/rewrite_parity/differential_limma_trend_large/`: external
   R/limma reference fixture for the large-feature empirical-Bayes trend path.
+- `tests/fixtures/rewrite_parity/differential_deqms_depth/`: external R/DEqMS
+  `spectraCounteBayes` reference fixture for count-aware depth moderation,
+  used to validate quantification-depth-aware empirical Bayes moderation
+  inspired by DEqMS without claiming exact DEqMS-compatible numerical
+  equivalence.
 - `tests/fixtures/release_validation_regression/evidence_resolution/`:
   PhosPy regression fixtures for peptide-to-site ambiguity, sequence conflict,
   mixed sequence-context validity, and row-order invariance.

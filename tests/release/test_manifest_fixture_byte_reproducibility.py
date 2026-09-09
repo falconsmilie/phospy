@@ -27,6 +27,7 @@ LARGE_LIMMA_TREND_ROOT = (
 DUPLICATE_CORRELATION_LIMMA_ROOT = (
     FIXTURE_ROOT / "rewrite_parity" / "differential_duplicate_correlation"
 )
+DEQMS_DEPTH_ROOT = FIXTURE_ROOT / "rewrite_parity" / "differential_deqms_depth"
 CANONICAL_BYTE_POLICY = "utf-8 LF with final newline"
 
 MANIFEST_GOVERNED_FIXTURE_DIRS = (
@@ -40,6 +41,7 @@ MANIFEST_GOVERNED_FIXTURE_DIRS = (
     RELEASE_VALIDATION_ROOT / "importer_edge_cases",
     LARGE_LIMMA_TREND_ROOT,
     DUPLICATE_CORRELATION_LIMMA_ROOT,
+    DEQMS_DEPTH_ROOT,
 )
 
 pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
@@ -257,6 +259,57 @@ def _matching_rscript_or_skip() -> str:
     return rscript
 
 
+def _matching_deqms_rscript_or_skip() -> str:
+    rscript = shutil.which("Rscript")
+    if rscript is None:
+        pytest.skip("Rscript is not available for DEqMS fixture regeneration")
+
+    expected_manifest = _read_manifest(DEQMS_DEPTH_ROOT)
+    expected = expected_manifest["pinned_environment"]
+    result = subprocess.run(
+        [
+            rscript,
+            "-e",
+            (
+                "if (!requireNamespace('BiocManager', quietly = TRUE) || "
+                "!requireNamespace('limma', quietly = TRUE) || "
+                "!requireNamespace('DEqMS', quietly = TRUE)) quit(status = 42); "
+                "cat(R.version$version.string, '\\n', "
+                "as.character(BiocManager::version()), '\\n', "
+                "as.character(packageVersion('limma')), '\\n', "
+                "as.character(packageVersion('DEqMS')), '\\n', sep = '')"
+            ),
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode == 42:
+        pytest.skip(
+            "R packages BiocManager, limma, and DEqMS are required for fixture "
+            "regeneration"
+        )
+    assert result.returncode == 0, result.stderr
+    observed = result.stdout.splitlines()
+    assert len(observed) >= 4, result.stdout
+    if (
+        observed[0] != expected["r_version"]
+        or observed[1] != expected["bioconductor_version"]
+        or observed[2] != expected["limma_version"]
+        or observed[3] != expected["deqms_version"]
+    ):
+        pytest.skip(
+            "DEqMS depth fixture exact-byte regeneration requires matching "
+            "R/Bioconductor/limma/DEqMS versions: expected "
+            f"{expected['r_version']!r}/{expected['bioconductor_version']!r}/"
+            f"{expected['limma_version']!r}/{expected['deqms_version']!r}, "
+            f"observed {observed[0]!r}/{observed[1]!r}/{observed[2]!r}/"
+            f"{observed[3]!r}"
+        )
+    return rscript
+
+
 def test_large_limma_trend_generator_reproduces_checked_in_bytes(
     tmp_path: Path,
 ) -> None:
@@ -282,6 +335,36 @@ def test_large_limma_trend_generator_reproduces_checked_in_bytes(
     _assert_generated_tree_matches_checked_in(
         generated_root=generated_root,
         checked_in_root=LARGE_LIMMA_TREND_ROOT,
+        byte_policy=CANONICAL_BYTE_POLICY,
+    )
+    _validate_manifest_hashes(generated_root)
+
+
+def test_deqms_depth_generator_reproduces_checked_in_bytes(
+    tmp_path: Path,
+) -> None:
+    rscript = _matching_deqms_rscript_or_skip()
+    generated_root = tmp_path / "differential_deqms_depth"
+    _run_checked(
+        [
+            rscript,
+            "tests/fixtures/rewrite_parity/differential_deqms_depth/generate_fixture.R",
+            "--outdir",
+            str(generated_root),
+            "--manifest-outdir-label",
+            "tests/fixtures/rewrite_parity/differential_deqms_depth",
+            "--seed",
+            "20260909",
+            "--timestamp",
+            "2026-09-09T00:00:00Z",
+            "--allow-unpinned-environment",
+            "false",
+        ]
+    )
+
+    _assert_generated_tree_matches_checked_in(
+        generated_root=generated_root,
+        checked_in_root=DEQMS_DEPTH_ROOT,
         byte_policy=CANONICAL_BYTE_POLICY,
     )
     _validate_manifest_hashes(generated_root)

@@ -125,6 +125,30 @@ SUPPORT_CLAIM_RULES: tuple[SupportClaimRule, ...] = (
         ),
     ),
     SupportClaimRule(
+        name="DEqMS compatibility",
+        unsupported_claim=_rx(
+            rf"\bdeqms\b.{{0,90}}\b{CLAIM_WORD}\b|"
+            rf"\b{CLAIM_WORD}\b.{{0,90}}\bdeqms\b"
+        ),
+        allowed_contexts=(
+            *NEGATED_OR_LIMITED,
+            _rx(r"\bdeqms-inspired\b"),
+            _rx(r"\binspired\s+by\s+deqms\b"),
+            _rx(
+                r"\bfixtures?\b(?!.{0,80}\b(?:compatib\w*|equivalence|equivalent)\b).{0,80}\br/deqms\b"
+            ),
+            _rx(r"\br/deqms\b.{0,120}\bfixtures?\b"),
+            _rx(
+                r"\bdeqms\b(?!.{0,80}\b(?:compatib\w*|equivalence|equivalent|parity)\b).{0,80}\b(?:fixtures?|reference)\b"
+            ),
+            _rx(r"\bdeqms::spectracountebayes\b"),
+        ),
+        update_when_supported=(
+            "Only add positive DEqMS-compatible language when an exact "
+            "fixture-backed numerical contract justifies that scoped claim."
+        ),
+    ),
+    SupportClaimRule(
         name="MSstatsPTM equivalence",
         unsupported_claim=_rx(
             rf"\bmsstatsptm\b.{{0,90}}\b{CLAIM_WORD}\b|"
@@ -688,6 +712,9 @@ def test_claim_guard_rejects_unsupported_positive_claims() -> None:
             (
                 "PhosPy supports full PhosR parity.",
                 "The differential workflow provides broad limma parity.",
+                "Differential depth-aware moderation is DEqMS-compatible.",
+                "Differential depth-aware moderation has DEqMS-compatible validation.",
+                "Differential depth-aware moderation has a DEqMS-compatible fixture.",
                 "Protein-aware preparation provides MSstatsPTM equivalence.",
                 "EnrichmentWorkflow supports PTM-SEA parity.",
                 "PhosPy bundles official Kinase Library data.",
@@ -788,6 +815,7 @@ def test_claim_guard_allows_current_limitation_language() -> None:
                 "No official Kinase Library compatibility or parity claim is made.",
                 "Fixed-block terms are not duplicate_correlation or mixed-effects modelling.",
                 "limma-style moderated variance is supported for the scoped differential lane.",
+                "Depth-aware moderation is DEqMS-inspired and does not claim DEqMS numerical compatibility.",
                 "Do not interpret ruv_readiness as RUV support.",
                 "ruv_readiness remains diagnostic/report-only metadata readiness reporting.",
                 "linear_residualize_batch is limited fixed-effect residualisation, not SPS/RUV-style correction.",

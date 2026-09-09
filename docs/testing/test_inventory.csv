@@ -56,6 +56,7 @@ tests/parity/test_activity_stage_parity.py,parity,195,4,true,false,parity,keep,"
 tests/parity/test_adaptive_prediction_parity.py,parity,282,10,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_replay_parity.py,parity,251,1,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive replay parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_differential_analysis_parity.py,parity,226,2,true,false,parity,keep,"Loss of this file would remove Python-vs-reference parity guardrails for differential analysis, making release drift against accepted outputs unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
+tests/parity/test_differential_deqms_depth_parity.py,parity,603,5,true,true,,,,,,
 tests/parity/test_differential_limma_parity.py,parity,337,6,true,false,,,,,,
 tests/parity/test_differential_limma_trend_large.py,parity,305,3,true,false,,,,,,
 tests/parity/test_duplicate_correlation_limma_full_parity.py,parity,435,5,true,true,,,,,,
@@ -76,7 +77,7 @@ tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
 tests/release/test_installed_distribution_verifier.py,release,627,16,true,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/release/test_kinase_policy_documentation.py,release,117,2,true,false,,,,,,
-tests/release/test_manifest_fixture_byte_reproducibility.py,release,287,5,true,false,,,,,,
+tests/release/test_manifest_fixture_byte_reproducibility.py,release,370,6,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
@@ -174,7 +175,7 @@ tests/unit/test_differential_technical_replicate_policy.py,unit,887,19,false,fal
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_workflow_components.py,unit,2690,67,true,true,,,,,,[auto-orchestration] 23 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,250,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_docs_support_claim_guard.py,unit,828,10,false,false,,,,,,
+tests/unit/test_docs_support_claim_guard.py,unit,856,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,
 tests/unit/test_docs_utf8_readability_smoke.py,unit,10,1,false,false,documentation contract,keep,Loss of this file would allow unreadable Markdown docs or encoding regressions to slip into user-facing documentation.,codex-audit,,Markdown encoding smoke coverage; intentionally no terminology-lint assertions.
 tests/unit/test_domain_boundaries.py,unit,1323,57,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
