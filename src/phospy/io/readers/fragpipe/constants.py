@@ -17,6 +17,7 @@ _ADAPTED_MODIFIED_PEPTIDE_SEQUENCE_COLUMN = (
     "__phospy_fragpipe_modified_peptide_sequence"
 )
 _ADAPTED_PEPTIDE_SITE_STRING_COLUMN = "__phospy_fragpipe_peptide_site_string"
+_ADAPTED_QUANTIFICATION_DEPTH_COLUMN = "__phospy_fragpipe_quantification_depth"
 _ADAPTED_CANDIDATE_SITES_COLUMN = "fragpipe_ptmprophet_candidate_sites"
 _ADAPTED_SITE_PROBABILITIES_COLUMN = "fragpipe_ptmprophet_site_probabilities"
 _ADAPTED_AMBIGUOUS_COLUMN = "fragpipe_ptmprophet_ambiguous"
@@ -144,6 +145,7 @@ __all__ = [
     "_ADAPTED_PEPTIDE_SITE_STRING_COLUMN",
     "_ADAPTED_PROTEIN_ACCESSION_COLUMN",
     "_ADAPTED_PROTEIN_ID_COLUMN",
+    "_ADAPTED_QUANTIFICATION_DEPTH_COLUMN",
     "_ADAPTED_ROW_ID_COLUMN",
     "_ADAPTED_SITE_COLUMN",
     "_ADAPTED_SITE_PROBABILITIES_COLUMN",

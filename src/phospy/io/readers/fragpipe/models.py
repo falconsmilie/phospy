@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from phospy.io.readers.fragpipe.constants import _DEFAULT_INTENSITY_PREFIXES
+from phospy.science.differential.models import QuantificationDepthKind
 from phospy.validation.datasets.fragpipe import (
     FRAGPIPE_FLAG_POLICY_REMOVE,
     FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE,
@@ -29,6 +30,8 @@ class FragPipeColumnMapping:
     decoy: str | None = None
     row_id: str | None = None
     unique_feature_id: str | None = None
+    quantification_depth: str | None = None
+    quantification_depth_kind: QuantificationDepthKind | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +62,8 @@ class _ResolvedFragPipeColumns:
     decoy: str | None
     row_id: str | None
     unique_feature_id: str | None
+    quantification_depth: str | None
+    quantification_depth_kind: QuantificationDepthKind | None
 
 
 @dataclass(frozen=True, slots=True)

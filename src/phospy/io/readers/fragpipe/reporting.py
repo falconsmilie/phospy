@@ -21,12 +21,14 @@ from phospy.io.readers.fragpipe.constants import (
     _ADAPTED_AMBIGUOUS_COLUMN,
     _ADAPTED_CANDIDATE_SITES_COLUMN,
     _ADAPTED_MODIFIED_PHOSPHO_COUNT_COLUMN,
+    _ADAPTED_QUANTIFICATION_DEPTH_COLUMN,
     _ADAPTED_ROW_ID_COLUMN,
     _ADAPTED_SITE_PROBABILITIES_COLUMN,
     _FRAGPIPE_CONTAMINANT_OUTPUT_COLUMN,
     _FRAGPIPE_DECOY_OUTPUT_COLUMN,
 )
 from phospy.io.readers.fragpipe.models import _ResolvedFragPipeColumns
+from phospy.science.differential.quantification_depth import QUANTIFICATION_DEPTH_COLUMN
 from phospy.validation.datasets.fragpipe import FRAGPIPE_FLAG_POLICY_FLAG
 
 
@@ -95,6 +97,23 @@ def _augment_mapped_result(
                 .astype(bool)
                 .tolist()
             )
+    if resolved.quantification_depth is not None:
+        depth_values = pd.Series(
+            adapted.loc[:, _ADAPTED_QUANTIFICATION_DEPTH_COLUMN].to_numpy(
+                dtype=float,
+                copy=True,
+            ),
+            index=pd.Index(row_ids, name=_ADAPTED_ROW_ID_COLUMN),
+            name=QUANTIFICATION_DEPTH_COLUMN,
+            dtype=float,
+        )
+        site_metadata.loc[:, QUANTIFICATION_DEPTH_COLUMN] = depth_values.loc[
+            site_metadata.index
+        ].to_numpy(dtype=float, copy=True)
+        if peptide_evidence is not None:
+            peptide_evidence.loc[:, QUANTIFICATION_DEPTH_COLUMN] = depth_values.loc[
+                peptide_evidence.index
+            ].to_numpy(dtype=float, copy=True)
 
     diagnostics = dict(mapped_result.diagnostics)
     diagnostics["fragpipe"] = {

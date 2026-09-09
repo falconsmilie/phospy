@@ -1,11 +1,34 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 import pytest
 
-from phospy.api import PhosphositeImportResult
+from phospy.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetSiteMatrixConfig,
+    DatasetSiteMatrixDuplicateSitePolicy,
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
+)
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    Contrast,
+    DatasetPreprocessingConfig,
+    DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
+    ExperimentalDesign,
+    Organism,
+    PhosphositeImportResult,
+    SampleDesignRecord,
+)
+from phospy.api.requests import (
+    DATASET_MULTI_SITE_POLICY_REJECT,
+    DATASET_MULTI_SITE_POLICY_SPLIT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+)
 from phospy.contracts.results import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
@@ -17,6 +40,11 @@ from phospy.io.readers import (
     FragPipePTMProphetImportRequest,
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.differential.models import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "fragpipe"
@@ -52,12 +80,160 @@ def test_fragpipe_reader_split_modules_preserve_legacy_import_identity() -> None
 
 def _import_fixture(
     filename: str = "ptmprophet_sites.tsv",
-    **kwargs: object,
+    **kwargs: Any,
 ) -> PhosphositeImportResult:
     return FragPipePTMProphetImporter().run(
         FragPipePTMProphetImportRequest(
             source=FIXTURES / filename,
             **kwargs,
+        )
+    )
+
+
+def _depth_source(
+    depth: list[object],
+    *,
+    proteins: list[str] | None = None,
+    genes: list[str] | None = None,
+    residues: list[str] | None = None,
+    positions: list[object] | None = None,
+) -> pd.DataFrame:
+    gene_values = genes or ["MAPK1", "AKT1", "GSK3B", "MTOR", "RPS6KB1"][: len(depth)]
+    residue_values = residues or ["S", "S", "S", "S", "T"][: len(depth)]
+    position_values: tuple[object, ...] = (
+        tuple(positions)
+        if positions is not None
+        else tuple([10, 473, 9, 2448, 389][: len(depth)])
+    )
+    protein_values = (
+        proteins or ["P28482", "P31749", "P49841", "P42345", "P23443"][: len(depth)]
+    )
+    return pd.DataFrame(
+        {
+            "Protein": protein_values,
+            "Gene": gene_values,
+            "Peptide": ["AAAAA" + residue + "AAAA" for residue in residue_values],
+            "Modified Peptide": [
+                "AAAAA[p" + residue + "]AAAA" for residue in residue_values
+            ],
+            "PTMProphet Probability": [
+                f"{residue}{position}(0.95)"
+                for residue, position in zip(
+                    residue_values,
+                    position_values,
+                    strict=True,
+                )
+            ],
+            "Site": [
+                f"{residue}{position}"
+                for residue, position in zip(
+                    residue_values,
+                    position_values,
+                    strict=True,
+                )
+            ],
+            "Sequence Window": [
+                ("A" * 15) + residue + ("A" * 15) for residue in residue_values
+            ],
+            "Intensity A_1": [10.0 + row for row in range(len(depth))],
+            "Intensity A_2": [11.0 + row for row in range(len(depth))],
+            "Intensity B_1": [20.0 + row for row in range(len(depth))],
+            "Intensity B_2": [22.0 + row for row in range(len(depth))],
+            "Depth": depth,
+            "Spectrum": [f"scan.{row + 1}.{row + 1}.2" for row in range(len(depth))],
+            "PSM ID": [f"psm-{row + 1}" for row in range(len(depth))],
+        }
+    )
+
+
+def _depth_mapping(
+    *,
+    kind: str = QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+) -> FragPipeColumnMapping:
+    return FragPipeColumnMapping(
+        quantification_depth="Depth",
+        quantification_depth_kind=kind,  # type: ignore[arg-type]
+    )
+
+
+def _build_dataset(
+    import_result: PhosphositeImportResult,
+    *,
+    site_resolution_mode: str,
+    multi_site_policy: str | None = None,
+    site_matrix_duplicate_policy: DatasetSiteMatrixDuplicateSitePolicy | None = None,
+):
+    preprocessing_config = DatasetPreprocessingConfig(
+        intensity_transform=DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=1.0,
+        )
+    )
+    if site_matrix_duplicate_policy is not None:
+        preprocessing_config = DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+            site_matrix=DatasetSiteMatrixConfig(
+                policy="build_from_metadata",
+                duplicate_site_policy=site_matrix_duplicate_policy,
+            ),
+        )
+    return AnalysisReadyDatasetBuilder().run(
+        import_result.to_dataset_build_request(
+            site_resolution_mode=site_resolution_mode,
+            multi_site_policy=(
+                multi_site_policy
+                if multi_site_policy is not None
+                else (
+                    DATASET_MULTI_SITE_POLICY_REJECT
+                    if site_resolution_mode
+                    == DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+                    else None
+                )
+            ),
+            organism=Organism.HUMAN,
+            input_intensity_scale="linear",
+            preprocessing_config=preprocessing_config,
+        )
+    )
+
+
+def _fragpipe_diagnostics(result: PhosphositeImportResult) -> dict[str, Any]:
+    return cast(dict[str, Any], result.diagnostics["fragpipe"])
+
+
+def _fragpipe_report(result: PhosphositeImportResult) -> dict[str, Any]:
+    return cast(
+        dict[str, Any],
+        result.quality_report.format_specific["fragpipe_ptmprophet"],
+    )
+
+
+def _depth_design() -> ExperimentalDesign:
+    return ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+            ),
         )
     )
 
@@ -80,7 +256,278 @@ def test_fragpipe_ptmprophet_importer_reads_single_site_peptide() -> None:
     assert first["fragpipe_ptmprophet_site_probabilities"] == "S10:0.95"
     assert bool(first["fragpipe_ptmprophet_ambiguous"]) is False
     assert result.localisation_confidence_column == "localisation_confidence"
-    assert result.diagnostics["fragpipe"]["filtering"]["removed_rows"] == 1
+    assert _fragpipe_diagnostics(result)["filtering"]["removed_rows"] == 1
+
+
+def test_fragpipe_explicit_psm_count_depth_mapping_emits_canonical_metadata() -> None:
+    result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=_depth_source([3, 4, 5]),
+            column_mapping=_depth_mapping(),
+            ptmprophet_position_reference="protein",
+        )
+    )
+
+    metadata = result.site_metadata_candidate
+    assert metadata.loc[:, "quantification_depth"].tolist() == pytest.approx(
+        [3.0, 4.0, 5.0]
+    )
+    evidence = result.peptide_evidence
+    assert evidence is not None
+    assert evidence.loc[:, "quantification_depth"].tolist() == pytest.approx(
+        [3.0, 4.0, 5.0]
+    )
+    fragpipe_diagnostics = _fragpipe_diagnostics(result)
+    assert fragpipe_diagnostics["resolved_columns"]["quantification_depth"] == "Depth"
+    assert (
+        fragpipe_diagnostics["resolved_columns"]["quantification_depth_kind"]
+        == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    )
+    depth_diagnostics = fragpipe_diagnostics["adaptation"]["quantification_depth"]
+    assert (
+        depth_diagnostics["quantification_depth_kind"]
+        == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    )
+    report_depth = _fragpipe_report(result)["adaptation"]["quantification_depth"]
+    assert (
+        report_depth["quantification_depth_kind"] == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    )
+
+
+def test_fragpipe_explicit_peptide_count_depth_mapping_is_supported() -> None:
+    result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=_depth_source([2, 3]),
+            column_mapping=_depth_mapping(kind=QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT),
+            ptmprophet_position_reference="protein",
+        )
+    )
+
+    metadata = result.site_metadata_candidate
+    assert metadata.loc[:, "quantification_depth"].tolist() == pytest.approx([2.0, 3.0])
+    assert (
+        _fragpipe_diagnostics(result)["resolved_columns"]["quantification_depth_kind"]
+        == QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT
+    )
+
+
+def test_fragpipe_depth_mapping_is_optional_and_not_inferred() -> None:
+    result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=_depth_source([3, 4, 5]),
+            ptmprophet_position_reference="protein",
+        )
+    )
+
+    assert "quantification_depth" not in result.site_metadata_candidate.columns
+    evidence = result.peptide_evidence
+    assert evidence is not None
+    assert "quantification_depth" not in evidence.columns
+    fragpipe_diagnostics = _fragpipe_diagnostics(result)
+    assert fragpipe_diagnostics["resolved_columns"]["quantification_depth"] is None
+    assert (
+        fragpipe_diagnostics["adaptation"]["quantification_depth"]["status"]
+        == "not_mapped"
+    )
+
+
+def test_fragpipe_spectrum_and_psm_identifiers_are_not_counted_as_depth() -> None:
+    result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=_depth_source([3, 4]),
+            ptmprophet_position_reference="protein",
+        )
+    )
+
+    assert _fragpipe_diagnostics(result)["resolved_columns"]["unique_feature_id"] == (
+        "Spectrum"
+    )
+    assert "quantification_depth" not in result.site_metadata_candidate.columns
+    assert (
+        _fragpipe_diagnostics(result)["adaptation"]["quantification_depth"]["status"]
+        == "not_mapped"
+    )
+
+
+@pytest.mark.parametrize(
+    ("depth_values", "message"),
+    (
+        ([3, "", 5], "missing values"),
+        ([3, "bad", 5], "numeric count values"),
+        ([3, True, 5], "not booleans"),
+        ([3, "inf", 5], "finite numeric count values"),
+        ([3, 0, 5], ">= 1"),
+        ([3, 4.5, 5], "integer-valued"),
+    ),
+)
+def test_fragpipe_explicit_depth_mapping_rejects_invalid_counts(
+    depth_values: list[object],
+    message: str,
+) -> None:
+    with pytest.raises(PhosPyInputError, match=message):
+        FragPipePTMProphetImporter().run(
+            FragPipePTMProphetImportRequest(
+                source=_depth_source(depth_values),
+                column_mapping=_depth_mapping(),
+                ptmprophet_position_reference="protein",
+            )
+        )
+
+
+def test_fragpipe_depth_mapping_requires_explicit_supported_depth_kind() -> None:
+    with pytest.raises(PhosPyInputError, match="quantification_depth_kind requires"):
+        FragPipePTMProphetImporter().run(
+            FragPipePTMProphetImportRequest(
+                source=_depth_source([3, 4]),
+                column_mapping=FragPipeColumnMapping(
+                    quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+                ),
+                ptmprophet_position_reference="protein",
+            )
+        )
+
+    with pytest.raises(PhosPyInputError, match="quantification_depth_kind"):
+        FragPipePTMProphetImporter().run(
+            FragPipePTMProphetImportRequest(
+                source=_depth_source([3, 4]),
+                column_mapping=FragPipeColumnMapping(quantification_depth="Depth"),
+                ptmprophet_position_reference="protein",
+            )
+        )
+
+    with pytest.raises(PhosPyInputError, match="quantification_depth_kind"):
+        FragPipePTMProphetImporter().run(
+            FragPipePTMProphetImportRequest(
+                source=_depth_source([3, 4]),
+                column_mapping=FragPipeColumnMapping(
+                    quantification_depth="Depth",
+                    quantification_depth_kind="spectral_count",  # type: ignore[arg-type]
+                ),
+                ptmprophet_position_reference="protein",
+            )
+        )
+
+
+def test_fragpipe_dataset_builder_preserves_imported_depth() -> None:
+    import_result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=_depth_source([3, 4, 5]),
+            column_mapping=_depth_mapping(),
+            ptmprophet_position_reference="protein",
+        )
+    )
+
+    dataset = _build_dataset(import_result, site_resolution_mode="site_level_resolved")
+
+    assert dataset.site_metadata.loc[:, "quantification_depth"].tolist() == (
+        pytest.approx([3.0, 4.0, 5.0])
+    )
+
+
+def test_fragpipe_site_matrix_aggregate_marks_conflicting_depth_unavailable() -> None:
+    import_result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=_depth_source(
+                [7, 9],
+                proteins=["P28482", "P28482"],
+                genes=["MAPK1", "MAPK1"],
+                residues=["S", "S"],
+                positions=[10, 10],
+            ),
+            column_mapping=_depth_mapping(),
+            ptmprophet_position_reference="protein",
+        )
+    )
+
+    dataset = _build_dataset(
+        import_result,
+        site_resolution_mode="site_level_resolved",
+        site_matrix_duplicate_policy="aggregate_mean",
+    )
+
+    metadata = dataset.site_metadata
+    assert metadata.shape[0] == 1
+    assert pd.api.types.is_numeric_dtype(metadata.loc[:, "quantification_depth"].dtype)
+    assert pd.isna(metadata.loc[:, "quantification_depth"].iloc[0])
+
+
+def test_fragpipe_split_multisite_depth_is_unavailable_without_count_multiplication() -> (
+    None
+):
+    import_result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=pd.DataFrame(
+                {
+                    "Protein": ["P28482"],
+                    "Gene": ["MAPK1"],
+                    "Peptide": ["AAAAASASAAA"],
+                    "Modified Peptide": ["AAAAA[pS]A[pS]AAA"],
+                    "PTMProphet Probability": ["S10(0.95);S12(0.93)"],
+                    "Site": ["S10,S12"],
+                    "Sequence Window": [("A" * 15) + "S" + ("A" * 15)],
+                    "Intensity A_1": [10.0],
+                    "Intensity A_2": [11.0],
+                    "Intensity B_1": [20.0],
+                    "Intensity B_2": [22.0],
+                    "Depth": [7],
+                }
+            ),
+            column_mapping=_depth_mapping(),
+            ptmprophet_position_reference="protein",
+        )
+    )
+
+    dataset = _build_dataset(
+        import_result,
+        site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+    )
+
+    metadata = dataset.site_metadata.sort_values("display_id")
+    assert metadata.loc[:, "display_id"].tolist() == ["MAPK1;S10;", "MAPK1;S12;"]
+    assert metadata.loc[:, "quantification_depth"].isna().all()
+
+
+def test_fragpipe_imported_depth_supports_downstream_depth_aware_differential() -> None:
+    import_result = FragPipePTMProphetImporter().run(
+        FragPipePTMProphetImportRequest(
+            source=_depth_source([3, 4, 5, 6, 7]),
+            column_mapping=_depth_mapping(),
+            ptmprophet_position_reference="protein",
+        )
+    )
+    dataset = _build_dataset(import_result, site_resolution_mode="site_level_resolved")
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=_depth_design(),
+            contrasts=(
+                Contrast(
+                    name="B_vs_A",
+                    numerator_condition="B",
+                    denominator_condition="A",
+                ),
+            ),
+            config=DifferentialAnalysisConfig(
+                empirical_bayes=EmpiricalBayesConfig(
+                    trend=True,
+                    trend_covariate=(
+                        EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+                    ),
+                    quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+                ),
+            ),
+        )
+    )
+
+    diagnostics = result.quantification_depth_trend_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.quantification_depth.tolist() == pytest.approx(
+        [3.0, 4.0, 5.0, 6.0, 7.0]
+    )
+    assert diagnostics.quantification_depth_kind == QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    assert "B_vs_A" in result.contrast_tables
 
 
 def test_fragpipe_ptmprophet_importer_retains_multi_site_peptide_evidence() -> None:
@@ -117,7 +564,7 @@ def test_fragpipe_ptmprophet_ambiguous_localisation_is_joint_not_first_site() ->
     assert bool(evidence.iloc[2]["multi_site"]) is True
     assert any("ambiguous localisation" in warning for warning in result.warnings)
     assert (
-        result.diagnostics["fragpipe"]["adaptation"]["ambiguous_localisation_rows"] == 1
+        _fragpipe_diagnostics(result)["adaptation"]["ambiguous_localisation_rows"] == 1
     )
 
 
@@ -251,7 +698,7 @@ def test_fragpipe_peptide_position_fixture_maps_ptmprophet_string_variants() -> 
         "S203",
     ]
     assert evidence.loc[:, "multi_site"].tolist() == [False, True, False, False]
-    assert result.diagnostics["fragpipe"]["adaptation"]["multi_site_rows"] == 1
+    assert _fragpipe_diagnostics(result)["adaptation"]["multi_site_rows"] == 1
 
 
 def test_fragpipe_explicit_site_ambiguous_localisation_is_diagnostic() -> None:
@@ -267,7 +714,7 @@ def test_fragpipe_explicit_site_ambiguous_localisation_is_diagnostic() -> None:
     assert ambiguous["fragpipe_ptmprophet_site_probabilities"] == "S9:0.5;T10:0.5"
     assert bool(ambiguous["fragpipe_ptmprophet_ambiguous"]) is True
     assert (
-        result.diagnostics["fragpipe"]["adaptation"]["ambiguous_localisation_rows"] == 1
+        _fragpipe_diagnostics(result)["adaptation"]["ambiguous_localisation_rows"] == 1
     )
     assert any("ambiguous localisation" in warning for warning in result.warnings)
 
@@ -278,7 +725,7 @@ def test_fragpipe_reports_protein_group_collapse_and_sequence_mismatch() -> None
         ptmprophet_position_reference="protein",
     )
 
-    diagnostics = result.diagnostics["fragpipe"]["adaptation"]
+    diagnostics = _fragpipe_diagnostics(result)["adaptation"]
     assert diagnostics["protein_group_rows_collapsed_to_first_accession"] == 1
     assert diagnostics["peptide_sequence_mismatch_rows"] == 1
     assert any("protein-group rows" in warning for warning in result.warnings)
@@ -291,7 +738,7 @@ def test_fragpipe_excludes_decoys_and_contaminants_by_default() -> None:
         ptmprophet_position_reference="protein",
     )
 
-    filtering = result.diagnostics["fragpipe"]["filtering"]
+    filtering = _fragpipe_diagnostics(result)["filtering"]
     assert filtering["input_row_count"] == 6
     assert filtering["contaminant_rows"] == 1
     assert filtering["decoy_rows"] == 1
@@ -325,16 +772,8 @@ def test_fragpipe_excludes_decoys_and_contaminants_by_default() -> None:
     assert report.flagged_rows.decoy.count == 1
     assert report.flagged_rows.decoy.source_column == "Decoy"
     assert report.flagged_rows.decoy.policy == "remove"
-    assert (
-        report.format_specific["fragpipe_ptmprophet"]["filtering"]["decoy_prefix_rows"]
-        == 1
-    )
-    assert (
-        report.format_specific["fragpipe_ptmprophet"]["adaptation"][
-            "ambiguous_localisation_rows"
-        ]
-        == 1
-    )
+    assert _fragpipe_report(result)["filtering"]["decoy_prefix_rows"] == 1
+    assert _fragpipe_report(result)["adaptation"]["ambiguous_localisation_rows"] == 1
     assert report.warnings == result.warnings
 
 
@@ -364,7 +803,7 @@ def test_fragpipe_can_flag_decoys_and_contaminants_when_requested() -> None:
         False,
         True,
     ]
-    assert result.diagnostics["fragpipe"]["filtering"]["removed_rows"] == 0
+    assert _fragpipe_diagnostics(result)["filtering"]["removed_rows"] == 0
     assert result.quality_report.rows_retained == 6
     assert result.quality_report.rows_dropped == 0
     assert result.quality_report.flagged_rows.contaminant.policy == "flag"

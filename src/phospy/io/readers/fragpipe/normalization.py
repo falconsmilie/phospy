@@ -3,12 +3,16 @@
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
+from phospy.errors.input import PhosPyInputError
 from phospy.io.readers._table_parsing import (
     build_row_ids,
     build_unique_feature_ids,
     first_list_token,
+    is_missing,
     multi_value_count,
     optional_text,
     required_text,
@@ -25,6 +29,7 @@ from phospy.io.readers.fragpipe.constants import (
     _ADAPTED_PEPTIDE_SITE_STRING_COLUMN,
     _ADAPTED_PROTEIN_ACCESSION_COLUMN,
     _ADAPTED_PROTEIN_ID_COLUMN,
+    _ADAPTED_QUANTIFICATION_DEPTH_COLUMN,
     _ADAPTED_ROW_ID_COLUMN,
     _ADAPTED_SITE_COLUMN,
     _ADAPTED_SITE_PROBABILITIES_COLUMN,
@@ -36,6 +41,10 @@ from phospy.io.readers.fragpipe.conversion import (
     _resolve_site_call,
 )
 from phospy.io.readers.fragpipe.models import _ResolvedFragPipeColumns
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
+)
 from phospy.science.evidence.modified_peptides import parse_modified_peptide_sequence
 
 
@@ -160,10 +169,16 @@ def _adapt_fragpipe_source(
             optional_text(value)
             for value in source.loc[:, resolved.site_sequence].tolist()
         ]
+    quantification_depth_diagnostics = _adapt_quantification_depth(
+        adapted=adapted,
+        source=source,
+        resolved=resolved,
+    )
 
     diagnostics = {
         "resolved_columns": _resolved_columns_payload(resolved),
         "ptmprophet_position_reference": ptmprophet_position_reference,
+        "quantification_depth": quantification_depth_diagnostics,
         "protein_group_rows_collapsed_to_first_accession": int(protein_group_rows),
         "peptide_sequence_mismatch_rows": int(peptide_sequence_mismatch_rows),
         "ambiguous_localisation_rows": int(sum(ambiguous_values)),
@@ -207,6 +222,111 @@ def _build_row_ids(
         importer_label="FragPipe",
         generated_prefix="fragpipe",
     )
+
+
+def _adapt_quantification_depth(
+    *,
+    adapted: pd.DataFrame,
+    source: pd.DataFrame,
+    resolved: _ResolvedFragPipeColumns,
+) -> dict[str, object]:
+    if resolved.quantification_depth is None:
+        return {
+            "status": "not_mapped",
+            "source_column": None,
+            "output_column": QUANTIFICATION_DEPTH_COLUMN,
+            "quantification_depth_kind": None,
+        }
+    values = _normalise_quantification_depth_source_values(
+        source.loc[:, resolved.quantification_depth],
+        source_column=resolved.quantification_depth,
+    )
+    adapted.loc[:, _ADAPTED_QUANTIFICATION_DEPTH_COLUMN] = pd.Series(
+        values,
+        index=adapted.index.copy(),
+        dtype=float,
+    )
+    return {
+        "status": "reported",
+        "source_column": resolved.quantification_depth,
+        "adapted_column": _ADAPTED_QUANTIFICATION_DEPTH_COLUMN,
+        "output_column": QUANTIFICATION_DEPTH_COLUMN,
+        "quantification_depth_kind": resolved.quantification_depth_kind,
+        "row_count": int(len(values)),
+        "missing_count": 0,
+        "minimum_count": float(min(values)),
+        "maximum_count": float(max(values)),
+    }
+
+
+def _normalise_quantification_depth_source_values(
+    series: pd.Series,
+    *,
+    source_column: str,
+) -> list[float]:
+    return [
+        _normalise_quantification_depth_value(
+            value,
+            source_column=source_column,
+            row_position=position,
+        )
+        for position, value in enumerate(series.tolist())
+    ]
+
+
+def _normalise_quantification_depth_value(
+    value: object,
+    *,
+    source_column: str,
+    row_position: int,
+) -> float:
+    field_name = f"FragPipe {source_column} quantification_depth"
+    if _is_missing_quantification_depth_value(value):
+        raise PhosPyInputError(
+            f"{field_name} must not contain missing values; row_position={row_position}"
+        )
+    if isinstance(value, bool) or type(value).__name__ == "bool_":
+        raise PhosPyInputError(
+            f"{field_name} must contain numeric count values, not booleans; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    try:
+        numeric = float(str(value).strip())
+    except (TypeError, ValueError) as exc:
+        raise PhosPyInputError(
+            f"{field_name} must contain numeric count values; "
+            f"row_position={row_position}, offending_value={value!r}"
+        ) from exc
+    if not math.isfinite(numeric):
+        raise PhosPyInputError(
+            f"{field_name} must contain finite numeric count values; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    if numeric < 1.0:
+        raise PhosPyInputError(
+            f"{field_name} values must be >= 1; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    if not math.isclose(
+        numeric,
+        round(numeric),
+        rel_tol=0.0,
+        abs_tol=QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
+    ):
+        raise PhosPyInputError(
+            f"{field_name} count values must be integer-valued within tolerance "
+            f"{QUANTIFICATION_DEPTH_INTEGER_TOLERANCE:g}; "
+            f"row_position={row_position}, offending_value={value!r}"
+        )
+    return float(round(numeric))
+
+
+def _is_missing_quantification_depth_value(value: object) -> bool:
+    if is_missing(value):
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() in {"", "na", "n/a", "nan", "null"}
+    return False
 
 
 def _build_unique_feature_ids(

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 import pandas as pd
 
@@ -30,6 +31,10 @@ from phospy.io.readers.fragpipe.constants import (
 from phospy.io.readers.fragpipe.models import (
     FragPipeColumnMapping,
     _ResolvedFragPipeColumns,
+)
+from phospy.science.differential.models import (
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+    QuantificationDepthKind,
 )
 from phospy.validation.datasets.fragpipe import validate_optional_fragpipe_column_name
 
@@ -79,6 +84,17 @@ def _resolve_fragpipe_columns(
         source,
         mapping.intensity_columns,
         intensity_column_prefixes=intensity_column_prefixes,
+    )
+    quantification_depth = _resolve_column(
+        columns,
+        explicit=mapping.quantification_depth,
+        candidates=(),
+        field_name="fragpipe column_mapping.quantification_depth",
+        required=False,
+    )
+    quantification_depth_kind = _resolve_quantification_depth_kind(
+        mapping.quantification_depth_kind,
+        source_column=quantification_depth,
     )
     return _ResolvedFragPipeColumns(
         protein_accession=protein_accession,
@@ -136,6 +152,8 @@ def _resolve_fragpipe_columns(
             field_name="fragpipe column_mapping.unique_feature_id",
             required=False,
         ),
+        quantification_depth=quantification_depth,
+        quantification_depth_kind=quantification_depth_kind,
     )
 
 
@@ -192,6 +210,31 @@ def _resolve_intensity_columns(
     )
 
 
+def _resolve_quantification_depth_kind(
+    value: object,
+    *,
+    source_column: str | None,
+) -> QuantificationDepthKind | None:
+    if source_column is None:
+        if value is None:
+            return None
+        raise PhosPyInputError(
+            "fragpipe column_mapping.quantification_depth_kind requires "
+            "column_mapping.quantification_depth"
+        )
+    if not isinstance(value, str) or value.strip() not in (
+        SUPPORTED_QUANTIFICATION_DEPTH_KINDS
+    ):
+        supported = ", ".join(
+            repr(item) for item in SUPPORTED_QUANTIFICATION_DEPTH_KINDS
+        )
+        raise PhosPyInputError(
+            "fragpipe column_mapping.quantification_depth_kind must be one of "
+            f"{supported} when column_mapping.quantification_depth is provided"
+        )
+    return cast(QuantificationDepthKind, value.strip())
+
+
 def _resolved_columns_payload(resolved: _ResolvedFragPipeColumns) -> dict[str, object]:
     return {
         "protein_accession": resolved.protein_accession,
@@ -207,6 +250,8 @@ def _resolved_columns_payload(resolved: _ResolvedFragPipeColumns) -> dict[str, o
         "decoy": resolved.decoy,
         "row_id": resolved.row_id,
         "unique_feature_id": resolved.unique_feature_id,
+        "quantification_depth": resolved.quantification_depth,
+        "quantification_depth_kind": resolved.quantification_depth_kind,
     }
 
 
