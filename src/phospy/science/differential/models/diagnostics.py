@@ -12,11 +12,17 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.frames.comparison import dataframe_equals, series_equals
+from phospy.frames.comparison import (
+    dataframe_equals,
+    optional_series_equals,
+    series_equals,
+)
 from phospy.frames.ownership import (
     export_dataframe,
+    export_optional_series,
     export_series,
     own_dataframe,
+    own_optional_series,
     own_series,
 )
 from phospy.frames.validation import (
@@ -197,6 +203,11 @@ class MeanVarianceTrendDiagnostics:
     __hash__ = object.__hash__
 
     mean_intensity: pd.Series
+    trend_covariate: pd.Series
+    trend_covariate_name: str
+    trend_covariate_transformation: str | None
+    quantification_depth: pd.Series | None
+    quantification_depth_kind: str | None
     log_residual_variance: pd.Series
     fitted_log_prior_variance: pd.Series
 
@@ -206,11 +217,30 @@ class MeanVarianceTrendDiagnostics:
         mean_intensity: pd.Series,
         log_residual_variance: pd.Series,
         fitted_log_prior_variance: pd.Series,
+        trend_covariate: pd.Series | None = None,
+        trend_covariate_name: str = "mean_intensity",
+        trend_covariate_transformation: str | None = None,
+        quantification_depth: pd.Series | None = None,
+        quantification_depth_kind: str | None = None,
         _assume_owned: bool = False,
     ) -> None:
         mean_intensity = own_series(
             mean_intensity,
             field_name="differential_result.mean_variance_trend.mean_intensity",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        if trend_covariate is None:
+            trend_covariate = mean_intensity
+        trend_covariate = own_series(
+            trend_covariate,
+            field_name="differential_result.mean_variance_trend.trend_covariate",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        quantification_depth = own_optional_series(
+            quantification_depth,
+            field_name="differential_result.mean_variance_trend.quantification_depth",
             error_type=PhosPyInputError,
             assume_owned=_assume_owned,
         )
@@ -235,12 +265,61 @@ class MeanVarianceTrendDiagnostics:
                 "mean-variance trend diagnostics index mismatch for mean_intensity and "
                 "log_residual_variance"
             )
+        if not mean_intensity.index.equals(trend_covariate.index):
+            raise PhosPyInputError(
+                "mean-variance trend diagnostics index mismatch for mean_intensity and "
+                "trend_covariate"
+            )
         if not mean_intensity.index.equals(fitted_log_prior_variance.index):
             raise PhosPyInputError(
                 "mean-variance trend diagnostics index mismatch for mean_intensity and "
                 "fitted_log_prior_variance"
             )
+        if quantification_depth is not None and not mean_intensity.index.equals(
+            quantification_depth.index
+        ):
+            raise PhosPyInputError(
+                "mean-variance trend diagnostics index mismatch for mean_intensity and "
+                "quantification_depth"
+            )
+        if quantification_depth is None and quantification_depth_kind is not None:
+            raise PhosPyInputError(
+                "mean-variance trend diagnostics quantification_depth_kind requires "
+                "quantification_depth"
+            )
+        if quantification_depth is not None and not quantification_depth_kind:
+            raise PhosPyInputError(
+                "mean-variance trend diagnostics quantification_depth requires "
+                "quantification_depth_kind"
+            )
+        if not str(trend_covariate_name):
+            raise PhosPyInputError(
+                "mean-variance trend diagnostics trend_covariate_name must be non-empty"
+            )
         object.__setattr__(self, "mean_intensity", mean_intensity)
+        object.__setattr__(self, "trend_covariate", trend_covariate)
+        object.__setattr__(
+            self,
+            "trend_covariate_name",
+            str(trend_covariate_name),
+        )
+        object.__setattr__(
+            self,
+            "trend_covariate_transformation",
+            (
+                None
+                if trend_covariate_transformation is None
+                else str(trend_covariate_transformation)
+            ),
+        )
+        object.__setattr__(self, "quantification_depth", quantification_depth)
+        object.__setattr__(
+            self,
+            "quantification_depth_kind",
+            None
+            if quantification_depth_kind is None
+            else str(quantification_depth_kind),
+        )
         object.__setattr__(self, "log_residual_variance", log_residual_variance)
         object.__setattr__(
             self,
@@ -250,6 +329,12 @@ class MeanVarianceTrendDiagnostics:
 
     def mean_intensity_series(self) -> pd.Series:
         return export_series(self.mean_intensity)
+
+    def trend_covariate_series(self) -> pd.Series:
+        return export_series(self.trend_covariate)
+
+    def quantification_depth_series(self) -> pd.Series | None:
+        return export_optional_series(self.quantification_depth)
 
     def log_residual_variance_series(self) -> pd.Series:
         return export_series(self.log_residual_variance)
@@ -264,6 +349,15 @@ class MeanVarianceTrendDiagnostics:
             return False
         return (
             series_equals(self.mean_intensity, other.mean_intensity)
+            and series_equals(self.trend_covariate, other.trend_covariate)
+            and self.trend_covariate_name == other.trend_covariate_name
+            and self.trend_covariate_transformation
+            == other.trend_covariate_transformation
+            and optional_series_equals(
+                self.quantification_depth,
+                other.quantification_depth,
+            )
+            and self.quantification_depth_kind == other.quantification_depth_kind
             and series_equals(
                 self.log_residual_variance,
                 other.log_residual_variance,

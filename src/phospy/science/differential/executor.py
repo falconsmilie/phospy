@@ -19,7 +19,10 @@ from phospy.science.differential.compound_symmetry_gls import (
 from phospy.science.differential.duplicate_correlation import (
     estimate_duplicate_correlation_reml_consensus,
 )
-from phospy.science.differential.empirical_bayes import fit_empirical_bayes
+from phospy.science.differential.empirical_bayes import (
+    EmpiricalBayesFit,
+    fit_empirical_bayes,
+)
 from phospy.science.differential.linear_model import (
     DifferentialDesignDecomposition,
     DifferentialDesignDecompositionError,
@@ -32,6 +35,13 @@ from phospy.science.differential.models import (
 )
 from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationConsensusResult,
+)
+from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
+    QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
 )
 from phospy.science.statistics.multiple_testing import adjust_p_values
 
@@ -82,6 +92,11 @@ class DifferentialAnalysisExecutor:
         coefficients = linear_fit.coefficients
         residual_variance = linear_fit.residual_variance
         mean_intensity = np.mean(response, axis=0)
+        trend_covariate = _resolve_empirical_bayes_trend_covariate(
+            request=request,
+            row_index=matrix_aligned.index,
+            mean_intensity=mean_intensity,
+        )
 
         try:
             eb_fit = fit_empirical_bayes(
@@ -90,7 +105,7 @@ class DifferentialAnalysisExecutor:
                 method=request.empirical_bayes.method,
                 trend=request.empirical_bayes.trend,
                 winsor_tail_p=request.empirical_bayes.winsor_tail_p,
-                trend_covariate=mean_intensity,
+                trend_covariate=trend_covariate,
             )
         except ValueError as error:
             raise PhosPyInputError(
@@ -214,26 +229,12 @@ class DifferentialAnalysisExecutor:
             prior_degrees_of_freedom=prior_dof_series,
             _assume_owned=True,
         )
-        trend_diagnostics: MeanVarianceTrendDiagnostics | None = None
-        if request.empirical_bayes.trend:
-            trend_diagnostics = MeanVarianceTrendDiagnostics(
-                mean_intensity=pd.Series(
-                    eb_fit.trend_covariate,
-                    index=row_index.copy(),
-                    name="mean_intensity",
-                ),
-                log_residual_variance=pd.Series(
-                    eb_fit.log_residual_variance,
-                    index=row_index.copy(),
-                    name="log_residual_variance",
-                ),
-                fitted_log_prior_variance=pd.Series(
-                    eb_fit.fitted_log_prior_variance,
-                    index=row_index.copy(),
-                    name="fitted_log_prior_variance",
-                ),
-                _assume_owned=True,
-            )
+        trend_diagnostics = _build_mean_variance_trend_diagnostics(
+            request=request,
+            eb_fit=eb_fit,
+            row_index=row_index,
+            mean_intensity=mean_intensity,
+        )
 
         return DifferentialComputationResult._from_owned(
             design_decomposition=design_decomposition,
@@ -414,7 +415,12 @@ def _duplicate_correlation_computation_result(
     row_index: pd.Index,
 ) -> DifferentialComputationResult:
     residual_variance = np.asarray(residual_variance, dtype=float)
-    trend_covariate = np.asarray(trend_covariate, dtype=float)
+    mean_intensity = np.asarray(trend_covariate, dtype=float)
+    resolved_trend_covariate = _resolve_empirical_bayes_trend_covariate(
+        request=request,
+        row_index=row_index,
+        mean_intensity=mean_intensity,
+    )
     invalid_residual_variance = ~np.isfinite(residual_variance) | (
         residual_variance <= 0.0
     )
@@ -431,7 +437,7 @@ def _duplicate_correlation_computation_result(
             method=request.empirical_bayes.method,
             trend=request.empirical_bayes.trend,
             winsor_tail_p=request.empirical_bayes.winsor_tail_p,
-            trend_covariate=trend_covariate,
+            trend_covariate=resolved_trend_covariate,
         )
     except ValueError as error:
         raise PhosPyInputError(
@@ -556,26 +562,12 @@ def _duplicate_correlation_computation_result(
         prior_degrees_of_freedom=prior_dof_series,
         _assume_owned=True,
     )
-    trend_diagnostics: MeanVarianceTrendDiagnostics | None = None
-    if request.empirical_bayes.trend:
-        trend_diagnostics = MeanVarianceTrendDiagnostics(
-            mean_intensity=pd.Series(
-                eb_fit.trend_covariate,
-                index=row_index.copy(),
-                name="mean_intensity",
-            ),
-            log_residual_variance=pd.Series(
-                eb_fit.log_residual_variance,
-                index=row_index.copy(),
-                name="log_residual_variance",
-            ),
-            fitted_log_prior_variance=pd.Series(
-                eb_fit.fitted_log_prior_variance,
-                index=row_index.copy(),
-                name="fitted_log_prior_variance",
-            ),
-            _assume_owned=True,
-        )
+    trend_diagnostics = _build_mean_variance_trend_diagnostics(
+        request=request,
+        eb_fit=eb_fit,
+        row_index=row_index,
+        mean_intensity=mean_intensity,
+    )
 
     return DifferentialComputationResult._from_owned(
         design_decomposition=design_decomposition,
@@ -593,6 +585,121 @@ def _duplicate_correlation_computation_result(
         mean_variance_trend_diagnostics=trend_diagnostics,
         contrast_tables=contrast_tables,
     )
+
+
+def _resolve_empirical_bayes_trend_covariate(
+    *,
+    request: DifferentialAnalysisRequest,
+    row_index: pd.Index,
+    mean_intensity: np.ndarray,
+) -> np.ndarray:
+    if (
+        request.empirical_bayes.trend_covariate
+        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        trend_covariate = request.variance_trend_covariate
+        if trend_covariate is None:
+            raise PhosPyInputError(
+                "differential.variance_trend_covariate must be provided for "
+                "quantification-depth empirical-Bayes variance trends"
+            )
+        if not trend_covariate.index.equals(row_index):
+            raise PhosPyInputError(
+                "differential.variance_trend_covariate.index must match the "
+                "differential matrix feature index"
+            )
+        return np.asarray(trend_covariate.to_numpy(dtype=float), dtype=float)
+    return np.asarray(mean_intensity, dtype=float)
+
+
+def _build_mean_variance_trend_diagnostics(
+    *,
+    request: DifferentialAnalysisRequest,
+    eb_fit: EmpiricalBayesFit,
+    row_index: pd.Index,
+    mean_intensity: np.ndarray,
+) -> MeanVarianceTrendDiagnostics | None:
+    if not request.empirical_bayes.trend:
+        return None
+    trend_covariate = _required_trend_array(
+        eb_fit.trend_covariate,
+        field_name="empirical-Bayes trend covariate",
+    )
+    log_residual_variance = _required_trend_array(
+        eb_fit.log_residual_variance,
+        field_name="empirical-Bayes log residual variance",
+    )
+    fitted_log_prior_variance = _required_trend_array(
+        eb_fit.fitted_log_prior_variance,
+        field_name="empirical-Bayes fitted log prior variance",
+    )
+    mean_intensity_series = pd.Series(
+        np.asarray(mean_intensity, dtype=float),
+        index=row_index.copy(),
+        name="mean_intensity",
+    )
+    if (
+        request.empirical_bayes.trend_covariate
+        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        quantification_depth = request.quantification_depth
+        if quantification_depth is None:
+            raise PhosPyInputError(
+                "differential.quantification_depth must be provided for "
+                "quantification-depth empirical-Bayes diagnostics"
+            )
+        if not quantification_depth.index.equals(row_index):
+            raise PhosPyInputError(
+                "differential.quantification_depth.index must match the "
+                "differential matrix feature index"
+            )
+        return MeanVarianceTrendDiagnostics(
+            mean_intensity=mean_intensity_series,
+            trend_covariate=pd.Series(
+                trend_covariate,
+                index=row_index.copy(),
+                name=QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME,
+            ),
+            trend_covariate_name=request.empirical_bayes.trend_covariate,
+            trend_covariate_transformation=QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
+            quantification_depth=quantification_depth,
+            quantification_depth_kind=request.empirical_bayes.quantification_depth_kind,
+            log_residual_variance=pd.Series(
+                log_residual_variance,
+                index=row_index.copy(),
+                name="log_residual_variance",
+            ),
+            fitted_log_prior_variance=pd.Series(
+                fitted_log_prior_variance,
+                index=row_index.copy(),
+                name="fitted_log_prior_variance",
+            ),
+            _assume_owned=True,
+        )
+    return MeanVarianceTrendDiagnostics(
+        mean_intensity=mean_intensity_series,
+        log_residual_variance=pd.Series(
+            log_residual_variance,
+            index=row_index.copy(),
+            name="log_residual_variance",
+        ),
+        fitted_log_prior_variance=pd.Series(
+            fitted_log_prior_variance,
+            index=row_index.copy(),
+            name="fitted_log_prior_variance",
+        ),
+        _assume_owned=True,
+    )
+
+
+def _required_trend_array(
+    values: np.ndarray | None,
+    *,
+    field_name: str,
+) -> np.ndarray:
+    if values is None:
+        raise PhosPyInputError(f"{field_name} was not produced")
+    return np.asarray(values, dtype=float)
 
 
 def _require_successful_duplicate_correlation_gls_fit(

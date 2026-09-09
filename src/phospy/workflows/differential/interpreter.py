@@ -5,14 +5,22 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.contracts.configs import DifferentialAnalysisConfig
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.differential.models import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     ContrastMatrix,
     DesignMatrix,
+    EmpiricalBayesConfig,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
+)
+from phospy.science.differential.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    log2_quantification_depth_series,
+    validate_quantification_depth_series,
 )
 from phospy.science.sites.identity_contracts import RESULT_IDENTITY_COLUMNS
 from phospy.validation.identity_contracts import (
@@ -24,6 +32,7 @@ from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )
 from phospy.workflows._pandas_typing import (
+    dataframe_column,
     dataframe_copy,
     dataframe_loc,
     dataframe_reindex,
@@ -222,6 +231,14 @@ class DifferentialAnalysisInterpreter:
             matrix=matrix_aligned,
             feature_ids=feature_eligibility_inputs.testable_feature_ids,
         )
+        (
+            variance_trend_covariate,
+            quantification_depth,
+        ) = _resolve_empirical_bayes_trend_covariates(
+            site_metadata=resolved_site_metadata,
+            feature_index=matrix_for_computation.index,
+            empirical_bayes=execution_config.empirical_bayes,
+        )
 
         rank = int(resolved_design_decomposition.rank)
         residual_dof = float(resolved_design_decomposition.residual_degrees_of_freedom)
@@ -260,6 +277,8 @@ class DifferentialAnalysisInterpreter:
             contrasts=execution_design.contrast_matrix,
             design_decomposition=resolved_design_decomposition,
             empirical_bayes=execution_config.empirical_bayes,
+            variance_trend_covariate=variance_trend_covariate,
+            quantification_depth=quantification_depth,
             multiple_testing_method=execution_config.multiple_testing_method,
         )
         resolved_workflow_provenance = with_input_intensity_scale_evidence(
@@ -433,6 +452,95 @@ def _build_result_identity_metadata(
     identity["site_key"] = site_key_list
     identity["display_id"] = display_id_list
     return identity
+
+
+def _resolve_empirical_bayes_trend_covariates(
+    *,
+    site_metadata: pd.DataFrame,
+    feature_index: pd.Index,
+    empirical_bayes: EmpiricalBayesConfig,
+) -> tuple[pd.Series | None, pd.Series | None]:
+    if (
+        empirical_bayes.trend_covariate
+        != EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return None, None
+    if QUANTIFICATION_DEPTH_COLUMN not in site_metadata.columns:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.quantification_depth_column",
+            next_action=(
+                "provide dataset.site_metadata['quantification_depth'] with one "
+                "explicit numeric count for every testable differential site"
+            ),
+            details={
+                "missing_column": QUANTIFICATION_DEPTH_COLUMN,
+                "expected_feature_count": int(feature_index.size),
+            },
+            message_prefix=(
+                "differential workflow boundary validation failed: missing "
+                "quantification_depth column for depth-aware empirical-Bayes "
+                "moderation"
+            ),
+        )
+    try:
+        aligned_depth_frame = dataframe_loc(
+            site_metadata,
+            rows=feature_index,
+            columns=[QUANTIFICATION_DEPTH_COLUMN],
+        )
+    except KeyError as exc:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.quantification_depth_alignment",
+            next_action=(
+                "ensure dataset.site_metadata is indexed by the exact site_key "
+                "labels used by the differential matrix"
+            ),
+            details={
+                "expected_feature_count": int(feature_index.size),
+                "column": QUANTIFICATION_DEPTH_COLUMN,
+            },
+            message_prefix="differential workflow boundary validation failed",
+        ) from exc
+    if not aligned_depth_frame.index.equals(feature_index):
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.quantification_depth_alignment",
+            next_action=(
+                "ensure dataset.site_metadata quantification_depth can be aligned "
+                "to the exact differential matrix site_key order"
+            ),
+            details={
+                "expected_feature_count": int(feature_index.size),
+                "actual_feature_count": int(aligned_depth_frame.index.size),
+            },
+            message_prefix="differential workflow boundary validation failed",
+        )
+    raw_depth = dataframe_column(aligned_depth_frame, QUANTIFICATION_DEPTH_COLUMN)
+    field_name = (
+        "differential workflow request dataset.site_metadata.quantification_depth"
+    )
+    try:
+        quantification_depth = validate_quantification_depth_series(
+            raw_depth,
+            field_name=field_name,
+            expected_index=feature_index,
+        )
+        variance_trend_covariate = log2_quantification_depth_series(
+            quantification_depth,
+            field_name=field_name,
+            expected_index=feature_index,
+        )
+    except PhosPyInputError as exc:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.quantification_depth",
+            next_action=(
+                "provide finite numeric integer count values >= 1 in "
+                "dataset.site_metadata['quantification_depth'] for every "
+                "testable differential site"
+            ),
+            details={"error": str(exc)},
+            message_prefix="differential workflow boundary validation failed",
+        ) from exc
+    return variance_trend_covariate, quantification_depth
 
 
 def _prefer_site_key_index_for_differential_results(

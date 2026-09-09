@@ -18,8 +18,17 @@ from phospy.science.differential.models.diagnostics import (
 from phospy.science.differential.models.empirical_bayes_config import (
     EMPIRICAL_BAYES_METHOD_ROBUST,
     EMPIRICAL_BAYES_METHOD_STANDARD,
+    EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
     SUPPORTED_EMPIRICAL_BAYES_METHODS,
+    SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES,
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
     EmpiricalBayesConfig,
+    EmpiricalBayesMethod,
+    EmpiricalBayesTrendCovariate,
+    QuantificationDepthKind,
 )
 from phospy.science.differential.models.fit import DifferentialComputationResult
 from phospy.science.differential.models.provenance import (
@@ -112,8 +121,17 @@ __all__ = [
     "DIFFERENTIAL_RESULT_WITHHELD_STATUSES",
     "EMPIRICAL_BAYES_METHOD_ROBUST",
     "EMPIRICAL_BAYES_METHOD_STANDARD",
+    "EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY",
+    "EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH",
+    "EmpiricalBayesMethod",
+    "EmpiricalBayesTrendCovariate",
     "EmpiricalBayesConfig",
     "EmpiricalBayesPriorDiagnostics",
     "MeanVarianceTrendDiagnostics",
+    "QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT",
+    "QUANTIFICATION_DEPTH_KIND_PSM_COUNT",
+    "QuantificationDepthKind",
     "SUPPORTED_EMPIRICAL_BAYES_METHODS",
+    "SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES",
+    "SUPPORTED_QUANTIFICATION_DEPTH_KINDS",
 ]

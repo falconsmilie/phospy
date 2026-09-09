@@ -25,6 +25,8 @@ from phospy.api import (
 )
 from phospy.contracts.configs import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+    PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
 )
 from phospy.errors import (
@@ -32,6 +34,7 @@ from phospy.errors import (
     PhosPyInputError,
     WorkflowValidationError,
 )
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.builders.preprocessing import (
     build_dataset_processing_state,
 )
@@ -43,6 +46,15 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+    EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES,
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+)
+from phospy.science.differential.models import (
+    DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
@@ -150,6 +162,21 @@ def _dataset(
     )
 
 
+def _dataset_with_quantification_depth(
+    depth_values: list[object] | pd.Series,
+    *,
+    matrix: pd.DataFrame | None = None,
+):
+    dataset = _dataset(matrix)
+    site_metadata = dataset.site_metadata
+    site_metadata["quantification_depth"] = depth_values
+    return supported_dataset(
+        phospho=dataset.phospho,
+        site_metadata=site_metadata,
+        intensity_scale_state=dataset.intensity_scale_state,
+    )
+
+
 def supported_dataset(
     *,
     phospho: pd.DataFrame,
@@ -238,6 +265,49 @@ def _design() -> ExperimentalDesign:
     )
 
 
+def _paired_duplicate_correlation_design() -> ExperimentalDesign:
+    return ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_donor_1",
+                block_id="donor_1",
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_donor_1",
+                block_id="donor_1",
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_donor_2",
+                block_id="donor_2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_donor_2",
+                block_id="donor_2",
+            ),
+            SampleDesignRecord(
+                sample_id="C_1",
+                condition="C",
+                biological_replicate_id="C_donor_3",
+                block_id="donor_3",
+            ),
+            SampleDesignRecord(
+                sample_id="C_2",
+                condition="C",
+                biological_replicate_id="C_donor_4",
+                block_id="donor_3",
+            ),
+        )
+    )
+
+
 def _contrasts() -> tuple[Contrast, ...]:
     return (
         Contrast(
@@ -262,6 +332,7 @@ def _request(
     multiple_testing: MultipleTestingConfig | None = None,
     minimum_condition_replicates: int = 2,
     reliability_profile: str = "production",
+    paired_design_policy: str = PAIRED_DESIGN_POLICY_REJECT,
     allow_suspicious_declared_input_scale: bool = False,
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
@@ -271,6 +342,7 @@ def _request(
         config=DifferentialAnalysisConfig(
             reliability_profile=reliability_profile,  # type: ignore[arg-type]
             minimum_condition_replicates=minimum_condition_replicates,
+            paired_design_policy=paired_design_policy,  # type: ignore[arg-type]
             allow_suspicious_declared_input_scale=(
                 allow_suspicious_declared_input_scale
             ),
@@ -845,6 +917,335 @@ def test_empirical_bayes_config_rejects_invalid_winsor_tail_values() -> None:
         match="empirical_bayes.winsor_tail_p values must sum to less than 1.0",
     ):
         EmpiricalBayesConfig(method="robust", winsor_tail_p=(0.5, 0.5))
+
+
+def _depth_empirical_bayes_config(
+    *,
+    method: str = "standard",
+    kind: str = QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+) -> EmpiricalBayesConfig:
+    return EmpiricalBayesConfig(
+        method=method,  # type: ignore[arg-type]
+        trend=True,
+        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        quantification_depth_kind=kind,  # type: ignore[arg-type]
+    )
+
+
+def _assert_depth_trend_diagnostics(
+    result,
+    *,
+    expected_depth: list[float],
+    kind: str,
+) -> None:
+    diagnostics = result.mean_variance_trend_diagnostics
+    assert diagnostics is not None
+    expected_index = _dataset().phospho.index
+    expected_depth_series = pd.Series(
+        expected_depth,
+        index=expected_index.copy(),
+        name="quantification_depth",
+    )
+    expected_log_depth_series = pd.Series(
+        np.log2(np.asarray(expected_depth, dtype=float)),
+        index=expected_index.copy(),
+        name="log2_quantification_depth",
+    )
+    assert diagnostics.trend_covariate_name == "quantification_depth"
+    assert diagnostics.trend_covariate_transformation == "log2"
+    assert diagnostics.quantification_depth_kind == kind
+    pdt.assert_series_equal(
+        diagnostics.quantification_depth,
+        expected_depth_series,
+        check_dtype=False,
+    )
+    pdt.assert_series_equal(
+        diagnostics.trend_covariate,
+        expected_log_depth_series,
+        check_dtype=False,
+    )
+
+
+def test_empirical_bayes_trend_covariate_constants_are_supported() -> None:
+    assert set(SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES) == {
+        EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+        EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    }
+    assert set(SUPPORTED_QUANTIFICATION_DEPTH_KINDS) == {
+        QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+        QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    }
+
+
+def test_empirical_bayes_config_rejects_depth_covariate_without_trend() -> None:
+    with pytest.raises(PhosPyInputError, match="trend must be True"):
+        EmpiricalBayesConfig(
+            trend=False,
+            trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+            quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+        )
+
+
+def test_empirical_bayes_config_rejects_missing_quantification_depth_kind() -> None:
+    with pytest.raises(PhosPyInputError, match="quantification_depth_kind"):
+        EmpiricalBayesConfig(
+            trend=True,
+            trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        )
+
+
+def test_empirical_bayes_config_rejects_unsupported_quantification_depth_kind() -> None:
+    with pytest.raises(PhosPyInputError, match="quantification_depth_kind"):
+        EmpiricalBayesConfig(
+            trend=True,
+            trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+            quantification_depth_kind="spectral_count",  # type: ignore[arg-type]
+        )
+
+
+def test_empirical_bayes_config_rejects_depth_kind_for_mean_intensity_mode() -> None:
+    with pytest.raises(PhosPyInputError, match="must be None"):
+        EmpiricalBayesConfig(
+            trend=True,
+            trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+            quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+        )
+
+
+def test_standard_empirical_bayes_accepts_psm_count_depth() -> None:
+    depth = [1.0, 2.0, 4.0, 8.0, 16.0]
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset_with_quantification_depth(depth),
+            empirical_bayes=_depth_empirical_bayes_config(
+                kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+            ),
+        )
+    )
+
+    assert result.empirical_bayes_trend is True
+    assert result.empirical_bayes_robust is False
+    _assert_depth_trend_diagnostics(
+        result,
+        expected_depth=depth,
+        kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    )
+
+
+def test_robust_empirical_bayes_accepts_peptide_count_depth() -> None:
+    depth = [3.0, 6.0, 6.0, 12.0, 24.0]
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset_with_quantification_depth(depth),
+            empirical_bayes=_depth_empirical_bayes_config(
+                method="robust",
+                kind=QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+            ),
+        )
+    )
+
+    assert result.empirical_bayes_trend is True
+    assert result.empirical_bayes_robust is True
+    _assert_depth_trend_diagnostics(
+        result,
+        expected_depth=depth,
+        kind=QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    )
+
+
+def test_depth_trend_alignment_uses_site_key_identity_when_source_order_differs() -> (
+    None
+):
+    dataset = _dataset()
+    site_index = dataset.phospho.index
+    reversed_depth_source = pd.Series(
+        [16.0, 8.0, 4.0, 2.0, 1.0],
+        index=list(reversed(site_index)),
+        name="quantification_depth",
+    )
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset_with_quantification_depth(reversed_depth_source),
+            empirical_bayes=_depth_empirical_bayes_config(),
+        )
+    )
+
+    _assert_depth_trend_diagnostics(
+        result,
+        expected_depth=[1.0, 2.0, 4.0, 8.0, 16.0],
+        kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    )
+
+
+def test_depth_trend_rejects_missing_quantification_depth_column() -> None:
+    with pytest.raises(WorkflowBoundaryError, match="missing quantification_depth"):
+        DifferentialAnalysisWorkflow().run(
+            _request(empirical_bayes=_depth_empirical_bayes_config())
+        )
+
+
+@pytest.mark.parametrize(
+    ("depth_values", "message"),
+    (
+        ([1.0, np.nan, 4.0, 8.0, 16.0], "missing values"),
+        ([0.0, 2.0, 4.0, 8.0, 16.0], ">= 1"),
+        ([-1.0, 2.0, 4.0, 8.0, 16.0], ">= 1"),
+        ([1.0, np.inf, 4.0, 8.0, 16.0], "finite numeric"),
+        ([1.0, "bad", 4.0, 8.0, 16.0], "numeric count values"),
+        ([1.0, 2.5, 4.0, 8.0, 16.0], "integer-valued"),
+    ),
+)
+def test_depth_trend_rejects_invalid_depth_values(
+    depth_values: list[object],
+    message: str,
+) -> None:
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        DifferentialAnalysisWorkflow().run(
+            _request(
+                dataset=_dataset_with_quantification_depth(depth_values),
+                empirical_bayes=_depth_empirical_bayes_config(),
+            )
+        )
+
+    assert message in str(exc_info.value)
+
+
+def test_depth_trend_rejects_internal_index_misalignment() -> None:
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(
+            _request(
+                dataset=_dataset_with_quantification_depth([1.0, 2.0, 4.0, 8.0, 16.0]),
+                empirical_bayes=_depth_empirical_bayes_config(),
+            )
+        )
+    )
+    computation_request = interpreted.computation_request
+    reversed_index = list(reversed(computation_request.matrix.index))
+    misaligned_depth = pd.Series(
+        [1.0, 2.0, 4.0, 8.0, 16.0],
+        index=reversed_index,
+        name="quantification_depth",
+    )
+    misaligned_log_depth = pd.Series(
+        np.log2(misaligned_depth.to_numpy(dtype=float)),
+        index=reversed_index,
+        name="log2_quantification_depth",
+    )
+
+    with pytest.raises(PhosPyInputError, match="variance_trend_covariate.index"):
+        DifferentialComputationRequest(
+            matrix=computation_request.matrix,
+            design=computation_request.design,
+            contrasts=computation_request.contrasts,
+            design_decomposition=computation_request.design_decomposition,
+            empirical_bayes=_depth_empirical_bayes_config(),
+            variance_trend_covariate=misaligned_log_depth,
+            quantification_depth=misaligned_depth,
+            multiple_testing_method=computation_request.multiple_testing_method,
+        )
+
+
+def test_duplicate_correlation_empirical_bayes_accepts_depth_trend() -> None:
+    depth = [1.0, 2.0, 4.0, 8.0, 16.0]
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset_with_quantification_depth(depth),
+            design=_paired_duplicate_correlation_design(),
+            contrasts=(
+                Contrast(
+                    name="B_vs_A",
+                    numerator_condition="B",
+                    denominator_condition="A",
+                ),
+            ),
+            paired_design_policy=PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+            empirical_bayes=_depth_empirical_bayes_config(),
+        )
+    )
+
+    assert set(result.contrast_tables) == {"B_vs_A"}
+    _assert_depth_trend_diagnostics(
+        result,
+        expected_depth=depth,
+        kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    )
+
+
+def test_existing_mean_intensity_trend_results_are_unchanged() -> None:
+    matrix = _matrix().copy()
+    matrix.loc["MAPK14;Y182;"] = matrix.loc["MAPK14;Y182;"] * 0.1
+    matrix.loc["MTOR;S2448;"] = matrix.loc["MTOR;S2448;"] * 4.0
+    implicit = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset(matrix),
+            empirical_bayes=EmpiricalBayesConfig(method="standard", trend=True),
+        )
+    )
+    explicit = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset(matrix),
+            empirical_bayes=EmpiricalBayesConfig(
+                method="standard",
+                trend=True,
+                trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+            ),
+        )
+    )
+
+    assert implicit.mean_variance_trend_diagnostics is not None
+    assert explicit.mean_variance_trend_diagnostics is not None
+    assert implicit.mean_variance_trend_diagnostics.trend_covariate_name == (
+        "mean_intensity"
+    )
+    pdt.assert_series_equal(
+        implicit.mean_variance_trend_diagnostics.mean_intensity,
+        implicit.mean_variance_trend_diagnostics.trend_covariate,
+    )
+    pdt.assert_series_equal(
+        implicit.prior_residual_variance_series(),
+        explicit.prior_residual_variance_series(),
+        check_exact=False,
+        rtol=1e-12,
+        atol=0.0,
+    )
+    for contrast_name in ("B_vs_A", "C_vs_A"):
+        pdt.assert_frame_equal(
+            implicit.table_for(contrast_name),
+            explicit.table_for(contrast_name),
+            check_exact=False,
+            rtol=1e-12,
+            atol=0.0,
+        )
+
+
+def test_existing_default_nontrend_results_are_unchanged() -> None:
+    default = DifferentialAnalysisWorkflow().run(_request())
+    explicit = DifferentialAnalysisWorkflow().run(
+        _request(
+            empirical_bayes=EmpiricalBayesConfig(
+                trend=False,
+                trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+            )
+        )
+    )
+
+    assert default.mean_variance_trend_diagnostics is None
+    assert explicit.mean_variance_trend_diagnostics is None
+    pdt.assert_series_equal(
+        default.prior_residual_variance_series(),
+        explicit.prior_residual_variance_series(),
+        check_exact=False,
+        rtol=1e-12,
+        atol=0.0,
+    )
+    for contrast_name in ("B_vs_A", "C_vs_A"):
+        pdt.assert_frame_equal(
+            default.table_for(contrast_name),
+            explicit.table_for(contrast_name),
+            check_exact=False,
+            rtol=1e-12,
+            atol=0.0,
+        )
 
 
 def test_robust_mode_downweights_variance_outlier() -> None:

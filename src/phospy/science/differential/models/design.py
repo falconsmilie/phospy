@@ -10,10 +10,15 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.frames.comparison import dataframe_equals, optional_series_equals
+from phospy.frames.ownership import (
+    export_dataframe,
+    own_dataframe,
+    own_optional_series,
+)
 from phospy.frames.validation import (
     require_dataframe,
+    require_exact_index_match,
     require_finite_numeric_dataframe,
     require_non_empty_dataframe,
     require_numeric_dataframe,
@@ -26,7 +31,11 @@ from phospy.science.differential.linear_model import (
     decompose_differential_design,
 )
 from phospy.science.differential.models.empirical_bayes_config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     EmpiricalBayesConfig,
+)
+from phospy.science.differential.quantification_depth import (
+    validate_quantification_depth_series,
 )
 from phospy.science.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
@@ -119,6 +128,8 @@ class DifferentialAnalysisRequest:
     contrasts: ContrastMatrix | pd.DataFrame
     design_decomposition: DifferentialDesignDecomposition | None = None
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
+    variance_trend_covariate: pd.Series | None = None
+    quantification_depth: pd.Series | None = None
     multiple_testing_method: MultipleTestingCorrection = (
         MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
     )
@@ -135,6 +146,8 @@ class DifferentialAnalysisRequest:
         contrasts: ContrastMatrix | pd.DataFrame,
         design_decomposition: DifferentialDesignDecomposition | None = None,
         empirical_bayes: EmpiricalBayesConfig | None = None,
+        variance_trend_covariate: pd.Series | None = None,
+        quantification_depth: pd.Series | None = None,
         multiple_testing_method: MultipleTestingCorrection = (
             MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
         ),
@@ -149,6 +162,10 @@ class DifferentialAnalysisRequest:
             "empirical_bayes",
             empirical_bayes if empirical_bayes is not None else EmpiricalBayesConfig(),
         )
+        object.__setattr__(
+            request, "variance_trend_covariate", variance_trend_covariate
+        )
+        object.__setattr__(request, "quantification_depth", quantification_depth)
         object.__setattr__(
             request,
             "multiple_testing_method",
@@ -218,6 +235,54 @@ class DifferentialAnalysisRequest:
             raise PhosPyInputError(
                 "differential.empirical_bayes must be an EmpiricalBayesConfig"
             )
+        empirical_bayes = self.empirical_bayes
+        variance_trend_covariate = own_optional_series(
+            self.variance_trend_covariate,
+            field_name="differential.variance_trend_covariate",
+            error_type=PhosPyInputError,
+            assume_owned=assume_matrix_owned,
+        )
+        quantification_depth = own_optional_series(
+            self.quantification_depth,
+            field_name="differential.quantification_depth",
+            error_type=PhosPyInputError,
+            assume_owned=assume_matrix_owned,
+        )
+        if (
+            empirical_bayes.trend_covariate
+            == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+        ):
+            if variance_trend_covariate is None:
+                raise PhosPyInputError(
+                    "differential.variance_trend_covariate must be provided when "
+                    "empirical_bayes.trend_covariate is 'quantification_depth'"
+                )
+            _validate_variance_trend_covariate(
+                variance_trend_covariate,
+                matrix_index=matrix.index,
+                field_name="differential.variance_trend_covariate",
+            )
+            if quantification_depth is None:
+                raise PhosPyInputError(
+                    "differential.quantification_depth must be provided when "
+                    "empirical_bayes.trend_covariate is 'quantification_depth'"
+                )
+            quantification_depth = validate_quantification_depth_series(
+                quantification_depth,
+                field_name="differential.quantification_depth",
+                expected_index=matrix.index,
+            )
+        else:
+            if variance_trend_covariate is not None:
+                raise PhosPyInputError(
+                    "differential.variance_trend_covariate is only valid when "
+                    "empirical_bayes.trend_covariate is 'quantification_depth'"
+                )
+            if quantification_depth is not None:
+                raise PhosPyInputError(
+                    "differential.quantification_depth is only valid when "
+                    "empirical_bayes.trend_covariate is 'quantification_depth'"
+                )
         object.__setattr__(self, "matrix", matrix)
         object.__setattr__(self, "design", design)
         object.__setattr__(self, "contrasts", contrasts)
@@ -226,6 +291,12 @@ class DifferentialAnalysisRequest:
             "design_decomposition",
             design_decomposition,
         )
+        object.__setattr__(
+            self,
+            "variance_trend_covariate",
+            variance_trend_covariate,
+        )
+        object.__setattr__(self, "quantification_depth", quantification_depth)
 
     def scientifically_equals(self, other: object) -> bool:
         """Return ``True`` when another request has the same scientific content."""
@@ -251,6 +322,14 @@ class DifferentialAnalysisRequest:
                 other.design_decomposition,
             )
             and self.empirical_bayes == other.empirical_bayes
+            and optional_series_equals(
+                self.variance_trend_covariate,
+                other.variance_trend_covariate,
+            )
+            and optional_series_equals(
+                self.quantification_depth,
+                other.quantification_depth,
+            )
             and self.multiple_testing_method == other.multiple_testing_method
         )
 
@@ -291,6 +370,29 @@ def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
         field_name=field_name,
         error_type=PhosPyInputError,
     )
+    require_finite_numeric_dataframe(
+        frame,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+        allow_missing=False,
+    )
+
+
+def _validate_variance_trend_covariate(
+    series: pd.Series,
+    *,
+    matrix_index: pd.Index,
+    field_name: str,
+) -> None:
+    require_exact_index_match(
+        left=series.index,
+        right=matrix_index,
+        left_name=f"{field_name}.index",
+        right_name="differential.matrix.index",
+        error_type=PhosPyInputError,
+    )
+    frame = pd.DataFrame({"value": series}, index=series.index.copy())
+    require_numeric_dataframe(frame, field_name=field_name, error_type=PhosPyInputError)
     require_finite_numeric_dataframe(
         frame,
         field_name=field_name,

@@ -1560,6 +1560,21 @@ def _expand_trend_diagnostics_to_full_index(
             diagnostics.mean_intensity,
             full_index=full_index,
         ),
+        trend_covariate=_expand_series_to_full_index(
+            diagnostics.trend_covariate,
+            full_index=full_index,
+        ),
+        trend_covariate_name=diagnostics.trend_covariate_name,
+        trend_covariate_transformation=diagnostics.trend_covariate_transformation,
+        quantification_depth=(
+            None
+            if diagnostics.quantification_depth is None
+            else _expand_series_to_full_index(
+                diagnostics.quantification_depth,
+                full_index=full_index,
+            )
+        ),
+        quantification_depth_kind=diagnostics.quantification_depth_kind,
         log_residual_variance=_expand_series_to_full_index(
             diagnostics.log_residual_variance,
             full_index=full_index,

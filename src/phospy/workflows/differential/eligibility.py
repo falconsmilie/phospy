@@ -380,7 +380,32 @@ def _filter_computation_request_for_feature_ids(
         contrasts=computation_request.contrasts,
         design_decomposition=computation_request.design_decomposition,
         empirical_bayes=computation_request.empirical_bayes,
+        variance_trend_covariate=_filter_optional_feature_series(
+            computation_request.variance_trend_covariate,
+            feature_ids=tuple(testable_feature_ids),
+            row_positions=tuple(row_positions),
+        ),
+        quantification_depth=_filter_optional_feature_series(
+            computation_request.quantification_depth,
+            feature_ids=tuple(testable_feature_ids),
+            row_positions=tuple(row_positions),
+        ),
         multiple_testing_method=computation_request.multiple_testing_method,
+    )
+
+
+def _filter_optional_feature_series(
+    series: pd.Series | None,
+    *,
+    feature_ids: tuple[str, ...],
+    row_positions: tuple[int, ...],
+) -> pd.Series | None:
+    if series is None:
+        return None
+    return pd.Series(
+        series.to_numpy(copy=False)[list(row_positions)],
+        index=pd.Index(feature_ids, name=series.index.name),
+        name=series.name,
     )
 
 
