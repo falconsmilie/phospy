@@ -32,7 +32,7 @@ pytestmark = pytest.mark.release_gate
 
 ROOT = Path(__file__).resolve().parents[2]
 CONSTRAINT = ROOT / "constraints" / "ci.txt"
-CURRENT_RELEASE_VERSION = "1.7.2"
+CURRENT_RELEASE_VERSION = "1.7.3"
 WHEEL_DECLARED_RESOURCE = (
     "phospy/data/reference_bundles/rat/l6_native/substrate_map.csv"
 )

@@ -34,8 +34,11 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 for _path in (ROOT, SRC):
-    if str(_path) not in sys.path:
-        sys.path.insert(0, str(_path))
+    _path_string = str(_path)
+    while _path_string in sys.path:
+        sys.path.remove(_path_string)
+for _path in (ROOT, SRC):
+    sys.path.insert(0, str(_path))
 
 import phospy
 from phospy import (

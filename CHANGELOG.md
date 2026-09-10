@@ -2,6 +2,48 @@
 
 All notable changes to this project are documented here.
 
+## [1.7.3] - 2026-09-10
+
+### Added
+
+- Added opt-in quantification-depth-aware empirical-Bayes moderation for
+  differential analysis. Callers can select
+  `EmpiricalBayesConfig(trend=True, trend_covariate="quantification_depth",
+  quantification_depth_kind=...)` to model feature-specific prior variance
+  against `log2(site_metadata["quantification_depth"])`; supported depth kinds
+  are `psm_count` and `peptide_count`.
+- Added depth-aware moderation support across ordinary differential analysis,
+  robust empirical Bayes, duplicate-correlation analysis, and the experimental
+  protein-aware differential lane.
+- Added separate quantification-depth trend diagnostics and empirical-Bayes
+  provenance for the selected trend covariate, depth kind, depth
+  transformation, empirical-Bayes method, robust mode, and winsor settings,
+  without conflating depth diagnostics with mean-intensity trend diagnostics.
+- Added explicit MaxQuant and FragPipe/PTMProphet quantification-depth mapping
+  through `quantification_depth` and `quantification_depth_kind`, with
+  conservative site-level handling for ambiguous or conflicting site evidence.
+- Added a checked-in R/DEqMS `spectraCounteBayes` reference fixture and
+  release-gated validation for DEqMS-inspired quantification-depth-aware
+  empirical Bayes, without claiming exact DEqMS numerical or API compatibility.
+
+### Changed
+
+- Preserved existing empirical-Bayes behavior: `EmpiricalBayesConfig()` still
+  uses the global prior, `EmpiricalBayesConfig(trend=True)` still selects the
+  existing mean-intensity variance trend, and quantification-depth moderation is
+  a new optional trend mode.
+- Clarified differential-analysis and importer documentation around the depth
+  metadata contract. Valid quantification depth is required only for features
+  that enter differential testing and empirical-Bayes moderation; features
+  withheld before testing may still appear in re-expanded results with missing
+  quantification-depth trend diagnostics.
+
+### Fixed
+
+- Rejected invalid or non-finite empirical-Bayes trend covariates before
+  fitting and made canonical `site_metadata["quantification_depth"]` the
+  authority for quantification-depth trend moderation.
+
 ## [1.7.2] - 2026-09-08
 
 ### Added
