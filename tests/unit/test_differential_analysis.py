@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -41,6 +43,7 @@ from phospy.science.datasets.builders.preprocessing import (
 from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
@@ -52,6 +55,9 @@ from phospy.science.differential.models import (
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
     SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES,
     SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+    ContrastMatrix,
+    DesignMatrix,
+    DifferentialAnalysisResult,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
@@ -129,7 +135,7 @@ def _dataset(
     matrix: pd.DataFrame | None = None,
     *,
     intensity_scale_state: IntensityScaleState | None = None,
-):
+) -> AnalysisReadyPhosphoDataset:
     phospho = _matrix() if matrix is None else matrix
     display_ids = phospho.index.astype(str).tolist()
     gene_site = [site_id.split(";") for site_id in display_ids]
@@ -163,13 +169,21 @@ def _dataset(
 
 
 def _dataset_with_quantification_depth(
-    depth_values: list[object] | pd.Series,
+    depth_values: Sequence[object] | pd.Series,
     *,
     matrix: pd.DataFrame | None = None,
-):
+) -> AnalysisReadyPhosphoDataset:
     dataset = _dataset(matrix)
     site_metadata = dataset.site_metadata
-    site_metadata["quantification_depth"] = depth_values
+    if isinstance(depth_values, pd.Series):
+        depth_series = depth_values.rename("quantification_depth")
+    else:
+        depth_series = pd.Series(
+            list(depth_values),
+            index=site_metadata.index,
+            name="quantification_depth",
+        )
+    site_metadata["quantification_depth"] = depth_series
     return supported_dataset(
         phospho=dataset.phospho,
         site_metadata=site_metadata,
@@ -182,7 +196,7 @@ def supported_dataset(
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
     intensity_scale_state: IntensityScaleState | None = None,
-):
+) -> AnalysisReadyPhosphoDataset:
 
     if intensity_scale_state is None:
         intensity_scale_state = supported_log2_intensity_scale_state(
@@ -222,7 +236,9 @@ def _declared_log2_intensity_scale_state(
     )
 
 
-def _phospy_transformed_log2_dataset(phospho: pd.DataFrame):
+def _phospy_transformed_log2_dataset(
+    phospho: pd.DataFrame,
+) -> AnalysisReadyPhosphoDataset:
     resolved = DatasetIntensityScaleResolver(
         transformer=Log2Transformer(pseudocount=1.0)
     ).run(
@@ -325,7 +341,7 @@ def _contrasts() -> tuple[Contrast, ...]:
 
 def _request(
     *,
-    dataset=None,
+    dataset: AnalysisReadyPhosphoDataset | None = None,
     design: ExperimentalDesign | None = None,
     contrasts: tuple[Contrast, ...] | None = None,
     empirical_bayes: EmpiricalBayesConfig | None = None,
@@ -358,6 +374,18 @@ def _request(
             ),
         ),
     )
+
+
+def _computation_design_frame(
+    request: DifferentialComputationRequest,
+) -> pd.DataFrame:
+    return cast(DesignMatrix, request.design).to_dataframe()
+
+
+def _computation_contrasts_frame(
+    request: DifferentialComputationRequest,
+) -> pd.DataFrame:
+    return cast(ContrastMatrix, request.contrasts).to_dataframe()
 
 
 def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
@@ -639,11 +667,11 @@ def test_differential_interpreter_condition_only_design_inputs_remain_unchanged(
     expected_contrasts.columns = pd.Index(expected_contrasts.columns, name="contrast")
 
     pdt.assert_frame_equal(
-        interpreted.computation_request.design.to_dataframe(),
+        _computation_design_frame(interpreted.computation_request),
         expected_design,
     )
     pdt.assert_frame_equal(
-        interpreted.computation_request.contrasts.to_dataframe(),
+        _computation_contrasts_frame(interpreted.computation_request),
         expected_contrasts,
     )
     execution_design = interpreted.execution_design
@@ -738,7 +766,7 @@ def test_differential_interpreter_builds_categorical_covariate_inputs() -> None:
     assert execution_design is not None
 
     pdt.assert_frame_equal(
-        interpreted.computation_request.design.to_dataframe(),
+        _computation_design_frame(interpreted.computation_request),
         expected_design,
     )
     pdt.assert_frame_equal(
@@ -834,7 +862,7 @@ def test_differential_interpreter_builds_continuous_covariate_inputs() -> None:
     assert execution_design is not None
 
     pdt.assert_frame_equal(
-        interpreted.computation_request.design.to_dataframe(),
+        _computation_design_frame(interpreted.computation_request),
         expected_design,
     )
     pdt.assert_frame_equal(
@@ -939,9 +967,9 @@ def _depth_empirical_bayes_config(
 
 
 def _assert_depth_trend_diagnostics(
-    result,
+    result: DifferentialAnalysisResult,
     *,
-    expected_depth: list[float],
+    expected_depth: Sequence[float],
     kind: str,
 ) -> None:
     assert result.mean_variance_trend_diagnostics is None
@@ -1532,7 +1560,7 @@ def test_differential_analysis_fails_on_contrast_design_term_mismatch() -> None:
 
 def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None:
     matrix = _matrix().loc[:, ["A_1", "B_1", "C_1"]].copy(deep=True)
-    matrix.iloc[1, 1] += 0.05
+    matrix.loc["GSK3B;S9;", "B_1"] = 2.05
     design = _design_from_conditions(
         (
             ("A_1", "A"),

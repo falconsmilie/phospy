@@ -142,7 +142,15 @@ def _build_dataset(
         index=phospho.index.copy(),
     )
     if quantification_depth is not None:
-        site_metadata["quantification_depth"] = quantification_depth
+        if isinstance(quantification_depth, pd.Series):
+            depth_series = quantification_depth.rename("quantification_depth")
+        else:
+            depth_series = pd.Series(
+                list(quantification_depth),
+                index=site_metadata.index,
+                name="quantification_depth",
+            )
+        site_metadata["quantification_depth"] = depth_series
     total = pd.DataFrame(
         {
             sample_id: [
@@ -575,8 +583,9 @@ def test_differential_protein_aware_depth_rejects_invalid_tested_site() -> None:
             _request(dataset, empirical_bayes=_depth_empirical_bayes_config())
         )
 
-    assert "quantification_depth" in exc_info.value.details["error"]
-    assert ">= 1" in exc_info.value.details["error"]
+    error_detail = str(exc_info.value.details["error"])
+    assert "quantification_depth" in error_detail
+    assert ">= 1" in error_detail
 
 
 def test_differential_protein_aware_depth_rejects_missing_depth_column() -> None:
@@ -710,9 +719,9 @@ def test_differential_protein_aware_public_workflow_withholds_post_fit_failure()
     assert table.loc[failed_site_key, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] == (
         DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE
     )
-    assert (
-        table.loc[failed_site_key, ["logFC", "t", "P.Value", "adj.P.Val"]].isna().all()
-    )
+    failed_values = table.loc[failed_site_key]
+    missing_statistics = failed_values.loc[["logFC", "t", "P.Value", "adj.P.Val"]]
+    assert bool(np.asarray(missing_statistics.isna(), dtype=bool).all())
     assert np.isnan(float(result.residual_variance_series().loc[failed_site_key]))
 
     tested = table[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str) == (

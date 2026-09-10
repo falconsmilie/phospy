@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -26,6 +26,7 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    DifferentialAnalysisResult,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -74,7 +75,7 @@ DEPTH_GROUP_ADJ_P_VALUE_P99_ABS_DIFF_MAX = 6.0e-2
 
 
 @pytest.fixture(scope="module")
-def workflow_result() -> object:
+def workflow_result() -> DifferentialAnalysisResult:
     return _run_fixture_workflow()
 
 
@@ -179,7 +180,7 @@ def _design_from_matrix(design: pd.DataFrame) -> ExperimentalDesign:
     return ExperimentalDesign(samples=tuple(records))
 
 
-def _run_fixture_workflow() -> object:
+def _run_fixture_workflow() -> DifferentialAnalysisResult:
     matrix = _load_matrix()
     request = DifferentialAnalysisRequest(
         dataset=_dataset_from_matrix(matrix),
@@ -306,7 +307,7 @@ def test_deqms_depth_fixture_records_source_policy_versions_and_terminology() ->
 
 
 def test_depth_aware_moderation_matches_deqms_count_contract_with_tolerances(
-    workflow_result: object,
+    workflow_result: DifferentialAnalysisResult,
 ) -> None:
     result = workflow_result
     observed = result.table_for("B_vs_A")
@@ -453,7 +454,7 @@ def test_depth_aware_moderation_matches_deqms_count_contract_with_tolerances(
 
 @pytest.mark.parametrize("depth_group", ("lower_depth", "higher_depth"))
 def test_lower_and_higher_depth_sites_match_deqms_within_scientific_envelope(
-    workflow_result: object,
+    workflow_result: DifferentialAnalysisResult,
     depth_group: str,
 ) -> None:
     result = workflow_result
@@ -547,7 +548,7 @@ def test_lower_and_higher_depth_sites_match_deqms_within_scientific_envelope(
 
 
 def test_deqms_fixture_shows_depth_changes_prior_for_comparable_sites(
-    workflow_result: object,
+    workflow_result: DifferentialAnalysisResult,
 ) -> None:
     result = workflow_result
     observed = result.table_for("B_vs_A")
@@ -559,12 +560,9 @@ def test_deqms_fixture_shows_depth_changes_prior_for_comparable_sites(
     ]
 
     assert pair_metadata.index.size == 2
-    low_key = pair_metadata.index[
-        pair_metadata.loc[:, "quantification_depth"].astype(float).argmin()
-    ]
-    high_key = pair_metadata.index[
-        pair_metadata.loc[:, "quantification_depth"].astype(float).argmax()
-    ]
+    depth_values = pair_metadata.loc[:, "quantification_depth"].astype(float)
+    low_key = cast(str, pair_metadata.index[int(depth_values.argmin())])
+    high_key = cast(str, pair_metadata.index[int(depth_values.argmax())])
     low_display = str(pair_metadata.loc[low_key, "site_id"])
     high_display = str(pair_metadata.loc[high_key, "site_id"])
 

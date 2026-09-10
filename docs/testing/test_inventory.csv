@@ -30,7 +30,7 @@ tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration
 tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,,,,,
 tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1783,40,true,true,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,279,3,true,false,,,,,,
-tests/integration/test_differential_protein_aware_workflow.py,integration,794,18,true,false,,,,,,
+tests/integration/test_differential_protein_aware_workflow.py,integration,803,18,true,false,,,,,,
 tests/integration/test_differential_quantification_depth_workflow.py,integration,597,8,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,203,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
@@ -57,7 +57,7 @@ tests/parity/test_activity_stage_parity.py,parity,195,4,true,false,parity,keep,"
 tests/parity/test_adaptive_prediction_parity.py,parity,282,10,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_replay_parity.py,parity,251,1,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive replay parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_differential_analysis_parity.py,parity,226,2,true,false,parity,keep,"Loss of this file would remove Python-vs-reference parity guardrails for differential analysis, making release drift against accepted outputs unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
-tests/parity/test_differential_deqms_depth_parity.py,parity,603,5,true,true,,,,,,
+tests/parity/test_differential_deqms_depth_parity.py,parity,601,5,true,true,,,,,,
 tests/parity/test_differential_limma_parity.py,parity,337,6,true,false,,,,,,
 tests/parity/test_differential_limma_trend_large.py,parity,305,3,true,false,,,,,,
 tests/parity/test_duplicate_correlation_limma_full_parity.py,parity,435,5,true,true,,,,,,
@@ -156,7 +156,7 @@ tests/unit/test_dataset_transformation_state_establishment.py,unit,1246,39,false
 tests/unit/test_decomposed_ownership_facades.py,unit,101,2,false,false,,,,,,
 tests/unit/test_derived_quantitative_state_certification.py,unit,707,16,true,true,,,,,,
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
-tests/unit/test_differential_analysis.py,unit,1691,38,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,1719,38,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
 tests/unit/test_differential_feature_eligibility.py,unit,506,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
