@@ -61,6 +61,162 @@ coherent combined effect and inferential estimand, same-experiment dependence
 handling, multiple-testing semantics, and provenance. Resolve peptide evidence
 to site-level sample intensities during dataset preparation instead.
 
+## Empirical Bayes Variance Moderation
+
+Differential analysis estimates one residual variance per feature, then uses
+empirical Bayes moderation to borrow variance information across features
+before computing moderated *t* statistics and *p* values. This stabilizes
+inference when each site has limited replicate information.
+
+PhosPy supports three empirical-Bayes prior modes:
+
+- `EmpiricalBayesConfig()` uses the existing global prior. All fitted features
+  contribute to a shared prior-variance distribution, and no trend diagnostics
+  are emitted.
+- `EmpiricalBayesConfig(trend=True)` keeps the existing mean-intensity trend
+  mode. The prior variance is fitted as a population-level function of the
+  feature mean intensity, and `mean_variance_trend_diagnostics` is populated.
+- `EmpiricalBayesConfig(trend=True, trend_covariate="quantification_depth",
+  quantification_depth_kind=...)` uses the existing trend machinery with
+  quantification depth as the variance-trend covariate, and
+  `quantification_depth_trend_diagnostics` is populated.
+
+Quantification depth can matter in proteomics and phosphoproteomics because
+measurement precision is often related to how much evidence supports a
+feature. A phosphosite quantified from many peptide-spectrum matches or unique
+peptides may belong to a different variance population from a site supported
+by sparse evidence. The fitted depth trend estimates that population-level
+relationship; it is not a guarantee that every site with a higher PSM or
+peptide count has lower variance than every site with lower depth.
+
+Depth-aware moderation is opt-in and requires two pieces of information:
+
+- `dataset.site_metadata["quantification_depth"]`: one feature-aligned numeric
+  count per site that will be tested. Counts must be finite, integer-valued,
+  and at least one.
+- `EmpiricalBayesConfig.quantification_depth_kind`: the declared meaning of
+  the counts. Use `"psm_count"` for peptide-spectrum matches supporting the
+  feature, and `"peptide_count"` for unique peptides or peptide forms
+  supporting the feature.
+
+PhosPy validates and stores the raw count, then fits the variance trend against
+`log2(quantification_depth)`. The diagnostics therefore expose both
+`quantification_depth` and the transformed `log2_quantification_depth` trend
+covariate.
+
+### Manual Quantification-Depth Metadata Example
+
+```python
+import pandas as pd
+
+from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy.advanced import (
+    DatasetIntensityTransformConfig,
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
+)
+from phospy.api import (
+    Contrast,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    DifferentialAnalysisRequest,
+    ExperimentalDesign,
+    Organism,
+    SampleDesignRecord,
+)
+
+phospho = pd.DataFrame(
+    {
+        "control_1": [1000.0, 900.0, 700.0],
+        "control_2": [1040.0, 880.0, 720.0],
+        "treated_1": [1800.0, 930.0, 760.0],
+        "treated_2": [1760.0, 920.0, 750.0],
+    },
+    index=["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"],
+)
+
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+        "site": ["Y182", "T308", "S9"],
+        "protein_id": ["P53778", "P31749", "P49841"],
+        "site_sequence": [
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+        ],
+        "localisation_confidence": [0.95, 0.96, 0.97],
+        "quantification_depth": [12, 4, 7],
+    },
+    index=phospho.index.copy(),
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.HUMAN,
+        input_intensity_scale="linear",
+        preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(policy="log2")
+        ),
+    )
+)
+
+design = ExperimentalDesign(
+    samples=(
+        SampleDesignRecord("control_1", "control", "control_r1"),
+        SampleDesignRecord("control_2", "control", "control_r2"),
+        SampleDesignRecord("treated_1", "treated", "treated_r1"),
+        SampleDesignRecord("treated_2", "treated", "treated_r2"),
+    )
+)
+
+result = DifferentialAnalysisWorkflow().run(
+    DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=design,
+        contrasts=(
+            Contrast(
+                name="treated_vs_control",
+                numerator_condition="treated",
+                denominator_condition="control",
+            ),
+        ),
+        config=DifferentialAnalysisConfig(
+            empirical_bayes=EmpiricalBayesConfig(
+                trend=True,
+                trend_covariate="quantification_depth",
+                quantification_depth_kind="psm_count",
+            )
+        ),
+    )
+)
+
+depth_trend = result.quantification_depth_trend_diagnostics
+assert depth_trend is not None
+
+print(result.policy_provenance.empirical_bayes.trend_covariate)
+print(result.policy_provenance.empirical_bayes.quantification_depth_kind)
+print(depth_trend.quantification_depth_series())
+print(depth_trend.trend_covariate_series())
+print(result.diagnostics.moderation_method)
+```
+
+MaxQuant and FragPipe/PTMProphet importers can populate
+`site_metadata["quantification_depth"]` only when the caller maps an explicit
+source column and declares its `quantification_depth_kind`. They do not infer
+PSM or peptide depth from arbitrary numeric columns, and depth is left
+unavailable when multi-site peptide evidence is split in a way that would
+require inventing per-site counts.
+
+Depth-aware moderation is validated against a checked-in R/DEqMS
+`spectraCounteBayes` reference fixture within documented tolerances. Because
+PhosPy preserves its existing deterministic trend smoother while DEqMS uses
+its own loess implementation, describe the feature as
+quantification-depth-aware empirical Bayes moderation inspired by DEqMS, not
+exact DEqMS-compatible numerical equivalence.
+
 ## Complete Public-API Example: Paired Duplicate-Correlation Design
 
 ```python
@@ -564,7 +720,9 @@ REML consensus estimation and final GLS.
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `method` | `"standard"` or `"robust"` | `"standard"` | Moderation method. |
-| `trend` | `bool` | `False` | Estimates a mean-variance trend when enabled. |
+| `trend` | `bool` | `False` | Enables feature-specific prior variances through a variance trend. |
+| `trend_covariate` | `"mean_intensity"` or `"quantification_depth"` | `"mean_intensity"` | Selects the variance-trend covariate when `trend=True`. The default preserves the existing mean-intensity trend mode. |
+| `quantification_depth_kind` | `"psm_count"`, `"peptide_count"`, or `None` | `None` | Required only when `trend_covariate="quantification_depth"`; declares what the depth counts mean. |
 | `winsor_tail_p` | `tuple[float, float]` | `(0.05, 0.1)` | Tail proportions used by robust moderation. |
 
 ### `MultipleTestingConfig`

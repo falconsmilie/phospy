@@ -215,6 +215,8 @@ import_result = FragPipePTMProphetImporter().run(
             modified_peptide_sequence="Modified Peptide",
             protein_start="Protein Start",
             ptmprophet_probabilities="PTMProphet Probability",
+            quantification_depth="Depth",
+            quantification_depth_kind="psm_count",
             intensity_columns={
                 "Intensity Control": "control",
                 "Intensity Stim": "stim",
@@ -248,6 +250,18 @@ such as `S10,T11` rather than silently selecting the first site. It also adds
 The localisation output column remains the shared
 `localisation_confidence` probability column, so it can be enforced by
 `DatasetLocalisationConfig` during dataset building.
+
+Quantification depth is opt-in for FragPipe/PTMProphet as well. Set both
+`FragPipeColumnMapping.quantification_depth` and
+`FragPipeColumnMapping.quantification_depth_kind` to emit the shared
+`quantification_depth` metadata column. Supported depth kinds are `psm_count`
+and `peptide_count`; mapped values must be finite integer counts greater than
+or equal to one. The importer records the mapped source column, output column,
+and declared depth kind in diagnostics and in the importer quality report.
+
+FragPipe/PTMProphet imports do not infer PSM or peptide counts from arbitrary
+metadata columns. When peptide evidence is later split across multiple sites,
+PhosPy leaves depth unavailable instead of inventing per-site counts.
 
 ## Generic Column-Mapped Importer
 
