@@ -837,9 +837,13 @@ with `trend_covariate_transformation="identity"`. Depth-aware trend fits record
 
 Depth-aware variance moderation is opt-in. The workflow reads
 `site_metadata["quantification_depth"]` as a feature-aligned count and requires
-finite integer-valued values greater than or equal to one for every feature in
-the differential matrix. Use `quantification_depth_kind="psm_count"` when the
-depth is the number of peptide-spectrum matches supporting the feature, and
+finite integer-valued values greater than or equal to one for every feature
+that enters differential testing and empirical-Bayes moderation. Features
+withheld before testing do not require valid depth and are not included when
+fitting the depth-aware trend. They may still appear in re-expanded contrast
+tables with missing or NaN quantification-depth trend diagnostics. Use
+`quantification_depth_kind="psm_count"` when the depth is the number of
+peptide-spectrum matches supporting the feature, and
 `quantification_depth_kind="peptide_count"` when it is the number of unique
 peptides or peptide forms supporting the feature. PhosPy does not infer these
 counts from arbitrary metadata columns; callers must provide the exact
