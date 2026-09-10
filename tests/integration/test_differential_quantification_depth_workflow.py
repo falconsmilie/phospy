@@ -32,6 +32,7 @@ from phospy.api import (
 )
 from phospy.api.requests import DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
 from phospy.api.results import DifferentialAnalysisResult
+from phospy.errors import WorkflowBoundaryError
 from phospy.io.readers import (
     FragPipeColumnMapping,
     FragPipePTMProphetImporter,
@@ -42,6 +43,7 @@ from phospy.io.readers import (
 )
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
@@ -410,6 +412,116 @@ def test_depth_diagnostics_reexpand_withheld_features() -> None:
     assert np.isnan(float(diagnostics.quantification_depth.loc[withheld_site_key]))
     assert diagnostics.quantification_depth.drop(index=withheld_site_key).notna().all()
     assert diagnostics.trend_covariate.drop(index=withheld_site_key).notna().all()
+
+
+def test_ordinary_depth_ignores_invalid_depth_on_pre_excluded_site() -> None:
+    phospho = _phospho_matrix()
+    phospho.iloc[0, :] = 5.0
+    depth_with_invalid_excluded_site = (np.nan, 2.0, 4.0, 8.0, 16.0)
+    depth_with_valid_excluded_site = (99.0, 2.0, 4.0, 8.0, 16.0)
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            _manual_dataset(
+                quantification_depth=depth_with_invalid_excluded_site,
+                phospho=phospho,
+            ),
+            empirical_bayes=_depth_config(),
+        )
+    )
+    clean_baseline = DifferentialAnalysisWorkflow().run(
+        _request(
+            _manual_dataset(
+                quantification_depth=depth_with_valid_excluded_site,
+                phospho=phospho,
+            ),
+            empirical_bayes=_depth_config(),
+        )
+    )
+
+    _assert_result_statistics_equal(result, clean_baseline)
+    table = result.table_for("B_vs_A")
+    status = table.loc[:, DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str)
+    withheld_site_key = str(result.residual_variance_series().index[0])
+    tested = status == DIFFERENTIAL_RESULT_STATUS_TESTED
+
+    assert (
+        status.loc[withheld_site_key]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+    assert "all-constant" in str(
+        table.loc[withheld_site_key, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN]
+    )
+    assert int(tested.sum()) == 4
+    assert (
+        np.isfinite(table.loc[tested, ["logFC", "t", "P.Value", "adj.P.Val"]])
+        .all()
+        .all()
+    )
+    assert (
+        table.loc[withheld_site_key, ["logFC", "t", "P.Value", "adj.P.Val"]]
+        .isna()
+        .all()
+    )
+    for series in (
+        result.residual_variance_series(),
+        result.posterior_residual_variance_series(),
+        result.prior_residual_variance_series(),
+        result.prior_degrees_of_freedom_series(),
+    ):
+        assert np.isnan(float(series.loc[withheld_site_key]))
+
+    assert result.mean_variance_trend_diagnostics is None
+    diagnostics = result.quantification_depth_trend_diagnostics
+    assert diagnostics is not None
+    expected_tested_depth = np.asarray([2.0, 4.0, 8.0, 16.0], dtype=float)
+    np.testing.assert_allclose(
+        diagnostics.quantification_depth.loc[tested].to_numpy(dtype=float),
+        expected_tested_depth,
+    )
+    np.testing.assert_allclose(
+        diagnostics.trend_covariate.loc[tested].to_numpy(dtype=float),
+        np.log2(expected_tested_depth),
+    )
+    assert np.isnan(float(diagnostics.quantification_depth.loc[withheld_site_key]))
+    assert np.isnan(float(diagnostics.trend_covariate.loc[withheld_site_key]))
+    assert np.isnan(float(diagnostics.log_residual_variance.loc[withheld_site_key]))
+    assert np.isnan(float(diagnostics.fitted_log_prior_variance.loc[withheld_site_key]))
+    assert diagnostics.quantification_depth.drop(index=withheld_site_key).notna().all()
+    assert diagnostics.trend_covariate.drop(index=withheld_site_key).notna().all()
+    assert result.diagnostics.moderation_method == (
+        "empirical_bayes_standard_quantification_depth_trend"
+    )
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.empirical_bayes.trend_covariate == (
+        "quantification_depth"
+    )
+    assert (
+        result.policy_provenance.empirical_bayes.trend_covariate_transformation
+        == "log2"
+    )
+    assert result.policy_provenance.empirical_bayes.quantification_depth_kind == (
+        QUANTIFICATION_DEPTH_KIND_PSM_COUNT
+    )
+
+
+def test_ordinary_depth_rejects_invalid_depth_on_tested_site() -> None:
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.interpreter.quantification_depth",
+    ) as exc_info:
+        DifferentialAnalysisWorkflow().run(
+            _request(
+                _manual_dataset(
+                    quantification_depth=(1.0, np.nan, 4.0, 8.0, 16.0),
+                ),
+                empirical_bayes=_depth_config(),
+            )
+        )
+
+    error = str(exc_info.value)
+    assert "quantification_depth" in error
+    assert "missing values" in error
 
 
 def test_existing_global_and_mean_intensity_modes_ignore_depth_metadata() -> None:
