@@ -34,6 +34,9 @@ from phospy.science.differential.models.empirical_bayes_config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     EmpiricalBayesConfig,
 )
+from phospy.science.differential.quantification_depth import (
+    log2_quantification_depth_series,
+)
 from phospy.science.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MultipleTestingCorrection,
@@ -260,10 +263,12 @@ class DifferentialAnalysisRequest:
                 field_name="differential.quantification_depth",
             )
             if variance_trend_covariate is not None:
-                _validate_variance_trend_covariate(
+                _validate_quantification_depth_trend_covariate_override(
                     variance_trend_covariate,
+                    quantification_depth=quantification_depth,
                     matrix_index=matrix.index,
                     field_name="differential.variance_trend_covariate",
+                    depth_field_name="differential.quantification_depth",
                 )
         else:
             if variance_trend_covariate is not None:
@@ -315,10 +320,7 @@ class DifferentialAnalysisRequest:
                 other.design_decomposition,
             )
             and self.empirical_bayes == other.empirical_bayes
-            and optional_series_equals(
-                self.variance_trend_covariate,
-                other.variance_trend_covariate,
-            )
+            and _variance_trend_covariate_scientifically_equals(self, other)
             and optional_series_equals(
                 self.quantification_depth,
                 other.quantification_depth,
@@ -334,6 +336,23 @@ def _design_decomposition_equals(
     if left is None or right is None:
         return left is right
     return left.scientifically_equals(right)
+
+
+def _variance_trend_covariate_scientifically_equals(
+    left: DifferentialAnalysisRequest,
+    right: DifferentialAnalysisRequest,
+) -> bool:
+    if (
+        left.empirical_bayes.trend_covariate
+        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+        and right.empirical_bayes.trend_covariate
+        == EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH
+    ):
+        return True
+    return optional_series_equals(
+        left.variance_trend_covariate,
+        right.variance_trend_covariate,
+    )
 
 
 def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
@@ -392,6 +411,36 @@ def _validate_variance_trend_covariate(
         error_type=PhosPyInputError,
         allow_missing=False,
     )
+
+
+def _validate_quantification_depth_trend_covariate_override(
+    series: pd.Series,
+    *,
+    quantification_depth: pd.Series,
+    matrix_index: pd.Index,
+    field_name: str,
+    depth_field_name: str,
+) -> None:
+    canonical_trend_covariate = log2_quantification_depth_series(
+        quantification_depth,
+        field_name=depth_field_name,
+        expected_index=matrix_index,
+    )
+    _validate_variance_trend_covariate(
+        series,
+        matrix_index=matrix_index,
+        field_name=field_name,
+    )
+    supplied_values = np.asarray(series.to_numpy(dtype=float), dtype=float)
+    canonical_values = np.asarray(
+        canonical_trend_covariate.to_numpy(dtype=float),
+        dtype=float,
+    )
+    if not np.array_equal(supplied_values, canonical_values):
+        raise PhosPyInputError(
+            f"{field_name} must match log2(validated {depth_field_name}) when "
+            "empirical_bayes.trend_covariate is 'quantification_depth'"
+        )
 
 
 def _validate_quantification_depth_index(

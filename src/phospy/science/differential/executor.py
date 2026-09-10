@@ -623,15 +623,7 @@ def _resolve_empirical_bayes_trend_covariate(
             row_index=row_index,
             field_name="differential.quantification_depth",
         )
-        trend_covariate = request.variance_trend_covariate
-        if trend_covariate is not None:
-            if not trend_covariate.index.equals(row_index):
-                raise PhosPyInputError(
-                    "differential.variance_trend_covariate.index must match the "
-                    "differential matrix feature index"
-                )
-            return np.asarray(trend_covariate.to_numpy(dtype=float), dtype=float)
-        return np.asarray(
+        canonical_trend_covariate = np.asarray(
             log2_quantification_depth_series(
                 quantification_depth,
                 field_name="differential.quantification_depth",
@@ -639,6 +631,24 @@ def _resolve_empirical_bayes_trend_covariate(
             ).to_numpy(dtype=float),
             dtype=float,
         )
+        trend_covariate = request.variance_trend_covariate
+        if trend_covariate is not None:
+            if not trend_covariate.index.equals(row_index):
+                raise PhosPyInputError(
+                    "differential.variance_trend_covariate.index must match the "
+                    "differential matrix feature index"
+                )
+            supplied_trend_covariate = np.asarray(
+                trend_covariate.to_numpy(dtype=float),
+                dtype=float,
+            )
+            if not np.array_equal(supplied_trend_covariate, canonical_trend_covariate):
+                raise PhosPyInputError(
+                    "differential.variance_trend_covariate must match "
+                    "log2(validated differential.quantification_depth) when "
+                    "empirical_bayes.trend_covariate is 'quantification_depth'"
+                )
+        return canonical_trend_covariate
     return np.asarray(mean_intensity, dtype=float)
 
 

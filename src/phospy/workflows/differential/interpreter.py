@@ -19,7 +19,6 @@ from phospy.science.differential.models import (
 )
 from phospy.science.differential.quantification_depth import (
     QUANTIFICATION_DEPTH_COLUMN,
-    log2_quantification_depth_series,
     validate_quantification_depth_series,
 )
 from phospy.science.sites.identity_contracts import RESULT_IDENTITY_COLUMNS
@@ -534,11 +533,6 @@ def _resolve_empirical_bayes_trend_covariates(
             field_name=field_name,
             expected_index=feature_index,
         )
-        variance_trend_covariate = log2_quantification_depth_series(
-            quantification_depth,
-            field_name=field_name,
-            expected_index=feature_index,
-        )
     except PhosPyInputError as exc:
         raise WorkflowBoundaryError(
             seam="differential.interpreter.quantification_depth",
@@ -550,7 +544,7 @@ def _resolve_empirical_bayes_trend_covariates(
             details={"error": str(exc)},
             message_prefix="differential workflow boundary validation failed",
         ) from exc
-    return variance_trend_covariate, quantification_depth
+    return None, quantification_depth
 
 
 def _prefer_site_key_index_for_differential_results(

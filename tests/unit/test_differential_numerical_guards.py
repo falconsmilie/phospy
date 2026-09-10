@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 import phospy.science.differential.executor as differential_executor_module
@@ -185,9 +188,55 @@ def _base_request(*, matrix: pd.DataFrame, empirical_bayes: EmpiricalBayesConfig
     )
 
 
-def test_ordinary_executor_validates_raw_depth_before_precomputed_trend(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def _depth_empirical_bayes_config() -> EmpiricalBayesConfig:
+    return EmpiricalBayesConfig(
+        method="standard",
+        trend=True,
+        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+        quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+    )
+
+
+def _depth_mode_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0, 0.8, 3.0, 4.0],
+            "A_2": [1.1, 2.3, 1.0, 3.2, 4.2],
+            "B_1": [1.8, 2.2, 0.7, 2.8, 5.0],
+            "B_2": [1.9, 2.5, 0.9, 2.9, 5.1],
+        },
+        index=pd.Index(
+            ["site_a", "site_b", "site_c", "site_d", "site_e"],
+            name="site_id",
+        ),
+    )
+
+
+def _depth_request(
+    *,
+    matrix: pd.DataFrame,
+    depth_values: list[float],
+    variance_trend_covariate: pd.Series | None = None,
+) -> DifferentialAnalysisRequest:
+    base_request = _base_request(
+        matrix=matrix,
+        empirical_bayes=EmpiricalBayesConfig(),
+    )
+    return DifferentialAnalysisRequest(
+        matrix=matrix,
+        design=base_request.design,
+        contrasts=base_request.contrasts,
+        empirical_bayes=_depth_empirical_bayes_config(),
+        variance_trend_covariate=variance_trend_covariate,
+        quantification_depth=pd.Series(
+            depth_values,
+            index=matrix.index.copy(),
+            name="quantification_depth",
+        ),
+    )
+
+
+def test_depth_request_validates_raw_depth_before_precomputed_trend() -> None:
     matrix = pd.DataFrame(
         {
             "A_1": [1.0, 2.0, 0.8],
@@ -200,49 +249,193 @@ def test_ordinary_executor_validates_raw_depth_before_precomputed_trend(
             name="site_id",
         ),
     )
-    empirical_bayes = EmpiricalBayesConfig(
-        method="standard",
-        trend=True,
-        trend_covariate=EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
-        quantification_depth_kind=QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
-    )
-    request = DifferentialAnalysisRequest(
+    base_request = _base_request(
         matrix=matrix,
-        design=_base_request(
-            matrix=matrix,
-            empirical_bayes=EmpiricalBayesConfig(),
-        ).design,
-        contrasts=_base_request(
-            matrix=matrix,
-            empirical_bayes=EmpiricalBayesConfig(),
-        ).contrasts,
-        empirical_bayes=empirical_bayes,
-        variance_trend_covariate=pd.Series(
-            np.log2(np.asarray([1.0, 2.0, 4.0], dtype=float)),
-            index=matrix.index.copy(),
-            name="log2_quantification_depth",
-        ),
-        quantification_depth=pd.Series(
-            [1.0, 0.0, 4.0],
-            index=matrix.index.copy(),
-            name="quantification_depth",
-        ),
-    )
-
-    def _unexpected_fit_empirical_bayes(**kwargs: object) -> EmpiricalBayesFit:
-        raise AssertionError("raw quantification depth was not validated first")
-
-    monkeypatch.setattr(
-        differential_executor_module,
-        "fit_empirical_bayes",
-        _unexpected_fit_empirical_bayes,
+        empirical_bayes=EmpiricalBayesConfig(),
     )
 
     with pytest.raises(
         PhosPyInputError,
         match="quantification_depth values must be >= 1",
     ):
-        DifferentialAnalysisExecutor().run(request)
+        DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+            empirical_bayes=_depth_empirical_bayes_config(),
+            variance_trend_covariate=pd.Series(
+                np.log2(np.asarray([1.0, 2.0, 4.0], dtype=float)),
+                index=matrix.index.copy(),
+                name="log2_quantification_depth",
+            ),
+            quantification_depth=pd.Series(
+                [1.0, 0.0, 4.0],
+                index=matrix.index.copy(),
+                name="quantification_depth",
+            ),
+        )
+
+
+def test_ordinary_executor_derives_depth_trend_covariate_from_validated_depth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    matrix = _depth_mode_matrix()
+    depth_values = [1.0, 2.0, 4.0, 8.0, 16.0]
+    expected_log_depth = np.log2(np.asarray(depth_values, dtype=float))
+    captured: dict[str, Any] = {}
+
+    def _spy_fit_empirical_bayes(**kwargs: Any) -> EmpiricalBayesFit:
+        captured.update(kwargs)
+        return fit_empirical_bayes(**kwargs)
+
+    monkeypatch.setattr(
+        differential_executor_module,
+        "fit_empirical_bayes",
+        _spy_fit_empirical_bayes,
+    )
+
+    result = DifferentialAnalysisExecutor().run(
+        _depth_request(matrix=matrix, depth_values=depth_values)
+    )
+
+    np.testing.assert_array_equal(captured["trend_covariate"], expected_log_depth)
+    diagnostics = result.quantification_depth_trend_diagnostics
+    assert diagnostics is not None
+    np.testing.assert_array_equal(
+        diagnostics.quantification_depth.to_numpy(dtype=float),
+        np.asarray(depth_values, dtype=float),
+    )
+    np.testing.assert_array_equal(
+        diagnostics.trend_covariate.to_numpy(dtype=float),
+        expected_log_depth,
+    )
+    assert diagnostics.trend_covariate_name == "quantification_depth"
+    assert diagnostics.trend_covariate_transformation == "log2"
+
+
+def test_depth_request_rejects_mismatched_depth_trend_override() -> None:
+    matrix = _depth_mode_matrix()
+    unrelated_trend = pd.Series(
+        [9.0, 7.0, 5.0, 3.0, 1.0],
+        index=matrix.index.copy(),
+        name="unrelated_numeric_series",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"variance_trend_covariate must match log2",
+    ):
+        _depth_request(
+            matrix=matrix,
+            depth_values=[1.0, 2.0, 4.0, 8.0, 16.0],
+            variance_trend_covariate=unrelated_trend,
+        )
+
+
+def test_ordinary_executor_matching_depth_trend_override_does_not_change_results() -> (
+    None
+):
+    matrix = _depth_mode_matrix()
+    depth_values = [1.0, 2.0, 4.0, 8.0, 16.0]
+    canonical_trend = pd.Series(
+        np.log2(np.asarray(depth_values, dtype=float)),
+        index=matrix.index.copy(),
+        name="log2_quantification_depth",
+    )
+
+    derived = DifferentialAnalysisExecutor().run(
+        _depth_request(matrix=matrix, depth_values=depth_values)
+    )
+    matching_override = DifferentialAnalysisExecutor().run(
+        _depth_request(
+            matrix=matrix,
+            depth_values=depth_values,
+            variance_trend_covariate=canonical_trend,
+        )
+    )
+
+    pdt.assert_series_equal(
+        derived.prior_residual_variance_series(),
+        matching_override.prior_residual_variance_series(),
+        check_exact=False,
+        rtol=1e-12,
+        atol=0.0,
+    )
+    pdt.assert_series_equal(
+        derived.prior_degrees_of_freedom_series(),
+        matching_override.prior_degrees_of_freedom_series(),
+        check_exact=False,
+        rtol=1e-12,
+        atol=0.0,
+    )
+    pdt.assert_frame_equal(
+        derived.table_for("B_vs_A"),
+        matching_override.table_for("B_vs_A"),
+        check_exact=False,
+        rtol=1e-12,
+        atol=0.0,
+    )
+
+
+def test_trusted_depth_request_rejects_mismatched_depth_trend_override() -> None:
+    matrix = _depth_mode_matrix()
+    base_request = _base_request(
+        matrix=matrix,
+        empirical_bayes=EmpiricalBayesConfig(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"variance_trend_covariate must match log2",
+    ):
+        DifferentialAnalysisRequest._from_owned(  # pyright: ignore[reportPrivateUsage] - direct trusted-construction regression coverage.
+            matrix=matrix.copy(),
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+            empirical_bayes=_depth_empirical_bayes_config(),
+            variance_trend_covariate=pd.Series(
+                [9.0, 7.0, 5.0, 3.0, 1.0],
+                index=matrix.index.copy(),
+                name="unrelated_numeric_series",
+            ),
+            quantification_depth=pd.Series(
+                [1.0, 2.0, 4.0, 8.0, 16.0],
+                index=matrix.index.copy(),
+                name="quantification_depth",
+            ),
+        )
+
+
+def test_trusted_depth_request_matching_override_is_canonical_scientific_content() -> (
+    None
+):
+    matrix = _depth_mode_matrix()
+    depth_values = [1.0, 2.0, 4.0, 8.0, 16.0]
+    canonical_trend = pd.Series(
+        np.log2(np.asarray(depth_values, dtype=float)),
+        index=matrix.index.copy(),
+        name="log2_quantification_depth",
+    )
+    public_request = _depth_request(matrix=matrix, depth_values=depth_values)
+    base_request = _base_request(
+        matrix=matrix,
+        empirical_bayes=EmpiricalBayesConfig(),
+    )
+
+    trusted_request = DifferentialAnalysisRequest._from_owned(  # pyright: ignore[reportPrivateUsage] - direct trusted-construction regression coverage.
+        matrix=matrix.copy(),
+        design=base_request.design,
+        contrasts=base_request.contrasts,
+        empirical_bayes=_depth_empirical_bayes_config(),
+        variance_trend_covariate=canonical_trend,
+        quantification_depth=pd.Series(
+            depth_values,
+            index=matrix.index.copy(),
+            name="quantification_depth",
+        ),
+    )
+
+    assert public_request.scientifically_equals(trusted_request)
 
 
 def _manual_contrast_effects(
