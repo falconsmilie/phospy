@@ -1310,6 +1310,53 @@ def test_fit_empirical_bayes_rejects_invalid_residual_degrees_of_freedom() -> No
         )
 
 
+def _empirical_bayes_trend_guard_inputs() -> tuple[np.ndarray, np.ndarray]:
+    return (
+        np.array([0.04, 0.06, 0.05, 0.12, 0.14, 0.11], dtype=float),
+        np.array([7.5, 8.0, 8.5, 9.0, 9.5, 10.0], dtype=float),
+    )
+
+
+@pytest.mark.parametrize("invalid_value", (np.nan, np.inf, -np.inf))
+def test_fit_empirical_bayes_rejects_non_finite_trend_covariate(
+    invalid_value: float,
+) -> None:
+    variances, trend_covariate = _empirical_bayes_trend_guard_inputs()
+    trend_covariate[2] = invalid_value
+
+    with pytest.raises(
+        ValueError,
+        match="empirical-Bayes trend covariate contains non-finite values",
+    ):
+        fit_empirical_bayes(
+            variances=variances,
+            residual_dof=4.0,
+            method="standard",
+            trend=True,
+            winsor_tail_p=(0.05, 0.1),
+            trend_covariate=trend_covariate,
+        )
+
+
+def test_fit_empirical_bayes_accepts_finite_trend_covariate() -> None:
+    variances, trend_covariate = _empirical_bayes_trend_guard_inputs()
+
+    result = fit_empirical_bayes(
+        variances=variances,
+        residual_dof=4.0,
+        method="standard",
+        trend=True,
+        winsor_tail_p=(0.05, 0.1),
+        trend_covariate=trend_covariate,
+    )
+
+    assert result.trend_covariate is not None
+    np.testing.assert_array_equal(result.trend_covariate, trend_covariate)
+    assert np.isfinite(result.prior_variance).all()
+    assert result.fitted_log_prior_variance is not None
+    assert np.isfinite(result.fitted_log_prior_variance).all()
+
+
 def test_executor_rejects_invalid_moderated_degrees_of_freedom(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

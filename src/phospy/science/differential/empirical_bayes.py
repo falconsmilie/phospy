@@ -140,6 +140,10 @@ def fit_empirical_bayes(
         trend_covariate = cast(_FloatArray, np.asarray(trend_covariate, dtype=float))
         if trend_covariate.shape != variances.shape:
             raise ValueError("trend_covariate must match variances length")
+        if np.any(~np.isfinite(trend_covariate)):
+            raise ValueError(
+                "empirical-Bayes trend covariate contains non-finite values"
+            )
         log_variance_trend = _fit_variance_trend(trend_covariate, log_variances)
         log_variance_trend = log_variance_trend - float(np.mean(log_variance_trend))
     else:
