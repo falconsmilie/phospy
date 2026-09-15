@@ -16,6 +16,7 @@ DIFFERENTIAL_API = ROOT / "docs" / "api" / "differential-analysis.md"
 KINASE_API = ROOT / "docs" / "api" / "kinase.md"
 ENRICHMENT_API = ROOT / "docs" / "api" / "enrichment.md"
 DATASET_BUILD_API = ROOT / "docs" / "api" / "dataset-build-workflow.md"
+CHANGELOG = ROOT / "CHANGELOG.md"
 
 DIFFERENTIAL_CAVEATS = (
     ROOT / "src" / "phospy" / "workflows" / "differential" / "caveats.py"
@@ -138,6 +139,51 @@ def test_release_docs_keep_batch_correction_limits_explicit() -> None:
             "replicate-aware ruv-iii correction semantics",
             "not used for numerical unwanted-factor estimation",
             "rejects actual missing values (nans)",
+        ),
+    )
+
+
+def test_group_aware_imputation_claims_are_complete_and_conservative() -> None:
+    _assert_contains_all(
+        DATASET_BUILD_API,
+        (
+            'policy="impute_group_aware"',
+            "sample_metadata",
+            "group_column",
+            "min_partial_observed_fraction",
+            "min_reference_observed_fraction",
+            'distance="nan_euclidean"',
+            "q",
+            "width",
+            "seed",
+            'input_scale="log2"',
+            'no_overlap_policy="error"',
+            "conservatively dropped",
+            "observed missingness patterns to select an imputation model",
+            "cannot determine whether an individual missing value is truly",
+            "mechanism-specific routing masks remain diagnostic details",
+            "not universally optimal scientific defaults",
+        ),
+    )
+    for path in (DATASET_BUILD_API, SCIENTIFIC_COVERAGE):
+        _assert_contains_all(
+            path,
+            (
+                "phosr's scimpute is not knn",
+                "within-condition site-specific imputation",
+                "separate paired-tail strategy",
+                "not a numerical reimplementation or parity claim",
+                "phosr scimpute/ptimpute",
+            ),
+        )
+    _assert_contains_all(
+        CHANGELOG,
+        (
+            "opt-in impute_group_aware",
+            "explicit, aligned sample-group metadata",
+            "partially observed groups to knn",
+            "fully missing groups to minprob",
+            "existing standalone forbid, row-median, minprob, and knn policies are unchanged",
         ),
     )
 

@@ -158,6 +158,12 @@ publisher helpers (`publish_dataset`, `publish_kinase_workflow`, and
 interoperability output directories, not stable workflow entrypoints and not
 reloadable bundle services.
 
+Update note (2026-09-15, group-aware missing-data policy): the existing
+advanced `DatasetMissingDataConfig` and `DatasetMissingDataPolicy` exports now
+include the opt-in `"impute_group_aware"` policy and its configuration fields.
+This does not add an export or change the advanced inventory count. The router,
+classifications, routing masks, and numerical kernels remain internal.
+
 ## Contract Facade Dependency and Ownership Audit
 
 The stable and advanced public facades can expose science-owned objects without

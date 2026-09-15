@@ -155,6 +155,22 @@ Common cross-field checks:
   row, sample, or distance-work budgets fail with a `PhosPyInputError` that
   reports the shape and suggests reducing retained missing rows or choosing a
   simpler missing-data policy.
+- `missing_data.policy="impute_group_aware"` requires aligned
+  `sample_metadata`, an explicit `group_column`, both observed-fraction routing
+  thresholds, KNN `k` and `distance="nan_euclidean"`, MinProb `q`, `width`, and
+  `seed`, log2 input, and `no_overlap_policy="error"`.
+- Group-aware routing uses the original observed missingness pattern. Supported
+  partially observed groups route missing cells to KNN; fully missing groups
+  route to MinProb only when another group for the row meets the reference
+  observation threshold. Unsupported rows are dropped conservatively.
+- Observed missingness patterns select an imputation model; they cannot
+  determine whether an individual missing value is truly MAR or MNAR. The
+  MinProb route applies a left-censored assumption rather than proving a
+  missingness mechanism.
+- Group-aware KNN and MinProb consume independent copies of the same original
+  retained matrix. Provenance preserves routing and mechanism evidence, and
+  the observation mask continues to distinguish original observations from
+  imputed replacements.
 - Missing-data diagnostics and processing state preserve the observation mask,
   imputation input scale, and imputation operation order. Missing-data and
   total-protein correction diagnostics use the shared immutable JSON policy

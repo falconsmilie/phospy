@@ -80,6 +80,17 @@ Important user-facing assumptions:
   after that transform or on input declared as already log2.
 - row-median imputation is deterministic.
 - row-median imputation is not left-censored imputation.
+- The opt-in `impute_group_aware` policy requires aligned `sample_metadata`
+  and an explicit group column. It uses observed missingness patterns to select
+  an imputation model: sufficiently observed partial groups can route missing
+  cells to KNN, while a fully unobserved group with sufficient reference-group
+  observation can route to MinProb under a left-censored assumption. It cannot
+  determine whether an individual missing value is truly MAR or MNAR.
+- Group-aware routing conservatively drops unsupported rows, requires log2
+  input and an explicit seed, preserves routing/mechanism provenance and the
+  dataset observation mask, and prevents either mechanism from consuming the
+  other's imputed values. Existing standalone missing-data policies are
+  unchanged.
 - Localisation should be configured before site-level scientific workflows when
   localisation confidence matters.
 - `site_sequence` is required at the analysis-ready dataset boundary as

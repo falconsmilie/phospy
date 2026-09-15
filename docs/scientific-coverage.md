@@ -135,6 +135,23 @@ ties by stable row identity rather than input row order. Reproducibility-marked
 unit tests cover repeated output, tie-heavy input, diagnostics, and provenance
 for the configured `k`, distance, and row-filtering policy.
 
+Dataset preprocessing also supports the opt-in `impute_group_aware` policy for
+aligned, explicitly named sample groups on established log2 input. PhosPy uses
+observed missingness patterns to select an imputation model: partially observed
+groups with sufficient measured replicates can be routed to KNN imputation. A
+group that is completely unobserved while another group for the same
+phosphosite is well observed can instead be routed to MinProb under a
+left-censored missingness assumption. Unsupported rows are dropped. These
+patterns do not let PhosPy determine whether an individual missing value is
+truly MAR or MNAR. Seeded reproducibility, routing/mechanism provenance, and the
+original observation mask are preserved.
+
+PhosR's `scImpute` is not KNN; it uses within-condition site-specific
+imputation for partially observed groups, and PhosR uses a separate paired-tail
+strategy for asymmetric missingness. PhosPy's group-aware KNN + MinProb policy
+follows the same broad principle of separating missingness patterns, but is not
+a numerical reimplementation or parity claim for PhosR `scImpute`/`ptImpute`.
+
 Separately, dataset preprocessing supports one opt-in residualisation method
 under the `batch_correction` configuration group: `linear_residualize_batch`.
 It is fixed-effect residualisation of batch terms. It preserves condition

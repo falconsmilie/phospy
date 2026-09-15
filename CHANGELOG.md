@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Added an opt-in `impute_group_aware` dataset missing-data policy that uses
+  explicit, aligned sample-group metadata to route supported partially observed
+  groups to KNN and supported fully missing groups to MinProb.
+- Added preserved group-routing and per-mechanism provenance, seeded
+  reproducibility, and original-observation-mask tracking for mixed KNN/MinProb
+  execution.
+
+### Changed
+
+- Group-aware missing-data requests now make their sample-group requirements,
+  log2-scale contract, conservative unsupported-row dropping, and
+  no-overlap failure behavior explicit. Existing standalone `forbid`,
+  row-median, MinProb, and KNN policies are unchanged.
+
 ## [1.7.3] - 2026-09-10
 
 ### Added

@@ -5,6 +5,10 @@ from typing import Any
 import pandas as pd
 import pytest
 
+import phospy
+import phospy.advanced as advanced_api
+import phospy.api as stable_api
+from phospy._api_inventory import ADVANCED_PUBLIC_API
 from phospy.advanced.configs import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -77,6 +81,24 @@ def test_group_aware_public_config_is_accepted() -> None:
     assert config.group_column == "condition"
     assert config.no_overlap_policy == "error"
     assert config.max_missing_fraction_per_row is None
+
+
+def test_group_aware_policy_uses_existing_advanced_surface_and_keeps_internals_private() -> (
+    None
+):
+    assert "DatasetMissingDataConfig" in ADVANCED_PUBLIC_API
+    assert "DatasetMissingDataPolicy" in ADVANCED_PUBLIC_API
+    assert advanced_api.DatasetMissingDataConfig is DatasetMissingDataConfig
+
+    internal_names = {
+        "GroupAwareMissingnessRouter",
+        "GroupAwareRoutingOutcome",
+        "route_group_aware_missingness",
+        "impute_knn_targets",
+        "impute_minprob_targets",
+    }
+    for namespace in (phospy, stable_api, advanced_api):
+        assert internal_names.isdisjoint(namespace.__dict__)
 
 
 @pytest.mark.parametrize(

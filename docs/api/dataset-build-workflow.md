@@ -235,11 +235,86 @@ scientifically appropriate.
 The dataset retains observation metadata so downstream workflows can distinguish
 originally observed values from imputed replacements. Imputation can affect
 scientific inference; inspect the workflow-specific policy before analysis.
-The group-aware policy requires `sample_metadata[group_column]` aligned to the
-phospho sample columns. A KNN target without an overlapping observed donor fails
-with site/cell context instead of using column-mean fallback. Standalone
-missing-data policies do not consume sample metadata merely because this policy
-does.
+
+#### Group-Aware KNN + MinProb
+
+`policy="impute_group_aware"` exists for experiments where forcing every
+eligible missing cell through one whole-matrix mechanism would ignore useful
+experimental-group structure. PhosPy uses **observed missingness patterns to
+select an imputation model**. It cannot determine whether an individual missing
+value is truly missing at random (MAR) or missing not at random (MNAR).
+
+The policy requires `sample_metadata`, with its index aligned exactly to the
+phospho sample columns, and an explicit `group_column` containing a non-missing,
+non-blank group label for every sample. Groups are not inferred from sample
+names. Routing uses the original observation pattern before any values are
+imputed:
+
+- A group that is partially observed routes its missing cells to KNN only when
+  its observed replicate fraction is at least
+  `min_partial_observed_fraction`.
+- A group that is completely unobserved routes its cells to MinProb only when
+  another group for the same phosphosite has an observed replicate fraction at
+  least `min_reference_observed_fraction`. This route adopts a left-censored
+  missingness assumption; it does not establish MNAR for any cell.
+- A fully observed group needs no imputation. If any group in a row is an
+  unsupported partial or unsupported fully missing case, the entire row is
+  conservatively dropped instead of being forcibly imputed.
+
+Configure KNN with `k` and `distance="nan_euclidean"`. Group-aware KNN also
+requires `no_overlap_policy="error"` (the omitted value resolves to
+`"error"`): a target without an overlapping observed donor fails with
+site/cell context, and the standalone KNN column-mean fallback is unavailable.
+Configure MinProb with `q`, `width`, and `seed`. Both observed-fraction
+thresholds must satisfy `0 < value <= 1`. The standalone row filter
+`max_missing_fraction_per_row` does not apply because routing owns row
+eligibility.
+
+The complete input to this mixed policy must be on an established log2 scale.
+A configured log2 transform therefore runs before group-aware imputation; input
+declared as already log2 does not need another transform. The policy is recorded
+as seeded-stochastic because MinProb is one of its configured mechanisms, even
+when a particular dataset routes no cells to MinProb. Reusing the same input,
+configuration, and integer `seed` makes the random draws reproducible.
+
+KNN and MinProb each consume an independent copy of the same original retained
+matrix, so one mechanism's synthetic values never become evidence or numerical
+input for the other. Preprocessing provenance and row audit records preserve
+the selected policy, resolved groups, thresholds, seed, routing classifications,
+target-mask evidence, and per-row mechanism assignment. The dataset observation
+mask is also preserved: `True` means originally observed and `False` means
+imputed. Mechanism-specific routing masks remain diagnostic details and are not
+public API objects.
+
+```python
+from phospy.advanced import DatasetMissingDataConfig
+
+missing_data = DatasetMissingDataConfig(
+    policy="impute_group_aware",
+    group_column="condition",
+    min_partial_observed_fraction=0.6,
+    min_reference_observed_fraction=0.6,
+    k=5,
+    distance="nan_euclidean",
+    q=0.01,
+    width=0.3,
+    seed=12345,
+    input_scale="log2",
+    no_overlap_policy="error",
+)
+```
+
+These values are a concise configuration example, not universally optimal
+scientific defaults. Choose thresholds and imputation parameters for the
+experimental design and analysis plan.
+
+PhosR's `scImpute` is not KNN: it uses within-condition site-specific
+imputation for partially observed groups, while PhosR uses a separate paired-tail
+strategy for asymmetric missingness. PhosPy's group-aware KNN + MinProb policy
+follows the same broad principle of separating missingness patterns, but is not
+a numerical reimplementation or parity claim for PhosR `scImpute`/`ptImpute`.
+Standalone missing-data policies retain their existing behavior and do not
+consume sample metadata merely because this policy does.
 
 ### Group Coverage Filter
 
