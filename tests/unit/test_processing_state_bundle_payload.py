@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from phospy.errors.input import PhosPyInputError
@@ -18,6 +20,8 @@ from phospy.science.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
     MissingDataDiagnostics,
+    MissingDataDiagnosticsV1,
+    MissingDataDiagnosticsV2,
     MissingDataState,
     NormalisationState,
     RuvReadinessState,
@@ -594,6 +598,455 @@ def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
         **payload,
         "row_medians_used": {},
     }
+
+
+def _group_aware_v2_diagnostics_payload() -> dict[str, object]:
+    return {
+        "diagnostics_schema_version": 2,
+        "missing_data_policy": "impute_group_aware",
+        "imputation_method_id": "group_aware_knn_minprob",
+        "imputation_method_family": "group_aware_mixed_mechanism",
+        "input_missing_cell_count": 6,
+        "output_missing_cell_count": 0,
+        "imputed_cell_count": 5,
+        "affected_row_count": 3,
+        "affected_column_count": 4,
+        "affected_row_ids": ["mixed", "absence", "unsupported"],
+        "affected_column_ids": ["a1", "a2", "b1", "b2"],
+        "imputed_row_ids": ["mixed", "absence"],
+        "imputed_column_ids": ["a1", "a2", "b1", "b2"],
+        "dropped_row_ids": ["unsupported"],
+        "imputed_row_count": 2,
+        "imputed_column_count": 4,
+        "dropped_row_count": 1,
+        "random_seed": 42,
+        "method_parameters": {
+            "group_column": "condition",
+            "min_partial_observed_fraction": 0.75,
+            "min_reference_observed_fraction": 0.75,
+            "k": 2,
+            "distance": "nan_euclidean",
+            "no_overlap_policy": "error",
+            "no_overlap_policy_version": 1,
+            "q": 0.01,
+            "width": 0.3,
+            "seed": 42,
+            "knn_target_cell_count": 1,
+            "minprob_target_cell_count": 4,
+            "knn_target_mask_hash": "knn-target-hash",
+            "minprob_target_mask_hash": "minprob-target-hash",
+            "mechanism_input": "original_retained_matrix",
+            "resolved_group_samples": {
+                "A": ["a1", "a2"],
+                "B": ["b1", "b2"],
+            },
+            "input_scale": "log2",
+            "imputation_operation_order": "no_intensity_transform",
+        },
+        "matrix_scale_requirement": "log2",
+        "imputation_input_scale": "log2",
+        "imputation_input_scale_source": "method_required",
+        "imputation_operation_order": "no_intensity_transform",
+        "stage_order": ["missing_data"],
+        "missingness_mask_hash": "missingness-hash",
+        "imputation_mask_hash": "overall-imputation-hash",
+        "left_censored_assumption": True,
+        "rows_not_imputable": ["unsupported"],
+        "row_medians_used": {},
+        "neighbour_count": 2,
+        "distance_metric": "nan_euclidean",
+        "knn_no_overlap_policy": "error",
+        "knn_no_overlap_policy_version": 1,
+        "dropped_rows_above_max_missing_fraction": [],
+        "per_column_distribution_parameters": {
+            column: {
+                "observed_count": 2,
+                "missing_count": 1,
+                "q": 0.01,
+                "width": 0.3,
+                "lower_q_quantile": 1.0,
+                "lower_tail_mean": 1.0,
+                "observed_sd": 0.5,
+                "imputation_mean": 0.73,
+                "imputation_sd": 0.15,
+            }
+            for column in ("a1", "a2", "b1", "b2")
+        },
+        "group_aware": {
+            "group_column": "condition",
+            "observed_group_sizes": {"A": 2, "B": 2},
+            "min_partial_observed_fraction": 0.75,
+            "min_reference_observed_fraction": 0.75,
+            "retained_row_count": 2,
+            "dropped_unsupported_row_count": 1,
+            "knn_routed_cell_count": 1,
+            "minprob_routed_cell_count": 4,
+            "knn_imputed_cell_count": 1,
+            "minprob_imputed_cell_count": 4,
+            "knn_target_mask_hash": "knn-target-hash",
+            "minprob_target_mask_hash": "minprob-target-hash",
+            "knn_imputation_mask_hash": "knn-imputation-hash",
+            "minprob_imputation_mask_hash": "minprob-imputation-hash",
+            "unsupported_partial_group_count": 1,
+            "unsupported_absence_group_count": 0,
+            "unsupported_partial_row_ids": ["unsupported"],
+            "unsupported_absence_row_ids": [],
+            "routed_rows": [
+                {
+                    "row_id": "mixed",
+                    "knn_imputed_columns": ["a1"],
+                    "minprob_imputed_columns": ["b1", "b2"],
+                    "knn_group_labels": ["A"],
+                    "minprob_group_labels": ["B"],
+                },
+                {
+                    "row_id": "absence",
+                    "knn_imputed_columns": [],
+                    "minprob_imputed_columns": ["a1", "a2"],
+                    "knn_group_labels": [],
+                    "minprob_group_labels": ["A"],
+                },
+            ],
+            "rejected_rows": [
+                {
+                    "row_id": "unsupported",
+                    "unsupported_partial_groups": ["A"],
+                    "unsupported_absence_groups": [],
+                    "observed_finite_count_by_group": {"A": 1, "B": 2},
+                    "observed_fraction_by_group": {"A": 0.5, "B": 1.0},
+                }
+            ],
+            "minprob_left_censored_assumption": True,
+            "route_categories": [
+                "partial_observation_knn",
+                "asymmetric_absence_minprob",
+                "unsupported_partial",
+                "unsupported_absence",
+            ],
+            "mechanism_input": "original_retained_matrix",
+        },
+    }
+
+
+def test_group_aware_v2_diagnostics_dispatch_and_bundle_round_trip() -> None:
+    diagnostics_payload = _group_aware_v2_diagnostics_payload()
+    diagnostics = MissingDataDiagnostics.from_payload(
+        diagnostics_payload,
+        field_name="dataset.metadata.processing_state.missing_data.diagnostics",
+    )
+    assert isinstance(diagnostics, MissingDataDiagnosticsV2)
+    assert diagnostics.group_aware.knn_imputed_cell_count == 1
+    assert diagnostics.group_aware.rejected_rows[0].unsupported_partial_groups == ("A",)
+
+    state = _processing_state_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        missing_data_diagnostics=diagnostics,
+    )
+    restored = processing_state_from_payload(processing_state_to_payload(state))
+    assert isinstance(restored.missing_data.diagnostics, MissingDataDiagnosticsV2)
+    assert restored.missing_data.diagnostics.to_payload() == diagnostics.to_payload()
+
+
+def test_historical_group_aware_v1_diagnostics_round_trip_without_rewriting() -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    payload["diagnostics_schema_version"] = 1
+    payload.pop("group_aware")
+
+    diagnostics = MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+    assert type(diagnostics) is MissingDataDiagnosticsV1
+    restored = MissingDataDiagnostics.from_payload(
+        diagnostics.to_payload(), field_name="diagnostics"
+    )
+    assert type(restored) is MissingDataDiagnosticsV1
+    assert restored.to_payload() == diagnostics.to_payload()
+    assert restored.to_payload()["diagnostics_schema_version"] == 1
+    assert "group_aware" not in restored.to_payload()
+
+
+def test_missing_data_diagnostics_schema_versions_reject_unknown_fields() -> None:
+    v1_payload = _group_aware_v2_diagnostics_payload()
+    v1_payload["diagnostics_schema_version"] = 1
+    with pytest.raises(PhosPyInputError, match="group_aware"):
+        MissingDataDiagnosticsV1.from_mapping(v1_payload, field_name="diagnostics")
+
+    v2_payload = _group_aware_v2_diagnostics_payload()
+    assert isinstance(v2_payload["group_aware"], dict)
+    v2_payload["group_aware"]["unknown_route_fact"] = True
+    with pytest.raises(PhosPyInputError, match="unknown_route_fact"):
+        MissingDataDiagnostics.from_payload(v2_payload, field_name="diagnostics")
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("overlapping_cells", "both mechanisms"),
+        ("unknown_column", "resolved_group_samples"),
+        ("wrong_group", "must match routed columns"),
+    ],
+)
+def test_group_aware_v2_rejects_invalid_routed_cell_attribution(
+    mutation: str, message: str
+) -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    group_aware = payload["group_aware"]
+    assert isinstance(group_aware, dict)
+    routed_rows = group_aware["routed_rows"]
+    assert isinstance(routed_rows, list)
+    first = routed_rows[0]
+    assert isinstance(first, dict)
+    if mutation == "overlapping_cells":
+        first["minprob_imputed_columns"] = ["a1", "b1", "b2"]
+    elif mutation == "unknown_column":
+        first["knn_imputed_columns"] = ["unknown_sample"]
+        payload["imputed_column_ids"] = ["unknown_sample", "a1", "a2", "b1", "b2"]
+        payload["imputed_column_count"] = 5
+    else:
+        second = routed_rows[1]
+        assert isinstance(second, dict)
+        second["minprob_group_labels"] = ["B"]
+
+    with pytest.raises(PhosPyInputError, match=message):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing_evidence", "observed_finite_count_by_group"),
+        ("inconsistent_fraction", "observed fractions must match counts"),
+        ("partial_above_threshold", "below the threshold"),
+        ("absence_with_reference", "lack a sufficiently observed reference"),
+    ],
+)
+def test_group_aware_v2_rejects_invalid_unsupported_route_evidence(
+    mutation: str, message: str
+) -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    group_aware = payload["group_aware"]
+    assert isinstance(group_aware, dict)
+    rejected_rows = group_aware["rejected_rows"]
+    assert isinstance(rejected_rows, list)
+    rejected = rejected_rows[0]
+    assert isinstance(rejected, dict)
+    if mutation == "missing_evidence":
+        rejected.pop("observed_finite_count_by_group")
+    elif mutation == "inconsistent_fraction":
+        rejected["observed_fraction_by_group"]["A"] = 0.25
+    elif mutation == "partial_above_threshold":
+        group_aware["min_partial_observed_fraction"] = 0.5
+        payload["method_parameters"]["min_partial_observed_fraction"] = 0.5
+    else:
+        rejected["unsupported_partial_groups"] = []
+        rejected["unsupported_absence_groups"] = ["A"]
+        rejected["observed_finite_count_by_group"] = {"A": 0, "B": 2}
+        rejected["observed_fraction_by_group"] = {"A": 0.0, "B": 1.0}
+        group_aware["unsupported_partial_group_count"] = 0
+        group_aware["unsupported_absence_group_count"] = 1
+        group_aware["unsupported_partial_row_ids"] = []
+        group_aware["unsupported_absence_row_ids"] = ["unsupported"]
+
+    with pytest.raises(PhosPyInputError, match=message):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+
+def test_group_aware_v2_routing_records_are_recursively_immutable() -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    diagnostics = MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+    assert isinstance(diagnostics, MissingDataDiagnosticsV2)
+    expected = diagnostics.to_payload()
+
+    payload["group_aware"]["routed_rows"][0]["knn_imputed_columns"].append("a2")
+    payload["group_aware"]["rejected_rows"][0]["observed_fraction_by_group"]["A"] = 1.0
+    assert diagnostics.to_payload() == expected
+
+    serialized = diagnostics.to_payload()
+    serialized["group_aware"]["routed_rows"][0]["knn_group_labels"].append("B")
+    serialized["group_aware"]["rejected_rows"][0]["observed_finite_count_by_group"][
+        "A"
+    ] = 2
+    assert diagnostics.to_payload() == expected
+
+
+@pytest.mark.parametrize(
+    ("section", "field_name", "invalid_value"),
+    [
+        ("method_parameters", "q", None),
+        ("method_parameters", "width", 0.0),
+        ("method_parameters", "k", 3),
+        ("method_parameters", "seed", 43),
+        ("method_parameters", "group_column", "batch"),
+        ("method_parameters", "min_partial_observed_fraction", 0.6),
+        ("method_parameters", "no_overlap_policy", "column_mean"),
+        ("top", "neighbour_count", None),
+        ("top", "distance_metric", "euclidean"),
+        ("top", "knn_no_overlap_policy", None),
+        ("top", "matrix_scale_requirement", None),
+        ("top", "imputation_input_scale", None),
+        ("top", "imputation_operation_order", None),
+        ("top", "per_column_distribution_parameters", None),
+        ("top", "dropped_row_ids", []),
+        ("top", "rows_not_imputable", []),
+        ("group_aware", "group_column", "batch"),
+    ],
+)
+def test_group_aware_v2_rejects_incomplete_or_contradictory_provenance(
+    section: str,
+    field_name: str,
+    invalid_value: object,
+) -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    target = payload if section == "top" else payload[section]
+    assert isinstance(target, dict)
+    if invalid_value is None:
+        target.pop(field_name)
+    else:
+        target[field_name] = invalid_value
+
+    with pytest.raises(PhosPyInputError):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+
+@pytest.mark.parametrize(
+    "rejected_group_field",
+    ["unsupported_partial_groups", "unsupported_absence_groups"],
+)
+def test_group_aware_v2_rejects_unobserved_rejected_groups(
+    rejected_group_field: str,
+) -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    group_aware = payload["group_aware"]
+    assert isinstance(group_aware, dict)
+    rejected_rows = group_aware["rejected_rows"]
+    assert isinstance(rejected_rows, list)
+    rejected_row = rejected_rows[0]
+    assert isinstance(rejected_row, dict)
+    rejected_row[rejected_group_field] = ["NOT_AN_OBSERVED_GROUP"]
+
+    with pytest.raises(PhosPyInputError, match="observed_group_sizes"):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+
+@pytest.mark.parametrize(
+    ("partial_groups", "absence_groups", "message"),
+    [
+        (["A", "A"], [], "must contain unique groups"),
+        ([], ["A", "A"], "must contain unique groups"),
+        (["A"], ["A"], "both unsupported categories"),
+    ],
+)
+def test_group_aware_v2_rejects_duplicate_or_overlapping_rejected_groups(
+    partial_groups: list[str],
+    absence_groups: list[str],
+    message: str,
+) -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    group_aware = payload["group_aware"]
+    assert isinstance(group_aware, dict)
+    rejected_rows = group_aware["rejected_rows"]
+    assert isinstance(rejected_rows, list)
+    rejected_row = rejected_rows[0]
+    assert isinstance(rejected_row, dict)
+    rejected_row["unsupported_partial_groups"] = partial_groups
+    rejected_row["unsupported_absence_groups"] = absence_groups
+
+    with pytest.raises(PhosPyInputError, match=message):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+
+def test_group_aware_v2_rejects_imputed_row_that_is_also_rejected() -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    payload["imputed_row_ids"] = ["mixed", "unsupported"]
+
+    with pytest.raises(PhosPyInputError, match="disjoint from rejected/dropped rows"):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+
+def test_group_aware_v2_direct_construction_enforces_routing_identities() -> None:
+    diagnostics = MissingDataDiagnostics.from_payload(
+        _group_aware_v2_diagnostics_payload(), field_name="diagnostics"
+    )
+    assert isinstance(diagnostics, MissingDataDiagnosticsV2)
+    group_aware = diagnostics.group_aware
+    rejected_row = group_aware.rejected_rows[0]
+
+    with pytest.raises(PhosPyInputError, match="must contain unique groups"):
+        replace(rejected_row, unsupported_partial_groups=("A", "A"))
+
+    with pytest.raises(PhosPyInputError, match="both unsupported categories"):
+        replace(rejected_row, unsupported_absence_groups=("A",))
+
+    unobserved_record = replace(
+        rejected_row, unsupported_partial_groups=("NOT_AN_OBSERVED_GROUP",)
+    )
+    with pytest.raises(PhosPyInputError, match="observed_group_sizes"):
+        replace(group_aware, rejected_rows=(unobserved_record,))
+
+    with pytest.raises(PhosPyInputError, match="disjoint from rejected/dropped rows"):
+        replace(diagnostics, imputed_row_ids=("mixed", "unsupported"))
+
+
+def test_group_aware_v2_direct_construction_enforces_required_minprob_facts() -> None:
+    diagnostics = MissingDataDiagnostics.from_payload(
+        _group_aware_v2_diagnostics_payload(), field_name="diagnostics"
+    )
+    assert isinstance(diagnostics, MissingDataDiagnosticsV2)
+    method_parameters = diagnostics.to_payload()["method_parameters"]
+    assert isinstance(method_parameters, dict)
+    method_parameters.pop("q")
+
+    with pytest.raises(PhosPyInputError, match=r"method_parameters\.q"):
+        replace(diagnostics, method_parameters=method_parameters)
+
+
+def test_group_aware_v2_rejects_incomplete_per_column_distribution_provenance() -> None:
+    payload = _group_aware_v2_diagnostics_payload()
+    distributions = payload["per_column_distribution_parameters"]
+    assert isinstance(distributions, dict)
+    distributions["a1"] = {"q": 0.01, "width": 0.3}
+
+    with pytest.raises(PhosPyInputError, match="observed_count"):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+    payload = _group_aware_v2_diagnostics_payload()
+    distributions = payload["per_column_distribution_parameters"]
+    assert isinstance(distributions, dict)
+    a1_parameters = distributions["a1"]
+    assert isinstance(a1_parameters, dict)
+    a1_parameters["q"] = 0.02
+
+    with pytest.raises(PhosPyInputError, match="must agree with method q"):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+
+def test_processing_state_rejects_policy_that_contradicts_diagnostics() -> None:
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+            "requires_log_scale": True,
+            "matched_rows": 2,
+        },
+        missing_data_diagnostics=_group_aware_v2_diagnostics_payload(),
+    )
+    missing_data = payload["missing_data"]
+    assert isinstance(missing_data, dict)
+    missing_data["policy"] = "impute_knn"
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"missing_data\.policy must match.*diagnostics\.missing_data_policy",
+    ):
+        processing_state_from_payload(payload)
 
 
 def test_processing_state_from_payload_rejects_applied_total_correction_with_null_diagnostics() -> (

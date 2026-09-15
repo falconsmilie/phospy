@@ -83,6 +83,11 @@ class MissingDataState:
             )
 
         if diagnostics is not None:
+            if diagnostics.missing_data_policy != policy.value:
+                raise DatasetProcessingStateError(
+                    "dataset processing state missing_data.policy must match "
+                    "missing_data.diagnostics.missing_data_policy"
+                )
             diagnostic_missing_count = _diagnostic_int(
                 diagnostics,
                 key="output_missing_cell_count",

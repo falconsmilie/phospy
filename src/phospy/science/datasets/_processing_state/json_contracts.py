@@ -19,6 +19,7 @@ JsonPrimitive: TypeAlias = None | str | bool | int | float
 JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
 
 MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1 = 1
+MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2 = 2
 TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1 = 1
 
 V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS = frozenset(
@@ -69,6 +70,10 @@ V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS = frozenset(
         "knn_fully_column_mean_fallback_row_ids",
         "diagnostic_caveat_codes",
     )
+)
+
+V2_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS = frozenset(
+    (*V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS, "group_aware")
 )
 
 V1_KNOWN_TOTAL_PROTEIN_DIAGNOSTICS_FIELDS = frozenset(

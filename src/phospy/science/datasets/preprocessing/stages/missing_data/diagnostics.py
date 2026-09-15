@@ -14,6 +14,9 @@ from phospy.provenance.hashing import (
     fingerprint_table_normalized_axes,
     hash_table_tolerance,
 )
+from phospy.science.datasets.preprocessing.missing_data_mask_hashing import (
+    hash_imputation_mask as hash_imputation_mask,
+)
 from phospy.science.datasets.processing_state import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     JsonValue,
@@ -49,15 +52,6 @@ def hash_missingness_mask(mask: pd.DataFrame) -> str:
     return hash_table_tolerance(
         mask.astype("int8"),
         name="missing_data.input_missingness_mask",
-    )
-
-
-def hash_imputation_mask(mask: pd.DataFrame) -> str:
-    """Return stable fingerprint for policy-owned imputed-cell mask."""
-
-    return hash_table_tolerance(
-        mask.astype("int8"),
-        name="missing_data.imputation_mask",
     )
 
 

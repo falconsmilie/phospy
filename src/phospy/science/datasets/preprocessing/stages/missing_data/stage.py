@@ -15,10 +15,17 @@ from phospy.science.configs.preprocessing import (
 )
 from phospy.science.datasets._processing_state.json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2,
     V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
+    V2_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
 )
 from phospy.science.datasets.preprocessing.imputation_scale_policy import (
     imputation_input_scale_kind,
+)
+from phospy.science.datasets.preprocessing.missing_data_mask_hashing import (
+    hash_group_aware_imputation_mask,
+    hash_group_aware_mechanism_mask,
+    hash_imputation_mask,
 )
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -38,7 +45,11 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
     PreprocessingStageFactoryContext,
 )
-from phospy.science.datasets.processing_state import JsonValue, MissingDataDiagnosticsV1
+from phospy.science.datasets.processing_state import (
+    JsonValue,
+    MissingDataDiagnosticsV1,
+    MissingDataDiagnosticsV2,
+)
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
@@ -64,7 +75,6 @@ from .audit import (
 from .diagnostics import (
     build_input_profile,
     build_missing_data_diagnostics,
-    hash_imputation_mask,
 )
 from .forbid import fail_if_forbid_policy_has_missing_values
 from .group_aware_routing import route_group_aware_missingness
@@ -72,6 +82,8 @@ from .knn import impute_knn_targets, run_knn_policy
 from .minprob import impute_minprob_targets, run_minprob_policy
 from .models import (
     GroupAwarePolicyOutcome,
+    GroupAwareRoutingOutcome,
+    GroupMissingnessClassification,
     KnnPolicyOutcome,
     MinProbPolicyOutcome,
     MissingDataInputProfile,
@@ -455,6 +467,225 @@ def _run_group_aware_policy(
         min_partial_observed_fraction=min_partial_observed_fraction,
         min_reference_observed_fraction=min_reference_observed_fraction,
     )
+    outcome = execute_group_aware_imputation(
+        state=state,
+        routing=routing,
+        q=q,
+        width=width,
+        seed=seed,
+        k=k,
+        distance=distance,
+        no_overlap_policy=no_overlap_policy,
+    )
+    row_audit_records = build_group_aware_audit_records(
+        plan=state.plan,
+        input_profile=input_profile,
+        outcome=outcome,
+    )
+    imputation_input_scale = _required_imputation_input_scale_value(state.plan)
+    diagnostics = build_missing_data_diagnostics(
+        missing_data_policy=state.plan.missing_data_policy.value,
+        imputation_method_id="group_aware_knn_minprob",
+        imputation_method_family="group_aware_mixed_mechanism",
+        input_missing_cell_count=input_profile.input_missing_cell_count,
+        output_missing_cell_count=0,
+        imputed_cell_count=outcome.imputed_cell_count,
+        affected_row_ids=input_profile.affected_row_ids,
+        affected_column_ids=input_profile.affected_column_ids,
+        imputed_row_ids=outcome.imputed_row_ids,
+        imputed_column_ids=outcome.imputed_column_ids,
+        dropped_row_ids=routing.dropped_row_ids,
+        random_seed=seed,
+        method_parameters={
+            "group_column": group_column,
+            "min_partial_observed_fraction": min_partial_observed_fraction,
+            "min_reference_observed_fraction": min_reference_observed_fraction,
+            "k": k,
+            "distance": distance,
+            "no_overlap_policy": no_overlap_policy,
+            "no_overlap_policy_version": (
+                DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION
+            ),
+            "q": q,
+            "width": width,
+            "seed": seed,
+            "knn_target_cell_count": outcome.knn_target_cell_count,
+            "minprob_target_cell_count": outcome.minprob_target_cell_count,
+            "knn_target_mask_hash": outcome.knn_target_mask_hash,
+            "minprob_target_mask_hash": outcome.minprob_target_mask_hash,
+            "mechanism_input": "original_retained_matrix",
+            "resolved_group_samples": {
+                group: list(samples)
+                for group, samples in routing.resolved_groups.sample_order_by_group.items()
+            },
+            "input_scale": imputation_input_scale,
+            "imputation_operation_order": (
+                state.plan.missing_data_imputation_operation_order
+            ),
+        },
+        matrix_scale_requirement="log2",
+        imputation_input_scale=imputation_input_scale,
+        imputation_input_scale_source=state.plan.missing_data_input_scale_source,
+        imputation_operation_order=state.plan.missing_data_imputation_operation_order,
+        stage_order=state.plan.stage_order,
+        missingness_mask_hash=input_profile.missingness_mask_hash,
+        left_censored_assumption=True,
+        rows_not_imputable=routing.dropped_row_ids,
+        row_medians_used={},
+        per_column_distribution_parameters=(outcome.per_column_distribution_parameters),
+        dropped_rows_above_max_missing_fraction=(),
+        neighbour_count=k,
+        distance_metric=distance,
+        imputation_mask_hash=outcome.imputation_mask_hash,
+        knn_no_overlap_policy=no_overlap_policy,
+        knn_no_overlap_policy_version=(
+            DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION
+        ),
+    )
+    unsupported_partial_row_ids = tuple(
+        record.row_id
+        for record in routing.dropped_row_reasons
+        if any(
+            classification is GroupMissingnessClassification.UNSUPPORTED_PARTIAL
+            for classification in record.reasons_by_group.values()
+        )
+    )
+    unsupported_absence_row_ids = tuple(
+        record.row_id
+        for record in routing.dropped_row_reasons
+        if any(
+            classification is GroupMissingnessClassification.UNSUPPORTED_FULLY_MISSING
+            for classification in record.reasons_by_group.values()
+        )
+    )
+    sample_group_by_column = {
+        str(sample): group
+        for group, samples in routing.resolved_groups.sample_order_by_group.items()
+        for sample in samples
+    }
+    routing_facts_by_row = {
+        row_id: tuple(fact for fact in routing.group_facts if fact.row_id == row_id)
+        for row_id in (*routing.retained_row_ids, *routing.dropped_row_ids)
+    }
+    diagnostics["diagnostics_schema_version"] = (
+        MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2
+    )
+    diagnostics["group_aware"] = {
+        "group_column": routing.resolved_groups.group_column,
+        "observed_group_sizes": {
+            group: len(samples)
+            for group, samples in routing.resolved_groups.sample_order_by_group.items()
+        },
+        "min_partial_observed_fraction": routing.min_partial_observed_fraction,
+        "min_reference_observed_fraction": routing.min_reference_observed_fraction,
+        "retained_row_count": len(routing.retained_row_ids),
+        "dropped_unsupported_row_count": len(routing.dropped_row_ids),
+        "knn_routed_cell_count": outcome.knn_target_cell_count,
+        "minprob_routed_cell_count": outcome.minprob_target_cell_count,
+        "knn_imputed_cell_count": outcome.knn_imputed_cell_count,
+        "minprob_imputed_cell_count": outcome.minprob_imputed_cell_count,
+        "knn_target_mask_hash": outcome.knn_target_mask_hash,
+        "minprob_target_mask_hash": outcome.minprob_target_mask_hash,
+        "knn_imputation_mask_hash": outcome.knn_imputation_mask_hash,
+        "minprob_imputation_mask_hash": outcome.minprob_imputation_mask_hash,
+        "unsupported_partial_group_count": routing.unsupported_partial_group_count,
+        "unsupported_absence_group_count": (
+            routing.unsupported_fully_missing_group_count
+        ),
+        "unsupported_partial_row_ids": list(unsupported_partial_row_ids),
+        "unsupported_absence_row_ids": list(unsupported_absence_row_ids),
+        "routed_rows": [
+            {
+                "row_id": row.row_id,
+                "knn_imputed_columns": list(row.nearest_neighbour_imputed_columns),
+                "minprob_imputed_columns": [
+                    column
+                    for column in row.imputed_columns
+                    if column not in set(row.nearest_neighbour_imputed_columns)
+                ],
+                "knn_group_labels": list(
+                    dict.fromkeys(
+                        sample_group_by_column[column]
+                        for column in row.nearest_neighbour_imputed_columns
+                    )
+                ),
+                "minprob_group_labels": list(
+                    dict.fromkeys(
+                        sample_group_by_column[column]
+                        for column in row.imputed_columns
+                        if column not in set(row.nearest_neighbour_imputed_columns)
+                    )
+                ),
+            }
+            for row in outcome.imputed_rows
+        ],
+        "rejected_rows": [
+            {
+                "row_id": record.row_id,
+                "unsupported_partial_groups": [
+                    group
+                    for group, classification in record.reasons_by_group.items()
+                    if classification
+                    is GroupMissingnessClassification.UNSUPPORTED_PARTIAL
+                ],
+                "unsupported_absence_groups": [
+                    group
+                    for group, classification in record.reasons_by_group.items()
+                    if classification
+                    is GroupMissingnessClassification.UNSUPPORTED_FULLY_MISSING
+                ],
+                "observed_finite_count_by_group": {
+                    fact.group_label: fact.observed_finite_count
+                    for fact in routing_facts_by_row[record.row_id]
+                },
+                "observed_fraction_by_group": {
+                    fact.group_label: fact.observed_fraction
+                    for fact in routing_facts_by_row[record.row_id]
+                },
+            }
+            for record in routing.dropped_row_reasons
+        ],
+        "minprob_left_censored_assumption": True,
+        "route_categories": [
+            "partial_observation_knn",
+            "asymmetric_absence_minprob",
+            "unsupported_partial",
+            "unsupported_absence",
+        ],
+        "mechanism_input": "original_retained_matrix",
+    }
+    diagnostics = MissingDataDiagnosticsV2.from_mapping(
+        diagnostics,
+        field_name="dataset preprocessing stage 'missing_data' diagnostics",
+    ).to_payload()
+    return _finalize_outcome(
+        state=state,
+        outcome=outcome,
+        row_audit_records=row_audit_records,
+        notes=_build_imputation_execution_note(
+            policy=state.plan.missing_data_policy.value,
+            imputed_cell_count=outcome.imputed_cell_count,
+            imputed_row_ids=outcome.imputed_row_ids,
+            dropped_row_ids=outcome.dropped_row_ids,
+            output_missing_cell_count=outcome.output_missing_cell_count,
+        ),
+        diagnostics=diagnostics,
+    )
+
+
+def execute_group_aware_imputation(
+    *,
+    state: PreprocessingState,
+    routing: GroupAwareRoutingOutcome,
+    q: float,
+    width: float,
+    seed: int,
+    k: int,
+    distance: str,
+    no_overlap_policy: str,
+) -> GroupAwarePolicyOutcome:
+    """Run both routed mechanisms and return their dedicated typed outcome."""
+
     original_retained = routing.retain_rows(state.phospho)
     retained_site_metadata = state.site_metadata.loc[original_retained.index].copy(
         deep=True
@@ -465,7 +696,6 @@ def _run_group_aware_policy(
     minprob_target_mask = routing.minprob_target_mask.loc[original_retained.index].copy(
         deep=True
     )
-
     knn_result = impute_knn_targets(
         original_retained,
         target_mask=knn_target_mask,
@@ -485,8 +715,7 @@ def _run_group_aware_policy(
     knn_imputed_mask = knn_result.imputed_mask
     minprob_imputed_mask = minprob_result.imputed_mask
     final_imputed_mask = knn_imputed_mask | minprob_imputed_mask
-    merged = original_retained.copy(deep=True)
-    merged_values = merged.to_numpy(dtype=float, copy=True, na_value=np.nan)
+    merged_values = original_retained.to_numpy(dtype=float, copy=True, na_value=np.nan)
     knn_values = knn_result.phospho.to_numpy(dtype=float, copy=False, na_value=np.nan)
     minprob_values = minprob_result.phospho.to_numpy(
         dtype=float, copy=False, na_value=np.nan
@@ -531,7 +760,7 @@ def _run_group_aware_policy(
             final_imputed_mask.any(axis=1).to_numpy(dtype=bool, copy=False)
         ]
     )
-    outcome = GroupAwarePolicyOutcome(
+    return GroupAwarePolicyOutcome(
         phospho=merged,
         site_metadata=retained_site_metadata,
         imputed_mask=final_imputed_mask,
@@ -556,82 +785,23 @@ def _run_group_aware_policy(
         output_missing_cell_count=0,
         rows_not_imputable=routing.dropped_row_ids,
         imputed_rows=imputed_rows,
-    )
-    row_audit_records = build_group_aware_audit_records(
-        plan=state.plan,
-        input_profile=input_profile,
-        outcome=outcome,
-    )
-    imputation_input_scale = _required_imputation_input_scale_value(state.plan)
-    diagnostics = build_missing_data_diagnostics(
-        missing_data_policy=state.plan.missing_data_policy.value,
-        imputation_method_id="group_aware_knn_minprob",
-        imputation_method_family="group_aware_mixed_mechanism",
-        input_missing_cell_count=input_profile.input_missing_cell_count,
-        output_missing_cell_count=0,
-        imputed_cell_count=outcome.imputed_cell_count,
-        affected_row_ids=input_profile.affected_row_ids,
-        affected_column_ids=input_profile.affected_column_ids,
-        imputed_row_ids=imputed_row_ids,
-        imputed_column_ids=imputed_column_ids,
-        dropped_row_ids=routing.dropped_row_ids,
-        random_seed=seed,
-        method_parameters={
-            "group_column": group_column,
-            "min_partial_observed_fraction": min_partial_observed_fraction,
-            "min_reference_observed_fraction": min_reference_observed_fraction,
-            "k": k,
-            "distance": distance,
-            "no_overlap_policy": no_overlap_policy,
-            "no_overlap_policy_version": (
-                DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION
-            ),
-            "q": q,
-            "width": width,
-            "seed": seed,
-            "knn_target_cell_count": int(knn_target_mask.to_numpy().sum()),
-            "minprob_target_cell_count": int(minprob_target_mask.to_numpy().sum()),
-            "knn_target_mask_hash": hash_imputation_mask(knn_target_mask),
-            "minprob_target_mask_hash": hash_imputation_mask(minprob_target_mask),
-            "mechanism_input": "original_retained_matrix",
-            "resolved_group_samples": {
-                group: list(samples)
-                for group, samples in routing.resolved_groups.sample_order_by_group.items()
-            },
-            "input_scale": imputation_input_scale,
-            "imputation_operation_order": (
-                state.plan.missing_data_imputation_operation_order
-            ),
-        },
-        matrix_scale_requirement="log2",
-        imputation_input_scale=imputation_input_scale,
-        imputation_input_scale_source=state.plan.missing_data_input_scale_source,
-        imputation_operation_order=state.plan.missing_data_imputation_operation_order,
-        stage_order=state.plan.stage_order,
-        missingness_mask_hash=input_profile.missingness_mask_hash,
-        left_censored_assumption=None,
-        rows_not_imputable=routing.dropped_row_ids,
-        row_medians_used={},
-        per_column_distribution_parameters=(
-            minprob_result.per_column_distribution_parameters
+        knn_target_cell_count=int(knn_target_mask.to_numpy().sum()),
+        minprob_target_cell_count=int(minprob_target_mask.to_numpy().sum()),
+        knn_imputed_cell_count=int(knn_imputed_mask.to_numpy().sum()),
+        minprob_imputed_cell_count=int(minprob_imputed_mask.to_numpy().sum()),
+        knn_target_mask_hash=hash_group_aware_mechanism_mask(
+            knn_target_mask, mechanism="knn", mask_kind="target"
         ),
-        dropped_rows_above_max_missing_fraction=(),
-        neighbour_count=k,
-        distance_metric=distance,
-        imputation_mask_hash=hash_imputation_mask(final_imputed_mask),
-    )
-    return _finalize_outcome(
-        state=state,
-        outcome=outcome,
-        row_audit_records=row_audit_records,
-        notes=_build_imputation_execution_note(
-            policy=state.plan.missing_data_policy.value,
-            imputed_cell_count=outcome.imputed_cell_count,
-            imputed_row_ids=outcome.imputed_row_ids,
-            dropped_row_ids=outcome.dropped_row_ids,
-            output_missing_cell_count=outcome.output_missing_cell_count,
+        minprob_target_mask_hash=hash_group_aware_mechanism_mask(
+            minprob_target_mask, mechanism="minprob", mask_kind="target"
         ),
-        diagnostics=diagnostics,
+        knn_imputation_mask_hash=hash_group_aware_mechanism_mask(
+            knn_imputed_mask, mechanism="knn", mask_kind="imputation"
+        ),
+        minprob_imputation_mask_hash=hash_group_aware_mechanism_mask(
+            minprob_imputed_mask, mechanism="minprob", mask_kind="imputation"
+        ),
+        imputation_mask_hash=hash_group_aware_imputation_mask(final_imputed_mask),
     )
 
 
@@ -1033,10 +1203,22 @@ MISSING_DATA_STAGE_CONTRACT = PreprocessingStageContract(
     determinism_kind=_resolve_determinism_kind,
     consumed_input_tables_resolver=_resolve_consumed_input_tables,
     diagnostics_metadata={
-        "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
-        "known_diagnostics_fields": tuple(
-            sorted(V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS)
+        "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2,
+        "supported_diagnostics_schema_versions": (
+            MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+            MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2,
         ),
+        "known_diagnostics_fields": tuple(
+            sorted(V2_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS)
+        ),
+        "known_diagnostics_fields_by_version": {
+            str(MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1): tuple(
+                sorted(V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS)
+            ),
+            str(MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2): tuple(
+                sorted(V2_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS)
+            ),
+        },
     },
 )
 

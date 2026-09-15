@@ -26,13 +26,18 @@ from phospy.frames.validation import (
 )
 from phospy.science.datasets._processing_state.json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2,
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     JsonPrimitive,
     JsonValue,
 )
 from phospy.science.datasets._processing_state.missing_data import (
+    GroupAwareMissingDataDiagnostics,
+    GroupAwareRejectedRowRecord,
+    GroupAwareRoutedRowRecord,
     MissingDataDiagnostics,
     MissingDataDiagnosticsV1,
+    MissingDataDiagnosticsV2,
 )
 from phospy.science.datasets._processing_state.models import (
     ComparisonState,
@@ -719,8 +724,13 @@ __all__ = [
     "IMPUTATION_OBSERVATION_SUMMARY_COLUMNS",
     "ImputationObservationMetadata",
     "MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1",
+    "MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2",
+    "GroupAwareMissingDataDiagnostics",
+    "GroupAwareRejectedRowRecord",
+    "GroupAwareRoutedRowRecord",
     "MissingDataDiagnostics",
     "MissingDataDiagnosticsV1",
+    "MissingDataDiagnosticsV2",
     "MissingDataState",
     "NormalisationState",
     "PreprocessingSiteAttritionSummary",

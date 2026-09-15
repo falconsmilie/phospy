@@ -31,6 +31,7 @@ from phospy.science.datasets.construction.validation import (
     _require_builder_output_provenance,
     _validate_optional_comparisons,
     analysis_ready_matrix_missing_value_count,
+    validate_group_aware_missing_data_binding,
 )
 from phospy.science.datasets.direct_construction import (
     build_direct_construction_provenance,
@@ -440,6 +441,14 @@ class _AnalysisReadyDatasetConstructionService:
                 "dataset.processing_state.missing_data.complete_matrix must be True "
                 "at AnalysisReadyPhosphoDataset boundary"
             )
+        validate_group_aware_missing_data_binding(
+            phospho=phospho_table.frame,
+            sample_metadata=(
+                None if sample_metadata_table is None else sample_metadata_table.frame
+            ),
+            imputation_observation_mask=imputation_observation_mask,
+            processing_state=processing_state,
+        )
         _require_optional_instance(
             preprocessing_report,
             expected_type=DatasetPreprocessingReport,

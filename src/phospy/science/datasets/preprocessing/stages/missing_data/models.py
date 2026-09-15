@@ -40,6 +40,15 @@ class GroupRoutingAssumption(str, Enum):
     ASYMMETRIC_LEFT_CENSORED = "asymmetric_left_censored"
 
 
+class GroupAwareRouteCategory(str, Enum):
+    """Neutral, auditable names for group-aware routing outcomes."""
+
+    PARTIAL_OBSERVATION_KNN = "partial_observation_knn"
+    ASYMMETRIC_ABSENCE_MINPROB = "asymmetric_absence_minprob"
+    UNSUPPORTED_PARTIAL = "unsupported_partial"
+    UNSUPPORTED_ABSENCE = "unsupported_absence"
+
+
 @dataclass(frozen=True, slots=True)
 class GroupRoutingFact:
     """Compact classification facts for one phosphosite/group block."""
@@ -55,6 +64,26 @@ class GroupRoutingFact:
     routing_assumption: GroupRoutingAssumption
     qualifying_reference_group_labels: tuple[str, ...] = ()
 
+    @property
+    def route_category(self) -> GroupAwareRouteCategory | None:
+        """Return the neutral diagnostic category for this routing fact."""
+
+        categories = {
+            GroupMissingnessClassification.SUPPORTED_PARTIAL: (
+                GroupAwareRouteCategory.PARTIAL_OBSERVATION_KNN
+            ),
+            GroupMissingnessClassification.SUPPORTED_FULLY_MISSING: (
+                GroupAwareRouteCategory.ASYMMETRIC_ABSENCE_MINPROB
+            ),
+            GroupMissingnessClassification.UNSUPPORTED_PARTIAL: (
+                GroupAwareRouteCategory.UNSUPPORTED_PARTIAL
+            ),
+            GroupMissingnessClassification.UNSUPPORTED_FULLY_MISSING: (
+                GroupAwareRouteCategory.UNSUPPORTED_ABSENCE
+            ),
+        }
+        return categories.get(self.classification)
+
 
 @dataclass(frozen=True, slots=True)
 class DroppedRowRoutingRecord:
@@ -62,6 +91,19 @@ class DroppedRowRoutingRecord:
 
     row_id: str
     reasons_by_group: Mapping[str, GroupMissingnessClassification]
+
+    @property
+    def route_categories_by_group(self) -> Mapping[str, GroupAwareRouteCategory]:
+        """Return neutral unsupported-route categories keyed by group."""
+
+        return {
+            group: (
+                GroupAwareRouteCategory.UNSUPPORTED_PARTIAL
+                if classification is GroupMissingnessClassification.UNSUPPORTED_PARTIAL
+                else GroupAwareRouteCategory.UNSUPPORTED_ABSENCE
+            )
+            for group, classification in self.reasons_by_group.items()
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,3 +267,12 @@ class GroupAwarePolicyOutcome:
     output_missing_cell_count: int
     rows_not_imputable: tuple[str, ...]
     imputed_rows: tuple[RowImputationRecord, ...]
+    knn_target_cell_count: int
+    minprob_target_cell_count: int
+    knn_imputed_cell_count: int
+    minprob_imputed_cell_count: int
+    knn_target_mask_hash: str
+    minprob_target_mask_hash: str
+    knn_imputation_mask_hash: str
+    minprob_imputation_mask_hash: str
+    imputation_mask_hash: str

@@ -9,6 +9,7 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
 from phospy.frames.ownership import own_dataframe, own_optional_dataframe
 from phospy.frames.validation import (
@@ -24,6 +25,17 @@ from phospy.provenance.models import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
+from phospy.science.datasets.preprocessing.missing_data_mask_hashing import (
+    hash_group_aware_imputation_mask,
+    hash_group_aware_mechanism_mask,
+)
+from phospy.science.datasets.preprocessing.sample_group_metadata import (
+    SampleGroupMetadataResolver,
+)
+from phospy.science.datasets.processing_state import (
+    DatasetProcessingState,
+    MissingDataDiagnosticsV2,
+)
 from phospy.science.transformations.models import IntensityScaleState
 from phospy.science.transformations.state_coherence import (
     require_intensity_scale_state_coherence,
@@ -33,6 +45,131 @@ from phospy.science.transformations.state_coherence import (
 _NUMPY_DTYPES_WITH_NAN_SENTINELS = frozenset(("f", "c"))
 
 _NUMPY_DTYPES_WITHOUT_MISSING_SENTINELS = frozenset(("i", "u"))
+
+
+def validate_group_aware_missing_data_binding(
+    *,
+    phospho: pd.DataFrame,
+    sample_metadata: pd.DataFrame | None,
+    imputation_observation_mask: pd.DataFrame | None,
+    processing_state: object,
+) -> None:
+    """Bind group-aware diagnostics v2 to reconstructed dataset tables."""
+
+    if not isinstance(processing_state, DatasetProcessingState):
+        return
+    diagnostics = processing_state.missing_data.diagnostics
+    if not isinstance(diagnostics, MissingDataDiagnosticsV2):
+        return
+    group_aware = diagnostics.group_aware
+    if len(phospho.index) != group_aware.retained_row_count:
+        raise DatasetValidationError(
+            "group-aware missing-data diagnostics retained_row_count must match "
+            "dataset.phospho rows"
+        )
+    try:
+        resolved = SampleGroupMetadataResolver().run(
+            phospho=phospho,
+            sample_metadata=sample_metadata,
+            group_column=group_aware.group_column,
+        )
+    except PhosPyInputError as exc:
+        raise DatasetValidationError(
+            "group-aware missing-data diagnostics must resolve against dataset.sample_metadata"
+        ) from exc
+    expected_groups = {
+        group: list(samples)
+        for group, samples in resolved.sample_order_by_group.items()
+    }
+    recorded_groups = cast(
+        Mapping[str, object],
+        diagnostics.method_parameters["resolved_group_samples"],
+    )
+    recorded_group_payload = {
+        group: list(cast(tuple[str, ...], samples))
+        for group, samples in recorded_groups.items()
+    }
+    if recorded_group_payload != expected_groups:
+        raise DatasetValidationError(
+            "group-aware missing-data diagnostics resolved_group_samples must match "
+            "dataset phospho/sample metadata"
+        )
+    expected_group_sizes = {
+        group: len(samples) for group, samples in expected_groups.items()
+    }
+    if dict(group_aware.observed_group_sizes) != expected_group_sizes:
+        raise DatasetValidationError(
+            "group-aware missing-data diagnostics observed_group_sizes must match "
+            "dataset.sample_metadata"
+        )
+
+    row_by_text = {str(row): row for row in phospho.index}
+    column_by_text = {str(column): column for column in phospho.columns}
+    if len(row_by_text) != len(phospho.index):
+        raise DatasetValidationError(
+            "group-aware missing-data diagnostics require phospho row labels "
+            "that remain unique when serialized"
+        )
+    if len(column_by_text) != len(phospho.columns):
+        raise DatasetValidationError(
+            "group-aware missing-data diagnostics require phospho column labels "
+            "that remain unique when serialized"
+        )
+    knn_mask = pd.DataFrame(False, index=phospho.index, columns=phospho.columns)
+    minprob_mask = pd.DataFrame(False, index=phospho.index, columns=phospho.columns)
+    for record in group_aware.routed_rows:
+        if record.row_id not in row_by_text:
+            raise DatasetValidationError(
+                "group-aware missing-data diagnostics routed row must exist in dataset.phospho"
+            )
+        row = row_by_text[record.row_id]
+        for columns, mask, mechanism in (
+            (record.knn_imputed_columns, knn_mask, "KNN"),
+            (record.minprob_imputed_columns, minprob_mask, "MinProb"),
+        ):
+            unknown = sorted(set(columns) - set(column_by_text))
+            if unknown:
+                raise DatasetValidationError(
+                    f"group-aware missing-data diagnostics {mechanism} columns must "
+                    "exist in dataset.phospho: " + ", ".join(unknown)
+                )
+            for column in columns:
+                mask.loc[row, column_by_text[column]] = True
+    overall_mask = knn_mask | minprob_mask
+    expected_hashes = {
+        "knn_target_mask_hash": hash_group_aware_mechanism_mask(
+            knn_mask, mechanism="knn", mask_kind="target"
+        ),
+        "knn_imputation_mask_hash": hash_group_aware_mechanism_mask(
+            knn_mask, mechanism="knn", mask_kind="imputation"
+        ),
+        "minprob_target_mask_hash": hash_group_aware_mechanism_mask(
+            minprob_mask, mechanism="minprob", mask_kind="target"
+        ),
+        "minprob_imputation_mask_hash": hash_group_aware_mechanism_mask(
+            minprob_mask, mechanism="minprob", mask_kind="imputation"
+        ),
+    }
+    for field_name, expected_hash in expected_hashes.items():
+        if getattr(group_aware, field_name) != expected_hash:
+            raise DatasetValidationError(
+                f"group-aware missing-data diagnostics {field_name} must match "
+                "mechanism-attributed cells"
+            )
+    if diagnostics.imputation_mask_hash != hash_group_aware_imputation_mask(
+        overall_mask
+    ):
+        raise DatasetValidationError(
+            "group-aware missing-data diagnostics imputation_mask_hash must match "
+            "mechanism-attributed cells"
+        )
+    if imputation_observation_mask is not None:
+        recorded_imputed_mask = ~imputation_observation_mask.astype(bool)
+        if not recorded_imputed_mask.equals(overall_mask):
+            raise DatasetValidationError(
+                "dataset.imputation_observation_mask must match group-aware "
+                "mechanism-attributed cells"
+            )
 
 
 class _IntensityScaleStateValidator:

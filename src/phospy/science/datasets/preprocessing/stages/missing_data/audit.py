@@ -16,6 +16,7 @@ from phospy.science.datasets.processing_state import JsonValue
 
 from .models import (
     GroupAwarePolicyOutcome,
+    GroupMissingnessClassification,
     KnnPolicyOutcome,
     MinProbPolicyOutcome,
     MissingDataInputProfile,
@@ -31,6 +32,24 @@ def build_group_aware_audit_records(
 ) -> list[PreprocessingRowAuditRow]:
     """Build row-level routing and mechanism audit records."""
 
+    resolved_group_samples: dict[str, JsonValue] = {
+        group: cast(JsonValue, list(samples))
+        for group, samples in outcome.routing.resolved_groups.sample_order_by_group.items()
+    }
+    sample_group_by_column = {
+        str(sample): group
+        for group, samples in outcome.routing.resolved_groups.sample_order_by_group.items()
+        for sample in samples
+    }
+    routing_facts_by_row = {
+        row_id: tuple(
+            fact for fact in outcome.routing.group_facts if fact.row_id == row_id
+        )
+        for row_id in (
+            *outcome.routing.retained_row_ids,
+            *outcome.routing.dropped_row_ids,
+        )
+    }
     snapshot_base: dict[str, JsonValue] = {
         "missing_data_policy": MissingDataPolicy.IMPUTE_GROUP_AWARE.value,
         **_build_row_audit_snapshot_common(
@@ -52,16 +71,48 @@ def build_group_aware_audit_records(
         "q": float(outcome.q),
         "width": float(outcome.width),
         "seed": int(outcome.seed),
-        "knn_target_cell_count": int(outcome.knn_target_mask.to_numpy().sum()),
-        "minprob_target_cell_count": int(outcome.minprob_target_mask.to_numpy().sum()),
+        "observed_group_sizes": {
+            group: len(samples)
+            for group, samples in outcome.routing.resolved_groups.sample_order_by_group.items()
+        },
+        "resolved_group_samples": resolved_group_samples,
+        "retained_row_count": len(outcome.routing.retained_row_ids),
+        "dropped_unsupported_row_count": len(outcome.routing.dropped_row_ids),
+        "knn_routed_cell_count": outcome.knn_target_cell_count,
+        "minprob_routed_cell_count": outcome.minprob_target_cell_count,
+        "knn_imputed_cell_count": outcome.knn_imputed_cell_count,
+        "minprob_imputed_cell_count": outcome.minprob_imputed_cell_count,
+        "knn_target_mask_hash": outcome.knn_target_mask_hash,
+        "minprob_target_mask_hash": outcome.minprob_target_mask_hash,
+        "knn_imputation_mask_hash": outcome.knn_imputation_mask_hash,
+        "minprob_imputation_mask_hash": outcome.minprob_imputation_mask_hash,
+        "imputation_mask_hash": outcome.imputation_mask_hash,
+        "minprob_left_censored_assumption": True,
     }
     records: list[PreprocessingRowAuditRow] = []
     for dropped in outcome.routing.dropped_row_reasons:
+        partial_groups = tuple(
+            group
+            for group, classification in dropped.reasons_by_group.items()
+            if classification is GroupMissingnessClassification.UNSUPPORTED_PARTIAL
+        )
+        absence_groups = tuple(
+            group
+            for group, classification in dropped.reasons_by_group.items()
+            if classification
+            is GroupMissingnessClassification.UNSUPPORTED_FULLY_MISSING
+        )
+        if partial_groups and absence_groups:
+            reason = "unsupported partial coverage and unsupported fully-missing group"
+        elif partial_groups:
+            reason = "unsupported partial coverage"
+        else:
+            reason = "unsupported fully-missing group"
         records.append(
             PreprocessingRowAuditRow(
                 stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
                 action="dropped",
-                reason="dropped because group-aware routing found unsupported missingness",
+                reason=reason,
                 source_row_id=dropped.row_id,
                 site_id=dropped.row_id,
                 retained=False,
@@ -71,8 +122,18 @@ def build_group_aware_audit_records(
                 parameter_snapshot={
                     **snapshot_base,
                     "unsupported_groups": {
-                        str(group): classification.value
-                        for group, classification in dropped.reasons_by_group.items()
+                        str(group): category.value
+                        for group, category in dropped.route_categories_by_group.items()
+                    },
+                    "unsupported_partial_groups": partial_groups,
+                    "unsupported_absence_groups": absence_groups,
+                    "observed_finite_count_by_group": {
+                        fact.group_label: fact.observed_finite_count
+                        for fact in routing_facts_by_row[dropped.row_id]
+                    },
+                    "observed_fraction_by_group": {
+                        fact.group_label: fact.observed_fraction
+                        for fact in routing_facts_by_row[dropped.row_id]
                     },
                 },
             )
@@ -92,7 +153,7 @@ def build_group_aware_audit_records(
             PreprocessingRowAuditRow(
                 stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
                 action="imputed",
-                reason="missing values imputed by group-aware KNN/MinProb routing",
+                reason="group-aware row retained/imputed",
                 source_row_id=row.row_id,
                 site_id=row.row_id,
                 retained=True,
@@ -105,6 +166,32 @@ def build_group_aware_audit_records(
                     "imputed_cell_count": int(row.imputed_cell_count),
                     "knn_imputed_columns": row.nearest_neighbour_imputed_columns,
                     "minprob_imputed_columns": minprob_columns,
+                    "knn_affected_groups": list(
+                        dict.fromkeys(
+                            sample_group_by_column[column]
+                            for column in row.nearest_neighbour_imputed_columns
+                        )
+                    ),
+                    "minprob_affected_groups": list(
+                        dict.fromkeys(
+                            sample_group_by_column[column] for column in minprob_columns
+                        )
+                    ),
+                    "mechanisms": [
+                        mechanism
+                        for mechanism, columns in (
+                            (
+                                "partial_observation_knn",
+                                row.nearest_neighbour_imputed_columns,
+                            ),
+                            ("asymmetric_absence_minprob", minprob_columns),
+                        )
+                        if columns
+                    ],
+                    "knn_imputed_cell_count_for_row": len(
+                        row.nearest_neighbour_imputed_columns
+                    ),
+                    "minprob_imputed_cell_count_for_row": len(minprob_columns),
                     "minprob_column_distribution_parameters": {
                         column: outcome.per_column_distribution_parameters[column]
                         for column in minprob_columns

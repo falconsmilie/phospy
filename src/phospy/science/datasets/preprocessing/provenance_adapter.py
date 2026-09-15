@@ -218,6 +218,8 @@ def _resolve_imputation_scope(
         return "per_row"
     if policy in {"impute_knn", "impute_minprob"}:
         return "global_matrix"
+    if policy == "impute_group_aware":
+        return "group_aware"
     if policy == "forbid":
         return "none"
     return None

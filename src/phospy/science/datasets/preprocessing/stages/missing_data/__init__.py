@@ -6,6 +6,8 @@ from .group_aware_routing import (
 )
 from .models import (
     DroppedRowRoutingRecord,
+    GroupAwarePolicyOutcome,
+    GroupAwareRouteCategory,
     GroupAwareRoutingOutcome,
     GroupMissingnessClassification,
     GroupMissingnessRoute,
@@ -17,6 +19,8 @@ from .stage import MISSING_DATA_STAGE_CONTRACT, MissingDataStage
 __all__ = [
     "DroppedRowRoutingRecord",
     "GroupAwareMissingnessRouter",
+    "GroupAwarePolicyOutcome",
+    "GroupAwareRouteCategory",
     "GroupAwareRoutingOutcome",
     "GroupMissingnessClassification",
     "GroupMissingnessRoute",
