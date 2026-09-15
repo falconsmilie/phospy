@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
+from types import MappingProxyType
 
 import pandas as pd
 
@@ -83,6 +84,37 @@ class GroupRoutingFact:
             ),
         }
         return categories.get(self.classification)
+
+
+@dataclass(frozen=True, slots=True)
+class GroupRoutingFactsByRow:
+    """Read-only, row-addressable index over group routing facts."""
+
+    _facts_by_row: Mapping[str, tuple[GroupRoutingFact, ...]]
+
+    @classmethod
+    def build(
+        cls,
+        group_facts: Sequence[GroupRoutingFact],
+    ) -> GroupRoutingFactsByRow:
+        """Index every fact exactly once while preserving routing order."""
+
+        mutable_index: dict[str, list[GroupRoutingFact]] = {}
+        for fact in group_facts:
+            mutable_index.setdefault(fact.row_id, []).append(fact)
+        return cls(
+            _facts_by_row=MappingProxyType(
+                {
+                    row_id: tuple(row_facts)
+                    for row_id, row_facts in mutable_index.items()
+                }
+            )
+        )
+
+    def for_row(self, row_id: str) -> tuple[GroupRoutingFact, ...]:
+        """Return facts for one row in constant-time lookup."""
+
+        return self._facts_by_row[row_id]
 
 
 @dataclass(frozen=True, slots=True)

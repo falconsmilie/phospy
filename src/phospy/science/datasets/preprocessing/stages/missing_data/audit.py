@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 import pandas as pd
 
 from phospy.science.datasets.preprocessing.models import (
@@ -17,6 +15,8 @@ from phospy.science.datasets.processing_state import JsonValue
 from .models import (
     GroupAwarePolicyOutcome,
     GroupMissingnessClassification,
+    GroupMissingnessRoute,
+    GroupRoutingFactsByRow,
     KnnPolicyOutcome,
     MinProbPolicyOutcome,
     MissingDataInputProfile,
@@ -26,64 +26,13 @@ from .models import (
 
 def build_group_aware_audit_records(
     *,
-    plan: PreprocessingPlan,
-    input_profile: MissingDataInputProfile,
     outcome: GroupAwarePolicyOutcome,
+    routing_facts_by_row: GroupRoutingFactsByRow,
 ) -> list[PreprocessingRowAuditRow]:
     """Build row-level routing and mechanism audit records."""
 
-    resolved_group_samples: dict[str, JsonValue] = {
-        group: cast(JsonValue, list(samples))
-        for group, samples in outcome.routing.resolved_groups.original_sample_order_by_group.items()
-    }
-    sample_group_by_column = outcome.routing.resolved_groups.group_by_original_sample
-    routing_facts_by_row = {
-        row_id: tuple(
-            fact for fact in outcome.routing.group_facts if fact.row_id == row_id
-        )
-        for row_id in (
-            *outcome.routing.retained_row_ids,
-            *outcome.routing.dropped_row_ids,
-        )
-    }
     snapshot_base: dict[str, JsonValue] = {
         "missing_data_policy": MissingDataPolicy.IMPUTE_GROUP_AWARE.value,
-        **_build_row_audit_snapshot_common(
-            input_profile=input_profile,
-            output_missing_cell_count=outcome.output_missing_cell_count,
-            imputed_cell_count=outcome.imputed_cell_count,
-            stage_order=plan.stage_order,
-        ),
-        "group_column": str(plan.missing_data_group_column),
-        "min_partial_observed_fraction": float(
-            outcome.routing.min_partial_observed_fraction
-        ),
-        "min_reference_observed_fraction": float(
-            outcome.routing.min_reference_observed_fraction
-        ),
-        "k": int(outcome.k),
-        "distance": str(outcome.distance),
-        "no_overlap_policy": str(outcome.no_overlap_policy),
-        "q": float(outcome.q),
-        "width": float(outcome.width),
-        "seed": int(outcome.seed),
-        "observed_group_sizes": {
-            group: len(samples)
-            for group, samples in outcome.routing.resolved_groups.original_sample_order_by_group.items()
-        },
-        "resolved_group_samples": resolved_group_samples,
-        "retained_row_count": len(outcome.routing.retained_row_ids),
-        "dropped_unsupported_row_count": len(outcome.routing.dropped_row_ids),
-        "knn_routed_cell_count": outcome.knn_target_cell_count,
-        "minprob_routed_cell_count": outcome.minprob_target_cell_count,
-        "knn_imputed_cell_count": outcome.knn_imputed_cell_count,
-        "minprob_imputed_cell_count": outcome.minprob_imputed_cell_count,
-        "knn_target_mask_hash": outcome.knn_target_mask_hash,
-        "minprob_target_mask_hash": outcome.minprob_target_mask_hash,
-        "knn_imputation_mask_hash": outcome.knn_imputation_mask_hash,
-        "minprob_imputation_mask_hash": outcome.minprob_imputation_mask_hash,
-        "imputation_mask_hash": outcome.imputation_mask_hash,
-        "minprob_left_censored_assumption": True,
     }
     records: list[PreprocessingRowAuditRow] = []
     for dropped in outcome.routing.dropped_row_reasons:
@@ -117,33 +66,44 @@ def build_group_aware_audit_records(
                 retained_row=pd.NA,
                 parameter_snapshot={
                     **snapshot_base,
-                    "unsupported_groups": {
-                        str(group): category.value
-                        for group, category in dropped.route_categories_by_group.items()
-                    },
                     "unsupported_partial_groups": partial_groups,
                     "unsupported_absence_groups": absence_groups,
                     "observed_finite_count_by_group": {
                         fact.group_label: fact.observed_finite_count
-                        for fact in routing_facts_by_row[dropped.row_id]
+                        for fact in routing_facts_by_row.for_row(dropped.row_id)
                     },
                     "observed_fraction_by_group": {
                         fact.group_label: fact.observed_fraction
-                        for fact in routing_facts_by_row[dropped.row_id]
+                        for fact in routing_facts_by_row.for_row(dropped.row_id)
                     },
+                    **(
+                        {
+                            "min_partial_observed_fraction": float(
+                                outcome.routing.min_partial_observed_fraction
+                            )
+                        }
+                        if partial_groups
+                        else {}
+                    ),
+                    **(
+                        {
+                            "min_reference_observed_fraction": float(
+                                outcome.routing.min_reference_observed_fraction
+                            )
+                        }
+                        if absence_groups
+                        else {}
+                    ),
                 },
             )
         )
     for row in outcome.imputed_rows:
-        minprob_row_mask = cast(
-            pd.Series,
-            outcome.minprob_imputed_mask.loc[row.row_id],
+        row_facts = routing_facts_by_row.for_row(row.row_id)
+        knn_facts = tuple(
+            fact for fact in row_facts if fact.route is GroupMissingnessRoute.KNN
         )
-        minprob_columns = tuple(
-            str(column)
-            for column in outcome.phospho.columns[
-                minprob_row_mask.to_numpy(dtype=bool, copy=False)
-            ].tolist()
+        minprob_facts = tuple(
+            fact for fact in row_facts if fact.route is GroupMissingnessRoute.MINPROB
         )
         records.append(
             PreprocessingRowAuditRow(
@@ -158,41 +118,25 @@ def build_group_aware_audit_records(
                 retained_row=row.row_id,
                 parameter_snapshot={
                     **snapshot_base,
-                    "imputed_columns": row.imputed_columns,
                     "imputed_cell_count": int(row.imputed_cell_count),
-                    "knn_imputed_columns": row.nearest_neighbour_imputed_columns,
-                    "minprob_imputed_columns": minprob_columns,
-                    "knn_affected_groups": list(
-                        dict.fromkeys(
-                            sample_group_by_column[column]
-                            for column in row.nearest_neighbour_imputed_columns
-                        )
-                    ),
-                    "minprob_affected_groups": list(
-                        dict.fromkeys(
-                            sample_group_by_column[column] for column in minprob_columns
-                        )
-                    ),
+                    "knn_affected_groups": [fact.group_label for fact in knn_facts],
+                    "minprob_affected_groups": [
+                        fact.group_label for fact in minprob_facts
+                    ],
                     "mechanisms": [
                         mechanism
-                        for mechanism, columns in (
-                            (
-                                "partial_observation_knn",
-                                row.nearest_neighbour_imputed_columns,
-                            ),
-                            ("asymmetric_absence_minprob", minprob_columns),
+                        for mechanism, facts in (
+                            ("partial_observation_knn", knn_facts),
+                            ("asymmetric_absence_minprob", minprob_facts),
                         )
-                        if columns
+                        if facts
                     ],
-                    "knn_imputed_cell_count_for_row": len(
-                        row.nearest_neighbour_imputed_columns
+                    "knn_imputed_cell_count_for_row": sum(
+                        fact.missing_count for fact in knn_facts
                     ),
-                    "minprob_imputed_cell_count_for_row": len(minprob_columns),
-                    "minprob_column_distribution_parameters": {
-                        column: outcome.per_column_distribution_parameters[column]
-                        for column in minprob_columns
-                        if column in outcome.per_column_distribution_parameters
-                    },
+                    "minprob_imputed_cell_count_for_row": sum(
+                        fact.missing_count for fact in minprob_facts
+                    ),
                 },
             )
         )

@@ -44,6 +44,7 @@ runner contention to serve as a release gate.
 | Site matrix building | input rows; duplicate-site groups; samples | O(rows x samples) plus grouping | <= 5,000 rows, <= 12 samples | None | Duplicate resolution and grouping materialize intermediate tables | Policy-driven duplicate handling only after explicit non-error `duplicate_site_policy` selection | Raises `PhosPyInputError` for unsupported policy, missing required metadata, or zero retained rows |
 | Duplicate-site resolution | duplicate groups, rows per group, samples | Groupby/sort path: roughly O(rows log rows) | Moderate duplicate groups; keep group size small | None | Aggregate policies allocate grouped matrices | `aggregate_mean` / `aggregate_median` deliberately collapse duplicate `site_key` evidence; `first` and `max_mean_signal` deliberately select one source row | Default `duplicate_site_policy='error'` fails fast on duplicate `site_key` rows |
 | Missing data handling | sites x samples; missing fraction | Row-median/MinProb: O(rows x columns). KNN and the KNN route of group-aware imputation: O(rows_with_missing x retained_rows x columns) distance work | Row-median/MinProb: 2,000 x 8 to 5,000 x 12. KNN/group-aware KNN: sparse 12-sample and moderate 24-sample retained missing-target workloads up to 50,000 retained sites under the KNN guardrails | KNN retained rows <= 50,000, samples <= 64, distance-feature operations <= 2,000,000,000 | Imputation copies matrix and row-audit state. KNN chunks pairwise target-row distance matrices; group-aware execution independently copies the original retained matrix for KNN and MinProb before merging | Policy-driven (`forbid`, `impute_row_median`, `impute_minprob`, `impute_knn`, `impute_group_aware`); no hidden fallback between policies, and group-aware KNN forbids column-mean fallback | Validation errors for policy/parameter mismatches; strict policies reject missing values; KNN rejects impractical retained shapes; group-aware execution requires aligned sample metadata and fails with site/cell context when no overlapping donor exists |
+| Group-aware full-stage provenance construction | routed row-group facts (sites x groups); audited rows | Approximately O(sites x groups): group facts are indexed in one pass and diagnostics plus row audit share that index | 1,200 sites x 6 samples x 2 groups (CI structural fixture) | One full group-fact sequence pass, one index build, and at most four indexed row lookups per audited row | Holds one row-keyed facts index and compact row-local audit records; dataset-wide provenance remains in stage diagnostics | No approximation or omitted scientific routing facts; the contract exercises routing, diagnostics, row audit, and stage-result construction | Structural assertions fail if construction rescans the complete fact sequence, rebuilds the index, or stops sharing the authoritative index |
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
@@ -111,6 +112,30 @@ distance-work budget and is intentionally rejected. In that case, reduce
 retained missing rows, lower `missing_data.max_missing_fraction_per_row`,
 pre-filter low-value features, or use `missing_data.policy="impute_row_median"`
 when its scientific semantics are acceptable.
+
+## Group-Aware Full-Stage Provenance Contract
+
+The bounded release-gated contract executes the complete group-aware
+`MissingDataStage` path: routing, diagnostics construction, row-audit
+construction, and stage-result construction. Its CI-safe fixture contains
+1,200 phosphosite rows, 6 samples, and 2 experimental groups. It is a structural
+scaling contract rather than a tight machine-dependent timing gate and does not
+restore the oversized release-scale workload.
+
+Routing produces approximately O(N × G) row-group facts for N phosphosite rows
+and G groups. The stage must traverse that complete fact sequence once to build
+one row-keyed index, then reuse the same index for diagnostics and row audit.
+The contract instruments this ownership directly: it permits one index build,
+one complete fact-sequence pass, and no more than four constant-time indexed
+row lookups per audited row. Work after indexing remains proportional to the
+number of facts for the requested row, while compact row audits avoid repeating
+dataset-wide group configuration, mechanism hashes, or full cell attribution.
+
+This linear provenance-construction contract is separate from KNN's numerical
+complexity. If a retained row is routed to KNN, its distance work still follows
+the O(rows_with_missing × retained_rows × columns) guardrails documented above;
+the shared facts index only prevents diagnostics and audit assembly from adding
+quadratic rescans of routing provenance.
 
 ## CI Performance Contract Ownership
 

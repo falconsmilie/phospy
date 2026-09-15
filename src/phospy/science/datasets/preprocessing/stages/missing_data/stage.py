@@ -84,6 +84,8 @@ from .models import (
     GroupAwarePolicyOutcome,
     GroupAwareRoutingOutcome,
     GroupMissingnessClassification,
+    GroupMissingnessRoute,
+    GroupRoutingFactsByRow,
     KnnPolicyOutcome,
     MinProbPolicyOutcome,
     MissingDataInputProfile,
@@ -467,6 +469,7 @@ def _run_group_aware_policy(
         min_partial_observed_fraction=min_partial_observed_fraction,
         min_reference_observed_fraction=min_reference_observed_fraction,
     )
+    routing_facts_by_row = GroupRoutingFactsByRow.build(routing.group_facts)
     outcome = execute_group_aware_imputation(
         state=state,
         routing=routing,
@@ -478,9 +481,8 @@ def _run_group_aware_policy(
         no_overlap_policy=no_overlap_policy,
     )
     row_audit_records = build_group_aware_audit_records(
-        plan=state.plan,
-        input_profile=input_profile,
         outcome=outcome,
+        routing_facts_by_row=routing_facts_by_row,
     )
     imputation_input_scale = _required_imputation_input_scale_value(state.plan)
     diagnostics = build_missing_data_diagnostics(
@@ -558,11 +560,6 @@ def _run_group_aware_policy(
             for classification in record.reasons_by_group.values()
         )
     )
-    sample_group_by_column = routing.resolved_groups.group_by_original_sample
-    routing_facts_by_row = {
-        row_id: tuple(fact for fact in routing.group_facts if fact.row_id == row_id)
-        for row_id in (*routing.retained_row_ids, *routing.dropped_row_ids)
-    }
     diagnostics["diagnostics_schema_version"] = (
         MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2
     )
@@ -600,17 +597,14 @@ def _run_group_aware_policy(
                     if column not in set(row.nearest_neighbour_imputed_columns)
                 ],
                 "knn_group_labels": list(
-                    dict.fromkeys(
-                        sample_group_by_column[column]
-                        for column in row.nearest_neighbour_imputed_columns
-                    )
+                    fact.group_label
+                    for fact in routing_facts_by_row.for_row(row.row_id)
+                    if fact.route is GroupMissingnessRoute.KNN
                 ),
                 "minprob_group_labels": list(
-                    dict.fromkeys(
-                        sample_group_by_column[column]
-                        for column in row.imputed_columns
-                        if column not in set(row.nearest_neighbour_imputed_columns)
-                    )
+                    fact.group_label
+                    for fact in routing_facts_by_row.for_row(row.row_id)
+                    if fact.route is GroupMissingnessRoute.MINPROB
                 ),
             }
             for row in outcome.imputed_rows
@@ -632,11 +626,11 @@ def _run_group_aware_policy(
                 ],
                 "observed_finite_count_by_group": {
                     fact.group_label: fact.observed_finite_count
-                    for fact in routing_facts_by_row[record.row_id]
+                    for fact in routing_facts_by_row.for_row(record.row_id)
                 },
                 "observed_fraction_by_group": {
                     fact.group_label: fact.observed_fraction
-                    for fact in routing_facts_by_row[record.row_id]
+                    for fact in routing_facts_by_row.for_row(record.row_id)
                 },
             }
             for record in routing.dropped_row_reasons

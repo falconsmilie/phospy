@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -29,11 +32,22 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
 )
+from phospy.science.datasets.preprocessing.stages.missing_data import (
+    stage as missing_data_stage_module,
+)
 from phospy.science.datasets.preprocessing.stages.missing_data.group_aware_routing import (
     route_group_aware_missingness,
 )
 from phospy.science.datasets.preprocessing.stages.missing_data.knn import (
     run_knn_policy,
+)
+from phospy.science.datasets.preprocessing.stages.missing_data.models import (
+    GroupAwareRoutingOutcome,
+    GroupRoutingFact,
+    GroupRoutingFactsByRow,
+)
+from phospy.science.datasets.preprocessing.stages.missing_data.stage import (
+    MissingDataStage,
 )
 from phospy.science.datasets.preprocessing.stages.normalisation import (
     NormalisationStage,
@@ -69,6 +83,12 @@ from tests.support.performance_contracts import (
     BUNDLE_PUBLISH_RUNTIME_SECONDS_MAX,
     DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS,
     DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER,
+    GROUP_AWARE_FULL_STAGE_CONTRACT_N_GROUPS,
+    GROUP_AWARE_FULL_STAGE_CONTRACT_N_SAMPLES,
+    GROUP_AWARE_FULL_STAGE_CONTRACT_N_SITES,
+    GROUP_AWARE_FULL_STAGE_FACT_INDEX_BUILDS_MAX,
+    GROUP_AWARE_FULL_STAGE_FACT_SEQUENCE_PASSES_MAX,
+    GROUP_AWARE_FULL_STAGE_ROW_LOOKUPS_PER_AUDITED_ROW_MAX,
     GROUP_AWARE_ROUTING_CONTRACT_N_SAMPLES,
     GROUP_AWARE_ROUTING_CONTRACT_N_SITES,
     GROUP_AWARE_ROUTING_PEAK_MIB_MAX,
@@ -1109,6 +1129,163 @@ def test_group_aware_routing_practical_performance_regression() -> None:
     assert len(outcome.retained_row_ids) == GROUP_AWARE_ROUTING_CONTRACT_N_SITES - 128
     assert runtime_seconds < GROUP_AWARE_ROUTING_RUNTIME_SECONDS_MAX
     assert peak_mib < GROUP_AWARE_ROUTING_PEAK_MIB_MAX
+
+
+def test_group_aware_full_stage_uses_one_shared_facts_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    full_fact_pass_count = 0
+    facts_index_build_count = 0
+    row_fact_lookup_count = 0
+    audit_row_fact_lookup_count = 0
+    facts_index_ids: set[int] = set()
+    lookup_index_ids: set[int] = set()
+    audit_index_ids: set[int] = set()
+    audit_is_building = False
+
+    class _SinglePassGroupFacts:
+        def __init__(self, facts: tuple[GroupRoutingFact, ...]) -> None:
+            self._facts = facts
+
+        def __iter__(self) -> Iterator[GroupRoutingFact]:
+            nonlocal full_fact_pass_count
+            full_fact_pass_count += 1
+            if full_fact_pass_count > GROUP_AWARE_FULL_STAGE_FACT_SEQUENCE_PASSES_MAX:
+                raise AssertionError(
+                    "the full group-fact sequence was scanned more than once"
+                )
+            return iter(self._facts)
+
+    def _route_with_single_pass_facts(**kwargs: Any) -> GroupAwareRoutingOutcome:
+        routing = route_group_aware_missingness(**kwargs)
+        return replace(
+            routing,
+            group_facts=_SinglePassGroupFacts(routing.group_facts),
+        )
+
+    original_build = GroupRoutingFactsByRow.build
+
+    def _counted_build(
+        cls: type[GroupRoutingFactsByRow],
+        group_facts: Any,
+    ) -> GroupRoutingFactsByRow:
+        nonlocal facts_index_build_count
+        facts_index_build_count += 1
+        index = original_build(group_facts)
+        facts_index_ids.add(id(index))
+        return index
+
+    original_for_row = GroupRoutingFactsByRow.for_row
+
+    def _counted_for_row(
+        self: GroupRoutingFactsByRow,
+        row_id: str,
+    ) -> tuple[GroupRoutingFact, ...]:
+        nonlocal row_fact_lookup_count, audit_row_fact_lookup_count
+        row_fact_lookup_count += 1
+        if audit_is_building:
+            audit_row_fact_lookup_count += 1
+        lookup_index_ids.add(id(self))
+        return original_for_row(self, row_id)
+
+    original_audit_builder = missing_data_stage_module.build_group_aware_audit_records
+
+    def _build_audit_with_index_probe(**kwargs: Any) -> Any:
+        nonlocal audit_is_building
+        audit_index_ids.add(id(kwargs["routing_facts_by_row"]))
+        audit_is_building = True
+        try:
+            return original_audit_builder(**kwargs)
+        finally:
+            audit_is_building = False
+
+    monkeypatch.setattr(
+        missing_data_stage_module,
+        "route_group_aware_missingness",
+        _route_with_single_pass_facts,
+    )
+    monkeypatch.setattr(
+        GroupRoutingFactsByRow,
+        "build",
+        classmethod(_counted_build),
+    )
+    monkeypatch.setattr(GroupRoutingFactsByRow, "for_row", _counted_for_row)
+    monkeypatch.setattr(
+        missing_data_stage_module,
+        "build_group_aware_audit_records",
+        _build_audit_with_index_probe,
+    )
+
+    def _build_state() -> PreprocessingState:
+        samples_per_group = (
+            GROUP_AWARE_FULL_STAGE_CONTRACT_N_SAMPLES
+            // GROUP_AWARE_FULL_STAGE_CONTRACT_N_GROUPS
+        )
+        assert (
+            samples_per_group * GROUP_AWARE_FULL_STAGE_CONTRACT_N_GROUPS
+            == GROUP_AWARE_FULL_STAGE_CONTRACT_N_SAMPLES
+        )
+        group_labels = tuple(
+            f"group_{group_index}"
+            for group_index in range(GROUP_AWARE_FULL_STAGE_CONTRACT_N_GROUPS)
+        )
+        phospho = deterministic_matrix(
+            n_sites=GROUP_AWARE_FULL_STAGE_CONTRACT_N_SITES,
+            n_samples=GROUP_AWARE_FULL_STAGE_CONTRACT_N_SAMPLES,
+            seed=9182,
+        )
+        phospho.iloc[1:, 1:samples_per_group] = np.nan
+        sample_metadata = pd.DataFrame(
+            {
+                "condition": [
+                    group_label
+                    for group_label in group_labels
+                    for _ in range(samples_per_group)
+                ]
+            },
+            index=phospho.columns.copy(),
+        )
+        return PreprocessingState(
+            phospho=phospho,
+            site_metadata=pd.DataFrame(index=phospho.index.copy()),
+            sample_metadata=sample_metadata,
+            total=None,
+            plan=PreprocessingPlan(
+                missing_data_policy="impute_group_aware",
+                missing_data_group_column="condition",
+                missing_data_min_partial_observed_fraction=0.5,
+                missing_data_min_reference_observed_fraction=0.75,
+                missing_data_q=0.01,
+                missing_data_width=0.3,
+                missing_data_seed=42,
+                missing_data_k=1,
+                missing_data_distance="nan_euclidean",
+                stage_order=("missing_data",),
+            ),
+        )
+
+    result = MissingDataStage().run(_build_state())
+    audited_row_count = GROUP_AWARE_FULL_STAGE_CONTRACT_N_SITES - 1
+
+    assert result.state.phospho.shape == (
+        1,
+        GROUP_AWARE_FULL_STAGE_CONTRACT_N_SAMPLES,
+    )
+    assert result.state.row_audit is not None
+    assert len(result.state.row_audit) == audited_row_count
+    assert len(result.diagnostics["diagnostics"]["group_aware"]["rejected_rows"]) == (
+        audited_row_count
+    )
+    assert facts_index_build_count == GROUP_AWARE_FULL_STAGE_FACT_INDEX_BUILDS_MAX
+    assert full_fact_pass_count == GROUP_AWARE_FULL_STAGE_FACT_SEQUENCE_PASSES_MAX
+    assert len(facts_index_ids) == 1
+    assert audit_index_ids == facts_index_ids
+    assert lookup_index_ids == facts_index_ids
+    assert audit_row_fact_lookup_count > 0
+    assert row_fact_lookup_count > audit_row_fact_lookup_count
+    assert row_fact_lookup_count <= (
+        audited_row_count * GROUP_AWARE_FULL_STAGE_ROW_LOOKUPS_PER_AUDITED_ROW_MAX
+    )
 
 
 def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:

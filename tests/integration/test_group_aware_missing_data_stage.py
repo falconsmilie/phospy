@@ -369,18 +369,14 @@ def test_group_aware_stage_preserves_canonical_identity_through_audit() -> None:
     }
     assert result.state.row_audit is not None
     audit = result.state.row_audit.iloc[0]["parameter_snapshot"]
-    assert audit["knn_imputed_columns"] == ("a2 ",)
-    assert audit["minprob_imputed_columns"] == (" b1", "b2")
     assert audit["knn_affected_groups"] == ["A"]
     assert audit["minprob_affected_groups"] == ["B"]
     assert audit["mechanisms"] == [
         "partial_observation_knn",
         "asymmetric_absence_minprob",
     ]
-    assert audit["resolved_group_samples"] == {
-        "A": [" a1 ", "a2 "],
-        "B": [" b1", "b2"],
-    }
+    assert "knn_imputed_columns" not in audit
+    assert "minprob_imputed_columns" not in audit
 
 
 def test_group_aware_original_labels_survive_final_dataset_binding() -> None:
@@ -458,13 +454,7 @@ def test_group_aware_original_labels_survive_final_dataset_binding() -> None:
         for _, row in preprocessed.row_audit.iterrows()
         if row["action"] == "imputed"
     }
-    assert audit_by_row[phospho.index[0]]["knn_imputed_columns"] == (" A3",)
     assert audit_by_row[phospho.index[0]]["knn_affected_groups"] == ["A"]
-    assert audit_by_row[phospho.index[1]]["minprob_imputed_columns"] == (
-        " A1 ",
-        "A2 ",
-        " A3",
-    )
     assert audit_by_row[phospho.index[1]]["minprob_affected_groups"] == ["A"]
 
     dataset = trusted_analysis_ready_dataset_from_tables(
@@ -604,11 +594,25 @@ def test_group_aware_row_audit_records_both_mechanisms_for_one_row(
     assert audit["parameter_snapshot"]["minprob_imputed_cell_count_for_row"] == 2
     assert audit["parameter_snapshot"]["knn_affected_groups"] == ["A"]
     assert audit["parameter_snapshot"]["minprob_affected_groups"] == ["B"]
-    assert audit["parameter_snapshot"]["resolved_group_samples"] == {
-        "A": ["a1", "a2"],
-        "B": ["b1", "b2"],
-        "C": ["c1", "c2"],
+    global_only_fields = {
+        "resolved_group_samples",
+        "observed_group_sizes",
+        "knn_target_mask_hash",
+        "minprob_target_mask_hash",
+        "knn_imputation_mask_hash",
+        "minprob_imputation_mask_hash",
+        "imputation_mask_hash",
+        "seed",
+        "stage_order",
     }
+    detailed_v2_fields = {
+        "imputed_columns",
+        "knn_imputed_columns",
+        "minprob_imputed_columns",
+        "minprob_column_distribution_parameters",
+    }
+    assert global_only_fields.isdisjoint(audit["parameter_snapshot"])
+    assert detailed_v2_fields.isdisjoint(audit["parameter_snapshot"])
 
 
 def test_group_aware_row_audit_distinguishes_unsupported_routes() -> None:
@@ -675,6 +679,14 @@ def test_group_aware_row_audit_distinguishes_unsupported_routes() -> None:
         "A": 0.0,
         "B": 0.5,
     }
+    assert snapshots["partial"]["min_partial_observed_fraction"] == 0.75
+    assert "min_reference_observed_fraction" not in snapshots["partial"]
+    assert snapshots["absence"]["min_partial_observed_fraction"] == 0.75
+    assert snapshots["absence"]["min_reference_observed_fraction"] == 0.75
+    for snapshot in snapshots.values():
+        assert "resolved_group_samples" not in snapshot
+        assert "knn_target_mask_hash" not in snapshot
+        assert "minprob_target_mask_hash" not in snapshot
     typed = MissingDataDiagnosticsV2.from_mapping(
         result.diagnostics["diagnostics"], field_name="diagnostics"
     )

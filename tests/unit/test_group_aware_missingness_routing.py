@@ -16,6 +16,9 @@ from phospy.science.datasets.preprocessing.stages.missing_data import (
     GroupMissingnessRoute,
     GroupRoutingAssumption,
 )
+from phospy.science.datasets.preprocessing.stages.missing_data.models import (
+    GroupRoutingFactsByRow,
+)
 
 
 @dataclass(frozen=True)
@@ -263,6 +266,19 @@ def test_group_facts_record_counts_fractions_and_routes() -> None:
     assert outcome.min_partial_observed_fraction == 0.5
     assert outcome.min_reference_observed_fraction == 0.75
     assert outcome.original_missingness_mask_hash
+
+
+def test_group_facts_row_index_preserves_each_rows_group_order() -> None:
+    _, outcome = _route(
+        (1.0, NAN, NAN, NAN, 2.0, 3.0),
+        ("A", "A", "B", "B", "C", "C"),
+    )
+
+    facts_by_row = GroupRoutingFactsByRow.build(outcome.group_facts)
+
+    assert facts_by_row.for_row("site_1") == outcome.group_facts
+    with pytest.raises(KeyError, match="unknown"):
+        facts_by_row.for_row("unknown")
 
 
 def test_dropped_row_clears_supported_block_routes_and_target_assignments() -> None:
