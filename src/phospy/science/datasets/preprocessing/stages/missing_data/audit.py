@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 
 from phospy.science.datasets.preprocessing.models import (
@@ -13,11 +15,105 @@ from phospy.science.datasets.preprocessing.report_schema import PreprocessingRow
 from phospy.science.datasets.processing_state import JsonValue
 
 from .models import (
+    GroupAwarePolicyOutcome,
     KnnPolicyOutcome,
     MinProbPolicyOutcome,
     MissingDataInputProfile,
     RowMedianPolicyOutcome,
 )
+
+
+def build_group_aware_audit_records(
+    *,
+    plan: PreprocessingPlan,
+    input_profile: MissingDataInputProfile,
+    outcome: GroupAwarePolicyOutcome,
+) -> list[PreprocessingRowAuditRow]:
+    """Build row-level routing and mechanism audit records."""
+
+    snapshot_base: dict[str, JsonValue] = {
+        "missing_data_policy": MissingDataPolicy.IMPUTE_GROUP_AWARE.value,
+        **_build_row_audit_snapshot_common(
+            input_profile=input_profile,
+            output_missing_cell_count=outcome.output_missing_cell_count,
+            imputed_cell_count=outcome.imputed_cell_count,
+            stage_order=plan.stage_order,
+        ),
+        "group_column": str(plan.missing_data_group_column),
+        "min_partial_observed_fraction": float(
+            outcome.routing.min_partial_observed_fraction
+        ),
+        "min_reference_observed_fraction": float(
+            outcome.routing.min_reference_observed_fraction
+        ),
+        "k": int(outcome.k),
+        "distance": str(outcome.distance),
+        "no_overlap_policy": str(outcome.no_overlap_policy),
+        "q": float(outcome.q),
+        "width": float(outcome.width),
+        "seed": int(outcome.seed),
+        "knn_target_cell_count": int(outcome.knn_target_mask.to_numpy().sum()),
+        "minprob_target_cell_count": int(outcome.minprob_target_mask.to_numpy().sum()),
+    }
+    records: list[PreprocessingRowAuditRow] = []
+    for dropped in outcome.routing.dropped_row_reasons:
+        records.append(
+            PreprocessingRowAuditRow(
+                stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                action="dropped",
+                reason="dropped because group-aware routing found unsupported missingness",
+                source_row_id=dropped.row_id,
+                site_id=dropped.row_id,
+                retained=False,
+                retained_row_id=pd.NA,
+                source_rows=(dropped.row_id,),
+                retained_row=pd.NA,
+                parameter_snapshot={
+                    **snapshot_base,
+                    "unsupported_groups": {
+                        str(group): classification.value
+                        for group, classification in dropped.reasons_by_group.items()
+                    },
+                },
+            )
+        )
+    for row in outcome.imputed_rows:
+        minprob_row_mask = cast(
+            pd.Series,
+            outcome.minprob_imputed_mask.loc[row.row_id],
+        )
+        minprob_columns = tuple(
+            str(column)
+            for column in outcome.phospho.columns[
+                minprob_row_mask.to_numpy(dtype=bool, copy=False)
+            ].tolist()
+        )
+        records.append(
+            PreprocessingRowAuditRow(
+                stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                action="imputed",
+                reason="missing values imputed by group-aware KNN/MinProb routing",
+                source_row_id=row.row_id,
+                site_id=row.row_id,
+                retained=True,
+                retained_row_id=row.row_id,
+                source_rows=(row.row_id,),
+                retained_row=row.row_id,
+                parameter_snapshot={
+                    **snapshot_base,
+                    "imputed_columns": row.imputed_columns,
+                    "imputed_cell_count": int(row.imputed_cell_count),
+                    "knn_imputed_columns": row.nearest_neighbour_imputed_columns,
+                    "minprob_imputed_columns": minprob_columns,
+                    "minprob_column_distribution_parameters": {
+                        column: outcome.per_column_distribution_parameters[column]
+                        for column in minprob_columns
+                        if column in outcome.per_column_distribution_parameters
+                    },
+                },
+            )
+        )
+    return records
 
 
 def build_row_median_audit_records(

@@ -197,3 +197,31 @@ class MinProbPolicyOutcome:
     rows_not_imputable: tuple[str, ...]
     per_column_distribution_parameters: dict[str, dict[str, JsonValue]]
     imputed_rows: tuple[RowImputationRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class GroupAwarePolicyOutcome:
+    """Merged numerical output for group-aware mixed-mechanism imputation."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
+    knn_target_mask: pd.DataFrame
+    minprob_target_mask: pd.DataFrame
+    knn_imputed_mask: pd.DataFrame
+    minprob_imputed_mask: pd.DataFrame
+    routing: GroupAwareRoutingOutcome
+    q: float
+    width: float
+    seed: int
+    k: int
+    distance: str
+    no_overlap_policy: str
+    per_column_distribution_parameters: dict[str, dict[str, JsonValue]]
+    dropped_row_ids: tuple[str, ...]
+    imputed_cell_count: int
+    imputed_row_ids: tuple[str, ...]
+    imputed_column_ids: tuple[str, ...]
+    output_missing_cell_count: int
+    rows_not_imputable: tuple[str, ...]
+    imputed_rows: tuple[RowImputationRecord, ...]

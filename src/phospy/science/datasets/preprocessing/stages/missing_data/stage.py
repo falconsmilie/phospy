@@ -5,9 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.science.configs.preprocessing import (
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION,
+)
 from phospy.science.datasets._processing_state.json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
@@ -51,6 +56,7 @@ from phospy.science.transformations.quantitative_contracts import (
 )
 
 from .audit import (
+    build_group_aware_audit_records,
     build_knn_audit_records,
     build_minprob_audit_records,
     build_row_median_audit_records,
@@ -61,12 +67,15 @@ from .diagnostics import (
     hash_imputation_mask,
 )
 from .forbid import fail_if_forbid_policy_has_missing_values
-from .knn import run_knn_policy
-from .minprob import run_minprob_policy
+from .group_aware_routing import route_group_aware_missingness
+from .knn import impute_knn_targets, run_knn_policy
+from .minprob import impute_minprob_targets, run_minprob_policy
 from .models import (
+    GroupAwarePolicyOutcome,
     KnnPolicyOutcome,
     MinProbPolicyOutcome,
     MissingDataInputProfile,
+    RowImputationRecord,
     RowMedianPolicyOutcome,
 )
 from .row_median import run_row_median_policy
@@ -88,16 +97,13 @@ class MissingDataStage:
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.missing_data_policy
-        if policy is MissingDataPolicy.IMPUTE_GROUP_AWARE:
-            raise PhosPyInputError(
-                "missing_data.policy='impute_group_aware' is currently a "
-                "planning/contract-only stage policy; group-aware routing is "
-                "available independently, but mixed KNN/MinProb numerical "
-                "execution is not implemented"
-            )
-
         input_profile = build_input_profile(state.phospho)
 
+        if policy is MissingDataPolicy.IMPUTE_GROUP_AWARE:
+            return _run_group_aware_policy(
+                state=state,
+                input_profile=input_profile,
+            )
         if policy is MissingDataPolicy.FORBID:
             return _run_forbid_policy(state=state, input_profile=input_profile)
         if policy is MissingDataPolicy.IMPUTE_ROW_MEDIAN:
@@ -425,16 +431,365 @@ def _run_minprob_policy(
     )
 
 
+def _run_group_aware_policy(
+    *,
+    state: PreprocessingState,
+    input_profile: MissingDataInputProfile,
+) -> PreprocessingStageResult:
+    (
+        group_column,
+        min_partial_observed_fraction,
+        min_reference_observed_fraction,
+        q,
+        width,
+        seed,
+        k,
+        distance,
+        no_overlap_policy,
+    ) = _require_group_aware_parameters(state.plan)
+
+    routing = route_group_aware_missingness(
+        phospho=state.phospho,
+        sample_metadata=state.sample_metadata,
+        group_column=group_column,
+        min_partial_observed_fraction=min_partial_observed_fraction,
+        min_reference_observed_fraction=min_reference_observed_fraction,
+    )
+    original_retained = routing.retain_rows(state.phospho)
+    retained_site_metadata = state.site_metadata.loc[original_retained.index].copy(
+        deep=True
+    )
+    knn_target_mask = routing.knn_target_mask.loc[original_retained.index].copy(
+        deep=True
+    )
+    minprob_target_mask = routing.minprob_target_mask.loc[original_retained.index].copy(
+        deep=True
+    )
+
+    knn_result = impute_knn_targets(
+        original_retained,
+        target_mask=knn_target_mask,
+        k=k,
+        distance=distance,
+        no_overlap_policy=no_overlap_policy,
+        policy_name=MissingDataPolicy.IMPUTE_GROUP_AWARE.value,
+    )
+    minprob_result = impute_minprob_targets(
+        original_retained,
+        target_mask=minprob_target_mask,
+        q=q,
+        width=width,
+        seed=seed,
+    )
+
+    knn_imputed_mask = knn_result.imputed_mask
+    minprob_imputed_mask = minprob_result.imputed_mask
+    final_imputed_mask = knn_imputed_mask | minprob_imputed_mask
+    merged = original_retained.copy(deep=True)
+    merged_values = merged.to_numpy(dtype=float, copy=True, na_value=np.nan)
+    knn_values = knn_result.phospho.to_numpy(dtype=float, copy=False, na_value=np.nan)
+    minprob_values = minprob_result.phospho.to_numpy(
+        dtype=float, copy=False, na_value=np.nan
+    )
+    knn_mask_values = knn_imputed_mask.to_numpy(dtype=bool, copy=False)
+    minprob_mask_values = minprob_imputed_mask.to_numpy(dtype=bool, copy=False)
+    merged_values[knn_mask_values] = knn_values[knn_mask_values]
+    merged_values[minprob_mask_values] = minprob_values[minprob_mask_values]
+    merged = pd.DataFrame(
+        merged_values,
+        index=original_retained.index.copy(),
+        columns=original_retained.columns.copy(),
+    )
+
+    _validate_group_aware_merge(
+        original_retained=original_retained,
+        final_matrix=merged,
+        knn_target_mask=knn_target_mask,
+        minprob_target_mask=minprob_target_mask,
+        knn_imputed_mask=knn_imputed_mask,
+        minprob_imputed_mask=minprob_imputed_mask,
+        final_imputed_mask=final_imputed_mask,
+        knn_column_mean_fallback_mask=(knn_result.column_mean_fallback_imputed_mask),
+    )
+
+    imputed_row_ids = _mask_row_ids(final_imputed_mask)
+    imputed_column_ids = _mask_column_ids(final_imputed_mask)
+    imputed_rows = tuple(
+        RowImputationRecord(
+            row_id=str(row_id),
+            imputed_columns=tuple(
+                str(column)
+                for column in merged.columns[final_imputed_mask.loc[row_id]].tolist()
+            ),
+            imputed_cell_count=int(final_imputed_mask.loc[row_id].sum()),
+            nearest_neighbour_imputed_columns=tuple(
+                str(column)
+                for column in merged.columns[knn_imputed_mask.loc[row_id]].tolist()
+            ),
+        )
+        for row_id in merged.index[
+            final_imputed_mask.any(axis=1).to_numpy(dtype=bool, copy=False)
+        ]
+    )
+    outcome = GroupAwarePolicyOutcome(
+        phospho=merged,
+        site_metadata=retained_site_metadata,
+        imputed_mask=final_imputed_mask,
+        knn_target_mask=knn_target_mask,
+        minprob_target_mask=minprob_target_mask,
+        knn_imputed_mask=knn_imputed_mask,
+        minprob_imputed_mask=minprob_imputed_mask,
+        routing=routing,
+        q=q,
+        width=width,
+        seed=seed,
+        k=k,
+        distance=distance,
+        no_overlap_policy=no_overlap_policy,
+        per_column_distribution_parameters=(
+            minprob_result.per_column_distribution_parameters
+        ),
+        dropped_row_ids=routing.dropped_row_ids,
+        imputed_cell_count=int(final_imputed_mask.to_numpy().sum()),
+        imputed_row_ids=imputed_row_ids,
+        imputed_column_ids=imputed_column_ids,
+        output_missing_cell_count=0,
+        rows_not_imputable=routing.dropped_row_ids,
+        imputed_rows=imputed_rows,
+    )
+    row_audit_records = build_group_aware_audit_records(
+        plan=state.plan,
+        input_profile=input_profile,
+        outcome=outcome,
+    )
+    imputation_input_scale = _required_imputation_input_scale_value(state.plan)
+    diagnostics = build_missing_data_diagnostics(
+        missing_data_policy=state.plan.missing_data_policy.value,
+        imputation_method_id="group_aware_knn_minprob",
+        imputation_method_family="group_aware_mixed_mechanism",
+        input_missing_cell_count=input_profile.input_missing_cell_count,
+        output_missing_cell_count=0,
+        imputed_cell_count=outcome.imputed_cell_count,
+        affected_row_ids=input_profile.affected_row_ids,
+        affected_column_ids=input_profile.affected_column_ids,
+        imputed_row_ids=imputed_row_ids,
+        imputed_column_ids=imputed_column_ids,
+        dropped_row_ids=routing.dropped_row_ids,
+        random_seed=seed,
+        method_parameters={
+            "group_column": group_column,
+            "min_partial_observed_fraction": min_partial_observed_fraction,
+            "min_reference_observed_fraction": min_reference_observed_fraction,
+            "k": k,
+            "distance": distance,
+            "no_overlap_policy": no_overlap_policy,
+            "no_overlap_policy_version": (
+                DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION
+            ),
+            "q": q,
+            "width": width,
+            "seed": seed,
+            "knn_target_cell_count": int(knn_target_mask.to_numpy().sum()),
+            "minprob_target_cell_count": int(minprob_target_mask.to_numpy().sum()),
+            "knn_target_mask_hash": hash_imputation_mask(knn_target_mask),
+            "minprob_target_mask_hash": hash_imputation_mask(minprob_target_mask),
+            "mechanism_input": "original_retained_matrix",
+            "resolved_group_samples": {
+                group: list(samples)
+                for group, samples in routing.resolved_groups.sample_order_by_group.items()
+            },
+            "input_scale": imputation_input_scale,
+            "imputation_operation_order": (
+                state.plan.missing_data_imputation_operation_order
+            ),
+        },
+        matrix_scale_requirement="log2",
+        imputation_input_scale=imputation_input_scale,
+        imputation_input_scale_source=state.plan.missing_data_input_scale_source,
+        imputation_operation_order=state.plan.missing_data_imputation_operation_order,
+        stage_order=state.plan.stage_order,
+        missingness_mask_hash=input_profile.missingness_mask_hash,
+        left_censored_assumption=None,
+        rows_not_imputable=routing.dropped_row_ids,
+        row_medians_used={},
+        per_column_distribution_parameters=(
+            minprob_result.per_column_distribution_parameters
+        ),
+        dropped_rows_above_max_missing_fraction=(),
+        neighbour_count=k,
+        distance_metric=distance,
+        imputation_mask_hash=hash_imputation_mask(final_imputed_mask),
+    )
+    return _finalize_outcome(
+        state=state,
+        outcome=outcome,
+        row_audit_records=row_audit_records,
+        notes=_build_imputation_execution_note(
+            policy=state.plan.missing_data_policy.value,
+            imputed_cell_count=outcome.imputed_cell_count,
+            imputed_row_ids=outcome.imputed_row_ids,
+            dropped_row_ids=outcome.dropped_row_ids,
+            output_missing_cell_count=outcome.output_missing_cell_count,
+        ),
+        diagnostics=diagnostics,
+    )
+
+
+def _require_group_aware_parameters(
+    plan: PreprocessingPlan,
+) -> tuple[str, float, float, float, float, int, int, str, str]:
+    group_column_value = plan.missing_data_group_column
+    min_partial_value = plan.missing_data_min_partial_observed_fraction
+    min_reference_value = plan.missing_data_min_reference_observed_fraction
+    q_value = plan.missing_data_q
+    width_value = plan.missing_data_width
+    seed_value = plan.missing_data_seed
+    k_value = plan.missing_data_k
+    distance_value = plan.missing_data_distance
+    no_overlap_policy_value = plan.missing_data_no_overlap_policy
+    values = (
+        group_column_value,
+        min_partial_value,
+        min_reference_value,
+        q_value,
+        width_value,
+        seed_value,
+        k_value,
+        distance_value,
+        no_overlap_policy_value,
+    )
+    if any(value is None for value in values):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.missing_data.policy="
+            "'impute_group_aware' requires group routing, KNN, and MinProb parameters"
+        )
+    assert group_column_value is not None
+    assert min_partial_value is not None
+    assert min_reference_value is not None
+    assert q_value is not None
+    assert width_value is not None
+    assert seed_value is not None
+    assert k_value is not None
+    assert distance_value is not None
+    assert no_overlap_policy_value is not None
+    group_column = str(group_column_value).strip()
+    no_overlap_policy = str(no_overlap_policy_value).strip()
+    if no_overlap_policy != DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR:
+        raise PhosPyInputError(
+            "missing_data.policy='impute_group_aware' requires "
+            "missing_data.no_overlap_policy='error'"
+        )
+    return (
+        group_column,
+        float(min_partial_value),
+        float(min_reference_value),
+        float(q_value),
+        float(width_value),
+        int(seed_value),
+        int(k_value),
+        str(distance_value).strip(),
+        no_overlap_policy,
+    )
+
+
+def _validate_group_aware_merge(
+    *,
+    original_retained: pd.DataFrame,
+    final_matrix: pd.DataFrame,
+    knn_target_mask: pd.DataFrame,
+    minprob_target_mask: pd.DataFrame,
+    knn_imputed_mask: pd.DataFrame,
+    minprob_imputed_mask: pd.DataFrame,
+    final_imputed_mask: pd.DataFrame,
+    knn_column_mean_fallback_mask: pd.DataFrame,
+) -> None:
+    aligned_frames = (
+        final_matrix,
+        knn_target_mask,
+        minprob_target_mask,
+        knn_imputed_mask,
+        minprob_imputed_mask,
+        final_imputed_mask,
+        knn_column_mean_fallback_mask,
+    )
+    if any(
+        not frame.index.equals(original_retained.index)
+        or not frame.columns.equals(original_retained.columns)
+        for frame in aligned_frames
+    ):
+        raise RuntimeError(
+            "group-aware imputation produced misaligned matrices or masks"
+        )
+    if bool((knn_target_mask & minprob_target_mask).to_numpy().any()):
+        raise RuntimeError("group-aware KNN and MinProb target masks overlap")
+    if bool((knn_imputed_mask & ~knn_target_mask).to_numpy().any()):
+        raise RuntimeError("group-aware KNN imputed cells outside its target mask")
+    if bool((minprob_imputed_mask & ~minprob_target_mask).to_numpy().any()):
+        raise RuntimeError("group-aware MinProb imputed cells outside its target mask")
+    expected_final_mask = knn_imputed_mask | minprob_imputed_mask
+    if not final_imputed_mask.equals(expected_final_mask):
+        raise RuntimeError(
+            "group-aware final imputation mask is not the union of mechanism masks"
+        )
+    if bool(knn_column_mean_fallback_mask.to_numpy().any()):
+        raise RuntimeError("group-aware KNN unexpectedly used column-mean fallback")
+    if bool(final_matrix.isna().to_numpy().any()):
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'missing_data' could not complete "
+            "missing_data.policy='impute_group_aware' because missing values "
+            "remain after merging the independently produced KNN and MinProb results"
+        )
+    original_values = original_retained.to_numpy(
+        dtype=float, copy=False, na_value=np.nan
+    )
+    final_values = final_matrix.to_numpy(dtype=float, copy=False, na_value=np.nan)
+    originally_observed = ~np.isnan(original_values)
+    if not np.array_equal(
+        original_values[originally_observed],
+        final_values[originally_observed],
+    ):
+        raise RuntimeError(
+            "group-aware imputation changed originally observed retained values"
+        )
+
+
+def _mask_row_ids(mask: pd.DataFrame) -> tuple[str, ...]:
+    if mask.empty:
+        return ()
+    return tuple(
+        str(row_id)
+        for row_id in mask.index[
+            mask.any(axis=1).to_numpy(dtype=bool, copy=False)
+        ].tolist()
+    )
+
+
+def _mask_column_ids(mask: pd.DataFrame) -> tuple[str, ...]:
+    if mask.empty:
+        return ()
+    return tuple(
+        str(column)
+        for column in mask.columns[
+            mask.any(axis=0).to_numpy(dtype=bool, copy=False)
+        ].tolist()
+    )
+
+
 def _finalize_outcome(
     *,
     state: PreprocessingState,
-    outcome: RowMedianPolicyOutcome | KnnPolicyOutcome | MinProbPolicyOutcome,
+    outcome: (
+        RowMedianPolicyOutcome
+        | KnnPolicyOutcome
+        | MinProbPolicyOutcome
+        | GroupAwarePolicyOutcome
+    ),
     row_audit_records: Sequence[PreprocessingRowAuditRow],
     notes: str,
     diagnostics: Mapping[str, JsonValue],
 ) -> PreprocessingStageResult:
-    next_state = append_row_audit_records(state, row_audit_records)
     observation_mask = _observation_mask_from_outcome(outcome)
+    next_state = append_row_audit_records(state, row_audit_records)
     return PreprocessingStageResult(
         state=replace(
             next_state,
@@ -454,7 +809,12 @@ def _finalize_outcome(
 
 
 def _observation_mask_from_outcome(
-    outcome: RowMedianPolicyOutcome | KnnPolicyOutcome | MinProbPolicyOutcome,
+    outcome: (
+        RowMedianPolicyOutcome
+        | KnnPolicyOutcome
+        | MinProbPolicyOutcome
+        | GroupAwarePolicyOutcome
+    ),
 ) -> pd.DataFrame:
     imputed_mask = outcome.imputed_mask
     if not imputed_mask.index.equals(outcome.phospho.index):
@@ -633,6 +993,18 @@ def _resolve_determinism_kind(plan: PreprocessingPlan) -> DeterminismKind:
     return DeterminismKind.DETERMINISTIC
 
 
+def _resolve_consumed_input_tables(
+    plan: PreprocessingPlan,
+) -> tuple[PreprocessingStateTableKey, ...]:
+    tables = (
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_SITE_METADATA,
+    )
+    if plan.missing_data_policy is MissingDataPolicy.IMPUTE_GROUP_AWARE:
+        return (*tables, PreprocessingStateTableKey.DATASET_SAMPLE_METADATA)
+    return tables
+
+
 def _build_missing_data_stage(
     _context: PreprocessingStageFactoryContext,
 ) -> MissingDataStage:
@@ -659,6 +1031,7 @@ MISSING_DATA_STAGE_CONTRACT = PreprocessingStageContract(
     stage_factory=_build_missing_data_stage,
     backend="pandas",
     determinism_kind=_resolve_determinism_kind,
+    consumed_input_tables_resolver=_resolve_consumed_input_tables,
     diagnostics_metadata={
         "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
         "known_diagnostics_fields": tuple(

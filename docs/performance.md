@@ -43,7 +43,7 @@ runner contention to serve as a release gate.
 | Dataset preprocessing (pipeline orchestration) | sites x samples; optional metadata/total rows | Sum of stage costs | 2,000 x 8 to 5,000 x 12 | None (pipeline-level) | Stage-dependent; quantile and correction dominate | No hidden fallback; runs configured stages only | Stage-specific validation or scale errors propagate |
 | Site matrix building | input rows; duplicate-site groups; samples | O(rows x samples) plus grouping | <= 5,000 rows, <= 12 samples | None | Duplicate resolution and grouping materialize intermediate tables | Policy-driven duplicate handling only after explicit non-error `duplicate_site_policy` selection | Raises `PhosPyInputError` for unsupported policy, missing required metadata, or zero retained rows |
 | Duplicate-site resolution | duplicate groups, rows per group, samples | Groupby/sort path: roughly O(rows log rows) | Moderate duplicate groups; keep group size small | None | Aggregate policies allocate grouped matrices | `aggregate_mean` / `aggregate_median` deliberately collapse duplicate `site_key` evidence; `first` and `max_mean_signal` deliberately select one source row | Default `duplicate_site_policy='error'` fails fast on duplicate `site_key` rows |
-| Missing data handling | sites x samples; missing fraction | Row-median/MinProb: O(rows x columns). KNN: O(rows_with_missing x retained_rows x columns) distance work | Row-median/MinProb: 2,000 x 8 to 5,000 x 12. KNN: sparse 12-sample and moderate 24-sample retained missing-target workloads up to 50,000 retained sites under the KNN guardrails | KNN retained rows <= 50,000, samples <= 64, distance-feature operations <= 2,000,000,000 | Imputation copies matrix and row-audit state. KNN additionally chunks pairwise target-row distance matrices | Policy-driven (`forbid`, `impute_row_median`, `impute_minprob`, `impute_knn`); no hidden fallback between policies | Validation errors for policy/parameter mismatches; strict policies reject missing values; KNN rejects impractical retained shapes with actionable `PhosPyInputError` |
+| Missing data handling | sites x samples; missing fraction | Row-median/MinProb: O(rows x columns). KNN and the KNN route of group-aware imputation: O(rows_with_missing x retained_rows x columns) distance work | Row-median/MinProb: 2,000 x 8 to 5,000 x 12. KNN/group-aware KNN: sparse 12-sample and moderate 24-sample retained missing-target workloads up to 50,000 retained sites under the KNN guardrails | KNN retained rows <= 50,000, samples <= 64, distance-feature operations <= 2,000,000,000 | Imputation copies matrix and row-audit state. KNN chunks pairwise target-row distance matrices; group-aware execution independently copies the original retained matrix for KNN and MinProb before merging | Policy-driven (`forbid`, `impute_row_median`, `impute_minprob`, `impute_knn`, `impute_group_aware`); no hidden fallback between policies, and group-aware KNN forbids column-mean fallback | Validation errors for policy/parameter mismatches; strict policies reject missing values; KNN rejects impractical retained shapes; group-aware execution requires aligned sample metadata and fails with site/cell context when no overlapping donor exists |
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
@@ -71,7 +71,8 @@ Guardrail enforcement is owned by
 
 ## KNN Missing-Data Guardrails
 
-`missing_data.policy="impute_knn"` is a custom deterministic preprocessing
+`missing_data.policy="impute_knn"` and the KNN route of the seeded-stochastic
+`missing_data.policy="impute_group_aware"` use the custom preprocessing
 implementation in
 `src/phospy/science/datasets/preprocessing/stages/missing_data/knn.py`.
 
@@ -87,6 +88,12 @@ Current KNN execution budgets:
 Release-check KNN benchmark fixtures measure both sparse and moderate retained
 missing-target workloads. They intentionally do not claim broad random
 missingness across all retained rows.
+
+Group-aware execution resolves aligned sample groups and removes unsupported
+rows before invoking either mechanism. Its KNN and MinProb routes independently
+consume the same original retained log2 matrix. The KNN route uses the budgets
+above but has no column-mean fallback: a target with no overlapping observed
+donor fails with actionable site/cell context.
 
 | Tier | Sites | Samples | Rows With Missing Values | Missing Cells Per Target Row | Runtime Budget | Peak-Memory Budget |
 | --- | --- | --- | --- | --- | --- | --- |

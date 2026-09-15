@@ -40,6 +40,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
 )
 from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.science.datasets.preprocessing.stage_contract import (
@@ -209,6 +210,43 @@ def test_stage_contract_separates_static_metadata_from_plan_interpretation() -> 
     assert static_metadata.consumed_input_tables == contract.consumed_input_tables
     assert isinstance(plan_interpreter, PreprocessingStagePlanInterpreter)
     assert plan_interpreter.operation_name is contract.operation_name
+
+
+def test_stage_contract_can_resolve_plan_dependent_consumed_tables() -> None:
+    base_tables = (PreprocessingStateTableKey.DATASET_PHOSPHO,)
+    conditional_tables = (
+        *base_tables,
+        PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
+    )
+    contract = PreprocessingStageMetadata(
+        stage_key="conditional_inputs",
+        display_label="conditional_inputs",
+        operation_name=lambda _plan: "conditional_inputs",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=base_tables,
+        produced_output_tables=("dataset.phospho",),
+        quantitative_contract=_preserve_quantitative_contract(),
+        consumed_input_tables_resolver=(
+            lambda plan: (
+                conditional_tables
+                if plan.normalisation_policy.value == "median_center"
+                else base_tables
+            )
+        ),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+
+    default_plan = PreprocessingPlan.default()
+    conditional_plan = PreprocessingPlan(
+        normalisation_policy="median_center",
+        stage_order=("normalisation",),
+    )
+
+    assert contract.registration_metadata.consumed_input_tables == base_tables
+    assert contract.interpret(default_plan).consumed_input_tables == base_tables
+    assert (
+        contract.interpret(conditional_plan).consumed_input_tables == conditional_tables
+    )
 
 
 def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:

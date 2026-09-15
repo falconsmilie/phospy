@@ -84,6 +84,13 @@ def _build_stage_metadata_by_key(
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without random-seed resolver"
             )
+        if metadata.consumed_input_tables_resolver is not None and not callable(
+            metadata.consumed_input_tables_resolver
+        ):
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} with invalid "
+                "consumed-input-tables resolver"
+            )
         if not callable(metadata.resolve_determinism_kind):
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without determinism resolver"

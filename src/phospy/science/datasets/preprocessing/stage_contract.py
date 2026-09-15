@@ -36,6 +36,10 @@ _QuantitativeContractResolver = Callable[
     [PreprocessingPlan],
     QuantitativeOperationContract,
 ]
+_ConsumedInputTablesResolver = Callable[
+    [PreprocessingPlan],
+    tuple[PreprocessingStateTableKey, ...],
+]
 _DeterminismDeclaration = (
     DeterminismKind | str | Callable[[PreprocessingPlan], DeterminismKind | str]
 )
@@ -158,6 +162,7 @@ class PreprocessingStagePlanInterpreter:
     resolve_random_seed: _RandomSeedResolver = field(
         default=_default_random_seed_resolver
     )
+    consumed_input_tables_resolver: _ConsumedInputTablesResolver | None = None
 
     def __post_init__(self) -> None:
         if not callable(self.determinism_kind):
@@ -194,6 +199,10 @@ class PreprocessingStagePlanInterpreter:
             plan,
             stage_key=metadata.stage_key,
         )
+        consumed_input_tables = self.resolve_consumed_input_tables(
+            plan,
+            metadata=metadata,
+        )
         QuantitativeOperationEvidenceValidator.require_supported_contract(
             quantitative_contract,
             stage=metadata.stage_key,
@@ -203,7 +212,7 @@ class PreprocessingStagePlanInterpreter:
             stage=metadata.provenance_stage_key,
             operation=operation,
             parameters=parameters,
-            consumed_input_tables=metadata.consumed_input_tables,
+            consumed_input_tables=consumed_input_tables,
             produced_output_tables=metadata.produced_output_tables,
             quantitative_contract=quantitative_contract,
             determinism_kind=self.resolve_determinism_kind(
@@ -211,6 +220,31 @@ class PreprocessingStagePlanInterpreter:
                 stage_key=metadata.stage_key,
             ),
             backend=metadata.backend,
+        )
+
+    def resolve_consumed_input_tables(
+        self,
+        plan: PreprocessingPlan,
+        *,
+        metadata: PreprocessingStageRegistrationMetadata,
+    ) -> tuple[PreprocessingStateTableKey, ...]:
+        """Resolve the scientific input-table dependencies for this plan."""
+
+        resolver = self.consumed_input_tables_resolver
+        if resolver is None:
+            return metadata.consumed_input_tables
+        resolved = resolver(plan)
+        if not isinstance(resolved, tuple):
+            raise DatasetBuildError(
+                "dataset preprocessing stage metadata returned invalid consumed "
+                "input tables: "
+                f"stage={metadata.stage_key!r}, got {resolved!r} "
+                f"({type(resolved).__name__})"
+            )
+        return _normalize_stage_table_keys(
+            stage_key=metadata.stage_key,
+            table_keys=resolved,
+            role="consumed_input_tables",
         )
 
     def resolve_determinism_kind(
@@ -270,6 +304,7 @@ class PreprocessingStageContract:
     resolve_random_seed: _RandomSeedResolver = field(
         default=_default_random_seed_resolver
     )
+    consumed_input_tables_resolver: _ConsumedInputTablesResolver | None = None
 
     def __post_init__(self) -> None:
         normalized_stage_key = str(self.stage_key).strip()
@@ -330,6 +365,7 @@ class PreprocessingStageContract:
             include_when=self.include_when,
             validate_plan=self.validate_plan,
             resolve_random_seed=self.resolve_random_seed,
+            consumed_input_tables_resolver=self.consumed_input_tables_resolver,
         )
 
     @property

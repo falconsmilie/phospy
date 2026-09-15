@@ -230,10 +230,16 @@ scientifically appropriate.
 | `"impute_row_median"` | `min_observed_values`, `input_scale` | Replaces missing cells with the row median after the row passes the observation threshold. |
 | `"impute_minprob"` | `q`, `width`, `seed`, `max_missing_fraction_per_row`, `input_scale` | Stochastic lower-tail imputation; set a seed for reproducibility. |
 | `"impute_knn"` | `k`, `distance`, `max_missing_fraction_per_row`, `input_scale`, `no_overlap_policy` | KNN imputation with explicit missingness limits. |
+| `"impute_group_aware"` | `group_column`, `min_partial_observed_fraction`, `min_reference_observed_fraction`, `q`, `width`, `seed`, `k`, `distance`, `input_scale`, `no_overlap_policy` | Log2-only, seeded-stochastic routing to KNN or MinProb using aligned sample metadata. Unsupported rows are dropped first; both mechanisms consume the same original retained matrix. `no_overlap_policy` defaults to `"error"` and no other value is accepted. |
 
 The dataset retains observation metadata so downstream workflows can distinguish
 originally observed values from imputed replacements. Imputation can affect
 scientific inference; inspect the workflow-specific policy before analysis.
+The group-aware policy requires `sample_metadata[group_column]` aligned to the
+phospho sample columns. A KNN target without an overlapping observed donor fails
+with site/cell context instead of using column-mean fallback. Standalone
+missing-data policies do not consume sample metadata merely because this policy
+does.
 
 ### Group Coverage Filter
 

@@ -272,35 +272,46 @@ def test_group_aware_direct_plan_rejects_incompatible_fields(
         PreprocessingPlan(**kwargs)
 
 
-def test_group_aware_execution_is_guarded_without_mutating_state(
+def test_group_aware_mechanisms_consume_the_original_retained_matrix_independently(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mechanism_calls: list[str] = []
+    mechanism_inputs: list[pd.DataFrame] = []
+    real_knn = missing_data_stage_module.impute_knn_targets
+    real_minprob = missing_data_stage_module.impute_minprob_targets
 
-    def _record_knn_call(*args: object, **kwargs: object) -> None:
-        del args, kwargs
-        mechanism_calls.append("knn")
+    def _record_knn_call(phospho: pd.DataFrame, **kwargs: object):
+        mechanism_inputs.append(phospho.copy(deep=True))
+        return real_knn(phospho, **kwargs)
 
-    def _record_minprob_call(*args: object, **kwargs: object) -> None:
-        del args, kwargs
-        mechanism_calls.append("minprob")
+    def _record_minprob_call(phospho: pd.DataFrame, **kwargs: object):
+        mechanism_inputs.append(phospho.copy(deep=True))
+        return real_minprob(phospho, **kwargs)
 
-    monkeypatch.setattr(missing_data_stage_module, "run_knn_policy", _record_knn_call)
+    monkeypatch.setattr(
+        missing_data_stage_module, "impute_knn_targets", _record_knn_call
+    )
     monkeypatch.setattr(
         missing_data_stage_module,
-        "run_minprob_policy",
+        "impute_minprob_targets",
         _record_minprob_call,
     )
     phospho = pd.DataFrame(
-        {"sample_a": [1.0], "sample_b": [float("nan")]},
-        index=pd.Index(["row_a"], name="site_key"),
+        {
+            "a1": [1.0, float("nan"), 2.0],
+            "a2": [2.0, float("nan"), 3.0],
+            "a3": [float("nan"), float("nan"), 4.0],
+            "b1": [5.0, 8.0, 6.0],
+            "b2": [6.0, 9.0, 7.0],
+            "b3": [7.0, 10.0, 8.0],
+        },
+        index=pd.Index(["knn_row", "minprob_row", "donor_row"], name="site_key"),
     )
     site_metadata = pd.DataFrame(
-        {"site": ["S1"]},
+        {"site": ["S1", "S2", "S3"]},
         index=phospho.index.copy(),
     )
     sample_metadata = pd.DataFrame(
-        {"condition": ["A", "B"]},
+        {"condition": ["A", "A", "A", "B", "B", "B"]},
         index=pd.Index(phospho.columns, name="sample"),
     )
     state = PreprocessingState(
@@ -310,24 +321,13 @@ def test_group_aware_execution_is_guarded_without_mutating_state(
         total=None,
         plan=PreprocessingPlan(**_valid_direct_plan_kwargs()),
     )
-    original_phospho = phospho.copy(deep=True)
-    original_site_metadata = site_metadata.copy(deep=True)
-    original_sample_metadata = sample_metadata.copy(deep=True)
+    result = MissingDataStage().run(state)
 
-    with pytest.raises(
-        PhosPyInputError,
-        match=r"planning/contract-only.*not implemented",
-    ) as exc_info:
-        MissingDataStage().run(state)
-
-    assert "unsupported" not in str(exc_info.value).lower()
-    assert mechanism_calls == []
-    pd.testing.assert_frame_equal(state.phospho, original_phospho)
-    pd.testing.assert_frame_equal(state.site_metadata, original_site_metadata)
-    pd.testing.assert_frame_equal(state.sample_metadata, original_sample_metadata)
-    assert state.row_audit is None
-    assert state.imputation_observation_mask is None
-    assert state.report_rows == ()
+    assert len(mechanism_inputs) == 2
+    pd.testing.assert_frame_equal(mechanism_inputs[0], phospho)
+    pd.testing.assert_frame_equal(mechanism_inputs[1], phospho)
+    assert not result.state.phospho.isna().to_numpy().any()
+    assert result.state.imputation_observation_mask is not None
 
 
 def test_group_aware_plan_is_serialized_through_provenance_assembler() -> None:

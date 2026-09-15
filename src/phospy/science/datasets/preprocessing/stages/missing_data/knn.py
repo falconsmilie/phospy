@@ -76,6 +76,7 @@ def impute_knn_targets(
     k: int,
     distance: str,
     no_overlap_policy: str | None,
+    policy_name: str = "impute_knn",
 ) -> KnnTargetImputation:
     """Impute only explicitly targeted missing cells using the supplied matrix.
 
@@ -114,6 +115,7 @@ def impute_knn_targets(
         target_mask=validated_target_mask.to_numpy(dtype=bool, copy=False),
         n_neighbors=int(k),
         no_overlap_policy=resolved_no_overlap_policy,
+        policy_name=str(policy_name).strip(),
     )
     index = phospho.index.copy()
     columns = phospho.columns.copy()
@@ -368,6 +370,7 @@ def _deterministic_knn_impute(
     target_mask: np.ndarray,
     n_neighbors: int,
     no_overlap_policy: str,
+    policy_name: str,
 ) -> _DeterministicKnnImputation:
     """Impute with chunked nan-euclidean KNN and deterministic donor ties."""
 
@@ -443,6 +446,7 @@ def _deterministic_knn_impute(
                             row_position=row_position,
                             column_position=column_position,
                             no_overlap_policy=no_overlap_policy,
+                            policy_name=policy_name,
                         )
                     imputed_values[row_position, column_position] = float(
                         column_means[column_position]
@@ -476,17 +480,26 @@ def _raise_knn_no_overlap_error(
     row_position: int,
     column_position: int,
     no_overlap_policy: str,
+    policy_name: str,
 ) -> None:
     row_label = str(phospho.index[int(row_position)])
     column_label = str(phospho.columns[int(column_position)])
+    fallback_guidance = (
+        "Group-aware routing does not permit column-mean fallback; inspect the "
+        "affected cell's retained donor coverage or adjust the routing thresholds."
+        if policy_name == "impute_group_aware"
+        else (
+            "Set missing_data.no_overlap_policy='column_mean_with_caveat' to use "
+            "the explicit retained-column-mean fallback."
+        )
+    )
     raise PhosPyInputError(
         "dataset preprocessing stage 'missing_data' cannot apply "
-        "missing_data.policy='impute_knn' because a retained missing cell has "
+        f"missing_data.policy={policy_name!r} because a retained missing cell has "
         "no eligible donor row with overlapping observed values and "
         f"missing_data.no_overlap_policy={no_overlap_policy!r}. "
         f"affected row={row_label!r}; affected column={column_label!r}. "
-        "Set missing_data.no_overlap_policy='column_mean_with_caveat' to use "
-        "the explicit retained-column-mean fallback."
+        f"{fallback_guidance}"
     )
 
 

@@ -68,10 +68,10 @@ class DatasetMissingDataConfig:
       filtering, deterministic donor tie rules, and retained-column mean
       fallback when a missing cell has no donor with overlapping observed
       values.
-    - `"impute_group_aware"`: opt-in planning contract for routing explicitly
-      assigned target cells to KNN or MinProb using experimental groups. The
-      routing and numerical implementation are intentionally not part of this
-      contract release.
+    - `"impute_group_aware"`: opt-in end-to-end routing and imputation using
+      experimental groups from aligned `sample_metadata`. Unsupported rows are
+      dropped, while explicitly assigned target cells are filled by KNN or
+      MinProb from independent copies of the same original retained log2 matrix.
 
     `input_scale` declares the quantitative scale presented to the imputer.
     `"impute_row_median"` and `"impute_knn"` require callers to select
@@ -104,7 +104,12 @@ class DatasetMissingDataConfig:
     `distance="nan_euclidean"`. An omitted `no_overlap_policy` resolves to
     `"error"`; every other value is rejected.
     `max_missing_fraction_per_row` must remain unset because group-aware routing
-    owns row eligibility. Group membership is not inferred from sample names.
+    owns row eligibility. Group membership is read from aligned
+    `sample_metadata[group_column]`, not inferred from sample names. Because the
+    configured policy includes MinProb, its quantitative contract is always
+    seeded-stochastic, even when a particular input routes no cells to MinProb.
+    KNN targets without an overlapping observed donor fail with site/cell
+    context; group-aware execution never uses column-mean fallback.
 
     The KNN implementation is chunked and guarded for practical preprocessing
     scale. It drops rows above `max_missing_fraction_per_row`; for each
