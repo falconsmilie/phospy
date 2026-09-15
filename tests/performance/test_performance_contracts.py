@@ -29,6 +29,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
 )
+from phospy.science.datasets.preprocessing.stages.missing_data.group_aware_routing import (
+    route_group_aware_missingness,
+)
 from phospy.science.datasets.preprocessing.stages.missing_data.knn import (
     run_knn_policy,
 )
@@ -66,6 +69,10 @@ from tests.support.performance_contracts import (
     BUNDLE_PUBLISH_RUNTIME_SECONDS_MAX,
     DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS,
     DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER,
+    GROUP_AWARE_ROUTING_CONTRACT_N_SAMPLES,
+    GROUP_AWARE_ROUTING_CONTRACT_N_SITES,
+    GROUP_AWARE_ROUTING_PEAK_MIB_MAX,
+    GROUP_AWARE_ROUTING_RUNTIME_SECONDS_MAX,
     KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX,
     KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX,
     KNN_IMPUTATION_BENCHMARK_TIERS,
@@ -1063,6 +1070,45 @@ def test_knn_imputation_sparse_and_moderate_benchmarks_and_peak_memory_regressio
     assert outcome.imputed_cell_count == expected_imputed_cells
     assert runtime_seconds < float(tier.runtime_seconds_max)
     assert peak_mib < KNN_IMPUTATION_PEAK_MIB_MAX
+
+
+def test_group_aware_routing_practical_performance_regression() -> None:
+    phospho = deterministic_matrix(
+        n_sites=GROUP_AWARE_ROUTING_CONTRACT_N_SITES,
+        n_samples=GROUP_AWARE_ROUTING_CONTRACT_N_SAMPLES,
+        seed=7823,
+    )
+    phospho.iloc[0:128, 1] = np.nan
+    phospho.iloc[128:256, 4:8] = np.nan
+    phospho.iloc[256:384, 1:4] = np.nan
+    sample_metadata = pd.DataFrame(
+        {
+            "condition": [
+                group
+                for group in ("A", "B", "C")
+                for _ in range(GROUP_AWARE_ROUTING_CONTRACT_N_SAMPLES // 3)
+            ]
+        },
+        index=phospho.columns.copy(),
+    )
+
+    outcome, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: route_group_aware_missingness(
+            phospho=phospho,
+            sample_metadata=sample_metadata,
+            group_column="condition",
+            min_partial_observed_fraction=0.5,
+            min_reference_observed_fraction=0.75,
+        ),
+        warmup=False,
+    )
+
+    assert outcome.knn_target_cell_count == 128
+    assert outcome.minprob_target_cell_count == 512
+    assert len(outcome.dropped_row_ids) == 128
+    assert len(outcome.retained_row_ids) == GROUP_AWARE_ROUTING_CONTRACT_N_SITES - 128
+    assert runtime_seconds < GROUP_AWARE_ROUTING_RUNTIME_SECONDS_MAX
+    assert peak_mib < GROUP_AWARE_ROUTING_PEAK_MIB_MAX
 
 
 def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:

@@ -34,9 +34,9 @@ NAN = float("nan")
 
 CASES = (
     RoutingCase(
-        "complete_complete",
-        ("A", "A", "B", "B"),
-        (1.0, 2.0, 3.0, 4.0),
+        "case_a_complete_groups",
+        ("A", "A", "A", "B", "B", "B"),
+        (10.0, 10.2, 10.1, 11.0, 11.1, 10.9),
         (
             GroupMissingnessClassification.COMPLETE,
             GroupMissingnessClassification.COMPLETE,
@@ -46,9 +46,9 @@ CASES = (
         0,
     ),
     RoutingCase(
-        "partial_supported_complete",
-        ("A", "A", "B", "B"),
-        (1.0, NAN, 3.0, 4.0),
+        "case_b_supported_partial_observation",
+        ("A", "A", "A", "B", "B", "B"),
+        (10.0, NAN, 10.2, 11.0, 11.1, 10.9),
         (
             GroupMissingnessClassification.SUPPORTED_PARTIAL,
             GroupMissingnessClassification.COMPLETE,
@@ -58,9 +58,9 @@ CASES = (
         0,
     ),
     RoutingCase(
-        "partial_unsupported_complete",
-        ("A", "A", "A", "B", "B"),
-        (1.0, NAN, NAN, 3.0, 4.0),
+        "case_c_unsupported_partial_observation",
+        ("A", "A", "A", "B", "B", "B"),
+        (10.0, NAN, NAN, 11.0, 11.1, 10.9),
         (
             GroupMissingnessClassification.UNSUPPORTED_PARTIAL,
             GroupMissingnessClassification.COMPLETE,
@@ -70,24 +70,24 @@ CASES = (
         0,
     ),
     RoutingCase(
-        "fully_missing_strong_reference",
-        ("A", "A", "B", "B", "B", "B"),
-        (NAN, NAN, 1.0, 2.0, 3.0, 4.0),
+        "case_d_asymmetric_complete_absence",
+        ("A", "A", "A", "B", "B", "B"),
+        (NAN, NAN, NAN, 11.0, 11.1, 10.9),
         (
             GroupMissingnessClassification.SUPPORTED_FULLY_MISSING,
             GroupMissingnessClassification.COMPLETE,
         ),
         True,
         0,
-        2,
+        3,
     ),
     RoutingCase(
-        "fully_missing_weak_reference",
-        ("A", "A", "B", "B", "B", "B"),
-        (NAN, NAN, 1.0, 2.0, NAN, NAN),
+        "case_e_unsupported_absence",
+        ("A", "A", "A", "B", "B", "B"),
+        (NAN, NAN, NAN, 11.0, NAN, NAN),
         (
             GroupMissingnessClassification.UNSUPPORTED_FULLY_MISSING,
-            GroupMissingnessClassification.SUPPORTED_PARTIAL,
+            GroupMissingnessClassification.UNSUPPORTED_PARTIAL,
         ),
         False,
         0,
@@ -131,9 +131,9 @@ CASES = (
         0,
     ),
     RoutingCase(
-        "mixed_knn_and_minprob",
-        ("A", "A", "B", "B", "C", "C"),
-        (1.0, NAN, NAN, NAN, 2.0, 3.0),
+        "case_f_mixed_knn_and_minprob",
+        ("A", "A", "A", "B", "B", "B", "C", "C", "C"),
+        (10.0, NAN, 10.2, NAN, NAN, NAN, 11.0, 11.2, 11.1),
         (
             GroupMissingnessClassification.SUPPORTED_PARTIAL,
             GroupMissingnessClassification.SUPPORTED_FULLY_MISSING,
@@ -141,7 +141,7 @@ CASES = (
         ),
         True,
         1,
-        2,
+        3,
     ),
     RoutingCase(
         "unequal_group_sizes",
@@ -315,6 +315,48 @@ def test_sample_order_does_not_change_group_classification_or_routes() -> None:
         reordered.minprob_target_mask.loc[:, phospho.columns],
         baseline.minprob_target_mask,
     )
+
+
+def test_sample_metadata_row_order_does_not_change_routing() -> None:
+    columns = pd.Index(
+        ["a1", "a2", "a3", "b1", "b2", "b3", "c1", "c2", "c3"],
+        name="sample",
+    )
+    phospho = pd.DataFrame(
+        [[10.0, NAN, 10.2, NAN, NAN, NAN, 11.0, 11.2, 11.1]],
+        index=pd.Index(["mixed"], name="site_key"),
+        columns=columns,
+    )
+    metadata = pd.DataFrame(
+        {"condition": ["A", "A", "A", "B", "B", "B", "C", "C", "C"]},
+        index=columns.copy(),
+    )
+    router = GroupAwareMissingnessRouter()
+    baseline = router.run(
+        phospho=phospho,
+        sample_metadata=metadata,
+        group_column="condition",
+        min_partial_observed_fraction=0.5,
+        min_reference_observed_fraction=0.75,
+    )
+    reordered = router.run(
+        phospho=phospho,
+        sample_metadata=metadata.loc[
+            ["c3", "a2", "b1", "c1", "a1", "b3", "c2", "b2", "a3"]
+        ],
+        group_column="condition",
+        min_partial_observed_fraction=0.5,
+        min_reference_observed_fraction=0.75,
+    )
+
+    assert reordered.resolved_groups == baseline.resolved_groups
+    assert reordered.group_facts == baseline.group_facts
+    assert (
+        reordered.original_missingness_mask_hash
+        == baseline.original_missingness_mask_hash
+    )
+    pdt.assert_frame_equal(reordered.knn_target_mask, baseline.knn_target_mask)
+    pdt.assert_frame_equal(reordered.minprob_target_mask, baseline.minprob_target_mask)
 
 
 def test_group_labels_come_only_from_sample_metadata() -> None:

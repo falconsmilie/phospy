@@ -35,6 +35,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.science.datasets.preprocessing.stages.missing_data import (
+    knn as knn_module,
+)
+from phospy.science.datasets.preprocessing.stages.missing_data import (
     stage as missing_data_stage_module,
 )
 from phospy.science.datasets.preprocessing.stages.missing_data.group_aware_routing import (
@@ -339,7 +342,9 @@ def test_group_aware_numerical_execution_returns_dedicated_typed_outcome() -> No
     assert not outcome.phospho.isna().to_numpy().any()
 
 
-def test_group_aware_row_audit_records_both_mechanisms_for_one_row() -> None:
+def test_group_aware_row_audit_records_both_mechanisms_for_one_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     phospho = pd.DataFrame(
         [
             [1.0, np.nan, np.nan, np.nan, 5.0, 6.0],
@@ -347,6 +352,27 @@ def test_group_aware_row_audit_records_both_mechanisms_for_one_row() -> None:
         ],
         index=pd.Index(["mixed", "donor"], name="site_key"),
         columns=pd.Index(["a1", "a2", "b1", "b2", "c1", "c2"], name="sample"),
+    )
+    original = phospho.copy(deep=True)
+    mechanism_inputs: list[pd.DataFrame] = []
+    real_knn = missing_data_stage_module.impute_knn_targets
+    real_minprob = missing_data_stage_module.impute_minprob_targets
+
+    def _capture_knn_input(phospho: pd.DataFrame, **kwargs: object):
+        mechanism_inputs.append(phospho.copy(deep=True))
+        return real_knn(phospho, **kwargs)
+
+    def _capture_minprob_input(phospho: pd.DataFrame, **kwargs: object):
+        mechanism_inputs.append(phospho.copy(deep=True))
+        return real_minprob(phospho, **kwargs)
+
+    monkeypatch.setattr(
+        missing_data_stage_module, "impute_knn_targets", _capture_knn_input
+    )
+    monkeypatch.setattr(
+        missing_data_stage_module,
+        "impute_minprob_targets",
+        _capture_minprob_input,
     )
     state = PreprocessingState(
         phospho=phospho,
@@ -371,6 +397,16 @@ def test_group_aware_row_audit_records_both_mechanisms_for_one_row() -> None:
     )
 
     result = MissingDataStage().run(state)
+    pdt.assert_frame_equal(phospho, original)
+    assert len(mechanism_inputs) == 2
+    pdt.assert_frame_equal(mechanism_inputs[0], original)
+    pdt.assert_frame_equal(mechanism_inputs[1], original)
+    assert not result.state.phospho.isna().to_numpy().any()
+    observed = original.notna().to_numpy()
+    np.testing.assert_array_equal(
+        result.state.phospho.to_numpy()[observed],
+        original.to_numpy()[observed],
+    )
     assert result.state.row_audit is not None
     audit = result.state.row_audit.iloc[0]
     assert audit["reason"] == "group-aware row retained/imputed"
@@ -498,6 +534,64 @@ def test_group_aware_seed_reproducibility_changes_only_minprob_cells() -> None:
         first_parameters["minprob_target_mask_hash"]
         == changed_parameters["minprob_target_mask_hash"]
     )
+
+
+def test_group_aware_minprob_only_rows_do_not_inflate_knn_work_estimate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho = pd.DataFrame(
+        [
+            [10.0, np.nan, 10.2, 11.0, 11.1, 10.9],
+            [np.nan, np.nan, np.nan, 11.0, 11.1, 10.9],
+            [np.nan, np.nan, np.nan, 12.0, 12.1, 11.9],
+            [np.nan, np.nan, np.nan, 13.0, 13.1, 12.9],
+            [9.9, 10.1, 10.2, 10.8, 11.0, 10.9],
+        ],
+        index=pd.Index(
+            ["knn_target", "minprob_1", "minprob_2", "minprob_3", "donor"],
+            name="site_key",
+        ),
+        columns=pd.Index(["a1", "a2", "a3", "b1", "b2", "b3"], name="sample"),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=pd.DataFrame(
+            {"site": ["S1", "S2", "S3", "S4", "S5"]},
+            index=phospho.index.copy(),
+        ),
+        sample_metadata=pd.DataFrame(
+            {"condition": ["A", "A", "A", "B", "B", "B"]},
+            index=phospho.columns.copy(),
+        ),
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_group_aware",
+            missing_data_group_column="condition",
+            missing_data_min_partial_observed_fraction=0.5,
+            missing_data_min_reference_observed_fraction=0.75,
+            missing_data_q=0.01,
+            missing_data_width=0.3,
+            missing_data_seed=42,
+            missing_data_k=1,
+            missing_data_distance="nan_euclidean",
+            stage_order=("missing_data",),
+        ),
+    )
+    one_knn_target_row_work = phospho.shape[0] * phospho.shape[1]
+    monkeypatch.setattr(
+        knn_module,
+        "KNN_MAX_DISTANCE_FEATURE_OPERATIONS",
+        one_knn_target_row_work,
+    )
+
+    result = MissingDataStage().run(state)
+    diagnostics = MissingDataDiagnosticsV2.from_mapping(
+        result.diagnostics["diagnostics"], field_name="diagnostics"
+    )
+
+    assert diagnostics.group_aware.knn_routed_cell_count == 1
+    assert diagnostics.group_aware.minprob_routed_cell_count == 9
+    assert not result.state.phospho.isna().to_numpy().any()
 
 
 def test_group_aware_processing_state_survives_supported_bundle_round_trip(
