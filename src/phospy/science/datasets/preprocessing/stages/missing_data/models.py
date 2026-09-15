@@ -2,11 +2,98 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
 
 import pandas as pd
 
+from phospy.science.datasets.preprocessing.sample_group_metadata import (
+    ResolvedSampleGroups,
+)
 from phospy.science.datasets.processing_state import JsonValue
+
+
+class GroupMissingnessClassification(str, Enum):
+    """Observed-pattern classification for one phosphosite/group block."""
+
+    COMPLETE = "complete"
+    SUPPORTED_PARTIAL = "supported_partial"
+    UNSUPPORTED_PARTIAL = "unsupported_partial"
+    SUPPORTED_FULLY_MISSING = "supported_fully_missing"
+    UNSUPPORTED_FULLY_MISSING = "unsupported_fully_missing"
+
+
+class GroupMissingnessRoute(str, Enum):
+    """Allowed numerical route assigned from original missingness only."""
+
+    NONE = "none"
+    KNN = "knn"
+    MINPROB = "minprob"
+
+
+class GroupRoutingAssumption(str, Enum):
+    """Scientific assumption attached to an eligible routing decision."""
+
+    NONE = "none"
+    SIMILARITY_BASED_ELIGIBILITY = "similarity_based_eligibility"
+    ASYMMETRIC_LEFT_CENSORED = "asymmetric_left_censored"
+
+
+@dataclass(frozen=True, slots=True)
+class GroupRoutingFact:
+    """Compact classification facts for one phosphosite/group block."""
+
+    row_id: str
+    group_label: str
+    group_sample_count: int
+    observed_finite_count: int
+    missing_count: int
+    observed_fraction: float
+    classification: GroupMissingnessClassification
+    route: GroupMissingnessRoute
+    routing_assumption: GroupRoutingAssumption
+    qualifying_reference_group_labels: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedRowRoutingRecord:
+    """Unsupported group states that make one row ineligible for retention."""
+
+    row_id: str
+    reasons_by_group: Mapping[str, GroupMissingnessClassification]
+
+
+@dataclass(frozen=True, slots=True)
+class GroupAwareRoutingOutcome:
+    """Typed, pre-imputation result of group-aware missingness routing."""
+
+    retained_row_mask: pd.Series
+    retained_row_ids: tuple[str, ...]
+    dropped_row_ids: tuple[str, ...]
+    dropped_row_reasons: tuple[DroppedRowRoutingRecord, ...]
+    resolved_groups: ResolvedSampleGroups
+    group_facts: tuple[GroupRoutingFact, ...]
+    knn_target_mask: pd.DataFrame
+    minprob_target_mask: pd.DataFrame
+    knn_target_cell_count: int
+    minprob_target_cell_count: int
+    unsupported_group_count: int
+    unsupported_partial_group_count: int
+    unsupported_fully_missing_group_count: int
+    min_partial_observed_fraction: float
+    min_reference_observed_fraction: float
+    original_missingness_mask_hash: str
+
+    def retain_rows(self, frame: pd.DataFrame) -> pd.DataFrame:
+        """Return a copy containing only rows eligible for numerical imputation."""
+
+        if not frame.index.equals(self.retained_row_mask.index):
+            raise ValueError(
+                "group-aware routing can retain rows only from a frame aligned "
+                "to the classified phospho index"
+            )
+        return frame.loc[self.retained_row_mask].copy(deep=True)
 
 
 @dataclass(frozen=True, slots=True)

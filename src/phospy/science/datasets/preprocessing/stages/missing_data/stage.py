@@ -91,8 +91,9 @@ class MissingDataStage:
         if policy is MissingDataPolicy.IMPUTE_GROUP_AWARE:
             raise PhosPyInputError(
                 "missing_data.policy='impute_group_aware' is currently a "
-                "planning/contract-only policy; group-aware routing and mixed "
-                "KNN/MinProb numerical execution are not implemented"
+                "planning/contract-only stage policy; group-aware routing is "
+                "available independently, but mixed KNN/MinProb numerical "
+                "execution is not implemented"
             )
 
         input_profile = build_input_profile(state.phospho)
