@@ -79,7 +79,7 @@ def validate_group_aware_missing_data_binding(
         ) from exc
     expected_groups = {
         group: list(samples)
-        for group, samples in resolved.sample_order_by_group.items()
+        for group, samples in resolved.original_sample_order_by_group.items()
     }
     recorded_groups = cast(
         Mapping[str, object],

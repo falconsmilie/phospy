@@ -36,6 +36,7 @@ from .json_contracts import (
     require_optional_non_negative_int,
     require_optional_str,
     require_optional_string_tuple,
+    require_required_label_tuple,
     require_required_non_negative_int,
     require_required_str,
     require_required_string_tuple,
@@ -207,7 +208,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("affected_row_ids"),
                 field_name=f"{field_name}.affected_row_ids",
             ),
-            affected_column_ids=require_required_string_tuple(
+            affected_column_ids=require_required_label_tuple(
                 payload.get("affected_column_ids"),
                 field_name=f"{field_name}.affected_column_ids",
             ),
@@ -215,7 +216,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("imputed_row_ids"),
                 field_name=f"{field_name}.imputed_row_ids",
             ),
-            imputed_column_ids=require_required_string_tuple(
+            imputed_column_ids=require_required_label_tuple(
                 payload.get("imputed_column_ids"),
                 field_name=f"{field_name}.imputed_column_ids",
             ),
@@ -406,7 +407,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.affected_row_ids,
             field_name="dataset processing state missing_data.diagnostics.affected_row_ids",
         )
-        affected_column_ids = require_required_string_tuple(
+        affected_column_ids = require_required_label_tuple(
             self.affected_column_ids,
             field_name="dataset processing state missing_data.diagnostics.affected_column_ids",
         )
@@ -414,7 +415,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.imputed_row_ids,
             field_name="dataset processing state missing_data.diagnostics.imputed_row_ids",
         )
-        imputed_column_ids = require_required_string_tuple(
+        imputed_column_ids = require_required_label_tuple(
             self.imputed_column_ids,
             field_name="dataset processing state missing_data.diagnostics.imputed_column_ids",
         )
@@ -972,12 +973,14 @@ class GroupAwareRoutedRowRecord:
             "row_id",
             require_required_str(self.row_id, field_name=f"{prefix}.row_id"),
         )
-        for name in (
-            "knn_imputed_columns",
-            "minprob_imputed_columns",
-            "knn_group_labels",
-            "minprob_group_labels",
-        ):
+        for name in ("knn_imputed_columns", "minprob_imputed_columns"):
+            values = require_required_label_tuple(
+                getattr(self, name), field_name=f"{prefix}.{name}"
+            )
+            if len(set(values)) != len(values):
+                raise PhosPyInputError(f"{prefix}.{name} must contain unique values")
+            object.__setattr__(self, name, values)
+        for name in ("knn_group_labels", "minprob_group_labels"):
             values = require_required_string_tuple(
                 getattr(self, name), field_name=f"{prefix}.{name}"
             )
@@ -1020,11 +1023,11 @@ class GroupAwareRoutedRowRecord:
             row_id=require_required_str(
                 mapping.get("row_id"), field_name=f"{field_name}.row_id"
             ),
-            knn_imputed_columns=require_required_string_tuple(
+            knn_imputed_columns=require_required_label_tuple(
                 mapping.get("knn_imputed_columns"),
                 field_name=f"{field_name}.knn_imputed_columns",
             ),
-            minprob_imputed_columns=require_required_string_tuple(
+            minprob_imputed_columns=require_required_label_tuple(
                 mapping.get("minprob_imputed_columns"),
                 field_name=f"{field_name}.minprob_imputed_columns",
             ),
@@ -1994,7 +1997,7 @@ def _validate_group_aware_method_parameters(
             raise PhosPyInputError(
                 f"{prefix}.resolved_group_samples.{group} must be an array"
             )
-        samples = require_required_string_tuple(
+        samples = require_required_label_tuple(
             raw_samples, field_name=f"{prefix}.resolved_group_samples.{group}"
         )
         if len(samples) != group_aware.observed_group_sizes[group]:
@@ -2010,7 +2013,7 @@ def _validate_group_aware_method_parameters(
     sample_to_group = {
         sample: group
         for group, raw_samples in resolved_groups.items()
-        for sample in require_required_string_tuple(
+        for sample in require_required_label_tuple(
             raw_samples, field_name=f"{prefix}.resolved_group_samples.{group}"
         )
     }
@@ -2048,7 +2051,7 @@ def _validate_group_aware_method_parameters(
             }
             for group, routed_columns in columns_by_group.items():
                 group_columns = set(
-                    require_required_string_tuple(
+                    require_required_label_tuple(
                         resolved_groups[group],
                         field_name=f"{prefix}.resolved_group_samples.{group}",
                     )
@@ -2086,7 +2089,7 @@ def _validate_group_aware_distribution_parameters(
     expected_columns = tuple(
         sample
         for samples in resolved_groups.values()
-        for sample in require_required_string_tuple(
+        for sample in require_required_label_tuple(
             samples, field_name="resolved_group_samples.<group>"
         )
     )

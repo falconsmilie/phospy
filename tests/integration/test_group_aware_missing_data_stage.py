@@ -30,6 +30,10 @@ from phospy.io.bundles.kinase import (
     save_kinase_workflow_bundle,
 )
 from phospy.provenance.models import DeterminismKind
+from phospy.science.datasets.builders.preprocessing import (
+    DatasetPreprocessor,
+    build_dataset_processing_state,
+)
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
@@ -53,6 +57,11 @@ from phospy.science.datasets.preprocessing.stages.missing_data.stage import (
     execute_group_aware_imputation,
 )
 from phospy.science.datasets.processing_state import MissingDataDiagnosticsV2
+from phospy.science.transformations.models import IntensityScaleKind
+from tests.support.analysis_ready_dataset_factories import (
+    trusted_analysis_ready_dataset_from_tables,
+)
+from tests.support.intensity_scale_states import supported_log2_intensity_scale_state
 from tests.support.site_keys import protein_site_key_index
 
 
@@ -294,6 +303,183 @@ def test_group_aware_stage_produces_complete_mixed_mechanism_matrix(
     assert (
         operation_parameters["execution_summary"]["imputation_scope"] == "group_aware"
     )
+
+
+def test_group_aware_stage_preserves_canonical_identity_through_audit() -> None:
+    columns = pd.Index([" a1 ", "a2 ", " b1", "b2"], name="sample")
+    index = protein_site_key_index(
+        protein_identifiers=["P1", "P2"],
+        sites=["S1", "S2"],
+        protein_namespace="protein_id",
+        organism="rat",
+    )
+    phospho = pd.DataFrame(
+        [[1.0, np.nan, np.nan, np.nan], [2.0, 3.0, 4.0, 5.0]],
+        index=index,
+        columns=columns,
+    )
+    site_metadata = pd.DataFrame({"site": ["S1", "S2"]}, index=index.copy())
+    sample_metadata = pd.DataFrame(
+        {"condition": ["B", "A", "B", "A"]},
+        index=pd.Index(["b2", "a2", "b1", "a1"], name="sample"),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_group_aware",
+            missing_data_group_column="condition",
+            missing_data_min_partial_observed_fraction=0.5,
+            missing_data_min_reference_observed_fraction=0.5,
+            missing_data_q=0.01,
+            missing_data_width=0.3,
+            missing_data_seed=123,
+            missing_data_k=1,
+            missing_data_distance="nan_euclidean",
+            stage_order=("missing_data",),
+        ),
+    )
+    result = MissingDataStage().run(state)
+
+    assert phospho.columns.equals(columns)
+    assert result.state.phospho.columns.equals(columns)
+    assert not result.state.phospho.isna().to_numpy().any()
+    diagnostics = MissingDataDiagnosticsV2.from_mapping(
+        result.diagnostics["diagnostics"], field_name="diagnostics"
+    )
+    assert diagnostics.affected_column_ids == ("a2 ", " b1", "b2")
+    assert diagnostics.imputed_column_ids == ("a2 ", " b1", "b2")
+    assert diagnostics.per_column_distribution_parameters is not None
+    assert set(diagnostics.per_column_distribution_parameters) == set(columns)
+    assert [record.to_payload() for record in diagnostics.group_aware.routed_rows] == [
+        {
+            "row_id": str(index[0]),
+            "knn_imputed_columns": ["a2 "],
+            "minprob_imputed_columns": [" b1", "b2"],
+            "knn_group_labels": ["A"],
+            "minprob_group_labels": ["B"],
+        }
+    ]
+    method_parameters = diagnostics.method_parameters
+    assert method_parameters["resolved_group_samples"] == {
+        "A": [" a1 ", "a2 "],
+        "B": [" b1", "b2"],
+    }
+    assert result.state.row_audit is not None
+    audit = result.state.row_audit.iloc[0]["parameter_snapshot"]
+    assert audit["knn_imputed_columns"] == ("a2 ",)
+    assert audit["minprob_imputed_columns"] == (" b1", "b2")
+    assert audit["knn_affected_groups"] == ["A"]
+    assert audit["minprob_affected_groups"] == ["B"]
+    assert audit["mechanisms"] == [
+        "partial_observation_knn",
+        "asymmetric_absence_minprob",
+    ]
+    assert audit["resolved_group_samples"] == {
+        "A": [" a1 ", "a2 "],
+        "B": [" b1", "b2"],
+    }
+
+
+def test_group_aware_original_labels_survive_final_dataset_binding() -> None:
+    phospho, site_metadata, sample_metadata = _inputs()
+    columns = pd.Index(
+        [" A1 ", "A2 ", " A3", "B1 ", " B2", "B3 "],
+        name="sample",
+    )
+    phospho.columns = columns
+    sample_metadata.index = columns.copy()
+    site_metadata = site_metadata.assign(
+        organism="rat",
+        protein_namespace="protein_id",
+        protein_identifier=["P1", "P2", "P3", "P4"],
+    )
+    plan = PreprocessingPlan(
+        missing_data_policy="impute_group_aware",
+        missing_data_group_column="condition",
+        missing_data_min_partial_observed_fraction=0.5,
+        missing_data_min_reference_observed_fraction=0.75,
+        missing_data_q=0.01,
+        missing_data_width=0.3,
+        missing_data_seed=123,
+        missing_data_k=2,
+        missing_data_distance="nan_euclidean",
+        stage_order=("missing_data",),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=plan,
+        initial_quantitative_scale_kind=IntensityScaleKind.LOG2,
+    )
+    processing_state = build_dataset_processing_state(
+        plan=plan,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        preprocessing_trace=preprocessed.preprocessing_trace,
+        final_phospho=preprocessed.phospho,
+        final_site_metadata=preprocessed.site_metadata,
+        final_sample_metadata=preprocessed.sample_metadata,
+    )
+
+    assert phospho.columns.equals(columns)
+    assert preprocessed.phospho.columns.equals(columns)
+    assert not preprocessed.phospho.isna().to_numpy().any()
+    diagnostics = processing_state.missing_data.diagnostics
+    assert isinstance(diagnostics, MissingDataDiagnosticsV2)
+    assert diagnostics.method_parameters["resolved_group_samples"] == {
+        "A": [" A1 ", "A2 ", " A3"],
+        "B": ["B1 ", " B2", "B3 "],
+    }
+    assert [record.to_payload() for record in diagnostics.group_aware.routed_rows] == [
+        {
+            "row_id": str(phospho.index[0]),
+            "knn_imputed_columns": [" A3"],
+            "minprob_imputed_columns": [],
+            "knn_group_labels": ["A"],
+            "minprob_group_labels": [],
+        },
+        {
+            "row_id": str(phospho.index[1]),
+            "knn_imputed_columns": [],
+            "minprob_imputed_columns": [" A1 ", "A2 ", " A3"],
+            "knn_group_labels": [],
+            "minprob_group_labels": ["A"],
+        },
+    ]
+    audit_by_row = {
+        row["source_row_id"]: row["parameter_snapshot"]
+        for _, row in preprocessed.row_audit.iterrows()
+        if row["action"] == "imputed"
+    }
+    assert audit_by_row[phospho.index[0]]["knn_imputed_columns"] == (" A3",)
+    assert audit_by_row[phospho.index[0]]["knn_affected_groups"] == ["A"]
+    assert audit_by_row[phospho.index[1]]["minprob_imputed_columns"] == (
+        " A1 ",
+        "A2 ",
+        " A3",
+    )
+    assert audit_by_row[phospho.index[1]]["minprob_affected_groups"] == ["A"]
+
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=preprocessed.phospho,
+        site_metadata=preprocessed.site_metadata,
+        sample_metadata=preprocessed.sample_metadata,
+        intensity_scale_state=processing_state.intensity_scale,
+        processing_state=processing_state,
+        imputation_observation_mask=preprocessed.imputation_observation_mask,
+        organism=Organism.RAT,
+    )
+
+    assert dataset.phospho.columns.equals(columns)
+    assert dataset.sample_metadata.index.equals(columns)
+    assert dataset.processing_state == processing_state
 
 
 def test_group_aware_numerical_execution_returns_dedicated_typed_outcome() -> None:

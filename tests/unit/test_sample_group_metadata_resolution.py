@@ -69,6 +69,56 @@ def test_resolver_aligns_groups_to_phospho_sample_order() -> None:
     }
 
 
+def test_resolver_preserves_original_identity_alongside_canonical_labels() -> None:
+    columns = pd.Index(
+        [" sample_a ", "sample_b ", " sample_c", "sample_d"], name="sample"
+    )
+    resolved = _resolve(
+        phospho=_phospho(columns=columns),
+        sample_metadata=_metadata(
+            index=pd.Index(
+                ["sample_d", "sample_c", "sample_b", "sample_a"], name="sample"
+            )
+        ),
+    )
+
+    assert resolved.original_sample_order == tuple(columns)
+    assert resolved.sample_order == (
+        "sample_a",
+        "sample_b",
+        "sample_c",
+        "sample_d",
+    )
+    assert resolved.canonical_label_by_original == {
+        " sample_a ": "sample_a",
+        "sample_b ": "sample_b",
+        " sample_c": "sample_c",
+        "sample_d": "sample_d",
+    }
+    assert resolved.original_label_by_canonical == {
+        "sample_a": " sample_a ",
+        "sample_b": "sample_b ",
+        "sample_c": " sample_c",
+        "sample_d": "sample_d",
+    }
+    assert resolved.group_by_original_sample == {
+        " sample_a ": "control",
+        "sample_b ": "treated",
+        " sample_c": "control",
+        "sample_d": "treated",
+    }
+    assert resolved.group_by_column_position == (
+        "control",
+        "treated",
+        "control",
+        "treated",
+    )
+    assert resolved.original_sample_order_by_group == {
+        "control": (" sample_a ", " sample_c"),
+        "treated": ("sample_b ", "sample_d"),
+    }
+
+
 def test_resolver_requires_sample_metadata() -> None:
     with pytest.raises(
         PhosPyInputError,

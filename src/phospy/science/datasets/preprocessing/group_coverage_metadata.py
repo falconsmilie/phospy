@@ -52,9 +52,15 @@ class GroupCoverageFilterMetadataValidator:
             )
         return ResolvedGroupCoverageFilterMetadata(
             group_column=resolved.group_column,
+            original_sample_order=resolved.original_sample_order,
             sample_order=resolved.sample_order,
+            canonical_label_by_original=resolved.canonical_label_by_original,
+            original_label_by_canonical=resolved.original_label_by_canonical,
             group_by_sample=resolved.group_by_sample,
+            group_by_original_sample=resolved.group_by_original_sample,
+            group_by_column_position=resolved.group_by_column_position,
             sample_order_by_group=resolved.sample_order_by_group,
+            original_sample_order_by_group=(resolved.original_sample_order_by_group),
         )
 
 

@@ -34,13 +34,9 @@ def build_group_aware_audit_records(
 
     resolved_group_samples: dict[str, JsonValue] = {
         group: cast(JsonValue, list(samples))
-        for group, samples in outcome.routing.resolved_groups.sample_order_by_group.items()
+        for group, samples in outcome.routing.resolved_groups.original_sample_order_by_group.items()
     }
-    sample_group_by_column = {
-        str(sample): group
-        for group, samples in outcome.routing.resolved_groups.sample_order_by_group.items()
-        for sample in samples
-    }
+    sample_group_by_column = outcome.routing.resolved_groups.group_by_original_sample
     routing_facts_by_row = {
         row_id: tuple(
             fact for fact in outcome.routing.group_facts if fact.row_id == row_id
@@ -73,7 +69,7 @@ def build_group_aware_audit_records(
         "seed": int(outcome.seed),
         "observed_group_sizes": {
             group: len(samples)
-            for group, samples in outcome.routing.resolved_groups.sample_order_by_group.items()
+            for group, samples in outcome.routing.resolved_groups.original_sample_order_by_group.items()
         },
         "resolved_group_samples": resolved_group_samples,
         "retained_row_count": len(outcome.routing.retained_row_ids),

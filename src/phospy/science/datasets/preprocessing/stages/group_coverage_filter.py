@@ -208,7 +208,7 @@ def _evaluate_group_coverage(
     finite_fractions_by_group: dict[str, pd.Series] = {}
     threshold_count = plan.group_coverage_filter_min_finite_observations_per_group
     threshold_fraction = plan.group_coverage_filter_min_finite_fraction_per_group
-    for group, samples in metadata.sample_order_by_group.items():
+    for group, samples in metadata.original_sample_order_by_group.items():
         group_counts = finite_mask.loc[:, list(samples)].sum(axis=1).astype("int64")
         finite_counts_by_group[group] = group_counts
         group_fraction = group_counts.astype("float64") / float(len(samples))

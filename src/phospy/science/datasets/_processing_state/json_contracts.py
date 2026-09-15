@@ -223,6 +223,24 @@ def require_required_string_tuple(value: object, *, field_name: str) -> tuple[st
     return parsed
 
 
+def require_required_label_tuple(value: object, *, field_name: str) -> tuple[str, ...]:
+    """Validate labels without changing their dataset-facing spelling."""
+
+    if value is None:
+        raise PhosPyInputError(f"{field_name} is required")
+    if not isinstance(value, (list, tuple)):
+        raise PhosPyInputError(f"{field_name} must be an array of strings")
+    parsed: list[str] = []
+    for position, item in enumerate(value):
+        item_field = f"{field_name}[{position}]"
+        if not isinstance(item, str):
+            raise PhosPyInputError(f"{item_field} must be a string")
+        if item == "" or item.isspace():
+            raise PhosPyInputError(f"{item_field} must be a non-empty string")
+        parsed.append(item)
+    return tuple(parsed)
+
+
 def require_optional_string_to_string_mapping(
     value: object,
     *,

@@ -83,17 +83,19 @@ class GroupAwareMissingnessRouter:
         facts: list[GroupRoutingFact] = []
         dropped_records: list[DroppedRowRoutingRecord] = []
 
-        column_positions = {
-            sample: position
-            for position, sample in enumerate(resolved_groups.sample_order)
-        }
-        groups = tuple(resolved_groups.sample_order_by_group.items())
+        groups = resolved_groups.group_labels
         group_positions = tuple(
             (
                 group_label,
-                tuple(column_positions[sample] for sample in samples),
+                tuple(
+                    position
+                    for position, assigned_group in enumerate(
+                        resolved_groups.group_by_column_position
+                    )
+                    if assigned_group == group_label
+                ),
             )
-            for group_label, samples in groups
+            for group_label in groups
         )
 
         for row_position, row_label in enumerate(phospho.index):

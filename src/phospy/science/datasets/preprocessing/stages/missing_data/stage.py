@@ -516,7 +516,7 @@ def _run_group_aware_policy(
             "mechanism_input": "original_retained_matrix",
             "resolved_group_samples": {
                 group: list(samples)
-                for group, samples in routing.resolved_groups.sample_order_by_group.items()
+                for group, samples in routing.resolved_groups.original_sample_order_by_group.items()
             },
             "input_scale": imputation_input_scale,
             "imputation_operation_order": (
@@ -558,11 +558,7 @@ def _run_group_aware_policy(
             for classification in record.reasons_by_group.values()
         )
     )
-    sample_group_by_column = {
-        str(sample): group
-        for group, samples in routing.resolved_groups.sample_order_by_group.items()
-        for sample in samples
-    }
+    sample_group_by_column = routing.resolved_groups.group_by_original_sample
     routing_facts_by_row = {
         row_id: tuple(fact for fact in routing.group_facts if fact.row_id == row_id)
         for row_id in (*routing.retained_row_ids, *routing.dropped_row_ids)
@@ -574,7 +570,7 @@ def _run_group_aware_policy(
         "group_column": routing.resolved_groups.group_column,
         "observed_group_sizes": {
             group: len(samples)
-            for group, samples in routing.resolved_groups.sample_order_by_group.items()
+            for group, samples in routing.resolved_groups.original_sample_order_by_group.items()
         },
         "min_partial_observed_fraction": routing.min_partial_observed_fraction,
         "min_reference_observed_fraction": routing.min_reference_observed_fraction,

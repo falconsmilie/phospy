@@ -15,9 +15,15 @@ class ResolvedSampleGroups:
     """Sample groups aligned to phospho matrix sample order."""
 
     group_column: str
+    original_sample_order: tuple[str, ...]
     sample_order: tuple[str, ...]
+    canonical_label_by_original: Mapping[str, str]
+    original_label_by_canonical: Mapping[str, str]
     group_by_sample: Mapping[str, str]
+    group_by_original_sample: Mapping[str, str]
+    group_by_column_position: tuple[str, ...]
     sample_order_by_group: Mapping[str, tuple[str, ...]]
+    original_sample_order_by_group: Mapping[str, tuple[str, ...]]
 
     @property
     def group_labels(self) -> tuple[str, ...]:
@@ -48,6 +54,7 @@ class SampleGroupMetadataResolver:
             )
 
         resolved_group_column = str(group_column).strip()
+        original_sample_order = tuple(str(value) for value in phospho.columns.tolist())
         sample_order = _normalize_label_index(
             phospho.columns,
             field_name="dataset build request phospho.columns",
@@ -77,13 +84,35 @@ class SampleGroupMetadataResolver:
             sample_order=sample_order,
         )
         resolved_sample_order = tuple(sample_order.tolist())
+        canonical_label_by_original = dict(
+            zip(original_sample_order, resolved_sample_order, strict=True)
+        )
+        original_label_by_canonical = {
+            canonical: original
+            for original, canonical in canonical_label_by_original.items()
+        }
+        group_by_original_sample = {
+            original: group_by_sample[canonical]
+            for original, canonical in canonical_label_by_original.items()
+        }
         return ResolvedSampleGroups(
             group_column=resolved_group_column,
+            original_sample_order=original_sample_order,
             sample_order=resolved_sample_order,
+            canonical_label_by_original=canonical_label_by_original,
+            original_label_by_canonical=original_label_by_canonical,
             group_by_sample=group_by_sample,
+            group_by_original_sample=group_by_original_sample,
+            group_by_column_position=tuple(
+                group_by_original_sample[sample] for sample in original_sample_order
+            ),
             sample_order_by_group=_group_samples(
                 group_by_sample=group_by_sample,
                 sample_order=resolved_sample_order,
+            ),
+            original_sample_order_by_group=_group_samples(
+                group_by_sample=group_by_original_sample,
+                sample_order=original_sample_order,
             ),
         )
 
