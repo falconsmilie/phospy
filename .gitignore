@@ -32,3 +32,6 @@ benchmarks/reports/
 
 site/
 main.py
+deploy.md
+epic.md
+.aiassistant/*
