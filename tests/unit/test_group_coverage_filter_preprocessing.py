@@ -237,7 +237,7 @@ def test_group_coverage_filter_rejects_sample_metadata_mismatch() -> None:
 
     with pytest.raises(
         PhosPyInputError,
-        match="missing rows for coverage-filter samples.*'treated_3'",
+        match="missing rows for grouped samples.*'treated_3'",
     ):
         _build_dataset(sample_metadata=mismatched_metadata)
 

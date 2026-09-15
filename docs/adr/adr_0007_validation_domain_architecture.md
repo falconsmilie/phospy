@@ -44,6 +44,17 @@ symbol-level duplicate definitions across owner trees, identity-preserving
 compatibility re-exports, workflow-validator composition wording, and
 import-graph diagnostics that report the AST line of the import.
 
+Update note (2026-09-15, sample-group metadata resolution): Reusable
+sample-group metadata validation and deterministic group resolution are owned
+by `phospy.science.datasets.preprocessing.sample_group_metadata`.
+Group-coverage preprocessing composes that resolver and keeps its
+coverage-specific threshold validation in
+`phospy.science.datasets.preprocessing.group_coverage_metadata`.
+`phospy.validation.datasets.group_coverage_filter` is an internal,
+identity-preserving compatibility facade for the science-owned coverage
+objects; the import direction does not permit preprocessing code to depend on
+the facade.
+
 ## Decision
 
 Validation ownership is explicit and enforced by module boundaries:
@@ -139,6 +150,16 @@ when ownership or compatibility routes change.
 - Shared structural primitives: `src/phospy/frames/validation.py`; legacy
   validation routes under `src/phospy/validation/common/` are
   identity-preserving compatibility wrappers.
+- Sample-group metadata validation and deterministic resolution:
+  `src/phospy/science/datasets/preprocessing/sample_group_metadata.py` owns
+  `SampleGroupMetadataResolver` and `ResolvedSampleGroups`. The
+  coverage-specific composer remains in
+  `src/phospy/science/datasets/preprocessing/group_coverage_metadata.py`, while
+  `src/phospy/validation/datasets/group_coverage_filter.py` identity-preservingly
+  re-exports its coverage objects. Resolver behavior and compatibility identity
+  are covered by `tests/unit/test_sample_group_metadata_resolution.py`; existing
+  end-to-end coverage-filter behavior is covered by
+  `tests/unit/test_group_coverage_filter_preprocessing.py`.
 - Phosphosite-specific identifier/coherence validation owners:
   `src/phospy/science/sites/validation.py`,
   `src/phospy/science/sites/metadata_validation.py`,

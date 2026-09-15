@@ -200,6 +200,7 @@ tests/unit/test_fixture_byte_policy.py,unit,121,5,true,true,,,,,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,818,24,true,true,,,,,,
 tests/unit/test_frame_ownership_policy.py,unit,3844,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 89 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
+tests/unit/test_group_aware_missing_data_contract.py,unit,413,15,true,true,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing.py,unit,261,7,false,false,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing_config.py,unit,193,10,true,true,,,,,,
 tests/unit/test_historical_baseline_science.py,unit,443,8,true,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for historical baseline science, making artifact and output drift unsafe.",codex-audit,,
@@ -290,6 +291,7 @@ tests/unit/test_result_caveats.py,unit,351,7,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,548,9,false,false,,,,,,
 tests/unit/test_row_attrition_provenance.py,unit,266,13,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_runtime_contract_guards.py,unit,234,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_sample_group_metadata_resolution.py,unit,245,11,true,true,,,,,,
 tests/unit/test_science_package_ownership.py,unit,122,6,true,true,,,,,,
 tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,879,30,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_scientific_invariants.py,unit,719,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
