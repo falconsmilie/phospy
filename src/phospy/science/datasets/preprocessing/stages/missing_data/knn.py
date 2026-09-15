@@ -52,6 +52,86 @@ class _DeterministicKnnImputation:
     column_mean_fallback_mask: np.ndarray
 
 
+@dataclass(frozen=True, slots=True)
+class KnnTargetImputation:
+    """Result of applying deterministic KNN to an explicit cell target mask."""
+
+    phospho: pd.DataFrame
+    nearest_neighbour_imputed_mask: pd.DataFrame
+    column_mean_fallback_imputed_mask: pd.DataFrame
+
+    @property
+    def imputed_mask(self) -> pd.DataFrame:
+        """Return the exact union of the two KNN mechanism masks."""
+
+        return (
+            self.nearest_neighbour_imputed_mask | self.column_mean_fallback_imputed_mask
+        )
+
+
+def impute_knn_targets(
+    phospho: pd.DataFrame,
+    *,
+    target_mask: pd.DataFrame,
+    k: int,
+    distance: str,
+    no_overlap_policy: str | None,
+) -> KnnTargetImputation:
+    """Impute only explicitly targeted missing cells using the supplied matrix.
+
+    Donor values, distances, and column-mean fallbacks are calculated solely
+    from ``phospho``. Missing cells outside ``target_mask`` remain missing.
+    """
+
+    validated_target_mask = _validate_knn_target_mask(
+        phospho=phospho,
+        target_mask=target_mask,
+    )
+    distance_value = str(distance).strip()
+    if distance_value != KNN_DISTANCE_METRIC_NAN_EUCLIDEAN:
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'missing_data' cannot apply targeted "
+            "KNN imputation because distance must be 'nan_euclidean'."
+        )
+    resolved_no_overlap_policy = _resolve_knn_no_overlap_policy(no_overlap_policy)
+    _validate_knn_scale_request(phospho, target_mask=validated_target_mask)
+
+    targeted_columns = validated_target_mask.any(axis=0).to_numpy(
+        dtype=bool, copy=False
+    )
+    observed_counts = phospho.notna().sum(axis=0).to_numpy(dtype=int, copy=False)
+    unavailable_columns = phospho.columns[targeted_columns & (observed_counts == 0)]
+    if len(unavailable_columns) > 0:
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'missing_data' cannot apply targeted "
+            "KNN imputation because one or more targeted columns have no "
+            "observed input values. affected column labels (preview): "
+            f"{label_preview(unavailable_columns.tolist())}."
+        )
+
+    imputation = _deterministic_knn_impute(
+        phospho,
+        target_mask=validated_target_mask.to_numpy(dtype=bool, copy=False),
+        n_neighbors=int(k),
+        no_overlap_policy=resolved_no_overlap_policy,
+    )
+    index = phospho.index.copy()
+    columns = phospho.columns.copy()
+    return KnnTargetImputation(
+        phospho=pd.DataFrame(imputation.values, index=index, columns=columns),
+        nearest_neighbour_imputed_mask=pd.DataFrame(
+            imputation.nearest_neighbour_mask,
+            index=index,
+            columns=columns,
+        ),
+        column_mean_fallback_imputed_mask=pd.DataFrame(
+            imputation.column_mean_fallback_mask,
+            index=index,
+            columns=columns,
+        ),
+    )
+
+
 def run_knn_policy(state: PreprocessingState) -> KnnPolicyOutcome:
     """Apply deterministic KNN imputation to the preprocessing state.
 
@@ -120,34 +200,23 @@ def run_knn_policy(state: PreprocessingState) -> KnnPolicyOutcome:
                 f"affected column labels (preview): {label_preview(all_missing_columns.tolist())}. "
                 "adjust missing_data.max_missing_fraction_per_row or input data."
             )
-        _validate_knn_scale_request(filtered_phospho)
-        imputation = _deterministic_knn_impute(
+        imputation = impute_knn_targets(
             filtered_phospho,
-            n_neighbors=k_value,
+            target_mask=filtered_phospho.isna(),
+            k=k_value,
+            distance=distance_value,
             no_overlap_policy=no_overlap_policy,
         )
-        if imputation.values.shape[1] != filtered_phospho.shape[1]:
+        if imputation.phospho.shape[1] != filtered_phospho.shape[1]:
             raise PhosPyInputError(
                 "dataset preprocessing stage 'missing_data' cannot apply "
                 "missing_data.policy='impute_knn' because the imputer could not "
                 "retain all matrix columns during imputation. "
                 "ensure every retained column has at least one observed value."
             )
-        imputed = pd.DataFrame(
-            imputation.values,
-            index=filtered_phospho.index.copy(),
-            columns=filtered_phospho.columns.copy(),
-        )
-        nearest_neighbour_imputed_mask = pd.DataFrame(
-            imputation.nearest_neighbour_mask,
-            index=filtered_phospho.index.copy(),
-            columns=filtered_phospho.columns.copy(),
-        )
-        column_mean_fallback_imputed_mask = pd.DataFrame(
-            imputation.column_mean_fallback_mask,
-            index=filtered_phospho.index.copy(),
-            columns=filtered_phospho.columns.copy(),
-        )
+        imputed = imputation.phospho
+        nearest_neighbour_imputed_mask = imputation.nearest_neighbour_imputed_mask
+        column_mean_fallback_imputed_mask = imputation.column_mean_fallback_imputed_mask
 
     if filtered_phospho.empty:
         imputed_mask = filtered_phospho.isna() & filtered_phospho.notna()
@@ -296,6 +365,7 @@ def run_knn_policy(state: PreprocessingState) -> KnnPolicyOutcome:
 def _deterministic_knn_impute(
     phospho: pd.DataFrame,
     *,
+    target_mask: np.ndarray,
     n_neighbors: int,
     no_overlap_policy: str,
 ) -> _DeterministicKnnImputation:
@@ -308,10 +378,9 @@ def _deterministic_knn_impute(
         )
     values = phospho.to_numpy(dtype=float, copy=True)
     imputed_values = values.copy()
-    missing_mask = np.isnan(values)
-    nearest_neighbour_mask = np.zeros_like(missing_mask, dtype=bool)
-    column_mean_fallback_mask = np.zeros_like(missing_mask, dtype=bool)
-    if not bool(missing_mask.any()):
+    nearest_neighbour_mask = np.zeros_like(target_mask, dtype=bool)
+    column_mean_fallback_mask = np.zeros_like(target_mask, dtype=bool)
+    if not bool(target_mask.any()):
         return _DeterministicKnnImputation(
             values=imputed_values,
             nearest_neighbour_mask=nearest_neighbour_mask,
@@ -336,7 +405,7 @@ def _deterministic_knn_impute(
         for column_position in range(int(values.shape[1]))
     )
 
-    target_positions = np.flatnonzero(missing_mask.any(axis=1))
+    target_positions = np.flatnonzero(target_mask.any(axis=1))
     chunk_size = _knn_distance_chunk_size(retained_row_count=int(values.shape[0]))
     for chunk_start in range(0, int(target_positions.size), chunk_size):
         chunk_positions = target_positions[chunk_start : chunk_start + chunk_size]
@@ -349,7 +418,7 @@ def _deterministic_knn_impute(
         for local_position, row_position_raw in enumerate(chunk_positions):
             row_position = int(row_position_raw)
             row_distances = distances[local_position, :]
-            for column_position_raw in np.flatnonzero(missing_mask[row_position, :]):
+            for column_position_raw in np.flatnonzero(target_mask[row_position, :]):
                 column_position = int(column_position_raw)
                 donor_positions = eligible_donor_positions_by_column[column_position]
                 eligible_distances = row_distances[donor_positions]
@@ -425,6 +494,37 @@ def _false_mask_like(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(False, index=frame.index.copy(), columns=frame.columns.copy())
 
 
+def _validate_knn_target_mask(
+    *,
+    phospho: pd.DataFrame,
+    target_mask: pd.DataFrame,
+) -> pd.DataFrame:
+    if not isinstance(target_mask, pd.DataFrame):
+        raise PhosPyInputError(
+            "targeted KNN imputation target_mask must be a DataFrame"
+        )
+    if not target_mask.index.equals(phospho.index) or not target_mask.columns.equals(
+        phospho.columns
+    ):
+        raise PhosPyInputError(
+            "targeted KNN imputation target_mask must have exactly the same "
+            "index and columns as the input matrix"
+        )
+    if bool(target_mask.isna().to_numpy().any()) or any(
+        not pd.api.types.is_bool_dtype(dtype) for dtype in target_mask.dtypes
+    ):
+        raise PhosPyInputError(
+            "targeted KNN imputation target_mask must contain only boolean values"
+        )
+    target_values = target_mask.to_numpy(dtype=bool, copy=False)
+    observed_values = phospho.notna().to_numpy(dtype=bool, copy=False)
+    if bool(np.logical_and(target_values, observed_values).any()):
+        raise PhosPyInputError(
+            "targeted KNN imputation target_mask cannot target observed input cells"
+        )
+    return target_mask.copy(deep=True)
+
+
 def _validate_knn_mechanism_masks(
     *,
     imputed_mask: pd.DataFrame,
@@ -498,10 +598,15 @@ def _fully_column_mean_fallback_row_ids(
     )
 
 
-def _validate_knn_scale_request(phospho: pd.DataFrame) -> None:
+def _validate_knn_scale_request(
+    phospho: pd.DataFrame,
+    *,
+    target_mask: pd.DataFrame | None = None,
+) -> None:
     """Reject retained KNN requests outside the documented execution envelope."""
 
-    missing_target_row_count = int(phospho.isna().any(axis=1).sum())
+    effective_target_mask = phospho.isna() if target_mask is None else target_mask
+    missing_target_row_count = int(effective_target_mask.any(axis=1).sum())
     if missing_target_row_count == 0:
         return
 
@@ -527,7 +632,9 @@ def _validate_knn_scale_request(phospho: pd.DataFrame) -> None:
             "'impute_row_median'."
         )
 
-    estimated_feature_operations = _estimate_knn_feature_operations(phospho)
+    estimated_feature_operations = _estimate_knn_feature_operations(
+        phospho, target_mask=effective_target_mask
+    )
     if estimated_feature_operations > KNN_MAX_DISTANCE_FEATURE_OPERATIONS:
         raise PhosPyInputError(
             "dataset preprocessing stage 'missing_data' cannot apply "
@@ -545,8 +652,13 @@ def _validate_knn_scale_request(phospho: pd.DataFrame) -> None:
         )
 
 
-def _estimate_knn_feature_operations(phospho: pd.DataFrame) -> int:
-    missing_target_row_count = int(phospho.isna().any(axis=1).sum())
+def _estimate_knn_feature_operations(
+    phospho: pd.DataFrame,
+    *,
+    target_mask: pd.DataFrame | None = None,
+) -> int:
+    effective_target_mask = phospho.isna() if target_mask is None else target_mask
+    missing_target_row_count = int(effective_target_mask.any(axis=1).sum())
     return int(missing_target_row_count * int(phospho.shape[0]) * int(phospho.shape[1]))
 
 

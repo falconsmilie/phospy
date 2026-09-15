@@ -5,8 +5,10 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+from dataclasses import dataclass
 
 import numpy as np
+import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
@@ -21,6 +23,15 @@ from phospy.science.datasets.preprocessing.policy_models import (
 from phospy.science.datasets.processing_state import JsonValue
 
 from .models import MinProbPolicyOutcome, RowImputationRecord
+
+
+@dataclass(frozen=True, slots=True)
+class MinProbTargetImputation:
+    """Result of applying MinProb to an explicit cell target mask."""
+
+    phospho: pd.DataFrame
+    imputed_mask: pd.DataFrame
+    per_column_distribution_parameters: dict[str, dict[str, JsonValue]]
 
 
 def _normalise_column_label_value(label: object) -> object:
@@ -83,6 +94,150 @@ def _stable_column_label_seed(base_seed: int, column_label: object) -> int:
         person=b"phospy-minprob",
     ).digest()
     return int(base_seed) + int.from_bytes(digest, byteorder="big", signed=False)
+
+
+def impute_minprob_targets(
+    phospho: pd.DataFrame,
+    *,
+    target_mask: pd.DataFrame,
+    q: float,
+    width: float,
+    seed: int,
+) -> MinProbTargetImputation:
+    """Impute only explicitly targeted missing cells using observed input values."""
+
+    if isinstance(q, bool) or not isinstance(q, (int, float, np.integer, np.floating)):
+        raise PhosPyInputError("targeted MinProb imputation q must satisfy 0 < q < 0.5")
+    if isinstance(width, bool) or not isinstance(
+        width, (int, float, np.integer, np.floating)
+    ):
+        raise PhosPyInputError(
+            "targeted MinProb imputation width must satisfy 0 < width <= 1.0"
+        )
+    if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)) or seed < 0:
+        raise PhosPyInputError(
+            "targeted MinProb imputation seed must be an integer greater than or equal to 0"
+        )
+    if not np.isfinite(float(q)) or not (0.0 < float(q) < 0.5):
+        raise PhosPyInputError("targeted MinProb imputation q must satisfy 0 < q < 0.5")
+    if not np.isfinite(float(width)) or not (0.0 < float(width) <= 1.0):
+        raise PhosPyInputError(
+            "targeted MinProb imputation width must satisfy 0 < width <= 1.0"
+        )
+    validated_target_mask = _validate_minprob_target_mask(
+        phospho=phospho,
+        target_mask=target_mask,
+    )
+    imputed = phospho.copy(deep=True)
+    q_value = float(q)
+    width_value = float(width)
+    seed_value = int(seed)
+    eps = float(np.finfo(float).eps)
+    per_column_distribution_parameters: dict[str, dict[str, JsonValue]] = {}
+
+    for column_position, column_name in enumerate(phospho.columns):
+        column_label = str(column_name)
+        original_column = phospho.iloc[:, column_position]
+        original_missing_mask = original_column.isna().to_numpy(dtype=bool, copy=False)
+        target_column_mask = validated_target_mask.iloc[:, column_position].to_numpy(
+            dtype=bool, copy=False
+        )
+        missing_count = int(original_missing_mask.sum())
+        target_count = int(target_column_mask.sum())
+        observed_values = original_column.dropna().to_numpy(dtype=float, copy=False)
+        observed_count = int(observed_values.size)
+        if observed_count == 0 and target_count > 0:
+            raise PhosPyInputError(
+                "dataset preprocessing stage 'missing_data' cannot apply targeted "
+                "MinProb imputation because column "
+                f"{column_label!r} has no observed input values."
+            )
+
+        quantile_value = (
+            float(np.quantile(observed_values, q_value)) if observed_count > 0 else 0.0
+        )
+        if observed_count > 1:
+            observed_sd = float(np.std(observed_values, ddof=1))
+        elif observed_count == 1:
+            observed_sd = 0.0
+        else:
+            observed_sd = 0.0
+        if not np.isfinite(observed_sd) or observed_sd <= 0.0:
+            observed_sd = (
+                float(np.std(observed_values, ddof=0)) if observed_count > 0 else 0.0
+            )
+        if not np.isfinite(observed_sd) or observed_sd <= 0.0:
+            observed_sd = eps
+
+        imputation_sd = max(observed_sd * width_value, eps)
+        imputation_mean = float(quantile_value - (1.8 * imputation_sd))
+        lower_tail = observed_values[observed_values <= quantile_value]
+        lower_tail_mean = (
+            float(np.mean(lower_tail))
+            if int(lower_tail.size) > 0
+            else float(quantile_value)
+        )
+        per_column_distribution_parameters[column_label] = {
+            "observed_count": int(observed_count),
+            "missing_count": int(missing_count),
+            "q": float(q_value),
+            "width": float(width_value),
+            "lower_q_quantile": float(quantile_value),
+            "lower_tail_mean": float(lower_tail_mean),
+            "observed_sd": float(observed_sd),
+            "imputation_mean": float(imputation_mean),
+            "imputation_sd": float(imputation_sd),
+        }
+
+        if target_count == 0:
+            continue
+        column_rng = np.random.default_rng(
+            _stable_column_label_seed(seed_value, column_name)
+        )
+        draws = column_rng.normal(
+            loc=imputation_mean,
+            scale=imputation_sd,
+            size=target_count,
+        )
+        imputed.iloc[np.flatnonzero(target_column_mask), column_position] = draws
+
+    imputed_mask = validated_target_mask & imputed.notna()
+    return MinProbTargetImputation(
+        phospho=imputed,
+        imputed_mask=imputed_mask,
+        per_column_distribution_parameters=per_column_distribution_parameters,
+    )
+
+
+def _validate_minprob_target_mask(
+    *,
+    phospho: pd.DataFrame,
+    target_mask: pd.DataFrame,
+) -> pd.DataFrame:
+    if not isinstance(target_mask, pd.DataFrame):
+        raise PhosPyInputError(
+            "targeted MinProb imputation target_mask must be a DataFrame"
+        )
+    if not target_mask.index.equals(phospho.index) or not target_mask.columns.equals(
+        phospho.columns
+    ):
+        raise PhosPyInputError(
+            "targeted MinProb imputation target_mask must have exactly the same "
+            "index and columns as the input matrix"
+        )
+    if bool(target_mask.isna().to_numpy().any()) or any(
+        not pd.api.types.is_bool_dtype(dtype) for dtype in target_mask.dtypes
+    ):
+        raise PhosPyInputError(
+            "targeted MinProb imputation target_mask must contain only boolean values"
+        )
+    target_values = target_mask.to_numpy(dtype=bool, copy=False)
+    observed_values = phospho.notna().to_numpy(dtype=bool, copy=False)
+    if bool(np.logical_and(target_values, observed_values).any()):
+        raise PhosPyInputError(
+            "targeted MinProb imputation target_mask cannot target observed input cells"
+        )
+    return target_mask.copy(deep=True)
 
 
 def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
@@ -148,79 +303,26 @@ def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
     filtered_phospho = state.phospho.loc[retained_mask].copy(deep=True)
     filtered_site_metadata = state.site_metadata.loc[filtered_phospho.index]
 
-    eps = float(np.finfo(float).eps)
-    per_column_distribution_parameters: dict[str, dict[str, JsonValue]] = {}
     for column_name in filtered_phospho.columns:
-        column_label = str(column_name)
         column = filtered_phospho.loc[:, column_name]
-        missing_mask = column.isna().to_numpy(dtype=bool, copy=False)
-        missing_count = int(missing_mask.sum())
-        observed_values = column.dropna().to_numpy(dtype=float, copy=False)
-        observed_count = int(observed_values.size)
-        if observed_count == 0 and missing_count > 0:
+        if int(column.notna().sum()) == 0 and int(column.isna().sum()) > 0:
             raise PhosPyInputError(
                 "dataset preprocessing stage 'missing_data' cannot apply "
                 "missing_data.policy='impute_minprob' because column "
-                f"{column_label!r} has no observed values after row filtering; "
+                f"{str(column_name)!r} has no observed values after row filtering; "
                 "adjust missing_data.max_missing_fraction_per_row or input data."
             )
 
-        quantile_value = (
-            float(np.quantile(observed_values, q_value)) if observed_count > 0 else 0.0
-        )
-        if observed_count > 1:
-            observed_sd = float(np.std(observed_values, ddof=1))
-        elif observed_count == 1:
-            observed_sd = 0.0
-        else:
-            observed_sd = 0.0
-        if not np.isfinite(observed_sd) or observed_sd <= 0.0:
-            observed_sd = (
-                float(np.std(observed_values, ddof=0)) if observed_count > 0 else 0.0
-            )
-        if not np.isfinite(observed_sd) or observed_sd <= 0.0:
-            observed_sd = eps
-
-        imputation_sd = max(observed_sd * width_value, eps)
-        imputation_mean = float(quantile_value - (1.8 * imputation_sd))
-        lower_tail = observed_values[observed_values <= quantile_value]
-        lower_tail_mean = (
-            float(np.mean(lower_tail))
-            if int(lower_tail.size) > 0
-            else float(quantile_value)
-        )
-
-        per_column_distribution_parameters[column_label] = {
-            "observed_count": int(observed_count),
-            "missing_count": int(missing_count),
-            "q": float(q_value),
-            "width": float(width_value),
-            "lower_q_quantile": float(quantile_value),
-            "lower_tail_mean": float(lower_tail_mean),
-            "observed_sd": float(observed_sd),
-            "imputation_mean": float(imputation_mean),
-            "imputation_sd": float(imputation_sd),
-        }
-
-        if missing_count == 0:
-            continue
-        column_rng = np.random.default_rng(
-            _stable_column_label_seed(seed_value, column_name)
-        )
-        draws = column_rng.normal(
-            loc=imputation_mean,
-            scale=imputation_sd,
-            size=missing_count,
-        )
-        missing_index = filtered_phospho.index[missing_mask]
-        filtered_phospho.loc[missing_index, column_name] = draws
-
-    if filtered_phospho.empty:
-        imputed_mask = filtered_phospho.isna() & filtered_phospho.notna()
-    else:
-        imputed_mask = (
-            state.phospho.loc[retained_mask].isna() & filtered_phospho.notna()
-        )
+    imputation = impute_minprob_targets(
+        filtered_phospho,
+        target_mask=filtered_phospho.isna(),
+        q=q_value,
+        width=width_value,
+        seed=seed_value,
+    )
+    filtered_phospho = imputation.phospho
+    imputed_mask = imputation.imputed_mask
+    per_column_distribution_parameters = imputation.per_column_distribution_parameters
     imputed_cell_count = int(imputed_mask.to_numpy().sum())
     imputed_row_ids = (
         tuple(

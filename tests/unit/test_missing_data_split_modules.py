@@ -40,8 +40,12 @@ from phospy.science.datasets.preprocessing.stages.missing_data.diagnostics impor
 from phospy.science.datasets.preprocessing.stages.missing_data.forbid import (
     fail_if_forbid_policy_has_missing_values,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.knn import run_knn_policy
+from phospy.science.datasets.preprocessing.stages.missing_data.knn import (
+    impute_knn_targets,
+    run_knn_policy,
+)
 from phospy.science.datasets.preprocessing.stages.missing_data.minprob import (
+    impute_minprob_targets,
     run_minprob_policy,
 )
 from phospy.science.datasets.preprocessing.stages.missing_data.row_median import (
@@ -628,6 +632,151 @@ def test_knn_imputation_output_is_stable_across_distance_chunk_sizes(
     assert chunked.imputed_rows == unchunked.imputed_rows
 
 
+def test_knn_target_kernel_matches_standalone_numerics_and_masks() -> None:
+    phospho = _knn_tie_phospho().drop(index="row_drop")
+    standalone = run_knn_policy(
+        _knn_state(phospho.copy(deep=True), max_missing_fraction_per_row=1.0)
+    )
+
+    targeted = impute_knn_targets(
+        phospho,
+        target_mask=phospho.isna(),
+        k=1,
+        distance="nan_euclidean",
+        no_overlap_policy="column_mean_with_caveat",
+    )
+
+    pdt.assert_frame_equal(targeted.phospho, standalone.phospho)
+    pdt.assert_frame_equal(
+        targeted.nearest_neighbour_imputed_mask,
+        standalone.nearest_neighbour_imputed_mask,
+    )
+    pdt.assert_frame_equal(
+        targeted.column_mean_fallback_imputed_mask,
+        standalone.column_mean_fallback_imputed_mask,
+    )
+
+
+def test_target_kernels_impute_disjoint_cells_from_the_same_original_matrix() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [0.0, 0.0, 5.0],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [float("nan"), 100.0, 200.0],
+        },
+        index=pd.Index(["target", "donor_a", "donor_b"]),
+    )
+    original = phospho.copy(deep=True)
+    knn_mask = pd.DataFrame(False, index=phospho.index, columns=phospho.columns)
+    minprob_mask = knn_mask.copy(deep=True)
+    knn_mask.loc["target", "sample_b"] = True
+    minprob_mask.loc["target", "sample_c"] = True
+
+    knn = impute_knn_targets(
+        phospho,
+        target_mask=knn_mask,
+        k=1,
+        distance="nan_euclidean",
+        no_overlap_policy="column_mean_with_caveat",
+    )
+    minprob = impute_minprob_targets(
+        phospho,
+        target_mask=minprob_mask,
+        q=0.01,
+        width=0.3,
+        seed=12345,
+    )
+
+    pdt.assert_frame_equal(phospho, original)
+    assert float(knn.phospho.loc["target", "sample_b"]) == pytest.approx(10.0)
+    assert pd.isna(knn.phospho.loc["target", "sample_c"])
+    assert pd.isna(minprob.phospho.loc["target", "sample_b"])
+    assert pd.notna(minprob.phospho.loc["target", "sample_c"])
+    pdt.assert_frame_equal(knn.imputed_mask, knn_mask)
+    pdt.assert_frame_equal(minprob.imputed_mask, minprob_mask)
+    assert not bool((knn.imputed_mask & minprob.imputed_mask).to_numpy().any())
+
+
+@pytest.mark.parametrize("kernel", ["knn", "minprob"])
+def test_target_kernels_reject_observed_cells(kernel: str) -> None:
+    phospho = _minprob_phospho()
+    target_mask = pd.DataFrame(False, index=phospho.index, columns=phospho.columns)
+    target_mask.loc["row_keep", "sample_a"] = True
+
+    with pytest.raises(PhosPyInputError, match="cannot target observed input cells"):
+        if kernel == "knn":
+            impute_knn_targets(
+                phospho,
+                target_mask=target_mask,
+                k=1,
+                distance="nan_euclidean",
+                no_overlap_policy="column_mean_with_caveat",
+            )
+        else:
+            impute_minprob_targets(
+                phospho,
+                target_mask=target_mask,
+                q=0.01,
+                width=0.3,
+                seed=12345,
+            )
+
+
+@pytest.mark.parametrize("kernel", ["knn", "minprob"])
+@pytest.mark.parametrize("axis", ["index", "columns"])
+def test_target_kernels_reject_axis_mismatches(kernel: str, axis: str) -> None:
+    phospho = _minprob_phospho()
+    target_mask = phospho.isna()
+    if axis == "index":
+        target_mask = target_mask.rename(index={"row_keep": "wrong_row"})
+    else:
+        target_mask = target_mask.rename(columns={"sample_a": "wrong_sample"})
+
+    with pytest.raises(PhosPyInputError, match="same index and columns"):
+        if kernel == "knn":
+            impute_knn_targets(
+                phospho,
+                target_mask=target_mask,
+                k=1,
+                distance="nan_euclidean",
+                no_overlap_policy="column_mean_with_caveat",
+            )
+        else:
+            impute_minprob_targets(
+                phospho,
+                target_mask=target_mask,
+                q=0.01,
+                width=0.3,
+                seed=12345,
+            )
+
+
+def test_knn_guardrail_counts_only_explicit_target_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "a": [1.0, float("nan"), float("nan"), float("nan"), 5.0],
+            "b": [1.0, 2.0, float("nan"), 4.0, 5.0],
+            "c": [1.0, 2.0, 3.0, float("nan"), 5.0],
+        },
+        index=pd.Index(["r0", "r1", "r2", "r3", "r4"]),
+    )
+    target_mask = pd.DataFrame(False, index=phospho.index, columns=phospho.columns)
+    target_mask.loc["r1", "a"] = True
+    monkeypatch.setattr(knn_module, "KNN_MAX_DISTANCE_FEATURE_OPERATIONS", 20)
+
+    outcome = impute_knn_targets(
+        phospho,
+        target_mask=target_mask,
+        k=1,
+        distance="nan_euclidean",
+        no_overlap_policy="column_mean_with_caveat",
+    )
+
+    pdt.assert_frame_equal(outcome.imputed_mask, target_mask)
+
+
 @pytest.mark.reproducibility
 def test_knn_imputation_diagnostics_are_reproducible() -> None:
     first = MissingDataStage().run(_knn_state(_knn_tie_phospho().copy(deep=True)))
@@ -714,6 +863,34 @@ def test_minprob_policy_is_deterministic_for_fixed_seed() -> None:
     second = run_minprob_policy(_minprob_state(_minprob_phospho().copy(deep=True)))
 
     pdt.assert_frame_equal(first.phospho, second.phospho)
+
+
+def test_minprob_target_kernel_matches_seeded_standalone_output() -> None:
+    phospho = _minprob_phospho()
+    standalone = run_minprob_policy(_minprob_state(phospho.copy(deep=True)))
+
+    targeted = impute_minprob_targets(
+        phospho,
+        target_mask=phospho.isna(),
+        q=0.01,
+        width=0.3,
+        seed=12345,
+    )
+
+    pdt.assert_frame_equal(targeted.phospho, standalone.phospho)
+    pdt.assert_frame_equal(targeted.imputed_mask, standalone.imputed_mask)
+    assert targeted.per_column_distribution_parameters == (
+        standalone.per_column_distribution_parameters
+    )
+    assert float(targeted.phospho.loc["row_impute_a", "sample_a"]) == pytest.approx(
+        2.237768752972193
+    )
+    assert float(targeted.phospho.loc["row_impute_b", "sample_b"]) == pytest.approx(
+        4.731031616263483
+    )
+    assert float(targeted.phospho.loc["row_impute_c", "sample_c"]) == pytest.approx(
+        3.155827574237788
+    )
 
 
 def test_minprob_policy_is_stable_under_column_reordering_after_realignment() -> None:
