@@ -10,6 +10,7 @@ from phospy.science.configs.preprocessing import (
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
+    DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
 )
 from phospy.science.datasets.preprocessing.imputation_scale_policy import (
     reject_incompatible_imputation_stage_order,
@@ -98,17 +99,34 @@ def _validate_imputation_fields(plan: _MutablePreprocessingPlan) -> None:
         resolved_policy=imputation_scale,
     )
     _validate_missing_data_no_overlap_policy(plan)
+    _validate_group_aware_missing_data_fields(plan)
 
 
 def _validate_missing_data_no_overlap_policy(plan: _MutablePreprocessingPlan) -> None:
     policy_value = plan.missing_data_policy.value
     no_overlap_policy = plan.missing_data_no_overlap_policy
-    if policy_value != "impute_knn":
+    if policy_value not in {"impute_knn", "impute_group_aware"}:
         if no_overlap_policy is not None:
             raise PhosPyInputError(
                 "dataset preprocessing plan missing_data_no_overlap_policy "
                 "(internal model) must be None unless "
-                "missing_data_policy='impute_knn'"
+                "missing_data_policy='impute_knn' or 'impute_group_aware'"
+            )
+        return
+    if policy_value == "impute_group_aware":
+        if no_overlap_policy is None:
+            _set(
+                plan,
+                "missing_data_no_overlap_policy",
+                DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
+            )
+            return
+        if no_overlap_policy != DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR:
+            raise PhosPyInputError(
+                "dataset preprocessing plan missing_data_no_overlap_policy "
+                "(internal model) must be 'error' when "
+                "missing_data_policy='impute_group_aware'; "
+                "'column_mean_with_caveat' is not supported"
             )
         return
     if no_overlap_policy is None:
@@ -126,6 +144,114 @@ def _validate_missing_data_no_overlap_policy(plan: _MutablePreprocessingPlan) ->
             f"(internal model) must be one of: {supported}"
         )
     _set(plan, "missing_data_no_overlap_policy", normalized)
+
+
+def _validate_group_aware_missing_data_fields(
+    plan: _MutablePreprocessingPlan,
+) -> None:
+    field_names = (
+        "missing_data_group_column",
+        "missing_data_min_partial_observed_fraction",
+        "missing_data_min_reference_observed_fraction",
+    )
+    if plan.missing_data_policy.value != "impute_group_aware":
+        if any(getattr(plan, field_name) is not None for field_name in field_names):
+            raise PhosPyInputError(
+                "dataset preprocessing plan group-aware missing-data fields "
+                "(internal model) must be None unless "
+                "missing_data_policy='impute_group_aware'"
+            )
+        return
+    if plan.missing_data_min_observed_values is not None:
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_min_observed_values "
+            "(internal model) must be None when "
+            "missing_data_policy='impute_group_aware'"
+        )
+    group_column = plan.missing_data_group_column
+    if not isinstance(group_column, str) or group_column.strip() == "":
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_group_column (internal model) "
+            "must be a non-empty string when "
+            "missing_data_policy='impute_group_aware'; it is not inferred from "
+            "sample names"
+        )
+    _set(plan, "missing_data_group_column", group_column.strip())
+    for field_name in (
+        "missing_data_min_partial_observed_fraction",
+        "missing_data_min_reference_observed_fraction",
+    ):
+        value = getattr(plan, field_name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise PhosPyInputError(
+                f"dataset preprocessing plan {field_name} (internal model) must "
+                "be a float when missing_data_policy='impute_group_aware'"
+            )
+        fraction = float(value)
+        if not math.isfinite(fraction) or not (0.0 < fraction <= 1.0):
+            raise PhosPyInputError(
+                f"dataset preprocessing plan {field_name} (internal model) must "
+                "satisfy 0 < value <= 1 when "
+                "missing_data_policy='impute_group_aware'"
+            )
+        _set(plan, field_name, fraction)
+    q = plan.missing_data_q
+    if isinstance(q, bool) or not isinstance(q, (int, float)):
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_q (internal model) must be "
+            "a float when missing_data_policy='impute_group_aware'"
+        )
+    q_value = float(q)
+    if not math.isfinite(q_value) or not (0.0 < q_value < 0.5):
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_q (internal model) must "
+            "satisfy 0 < q < 0.5 when "
+            "missing_data_policy='impute_group_aware'"
+        )
+    _set(plan, "missing_data_q", q_value)
+    width = plan.missing_data_width
+    if isinstance(width, bool) or not isinstance(width, (int, float)):
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_width (internal model) must "
+            "be a float when missing_data_policy='impute_group_aware'"
+        )
+    width_value = float(width)
+    if not math.isfinite(width_value) or not (0.0 < width_value <= 1.0):
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_width (internal model) must "
+            "satisfy 0 < width <= 1.0 when "
+            "missing_data_policy='impute_group_aware'"
+        )
+    _set(plan, "missing_data_width", width_value)
+    seed = plan.missing_data_seed
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_seed (internal model) must "
+            "be an int greater than or equal to 0 when "
+            "missing_data_policy='impute_group_aware'"
+        )
+    k = plan.missing_data_k
+    if isinstance(k, bool) or not isinstance(k, int) or k < 1:
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_k (internal model) must be "
+            "an int greater than or equal to 1 when "
+            "missing_data_policy='impute_group_aware'"
+        )
+    distance = plan.missing_data_distance
+    if not isinstance(distance, str) or distance.strip() != "nan_euclidean":
+        raise PhosPyInputError(
+            "dataset preprocessing plan missing_data_distance (internal model) "
+            "must be 'nan_euclidean' when "
+            "missing_data_policy='impute_group_aware'"
+        )
+    _set(plan, "missing_data_distance", distance.strip())
+    if plan.missing_data_max_missing_fraction_per_row is not None:
+        raise PhosPyInputError(
+            "dataset preprocessing plan "
+            "missing_data_max_missing_fraction_per_row (internal model) must be "
+            "None when missing_data_policy='impute_group_aware' because "
+            "group-aware routing owns row eligibility"
+        )
 
 
 def _reject_inconsistent_resolved_imputation_field(

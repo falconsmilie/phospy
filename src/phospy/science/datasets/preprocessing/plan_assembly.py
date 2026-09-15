@@ -48,6 +48,13 @@ class PreprocessingPlanAssembler:
                 core.missing_data_max_missing_fraction_per_row
             ),
             missing_data_no_overlap_policy=core.missing_data_no_overlap_policy,
+            missing_data_group_column=core.missing_data_group_column,
+            missing_data_min_partial_observed_fraction=(
+                core.missing_data_min_partial_observed_fraction
+            ),
+            missing_data_min_reference_observed_fraction=(
+                core.missing_data_min_reference_observed_fraction
+            ),
             missing_data_input_scale=imputation.missing_data_input_scale,
             missing_data_input_scale_source=(
                 imputation.missing_data_input_scale_source

@@ -479,6 +479,9 @@ def validate_missing_data_config(
     max_missing_fraction_per_row: object | None,
     input_scale: object | None,
     no_overlap_policy: object | None,
+    group_column: object | None,
+    min_partial_observed_fraction: object | None,
+    min_reference_observed_fraction: object | None,
     supported_policies: Collection[str],
     supported_input_scales: Collection[str],
     supported_no_overlap_policies: Collection[str],
@@ -486,6 +489,7 @@ def validate_missing_data_config(
     policy_impute_row_median: str,
     policy_impute_minprob: str,
     policy_impute_knn: str,
+    policy_impute_group_aware: str,
 ) -> None:
     """Validate public missing-data config fields."""
 
@@ -503,6 +507,17 @@ def validate_missing_data_config(
             ),
             supported_values=supported_input_scales,
             error_type=PhosPyInputError,
+        )
+    if resolved_policy != policy_impute_group_aware and (
+        group_column is not None
+        or min_partial_observed_fraction is not None
+        or min_reference_observed_fraction is not None
+    ):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.missing_data.group_column, "
+            ".min_partial_observed_fraction, and "
+            ".min_reference_observed_fraction must be None unless "
+            "missing_data.policy='impute_group_aware'"
         )
     if resolved_policy == policy_forbid:
         if min_observed_values is not None:
@@ -698,10 +713,112 @@ def validate_missing_data_config(
         )
         return
 
+    if resolved_policy == policy_impute_group_aware:
+        if min_observed_values is not None:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data."
+                "min_observed_values must be None when "
+                "missing_data.policy='impute_group_aware'"
+            )
+        if not isinstance(group_column, str) or group_column.strip() == "":
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data."
+                "group_column must be a non-empty string when "
+                "missing_data.policy='impute_group_aware'; it is not inferred "
+                "from sample names"
+            )
+        _validate_group_aware_fraction(
+            min_partial_observed_fraction,
+            field_name="min_partial_observed_fraction",
+        )
+        _validate_group_aware_fraction(
+            min_reference_observed_fraction,
+            field_name="min_reference_observed_fraction",
+        )
+        if isinstance(q, bool) or not isinstance(q, (int, float)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.q must "
+                "be a float when missing_data.policy='impute_group_aware'"
+            )
+        q_value = float(q)
+        if not math.isfinite(q_value) or not (0.0 < q_value < 0.5):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.q must "
+                "satisfy 0 < q < 0.5 when "
+                "missing_data.policy='impute_group_aware'"
+            )
+        if isinstance(width, bool) or not isinstance(width, (int, float)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.width "
+                "must be a float when missing_data.policy='impute_group_aware'"
+            )
+        width_value = float(width)
+        if not math.isfinite(width_value) or not (0.0 < width_value <= 1.0):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.width "
+                "must satisfy 0 < width <= 1.0 when "
+                "missing_data.policy='impute_group_aware'"
+            )
+        if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.seed "
+                "must be an int greater than or equal to 0 when "
+                "missing_data.policy='impute_group_aware'"
+            )
+        if isinstance(k, bool) or not isinstance(k, int) or k < 1:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.k must "
+                "be an int greater than or equal to 1 when "
+                "missing_data.policy='impute_group_aware'"
+            )
+        if not isinstance(distance, str) or distance.strip() != "nan_euclidean":
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.distance "
+                "must be 'nan_euclidean' when "
+                "missing_data.policy='impute_group_aware'"
+            )
+        if no_overlap_policy != "error":
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data."
+                "no_overlap_policy must be 'error' when "
+                "missing_data.policy='impute_group_aware'; "
+                "'column_mean_with_caveat' is not supported"
+            )
+        if max_missing_fraction_per_row is not None:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data."
+                "max_missing_fraction_per_row must be None when "
+                "missing_data.policy='impute_group_aware' because group-aware "
+                "routing owns row eligibility"
+            )
+        if input_scale not in {None, "log2"}:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data."
+                "input_scale must be 'log2' or None when "
+                "missing_data.policy='impute_group_aware'"
+            )
+        return
+
     raise PhosPyInputError(
         "dataset build request preprocessing_config contains an unsupported "
         "missing_data.policy"
     )
+
+
+def _validate_group_aware_fraction(value: object | None, *, field_name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.missing_data."
+            f"{field_name} must be a float when "
+            "missing_data.policy='impute_group_aware'"
+        )
+    fraction = float(value)
+    if not math.isfinite(fraction) or not (0.0 < fraction <= 1.0):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.missing_data."
+            f"{field_name} must satisfy 0 < value <= 1 when "
+            "missing_data.policy='impute_group_aware'"
+        )
 
 
 def validate_site_matrix_config(

@@ -241,10 +241,13 @@ def _append_missing_data_and_transform_stages(
             intensity_transform_policy=intensity_transform_policy,
         )
         return
-    if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
+    if missing_data_policy in {
+        MissingDataPolicy.IMPUTE_MINPROB,
+        MissingDataPolicy.IMPUTE_GROUP_AWARE,
+    }:
         raise PhosPyInputError(
             "dataset preprocessing plan has unsupported stage-order policy: "
-            "missing_data.policy='impute_minprob' cannot run on "
+            "MinProb-capable missing_data policies cannot run on "
             "missing_data.input_scale='linear'"
         )
     _append_linear_or_strict_missing_data_path(

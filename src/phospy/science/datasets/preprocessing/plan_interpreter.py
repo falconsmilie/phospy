@@ -261,6 +261,17 @@ class PreprocessingPlanInterpreter:
                     else float(config.missing_data.max_missing_fraction_per_row)
                 ),
                 missing_data_no_overlap_policy=(config.missing_data.no_overlap_policy),
+                missing_data_group_column=config.missing_data.group_column,
+                missing_data_min_partial_observed_fraction=(
+                    None
+                    if config.missing_data.min_partial_observed_fraction is None
+                    else float(config.missing_data.min_partial_observed_fraction)
+                ),
+                missing_data_min_reference_observed_fraction=(
+                    None
+                    if config.missing_data.min_reference_observed_fraction is None
+                    else float(config.missing_data.min_reference_observed_fraction)
+                ),
             ),
             imputation=ResolvedImputationScalePlanFields(
                 missing_data_input_scale=imputation_scale.input_scale,

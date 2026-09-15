@@ -13,6 +13,7 @@ DATASET_MISSING_DATA_POLICY_FORBID = "forbid"
 DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN = "impute_row_median"
 DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB = "impute_minprob"
 DATASET_MISSING_DATA_POLICY_IMPUTE_KNN = "impute_knn"
+DATASET_MISSING_DATA_POLICY_IMPUTE_GROUP_AWARE = "impute_group_aware"
 DATASET_MISSING_DATA_INPUT_SCALE_LINEAR = "linear"
 DATASET_MISSING_DATA_INPUT_SCALE_LOG2 = "log2"
 DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR = "error"
@@ -25,6 +26,7 @@ DatasetMissingDataPolicy = Literal[
     "impute_row_median",
     "impute_minprob",
     "impute_knn",
+    "impute_group_aware",
 ]
 DatasetMissingDataInputScale = Literal["linear", "log2"]
 DatasetMissingDataKnnNoOverlapPolicy = Literal["error", "column_mean_with_caveat"]
@@ -34,6 +36,7 @@ DATASET_MISSING_DATA_POLICIES = frozenset(
         DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
         DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
         DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
+        DATASET_MISSING_DATA_POLICY_IMPUTE_GROUP_AWARE,
     }
 )
 DATASET_MISSING_DATA_INPUT_SCALES = frozenset(
@@ -65,12 +68,17 @@ class DatasetMissingDataConfig:
       filtering, deterministic donor tie rules, and retained-column mean
       fallback when a missing cell has no donor with overlapping observed
       values.
+    - `"impute_group_aware"`: opt-in planning contract for routing explicitly
+      assigned target cells to KNN or MinProb using experimental groups. The
+      routing and numerical implementation are intentionally not part of this
+      contract release.
 
     `input_scale` declares the quantitative scale presented to the imputer.
     `"impute_row_median"` and `"impute_knn"` require callers to select
     `"linear"` or `"log2"` during preprocessing plan interpretation.
-    `"impute_minprob"` operates on `"log2"` values by method design; an explicit
-    `input_scale`, when provided, must be compatible with that requirement.
+    `"impute_minprob"` and `"impute_group_aware"` operate on `"log2"` values by
+    method design; an explicit `input_scale`, when provided, must be compatible
+    with that requirement.
 
     `min_observed_values` is required for `"impute_row_median"` and must stay
     unset for `"forbid"`, `"impute_minprob"`, and `"impute_knn"`.
@@ -90,6 +98,13 @@ class DatasetMissingDataConfig:
     - `no_overlap_policy`, resolved to `"column_mean_with_caveat"` by default
       for KNN; set `"error"` to reject missing cells whose eligible donors have
       no shared observed columns.
+
+    For `"impute_group_aware"`, callers must explicitly provide `group_column`,
+    both observed-fraction thresholds, `q`, `width`, `seed`, `k`, and
+    `distance="nan_euclidean"`. An omitted `no_overlap_policy` resolves to
+    `"error"`; every other value is rejected.
+    `max_missing_fraction_per_row` must remain unset because group-aware routing
+    owns row eligibility. Group membership is not inferred from sample names.
 
     The KNN implementation is chunked and guarded for practical preprocessing
     scale. It drops rows above `max_missing_fraction_per_row`; for each
@@ -112,6 +127,9 @@ class DatasetMissingDataConfig:
     max_missing_fraction_per_row: float | None = None
     input_scale: DatasetMissingDataInputScale | None = None
     no_overlap_policy: DatasetMissingDataKnnNoOverlapPolicy | None = None
+    group_column: str | None = None
+    min_partial_observed_fraction: float | None = None
+    min_reference_observed_fraction: float | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -122,6 +140,15 @@ class DatasetMissingDataConfig:
                 self,
                 "no_overlap_policy",
                 DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
+            )
+        if (
+            self.policy == DATASET_MISSING_DATA_POLICY_IMPUTE_GROUP_AWARE
+            and self.no_overlap_policy is None
+        ):
+            object.__setattr__(
+                self,
+                "no_overlap_policy",
+                DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
             )
         validate_missing_data_config(
             policy=self.policy,
@@ -134,6 +161,9 @@ class DatasetMissingDataConfig:
             max_missing_fraction_per_row=self.max_missing_fraction_per_row,
             input_scale=self.input_scale,
             no_overlap_policy=self.no_overlap_policy,
+            group_column=self.group_column,
+            min_partial_observed_fraction=self.min_partial_observed_fraction,
+            min_reference_observed_fraction=self.min_reference_observed_fraction,
             supported_policies=DATASET_MISSING_DATA_POLICIES,
             supported_input_scales=DATASET_MISSING_DATA_INPUT_SCALES,
             supported_no_overlap_policies=(
@@ -143,6 +173,7 @@ class DatasetMissingDataConfig:
             policy_impute_row_median=DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
             policy_impute_minprob=DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
             policy_impute_knn=DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
+            policy_impute_group_aware=(DATASET_MISSING_DATA_POLICY_IMPUTE_GROUP_AWARE),
         )
 
 
@@ -157,6 +188,7 @@ __all__ = [
     "DATASET_MISSING_DATA_POLICIES",
     "DATASET_MISSING_DATA_POLICY_FORBID",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_KNN",
+    "DATASET_MISSING_DATA_POLICY_IMPUTE_GROUP_AWARE",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
     "DatasetMissingDataConfig",

@@ -496,6 +496,14 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "missing_data_max_missing_fraction_per_row": (
             plan.missing_data_max_missing_fraction_per_row
         ),
+        "missing_data_no_overlap_policy": plan.missing_data_no_overlap_policy,
+        "missing_data_group_column": plan.missing_data_group_column,
+        "missing_data_min_partial_observed_fraction": (
+            plan.missing_data_min_partial_observed_fraction
+        ),
+        "missing_data_min_reference_observed_fraction": (
+            plan.missing_data_min_reference_observed_fraction
+        ),
         "missing_data_input_scale": (
             None
             if plan.missing_data_input_scale is None

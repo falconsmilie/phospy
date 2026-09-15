@@ -49,6 +49,9 @@ class ResolvedCoreTransformPlanFields:
     missing_data_distance: str | None
     missing_data_max_missing_fraction_per_row: float | None
     missing_data_no_overlap_policy: str | None = None
+    missing_data_group_column: str | None = None
+    missing_data_min_partial_observed_fraction: float | None = None
+    missing_data_min_reference_observed_fraction: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

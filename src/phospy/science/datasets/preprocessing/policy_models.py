@@ -8,6 +8,7 @@ class MissingDataPolicy(PolicyEnum):
     IMPUTE_ROW_MEDIAN = "impute_row_median"
     IMPUTE_MINPROB = "impute_minprob"
     IMPUTE_KNN = "impute_knn"
+    IMPUTE_GROUP_AWARE = "impute_group_aware"
 
 
 class ImputationInputScale(PolicyEnum):

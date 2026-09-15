@@ -87,8 +87,15 @@ class MissingDataStage:
         return None
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
-        input_profile = build_input_profile(state.phospho)
         policy = state.plan.missing_data_policy
+        if policy is MissingDataPolicy.IMPUTE_GROUP_AWARE:
+            raise PhosPyInputError(
+                "missing_data.policy='impute_group_aware' is currently a "
+                "planning/contract-only policy; group-aware routing and mixed "
+                "KNN/MinProb numerical execution are not implemented"
+            )
+
+        input_profile = build_input_profile(state.phospho)
 
         if policy is MissingDataPolicy.FORBID:
             return _run_forbid_policy(state=state, input_profile=input_profile)
@@ -523,6 +530,13 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
             plan.missing_data_max_missing_fraction_per_row
         ),
         "missing_data_no_overlap_policy": plan.missing_data_no_overlap_policy,
+        "missing_data_group_column": plan.missing_data_group_column,
+        "missing_data_min_partial_observed_fraction": (
+            plan.missing_data_min_partial_observed_fraction
+        ),
+        "missing_data_min_reference_observed_fraction": (
+            plan.missing_data_min_reference_observed_fraction
+        ),
         "missing_data_input_scale": (
             None
             if plan.missing_data_input_scale is None
@@ -546,7 +560,10 @@ def _resolve_quantitative_contract(
             reversibility=QuantitativeReversibilityKind.REVERSIBLE,
             information_loss=QuantitativeInformationLossKind.NONE,
         )
-    if policy is MissingDataPolicy.IMPUTE_MINPROB:
+    if policy in {
+        MissingDataPolicy.IMPUTE_MINPROB,
+        MissingDataPolicy.IMPUTE_GROUP_AWARE,
+    }:
         return QuantitativeOperationContract(
             accepted_input_scale_kinds=frozenset({IntensityScaleKind.LOG2}),
             accepted_quantitative_meanings=frozenset(
@@ -607,7 +624,10 @@ def _resolve_quantitative_contract(
 
 
 def _resolve_determinism_kind(plan: PreprocessingPlan) -> DeterminismKind:
-    if plan.missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
+    if plan.missing_data_policy in {
+        MissingDataPolicy.IMPUTE_MINPROB,
+        MissingDataPolicy.IMPUTE_GROUP_AWARE,
+    }:
         return DeterminismKind.SEEDED_STOCHASTIC
     return DeterminismKind.DETERMINISTIC
 

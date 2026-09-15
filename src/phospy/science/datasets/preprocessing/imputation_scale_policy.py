@@ -77,7 +77,10 @@ def resolve_imputation_scale_policy(
                 intensity_transform_policy=transform_policy,
             ),
         )
-    if policy is MissingDataPolicy.IMPUTE_MINPROB:
+    if policy in {
+        MissingDataPolicy.IMPUTE_MINPROB,
+        MissingDataPolicy.IMPUTE_GROUP_AWARE,
+    }:
         input_scale = _resolve_minprob_input_scale(input_scale)
         return ResolvedImputationScalePolicy(
             input_scale=input_scale,
@@ -225,7 +228,7 @@ def _resolve_minprob_input_scale(
         return ImputationInputScale.LOG2
     raise PhosPyInputError(
         "invalid missing-data imputation scale configuration: "
-        "missing_data.policy='impute_minprob' requires "
+        "missing_data.policy='impute_minprob' or 'impute_group_aware' requires "
         "preprocessing_config.missing_data.input_scale='log2' because MinProb's "
         "left-censored sampling model operates on log2 intensities."
     )

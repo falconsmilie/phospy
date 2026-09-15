@@ -66,3 +66,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0047 | ssGSEA Tie-Block Policy | Accepted | 2026-08-05 | [adr_0047_ssgsea_tie_block_policy.md](adr_0047_ssgsea_tie_block_policy.md) |
 | ADR-0048 | Duplicate-Correlation Scientific Contract | Accepted | 2026-08-18 | [adr_0048_duplicate_correlation_scientific_contract.md](adr_0048_duplicate_correlation_scientific_contract.md) |
 | ADR-0049 | Protein-Covariate-Adjusted Differential Estimator | Accepted | 2026-08-31 | [adr_0049_protein_covariate_adjusted_differential_estimator.md](adr_0049_protein_covariate_adjusted_differential_estimator.md) |
+| ADR-0050 | Group-Aware Mixed-Mechanism Missing-Data Imputation | Accepted | 2026-09-15 | [adr_0050_group_aware_mixed_mechanism_missing_data_imputation.md](adr_0050_group_aware_mixed_mechanism_missing_data_imputation.md) |
