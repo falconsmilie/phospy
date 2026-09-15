@@ -182,6 +182,47 @@ def test_missing_data_state_derives_imputation_scale_order_from_diagnostics() ->
     assert state.imputation_operation_order == "no_intensity_transform"
 
 
+@pytest.mark.parametrize(
+    "policy",
+    ("forbid", "impute_row_median", "impute_knn", "impute_minprob"),
+)
+def test_missing_data_diagnostics_v1_accepts_only_historical_policies(
+    policy: str,
+) -> None:
+    diagnostics = MissingDataDiagnosticsV1(
+        **{**_missing_data_diagnostics().to_payload(), "missing_data_policy": policy}
+    )
+
+    assert diagnostics.missing_data_policy == policy
+
+
+def test_missing_data_diagnostics_v1_rejects_group_aware_policy() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="impute_group_aware.*requires MissingDataDiagnosticsV2",
+    ):
+        MissingDataDiagnosticsV1(
+            **{
+                **_missing_data_diagnostics().to_payload(),
+                "missing_data_policy": "impute_group_aware",
+            }
+        )
+
+
+def test_missing_data_state_requires_v2_diagnostics_for_group_aware_policy() -> None:
+    with pytest.raises(
+        DatasetProcessingStateError,
+        match="impute_group_aware.*requires MissingDataDiagnosticsV2",
+    ):
+        MissingDataState(
+            policy="impute_group_aware",
+            min_observed_values=1,
+            complete_matrix=True,
+            imputed=True,
+            diagnostics=_missing_data_diagnostics(),
+        )
+
+
 def test_missing_data_diagnostics_payload_is_fresh_and_nested_detached() -> None:
     diagnostics = MissingDataDiagnosticsV1(
         missing_data_policy="impute_minprob",

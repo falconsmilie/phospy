@@ -45,6 +45,15 @@ from .json_contracts import (
     thaw_frozen_json_mapping,
 )
 
+_MISSING_DATA_DIAGNOSTICS_V1_POLICIES = frozenset(
+    {
+        MissingDataPolicy.FORBID.value,
+        MissingDataPolicy.IMPUTE_ROW_MEDIAN.value,
+        MissingDataPolicy.IMPUTE_KNN.value,
+        MissingDataPolicy.IMPUTE_MINPROB.value,
+    }
+)
+
 
 class MissingDataDiagnostics(Mapping[str, JsonValue]):
     """Typed diagnostics contract for missing-data preprocessing state."""
@@ -375,6 +384,16 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             missing_data_policy,
             field_name="dataset processing state missing_data.diagnostics.missing_data_policy",
         ).value
+        if (
+            self.diagnostics_schema_version
+            == MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
+            and missing_data_policy not in _MISSING_DATA_DIAGNOSTICS_V1_POLICIES
+        ):
+            raise PhosPyInputError(
+                "missing-data diagnostics schema v1 does not support "
+                f"missing_data_policy={missing_data_policy!r}; "
+                "'impute_group_aware' requires MissingDataDiagnosticsV2"
+            )
         imputation_method_id = require_optional_str(
             self.imputation_method_id,
             field_name="dataset processing state missing_data.diagnostics.imputation_method_id",
@@ -1833,6 +1852,11 @@ class MissingDataDiagnosticsV2(MissingDataDiagnosticsV1):
             for key, value in payload.items()
             if key in V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS
         }
+        missing_data_policy = base_payload.get("missing_data_policy")
+        # The v1 parser normalizes the fields shared by both schema versions. Use
+        # a v1 policy for that temporary normalization, then let the authoritative
+        # v2 constructor validate and bind the payload's actual policy below.
+        base_payload["missing_data_policy"] = MissingDataPolicy.IMPUTE_KNN.value
         base_payload["diagnostics_schema_version"] = (
             MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
         )
@@ -1844,6 +1868,7 @@ class MissingDataDiagnosticsV2(MissingDataDiagnosticsV1):
             for item in fields(MissingDataDiagnosticsV1)
             if item.name != "diagnostics_schema_version"
         }
+        base_values["missing_data_policy"] = missing_data_policy
         return cls(
             **base_values,
             diagnostics_schema_version=version,

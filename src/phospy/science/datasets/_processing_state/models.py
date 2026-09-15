@@ -20,7 +20,7 @@ from phospy.science.transformations.models import (
     QuantitativeMeaning,
 )
 
-from .missing_data import MissingDataDiagnostics
+from .missing_data import MissingDataDiagnostics, MissingDataDiagnosticsV2
 from .total_protein import TotalProteinCorrectionDiagnostics
 
 
@@ -80,6 +80,13 @@ class MissingDataState:
             diagnostics = MissingDataDiagnostics.from_payload(
                 diagnostics,
                 field_name="dataset processing state missing_data.diagnostics",
+            )
+        if policy is MissingDataPolicy.IMPUTE_GROUP_AWARE and not isinstance(
+            diagnostics, MissingDataDiagnosticsV2
+        ):
+            raise DatasetProcessingStateError(
+                "dataset processing state missing_data.policy="
+                "'impute_group_aware' requires MissingDataDiagnosticsV2"
             )
 
         if diagnostics is not None:

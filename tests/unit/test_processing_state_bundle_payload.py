@@ -735,6 +735,8 @@ def test_group_aware_v2_diagnostics_dispatch_and_bundle_round_trip() -> None:
         field_name="dataset.metadata.processing_state.missing_data.diagnostics",
     )
     assert isinstance(diagnostics, MissingDataDiagnosticsV2)
+    directly_constructed = MissingDataDiagnosticsV2(**diagnostics_payload)
+    assert directly_constructed.to_payload() == diagnostics_payload
     assert diagnostics.group_aware.knn_imputed_cell_count == 1
     assert diagnostics.group_aware.rejected_rows[0].unsupported_partial_groups == ("A",)
 
@@ -753,21 +755,38 @@ def test_group_aware_v2_diagnostics_dispatch_and_bundle_round_trip() -> None:
     assert restored.missing_data.diagnostics.to_payload() == diagnostics.to_payload()
 
 
-def test_historical_group_aware_v1_diagnostics_round_trip_without_rewriting() -> None:
+def test_group_aware_policy_is_rejected_from_v1_diagnostics_payload() -> None:
     payload = _group_aware_v2_diagnostics_payload()
     payload["diagnostics_schema_version"] = 1
     payload.pop("group_aware")
 
-    diagnostics = MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+    with pytest.raises(
+        PhosPyInputError,
+        match="impute_group_aware.*requires MissingDataDiagnosticsV2",
+    ):
+        MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
 
-    assert type(diagnostics) is MissingDataDiagnosticsV1
-    restored = MissingDataDiagnostics.from_payload(
-        diagnostics.to_payload(), field_name="diagnostics"
+
+def test_bundle_state_reconstruction_rejects_group_aware_v1_diagnostics() -> None:
+    missing_data_diagnostics = _group_aware_v2_diagnostics_payload()
+    missing_data_diagnostics["diagnostics_schema_version"] = 1
+    missing_data_diagnostics.pop("group_aware")
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        missing_data_diagnostics=missing_data_diagnostics,
     )
-    assert type(restored) is MissingDataDiagnosticsV1
-    assert restored.to_payload() == diagnostics.to_payload()
-    assert restored.to_payload()["diagnostics_schema_version"] == 1
-    assert "group_aware" not in restored.to_payload()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="impute_group_aware.*requires MissingDataDiagnosticsV2",
+    ):
+        processing_state_from_payload(payload)
 
 
 def test_missing_data_diagnostics_schema_versions_reject_unknown_fields() -> None:
