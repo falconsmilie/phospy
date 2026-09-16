@@ -35,7 +35,7 @@ tests/integration/test_differential_quantification_depth_workflow.py,integration
 tests/integration/test_differential_with_technical_replicates.py,integration,203,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
-tests/integration/test_group_aware_missing_data_stage.py,integration,1019,12,true,true,,,,,,
+tests/integration/test_group_aware_missing_data_stage.py,integration,1026,12,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_identity_aware_workflows.py,integration,480,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/integration/test_kinase_bundle_integration.py,integration,3054,28,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/integration/test_kinase_library_workflow_scoring.py,integration,262,4,true,false,,,,,,
@@ -250,7 +250,7 @@ tests/unit/test_preprocessing_row_audit.py,unit,525,10,true,true,provenance/gold
 tests/unit/test_preprocessing_stage_provenance_fingerprints.py,unit,386,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for preprocessing stage provenance fingerprints, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_preprocessing_stage_registry.py,unit,1016,33,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage registry and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_preprocessing_stage_results.py,unit,1642,41,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage results and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_processing_state_bundle_payload.py,unit,1546,41,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for processing state bundle payload, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_processing_state_bundle_payload.py,unit,1667,47,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for processing state bundle payload, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_processing_state_import_contract.py,unit,71,2,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for processing state import contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_protein_aware_preparation_boundary.py,unit,982,24,false,false,,,,,,
 tests/unit/test_protein_aware_preparation_config.py,unit,100,6,false,false,,,,,,
