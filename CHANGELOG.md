@@ -4,21 +4,43 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-09-16
+
 ### Added
 
 - Added an opt-in `impute_group_aware` dataset missing-data policy that uses
-  explicit, aligned sample-group metadata to route supported partially observed
-  groups to KNN and supported fully missing groups to MinProb.
-- Added preserved group-routing and per-mechanism provenance, seeded
-  reproducibility, and original-observation-mask tracking for mixed KNN/MinProb
-  execution.
+  explicit, aligned sample-group metadata to classify complete, partially
+  observed, and fully missing site/group blocks. It routes supported partially
+  observed groups to KNN and supported fully missing groups to MinProb when
+  their asymmetric reference support is adequate; unsupported or ambiguous
+  rows are dropped conservatively.
+- Added typed group-routing, mechanism-provenance, row-audit, and diagnostics
+  support, including diagnostics schema v2 for preserving exact dataset-facing
+  sample and group labels through payload round trips and bundle reconstruction.
+- Added release-gated scientific, regression, serialization, and bounded
+  performance coverage for group-aware classification, routing, mixed-mechanism
+  execution, label alignment, seeded reproducibility, and provenance assembly.
 
 ### Changed
 
-- Group-aware missing-data requests now make their sample-group requirements,
-  log2-scale contract, conservative unsupported-row dropping, and
-  no-overlap failure behavior explicit. Existing standalone `forbid`,
-  row-median, MinProb, and KNN policies are unchanged.
+- Group-aware requests require aligned `sample_metadata`, an explicit valid
+  `group_column`, established log2 input, routing thresholds, KNN and MinProb
+  parameters, and strict KNN no-overlap errors. Both mechanisms consume the
+  same original retained matrix, so synthetic values never become evidence or
+  numerical input for the other route.
+- Extracted shared exact-label sample-group metadata resolution and explicit
+  target-mask KNN and MinProb primitives while preserving observed/imputed
+  observation-mask semantics. Existing standalone `forbid`, row-median,
+  MinProb, and KNN policies are unchanged, including standalone KNN's
+  configured column-mean fallback.
+
+### Fixed
+
+- Preserved historical diagnostics schema v1 normalization, parsing, round-trip,
+  and bundle semantics while binding group-aware diagnostics to schema v2 and
+  rejecting invalid schema-v1 `impute_group_aware` payloads.
+- Preserved canonical sample identity in group-aware diagnostics and audit
+  records, including unequal-size and non-string-labelled sample groups.
 
 ## [1.7.3] - 2026-09-10
 

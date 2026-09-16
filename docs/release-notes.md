@@ -1,23 +1,24 @@
 # PhosPy Release Notes
 
-## Version 1.7.3
+## Version 1.7.4
 
-Release date: 2026-09-10.
+Release date: 2026-09-16.
 
-These notes describe the changes since Version 1.7.2.
+These notes describe the changes since Version 1.7.3.
 
 ## Release Overview
 
-PhosPy 1.7.3 adds opt-in quantification-depth-aware empirical-Bayes
-moderation for differential analysis. This mode can model feature-specific
-empirical-Bayes prior variance against per-site quantification depth, using
-PSM count or peptide count metadata supplied for the tested sites.
+PhosPy 1.7.4 adds an opt-in, PhosPy-native group-aware mixed-mechanism
+missing-data policy:
 
-Existing empirical-Bayes behavior remains the default. `EmpiricalBayesConfig()`
-still uses the global prior, and `EmpiricalBayesConfig(trend=True)` still uses
-the existing mean-intensity variance trend. Quantification-depth moderation is
-selected only when the caller explicitly requests the quantification-depth trend
-covariate and declares the depth kind.
+```python
+policy = "impute_group_aware"
+```
+
+The policy uses exact, aligned sample-group metadata and the original observed
+missingness pattern to route eligible targets. It does not detect or prove MAR
+or MNAR, and it does not claim numerical parity with PhosR `scImpute` or
+`ptImpute`.
 
 ## Kinase Scientific-Policy Versions
 
@@ -38,65 +39,52 @@ eligible, and compatibility for persisted membership and provenance payloads.
 They are compatibility and interpretation contract identifiers, not empirical
 proof of scientific validity.
 
-## Compatibility and Migration
+## Group-Aware Imputation
 
-- No migration is required for existing empirical-Bayes users. The global and
-  mean-intensity trend modes keep their existing configuration semantics.
-- Quantification-depth-aware moderation is selected with
-  `EmpiricalBayesConfig(trend=True, trend_covariate="quantification_depth",
-  quantification_depth_kind="psm_count")` or
-  `quantification_depth_kind="peptide_count"`.
-- The authoritative metadata source is
-  `site_metadata["quantification_depth"]`. Valid finite integer counts greater
-  than or equal to one are required for every feature that enters differential
-  testing and empirical-Bayes moderation. Features withheld before testing may
-  still appear in re-expanded contrast tables with missing
-  quantification-depth trend diagnostics.
-- The depth trend is fit against `log2(quantification_depth)`. Result
-  diagnostics expose both the raw depth and the transformed trend covariate.
-- MaxQuant and FragPipe/PTMProphet importers can populate quantification-depth
-  metadata only when callers explicitly map a source column and declare the
-  depth kind. The importers do not infer PSM counts from row counts, spectrum
-  identifiers, PSM identifiers, or arbitrary numeric columns.
+- Complete groups require no imputation.
+- Sufficiently supported partially observed groups route missing targets to
+  KNN.
+- Fully missing groups route to MinProb only when another group for the same
+  site provides sufficient reference observation, expressing an explicit
+  left-censored modelling assumption.
+- Rows containing unsupported or ambiguous patterns are removed rather than
+  forced through an imputation mechanism.
 
-## Major Additions
+The policy requires aligned `sample_metadata`, a valid `group_column`,
+established log2 quantitative input, explicit routing thresholds, KNN settings
+(`k` and `distance="nan_euclidean"`), and MinProb settings (`q`, `width`, and
+`seed`). Group-aware KNN uses strict `no_overlap_policy="error"`; the standalone
+KNN column-mean fallback is not available in this mixed policy.
 
-- Added quantification-depth-aware empirical-Bayes moderation across ordinary
-  differential analysis, robust empirical Bayes, duplicate-correlation
-  analysis, and the experimental protein-aware differential lane.
-- Added separate `QuantificationDepthTrendDiagnostics` so depth trend
-  diagnostics are reported independently from mean-intensity trend diagnostics.
-- Added empirical-Bayes provenance that records the selected trend covariate,
-  depth kind, depth transformation, empirical-Bayes method, robust mode, and
-  winsor settings as applicable.
-- Added conservative site-level quantification-depth handling for MaxQuant and
-  FragPipe/PTMProphet imports. Unambiguous identical mapped counts are
-  preserved; ambiguous, split, or conflicting site evidence leaves depth
-  unavailable for downstream validation.
-- Added a checked-in R/DEqMS `spectraCounteBayes` reference fixture and
-  release-gated tests for DEqMS-inspired quantification-depth-aware empirical
-  Bayes.
+KNN and MinProb consume independent copies of the same original retained
+matrix. Their target masks cannot overlap, and synthetic values from one
+mechanism never become routing evidence, donor evidence, or numerical input for
+the other. Originally observed values and the existing binary observation-mask
+semantics are preserved.
 
-## Fixes and Hardening
+See [Dataset Build Workflow](api/dataset-build-workflow.md#group-aware-knn-minprob)
+for the complete user-facing configuration and interpretation contract.
 
-- Invalid or non-finite empirical-Bayes trend covariates are rejected before
-  fitting.
-- `site_metadata["quantification_depth"]` is the authority for
-  quantification-depth trend moderation.
-- Ordinary differential regression coverage protects the default global prior,
-  the existing mean-intensity trend, duplicate-correlation execution, importer
-  opt-in behavior, provenance payloads, and re-expanded result diagnostics.
+## Diagnostics and Compatibility
+
+- Typed routing, mechanism provenance, row audits, and diagnostics record the
+  group-aware decision path.
+- Diagnostics schema v2 preserves exact dataset-facing sample and group labels
+  through serialization and bundle reconstruction.
+- Historical schema-v1 parsing, normalization, round trips, and bundle
+  reconstruction retain their previous semantics. Schema-v1 payloads are not
+  migrated automatically, and schema v1 cannot represent
+  `impute_group_aware` diagnostics.
+- Existing standalone `forbid`, `impute_row_median`, `impute_knn`, and
+  `impute_minprob` policies remain available with unchanged behavior.
 
 ## Scientific Scope
 
-The new mode is quantification-depth-aware empirical Bayes inspired by DEqMS.
-It retains PhosPy's empirical-Bayes trend architecture and should not be
-interpreted as exact numerical or API compatibility with DEqMS.
-
-Quantification depth is feature metadata for the sites entering differential
-testing and moderation. PhosPy does not derive this metadata from unrelated
-evidence structure, and missing or invalid depth for a tested site fails closed
-instead of silently falling back to another trend.
+Observed missingness patterns are modelling evidence used to select an explicit
+route; they do not establish the missingness mechanism for any value. The
+MinProb route makes a left-censored assumption only for eligible asymmetric
+fully missing groups. The partial-observation KNN route is a PhosPy mechanism,
+not a reimplementation of PhosR `scImpute`.
 
 The broader PhosPy scientific boundaries remain in force: differential analysis
 is limited to tested design and contrast envelopes; bundled runtime references
