@@ -164,6 +164,23 @@ include the opt-in `"impute_group_aware"` policy and its configuration fields.
 This does not add an export or change the advanced inventory count. The router,
 classifications, routing masks, and numerical kernels remain internal.
 
+Update note (2026-09-16, SPS discovery contracts): explicit contract review
+promotes the SPS discovery contract family through `phospy.advanced`, raising
+the governed advanced facade count from 110 to 124. The promoted names are
+`SpsDiscoveryRequest`, `SpsDiscoveryWorkflow`, `SpsReferenceDataset`,
+`SpsDiscoveryConfig`,
+`SpsDiscoveryValidationError`, `SpsDiscoveryValidationIssue`,
+`SpsDiscoveryValidationResult`, `SpsDatasetSiteStatistic`,
+`SpsSiteStabilityRecord`, `SpsSelectionBoundaryCounts`,
+`SpsSampleConditionAssignment`, `SpsReferenceDatasetProvenance`,
+`SpsDiscoveryProvenance`, and `SpsDiscoveryResult`. The request is a passive
+caller-intent payload. `SpsDiscoveryWorkflow` is the supported multi-reference
+validation and provenance-assembly boundary and delegates to private
+validation; no validator is promoted. The advanced-to-workflows dependency is
+restricted by architecture tests to this supported boundary. These contracts
+do not implement SPS ranking mathematics, change the existing native
+SPS/RUV-style method, or claim PhosR or RUV parity.
+
 ## Contract Facade Dependency and Ownership Audit
 
 The stable and advanced public facades can expose science-owned objects without

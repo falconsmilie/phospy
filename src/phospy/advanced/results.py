@@ -22,5 +22,16 @@ from phospy.contracts.results.kinase import (
     KinaseWorkflowScoringAttritionSummary,
     KinaseWorkflowSiteAttritionSummary,
 )
+from phospy.science.batch_correction.sps_discovery import (
+    SpsDatasetSiteStatistic,
+    SpsDiscoveryProvenance,
+    SpsDiscoveryResult,
+    SpsDiscoveryValidationIssue,
+    SpsDiscoveryValidationResult,
+    SpsReferenceDatasetProvenance,
+    SpsSampleConditionAssignment,
+    SpsSelectionBoundaryCounts,
+    SpsSiteStabilityRecord,
+)
 
 __all__ = ADVANCED_RESULT_API

@@ -445,6 +445,23 @@ def test_ownership_map_records_workflow_validators_as_composers() -> None:
         assert "compose" in f"{row.owner} {row.enforcement_point}".lower()
 
 
+def test_ownership_map_records_sps_discovery_composition() -> None:
+    rows = {row.invariant: row for row in _ownership_rows()}
+    row = rows["SPS discovery reference-input composition"]
+
+    assert (
+        "phospy.validation.workflows.batch_correction.sps_discovery."
+        "SpsDiscoveryRequestValidator" in row.owner
+    )
+    assert "phospy.science.sites.validation.require_site_key_index" in row.owner
+    assert "phospy.frames.validation.require_numeric_dataframe" in row.owner
+    assert (
+        "phospy.workflows.batch_correction.sps_discovery.SpsDiscoveryWorkflow"
+        in row.enforcement_point
+    )
+    assert "tests/unit/test_sps_discovery_contracts.py" in row.tests
+
+
 def _concrete_symbol_owner_errors(
     specs: tuple[ConcreteSymbolOwner, ...],
 ) -> list[str]:

@@ -67,6 +67,15 @@ EXPECTED_STABLE_RESULT_EXPORTS = {
 EXPECTED_ADVANCED_RESULT_EXPORTS = {
     "DifferentialModelDiagnostics",
     "QuantificationDepthTrendDiagnostics",
+    "SpsDatasetSiteStatistic",
+    "SpsDiscoveryProvenance",
+    "SpsDiscoveryResult",
+    "SpsDiscoveryValidationIssue",
+    "SpsDiscoveryValidationResult",
+    "SpsReferenceDatasetProvenance",
+    "SpsSampleConditionAssignment",
+    "SpsSelectionBoundaryCounts",
+    "SpsSiteStabilityRecord",
 } | INTENTIONAL_RESULT_COMPATIBILITY_ALIASES
 
 

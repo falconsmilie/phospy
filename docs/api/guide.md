@@ -132,6 +132,38 @@ from phospy.advanced import (
 )
 ```
 
+SPS discovery contracts are also supported from this facade. Request
+construction only stores caller intent. The workflow boundary validates the
+reference matrices as one multi-dataset input while keeping the validator
+itself private:
+
+```python
+from phospy.advanced import (
+    SpsDiscoveryConfig,
+    SpsDiscoveryRequest,
+    SpsDiscoveryWorkflow,
+    SpsDiscoveryValidationError,
+    SpsReferenceDataset,
+)
+
+request = SpsDiscoveryRequest(
+    reference_datasets=(reference_a, reference_b),
+    config=SpsDiscoveryConfig(top_n=100),
+)
+
+try:
+    validation = SpsDiscoveryWorkflow().require_valid(request)
+except SpsDiscoveryValidationError as exc:
+    validation = exc.validation_result
+```
+
+Each `SpsReferenceDataset` supplies its own sample-to-condition mapping, so
+reference datasets need not share samples or condition labels. Cross-dataset
+phosphosite identity is the governed `site_key` index. This API provides typed
+configuration, validation, provenance, result, and `ControlSiteSet` conversion
+contracts only: it does not implement SPS ranking mathematics and does not
+claim PhosR or RUV parity.
+
 The stable and advanced surfaces are intentional. Do not build user code around
 private validators, internal workflow executors, underscored helpers, or nearby
 implementation modules simply because Python can import them.

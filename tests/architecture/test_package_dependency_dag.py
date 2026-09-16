@@ -21,6 +21,7 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.advanced", "phospy.contracts"),
         ("phospy.advanced", "phospy.io"),
         ("phospy.advanced", "phospy.science"),
+        ("phospy.advanced", "phospy.workflows"),
         ("phospy.api", "phospy._deprecations"),
         ("phospy.api", "phospy._api_inventory"),
         ("phospy.api", "phospy.advanced"),
@@ -65,6 +66,38 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.workflows", "phospy.validation"),
     }
 )
+
+
+def test_sps_discovery_request_is_passive_at_the_public_boundary() -> None:
+    source = (PACKAGE_ROOT / "workflows/batch_correction/sps_discovery.py").read_text(
+        encoding="utf-8"
+    )
+    tree = ast.parse(source)
+    request_class = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SpsDiscoveryRequest"
+    )
+
+    assert not any(
+        isinstance(node, ast.FunctionDef) and node.name == "__post_init__"
+        for node in request_class.body
+    )
+
+
+def test_advanced_workflow_dependency_is_limited_to_sps_public_boundary() -> None:
+    graph = _build_import_graph()
+    advanced_workflow_targets = {
+        record.target
+        for record in graph.records
+        if record.source_module.startswith("phospy.advanced")
+        if record.target.startswith("phospy.workflows")
+    }
+
+    assert advanced_workflow_targets == {
+        "phospy.workflows.batch_correction.sps_discovery"
+    }
+
 
 FORBIDDEN_PACKAGE_EDGES = frozenset(
     {

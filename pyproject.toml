@@ -176,6 +176,7 @@ strict = [
   "src/phospy/science/transformations/scale_values.py",
   "src/phospy/science/transformations/transformers/identity.py",
   "src/phospy/science/sites",
+  "src/phospy/science/batch_correction/sps_discovery.py",
   "src/phospy/science/differential/models",
   "src/phospy/science/differential/policy_models.py",
   "src/phospy/science/differential/duplicate_correlation.py",

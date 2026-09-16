@@ -99,6 +99,7 @@ from phospy.contracts.configs import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
+from phospy.science.batch_correction.sps_discovery import SpsDiscoveryConfig
 from phospy.science.differential.models import EmpiricalBayesConfig
 
 __all__ = ADVANCED_CONFIG_API

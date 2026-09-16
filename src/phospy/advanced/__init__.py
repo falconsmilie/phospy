@@ -95,6 +95,7 @@ from phospy.advanced.configs import (
     SignalomeScientificConfig,
     SignalomeScorePreconditioningPolicy,
     SignalomeValidationConfig,
+    SpsDiscoveryConfig,
     SpsRuvBatchCorrectionConfig,
     SpsRuvBatchCorrectionMethod,
     TemporaryImputationMethod,
@@ -109,6 +110,15 @@ from phospy.advanced.results import (
     KinaseWorkflowScoringAttritionSummary,
     KinaseWorkflowSiteAttritionSummary,
     QuantificationDepthTrendDiagnostics,
+    SpsDatasetSiteStatistic,
+    SpsDiscoveryProvenance,
+    SpsDiscoveryResult,
+    SpsDiscoveryValidationIssue,
+    SpsDiscoveryValidationResult,
+    SpsReferenceDatasetProvenance,
+    SpsSampleConditionAssignment,
+    SpsSelectionBoundaryCounts,
+    SpsSiteStabilityRecord,
 )
 from phospy.io.bundles.kinase_library import (
     KinaseLibraryResourceLoader,
@@ -118,6 +128,10 @@ from phospy.io.publishers.workflows import (
     publish_dataset,
     publish_kinase_workflow,
     publish_signalome_workflow,
+)
+from phospy.science.batch_correction.sps_discovery import (
+    SpsDiscoveryValidationError,
+    SpsReferenceDataset,
 )
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteAnnotation,
@@ -133,6 +147,10 @@ from phospy.science.references.kinase_library_models import (
 from phospy.science.tables.differential import (
     filter_differential_results,
     rank_differential_results,
+)
+from phospy.workflows.batch_correction.sps_discovery import (
+    SpsDiscoveryRequest,
+    SpsDiscoveryWorkflow,
 )
 
 __all__ = ADVANCED_PUBLIC_API

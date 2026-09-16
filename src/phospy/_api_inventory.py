@@ -85,6 +85,7 @@ ADVANCED_CONFIG_API = (
     "DatasetPreprocessingBatchCorrectionConfig",
     "SpsRuvBatchCorrectionConfig",
     "SpsRuvBatchCorrectionMethod",
+    "SpsDiscoveryConfig",
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonBuildingPolicy",
     "DatasetComparisonPair",
@@ -176,6 +177,7 @@ _ADVANCED_CONFIG_API_WITH_STABILITY_JUSTIFICATION = (
     "DatasetPreprocessingBatchCorrectionConfig",
     "SpsRuvBatchCorrectionConfig",
     "SpsRuvBatchCorrectionMethod",
+    "SpsDiscoveryConfig",
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonBuildingPolicy",
     "DatasetComparisonPair",
@@ -264,6 +266,15 @@ ADVANCED_RESULT_API = (
     "KinaseWorkflowPreprocessingAttritionSummary",
     "KinaseWorkflowScoringAttritionSummary",
     "KinaseWorkflowSiteAttritionSummary",
+    "SpsDatasetSiteStatistic",
+    "SpsDiscoveryProvenance",
+    "SpsDiscoveryResult",
+    "SpsDiscoveryValidationIssue",
+    "SpsDiscoveryValidationResult",
+    "SpsReferenceDatasetProvenance",
+    "SpsSampleConditionAssignment",
+    "SpsSelectionBoundaryCounts",
+    "SpsSiteStabilityRecord",
 )
 
 _ADVANCED_PUBLISHER_API = (
@@ -277,6 +288,10 @@ ADVANCED_PUBLIC_API = (
     "ControlSiteSet",
     "ControlSiteSourceMetadata",
     "ControlSiteStatus",
+    "SpsDiscoveryRequest",
+    "SpsDiscoveryWorkflow",
+    "SpsDiscoveryValidationError",
+    "SpsReferenceDataset",
     *ADVANCED_CONFIG_API,
     "TechnicalReplicatePolicy",
     "KinaseLibraryResource",
@@ -290,7 +305,7 @@ ADVANCED_PUBLIC_API = (
 )
 
 STABLE_PUBLIC_API_BASELINE_COUNT = 68
-ADVANCED_PUBLIC_API_BASELINE_COUNT = 110
+ADVANCED_PUBLIC_API_BASELINE_COUNT = 124
 
 API_COMPATIBILITY_INTRODUCED_VERSION = "1.6.0"
 API_COMPATIBILITY_PLANNED_REMOVAL_VERSION = "2.0.0"
@@ -340,6 +355,13 @@ _ADVANCED_CONTROL_SITE_API = (
     "ControlSiteStatus",
 )
 
+_ADVANCED_SPS_DISCOVERY_INPUT_API = (
+    "SpsDiscoveryRequest",
+    "SpsDiscoveryWorkflow",
+    "SpsDiscoveryValidationError",
+    "SpsReferenceDataset",
+)
+
 _ADVANCED_KINASE_LIBRARY_API = (
     "KinaseLibraryResource",
     "KinaseLibraryResourceLoadRequest",
@@ -361,6 +383,13 @@ ADVANCED_API_STABILITY_JUSTIFICATIONS = {
             "preprocessing configuration and diagnostics."
         )
         for name in _ADVANCED_CONTROL_SITE_API
+    },
+    **{
+        name: (
+            "Advanced SPS discovery input and structured-validation contract "
+            "for caller-owned reference phosphoproteomics datasets."
+        )
+        for name in _ADVANCED_SPS_DISCOVERY_INPUT_API
     },
     **{
         name: (
