@@ -22,6 +22,16 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSet,
     ControlSiteStatus,
 )
+from phospy.science.transformations.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    QuantitativeMeaning,
+)
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_intensity_scale_state_with_meaning,
+)
 from tests.support.site_keys import protein_site_key_index
 
 
@@ -32,13 +42,26 @@ def _site_keys(*proteins: str) -> pd.Index:
     )
 
 
+def _invalid_case_sps_state() -> IntensityScaleState:
+    """Return supported bound state for tests whose other input is invalid."""
+
+    matrix = pd.DataFrame({"sample": [0.0]}, index=_site_keys("STATE"))
+    return SpsReferenceDataset.from_condition_relative_log2(
+        dataset_id="invalid-state-template",
+        intensities=matrix,
+        condition_by_sample={"sample": "control"},
+        log2_scale_established_by="test fixture log2 preparation",
+        baseline_centering_established_by="test fixture control subtraction",
+    ).intensity_scale_state
+
+
 def _reference(
     dataset_id: str,
     site_keys: pd.Index,
     *,
     conditions: dict[str, str] | None = None,
 ) -> SpsReferenceDataset:
-    return SpsReferenceDataset(
+    return SpsReferenceDataset.from_condition_relative_log2(
         dataset_id=dataset_id,
         intensities=pd.DataFrame(
             {
@@ -55,6 +78,8 @@ def _reference(
                 f"{dataset_id}_treated": "treated",
             }
         ),
+        log2_scale_established_by="test fixture log2 preparation",
+        baseline_centering_established_by="test fixture control subtraction",
         source_name=f"reference-{dataset_id}",
         source_version="2026-01",
     )
@@ -94,6 +119,210 @@ def test_valid_multi_dataset_discovery_configuration() -> None:
     )
 
 
+def test_condition_relative_log2_state_is_preserved_in_provenance() -> None:
+    keys = _site_keys("P1", "P2")
+    result = SpsDiscoveryWorkflow().run(
+        SpsDiscoveryRequest(
+            reference_datasets=(
+                _reference("study_a", keys),
+                _reference("study_b", keys),
+            ),
+            config=SpsDiscoveryConfig(top_n=1),
+        )
+    )
+
+    source = result.provenance.source_datasets[0]
+    payload = source.to_payload()["quantitative_state"]
+
+    assert source.intensity_scale_kind.value == "log2"
+    assert source.quantitative_meaning is QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE
+    assert source.quantitative_meaning_establishment is not None
+    assert payload["scale"] == "log2"  # type: ignore[index]
+    assert payload["quantitative_meaning"] == "contrast_log2_fold_change"  # type: ignore[index]
+    assert payload["scale_establishment"]  # type: ignore[index]
+    assert payload["quantitative_meaning_establishment"]  # type: ignore[index]
+    scale_binding = source.intensity_scale_establishment.parameters[
+        "sps_reference_matrix_fingerprint"
+    ]
+    meaning_binding = source.quantitative_meaning_establishment.output_table_fingerprint
+    assert scale_binding == meaning_binding
+    assert scale_binding["exact_hash_value"] == (  # type: ignore[index]
+        source.intensity_fingerprint.exact_hash_value
+    )
+
+
+@pytest.mark.parametrize(
+    ("state", "expected_code"),
+    [
+        (
+            supported_log2_intensity_scale_state_with_meaning(
+                has_total_matrix=False,
+                meaning=QuantitativeMeaning.UNKNOWN,
+            ),
+            "incompatible_sps_quantitative_meaning",
+        ),
+        (
+            supported_log2_intensity_scale_state(has_total_matrix=False),
+            "absolute_abundance_quantitative_state",
+        ),
+        (
+            supported_linear_intensity_scale_state(has_total_matrix=False),
+            "incompatible_sps_intensity_scale",
+        ),
+        (
+            IntensityScaleState(
+                phospho=MatrixIntensityScaleState.log2(),
+                quantity=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            ),
+            "missing_scale_establishment_evidence",
+        ),
+    ],
+    ids=[
+        "unknown-meaning",
+        "absolute-log-abundance",
+        "linear-abundance",
+        "missing-establishment-evidence",
+    ],
+)
+def test_incompatible_sps_quantitative_states_are_rejected(
+    state: IntensityScaleState,
+    expected_code: str,
+) -> None:
+    keys = _site_keys("P1", "P2")
+    invalid = SpsReferenceDataset(
+        dataset_id="invalid",
+        intensities=pd.DataFrame(
+            {"control": [0.0, 0.0], "treated": [0.1, 0.2]},
+            index=keys,
+        ),
+        condition_by_sample={"control": "control", "treated": "treated"},
+        intensity_scale_state=state,
+    )
+    validation = SpsDiscoveryWorkflow().validate(
+        SpsDiscoveryRequest(
+            reference_datasets=(invalid, _reference("valid", keys)),
+            config=SpsDiscoveryConfig(top_n=1),
+        )
+    )
+
+    assert validation.valid is False
+    assert expected_code in {issue.code for issue in validation.issues}
+    issue = next(issue for issue in validation.issues if issue.code == expected_code)
+    assert "condition-relative log2 measurements" in issue.message
+    assert "reference/control baseline" in issue.message
+    if expected_code == "missing_scale_establishment_evidence":
+        assert "missing_baseline_establishment_evidence" in {
+            item.code for item in validation.issues
+        }
+
+
+def test_absolute_stable_values_cannot_be_interpreted_as_sps_input() -> None:
+    keys = _site_keys("P1", "P2")
+    governed_for_another_matrix = SpsReferenceDataset.from_condition_relative_log2(
+        dataset_id="absolute",
+        intensities=pd.DataFrame(
+            {"control": [0.0, 0.0], "treated": [0.1, 0.2]},
+            index=keys,
+        ),
+        condition_by_sample={"control": "control", "treated": "treated"},
+        log2_scale_established_by="test fixture log2 preparation",
+        baseline_centering_established_by="test fixture control subtraction",
+    )
+    absolute = SpsReferenceDataset(
+        dataset_id="absolute",
+        intensities=pd.DataFrame(
+            {"control": [10.0, 11.0], "treated": [10.0, 11.0]},
+            index=keys,
+        ),
+        condition_by_sample={"control": "control", "treated": "treated"},
+        intensity_scale_state=governed_for_another_matrix.intensity_scale_state,
+    )
+
+    validation = SpsDiscoveryWorkflow().validate(
+        SpsDiscoveryRequest(
+            reference_datasets=(absolute, _reference("valid", keys)),
+            config=SpsDiscoveryConfig(top_n=1),
+        )
+    )
+
+    assert {
+        "mismatched_scale_matrix_binding_evidence",
+        "mismatched_baseline_matrix_binding_evidence",
+    }.issubset({issue.code for issue in validation.issues})
+
+
+def test_unbound_quantitative_evidence_is_rejected() -> None:
+    keys = _site_keys("P1", "P2")
+    unbound = SpsReferenceDataset(
+        dataset_id="unbound",
+        intensities=pd.DataFrame(
+            {"control": [0.0, 0.0], "treated": [0.1, 0.2]},
+            index=keys,
+        ),
+        condition_by_sample={"control": "control", "treated": "treated"},
+        intensity_scale_state=supported_log2_intensity_scale_state_with_meaning(
+            has_total_matrix=False,
+            meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+        ),
+    )
+
+    validation = SpsDiscoveryWorkflow().validate(
+        SpsDiscoveryRequest(
+            reference_datasets=(unbound, _reference("valid", keys)),
+            config=SpsDiscoveryConfig(top_n=1),
+        )
+    )
+
+    assert {
+        "missing_scale_matrix_binding_evidence",
+        "missing_baseline_matrix_binding_evidence",
+    }.issubset({issue.code for issue in validation.issues})
+
+
+def test_quantitative_rejection_occurs_before_ranking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keys = _site_keys("P1", "P2")
+    governed_for_another_matrix = SpsReferenceDataset.from_condition_relative_log2(
+        dataset_id="absolute",
+        intensities=pd.DataFrame(
+            {"control": [0.0, 0.0], "treated": [0.1, 0.2]},
+            index=keys,
+        ),
+        condition_by_sample={"control": "control", "treated": "treated"},
+        log2_scale_established_by="test fixture log2 preparation",
+        baseline_centering_established_by="test fixture control subtraction",
+    )
+    absolute = SpsReferenceDataset(
+        dataset_id="absolute",
+        intensities=pd.DataFrame(
+            {"control": [10.0, 11.0], "treated": [10.0, 11.0]},
+            index=keys,
+        ),
+        condition_by_sample={"control": "control", "treated": "treated"},
+        intensity_scale_state=governed_for_another_matrix.intensity_scale_state,
+    )
+
+    def fail_if_ranked(*args: object, **kwargs: object) -> None:
+        raise AssertionError("ranking must not begin for incompatible input")
+
+    monkeypatch.setattr(
+        "phospy.workflows.batch_correction.sps_discovery.SpsDiscoveryExecutor.run",
+        fail_if_ranked,
+    )
+    with pytest.raises(SpsDiscoveryValidationError) as caught:
+        SpsDiscoveryWorkflow().run(
+            SpsDiscoveryRequest(
+                reference_datasets=(absolute, _reference("valid", keys)),
+                config=SpsDiscoveryConfig(top_n=1),
+            )
+        )
+
+    assert "mismatched_baseline_matrix_binding_evidence" in {
+        issue.code for issue in caught.value.validation_result.issues
+    }
+
+
 def test_too_few_reference_datasets_has_structured_validation() -> None:
     request = SpsDiscoveryRequest(
         reference_datasets=(_reference("study_a", _site_keys("P1", "P2")),),
@@ -114,10 +343,30 @@ def test_duplicate_and_invalid_site_keys_have_structured_validation() -> None:
     duplicate_index = pd.Index([valid_key, valid_key], name="site_key")
     invalid_index = pd.Index(["P1;S1;"], name="site_key")
 
+    def structurally_invalid_reference(
+        dataset_id: str,
+        index: pd.Index,
+    ) -> SpsReferenceDataset:
+        return SpsReferenceDataset(
+            dataset_id=dataset_id,
+            intensities=pd.DataFrame(
+                {
+                    f"{dataset_id}_control": [1.0] * len(index),
+                    f"{dataset_id}_treated": [2.0] * len(index),
+                },
+                index=index,
+            ),
+            condition_by_sample={
+                f"{dataset_id}_control": "control",
+                f"{dataset_id}_treated": "treated",
+            },
+            intensity_scale_state=_invalid_case_sps_state(),
+        )
+
     request = SpsDiscoveryRequest(
         reference_datasets=(
-            _reference("duplicates", duplicate_index),
-            _reference("invalid", invalid_index),
+            structurally_invalid_reference("duplicates", duplicate_index),
+            structurally_invalid_reference("invalid", invalid_index),
         ),
         config=SpsDiscoveryConfig(),
     )
@@ -201,6 +450,7 @@ def test_absent_condition_metadata_has_structured_validation() -> None:
             index=keys,
         ),
         condition_by_sample=None,  # type: ignore[arg-type]
+        intensity_scale_state=_invalid_case_sps_state(),
     )
 
     request = SpsDiscoveryRequest(
@@ -228,6 +478,7 @@ def test_invalid_condition_mapping_has_structured_validation() -> None:
                 index=_site_keys("P1"),
             ),
             condition_by_sample={1: "control"},  # type: ignore[dict-item]
+            intensity_scale_state=_invalid_case_sps_state(),
         )
 
     assert caught.value.validation_result.issues[0].code == (
@@ -250,6 +501,7 @@ def test_missing_intensity_data_has_structured_workflow_validation(
         dataset_id="invalid_intensities",
         intensities=intensities,  # type: ignore[arg-type]
         condition_by_sample={},
+        intensity_scale_state=_invalid_case_sps_state(),
     )
     request = SpsDiscoveryRequest(
         reference_datasets=(
@@ -285,6 +537,7 @@ def test_non_numeric_intensity_data_has_structured_workflow_validation(
             index=keys,
         ),
         condition_by_sample={"control": "control", "treated": "treated"},
+        intensity_scale_state=_invalid_case_sps_state(),
     )
     request = SpsDiscoveryRequest(
         reference_datasets=(
@@ -428,6 +681,7 @@ def test_reference_matrix_isolated_from_input_and_accessor_mutation() -> None:
         dataset_id="study_a",
         intensities=original,
         condition_by_sample={"control": "control", "treated": "treated"},
+        intensity_scale_state=_invalid_case_sps_state(),
     )
 
     original.index = pd.Index(["display-a", "display-b"], name="display_id")
@@ -470,6 +724,7 @@ def test_invalid_reference_cannot_produce_source_provenance() -> None:
             index=pd.Index(["not-a-site-key"], name="display_id"),
         ),
         condition_by_sample={"control": "control", "treated": "treated"},
+        intensity_scale_state=_invalid_case_sps_state(),
     )
     request = SpsDiscoveryRequest(
         reference_datasets=(invalid, _reference("valid", _site_keys("P1"))),
@@ -486,7 +741,7 @@ def test_invalid_reference_cannot_produce_source_provenance() -> None:
     issue = next(
         issue
         for issue in caught.value.validation_result.issues
-        if issue.dataset_id == "invalid"
+        if issue.dataset_id == "invalid" and issue.code == "missing_site_key_identity"
     )
     assert issue.code == "missing_site_key_identity"
     assert issue.field_name == "intensities.index"
@@ -525,6 +780,17 @@ def test_config_and_provenance_comparison_and_serialization_are_deterministic() 
         "sites_ranked": 3,
         "sites_selected": 2,
     }
+
+    source = provenance.source_datasets[0]
+    distinct_scale_evidence = replace(
+        source,
+        intensity_scale_establishment=replace(
+            source.intensity_scale_establishment,
+            input_declaration_source="different-governed-source",
+        ),
+    )
+    assert distinct_scale_evidence != source
+    assert distinct_scale_evidence.to_payload() != source.to_payload()
 
 
 def test_discovery_result_converts_to_existing_control_site_set() -> None:

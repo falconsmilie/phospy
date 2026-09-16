@@ -17,6 +17,7 @@ from phospy.science.transformations.policy import (
     BUNDLE_QUANTITATIVE_MEANING_AUTHORITY_SOURCE,
     DATASET_QUANTITATIVE_MEANING_AUTHORITY_SOURCE,
     IDENTITY_INTENSITY_SCALE_ESTABLISHER,
+    SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY_SOURCE,
     IntensityScaleEstablishmentMode,
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
@@ -318,10 +319,13 @@ class IntensityScaleState:
         authority_source = resolve_quantitative_meaning_transition_authority_source(
             authority
         )
-        if authority_source != DATASET_QUANTITATIVE_MEANING_AUTHORITY_SOURCE:
+        if authority_source not in {
+            DATASET_QUANTITATIVE_MEANING_AUTHORITY_SOURCE,
+            SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY_SOURCE,
+        }:
             raise InvalidTransformationStateError(
-                "bundle restoration authority cannot mint a new quantitative "
-                "meaning transition"
+                "quantitative meaning transition authority cannot mint a new "
+                "quantitative meaning transition"
             )
         target = normalize_required_quantitative_meaning(
             target_quantity,

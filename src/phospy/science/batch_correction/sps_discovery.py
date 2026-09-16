@@ -21,18 +21,43 @@ from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.hashing import fingerprint_table_normalized_axes
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.provenance.models import TableFingerprint
-from phospy.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.provenance.serialization.tables import (
+    table_fingerprint_from_payload,
+    table_fingerprint_to_payload,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
+    DatasetIntensityScaleResolver,
+)
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
 from phospy.science.sites.validation import require_site_key_index
+from phospy.science.transformations._authority import (
+    sps_reference_quantitative_meaning_transition_authority,
+)
+from phospy.science.transformations.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentProvenance,
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
+    QuantitativeMeaningTransitionProvenance,
+)
+from phospy.science.transformations.transformers import IdentityTransformer
 
 SPS_DISCOVERY_SELECTION_METHOD_CONSENSUS_STABILITY = "consensus_stability"
 SPS_DISCOVERY_ALGORITHM_ID = "phospy_sps_consensus_stability"
 SPS_DISCOVERY_ALGORITHM_VERSION = "1.0.0"
 SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING = "site_key_ascending"
 SPS_DISCOVERY_CONTROL_SOURCE_TYPE = "sps_discovery"
+SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER = "sps_reference_matrix_fingerprint"
+SPS_REFERENCE_CENTERING_ASSERTION_OPERATION = (
+    "phospy.sps_reference.external_reference_centering_assertion"
+)
 
 SpsDiscoverySelectionMethod = Literal["consensus_stability"]
 SpsDiscoveryTieHandling = Literal["site_key_ascending"]
@@ -103,12 +128,15 @@ class SpsReferenceDataset:
     The matrix is defensively copied. Rows must ultimately be governed by its
     encoded ``site_key`` index; the private request validator owns that check.
     ``condition_by_sample`` is frozen recursively so caller mutation cannot
-    alter a validated request.
+    alter a validated request. ``intensity_scale_state`` carries the governed
+    scale, quantitative meaning, and establishment evidence; SPS validation
+    requires it to describe pre-established condition-relative log2 values.
     """
 
     dataset_id: str
     _owned_intensities: object = field(repr=False)
     condition_by_sample: Mapping[str, str]
+    intensity_scale_state: IntensityScaleState
     source_name: str | None = None
     source_version: str | None = None
     source_uri: str | None = None
@@ -118,6 +146,7 @@ class SpsReferenceDataset:
         dataset_id: str,
         intensities: pd.DataFrame,
         condition_by_sample: Mapping[str, str],
+        intensity_scale_state: IntensityScaleState,
         source_name: str | None = None,
         source_version: str | None = None,
         source_uri: str | None = None,
@@ -133,6 +162,7 @@ class SpsReferenceDataset:
             ),
         )
         object.__setattr__(self, "condition_by_sample", condition_by_sample)
+        object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
         object.__setattr__(self, "source_name", source_name)
         object.__setattr__(self, "source_version", source_version)
         object.__setattr__(self, "source_uri", source_uri)
@@ -183,6 +213,101 @@ class SpsReferenceDataset:
                         ),
                     ),
                 )
+
+    @classmethod
+    def from_condition_relative_log2(
+        cls,
+        dataset_id: str,
+        intensities: pd.DataFrame,
+        condition_by_sample: Mapping[str, str],
+        *,
+        log2_scale_established_by: str,
+        baseline_centering_established_by: str,
+        source_name: str | None = None,
+        source_version: str | None = None,
+        source_uri: str | None = None,
+    ) -> SpsReferenceDataset:
+        """Assert pre-established SPS input semantics without changing values.
+
+        This supported advanced boundary records a caller assertion that the
+        supplied matrix is already on the log2 scale and was already centred on
+        the appropriate reference/control baseline. It does not choose a
+        baseline, centre values, transform values, or infer semantics from the
+        numeric matrix. Both evidence-source identifiers are required, and the
+        resulting typed evidence is bound to the exact submitted matrix.
+        """
+
+        resolved_dataset_id = _require_non_empty_string(
+            dataset_id,
+            field_name="sps_reference_dataset.dataset_id",
+        )
+        scale_source = _require_non_empty_string(
+            log2_scale_established_by,
+            field_name=("sps_reference_dataset.log2_scale_established_by"),
+        )
+        baseline_source = _require_non_empty_string(
+            baseline_centering_established_by,
+            field_name=("sps_reference_dataset.baseline_centering_established_by"),
+        )
+        if not isinstance(cast(object, intensities), pd.DataFrame):
+            raise PhosPyInputError(
+                "sps_reference_dataset.intensities must be a pandas DataFrame"
+            )
+        owned_intensities = intensities.copy(deep=True)
+        matrix_fingerprint = _sps_reference_intensity_fingerprint(
+            dataset_id=resolved_dataset_id,
+            intensities=owned_intensities,
+        )
+        fingerprint_payload = table_fingerprint_to_payload(matrix_fingerprint)
+        declared_state = IntensityScaleState(
+            phospho=MatrixIntensityScaleState.log2(),
+            quantity=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+        )
+        established_state = (
+            DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+            .run(
+                phospho=owned_intensities,
+                total=None,
+                expected_scale_kind=IntensityScaleKind.LOG2,
+                declared_input_scale_state=declared_state,
+                declared_input_establishment_mode=(
+                    IntensityScaleEstablishmentMode.DECLARED
+                ),
+                input_declaration_source=scale_source,
+                scale_establishment_parameters={
+                    SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER: fingerprint_payload,
+                },
+            )
+            .intensity_scale_state
+        )
+        meaning_provenance = QuantitativeMeaningTransitionProvenance(
+            source_quantity=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+            target_quantity=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            operation_id=SPS_REFERENCE_CENTERING_ASSERTION_OPERATION,
+            producer_id=baseline_source,
+            evidence_mode=QuantitativeMeaningEvidenceMode.DECLARED_BY_CALLER,
+            parameters={
+                "baseline_centering_established_by": baseline_source,
+                "asserted_semantics": (
+                    "condition_relative_log2_reference_control_centered"
+                ),
+            },
+            output_table_fingerprint=matrix_fingerprint,
+        )
+        quantitative_state = established_state.transition_quantitative_meaning(
+            target_quantity=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            provenance=meaning_provenance,
+            authority=(sps_reference_quantitative_meaning_transition_authority()),
+        )
+        return cls(
+            dataset_id=resolved_dataset_id,
+            intensities=owned_intensities,
+            condition_by_sample=condition_by_sample,
+            intensity_scale_state=quantitative_state,
+            source_name=source_name,
+            source_version=source_version,
+            source_uri=source_uri,
+        )
 
     @property
     def intensities(self) -> pd.DataFrame:
@@ -264,6 +389,10 @@ class SpsReferenceDatasetProvenance:
     sample_count: int
     sample_conditions: tuple[SpsSampleConditionAssignment, ...]
     intensity_fingerprint: TableFingerprint
+    intensity_scale_kind: IntensityScaleKind
+    quantitative_meaning: QuantitativeMeaning
+    intensity_scale_establishment: IntensityScaleEstablishmentProvenance
+    quantitative_meaning_establishment: QuantitativeMeaningTransitionProvenance
     source_name: str | None = None
     source_version: str | None = None
     source_uri: str | None = None
@@ -320,6 +449,7 @@ class SpsReferenceDatasetProvenance:
                 "sps_source_provenance.intensity_fingerprint must describe a "
                 "governed 'site_key' index"
             )
+        _require_sps_provenance_quantitative_contract(self)
         for field_name in ("source_name", "source_version", "source_uri"):
             value = getattr(self, field_name)
             if value is not None:
@@ -369,6 +499,14 @@ class SpsReferenceDatasetProvenance:
             "intensity_fingerprint": table_fingerprint_to_payload(
                 self.intensity_fingerprint
             ),
+            "quantitative_state": {
+                "scale": self.intensity_scale_kind.value,
+                "quantitative_meaning": self.quantitative_meaning.value,
+                "scale_establishment": self.intensity_scale_establishment.to_payload(),
+                "quantitative_meaning_establishment": (
+                    self.quantitative_meaning_establishment.to_payload()
+                ),
+            },
         }
 
 
@@ -1013,6 +1151,26 @@ def _reference_provenance(
     sites_entering_consensus: int | None = None,
 ) -> SpsReferenceDatasetProvenance:
     intensities = reference.intensities
+    intensity_fingerprint = _sps_reference_intensity_fingerprint(
+        dataset_id=reference.dataset_id,
+        intensities=intensities,
+    )
+    quantitative_state = _require_sps_quantitative_state(
+        reference.intensity_scale_state,
+        field_name=(
+            f"sps_reference_dataset[{reference.dataset_id!r}].intensity_scale_state"
+        ),
+        intensity_fingerprint=intensity_fingerprint,
+    )
+    scale_establishment = quantitative_state.establishment_provenance
+    meaning_establishment = quantitative_state.quantitative_meaning_provenance
+    quantitative_meaning = quantitative_state.quantity
+    if (
+        scale_establishment is None
+        or meaning_establishment is None
+        or quantitative_meaning is None
+    ):
+        raise AssertionError("validated SPS quantitative state lost required evidence")
     assignments = tuple(
         SpsSampleConditionAssignment(
             sample_id=sample_id,
@@ -1028,10 +1186,11 @@ def _reference_provenance(
         site_count=int(intensities.shape[0]),
         sample_count=int(intensities.shape[1]),
         sample_conditions=assignments,
-        intensity_fingerprint=fingerprint_table_normalized_axes(
-            intensities,
-            name=f"sps_reference.{reference.dataset_id}.intensities",
-        ),
+        intensity_fingerprint=intensity_fingerprint,
+        intensity_scale_kind=quantitative_state.kind,
+        quantitative_meaning=quantitative_meaning,
+        intensity_scale_establishment=scale_establishment,
+        quantitative_meaning_establishment=meaning_establishment,
         sites_passing_required_data=sites_passing_required_data,
         sites_entering_consensus=sites_entering_consensus,
     )
@@ -1062,6 +1221,214 @@ def _fisher_style_consensus_score(quantiles: Sequence[float]) -> float:
     statistic = -2.0 * math.fsum(math.log(value) for value in quantiles)
     degrees_of_freedom = 2 * (contribution_count - 1)
     return float(chi2.sf(statistic, degrees_of_freedom))
+
+
+def _require_sps_quantitative_state(
+    state: object,
+    *,
+    field_name: str,
+    intensity_fingerprint: TableFingerprint,
+) -> IntensityScaleState:
+    """Require the governed quantitative domain consumed by SPS discovery."""
+
+    if not isinstance(state, IntensityScaleState):
+        raise PhosPyInputError(f"{field_name} must be an IntensityScaleState")
+    establishment = state.establishment_provenance
+    if not state.is_established or establishment is None:
+        raise PhosPyInputError(
+            f"{field_name} must carry established intensity-scale provenance"
+        )
+    if establishment.evidence_level is IntensityScaleEvidenceLevel.UNKNOWN:
+        raise PhosPyInputError(
+            f"{field_name} must carry known intensity-scale establishment evidence"
+        )
+    if state.kind is not IntensityScaleKind.LOG2:
+        raise PhosPyInputError(f"{field_name} must establish the log2 scale")
+    if state.quantity is not QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE:
+        raise PhosPyInputError(
+            f"{field_name} must establish condition-relative contrast_log2_fold_change "
+            "meaning"
+        )
+    meaning_provenance = state.quantitative_meaning_provenance
+    if meaning_provenance is None:
+        raise PhosPyInputError(
+            f"{field_name} must carry quantitative-meaning establishment provenance"
+        )
+    if not _is_accepted_sps_meaning_evidence(meaning_provenance):
+        raise PhosPyInputError(
+            f"{field_name} quantitative-meaning evidence must establish that "
+            "reference/control centring occurred"
+        )
+    if meaning_provenance.target_quantity is not state.quantity:
+        raise PhosPyInputError(
+            f"{field_name} quantitative-meaning provenance must match its meaning"
+        )
+    if not _sps_scale_evidence_matches_matrix(
+        establishment,
+        intensity_fingerprint=intensity_fingerprint,
+    ):
+        raise PhosPyInputError(
+            f"{field_name} scale establishment evidence must be bound to the "
+            "submitted SPS reference intensity matrix"
+        )
+    if not _sps_meaning_evidence_matches_matrix(
+        meaning_provenance,
+        intensity_fingerprint=intensity_fingerprint,
+    ):
+        raise PhosPyInputError(
+            f"{field_name} reference/control-centering evidence must be bound to "
+            "the submitted SPS reference intensity matrix"
+        )
+    return state
+
+
+def _require_sps_provenance_quantitative_contract(
+    provenance: SpsReferenceDatasetProvenance,
+) -> None:
+    """Validate explicit, comparable SPS quantitative provenance fields."""
+
+    field_name = "sps_source_provenance"
+    if not isinstance(
+        cast(object, provenance.intensity_scale_kind), IntensityScaleKind
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.intensity_scale_kind must be an IntensityScaleKind"
+        )
+    if provenance.intensity_scale_kind is not IntensityScaleKind.LOG2:
+        raise PhosPyInputError(
+            f"{field_name}.intensity_scale_kind must establish the log2 scale"
+        )
+    if not isinstance(
+        cast(object, provenance.quantitative_meaning), QuantitativeMeaning
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.quantitative_meaning must be a QuantitativeMeaning"
+        )
+    if provenance.quantitative_meaning is not (
+        QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.quantitative_meaning must establish condition-relative "
+            "contrast_log2_fold_change meaning"
+        )
+    scale_establishment = provenance.intensity_scale_establishment
+    if not isinstance(
+        cast(object, scale_establishment),
+        IntensityScaleEstablishmentProvenance,
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.intensity_scale_establishment must be an "
+            "IntensityScaleEstablishmentProvenance"
+        )
+    if (
+        scale_establishment.scale != IntensityScaleKind.LOG2.value
+        or scale_establishment.evidence_level is IntensityScaleEvidenceLevel.UNKNOWN
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.intensity_scale_establishment must carry known log2 "
+            "establishment evidence"
+        )
+    meaning_establishment = provenance.quantitative_meaning_establishment
+    if not isinstance(
+        cast(object, meaning_establishment),
+        QuantitativeMeaningTransitionProvenance,
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.quantitative_meaning_establishment must be a "
+            "QuantitativeMeaningTransitionProvenance"
+        )
+    if not _is_accepted_sps_meaning_evidence(meaning_establishment):
+        raise PhosPyInputError(
+            f"{field_name}.quantitative_meaning_establishment must establish "
+            "that reference/control centring occurred"
+        )
+    if meaning_establishment.target_quantity is not provenance.quantitative_meaning:
+        raise PhosPyInputError(
+            f"{field_name}.quantitative_meaning_establishment must match "
+            "quantitative_meaning"
+        )
+    if not _sps_scale_evidence_matches_matrix(
+        scale_establishment,
+        intensity_fingerprint=provenance.intensity_fingerprint,
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.intensity_scale_establishment must be bound to "
+            "intensity_fingerprint"
+        )
+    if not _sps_meaning_evidence_matches_matrix(
+        meaning_establishment,
+        intensity_fingerprint=provenance.intensity_fingerprint,
+    ):
+        raise PhosPyInputError(
+            f"{field_name}.quantitative_meaning_establishment must be bound to "
+            "intensity_fingerprint"
+        )
+
+
+def _sps_reference_intensity_fingerprint(
+    *,
+    dataset_id: str,
+    intensities: pd.DataFrame,
+) -> TableFingerprint:
+    return fingerprint_table_normalized_axes(
+        intensities,
+        name=f"sps_reference.{dataset_id}.intensities",
+    )
+
+
+def _is_accepted_sps_meaning_evidence(
+    provenance: QuantitativeMeaningTransitionProvenance,
+) -> bool:
+    evidence_mode = cast(
+        QuantitativeMeaningEvidenceMode,
+        provenance.evidence_mode,
+    )
+    if evidence_mode in {
+        QuantitativeMeaningEvidenceMode.DERIVED_BY_PHOSPY_OPERATION,
+        QuantitativeMeaningEvidenceMode.RESTORED_FROM_TRUSTED_SERIALIZED_PROVENANCE,
+    }:
+        return True
+    return (
+        evidence_mode is QuantitativeMeaningEvidenceMode.DECLARED_BY_CALLER
+        and provenance.operation_id == SPS_REFERENCE_CENTERING_ASSERTION_OPERATION
+    )
+
+
+def _sps_scale_evidence_matches_matrix(
+    provenance: IntensityScaleEstablishmentProvenance,
+    *,
+    intensity_fingerprint: TableFingerprint,
+) -> bool:
+    payload = provenance.parameters.get(SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER)
+    return _sps_fingerprint_payload_matches(
+        payload,
+        intensity_fingerprint=intensity_fingerprint,
+    )
+
+
+def _sps_meaning_evidence_matches_matrix(
+    provenance: QuantitativeMeaningTransitionProvenance,
+    *,
+    intensity_fingerprint: TableFingerprint,
+) -> bool:
+    return _sps_fingerprint_payload_matches(
+        provenance.output_table_fingerprint,
+        intensity_fingerprint=intensity_fingerprint,
+    )
+
+
+def _sps_fingerprint_payload_matches(
+    payload: object,
+    *,
+    intensity_fingerprint: TableFingerprint,
+) -> bool:
+    if not isinstance(payload, Mapping):
+        return False
+    try:
+        resolved = table_fingerprint_from_payload(cast(Mapping[str, object], payload))
+    except (PhosPyInputError, TypeError, ValueError):
+        return False
+    return resolved == intensity_fingerprint
 
 
 def _require_site_key(value: object, *, field_name: str) -> str:

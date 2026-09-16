@@ -37,6 +37,9 @@ _BUNDLE_RECONSTRUCTION_AUTHORITY = _EstablishmentAuthority(
 _DATASET_QUANTITATIVE_MEANING_AUTHORITY = _QuantitativeMeaningTransitionAuthority(
     source="phospy.science.datasets.preprocessing.state_builder"
 )
+_SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY = _QuantitativeMeaningTransitionAuthority(
+    source="phospy.science.batch_correction.sps_discovery"
+)
 _BUNDLE_QUANTITATIVE_MEANING_RESTORATION_AUTHORITY = (
     _QuantitativeMeaningTransitionAuthority(
         source="phospy.io.bundles._shared.intensity_scale_state"
@@ -78,6 +81,14 @@ def _bundle_quantitative_meaning_restoration_authority() -> (
     return _BUNDLE_QUANTITATIVE_MEANING_RESTORATION_AUTHORITY
 
 
+def _sps_reference_quantitative_meaning_transition_authority() -> (
+    _QuantitativeMeaningTransitionAuthority
+):
+    """Return authority for the supported SPS reference assertion boundary."""
+
+    return _SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY
+
+
 def _resolve_establishment_authority_source(authority: object | None) -> str:
     """Validate authority and return its owning source lane."""
 
@@ -102,6 +113,8 @@ def _resolve_quantitative_meaning_transition_authority_source(
         return _DATASET_QUANTITATIVE_MEANING_AUTHORITY.source
     if authority is _BUNDLE_QUANTITATIVE_MEANING_RESTORATION_AUTHORITY:
         return _BUNDLE_QUANTITATIVE_MEANING_RESTORATION_AUTHORITY.source
+    if authority is _SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY:
+        return _SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY.source
     raise InvalidTransformationStateError(
         "quantitative meaning can be established or transitioned only through "
         "supported PhosPy dataset-builder or bundle reconstruction paths"
@@ -123,6 +136,9 @@ dataset_quantitative_meaning_transition_authority = (
 )
 bundle_quantitative_meaning_restoration_authority = (
     _bundle_quantitative_meaning_restoration_authority
+)
+sps_reference_quantitative_meaning_transition_authority = (
+    _sps_reference_quantitative_meaning_transition_authority
 )
 resolve_establishment_authority_source = _resolve_establishment_authority_source
 resolve_quantitative_meaning_transition_authority_source = (

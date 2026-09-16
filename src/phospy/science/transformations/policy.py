@@ -42,6 +42,10 @@ DATASET_QUANTITATIVE_MEANING_AUTHORITY_SOURCE: Final[str] = (
     "phospy.science.datasets.preprocessing.state_builder"
 )
 
+SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY_SOURCE: Final[str] = (
+    "phospy.science.batch_correction.sps_discovery"
+)
+
 BUNDLE_QUANTITATIVE_MEANING_AUTHORITY_SOURCE: Final[str] = (
     "phospy.io.bundles._shared.intensity_scale_state"
 )

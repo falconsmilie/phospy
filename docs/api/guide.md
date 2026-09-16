@@ -146,6 +146,15 @@ from phospy.advanced import (
     SpsReferenceDataset,
 )
 
+reference_a = SpsReferenceDataset.from_condition_relative_log2(
+    dataset_id="study-a",
+    intensities=reference_a_condition_relative_log2,
+    condition_by_sample=reference_a_conditions,
+    # Audit identifiers for preparation that happened before this call.
+    log2_scale_established_by="proteomics-pipeline-v3/log2-normalisation",
+    baseline_centering_established_by="study-a/control-mean-subtraction-v1",
+)
+
 request = SpsDiscoveryRequest(
     reference_datasets=(reference_a, reference_b),
     config=SpsDiscoveryConfig(top_n=100),
@@ -157,16 +166,43 @@ except SpsDiscoveryValidationError as exc:
     validation = exc.validation_result
 ```
 
-Each `SpsReferenceDataset` supplies its own sample-to-condition mapping, so
-reference datasets need not share samples or condition labels. Cross-dataset
-phosphosite identity is the governed `site_key` index. The matrix should contain
-condition-relative phosphorylation measurements, such as log-ratios. Discovery
+Each `SpsReferenceDataset` supplies its own sample-to-condition mapping and
+matrix-bound quantitative evidence, so reference datasets need not share
+samples or condition labels. Cross-dataset phosphosite identity is the governed
+`site_key` index. Every matrix must already contain condition-relative log2
+measurements for which zero is the established reference/control baseline, such
+as log2 fold changes or equivalent reference-centred log2 differences. Unknown
+meaning, absolute abundance, linear scale, and missing scale or centring evidence
+are rejected before ranking. Numeric values, column names, and condition labels
+are never treated as evidence of those semantics. Discovery
 averages biological replicates within each condition and scores a site in each
 reference by its largest absolute condition mean. It ranks smaller change
 magnitudes as more stable and combines reference ranks with a Fisher-style
 consensus score. `result.selected_site_keys` contains the requested leading
 controls when that many remain, and `result.control_site_set` feeds the existing
 SPS/RUV control pathway directly.
+
+Conceptually, callers prepare each reference as follows:
+
+```text
+processed log2 abundance
+    -> establish appropriate control/reference baseline
+    -> subtract/reference-center measurements
+    -> SPS discovery
+```
+
+This is the condition-relative input interpretation used by the PhosR `getSPS`
+workflow, without claiming implementation or output parity. SPS discovery does
+not choose, infer, or derive the biological reference condition and does not
+transform absolute abundance; reference preparation and its governed evidence
+remain the caller's responsibility.
+
+`from_condition_relative_log2(...)` is the supported advanced assertion
+boundary for externally prepared references. It requires separate non-empty
+audit identifiers for log2-scale establishment and reference/control centring,
+then records typed state whose evidence is fingerprint-bound to the submitted
+matrix. The method copies the matrix but does not alter, centre, or transform
+its values. Evidence created for one matrix cannot be reused with another.
 
 Missing replicate cells are ignored only when at least one finite value remains
 for that site and condition. A site with a completely missing condition does not

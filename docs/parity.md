@@ -322,4 +322,8 @@ generated from external PhosR `getSPS` results, no native RUV-III
 correction-kernel parity fixtures, and no PhosR `RUVphospho` corrected-output
 parity fixtures. SPS discovery and native SPS/RUV-style preprocessing
 correction are each a validated PhosPy implementation, not current PhosR
-parity.
+parity. SPS references are required to be pre-established condition-relative
+log2 measurements centred on a caller-chosen reference/control baseline. This
+matches the quantitative input interpretation used by `getSPS`; it is an input
+contract alignment, not a parity claim. SPS discovery does not infer the
+baseline or convert absolute-abundance matrices.

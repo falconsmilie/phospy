@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 import pandas as pd
 
@@ -13,12 +14,29 @@ from phospy.frames.validation import (
     require_numeric_dataframe,
 )
 from phospy.science.batch_correction.sps_discovery import (
+    SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER,
     SpsDiscoveryConfig,
     SpsDiscoveryValidationIssue,
     SpsDiscoveryValidationResult,
     SpsReferenceDataset,
+    _is_accepted_sps_meaning_evidence,
+    _sps_meaning_evidence_matches_matrix,
+    _sps_reference_intensity_fingerprint,
+    _sps_scale_evidence_matches_matrix,
 )
 from phospy.science.sites.validation import require_site_key_index
+from phospy.science.transformations.models import (
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+    IntensityScaleState,
+    QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
+)
+
+_SPS_QUANTITATIVE_REQUIREMENT = (
+    "The PhosR-style SPS statistic requires pre-established condition-relative "
+    "log2 measurements centred on the reference/control baseline."
+)
 
 
 class SpsDiscoveryRequestValidator:
@@ -165,6 +183,9 @@ class SpsDiscoveryRequestValidator:
         issues: list[SpsDiscoveryValidationIssue] = []
         dataset_id = dataset.dataset_id
         intensities = dataset._intensities_snapshot()
+        issues.extend(
+            self._validate_quantitative_state(dataset, intensities=intensities)
+        )
         if not isinstance(intensities, pd.DataFrame):
             return (
                 [
@@ -377,6 +398,195 @@ class SpsDiscoveryRequestValidator:
                 )
 
         return issues, site_keys
+
+    def _validate_quantitative_state(
+        self,
+        dataset: SpsReferenceDataset,
+        *,
+        intensities: object,
+    ) -> list[SpsDiscoveryValidationIssue]:
+        state = dataset.intensity_scale_state
+        dataset_id = dataset.dataset_id
+        field_name = "intensity_scale_state"
+        if not isinstance(state, IntensityScaleState):
+            return [
+                SpsDiscoveryValidationIssue(
+                    code="unknown_quantitative_state",
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} Supply a governed "
+                        "IntensityScaleState; numeric values are never used to "
+                        "infer SPS quantitative semantics."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            ]
+
+        issues: list[SpsDiscoveryValidationIssue] = []
+        establishment = state.establishment_provenance
+        if not state.is_established or establishment is None:
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="missing_scale_establishment_evidence",
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} The supplied scale state "
+                        "does not carry supported establishment provenance."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            )
+        elif establishment.evidence_level is IntensityScaleEvidenceLevel.UNKNOWN:
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="missing_scale_establishment_evidence",
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} Unknown scale evidence "
+                        "does not establish the required log2 state."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            )
+
+        if state.kind is not IntensityScaleKind.LOG2:
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="incompatible_sps_intensity_scale",
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} Received governed scale "
+                        f"{state.kind.value!r}."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            )
+
+        if state.quantity is not QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE:
+            meaning = None if state.quantity is None else state.quantity.value
+            code = (
+                "absolute_abundance_quantitative_state"
+                if state.quantity
+                in {
+                    QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE,
+                    QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+                }
+                else "incompatible_sps_quantitative_meaning"
+            )
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code=code,
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} Received quantitative "
+                        f"meaning {meaning!r}; SPS discovery does not centre or "
+                        "transform absolute-abundance input."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            )
+
+        meaning_provenance = state.quantitative_meaning_provenance
+        if meaning_provenance is None:
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="missing_baseline_establishment_evidence",
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} Quantitative-meaning "
+                        "provenance must establish the reference-centred contrast."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            )
+        elif not _is_accepted_sps_meaning_evidence(meaning_provenance):
+            evidence_mode = cast(
+                QuantitativeMeaningEvidenceMode,
+                meaning_provenance.evidence_mode,
+            )
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="missing_baseline_establishment_evidence",
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} Evidence mode "
+                        f"{evidence_mode.value!r} does not "
+                        "establish that reference/control centring occurred."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            )
+        elif meaning_provenance.target_quantity is not state.quantity:
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="inconsistent_quantitative_state_evidence",
+                    message=(
+                        f"{_SPS_QUANTITATIVE_REQUIREMENT} Quantitative-meaning "
+                        "provenance does not match the resolved matrix meaning."
+                    ),
+                    dataset_id=dataset_id,
+                    field_name=field_name,
+                )
+            )
+        if (
+            isinstance(intensities, pd.DataFrame)
+            and not intensities.index.has_duplicates
+            and not intensities.columns.has_duplicates
+        ):
+            intensity_fingerprint = _sps_reference_intensity_fingerprint(
+                dataset_id=dataset_id,
+                intensities=intensities,
+            )
+            if establishment is not None and not _sps_scale_evidence_matches_matrix(
+                establishment,
+                intensity_fingerprint=intensity_fingerprint,
+            ):
+                binding = establishment.parameters.get(
+                    SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER
+                )
+                code = (
+                    "missing_scale_matrix_binding_evidence"
+                    if binding is None
+                    else "mismatched_scale_matrix_binding_evidence"
+                )
+                issues.append(
+                    SpsDiscoveryValidationIssue(
+                        code=code,
+                        message=(
+                            f"{_SPS_QUANTITATIVE_REQUIREMENT} Log2 scale evidence "
+                            "must be fingerprint-bound to this submitted SPS "
+                            "reference matrix; construct the reference with "
+                            "SpsReferenceDataset.from_condition_relative_log2(...)."
+                        ),
+                        dataset_id=dataset_id,
+                        field_name=field_name,
+                    )
+                )
+            if meaning_provenance is not None and not (
+                _sps_meaning_evidence_matches_matrix(
+                    meaning_provenance,
+                    intensity_fingerprint=intensity_fingerprint,
+                )
+            ):
+                code = (
+                    "missing_baseline_matrix_binding_evidence"
+                    if meaning_provenance.output_table_fingerprint is None
+                    else "mismatched_baseline_matrix_binding_evidence"
+                )
+                issues.append(
+                    SpsDiscoveryValidationIssue(
+                        code=code,
+                        message=(
+                            f"{_SPS_QUANTITATIVE_REQUIREMENT} Reference/control "
+                            "centering evidence must be fingerprint-bound to this "
+                            "submitted SPS reference matrix; evidence from another "
+                            "matrix cannot be reused."
+                        ),
+                        dataset_id=dataset_id,
+                        field_name=field_name,
+                    )
+                )
+        return issues
 
 
 __all__: list[str] = []

@@ -380,6 +380,15 @@ not performed by the builder, including `phospho_total_log_ratio`,
 `contrast_log2_fold_change`, `differential_effect_size`, and
 `activity_score`.
 
+The advanced SPS reference boundary is a narrower trusted-assertion lane, not a
+dataset-builder declaration. `SpsReferenceDataset.from_condition_relative_log2`
+requires callers to identify the prior log2-scale and reference/control-
+centring establishment sources. It records the fixed
+`contrast_log2_fold_change` meaning through SPS-owned transition authority and
+binds both scale and centring evidence to the submitted reference-matrix
+fingerprint. The lane does not perform or infer centring, and evidence bound to
+one matrix is invalid for another matrix.
+
 Default base meanings inferred solely from an established linear or log2 scale
 record `inferred_from_scale_contract` evidence. Successful subtract-log-total
 protein correction records a derived transition to

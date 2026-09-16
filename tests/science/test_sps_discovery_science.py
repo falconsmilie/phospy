@@ -30,10 +30,12 @@ def _reference(
     columns: Mapping[str, Sequence[float]],
     conditions: Mapping[str, str],
 ) -> SpsReferenceDataset:
-    return SpsReferenceDataset(
+    return SpsReferenceDataset.from_condition_relative_log2(
         dataset_id=dataset_id,
         intensities=pd.DataFrame(columns, index=pd.Index(site_keys, name="site_key")),
         condition_by_sample=conditions,
+        log2_scale_established_by="test fixture log2 preparation",
+        baseline_centering_established_by="test fixture control subtraction",
         source_name=f"synthetic-{dataset_id}",
         source_version="1",
     )
@@ -124,6 +126,7 @@ def test_row_reference_and_replicate_order_do_not_change_result() -> None:
             sample_id: str(condition)
             for sample_id, condition in reversed(reference_a.sample_conditions.items())
         },
+        intensity_scale_state=reference_a.intensity_scale_state,
         source_name=reference_a.source_name,
         source_version=reference_a.source_version,
     )
@@ -134,6 +137,7 @@ def test_row_reference_and_replicate_order_do_not_change_result() -> None:
             sample_id: str(reference_b.sample_conditions[sample_id])
             for sample_id in reversed(reference_b.intensities.columns)
         },
+        intensity_scale_state=reference_b.intensity_scale_state,
         source_name=reference_b.source_name,
         source_version=reference_b.source_version,
     )
@@ -275,6 +279,7 @@ def test_site_key_alignment_and_attrition_are_explicit() -> None:
         dataset_id=reference_b.dataset_id,
         intensities=reference_b.intensities.iloc[[3, 1, 0, 2]],
         condition_by_sample=reference_b.sample_conditions,  # type: ignore[arg-type]
+        intensity_scale_state=reference_b.intensity_scale_state,
         source_name=reference_b.source_name,
         source_version=reference_b.source_version,
     )

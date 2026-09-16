@@ -129,6 +129,21 @@ correction through `SpsRuvBatchCorrectionConfig`.
 
 `ruv_readiness` diagnostics are report-only metadata readiness reporting.
 
+`SpsDiscoveryWorkflow` is a separate advanced workflow that discovers controls
+from explicit reference datasets; it does not use the correction target as
+implicit reference evidence. Every `SpsReferenceDataset` must carry an
+established `IntensityScaleState` with log2 scale,
+`contrast_log2_fold_change` meaning, and supported scale and
+quantitative-meaning establishment provenance. This typed state establishes
+that values are already condition-relative and centred so zero is the
+caller-chosen reference/control baseline. Unknown state, absolute abundance,
+linear scale, and missing, unbound, mismatched, or unverified centring evidence
+fail before ranking. External callers use
+`SpsReferenceDataset.from_condition_relative_log2(...)` to assert the already-
+prepared semantics and bind scale and centring evidence to the supplied matrix.
+That boundary copies values but does not choose a reference condition, derive a
+baseline, centre values, or transform absolute abundance.
+
 `linear_residualize_batch` fixed-effect residualisation preserves condition
 effects by design and requires explicit batch and condition metadata.
 Confounded batch/condition designs are rejected. It is not ComBat, not RUV, not

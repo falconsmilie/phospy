@@ -170,6 +170,17 @@ Supported today:
 - `linear_residualize_batch`, a limited fixed-effect residualisation method
   under dataset preprocessing.
 - Explicit multi-reference SPS discovery through `SpsDiscoveryWorkflow`. It
+  requires each reference to carry an established `IntensityScaleState` proving
+  condition-relative log2 fold-change meaning, a zero reference/control
+  baseline, and the applicable scale and quantitative-meaning evidence, with
+  both evidence records bound to that reference matrix's fingerprint. External
+  callers establish this state through the supported
+  `SpsReferenceDataset.from_condition_relative_log2(...)` assertion boundary.
+  Unknown state, absolute abundance, linear scale, unbound or mismatched
+  evidence, and missing centring evidence fail before ranking; values are never
+  inspected to infer those semantics. The
+  caller prepares the references and chooses the biological baseline; discovery
+  neither chooses a reference condition nor transforms absolute abundance. It
   aggregates replicates by condition, ranks governed `site_key` rows by the
   maximum absolute condition-level change within each reference, and combines
   available reference ranks into a deterministic Fisher-style consensus.
@@ -215,7 +226,9 @@ Not supported today:
 
 SPS discovery and the native SPS/RUV-style lane are PhosPy implementations.
 SPS discovery is not a claim of PhosR-equivalent `getSPS` behaviour. The native
-lane is not a claim of PhosR-equivalent SPS/RUV-III correction.
+lane is not a claim of PhosR-equivalent SPS/RUV-III correction. The discovery
+input contract matches the condition-relative log2 semantics used by PhosR
+`getSPS`, but this does not establish numerical or workflow parity.
 
 At dataset-construction boundary, PhosPy uses a protein-scoped analysis-ready
 row key (`site_key`) and keeps `display_id` (for example `GENE;SITE;`) as a
