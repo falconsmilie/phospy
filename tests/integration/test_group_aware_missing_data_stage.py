@@ -185,19 +185,19 @@ def test_group_aware_stage_produces_complete_mixed_mechanism_matrix(
     assert dropped_row not in dataset.phospho.index
     assert len(mechanism_inputs) == 2
     expected_knn_target_mask_hash = (
-        "b34fa2ba8391e3915e7308786d3c89aafb4227e4f45f851f028feb0f2d1e52d7"
+        "e5f9084fa51300a3f56bb72fabbc62b80aa95e367e2c4a63c5afcb3f0cbd9cc0"
     )
     expected_minprob_target_mask_hash = (
-        "18efa8fe46ab30e8b284162af38a84f51c220d6a9bd3842b588650abbd1a0a56"
+        "a993f7b864e5266c033b57a7696464c782679eff38f11b1699bf7c62f1809c89"
     )
     expected_knn_imputation_mask_hash = (
-        "4c9086793071a4613c5283f7831aa707c8c74bab7c8cfe95f18e86251373f5f1"
+        "a0198d03de509670b554f9c7ba3b0bea4fc1df58900375609e4aed8562b1d4dd"
     )
     expected_minprob_imputation_mask_hash = (
-        "5d7770b23d948dbb6d6e136f98fa658badb29bdf6ddc4551a9986f28320f9faa"
+        "d72c63171b33116ed0087d22afca22f69298b5d9b9aa94596b434f5990acec80"
     )
     expected_imputation_mask_hash = (
-        "ed61ed60a299677b4a23af967fe76999aa14c390a8d7a9b855ff89eb4f2f32e8"
+        "3dff42a2ba240d7b67e0d5d32f43c204df34022e94bc22caf370584c6eaca1c7"
     )
     pdt.assert_frame_equal(mechanism_inputs[0], original_retained)
     pdt.assert_frame_equal(mechanism_inputs[1], original_retained)

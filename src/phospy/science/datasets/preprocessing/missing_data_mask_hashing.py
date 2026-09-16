@@ -45,8 +45,8 @@ def hash_group_aware_mechanism_mask(
 
 def _canonical_mask(mask: pd.DataFrame) -> pd.DataFrame:
     canonical = mask.astype("int8")
-    canonical.index = canonical.index.rename(None)
-    canonical.columns = canonical.columns.rename(None)
+    canonical.index = pd.Index(canonical.index.tolist(), dtype="object", name=None)
+    canonical.columns = pd.Index(canonical.columns.tolist(), dtype="object", name=None)
     return canonical
 
 
