@@ -24,6 +24,10 @@ from phospy.api import (
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_from_payload,
+    processing_state_to_payload,
+)
 from phospy.io.bundles.kinase import (
     KinaseWorkflowConfigSnapshot,
     load_kinase_workflow_bundle,
@@ -457,12 +461,15 @@ def test_group_aware_original_labels_survive_final_dataset_binding() -> None:
     assert audit_by_row[phospho.index[0]]["knn_affected_groups"] == ["A"]
     assert audit_by_row[phospho.index[1]]["minprob_affected_groups"] == ["A"]
 
+    reconstructed_state = processing_state_from_payload(
+        processing_state_to_payload(processing_state)
+    )
     dataset = trusted_analysis_ready_dataset_from_tables(
         phospho=preprocessed.phospho,
         site_metadata=preprocessed.site_metadata,
         sample_metadata=preprocessed.sample_metadata,
         intensity_scale_state=processing_state.intensity_scale,
-        processing_state=processing_state,
+        processing_state=reconstructed_state,
         imputation_observation_mask=preprocessed.imputation_observation_mask,
         organism=Organism.RAT,
     )

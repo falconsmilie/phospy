@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass, field, fields
-from typing import ClassVar, cast
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.configs.preprocessing import (
@@ -217,7 +217,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("affected_row_ids"),
                 field_name=f"{field_name}.affected_row_ids",
             ),
-            affected_column_ids=require_required_label_tuple(
+            affected_column_ids=require_required_string_tuple(
                 payload.get("affected_column_ids"),
                 field_name=f"{field_name}.affected_column_ids",
             ),
@@ -225,7 +225,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("imputed_row_ids"),
                 field_name=f"{field_name}.imputed_row_ids",
             ),
-            imputed_column_ids=require_required_label_tuple(
+            imputed_column_ids=require_required_string_tuple(
                 payload.get("imputed_column_ids"),
                 field_name=f"{field_name}.imputed_column_ids",
             ),
@@ -426,7 +426,13 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.affected_row_ids,
             field_name="dataset processing state missing_data.diagnostics.affected_row_ids",
         )
-        affected_column_ids = require_required_label_tuple(
+        column_id_parser = (
+            require_required_string_tuple
+            if self.diagnostics_schema_version
+            == MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
+            else require_required_label_tuple
+        )
+        affected_column_ids = column_id_parser(
             self.affected_column_ids,
             field_name="dataset processing state missing_data.diagnostics.affected_column_ids",
         )
@@ -434,7 +440,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.imputed_row_ids,
             field_name="dataset processing state missing_data.diagnostics.imputed_row_ids",
         )
-        imputed_column_ids = require_required_label_tuple(
+        imputed_column_ids = column_id_parser(
             self.imputed_column_ids,
             field_name="dataset processing state missing_data.diagnostics.imputed_column_ids",
         )
@@ -1847,30 +1853,13 @@ class MissingDataDiagnosticsV2(MissingDataDiagnosticsV1):
             raise PhosPyInputError(
                 f"{field_name} contains unsupported field(s): " + ", ".join(unknown)
             )
-        base_payload = {
-            key: value
-            for key, value in payload.items()
-            if key in V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS
-        }
-        missing_data_policy = base_payload.get("missing_data_policy")
-        # The v1 parser normalizes the fields shared by both schema versions. Use
-        # a v1 policy for that temporary normalization, then let the authoritative
-        # v2 constructor validate and bind the payload's actual policy below.
-        base_payload["missing_data_policy"] = MissingDataPolicy.IMPUTE_KNN.value
-        base_payload["diagnostics_schema_version"] = (
-            MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
-        )
-        base = MissingDataDiagnosticsV1.from_mapping(
-            base_payload, field_name=field_name
-        )
         base_values = {
-            item.name: getattr(base, item.name)
-            for item in fields(MissingDataDiagnosticsV1)
-            if item.name != "diagnostics_schema_version"
+            key: payload.get(key)
+            for key in V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS
+            if key != "diagnostics_schema_version"
         }
-        base_values["missing_data_policy"] = missing_data_policy
         return cls(
-            **base_values,
+            **cast(Any, base_values),
             diagnostics_schema_version=version,
             group_aware=GroupAwareMissingDataDiagnostics.from_payload(
                 payload.get("group_aware"), field_name=f"{field_name}.group_aware"

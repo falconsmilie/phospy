@@ -559,8 +559,8 @@ def test_processing_state_from_payload_rejects_unknown_missing_data_diagnostics_
         processing_state_from_payload(payload)
 
 
-def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
-    payload = {
+def _v1_missing_data_diagnostics_payload() -> dict[str, object]:
+    return {
         "diagnostics_schema_version": 1,
         "missing_data_policy": "impute_row_median",
         "imputation_method_id": "row_median",
@@ -589,6 +589,18 @@ def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
         "rows_not_imputable": [],
     }
 
+
+def _v1_whitespace_diagnostics_payload() -> dict[str, object]:
+    payload = _v1_missing_data_diagnostics_payload()
+    payload["affected_column_count"] = 2
+    payload["affected_column_ids"] = [" a1 ", "b1 "]
+    payload["imputed_column_ids"] = [" c1 ", "d1"]
+    return payload
+
+
+def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
+    payload = _v1_missing_data_diagnostics_payload()
+
     diagnostics = MissingDataDiagnostics.from_payload(
         payload,
         field_name="dataset.metadata.processing_state.missing_data.diagnostics",
@@ -598,6 +610,57 @@ def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
         **payload,
         "row_medians_used": {},
     }
+
+
+def test_v1_payload_parsing_strips_column_identifier_whitespace() -> None:
+    diagnostics = MissingDataDiagnostics.from_payload(
+        _v1_whitespace_diagnostics_payload(), field_name="diagnostics"
+    )
+
+    assert isinstance(diagnostics, MissingDataDiagnosticsV1)
+    assert diagnostics.affected_column_ids == ("a1", "b1")
+    assert diagnostics.imputed_column_ids == ("c1", "d1")
+
+
+def test_v1_direct_construction_strips_column_identifier_whitespace() -> None:
+    diagnostics = MissingDataDiagnosticsV1(**_v1_whitespace_diagnostics_payload())
+
+    assert diagnostics.affected_column_ids == ("a1", "b1")
+    assert diagnostics.imputed_column_ids == ("c1", "d1")
+
+
+def test_v1_whitespace_payload_round_trip_serializes_normalized_identifiers() -> None:
+    diagnostics = MissingDataDiagnostics.from_payload(
+        _v1_whitespace_diagnostics_payload(), field_name="diagnostics"
+    )
+
+    serialized = diagnostics.to_payload()
+    assert serialized["affected_column_ids"] == ["a1", "b1"]
+    assert serialized["imputed_column_ids"] == ["c1", "d1"]
+
+
+def test_v1_processing_state_reconstruction_normalizes_column_identifiers() -> None:
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        missing_data_diagnostics=_v1_whitespace_diagnostics_payload(),
+    )
+
+    restored = processing_state_from_payload(payload)
+    diagnostics = restored.missing_data.diagnostics
+    assert isinstance(diagnostics, MissingDataDiagnosticsV1)
+    assert diagnostics.affected_column_ids == ("a1", "b1")
+    assert diagnostics.imputed_column_ids == ("c1", "d1")
+    serialized = processing_state_to_payload(restored)
+    assert serialized["missing_data"]["diagnostics"]["affected_column_ids"] == [
+        "a1",
+        "b1",
+    ]
 
 
 def _group_aware_v2_diagnostics_payload() -> dict[str, object]:
@@ -726,6 +789,64 @@ def _group_aware_v2_diagnostics_payload() -> dict[str, object]:
             "mechanism_input": "original_retained_matrix",
         },
     }
+
+
+def _group_aware_v2_whitespace_diagnostics_payload() -> dict[str, object]:
+    payload = _group_aware_v2_diagnostics_payload()
+    payload["affected_column_ids"] = [" a1 ", "a2", "b1", "b2"]
+    payload["imputed_column_ids"] = [" a1 ", "a2", "b1", "b2"]
+
+    method_parameters = payload["method_parameters"]
+    assert isinstance(method_parameters, dict)
+    method_parameters["resolved_group_samples"] = {
+        "A": [" a1 ", "a2"],
+        "B": ["b1", "b2"],
+    }
+
+    distributions = payload["per_column_distribution_parameters"]
+    assert isinstance(distributions, dict)
+    distributions[" a1 "] = distributions.pop("a1")
+
+    group_aware = payload["group_aware"]
+    assert isinstance(group_aware, dict)
+    routed_rows = group_aware["routed_rows"]
+    assert isinstance(routed_rows, list)
+    for routed_row in routed_rows:
+        assert isinstance(routed_row, dict)
+        routed_row["knn_imputed_columns"] = [
+            " a1 " if column == "a1" else column
+            for column in routed_row["knn_imputed_columns"]
+        ]
+        routed_row["minprob_imputed_columns"] = [
+            " a1 " if column == "a1" else column
+            for column in routed_row["minprob_imputed_columns"]
+        ]
+    return payload
+
+
+def test_v2_payload_and_round_trip_preserve_exact_column_labels() -> None:
+    payload = _group_aware_v2_whitespace_diagnostics_payload()
+
+    diagnostics = MissingDataDiagnostics.from_payload(payload, field_name="diagnostics")
+
+    assert isinstance(diagnostics, MissingDataDiagnosticsV2)
+    assert diagnostics.affected_column_ids[0] == " a1 "
+    assert diagnostics.imputed_column_ids[0] == " a1 "
+    assert diagnostics.group_aware.routed_rows[0].knn_imputed_columns == (" a1 ",)
+    assert diagnostics.to_payload() == payload
+
+
+def test_diagnostics_column_normalization_is_schema_specific() -> None:
+    v1 = MissingDataDiagnostics.from_payload(
+        _v1_whitespace_diagnostics_payload(), field_name="v1_diagnostics"
+    )
+    v2 = MissingDataDiagnostics.from_payload(
+        _group_aware_v2_whitespace_diagnostics_payload(),
+        field_name="v2_diagnostics",
+    )
+
+    assert v1.affected_column_ids[0] == "a1"
+    assert v2.affected_column_ids[0] == " a1 "
 
 
 def test_group_aware_v2_diagnostics_dispatch_and_bundle_round_trip() -> None:
