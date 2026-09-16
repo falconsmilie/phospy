@@ -13,6 +13,21 @@ from phospy.advanced import (
     SpsDiscoveryWorkflow,
     SpsReferenceDataset,
 )
+from phospy.contracts.configs.preprocessing import (
+    InternalBatchCorrectionControlSiteMode,
+    InternalBatchCorrectionControlSiteSource,
+    InternalBatchCorrectionImputationPolicy,
+    InternalBatchCorrectionMethod,
+    InternalBatchCorrectionMissingValuePolicy,
+    InternalBatchCorrectionRequest,
+    InternalBatchCorrectionStageOrder,
+)
+from phospy.validation.workflows.batch_correction import (
+    BatchCorrectionWorkflowControlSiteValidator,
+)
+from phospy.workflows.batch_correction import (
+    BatchCorrectionWorkflowRequest,
+)
 from tests.support.site_keys import protein_site_key_index
 
 
@@ -306,6 +321,137 @@ def test_site_key_alignment_and_attrition_are_explicit() -> None:
         statistic.dataset_id for statistic in result.site_ranking[0].dataset_statistics
     ) == ("study_a", "study_b")
     assert len(result.control_site_set.annotations) == 2
+
+
+def test_partial_reference_contributions_attrition_and_native_handoff() -> None:
+    keys = tuple(str(value) for value in _site_keys(4))
+    all_references, exact_minimum, below_minimum, other_eligible = keys
+    references = (
+        _reference(
+            "study_a",
+            site_keys=keys,
+            columns={
+                "a_control": [0.0, 0.0, 0.0, 0.0],
+                "a_treated": [0.1, 0.2, 0.3, 0.4],
+            },
+            conditions={"a_control": "control", "a_treated": "treated"},
+        ),
+        _reference(
+            "study_b",
+            site_keys=(other_eligible, exact_minimum, all_references, below_minimum),
+            columns={
+                "b_control": [0.0, 0.0, 0.0, 0.0],
+                "b_treated": [0.4, 0.2, 0.1, np.nan],
+            },
+            conditions={"b_control": "control", "b_treated": "treated"},
+        ),
+        _reference(
+            "study_c",
+            site_keys=(below_minimum, all_references, other_eligible, exact_minimum),
+            columns={
+                "c_control": [0.0, 0.0, 0.0, 0.0],
+                "c_treated": [np.nan, 0.15, 0.45, np.nan],
+            },
+            conditions={"c_control": "control", "c_treated": "treated"},
+        ),
+    )
+    config = SpsDiscoveryConfig(
+        top_n=3,
+        minimum_reference_datasets=3,
+        minimum_datasets_per_site=2,
+        minimum_shared_sites=3,
+    )
+
+    result = _run(references, config=config)
+
+    records = {record.site_key: record for record in result.site_ranking}
+    exact_record = records[exact_minimum]
+    assert exact_record.contributing_dataset_count == config.minimum_datasets_per_site
+    assert tuple(
+        statistic.dataset_id for statistic in exact_record.dataset_statistics
+    ) == ("study_a", "study_b")
+    assert "study_c" not in {
+        statistic.dataset_id for statistic in exact_record.dataset_statistics
+    }
+    assert below_minimum not in records
+    assert below_minimum not in result.selected_site_keys
+    assert exact_minimum in result.selected_site_keys
+    assert records[all_references].contributing_dataset_count == 3
+    assert _run(tuple(reversed(references)), config=config) == result
+
+    boundaries = result.provenance.selection_boundaries
+    assert boundaries.to_payload() == {
+        "total_unique_sites": 4,
+        "sites_meeting_dataset_overlap": 4,
+        "sites_with_valid_stability": 3,
+        "sites_ranked": 3,
+        "sites_selected": 3,
+    }
+    sources = result.provenance.source_datasets
+    assert tuple(
+        (
+            source.dataset_id,
+            source.site_count,
+            source.sites_passing_required_data,
+            source.sites_entering_consensus,
+        )
+        for source in sources
+    ) == (
+        ("study_a", 4, 4, 3),
+        ("study_b", 4, 3, 3),
+        ("study_c", 4, 2, 2),
+    )
+    removed_for_insufficient_contribution = (
+        boundaries.sites_meeting_dataset_overlap - boundaries.sites_with_valid_stability
+    )
+    assert removed_for_insufficient_contribution == 1
+    assert sum(source.sites_entering_consensus or 0 for source in sources) == sum(
+        record.contributing_dataset_count for record in result.site_ranking
+    )
+    assert (
+        sum(source.sites_passing_required_data or 0 for source in sources)
+        - sum(source.sites_entering_consensus or 0 for source in sources)
+        == removed_for_insufficient_contribution
+    )
+
+    discovered_controls = result.control_site_set
+    native_request = BatchCorrectionWorkflowRequest(
+        phospho=pd.DataFrame(
+            {
+                "target_1": [1.0, 2.0, 3.0, 4.0],
+                "target_2": [1.1, 2.1, 3.1, 4.1],
+            },
+            index=pd.Index(keys, name="site_key"),
+        ),
+        config=InternalBatchCorrectionRequest(
+            method=InternalBatchCorrectionMethod.SPS_RUV_STYLE,
+            batch_column="batch",
+            condition_columns=("condition",),
+            replicate_column=None,
+            control_site_source=(
+                InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED
+            ),
+            control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
+            missing_value_policy=(
+                InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING
+            ),
+            imputation_policy=InternalBatchCorrectionImputationPolicy.NONE,
+            n_unwanted_factors=1,
+            stage_order=(
+                InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
+            ),
+            diagnostics_enabled=True,
+        ),
+        sample_metadata=None,
+        control_site_set=discovered_controls,
+    )
+    mapping = BatchCorrectionWorkflowControlSiteValidator().run(request=native_request)
+
+    assert (
+        tuple(row.site_key for row in mapping.row_eligibility if row.is_control)
+        == result.selected_site_keys
+    )
+    assert mapping.control_status_by_site_key[below_minimum].value == "non_control"
 
 
 def test_larger_deterministic_population_selects_only_known_stable_sites() -> None:
