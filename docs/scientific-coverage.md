@@ -169,6 +169,15 @@ Supported today:
 
 - `linear_residualize_batch`, a limited fixed-effect residualisation method
   under dataset preprocessing.
+- Explicit multi-reference SPS discovery through `SpsDiscoveryWorkflow`. It
+  aggregates replicates by condition, ranks governed `site_key` rows by the
+  maximum absolute condition-level change within each reference, and combines
+  available reference ranks into a deterministic Fisher-style consensus.
+  Partially missing sites require at least one finite observation in every
+  condition they contribute to and at least the configured number of
+  independent reference contributions. The workflow returns typed provenance,
+  attrition, and an existing `ControlSiteSet`; it never derives controls
+  implicitly from a correction target.
 - `SpsRuvBatchCorrectionConfig`, a native SPS/RUV-style preprocessing
   correction lane that requires caller-supplied controls, protected design
   metadata, explicit control-source audit metadata or field-level
@@ -204,8 +213,9 @@ Not supported today:
 - no treatment of report-only `ruv_readiness` or similar diagnostics as
   correction support.
 
-The native SPS/RUV-style lane is a PhosPy implementation. It is not a claim of
-PhosR-equivalent SPS/RUV-III correction.
+SPS discovery and the native SPS/RUV-style lane are PhosPy implementations.
+SPS discovery is not a claim of PhosR-equivalent `getSPS` behaviour. The native
+lane is not a claim of PhosR-equivalent SPS/RUV-III correction.
 
 At dataset-construction boundary, PhosPy uses a protein-scoped analysis-ready
 row key (`site_key`) and keeps `display_id` (for example `GENE;SITE;`) as a

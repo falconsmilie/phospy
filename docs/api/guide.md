@@ -132,10 +132,10 @@ from phospy.advanced import (
 )
 ```
 
-SPS discovery contracts are also supported from this facade. Request
-construction only stores caller intent. The workflow boundary validates the
-reference matrices as one multi-dataset input while keeping the validator
-itself private:
+SPS discovery is also supported from this facade. Request construction only
+stores caller intent. The workflow boundary validates the reference matrices
+as one multi-dataset input while keeping the validator itself private, then
+derives a consensus control set from those explicit references:
 
 ```python
 from phospy.advanced import (
@@ -152,17 +152,37 @@ request = SpsDiscoveryRequest(
 )
 
 try:
-    validation = SpsDiscoveryWorkflow().require_valid(request)
+    result = SpsDiscoveryWorkflow().run(request)
 except SpsDiscoveryValidationError as exc:
     validation = exc.validation_result
 ```
 
 Each `SpsReferenceDataset` supplies its own sample-to-condition mapping, so
 reference datasets need not share samples or condition labels. Cross-dataset
-phosphosite identity is the governed `site_key` index. This API provides typed
-configuration, validation, provenance, result, and `ControlSiteSet` conversion
-contracts only: it does not implement SPS ranking mathematics and does not
-claim PhosR or RUV parity.
+phosphosite identity is the governed `site_key` index. The matrix should contain
+condition-relative phosphorylation measurements, such as log-ratios. Discovery
+averages biological replicates within each condition and scores a site in each
+reference by its largest absolute condition mean. It ranks smaller change
+magnitudes as more stable and combines reference ranks with a Fisher-style
+consensus score. `result.selected_site_keys` contains the requested leading
+controls when that many remain, and `result.control_site_set` feeds the existing
+SPS/RUV control pathway directly.
+
+Missing replicate cells are ignored only when at least one finite value remains
+for that site and condition. A site with a completely missing condition does not
+contribute a rank for that reference; infinite measurements reject the request.
+The site must still contribute to at least
+`minimum_datasets_per_site` independent references; discovery never relaxes
+that threshold. If fewer than `top_n` eligible controls remain, all eligible
+controls are returned and the requested and actual counts are recorded. If
+fewer than `minimum_shared_sites` are rankable, execution fails with structured
+`insufficient_rankable_overlap` validation. Equal change magnitudes receive an
+equal within-reference rank and final consensus ties use ascending `site_key`.
+
+Reference matrices are caller-supplied evidence; the target experiment is not
+silently reused for control discovery. SPS discovery is PhosR-inspired and is
+designed for later external parity validation, but it does not claim PhosR or
+RUV-III parity.
 
 The stable and advanced surfaces are intentional. Do not build user code around
 private validators, internal workflow executors, underscored helpers, or nearby

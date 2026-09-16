@@ -175,11 +175,12 @@ the governed advanced facade count from 110 to 124. The promoted names are
 `SpsSampleConditionAssignment`, `SpsReferenceDatasetProvenance`,
 `SpsDiscoveryProvenance`, and `SpsDiscoveryResult`. The request is a passive
 caller-intent payload. `SpsDiscoveryWorkflow` is the supported multi-reference
-validation and provenance-assembly boundary and delegates to private
-validation; no validator is promoted. The advanced-to-workflows dependency is
-restricted by architecture tests to this supported boundary. These contracts
-do not implement SPS ranking mathematics, change the existing native
-SPS/RUV-style method, or claim PhosR or RUV parity.
+validation, execution, and provenance-assembly boundary and delegates
+validation to a private collaborator and ranking mathematics to the scientific
+core; no validator or executor is promoted. The advanced-to-workflows
+dependency is restricted by architecture tests to this supported boundary. SPS
+execution does not change the existing native SPS/RUV-style method or claim
+PhosR or RUV parity.
 
 ## Contract Facade Dependency and Ownership Audit
 

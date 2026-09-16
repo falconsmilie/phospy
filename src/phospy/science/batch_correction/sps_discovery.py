@@ -1,22 +1,24 @@
-"""Typed contracts for reference-data SPS discovery.
+"""Typed contracts and numerical science for reference-data SPS discovery.
 
-This module deliberately defines contracts only.  SPS ranking mathematics is
-owned by a later scientific implementation; constructing these values does not
-select sites or change native SPS/RUV-style correction behaviour.
+SPS discovery is deliberately independent of native SPS/RUV-style correction:
+it derives negative controls from explicit reference datasets and never treats
+the target correction matrix as implicit reference evidence.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, cast
 
 import pandas as pd
+from scipy.stats import chi2
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ReferenceValidationError
-from phospy.provenance.hashing import fingerprint_table
+from phospy.provenance.hashing import fingerprint_table_normalized_axes
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.provenance.models import TableFingerprint
 from phospy.provenance.serialization.tables import table_fingerprint_to_payload
@@ -28,7 +30,7 @@ from phospy.science.sites.validation import require_site_key_index
 
 SPS_DISCOVERY_SELECTION_METHOD_CONSENSUS_STABILITY = "consensus_stability"
 SPS_DISCOVERY_ALGORITHM_ID = "phospy_sps_consensus_stability"
-SPS_DISCOVERY_ALGORITHM_VERSION = "contract-v1"
+SPS_DISCOVERY_ALGORITHM_VERSION = "1.0.0"
 SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING = "site_key_ascending"
 SPS_DISCOVERY_CONTROL_SOURCE_TYPE = "sps_discovery"
 
@@ -211,34 +213,18 @@ class SpsReferenceDataset:
             ),
         )
 
-    def _to_provenance(self) -> SpsReferenceDatasetProvenance:
+    def _to_provenance(
+        self,
+        *,
+        sites_passing_required_data: int | None = None,
+        sites_entering_consensus: int | None = None,
+    ) -> SpsReferenceDatasetProvenance:
         """Build source provenance for the validated workflow boundary."""
 
-        intensities = self._intensities_snapshot()
-        if not isinstance(intensities, pd.DataFrame):
-            raise PhosPyInputError(
-                f"SPS reference dataset {self.dataset_id!r} intensities must be a "
-                "pandas DataFrame"
-            )
-        assignments = tuple(
-            SpsSampleConditionAssignment(
-                sample_id=sample_id,
-                condition=str(condition),
-            )
-            for sample_id, condition in sorted(self.condition_by_sample.items())
-        )
-        return SpsReferenceDatasetProvenance(
-            dataset_id=self.dataset_id,
-            source_name=self.source_name,
-            source_version=self.source_version,
-            source_uri=self.source_uri,
-            site_count=int(intensities.shape[0]),
-            sample_count=int(intensities.shape[1]),
-            sample_conditions=assignments,
-            intensity_fingerprint=fingerprint_table(
-                intensities,
-                name=f"sps_reference.{self.dataset_id}.intensities",
-            ),
+        return _reference_provenance(
+            self,
+            sites_passing_required_data=sites_passing_required_data,
+            sites_entering_consensus=sites_entering_consensus,
         )
 
 
@@ -281,6 +267,8 @@ class SpsReferenceDatasetProvenance:
     source_name: str | None = None
     source_version: str | None = None
     source_uri: str | None = None
+    sites_passing_required_data: int | None = None
+    sites_entering_consensus: int | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -343,6 +331,29 @@ class SpsReferenceDatasetProvenance:
                         field_name=f"sps_source_provenance.{field_name}",
                     ),
                 )
+        for field_name in (
+            "sites_passing_required_data",
+            "sites_entering_consensus",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                _require_non_negative_int(
+                    value,
+                    field_name=f"sps_source_provenance.{field_name}",
+                )
+                if value > self.site_count:
+                    raise PhosPyInputError(
+                        f"sps_source_provenance.{field_name} must not exceed site_count"
+                    )
+        if (
+            self.sites_passing_required_data is not None
+            and self.sites_entering_consensus is not None
+            and self.sites_entering_consensus > self.sites_passing_required_data
+        ):
+            raise PhosPyInputError(
+                "sps_source_provenance.sites_entering_consensus must not exceed "
+                "sites_passing_required_data"
+            )
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -352,6 +363,8 @@ class SpsReferenceDatasetProvenance:
             "source_uri": self.source_uri,
             "site_count": self.site_count,
             "sample_count": self.sample_count,
+            "sites_passing_required_data": self.sites_passing_required_data,
+            "sites_entering_consensus": self.sites_entering_consensus,
             "sample_conditions": [item.to_payload() for item in self.sample_conditions],
             "intensity_fingerprint": table_fingerprint_to_payload(
                 self.intensity_fingerprint
@@ -772,8 +785,8 @@ class SpsDiscoveryResult:
                 selection_method=self.provenance.config.selection_method,
                 metadata_missing_reason={
                     "organism": (
-                        "SPS references may be independently sourced; organism "
-                        "coherence is not inferred by the contract-only ticket"
+                        "SPS reference records do not carry a typed organism field; "
+                        "organism coherence remains caller-audited reference context"
                     ),
                     "license": "retained in caller-owned reference source records",
                     "redistribution": (
@@ -796,6 +809,259 @@ class SpsDiscoveryResult:
             "site_ranking": [item.to_payload() for item in self.site_ranking],
             "provenance": self.provenance.to_payload(),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class _ReferenceStabilityEvidence:
+    dataset_id: str
+    scores_by_site: Mapping[str, float]
+
+
+class SpsDiscoveryExecutor:
+    """Derive a deterministic consensus SPS ranking from validated references.
+
+    Replicates are averaged within condition.  The reference-specific change
+    magnitude is the largest absolute condition mean for a site, matching the
+    central ``getSPS`` stability statistic for condition-relative inputs.
+    Smaller magnitudes are more stable.  Reference ranks are converted to the
+    half-step empirical quantiles used by ``getSPS`` and combined with its
+    Fisher-style chi-square survival score; larger consensus scores are more
+    stable.
+
+    Missing replicate cells are ignored only when their condition retains at
+    least one finite observation.  A site with an entirely missing condition
+    is not rankable in that reference.  It remains eligible only when it has
+    valid evidence in ``minimum_datasets_per_site`` references.
+    """
+
+    def run(
+        self,
+        *,
+        reference_datasets: Sequence[SpsReferenceDataset],
+        config: SpsDiscoveryConfig,
+    ) -> SpsDiscoveryResult:
+        references = tuple(sorted(reference_datasets, key=lambda item: item.dataset_id))
+        evidence = tuple(_reference_stability_evidence(item) for item in references)
+
+        site_occurrences: Counter[str] = Counter()
+        valid_occurrences: Counter[str] = Counter()
+        for reference in references:
+            intensities = reference.intensities
+            site_occurrences.update(str(value) for value in intensities.index)
+        for item in evidence:
+            valid_occurrences.update(item.scores_by_site.keys())
+
+        overlapping_sites = {
+            site_key
+            for site_key, count in site_occurrences.items()
+            if count >= config.minimum_datasets_per_site
+        }
+        rankable_sites = tuple(
+            sorted(
+                site_key
+                for site_key in overlapping_sites
+                if valid_occurrences[site_key] >= config.minimum_datasets_per_site
+            )
+        )
+        if len(rankable_sites) < config.minimum_shared_sites:
+            raise SpsDiscoveryValidationError(
+                SpsDiscoveryValidationResult(
+                    issues=(
+                        SpsDiscoveryValidationIssue(
+                            code="insufficient_rankable_overlap",
+                            message=(
+                                "SPS discovery found "
+                                f"{len(rankable_sites)} sites with valid condition-level "
+                                "stability evidence in at least "
+                                f"{config.minimum_datasets_per_site} reference datasets; "
+                                f"at least {config.minimum_shared_sites} are required"
+                            ),
+                            field_name="reference_datasets",
+                        ),
+                    ),
+                    reference_dataset_count=len(references),
+                    potential_overlap_site_count=len(overlapping_sites),
+                )
+            )
+
+        statistics_by_site: dict[str, list[SpsDatasetSiteStatistic]] = {
+            site_key: [] for site_key in rankable_sites
+        }
+        quantiles_by_site: dict[str, list[float]] = {
+            site_key: [] for site_key in rankable_sites
+        }
+        consensus_entries_by_reference: dict[str, int] = {}
+        for item in evidence:
+            scored_candidates = tuple(
+                (site_key, item.scores_by_site[site_key])
+                for site_key in rankable_sites
+                if site_key in item.scores_by_site
+            )
+            ranks = _stable_ranks(scored_candidates)
+            candidate_count = len(scored_candidates)
+            consensus_entries_by_reference[item.dataset_id] = candidate_count
+            for site_key, score in scored_candidates:
+                competition_rank, average_rank = ranks[site_key]
+                statistics_by_site[site_key].append(
+                    SpsDatasetSiteStatistic(
+                        dataset_id=item.dataset_id,
+                        rank=competition_rank,
+                        stability_score=score,
+                    )
+                )
+                quantiles_by_site[site_key].append(
+                    (float(candidate_count) - average_rank + 0.5)
+                    / float(candidate_count)
+                )
+
+        consensus_scores = {
+            site_key: _fisher_style_consensus_score(quantiles_by_site[site_key])
+            for site_key in rankable_sites
+        }
+        ordered_sites = tuple(
+            sorted(
+                rankable_sites,
+                key=lambda site_key: (-consensus_scores[site_key], site_key),
+            )
+        )
+        ranking = tuple(
+            SpsSiteStabilityRecord(
+                site_key=site_key,
+                consensus_rank=position,
+                consensus_stability_score=consensus_scores[site_key],
+                contributing_dataset_count=len(statistics_by_site[site_key]),
+                dataset_statistics=tuple(statistics_by_site[site_key]),
+            )
+            for position, site_key in enumerate(ordered_sites, start=1)
+        )
+        selected = ordered_sites[: config.top_n]
+        boundaries = SpsSelectionBoundaryCounts(
+            total_unique_sites=len(site_occurrences),
+            sites_meeting_dataset_overlap=len(overlapping_sites),
+            sites_with_valid_stability=len(rankable_sites),
+            sites_ranked=len(ranking),
+            sites_selected=len(selected),
+        )
+        evidence_by_id = {item.dataset_id: item for item in evidence}
+        provenance = SpsDiscoveryProvenance(
+            source_datasets=tuple(
+                _reference_provenance(
+                    reference,
+                    sites_passing_required_data=len(
+                        evidence_by_id[reference.dataset_id].scores_by_site
+                    ),
+                    sites_entering_consensus=consensus_entries_by_reference[
+                        reference.dataset_id
+                    ],
+                )
+                for reference in references
+            ),
+            config=config,
+            requested_control_count=config.top_n,
+            actual_control_count=len(selected),
+            selection_boundaries=boundaries,
+        )
+        return SpsDiscoveryResult(
+            selected_site_keys=selected,
+            site_ranking=ranking,
+            provenance=provenance,
+        )
+
+
+def _reference_stability_evidence(
+    reference: SpsReferenceDataset,
+) -> _ReferenceStabilityEvidence:
+    intensities = reference.intensities
+    conditions = tuple(
+        sorted({str(value) for value in reference.condition_by_sample.values()})
+    )
+    samples_by_condition = {
+        condition: tuple(
+            sorted(
+                str(column)
+                for column in intensities.columns
+                if str(reference.condition_by_sample[str(column)]) == condition
+            )
+        )
+        for condition in conditions
+    }
+    scores: dict[str, float] = {}
+    for site_key in sorted(str(value) for value in intensities.index):
+        condition_means: list[float] = []
+        for condition in conditions:
+            values = tuple(
+                float(cast(float | int, intensities.at[site_key, sample_id]))
+                for sample_id in samples_by_condition[condition]
+                if not pd.isna(intensities.at[site_key, sample_id])
+            )
+            if not values or not all(math.isfinite(value) for value in values):
+                condition_means = []
+                break
+            condition_means.append(math.fsum(values) / float(len(values)))
+        if condition_means:
+            scores[site_key] = max(abs(value) for value in condition_means)
+    return _ReferenceStabilityEvidence(
+        dataset_id=reference.dataset_id,
+        scores_by_site=scores,
+    )
+
+
+def _reference_provenance(
+    reference: SpsReferenceDataset,
+    *,
+    sites_passing_required_data: int | None = None,
+    sites_entering_consensus: int | None = None,
+) -> SpsReferenceDatasetProvenance:
+    intensities = reference.intensities
+    assignments = tuple(
+        SpsSampleConditionAssignment(
+            sample_id=sample_id,
+            condition=str(condition),
+        )
+        for sample_id, condition in sorted(reference.condition_by_sample.items())
+    )
+    return SpsReferenceDatasetProvenance(
+        dataset_id=reference.dataset_id,
+        source_name=reference.source_name,
+        source_version=reference.source_version,
+        source_uri=reference.source_uri,
+        site_count=int(intensities.shape[0]),
+        sample_count=int(intensities.shape[1]),
+        sample_conditions=assignments,
+        intensity_fingerprint=fingerprint_table_normalized_axes(
+            intensities,
+            name=f"sps_reference.{reference.dataset_id}.intensities",
+        ),
+        sites_passing_required_data=sites_passing_required_data,
+        sites_entering_consensus=sites_entering_consensus,
+    )
+
+
+def _stable_ranks(
+    scored_sites: Sequence[tuple[str, float]],
+) -> dict[str, tuple[int, float]]:
+    """Return deterministic competition ranks and PhosR-compatible midranks."""
+
+    ordered = sorted(scored_sites, key=lambda item: (item[1], item[0]))
+    ranks: dict[str, tuple[int, float]] = {}
+    start = 0
+    while start < len(ordered):
+        stop = start + 1
+        while stop < len(ordered) and ordered[stop][1] == ordered[start][1]:
+            stop += 1
+        competition_rank = start + 1
+        average_rank = (float(start + 1) + float(stop)) / 2.0
+        for site_key, _ in ordered[start:stop]:
+            ranks[site_key] = (competition_rank, average_rank)
+        start = stop
+    return ranks
+
+
+def _fisher_style_consensus_score(quantiles: Sequence[float]) -> float:
+    contribution_count = len(quantiles)
+    statistic = -2.0 * math.fsum(math.log(value) for value in quantiles)
+    degrees_of_freedom = 2 * (contribution_count - 1)
+    return float(chi2.sf(statistic, degrees_of_freedom))
 
 
 def _require_site_key(value: object, *, field_name: str) -> str:

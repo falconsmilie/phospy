@@ -1,4 +1,4 @@
-"""Public request and validation boundary for future SPS discovery execution."""
+"""Public request, validation, and orchestration boundary for SPS discovery."""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ from dataclasses import dataclass
 
 from phospy.science.batch_correction.sps_discovery import (
     SpsDiscoveryConfig,
+    SpsDiscoveryExecutor,
     SpsDiscoveryProvenance,
+    SpsDiscoveryResult,
     SpsDiscoveryValidationError,
     SpsDiscoveryValidationIssue,
     SpsDiscoveryValidationResult,
@@ -21,14 +23,25 @@ from phospy.validation.workflows.batch_correction.sps_discovery import (
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SpsDiscoveryRequest:
-    """Passive caller-intent payload for later SPS discovery execution."""
+    """Passive caller-intent payload for SPS discovery execution."""
 
     reference_datasets: Sequence[SpsReferenceDataset]
     config: SpsDiscoveryConfig
 
 
 class SpsDiscoveryWorkflow:
-    """Validate SPS inputs and assemble provenance before future execution."""
+    """Validate explicit reference inputs and execute SPS discovery."""
+
+    def run(self, request: object) -> SpsDiscoveryResult:
+        """Validate references and return their deterministic consensus ranking."""
+
+        self.require_valid(request)
+        if not isinstance(request, SpsDiscoveryRequest):
+            raise AssertionError("unreachable after structured request validation")
+        return SpsDiscoveryExecutor().run(
+            reference_datasets=tuple(request.reference_datasets),
+            config=request.config,
+        )
 
     def validate(self, request: object) -> SpsDiscoveryValidationResult:
         """Return structured validation without executing ranking science."""
@@ -95,9 +108,12 @@ class SpsDiscoveryWorkflow:
         )
         if not validation.valid:
             raise SpsDiscoveryValidationError(validation)
+        ordered_references = tuple(
+            sorted(references, key=lambda reference: reference.dataset_id)
+        )
         return SpsDiscoveryProvenance(
             source_datasets=tuple(
-                reference._to_provenance() for reference in references
+                reference._to_provenance() for reference in ordered_references
             ),
             config=request.config,
             requested_control_count=request.config.top_n,

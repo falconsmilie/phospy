@@ -8,7 +8,10 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 from phospy.errors.validation import ReferenceValidationError
-from phospy.frames.validation import require_numeric_dataframe
+from phospy.frames.validation import (
+    require_finite_numeric_dataframe,
+    require_numeric_dataframe,
+)
 from phospy.science.batch_correction.sps_discovery import (
     SpsDiscoveryConfig,
     SpsDiscoveryValidationIssue,
@@ -250,6 +253,43 @@ class SpsDiscoveryRequestValidator:
                     field_name="intensities",
                 )
             )
+        else:
+            complex_columns = tuple(
+                str(column)
+                for column in intensities.columns
+                if pd.api.types.is_complex_dtype(intensities[column].dtype)
+            )
+            if complex_columns:
+                issues.append(
+                    SpsDiscoveryValidationIssue(
+                        code="non_numeric_intensity_data",
+                        message=(
+                            "reference intensities must be real-valued; complex "
+                            "columns are invalid: " + ", ".join(complex_columns)
+                        ),
+                        dataset_id=dataset_id,
+                        field_name="intensities",
+                    )
+                )
+            else:
+                try:
+                    require_finite_numeric_dataframe(
+                        intensities,
+                        field_name=(
+                            f"sps_reference_dataset[{dataset_id!r}].intensities"
+                        ),
+                        error_type=ReferenceValidationError,
+                        allow_missing=True,
+                    )
+                except ReferenceValidationError as exc:
+                    issues.append(
+                        SpsDiscoveryValidationIssue(
+                            code="non_finite_intensity_data",
+                            message=str(exc),
+                            dataset_id=dataset_id,
+                            field_name="intensities",
+                        )
+                    )
 
         conditions = dataset.condition_by_sample
         if not isinstance(conditions, Mapping):

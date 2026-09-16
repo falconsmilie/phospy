@@ -1,0 +1,350 @@
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from phospy.advanced import (
+    SpsDiscoveryConfig,
+    SpsDiscoveryRequest,
+    SpsDiscoveryValidationError,
+    SpsDiscoveryWorkflow,
+    SpsReferenceDataset,
+)
+from tests.support.site_keys import protein_site_key_index
+
+
+def _site_keys(count: int) -> pd.Index:
+    return protein_site_key_index(
+        protein_identifiers=[f"P{position:04d}" for position in range(count)],
+        sites=[f"S{position + 1}" for position in range(count)],
+    )
+
+
+def _reference(
+    dataset_id: str,
+    *,
+    site_keys: Sequence[str] | pd.Index,
+    columns: Mapping[str, Sequence[float]],
+    conditions: Mapping[str, str],
+) -> SpsReferenceDataset:
+    return SpsReferenceDataset(
+        dataset_id=dataset_id,
+        intensities=pd.DataFrame(columns, index=pd.Index(site_keys, name="site_key")),
+        condition_by_sample=conditions,
+        source_name=f"synthetic-{dataset_id}",
+        source_version="1",
+    )
+
+
+def _hand_references() -> tuple[SpsReferenceDataset, SpsReferenceDataset]:
+    keys = _site_keys(4)
+    conditions_a = {
+        "a_control_1": "control",
+        "a_control_2": "control",
+        "a_treated_1": "treated",
+        "a_treated_2": "treated",
+    }
+    conditions_b = {
+        "b_base_1": "base",
+        "b_base_2": "base",
+        "b_stim_1": "stim",
+        "b_stim_2": "stim",
+    }
+    return (
+        _reference(
+            "study_a",
+            site_keys=keys,
+            columns={
+                "a_control_1": [0.10, 0.30, 0.00, 0.40],
+                "a_control_2": [0.10, 0.30, 0.00, 0.40],
+                "a_treated_1": [0.20, 0.50, 4.00, 0.40],
+                "a_treated_2": [0.20, 0.50, 4.00, 0.40],
+            },
+            conditions=conditions_a,
+        ),
+        _reference(
+            "study_b",
+            site_keys=keys,
+            columns={
+                "b_base_1": [0.15, 0.60, -0.20, 0.40],
+                "b_base_2": [0.15, 0.60, -0.20, 0.40],
+                "b_stim_1": [0.10, 1.00, 3.00, 0.40],
+                "b_stim_2": [0.10, 1.00, 3.00, 0.40],
+            },
+            conditions=conditions_b,
+        ),
+    )
+
+
+def _run(
+    references: Sequence[SpsReferenceDataset],
+    *,
+    config: SpsDiscoveryConfig | None = None,
+):
+    return SpsDiscoveryWorkflow().run(
+        SpsDiscoveryRequest(
+            reference_datasets=references,
+            config=config or SpsDiscoveryConfig(top_n=2),
+        )
+    )
+
+
+def test_obvious_stable_sites_rank_ahead_of_changing_sites() -> None:
+    references = _hand_references()
+    result = _run(references, config=SpsDiscoveryConfig(top_n=4))
+    keys = tuple(str(value) for value in references[0].intensities.index)
+
+    assert result.site_ranking[0].site_key == keys[0]
+    assert result.site_ranking[-1].site_key == keys[2]
+    assert result.site_ranking[0].consensus_stability_score > (
+        result.site_ranking[-1].consensus_stability_score
+    )
+    assert tuple(
+        record.consensus_stability_score for record in result.site_ranking
+    ) == (
+        pytest.approx(0.765625),
+        pytest.approx(0.390625),
+        pytest.approx(0.140625),
+        pytest.approx(0.015625),
+    )
+    first_statistics = result.site_ranking[0].dataset_statistics
+    assert tuple(item.stability_score for item in first_statistics) == (0.2, 0.15)
+
+
+def test_row_reference_and_replicate_order_do_not_change_result() -> None:
+    reference_a, reference_b = _hand_references()
+
+    reordered_a = SpsReferenceDataset(
+        dataset_id=reference_a.dataset_id,
+        intensities=reference_a.intensities.iloc[::-1, ::-1],
+        condition_by_sample={
+            sample_id: str(condition)
+            for sample_id, condition in reversed(reference_a.sample_conditions.items())
+        },
+        source_name=reference_a.source_name,
+        source_version=reference_a.source_version,
+    )
+    reordered_b = SpsReferenceDataset(
+        dataset_id=reference_b.dataset_id,
+        intensities=reference_b.intensities.iloc[[2, 0, 3, 1], [2, 3, 0, 1]],
+        condition_by_sample={
+            sample_id: str(reference_b.sample_conditions[sample_id])
+            for sample_id in reversed(reference_b.intensities.columns)
+        },
+        source_name=reference_b.source_name,
+        source_version=reference_b.source_version,
+    )
+
+    expected = _run((reference_a, reference_b))
+    reordered = _run((reordered_b, reordered_a))
+
+    assert reordered == expected
+
+
+def test_ties_have_equal_evidence_and_use_site_key_ascending_order() -> None:
+    keys = _site_keys(3)
+    columns_a = {
+        "a_1": [0.1, 0.1, 2.0],
+        "a_2": [0.2, 0.2, 3.0],
+    }
+    columns_b = {
+        "b_1": [0.1, 0.1, 3.0],
+        "b_2": [0.2, 0.2, 4.0],
+    }
+    references = (
+        _reference(
+            "a",
+            site_keys=keys,
+            columns=columns_a,
+            conditions={"a_1": "one", "a_2": "two"},
+        ),
+        _reference(
+            "b",
+            site_keys=keys,
+            columns=columns_b,
+            conditions={"b_1": "one", "b_2": "two"},
+        ),
+    )
+
+    result = _run(references, config=SpsDiscoveryConfig(top_n=3))
+    tied = result.site_ranking[:2]
+
+    assert tied[0].site_key < tied[1].site_key
+    assert tied[0].consensus_stability_score == tied[1].consensus_stability_score
+    assert all(item.rank == 1 for record in tied for item in record.dataset_statistics)
+
+
+def test_missing_data_requires_each_condition_but_not_every_replicate() -> None:
+    keys = _site_keys(3)
+    references = []
+    for dataset_number in range(3):
+        prefix = f"d{dataset_number}"
+        changing_missing = np.nan if dataset_number < 2 else 0.2
+        references.append(
+            _reference(
+                prefix,
+                site_keys=keys,
+                columns={
+                    f"{prefix}_c1": [np.nan, 0.1, 0.1],
+                    f"{prefix}_c2": [0.1, 0.1, 0.1],
+                    f"{prefix}_t1": [0.2, changing_missing, 2.0],
+                    f"{prefix}_t2": [0.2, changing_missing, 2.0],
+                },
+                conditions={
+                    f"{prefix}_c1": "control",
+                    f"{prefix}_c2": "control",
+                    f"{prefix}_t1": "treated",
+                    f"{prefix}_t2": "treated",
+                },
+            )
+        )
+
+    result = _run(
+        references,
+        config=SpsDiscoveryConfig(
+            top_n=10,
+            minimum_reference_datasets=3,
+            minimum_datasets_per_site=2,
+        ),
+    )
+
+    assert tuple(record.site_key for record in result.site_ranking) == (
+        str(keys[0]),
+        str(keys[2]),
+    )
+    assert result.site_ranking[0].contributing_dataset_count == 3
+    assert result.site_ranking[1].contributing_dataset_count == 3
+    assert result.provenance.actual_control_count == 2
+    assert result.provenance.requested_control_count == 10
+
+
+def test_insufficient_rankable_overlap_after_missingness_fails_clearly() -> None:
+    keys = _site_keys(2)
+    references = tuple(
+        _reference(
+            dataset_id,
+            site_keys=keys,
+            columns={
+                f"{dataset_id}_c": [0.1, 0.1],
+                f"{dataset_id}_t": [np.nan, np.nan],
+            },
+            conditions={f"{dataset_id}_c": "control", f"{dataset_id}_t": "treated"},
+        )
+        for dataset_id in ("a", "b")
+    )
+
+    with pytest.raises(SpsDiscoveryValidationError) as caught:
+        _run(references)
+
+    issue = caught.value.validation_result.issues[0]
+    assert issue.code == "insufficient_rankable_overlap"
+    assert caught.value.validation_result.potential_overlap_site_count == 2
+
+
+def test_infinite_reference_measurements_fail_validation() -> None:
+    keys = _site_keys(2)
+    references = (
+        _reference(
+            "finite",
+            site_keys=keys,
+            columns={"f_c": [0.1, 0.2], "f_t": [0.2, 0.3]},
+            conditions={"f_c": "control", "f_t": "treated"},
+        ),
+        _reference(
+            "infinite",
+            site_keys=keys,
+            columns={"i_c": [0.1, np.inf], "i_t": [0.2, 0.3]},
+            conditions={"i_c": "control", "i_t": "treated"},
+        ),
+    )
+
+    with pytest.raises(SpsDiscoveryValidationError) as caught:
+        _run(references)
+
+    assert "non_finite_intensity_data" in {
+        issue.code for issue in caught.value.validation_result.issues
+    }
+
+
+def test_site_key_alignment_and_attrition_are_explicit() -> None:
+    reference_a, reference_b = _hand_references()
+    reordered_b = SpsReferenceDataset(
+        dataset_id=reference_b.dataset_id,
+        intensities=reference_b.intensities.iloc[[3, 1, 0, 2]],
+        condition_by_sample=reference_b.sample_conditions,  # type: ignore[arg-type]
+        source_name=reference_b.source_name,
+        source_version=reference_b.source_version,
+    )
+
+    result = _run((reference_a, reordered_b), config=SpsDiscoveryConfig(top_n=2))
+
+    assert result.provenance.selection_boundaries.to_payload() == {
+        "total_unique_sites": 4,
+        "sites_meeting_dataset_overlap": 4,
+        "sites_with_valid_stability": 4,
+        "sites_ranked": 4,
+        "sites_selected": 2,
+    }
+    assert tuple(
+        (
+            source.dataset_id,
+            source.site_count,
+            source.sites_passing_required_data,
+            source.sites_entering_consensus,
+        )
+        for source in result.provenance.source_datasets
+    ) == (("study_a", 4, 4, 4), ("study_b", 4, 4, 4))
+    assert tuple(
+        statistic.dataset_id for statistic in result.site_ranking[0].dataset_statistics
+    ) == ("study_a", "study_b")
+    assert len(result.control_site_set.annotations) == 2
+
+
+def test_larger_deterministic_population_selects_only_known_stable_sites() -> None:
+    stable_count = 120
+    changing_count = 80
+    site_count = stable_count + changing_count
+    keys = _site_keys(site_count)
+    references: list[SpsReferenceDataset] = []
+    positions = np.arange(site_count, dtype=float)
+    for dataset_number in range(3):
+        prefix = f"ref_{dataset_number}"
+        stable = 0.01 + (positions[:stable_count] % 17.0) / 1000.0
+        changing = 2.0 + (positions[stable_count:] % 23.0) / 10.0
+        change = np.concatenate((stable, changing)) + dataset_number * 0.001
+        references.append(
+            _reference(
+                prefix,
+                site_keys=keys,
+                columns={
+                    f"{prefix}_c1": np.zeros(site_count).tolist(),
+                    f"{prefix}_c2": np.zeros(site_count).tolist(),
+                    f"{prefix}_t1": change.tolist(),
+                    f"{prefix}_t2": change.tolist(),
+                },
+                conditions={
+                    f"{prefix}_c1": "control",
+                    f"{prefix}_c2": "control",
+                    f"{prefix}_t1": "treated",
+                    f"{prefix}_t2": "treated",
+                },
+            )
+        )
+
+    result = _run(
+        references,
+        config=SpsDiscoveryConfig(
+            top_n=100,
+            minimum_reference_datasets=3,
+            minimum_datasets_per_site=3,
+            minimum_shared_sites=100,
+        ),
+    )
+
+    stable_keys = {str(value) for value in keys[:stable_count]}
+    assert len(result.selected_site_keys) == 100
+    assert set(result.selected_site_keys).issubset(stable_keys)
+    assert result.provenance.selection_boundaries.sites_ranked == site_count

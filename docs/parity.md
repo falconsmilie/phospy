@@ -316,7 +316,10 @@ examples include broader organism-specific bundled references, additional PhosR
 workflow surfaces, and any method not protected by fixture-backed comparison.
 
 PhosPy is not currently parity-equivalent with PhosR for SPS/RUV-III
-correction. There are no SPS control-selection fixtures, no native RUV-III
+correction. Native multi-reference SPS discovery now has deterministic unit and
+synthetic scientific tests, but there are no SPS control-selection fixtures
+generated from external PhosR `getSPS` results, no native RUV-III
 correction-kernel parity fixtures, and no PhosR `RUVphospho` corrected-output
-parity fixtures. Native SPS/RUV-style preprocessing correction is a validated
-PhosPy implementation, not current PhosR parity.
+parity fixtures. SPS discovery and native SPS/RUV-style preprocessing
+correction are each a validated PhosPy implementation, not current PhosR
+parity.
