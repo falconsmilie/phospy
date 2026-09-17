@@ -28,6 +28,7 @@ DUPLICATE_CORRELATION_LIMMA_ROOT = (
     FIXTURE_ROOT / "rewrite_parity" / "differential_duplicate_correlation"
 )
 DEQMS_DEPTH_ROOT = FIXTURE_ROOT / "rewrite_parity" / "differential_deqms_depth"
+PHOSR_RUV_ROOT = FIXTURE_ROOT / "rewrite_parity" / "phosr_ruv"
 CANONICAL_BYTE_POLICY = "utf-8 LF with final newline"
 
 MANIFEST_GOVERNED_FIXTURE_DIRS = (
@@ -42,6 +43,7 @@ MANIFEST_GOVERNED_FIXTURE_DIRS = (
     LARGE_LIMMA_TREND_ROOT,
     DUPLICATE_CORRELATION_LIMMA_ROOT,
     DEQMS_DEPTH_ROOT,
+    PHOSR_RUV_ROOT,
 )
 
 pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
@@ -179,6 +181,33 @@ def test_duplicate_correlation_limma_fixture_manifest_hashes_match_checked_in_fi
     None
 ):
     _validate_manifest_hashes(DUPLICATE_CORRELATION_LIMMA_ROOT)
+
+
+def test_phosr_ruv_manifest_pins_external_environment_and_generator() -> None:
+    manifest = _read_manifest(PHOSR_RUV_ROOT)
+    external = manifest["external_implementation"]
+    assert manifest["classification"] == "external_parity"
+    assert external == {
+        "name": "PhosR getSPS and ruv RUVIII",
+        "r_version": "R version 4.5.2 (2025-10-31 ucrt)",
+        "PhosR_version": "1.13.1",
+        "PhosR_commit": "1be74902b775833c64f5833e70538eaf843cf6a5",
+        "ruv_version": "0.9.7.1",
+    }
+    generator = ROOT / manifest["generator"]
+    assert (
+        hashlib.sha256(generator.read_bytes()).hexdigest()
+        == manifest["generator_sha256"]
+    )
+
+    environment = json.loads(
+        (PHOSR_RUV_ROOT / "REFERENCE_ENVIRONMENT.json").read_text(encoding="utf-8")
+    )
+    assert environment["BiocManager"] == "1.30.27"
+    assert environment["bioconductor"] == "3.22"
+    assert environment["SummarizedExperiment"] == "1.40.0"
+    assert environment["S4Vectors"] == "0.48.0"
+    assert environment["Matrix"] == "1.7.4"
 
 
 def test_manifest_governed_text_fixtures_have_lf_gitattributes_coverage() -> None:

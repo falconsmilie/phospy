@@ -1,0 +1,55 @@
+{
+  "fixture_schema_version": "phosr-ruv-parity-v1",
+  "classification": "external_parity",
+  "generation_timestamp_utc": "2026-09-17T00:00:00Z",
+  "scientific_citations": ["Kim HJ et al. (2021). PhosR enables processing and functional analysis of phosphoproteomic data. Cell Reports 34(8):108771. doi:10.1016/j.celrep.2021.108771", "Gagnon-Bartsch J (2019). ruv: Detect and Remove Unwanted Variation using Negative Controls. R package version 0.9.7.1. doi:10.32614/CRAN.package.ruv"],
+  "quantitative_contract": {
+    "sps_source_quantitative_meaning": "absolute processed phosphosite log2 abundance",
+    "sps_source_scale": "log2",
+    "selected_baseline_condition": "baseline",
+    "centering_operation": "for each site and reference dataset, subtract the arithmetic mean of baseline_1 and baseline_2 from every sample on the log2 scale",
+    "centered_quantitative_meaning": "condition-relative log2 fold change",
+    "zero_semantics": "the per-site baseline-condition mean is exactly zero",
+    "matrix_passed_to_getSPS": "sps/*_condition_relative_log2.csv",
+    "matrix_passed_to_phospy": "the identical sps/*_condition_relative_log2.csv bytes",
+    "raw_absolute_input_is_not_valid_phospy_sps_input": true
+  },
+  "sps_case": {
+    "reference_dataset_count": 3,
+    "replicated_conditions": true,
+    "deliberately_different_input_row_order": true,
+    "shared_site_count": 210,
+    "requested_top_n": 25,
+    "selected_site_count": 25,
+    "minimum_datasets_per_site": 3,
+    "all_sites_contribute_to_every_reference": true,
+    "tie_policy": "compare consensus scores and tie-group membership; PhosPy additionally guarantees site_key ascending order within exact ties"
+  },
+  "contract_differences": {
+    "partial_reference_contributions": "PhosPy can rank a site with exactly minimum_datasets_per_site references. PhosR getSPS 1.13.1 forms one rectangular score table and propagates NA for sites absent from a reference, so external parity is asserted only for sites contributing to every reference. The PhosPy-only boundary is covered by native contract/science tests and is not weakened here.",
+    "overlap_floor": "PhosR getSPS rejects fewer than 200 sites shared by at least two datasets; PhosPy exposes minimum_shared_sites explicitly. This fixture uses 210.",
+    "missing_values": "The low-level PhosPy RUV-III kernel and this parity lane require complete finite input. ruv::RUVIII warns that missing values are unsupported. No missing-value parity is claimed.",
+    "ambiguous_sps_input": "PhosR leaves scale and baseline preparation to caller convention; PhosPy requires established condition-relative log2 evidence and rejects an unasserted absolute-abundance matrix."
+  },
+  "comparison_policy": {
+    "sps_stability_and_consensus_absolute_tolerance": 9.9999999999999998e-13,
+    "sps_selection": "exact site set and exact ordering outside exact score ties",
+    "ruv_corrected_matrix_absolute_tolerance": 1e-10,
+    "ruv_corrected_matrix_relative_tolerance": 9.9999999999999998e-13,
+    "diagnostics_absolute_tolerance": 1e-10,
+    "rationale": "rank/selection is discrete; scalar SPS probability implementations agree to near machine precision; RUV-III uses SVD and linear solves whose last digits can vary across BLAS/LAPACK implementations"
+  },
+  "redistribution": {
+    "status": "approved_for_repository_test_fixture_redistribution",
+    "origin": "small deterministic synthetic inputs created by this project; no PhosR or external biological reference dataset is included",
+    "package_policy": "PhosR and ruv are invoked as installed black-box implementations; package source code is not copied into the fixture"
+  },
+  "ruv_case": {
+    "selected_negative_control_count": 4,
+    "replicate_set_count": 4,
+    "k_values": [0, 1, 2],
+    "unwanted_factor_count": 2,
+    "biological_signal_present": true,
+    "sample_order_permutation": true
+  }
+}

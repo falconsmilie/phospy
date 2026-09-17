@@ -1,0 +1,30 @@
+{
+  "cases": {
+    "k0": {
+      "k": 0,
+      "input_matrix_rank": 4,
+      "replicate_mapping_rank": 4,
+      "replicate_residual_rank": 2,
+      "residual_singular_values": [],
+      "corrected_matrix_file": "ruv_iii/ruv_expected_k0.csv"
+    },
+    "k1": {
+      "k": 1,
+      "input_matrix_rank": 4,
+      "replicate_mapping_rank": 4,
+      "replicate_residual_rank": 2,
+      "residual_singular_values": 15.075530390515015,
+      "corrected_matrix_file": "ruv_iii/ruv_expected_k1.csv"
+    },
+    "k2": {
+      "k": 2,
+      "input_matrix_rank": 4,
+      "replicate_mapping_rank": 4,
+      "replicate_residual_rank": 2,
+      "residual_singular_values": [15.075530390515015, 10.883858848986328],
+      "corrected_matrix_file": "ruv_iii/ruv_expected_k2.csv"
+    }
+  },
+  "sample_permutation": ["sample_7", "sample_2", "sample_5", "sample_4", "sample_1", "sample_8", "sample_3", "sample_6"],
+  "factor_comparison_policy": "estimated factor coordinates are not compared directly because SVD factors are invariant to sign and, for tied subspaces, rotation"
+}

@@ -1,0 +1,5 @@
+"site_key","control_status"
+"phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=RUV0001|residue=S|position=201","negative_control"
+"phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=RUV0002|residue=T|position=202","negative_control"
+"phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=RUV0003|residue=Y|position=203","negative_control"
+"phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=RUV0004|residue=S|position=204","negative_control"

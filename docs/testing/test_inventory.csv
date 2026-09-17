@@ -65,6 +65,7 @@ tests/parity/test_differential_limma_trend_large.py,parity,305,3,true,false,,,,,
 tests/parity/test_duplicate_correlation_limma_full_parity.py,parity,435,5,true,true,,,,,,
 tests/parity/test_kinase_workflow_parity.py,parity,389,4,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for kinase workflow parity, making release drift against accepted references unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/parity/test_l6_prediction_parity.py,parity,498,8,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for l6 prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
+tests/parity/test_phosr_sps_ruv_parity.py,parity,313,6,true,true,,,,,,
 tests/parity/test_prediction_science_parity.py,parity,253,3,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for prediction science parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_preprocessing_science_parity.py,parity,563,6,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for preprocessing science parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_public_predmat_parity.py,parity,128,2,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for public predmat parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
@@ -80,7 +81,7 @@ tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
 tests/release/test_installed_distribution_verifier.py,release,627,16,true,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/release/test_kinase_policy_documentation.py,release,117,2,true,false,,,,,,
-tests/release/test_manifest_fixture_byte_reproducibility.py,release,370,6,true,false,,,,,,
+tests/release/test_manifest_fixture_byte_reproducibility.py,release,399,7,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
@@ -299,7 +300,7 @@ tests/unit/test_row_attrition_provenance.py,unit,266,13,true,true,,,,,,[auto-orc
 tests/unit/test_runtime_contract_guards.py,unit,234,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_sample_group_metadata_resolution.py,unit,295,12,true,true,,,,,,
 tests/unit/test_science_package_ownership.py,unit,122,6,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,866,30,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,872,30,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_scientific_invariants.py,unit,719,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,485,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_reconstruction_identity.py,unit,49,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

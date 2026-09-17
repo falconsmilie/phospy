@@ -1,0 +1,100 @@
+{
+  "manifest_schema_version": "fixture-manifest-v1",
+  "fixture_family": "phosr_sps_ruv_iii",
+  "classification": "external_parity",
+  "external_implementation": {
+    "name": "PhosR getSPS and ruv RUVIII",
+    "r_version": "R version 4.5.2 (2025-10-31 ucrt)",
+    "PhosR_version": "1.13.1",
+    "PhosR_commit": "1be74902b775833c64f5833e70538eaf843cf6a5",
+    "ruv_version": "0.9.7.1"
+  },
+  "generator": "scripts/active/generate_phosr_ruv_parity_fixtures.R",
+  "generator_sha256": "b71e089915f002339e0c8b991440477bcdfb71a7054729842f1ebc4626799dfa",
+  "command": "Rscript scripts/active/generate_phosr_ruv_parity_fixtures.R --outdir tests/fixtures/rewrite_parity/phosr_ruv --timestamp 2026-09-17T00:00:00Z --allow-unpinned-environment false",
+  "generation_timestamp_utc": "2026-09-17T00:00:00Z",
+  "byte_policy": "utf-8 LF with final newline",
+  "source_policy": "deterministic synthetic project-authored inputs; external package outputs are serialized directly from the pinned R run",
+  "files": [
+    {
+      "relative_path": "METADATA.json",
+      "sha256": "76bfaa94a0f8f6c2196d0fb3831ed03ea7305a180aaa80e5472207f98388cb5f"
+    },
+    {
+      "relative_path": "PROVENANCE.md",
+      "sha256": "1b85bf7567f6fd4d67ba91bcba8332bc741b89b8017b8c978baa973e1331ce87"
+    },
+    {
+      "relative_path": "REFERENCE_ENVIRONMENT.json",
+      "sha256": "c72dfa380c756e176a5206f19ac0561153e5f73c195b9733da95ae7df811ff1e"
+    },
+    {
+      "relative_path": "ruv_iii/input_matrix.csv",
+      "sha256": "a6f4956c0d244a16d0c7bff5b1224bf10fe6a6ad484ddb105f1d44f6652ff166"
+    },
+    {
+      "relative_path": "ruv_iii/negative_controls.csv",
+      "sha256": "c4f5e4288cae7e3c74ab8d501d65fa182977c05627d36820177f69c56dbb0183"
+    },
+    {
+      "relative_path": "ruv_iii/reference_diagnostics.json",
+      "sha256": "51882bb1373d586353c226b50ae45a62e3696aba6f49f40141ce04f599d7c33f"
+    },
+    {
+      "relative_path": "ruv_iii/ruv_expected_k0.csv",
+      "sha256": "a6f4956c0d244a16d0c7bff5b1224bf10fe6a6ad484ddb105f1d44f6652ff166"
+    },
+    {
+      "relative_path": "ruv_iii/ruv_expected_k1.csv",
+      "sha256": "4b292f1f68b0f9176abb76fa5e33e01f50278da953144e748df818227853ba38"
+    },
+    {
+      "relative_path": "ruv_iii/ruv_expected_k2.csv",
+      "sha256": "5d0f3dc05796d0f58cfe9f177d26e5778444e9e880f6b8281ff424b4acde8459"
+    },
+    {
+      "relative_path": "ruv_iii/ruv_expected_k2_permuted.csv",
+      "sha256": "2fce21d65f50ff6146a9a2c8cab64c71df6a41da8d3338d2d308f1027d08a737"
+    },
+    {
+      "relative_path": "ruv_iii/sample_metadata.csv",
+      "sha256": "2e31c8f56558fbe168b5cadd3ef923a791b00948f9d39bf58adb5f1b660551ae"
+    },
+    {
+      "relative_path": "sps/phosr_getsps_selected.csv",
+      "sha256": "561e62fb9f2ad3c909e37ac2bcfa9274b0b5211ab7a32c42f232f02e00efbd1e"
+    },
+    {
+      "relative_path": "sps/phosr_getsps_trace.csv",
+      "sha256": "0abe8cb5860fba3366706e3c84fd7c65de70de5a10d9669eab5a5cbddd709d77"
+    },
+    {
+      "relative_path": "sps/reference_a_condition_relative_log2.csv",
+      "sha256": "75713ff5180a5a0c287a345ed53a7495ba681e3dc1796000de2553b4a6396c81"
+    },
+    {
+      "relative_path": "sps/reference_a_source_absolute_log2.csv",
+      "sha256": "4befc438c1f66421204a90df6fbc623c174b7da3d9abe532d4a357a4dba511ad"
+    },
+    {
+      "relative_path": "sps/reference_b_condition_relative_log2.csv",
+      "sha256": "05a676344f51e54808f306b2562a23f099cc839e547fd5d4a02cc59ca792c8b0"
+    },
+    {
+      "relative_path": "sps/reference_b_source_absolute_log2.csv",
+      "sha256": "5c260c790a5e48d444c3b368fb973475894751b6cbf2a2a4a881f23faeb2a07c"
+    },
+    {
+      "relative_path": "sps/reference_c_condition_relative_log2.csv",
+      "sha256": "3955d74e4383176c19f7e893748d3f770d84126c6cb6a8e986898e2c44089d04"
+    },
+    {
+      "relative_path": "sps/reference_c_source_absolute_log2.csv",
+      "sha256": "cf0a9c6fe07443eb3fd7db69b8f59a200bcd28de19da095bc456cc2731969a84"
+    },
+    {
+      "relative_path": "sps/sample_metadata.csv",
+      "sha256": "7c2a8b9bfd5c6fc575a394a76d981292e6e19ef1fc8f849f54fe61d3e8e3a7cd"
+    }
+  ]
+}

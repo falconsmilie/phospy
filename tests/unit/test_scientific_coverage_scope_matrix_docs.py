@@ -355,14 +355,17 @@ def test_docs_do_not_claim_ruv_support() -> None:
         "| phosr-equivalent sps/ruv-iii, combat, and `removebatcheffect` parity | `open gap` |"
         in normalized
     )
-    assert "no phosr-equivalent sps/ruv-iii, combat, or limma" in normalized
+    assert "no broad phosr-equivalent sps/ruv-iii, combat, or limma" in normalized
     assert "native sps/ruv-style preprocessing correction" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
     assert "limited fixed-effect residualisation" in normalized
     assert "not combat" in normalized
     assert "not ruv" in normalized
     assert "not limma `removebatcheffect` parity" in normalized
-    assert "not current phosr parity" in normalized
+    assert (
+        "do not interpret native sps/ruv-style correction as blanket phosr parity"
+        in (normalized)
+    )
     assert "report-only ruv-readiness metadata" in normalized
 
     for forbidden in (
@@ -406,21 +409,24 @@ def test_scientific_coverage_lists_sps_ruv_as_explicit_non_parity_support() -> N
     assert "caller-supplied controls" in normalized
     assert "unwanted-factor count" in normalized
     assert "phosr-equivalent sps/ruv-iii batch correction" in normalized
-    assert "not a claim of phosr-equivalent sps/ruv-iii correction" in normalized
+    assert "does not establish general phosr-equivalent sps/ruv-iii" in normalized
+    assert "fixture-scoped external comparison" in normalized
     assert "`sps_ruv_style` rejects actual missing values at execution" in normalized
     assert "`ruv_iii_style` can use row-median completion internally" in normalized
     assert "restores actual missing positions afterward" in normalized
     assert "observation-mask provenance" in normalized
 
 
-def test_parity_docs_state_ruv_sps_is_future_work() -> None:
+def test_parity_docs_bound_external_sps_ruv_evidence_to_fixture_scope() -> None:
     normalized = " ".join(_parity_text().lower().split())
 
-    assert "not currently parity-equivalent with phosr for sps/ruv-iii" in (normalized)
-    assert "no sps control-selection fixtures" in normalized
-    assert "no ruv-iii kernel parity fixtures" in normalized
-    assert "no phosr `ruvphospho` corrected-output parity fixtures" in normalized
-    assert "validated phospy implementation, not current phosr parity" in normalized
+    assert "sps and ruv-iii external reference evidence" in normalized
+    assert "the identical matrix supplied to both phosr `getsps` and phospy" in (
+        normalized
+    )
+    assert "fixture-scoped, not a blanket package or workflow equivalence" in normalized
+    assert "missing-value ruv-iii parity is not claimed" in normalized
+    assert "no full phosr `ruvphospho` corrected-output comparison" in normalized
 
 
 def test_adr_0027_records_future_preprocessing_direction_and_constraints() -> None:

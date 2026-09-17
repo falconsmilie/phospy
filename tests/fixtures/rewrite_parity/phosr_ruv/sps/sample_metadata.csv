@@ -1,0 +1,13 @@
+"dataset_id","sample_id","condition","is_baseline"
+"reference_a","baseline_1","baseline",TRUE
+"reference_a","baseline_2","baseline",TRUE
+"reference_a","stimulated_1","stimulated",FALSE
+"reference_a","stimulated_2","stimulated",FALSE
+"reference_b","baseline_1","baseline",TRUE
+"reference_b","baseline_2","baseline",TRUE
+"reference_b","stimulated_1","stimulated",FALSE
+"reference_b","stimulated_2","stimulated",FALSE
+"reference_c","baseline_1","baseline",TRUE
+"reference_c","baseline_2","baseline",TRUE
+"reference_c","stimulated_1","stimulated",FALSE
+"reference_c","stimulated_2","stimulated",FALSE

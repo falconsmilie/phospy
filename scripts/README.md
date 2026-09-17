@@ -22,6 +22,7 @@ provenance, and public-workflow reference generation.
 | `scripts/active/generate_signalome_public_workflow_reference.py` | Regenerate rewrite-owned signalome public-workflow reference fixtures and contract metadata. | `tests/fixtures/public_workflow_reference/` (`signalome_rewrite_l6_module_assignments.csv`, `signalome_rewrite_l6_modules.csv`, `signalome_rewrite_l6_network_nodes.csv`, `signalome_rewrite_l6_network_edges.csv`, `signalome_rewrite_l6_expanded_signalome.csv`, `signalome_rewrite_l6_contract.json`) |
 | `scripts/active/generate_differential_duplicate_correlation_limma_fixtures.R` | Regenerate version-pinned R/limma duplicate-correlation differential parity fixtures. | `tests/fixtures/rewrite_parity/differential_duplicate_correlation/` (`MANIFEST.json`, `fixture_a_complete_pairs/`, `fixture_b_three_observation_blocks/`, `fixture_c_incomplete_unequal_blocks/`, `fixture_d_feature_level_failures/`) |
 | `scripts/active/generate_large_differential_limma_trend_fixture.R` | Regenerate the large-feature R/limma trend differential parity fixture. | `tests/fixtures/rewrite_parity/differential_limma_trend_large/` (`matrix.csv`, `limma_B_vs_A.csv`, `MANIFEST.json`) |
+| `scripts/active/generate_phosr_ruv_parity_fixtures.R` | Regenerate version-pinned external SPS discovery and finite-`k` RUV-III evidence. | `tests/fixtures/rewrite_parity/phosr_ruv/` (`REFERENCE_ENVIRONMENT.json`, SPS preparation/intermediate outputs, RUV-III corrected matrices, `MANIFEST.json`) |
 | `scripts/active/generate_r_l6_fixtures.R` | Regenerate R/PhosR-side L6 parity fixtures and prediction trace artefacts. | `tests/fixtures/rewrite_parity/r_reference_l6/` and `tests/fixtures/rewrite_parity/r_reference_l6/prediction_trace/` |
 | `scripts/run_pyright.py` | Resolve a suitable interpreter and run repository pyright checks. Pair with `tools/testing/pyright_strict_coverage.py --check` for strict-scope policy enforcement. | No fixture output; forwards diagnostics to stdout/stderr. |
 | `scripts/verify_installed_distributions.py` | Install and execute exactly one built wheel and one built sdist outside the checkout, including installed import-origin, bundled-resource hash, and representative public workflow checks. | No fixture output; writes only temporary virtual environments and prints JSON status. |
@@ -31,6 +32,33 @@ with LF line endings and a final newline. They must hash the exact bytes they
 write, not platform-translated text-mode output. The text fixture extensions
 under `tests/fixtures` are pinned to LF in `.gitattributes` so Git checkout and
 archive bytes match the manifest digests without marking binary assets as text.
+
+### PhosR/RUV reference regeneration
+
+The SPS/RUV generator is deliberately separate from ordinary tests. Recreate
+the exact environment recorded in
+`tests/fixtures/rewrite_parity/phosr_ruv/REFERENCE_ENVIRONMENT.json`: R 4.5.2,
+Bioconductor 3.22, PhosR 1.13.1 from Git commit
+`1be74902b775833c64f5833e70538eaf843cf6a5`, `ruv` 0.9.7.1, and the exact
+construction/serialization package versions listed there. The archived `ruv`
+source URL and the immutable PhosR commit URL are part of that specification.
+The generator checks all recorded versions and refuses an unpinned environment
+by default.
+
+Run from the repository root only after constructing that isolated maintainer
+environment:
+
+```bash
+Rscript scripts/active/generate_phosr_ruv_parity_fixtures.R \
+  --outdir tests/fixtures/rewrite_parity/phosr_ruv \
+  --timestamp 2026-09-17T00:00:00Z \
+  --allow-unpinned-environment false
+```
+
+Review the regenerated manifest, metadata, input-preparation evidence, and
+fixture diff before accepting it. Do not use
+`--allow-unpinned-environment true` for release evidence. The command is never
+run by normal CI.
 
 ## Support Modules
 

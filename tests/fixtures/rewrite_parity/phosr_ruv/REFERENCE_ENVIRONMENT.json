@@ -1,0 +1,20 @@
+{
+  "r": "R version 4.5.2 (2025-10-31 ucrt)",
+  "bioconductor": "3.22",
+  "BiocManager": "1.30.27",
+  "PhosR": "1.13.1",
+  "PhosR_remote_sha": "1be74902b775833c64f5833e70538eaf843cf6a5",
+  "ruv": "0.9.7.1",
+  "SummarizedExperiment": "1.40.0",
+  "S4Vectors": "0.48.0",
+  "BiocGenerics": "0.56.0",
+  "Matrix": "1.7.4",
+  "jsonlite": "2.0.0",
+  "digest": "0.6.39",
+  "platform": "x86_64-w64-mingw32",
+  "blas": "R default BLAS",
+  "lapack": "3.12.1",
+  "phosr_source": "https://github.com/SlavovLab/PhosR/commit/1be74902b775833c64f5833e70538eaf843cf6a5",
+  "ruv_source": "https://cran.r-project.org/src/contrib/Archive/ruv/ruv_0.9.7.1.tar.gz",
+  "bioconductor_release": "3.22"
+}

@@ -1,0 +1,9 @@
+"sample_id","replicate_set","planted_biological_effect","planted_unwanted_factor_1","planted_unwanted_factor_2"
+"sample_1","replicate_a",-4,-2,-1
+"sample_2","replicate_a",-4,2,1
+"sample_3","replicate_b",-1,-1,2
+"sample_4","replicate_b",-1,1,-2
+"sample_5","replicate_c",2,-3,-0.5
+"sample_6","replicate_c",2,3,0.5
+"sample_7","replicate_d",5,-1.5,3
+"sample_8","replicate_d",5,1.5,-3
