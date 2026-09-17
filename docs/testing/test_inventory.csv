@@ -100,6 +100,7 @@ tests/science/test_ruv_iii.py,science,378,17,true,true,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/science/test_signalome_safety_regression_fixtures.py,science,177,6,true,false,,,,,,
 tests/science/test_sps_discovery_science.py,science,501,9,false,false,,,,,,
+tests/science/test_sps_ruv_scientific_benchmark.py,science,435,3,true,false,,,,,,
 tests/unit/api/test_api_compatibility_deprecations.py,api,165,5,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_api_deprecation_governance.py,api,935,22,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/api/test_api_stability_tiers.py,api,205,13,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
