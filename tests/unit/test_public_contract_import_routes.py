@@ -128,7 +128,7 @@ def test_differential_analysis_is_not_supported_from_phospy_api_namespace() -> N
     "symbol_name",
     ("DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE",),
 )
-def test_unsupported_sps_ruv_style_method_constants_are_not_public_api(
+def test_ruv_iii_method_constant_uses_deprecated_api_compatibility_routes(
     symbol_name: str,
 ) -> None:
     for module_name in (
@@ -145,8 +145,8 @@ def test_unsupported_sps_ruv_style_method_constants_are_not_public_api(
 
         assert symbol_name not in module.__all__
         assert symbol_name not in wildcard_namespace
-        assert not hasattr(module, symbol_name)
-        _assert_from_import_fails(module_name, symbol_name)
+        with pytest.warns(PhosPyDeprecationWarning):
+            assert getattr(module, symbol_name) == "ruv_iii_style"
 
 
 def test_deprecated_differential_analysis_shell_warns_and_delegates() -> None:

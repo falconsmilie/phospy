@@ -174,15 +174,14 @@ def test_batch_correction_workflow_rejects_unexecutable_stage_order_before_execu
     assert "executor" not in order
 
 
-def test_batch_correction_workflow_rejects_ruv_iii_before_interpreter_and_executor() -> (
-    None
-):
+def test_batch_correction_workflow_accepts_ruv_iii_through_orchestration() -> None:
     order: list[str] = []
     workflow = BatchCorrectionWorkflow(
         design_validator=_DesignValidator(order),
         stage_order_validator=_StageOrderValidator(order),
         control_site_validator=_ControlSiteValidator(order),
         missingness_validator=_MissingnessValidator(order),
+        factor_feasibility_validator=_FactorFeasibilityValidator(order),
         interpreter=_Interpreter(order),
         executor=_Executor(order, corrected=_matrix()),
         provenance_recorder=_ProvenanceRecorder(order, corrected=_matrix()),
@@ -198,13 +197,19 @@ def test_batch_correction_workflow_rejects_ruv_iii_before_interpreter_and_execut
         missingness_policy=request.missingness_policy,
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="replicate-aware RUV-III numerical semantics are not implemented",
-    ):
-        workflow.run(forged_request)
+    result = workflow.run(forged_request)
 
-    assert order == []
+    assert result.corrected_matrix.equals(_matrix())
+    assert order == [
+        "design_validator",
+        "stage_order_validator",
+        "control_site_validator",
+        "missingness_validator",
+        "factor_feasibility_validator",
+        "interpreter",
+        "executor",
+        "provenance_recorder",
+    ]
     assert forged_request.config.replicate_column == "replicate"
     assert forged_request.sample_metadata is not None
     assert "replicate" in forged_request.sample_metadata.columns

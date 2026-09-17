@@ -407,14 +407,9 @@ def test_scientific_coverage_lists_sps_ruv_as_explicit_non_parity_support() -> N
     assert "unwanted-factor count" in normalized
     assert "phosr-equivalent sps/ruv-iii batch correction" in normalized
     assert "not a claim of phosr-equivalent sps/ruv-iii correction" in normalized
-    assert "requires a complete correction-stage matrix" in normalized
-    assert "rejects actual missing values (nans) before executor invocation" in (
-        normalized
-    )
-    assert (
-        "not permission for actual nans to pass through the public native workflow"
-        in (normalized)
-    )
+    assert "`sps_ruv_style` rejects actual missing values at execution" in normalized
+    assert "`ruv_iii_style` can use row-median completion internally" in normalized
+    assert "restores actual missing positions afterward" in normalized
     assert "observation-mask provenance" in normalized
 
 
@@ -423,7 +418,7 @@ def test_parity_docs_state_ruv_sps_is_future_work() -> None:
 
     assert "not currently parity-equivalent with phosr for sps/ruv-iii" in (normalized)
     assert "no sps control-selection fixtures" in normalized
-    assert "no native ruv-iii correction-kernel parity fixtures" in normalized
+    assert "no ruv-iii kernel parity fixtures" in normalized
     assert "no phosr `ruvphospho` corrected-output parity fixtures" in normalized
     assert "validated phospy implementation, not current phosr parity" in normalized
 
@@ -641,7 +636,8 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "not mixed-effects modelling" in normalized
     assert "does not solve all batch-effect problems" in normalized
     assert "caller-supplied controls" in normalized
-    assert "correction remains in dataset preprocessing" in normalized
+    assert "dataset preprocessing supports two explicit native" in normalized
+    assert "sps discovery stays separate from correction execution" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
     assert "report-only ruv-readiness metadata" in normalized
     assert "executable only through the separate explicit" in normalized
@@ -656,36 +652,27 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "upstream-imputed cells remain tracked" in normalized
     assert "observation-mask provenance" in normalized
     assert "not treated as observed evidence" in normalized
-    assert "requires a complete correction-stage matrix" in normalized
-    assert "rejects actual missing values (nans) before executor invocation" in (
-        normalized
-    )
-    assert (
-        "not permission for actual nans to pass through the public native workflow"
-        in (normalized)
-    )
-    assert "not executable ruv-iii support" in normalized
-    assert "replicate-aware ruv-iii semantics" in normalized
-    assert "not used for numerical unwanted-factor estimation" in normalized
+    assert "`sps_ruv_style` rejects actual missing values" in normalized
+    assert "ruv-iii can use governed internal row-median completion" in normalized
+    assert 'method="ruv_iii_style"' in normalized
+    assert "replicate-set mapping used directly by the ruv-iii estimator" in normalized
+    assert "provenance-only semantics" in normalized
 
 
-def test_dataset_build_docs_state_native_sps_ruv_rejects_actual_nans() -> None:
+def test_dataset_build_docs_distinguish_native_missingness_contracts() -> None:
     normalized = " ".join(_dataset_build_workflow_text().lower().split())
 
     assert (
-        "public native sps/ruv-style workflow requires a complete correction-stage matrix"
+        "public `sps_ruv_style` workflow requires a complete correction-stage matrix"
         in (normalized)
-    )
-    assert "does not let actual nans pass through the public native workflow" in (
-        normalized
     )
     assert "rejects actual missing values (nans) before executor invocation" in (
         normalized
     )
+    assert "ruv-iii can temporarily complete governed missing cells" in normalized
+    assert "restores those positions after correction" in normalized
     assert "with observation-mask provenance" in normalized
-    assert "not a way to pass actual nans through the public native workflow" in (
-        normalized
-    )
+    assert "does not reclassify completed or upstream-imputed cells" in normalized
 
 
 def test_sps_ruv_docs_describe_multiple_condition_columns_as_joint_strata() -> None:

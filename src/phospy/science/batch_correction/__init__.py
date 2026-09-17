@@ -6,6 +6,7 @@ from phospy.science.batch_correction.executor import (
     SPS_RUV_STYLE_EXECUTOR_ID,
     SPS_RUV_STYLE_PROTECTED_TERM_ROLE,
     SPS_RUV_STYLE_REPLICATE_METADATA_ROLE,
+    BatchCorrectionExecutor,
     DeterministicSpsRuvStyleExecutor,
     SpsRuvStyleExecutor,
     SpsRuvStyleExecutorDiagnostics,
@@ -19,6 +20,14 @@ from phospy.science.batch_correction.ruv_iii import (
     RuvIIIReplicateStructure,
     RuvIIIResult,
     run_ruv_iii,
+)
+from phospy.science.batch_correction.ruv_iii_executor import (
+    RUV_III_STYLE_ALGORITHM_DESCRIPTION,
+    RUV_III_STYLE_EXECUTOR_ID,
+    RUV_III_STYLE_METHOD,
+    RuvIIIStyleExecutor,
+    RuvIIIStyleExecutorDiagnostics,
+    RuvIIIStyleExecutorResult,
 )
 from phospy.science.batch_correction.sps_discovery import (
     SPS_DISCOVERY_ALGORITHM_ID,
@@ -43,6 +52,7 @@ from phospy.science.batch_correction.sps_discovery import (
 )
 
 __all__ = [
+    "BatchCorrectionExecutor",
     "SPS_RUV_STYLE_ALGORITHM_DESCRIPTION",
     "SPS_RUV_STYLE_BATCH_TERM_ROLE",
     "SPS_RUV_STYLE_EXECUTOR_ID",
@@ -55,6 +65,9 @@ __all__ = [
     "SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING",
     "RUV_III_ALGORITHM_ID",
     "RUV_III_METHOD",
+    "RUV_III_STYLE_ALGORITHM_DESCRIPTION",
+    "RUV_III_STYLE_EXECUTOR_ID",
+    "RUV_III_STYLE_METHOD",
     "DeterministicSpsRuvStyleExecutor",
     "SpsDatasetSiteStatistic",
     "SpsDiscoveryConfig",
@@ -72,6 +85,9 @@ __all__ = [
     "SpsRuvStyleExecutorResult",
     "RuvIIIDiagnostics",
     "RuvIIIKernel",
+    "RuvIIIStyleExecutor",
+    "RuvIIIStyleExecutorDiagnostics",
+    "RuvIIIStyleExecutorResult",
     "RuvIIIReplicateStructure",
     "RuvIIIResult",
     "SpsSampleConditionAssignment",

@@ -41,10 +41,9 @@ SPS_RUV_STYLE_REPLICATE_METADATA_ROLE = (
     "and does not enable RUV-III or replicate-aware RUV-III semantics"
 )
 _UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE = (
-    "ruv_iii_style is not currently supported because replicate-aware RUV-III "
-    "numerical semantics are not implemented; use the supported native "
-    "SPS/RUV-style method only if applicable and explicitly configured; do not "
-    "imply equivalence to RUV-III"
+    "the sps_ruv_style executor cannot execute a ruv_iii_style plan; use the "
+    "native batch-correction executor dispatcher so replicate-aware RUV-III "
+    "plans reach their method-specific executor"
 )
 
 JsonScalar: TypeAlias = str | int | float | bool | None
@@ -305,6 +304,34 @@ class DeterministicSpsRuvStyleExecutor:
 
 
 SpsRuvStyleExecutor = DeterministicSpsRuvStyleExecutor
+
+
+class BatchCorrectionExecutor:
+    """Dispatch resolved native correction plans to method-specific executors."""
+
+    def __init__(
+        self,
+        *,
+        sps_ruv_style: DeterministicSpsRuvStyleExecutor | None = None,
+        ruv_iii_style: object | None = None,
+    ) -> None:
+        from phospy.science.batch_correction.ruv_iii_executor import (
+            RuvIIIStyleExecutor,
+        )
+
+        self._sps_ruv_style = sps_ruv_style or DeterministicSpsRuvStyleExecutor()
+        self._ruv_iii_style = ruv_iii_style or RuvIIIStyleExecutor()
+
+    def run(self, *, phospho: pd.DataFrame, plan: _ResolvedPlanLike) -> object:
+        method = str(plan.method).strip()
+        if method == SPS_RUV_STYLE_METHOD:
+            return self._sps_ruv_style.run(phospho=phospho, plan=plan)
+        if method == "ruv_iii_style":
+            return self._ruv_iii_style.run(phospho=phospho, plan=plan)  # type: ignore[union-attr]
+        raise PhosPyInputError(
+            "native batch-correction executor requires method='sps_ruv_style' "
+            f"or method='ruv_iii_style'; got method={method!r}"
+        )
 
 
 def _require_supported_plan(plan: _ResolvedPlanLike) -> None:
@@ -1193,6 +1220,7 @@ def _svd_tolerance(matrix: np.ndarray, singular_values: np.ndarray) -> float:
 
 
 __all__ = [
+    "BatchCorrectionExecutor",
     "SPS_RUV_STYLE_EXECUTOR_ID",
     "DeterministicSpsRuvStyleExecutor",
     "SpsRuvStyleExecutor",

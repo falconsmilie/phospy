@@ -21,12 +21,6 @@ from phospy.science.configs._validation import (
 _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
     {"retain_missing", "require_min_observed_values"}
 )
-UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE = (
-    "ruv_iii_style is not currently supported because replicate-aware RUV-III "
-    "numerical semantics are not implemented; use the supported native "
-    "SPS/RUV-style method only if applicable and explicitly configured; do not "
-    "imply equivalence to RUV-III"
-)
 
 
 def validate_preprocessing_section_type(
@@ -170,10 +164,6 @@ def validate_internal_batch_correction_request(
         method,
         field_name=f"{prefix}method",
     )
-    reject_unsupported_ruv_iii_style_method(
-        resolved_method,
-        field_name=f"{prefix}method",
-    )
     resolved_control_site_source = _coerce_internal_enum(
         control_site_source_type,
         control_site_source,
@@ -216,12 +206,26 @@ def validate_internal_batch_correction_request(
             error_type=PhosPyInputError,
             when_provided=True,
         )
+    if (
+        str(resolved_method.value) == "ruv_iii_style"
+        and resolved_replicate_column is None
+    ):
+        raise PhosPyInputError(
+            f"{prefix}replicate_column is required when method='ruv_iii_style'"
+        )
     resolved_n_unwanted_factors = require_optional_int_at_least(
         n_unwanted_factors,
         field_name=f"{prefix}n_unwanted_factors",
         minimum=1,
         error_type=PhosPyInputError,
     )
+    if (
+        str(resolved_method.value) == "ruv_iii_style"
+        and resolved_n_unwanted_factors is None
+    ):
+        raise PhosPyInputError(
+            f"{prefix}n_unwanted_factors is required when method='ruv_iii_style'"
+        )
     if not isinstance(diagnostics_enabled, bool):
         raise PhosPyInputError(f"{prefix}diagnostics_enabled must be a bool")
 
@@ -1252,17 +1256,6 @@ def _policy_value(value: object) -> str:
     return str(raw_value).strip()
 
 
-def reject_unsupported_ruv_iii_style_method(
-    method: object,
-    *,
-    field_name: str,
-) -> None:
-    value = getattr(method, "value", method)
-    if str(value).strip() != "ruv_iii_style":
-        return
-    raise PhosPyInputError(f"{field_name}: {UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE}")
-
-
 def _require_non_empty_string_sequence(
     value: object,
     *,
@@ -1322,9 +1315,7 @@ def _validate_internal_missing_imputation_pair(
 
 
 __all__ = [
-    "UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE",
     "reject_ambiguous_total_protein_adjustment_policies",
-    "reject_unsupported_ruv_iii_style_method",
     "validate_batch_correction_config",
     "validate_comparison_building_config",
     "validate_group_coverage_filter_config",

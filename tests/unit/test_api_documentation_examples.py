@@ -775,10 +775,19 @@ def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:
         source,
         (
             "replicate_column",
-            "not used",
-            "numerical unwanted-factor estimation",
+            "provenance",
+            "sps_ruv_style",
         ),
-        context="SPS/RUV replicate metadata role",
+        context="SPS/RUV historical replicate metadata role",
+    )
+    _assert_statement_contains_all(
+        source,
+        (
+            "ruv_iii_style",
+            "replicate_column",
+            "directly affect correction",
+        ),
+        context="RUV-III active replicate metadata role",
     )
 
     config = SpsRuvBatchCorrectionConfig(

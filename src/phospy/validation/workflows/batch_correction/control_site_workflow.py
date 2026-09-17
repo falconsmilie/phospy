@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phospy.contracts.configs.preprocessing import InternalBatchCorrectionMethod
 from phospy.science.datasets.preprocessing.control_sites import ControlSiteMapping
 from phospy.validation.workflows.batch_correction.control_sites import (
     ControlSiteEligibilityValidator,
@@ -38,7 +39,9 @@ class BatchCorrectionWorkflowControlSiteValidator:
             dataset_organism=request.dataset_organism,
             n_unwanted_factors=config.n_unwanted_factors,
             control_site_source_type=config.control_site_source.value,
-            supports_weights=True,
+            supports_weights=(
+                config.method is InternalBatchCorrectionMethod.SPS_RUV_STYLE
+            ),
             supports_groups=False,
             supports_weighted_groups=False,
         )

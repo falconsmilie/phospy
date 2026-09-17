@@ -156,8 +156,8 @@ PhosR-equivalent corrected output. Native SPS/RUV-style correction is
 executable only through the separate explicit `SpsRuvBatchCorrectionConfig`
 preprocessing config.
 
-Native SPS/RUV-style correction also stays in dataset preprocessing. The native
-PhosPy SPS/RUV-style preprocessing correction estimates unwanted factors from
+Native SPS/RUV-style and RUV-III-style correction stay in dataset preprocessing.
+The established `sps_ruv_style` method estimates unwanted factors from
 eligible caller-supplied control `site_key` residuals after protected-design
 handling, applies the correction to the phosphosite matrix before downstream
 workflows consume it, and records diagnostics plus `BatchCorrectionProvenance`.
@@ -165,30 +165,37 @@ Batch terms are resolved for validation and diagnostics, including
 batch-associated-variance summaries; they are not directly residualized as
 fixed effects by the native correction. Required inputs are aligned
 `sample_metadata` with batch and protected condition columns, replicate
-metadata only when the caller wants it recorded for provenance and diagnostics,
+metadata only when the caller wants it recorded for provenance and diagnostics
+for `sps_ruv_style`,
 an explicit `ControlSiteSet`, `CorrectionMissingnessPolicy`,
 `n_unwanted_factors`, diagnostics, and provenance. Multiple protected condition
 columns mean the native correction protects joint condition strata such as
 `condition=treated|timepoint=early`; it does not fit additive
-protected-condition terms. Providing
-`replicate_column` in the native lane does not enable replicate-aware RUV-III
-correction semantics; replicate labels are not used for numerical
-unwanted-factor estimation and do not enable RUV-III semantics. Temporary
+protected-condition terms. Providing `replicate_column` for `sps_ruv_style`
+retains those historical provenance-only semantics. Selecting
+`method="ruv_iii_style"` requires `replicate_column`; those assignments define
+the replicate-set mapping used directly by the RUV-III estimator. RUV-III
+protects biological structure through within-replicate-set residualisation,
+while condition metadata remains validated and recorded rather than being
+forced into the `sps_ruv_style` fixed-effect protection model. Temporary
 imputation is correction mechanics only:
 observation masks preserve which cells were originally observed, and imputed
 temporary values must not be treated as observed evidence. Recognized
 native-correction temporary-imputation policy/mechanics labels are `none` and
 `row_median_temporary`; `row_median_temporary` is not public-workflow
-permission to correct incomplete matrices. The public native workflow requires
-a complete correction-stage matrix and rejects actual missing values (NaNs)
-before executor invocation. `minprob_temporary` and `knn_temporary` are
+permission to correct incomplete matrices for `sps_ruv_style`. RUV-III can use
+governed internal row-median completion, restores actual missing positions after
+the numerical operation, and never marks completed values as observed evidence.
+Analysis-ready dataset construction still requires a complete matrix, so normal
+dataset preprocessing supplies upstream-imputed numeric values with a false
+observation mask. `minprob_temporary` and `knn_temporary` are
 rejected until supported semantics are implemented. Upstream-imputed cells
 remain tracked through observation masks and are not treated as observed evidence.
 Differential batch covariates
 remain ordinary downstream model terms; they do not replace preprocessing
 correction and are not removed from the differential design when the user
-chooses to model them. The `ruv_iii_style` method label is not executable
-unless a future feature implements replicate-aware RUV-III semantics.
+chooses to model them. This is a native PhosPy RUV-III implementation, not a
+claim of PhosR numerical parity.
 
 Externally supplied `CorrectedPreprocessingOutput` must enter only at a safe
 dataset preprocessing boundary. It cannot be combined with configured

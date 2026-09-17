@@ -122,8 +122,12 @@ correction surface. It requires caller-supplied control-site annotations, batch
 and protected condition metadata, optional replicate metadata for provenance,
 explicit missingness policy, unwanted-factor count, diagnostics, and
 provenance.
-RUV-III correction remains unsupported until replicate-aware RUV-III numerical
-semantics are implemented.
+`ruv_iii_style` now provides separately identified replicate-aware RUV-III
+semantics through the same preprocessing boundary. It requires explicit
+replicate metadata and consumes an already governed `ControlSiteSet`; SPS
+reference preparation and discovery remain separate operations. The historical
+`sps_ruv_style` estimator and its provenance-only replicate semantics are
+unchanged. This implementation is not a PhosR numerical-parity claim.
 
 Differential workflow batch covariates remain model terms inside differential
 analysis. They must not be documented as preprocessing correction.

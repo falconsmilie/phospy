@@ -12,6 +12,7 @@ from phospy.contracts.configs.preprocessing import (
     SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
     SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER,
     CorrectionMissingnessPolicy,
+    InternalBatchCorrectionMethod,
     InternalBatchCorrectionRequest,
     InternalBatchCorrectionStageOrder,
     ObservationMask,
@@ -32,6 +33,11 @@ REPLICATE_METADATA_ROLE_DESCRIPTION = (
     "replicate metadata is validated and recorded for provenance and diagnostics "
     "only; it is not used for numerical unwanted-factor estimation and does not "
     "enable RUV-III or replicate-aware RUV-III semantics"
+)
+RUV_III_REPLICATE_METADATA_ROLE = "numerical_replicate_structure"
+RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION = (
+    "replicate metadata defines the replicate-set mapping used directly by "
+    "replicate-aware RUV-III unwanted-factor estimation"
 )
 
 
@@ -66,18 +72,28 @@ class ReplicateStructure:
     replicate_labels: tuple[str, ...] | None
     replicate_groups: Mapping[str, tuple[str, ...]]
     structure_diagnostics: ReplicateStructureDiagnostics | None = None
+    used_for_numerical_factor_estimation: bool = False
+    ruv_iii_semantics_enabled: bool = False
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible payload."""
 
         return {
             "replicate_column": self.replicate_column,
-            "replicate_metadata_role": REPLICATE_METADATA_ROLE,
-            "replicate_metadata_role_description": (
-                REPLICATE_METADATA_ROLE_DESCRIPTION
+            "replicate_metadata_role": (
+                RUV_III_REPLICATE_METADATA_ROLE
+                if self.ruv_iii_semantics_enabled
+                else REPLICATE_METADATA_ROLE
             ),
-            "used_for_numerical_factor_estimation": False,
-            "ruv_iii_semantics_enabled": False,
+            "replicate_metadata_role_description": (
+                RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION
+                if self.ruv_iii_semantics_enabled
+                else REPLICATE_METADATA_ROLE_DESCRIPTION
+            ),
+            "used_for_numerical_factor_estimation": (
+                self.used_for_numerical_factor_estimation
+            ),
+            "ruv_iii_semantics_enabled": self.ruv_iii_semantics_enabled,
             "replicate_by_sample": (
                 None
                 if self.replicate_by_sample is None
@@ -198,6 +214,9 @@ class BatchCorrectionPlanInterpreter:
             replicate_by_sample=dataset_metadata.replicate_by_sample,
             structure_diagnostics=(dataset_metadata.replicate_structure_diagnostics),
             sample_order=sample_order,
+            ruv_iii_semantics_enabled=(
+                config.method is InternalBatchCorrectionMethod.RUV_III_STYLE
+            ),
         )
         diagnostic_requirements = _diagnostic_requirements(
             diagnostics_enabled=bool(config.diagnostics_enabled)
@@ -316,6 +335,7 @@ def _replicate_structure(
     replicate_by_sample: Mapping[str, str] | None,
     structure_diagnostics: ReplicateStructureDiagnostics | None,
     sample_order: tuple[str, ...],
+    ruv_iii_semantics_enabled: bool = False,
 ) -> ReplicateStructure:
     if replicate_by_sample is None:
         return ReplicateStructure(
@@ -324,6 +344,8 @@ def _replicate_structure(
             replicate_labels=None,
             replicate_groups={},
             structure_diagnostics=None,
+            used_for_numerical_factor_estimation=ruv_iii_semantics_enabled,
+            ruv_iii_semantics_enabled=ruv_iii_semantics_enabled,
         )
     labels = tuple(replicate_by_sample[sample] for sample in sample_order)
     grouped: dict[str, list[str]] = {}
@@ -337,6 +359,8 @@ def _replicate_structure(
         replicate_labels=labels,
         replicate_groups={label: tuple(samples) for label, samples in grouped.items()},
         structure_diagnostics=structure_diagnostics,
+        used_for_numerical_factor_estimation=ruv_iii_semantics_enabled,
+        ruv_iii_semantics_enabled=ruv_iii_semantics_enabled,
     )
 
 
@@ -399,15 +423,29 @@ def _provenance_seed_data(
     control_site_mapping: ControlSiteMapping,
     missingness_policy: CorrectionMissingnessPolicy,
 ) -> dict[str, object]:
+    ruv_iii = config.method is InternalBatchCorrectionMethod.RUV_III_STYLE
     return {
         "method": config.method.value,
         "batch_column": config.batch_column,
         "condition_columns": list(config.condition_columns),
         "replicate_column": config.replicate_column,
-        "replicate_metadata_role": REPLICATE_METADATA_ROLE,
-        "replicate_metadata_role_description": REPLICATE_METADATA_ROLE_DESCRIPTION,
-        "replicate_metadata_used_for_numerical_factor_estimation": False,
-        "replicate_metadata_enables_ruv_iii_semantics": False,
+        "replicate_metadata_role": (
+            RUV_III_REPLICATE_METADATA_ROLE if ruv_iii else REPLICATE_METADATA_ROLE
+        ),
+        "replicate_metadata_role_description": (
+            RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION
+            if ruv_iii
+            else REPLICATE_METADATA_ROLE_DESCRIPTION
+        ),
+        "replicate_metadata_used_for_numerical_factor_estimation": ruv_iii,
+        "replicate_metadata_enables_ruv_iii_semantics": ruv_iii,
+        "condition_protection_strategy": (
+            "biological structure is protected through within-replicate-set "
+            "residualization; condition metadata is validated and recorded but "
+            "is not injected as the sps_ruv_style protected fixed-effect design"
+            if ruv_iii
+            else "condition terms are included in the protected fixed-effect design"
+        ),
         "control_site_source": config.control_site_source.value,
         "control_site_mode": config.control_site_mode.value,
         "missing_value_policy": config.missing_value_policy.value,
@@ -483,6 +521,8 @@ __all__ = [
     "EligibleControlSiteRow",
     "REPLICATE_METADATA_ROLE",
     "REPLICATE_METADATA_ROLE_DESCRIPTION",
+    "RUV_III_REPLICATE_METADATA_ROLE",
+    "RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION",
     "ReplicateStructure",
     "ResolvedBatchCorrectionPlan",
 ]

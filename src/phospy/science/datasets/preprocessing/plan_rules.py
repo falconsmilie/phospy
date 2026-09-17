@@ -20,12 +20,10 @@ from phospy.science.configs.preprocessing import (
 )
 from phospy.science.configs.preprocessing._validation import (
     reject_ambiguous_total_protein_adjustment_policies,
-    reject_unsupported_ruv_iii_style_method,
     validate_group_coverage_filter_config,
 )
 from phospy.science.datasets.preprocessing.plan_constants import (
     DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
-    UNSUPPORTED_BATCH_CORRECTION_METHOD_RUV_III_STYLE,
 )
 from phospy.science.datasets.preprocessing.plan_resolved import (
     ResolvedBatchCorrectionPlanFields,
@@ -519,14 +517,6 @@ class PreprocessingBatchCorrectionModeRule:
         method = str(batch_correction_method).strip()
         if not method:
             method = DATASET_BATCH_CORRECTION_METHOD_NONE
-        if method == UNSUPPORTED_BATCH_CORRECTION_METHOD_RUV_III_STYLE:
-            reject_unsupported_ruv_iii_style_method(
-                method,
-                field_name=(
-                    "dataset preprocessing plan batch_correction_method "
-                    "(internal model)"
-                ),
-            )
         if (
             method
             not in {
@@ -538,7 +528,7 @@ class PreprocessingBatchCorrectionModeRule:
             raise PhosPyInputError(
                 "dataset preprocessing plan batch_correction_method "
                 "(internal model) must be one of: none, "
-                "linear_residualize_batch, sps_ruv_style"
+                "linear_residualize_batch, sps_ruv_style, ruv_iii_style"
             )
         return ResolvedBatchCorrectionModeFields(
             batch_correction_method=method,

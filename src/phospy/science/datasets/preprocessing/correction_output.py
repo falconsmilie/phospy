@@ -54,7 +54,9 @@ from phospy.science.datasets.preprocessing.models import (
 
 _DOWNSTREAM_WORKFLOWS_STAGE = "downstream_workflows"
 _SUPPORTED_STATUS_VALUES = frozenset({"corrected_observed", "restored_missing"})
-_SUPPORTED_EXTERNAL_CORRECTED_OUTPUT_METHODS = frozenset({"sps_ruv_style"})
+_SUPPORTED_EXTERNAL_CORRECTED_OUTPUT_METHODS = frozenset(
+    {"sps_ruv_style", "ruv_iii_style"}
+)
 _EXTERNAL_CORRECTED_OUTPUT_PROVENANCE_REQUIREMENT = (
     "external corrected outputs require applied correction status and a supported "
     "applied correction method with method-specific provenance"

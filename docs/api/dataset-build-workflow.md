@@ -426,12 +426,12 @@ and number of factors. PhosPy does not fetch or silently choose controls.
 
 Batch terms are resolved for validation and diagnostics; they are not directly
 residualized as fixed effects by the native correction. This implementation is
-not PhosR-equivalent SPS/RUV-III parity. Replicate-aware RUV-III semantics are
-not implemented.
+not PhosR-equivalent SPS/RUV-III parity.
 
-The optional `replicate_column` is checked and recorded for diagnostics and
-provenance. The `replicate_column` metadata is not used for numerical
-unwanted-factor estimation and does not enable RUV-III behavior.
+For the default `sps_ruv_style` method, optional `replicate_column` metadata is
+checked and recorded for diagnostics and provenance only. For
+`ruv_iii_style`, the column is required and defines the replicate-set mapping
+used in numerical unwanted-factor estimation.
 
 <details markdown="1">
 <summary><strong>Native Correction Configuration and Safety Boundaries</strong></summary>
@@ -511,8 +511,16 @@ preprocessing = DatasetPreprocessingConfig(
 )
 ```
 
-The public native SPS/RUV-style workflow requires a complete correction-stage
-matrix and rejects actual missing values (NaNs) before executor invocation.
+The example uses the default `method="sps_ruv_style"`, where replicate metadata
+remains provenance/diagnostic-only. Set `method="ruv_iii_style"` to select the
+separate replicate-aware estimator; `replicate_column` is then required and its
+assignments directly affect correction.
+
+The public `sps_ruv_style` workflow requires a complete correction-stage matrix
+and rejects actual missing values (NaNs) before executor invocation. RUV-III can
+temporarily complete governed missing cells and restores those positions after
+correction, but analysis-ready construction still requires upstream missing-data
+preprocessing to supply complete numeric values with an observation mask.
 Upstream-imputed cells may remain identified with observation-mask provenance
 through an `ObservationMask`; they are not treated as observed evidence.
 
@@ -544,9 +552,9 @@ missingness_policy = CorrectionMissingnessPolicy(
 ```
 
 `TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` is a recorded correction
-mechanic. It does not let actual NaNs pass through the public native workflow,
-and it is not a way to pass actual NaNs through the public native workflow or
-to reclassify imputed cells as observed evidence.
+mechanic. It does not reclassify completed or upstream-imputed cells as observed
+evidence. In RUV-III executor diagnostics, actual missing positions are restored;
+they cannot be emitted as analysis-ready observed measurements.
 
 #### Rejected Unsafe Example
 

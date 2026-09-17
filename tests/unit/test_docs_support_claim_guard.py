@@ -671,24 +671,14 @@ def test_public_docs_do_not_make_ambiguous_temporary_imputation_claims() -> None
     assert not failures, "\n\n".join(failures)
 
 
-def test_public_docs_describe_ruv_iii_style_only_as_non_executable() -> None:
-    allowed = re.compile(
-        r"\b(?:not|no)\s+executable\b|\bnot\s+currently\s+supported\b",
-        re.IGNORECASE,
+def test_public_docs_describe_ruv_iii_style_as_distinct_from_phosr_parity() -> None:
+    workflow_contracts = (DOCS_ROOT / "workflow_contracts.md").read_text(
+        encoding="utf-8"
     )
-    offenders: list[str] = []
-    for path in _public_docs_paths():
-        for line_number, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(),
-            start=1,
-        ):
-            if "ruv_iii_style" not in line:
-                continue
-            if allowed.search(line):
-                continue
-            offenders.append(f"{path.relative_to(ROOT).as_posix()}:{line_number}")
 
-    assert not offenders
+    assert 'method="ruv_iii_style"' in workflow_contracts
+    assert "used directly by the RUV-III estimator" in workflow_contracts
+    assert "not a\nclaim of PhosR numerical parity" in workflow_contracts
 
 
 def test_public_docs_do_not_promote_removed_native_method_alias() -> None:

@@ -27,8 +27,8 @@ from phospy.validation.datasets.batch_correction_controls import (
     require_unique_selected_control_site_rows,
 )
 
-_APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style"})
-_UNSUPPORTED_SPS_RUV_METHODS = frozenset({"ruv_iii_style"})
+_APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style", "ruv_iii_style"})
+_UNSUPPORTED_SPS_RUV_METHODS: frozenset[str] = frozenset()
 _MISSING_PROVENANCE_MESSAGE = (
     "corrected_preprocessing_output with applied native SPS/RUV-style correction "
     "requires typed BatchCorrectionProvenance"
@@ -100,6 +100,7 @@ def _validate_complete_sps_ruv_provenance(
     _require_selected_control_count_for_unwanted_factors(
         selected_site_key_rows=selected_site_key_rows,
         n_unwanted_factors=n_unwanted_factors,
+        method=requested_method,
     )
     require_unique_selected_control_site_rows(selected_site_key_rows)
     require_control_site_source_metadata(
@@ -114,6 +115,22 @@ def _validate_complete_sps_ruv_provenance(
         provenance.design_metadata,
         field_name="BatchCorrectionProvenance.design_metadata",
     )
+    if requested_method == "ruv_iii_style":
+        require_non_empty_mapping(
+            provenance.replicate_metadata,
+            field_name="BatchCorrectionProvenance.replicate_metadata",
+        )
+        replicate_metadata = cast(Mapping[str, object], provenance.replicate_metadata)
+        if replicate_metadata.get("used_for_numerical_factor_estimation") is not True:
+            raise PhosPyInputError(
+                "corrected_preprocessing_output RUV-III provenance must record "
+                "replicate metadata as active numerical estimator input"
+            )
+        if replicate_metadata.get("ruv_iii_semantics_enabled") is not True:
+            raise PhosPyInputError(
+                "corrected_preprocessing_output RUV-III provenance must record "
+                "ruv_iii_semantics_enabled=True"
+            )
     require_non_empty_mapping(
         provenance.missing_value_policy,
         field_name="BatchCorrectionProvenance.missing_value_policy",
@@ -230,10 +247,15 @@ def _require_selected_control_count_for_unwanted_factors(
     *,
     selected_site_key_rows: Sequence[str],
     n_unwanted_factors: int,
+    method: str,
 ) -> None:
     duplicates = duplicates_in_order(selected_site_key_rows)
     selected_count = len(unique_in_order(selected_site_key_rows))
-    required_count = n_unwanted_factors + 1
+    required_count = (
+        max(2, n_unwanted_factors)
+        if method == "ruv_iii_style"
+        else n_unwanted_factors + 1
+    )
     if selected_count < required_count:
         duplicate_detail = (
             ""

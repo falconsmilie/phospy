@@ -217,9 +217,7 @@ def _reject_unexecutable_temporary_imputation_method(
     raise PhosPyInputError(
         "batch-correction workflow missingness validation found unsupported "
         f"temporary imputation: {detail}. Recognized temporary-imputation "
-        "policy/mechanics labels are none and row_median_temporary; actual "
-        "correction-stage NaNs are rejected by the public native workflow "
-        "before executor invocation."
+        "policy/mechanics labels are none and row_median_temporary."
     )
 
 

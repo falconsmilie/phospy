@@ -13,7 +13,7 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import JsonValue
-from phospy.science.batch_correction import SpsRuvStyleExecutor
+from phospy.science.batch_correction import BatchCorrectionExecutor
 from phospy.science.datasets.preprocessing.correction_output import (
     CorrectedPreprocessingOutput,
 )
@@ -106,7 +106,7 @@ class BatchCorrectionWorkflow:
         )
         self._executor: BatchCorrectionExecutorContract = executor or cast(
             BatchCorrectionExecutorContract,
-            SpsRuvStyleExecutor(),
+            BatchCorrectionExecutor(),
         )
         self._provenance_recorder: BatchCorrectionProvenanceRecorderContract = (
             provenance_recorder or BatchCorrectionProvenanceRecorder()

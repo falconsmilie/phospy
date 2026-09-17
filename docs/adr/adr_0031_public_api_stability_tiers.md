@@ -408,7 +408,8 @@ of truth; this ADR records the policy classification for review.
 - DatasetBatchCorrectionConfig
 - DatasetBatchCorrectionMethod
 - DatasetPreprocessingBatchCorrectionConfig
-- SpsRuvBatchCorrectionConfig (native PhosPy SPS/RUV-style; not RUV-III)
+- SpsRuvBatchCorrectionConfig (native PhosPy `sps_ruv_style` and
+  replicate-aware `ruv_iii_style`; not a PhosR parity claim)
 - SpsRuvBatchCorrectionMethod
 - DatasetComparisonBuildingConfig
 - DatasetComparisonBuildingPolicy

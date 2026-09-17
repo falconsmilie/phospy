@@ -12,7 +12,6 @@ from phospy.science.configs._validation import (
     require_supported_literal,
 )
 from phospy.science.configs.preprocessing._validation import (
-    reject_unsupported_ruv_iii_style_method,
     validate_batch_correction_config,
 )
 from phospy.science.configs.preprocessing.correction_missingness import (
@@ -39,10 +38,12 @@ DATASET_BATCH_CORRECTION_METHODS = frozenset(
     }
 )
 DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE = "sps_ruv_style"
-SpsRuvBatchCorrectionMethod = Literal["sps_ruv_style"]
+DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE = "ruv_iii_style"
+SpsRuvBatchCorrectionMethod = Literal["sps_ruv_style", "ruv_iii_style"]
 SPS_RUV_BATCH_CORRECTION_METHODS = frozenset(
     {
         DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
+        DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE,
     }
 )
 NATIVE_RECOGNIZED_TEMPORARY_IMPUTATION_POLICY_LABELS = frozenset(
@@ -92,12 +93,11 @@ class SpsRuvBatchCorrectionConfig:
 
     The caller must supply controls and correction policy metadata. This
     configuration never selects controls, fetches online resources, or permits
-    correction without provenance. `replicate_column`, when provided for the
-    native lane, is recorded for provenance and diagnostics only; it does not
-    enable replicate-aware RUV-III correction semantics. The only supported
-    public native method label is `sps_ruv_style`; `ruv_iii_style` remains an
-    explicitly rejected roadmap label until replicate-aware RUV-III semantics
-    are implemented.
+    correction without provenance. For `sps_ruv_style`, `replicate_column`
+    retains its historical provenance and diagnostics only role and does not
+    enable replicate-aware RUV-III. For
+    `ruv_iii_style`, it is required and defines the replicate sets used by the
+    numerical RUV-III estimator.
     """
 
     control_site_set: object
@@ -116,10 +116,6 @@ class SpsRuvBatchCorrectionConfig:
     def __post_init__(self) -> None:
         method_field_name = (
             "dataset build request preprocessing_config.batch_correction.method"
-        )
-        reject_unsupported_ruv_iii_style_method(
-            self.method,
-            field_name=method_field_name,
         )
         method = require_supported_literal(
             self.method,
@@ -150,6 +146,14 @@ class SpsRuvBatchCorrectionConfig:
                 when_provided=True,
             )
         )
+        if (
+            method == DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE
+            and replicate_column is None
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.batch_correction."
+                "replicate_column is required when method='ruv_iii_style'"
+            )
         if not isinstance(self.missingness_policy, CorrectionMissingnessPolicy):
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.batch_correction."
@@ -228,10 +232,11 @@ def validate_native_executable_temporary_imputation_method(
 ) -> None:
     """Validate recognized public native SPS/RUV temporary-imputation labels.
 
-    This only recognizes policy/mechanics labels (`none` and
-    `row_median_temporary`). It does not permit correction over incomplete
-    matrices: actual correction-stage NaNs are rejected by the public native
-    workflow before executor invocation.
+    This recognizes the executable policy/mechanics labels (`none` and
+    `row_median_temporary`). Method-specific workflow validation decides whether
+    actual correction-stage NaNs are accepted: `sps_ruv_style` rejects them,
+    while `ruv_iii_style` can complete them internally and restore them after
+    correction.
     """
 
     if not isinstance(policy, CorrectionMissingnessPolicy):
@@ -258,8 +263,7 @@ def validate_native_executable_temporary_imputation_method(
         "dataset build request preprocessing_config.batch_correction."
         "missingness_policy has unsupported temporary imputation: "
         f"{detail}. Recognized temporary-imputation policy/mechanics labels "
-        "are none and row_median_temporary; actual correction-stage NaNs are "
-        "rejected by the public native workflow before executor invocation."
+        "are none and row_median_temporary."
     )
 
 
@@ -336,8 +340,8 @@ def _internal_imputation_method(
         "missingness_policy temporary imputation method is unsupported for "
         "native SPS/RUV-style correction; recognized temporary-imputation "
         "policy/mechanics labels are none and row_median_temporary, but this "
-        "mapping does not permit actual correction-stage NaNs through the "
-        "public native workflow"
+        "mapping requires method-specific workflow validation before actual "
+        "correction-stage NaNs can be executed"
     )
 
 
@@ -355,6 +359,7 @@ def _resolve_control_site_mode(
 __all__ = [
     "DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH",
     "DATASET_BATCH_CORRECTION_METHOD_NONE",
+    "DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE",
     "DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE",
     "DATASET_BATCH_CORRECTION_METHODS",
     "NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS",

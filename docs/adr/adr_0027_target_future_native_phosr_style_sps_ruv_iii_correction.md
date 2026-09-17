@@ -9,8 +9,9 @@
 - **Decision Type:** Architecture and Scientific Roadmap
 - **Refined By:** ADR-0029
 - **Implemented By:** `SpsRuvBatchCorrectionConfig` native SPS/RUV-style
-  preprocessing correction. The implementation is not a PhosR-equivalent
-  SPS/RUV-III parity claim.
+  preprocessing correction, including separately identified `sps_ruv_style`
+  and replicate-aware `ruv_iii_style` methods. The implementation is not a
+  PhosR-equivalent SPS/RUV-III parity claim.
 
 ## Decision
 
@@ -61,6 +62,6 @@ workflows.
 
 ## Non-Goals
 
-This ADR does not implement SPS/RUV/RUV-III correction, add public workflow
-flags, bundle control phosphosite resources, or claim PhosR batch-correction
-parity.
+This ADR does not add boolean workflow flags, bundle control phosphosite
+resources, or claim PhosR batch-correction parity. Its prerequisite boundary is
+now implemented by the explicitly selected native methods described above.

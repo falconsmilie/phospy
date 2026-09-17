@@ -387,7 +387,7 @@ def test_sps_ruv_style_executor_defensively_rejects_ruv_iii_style_plan() -> None
 
     with pytest.raises(
         PhosPyInputError,
-        match="replicate-aware RUV-III numerical semantics are not implemented",
+        match="sps_ruv_style executor cannot execute a ruv_iii_style plan",
     ):
         DeterministicSpsRuvStyleExecutor().run(
             phospho=_phospho(),

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from phospy.contracts.configs.preprocessing._validation import (
-    UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE,
-    reject_unsupported_ruv_iii_style_method,
     validate_batch_correction_config,
     validate_comparison_building_config,
     validate_group_coverage_filter_config,
@@ -23,8 +21,6 @@ from phospy.contracts.configs.preprocessing._validation import (
 )
 
 __all__ = [
-    "UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE",
-    "reject_unsupported_ruv_iii_style_method",
     "validate_batch_correction_config",
     "validate_comparison_building_config",
     "validate_group_coverage_filter_config",

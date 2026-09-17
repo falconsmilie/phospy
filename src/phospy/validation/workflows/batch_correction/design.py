@@ -13,6 +13,7 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.science.batch_correction.ruv_iii import RuvIIIReplicateStructure
 from phospy.science.datasets.preprocessing.control_sites import ControlSiteMapping
 from phospy.validation.datasets.batch_correction import (
     BatchCorrectionAdequacyValidator,
@@ -62,6 +63,8 @@ class BatchCorrectionWorkflowDesignValidator:
             and config.replicate_column is not None
         ):
             _reject_invalid_supplied_replicate_structure(metadata)
+        if config.method is InternalBatchCorrectionMethod.RUV_III_STYLE:
+            _validate_ruv_iii_replicate_structure(metadata)
         self._adequacy_validator.run(
             batch_by_sample=metadata.batch_by_sample,
             condition_by_sample=metadata.condition_by_sample,
@@ -85,6 +88,11 @@ class BatchCorrectionWorkflowFactorFeasibilityValidator:
     ) -> None:
         requested = request.config.n_unwanted_factors
         if requested is None:
+            if request.config.method is InternalBatchCorrectionMethod.RUV_III_STYLE:
+                raise PhosPyInputError(
+                    "RUV-III factor feasibility validation requires an explicit "
+                    "n_unwanted_factors (k)"
+                )
             requested = 1
         if isinstance(requested, bool) or not isinstance(requested, int):
             raise PhosPyInputError(
@@ -101,6 +109,39 @@ class BatchCorrectionWorkflowFactorFeasibilityValidator:
             row for row in control_site_mapping.row_eligibility if row.is_control
         )
         control_count = len(controls)
+        if request.config.method is InternalBatchCorrectionMethod.RUV_III_STYLE:
+            required_controls = max(2, requested)
+            if control_count < required_controls:
+                raise PhosPyInputError(
+                    "RUV-III factor feasibility validation failed: eligible "
+                    f"controls are too few for k={requested}; observed "
+                    f"{control_count}, required at least {required_controls}"
+                )
+            replicate_by_sample = dataset_metadata.replicate_by_sample
+            if replicate_by_sample is None:
+                raise PhosPyInputError(
+                    "RUV-III factor feasibility validation requires replicate metadata"
+                )
+            replicate_structure = RuvIIIReplicateStructure.from_assignments(
+                sample_order=dataset_metadata.sample_order,
+                replicate_by_sample=replicate_by_sample,
+            )
+            residual_degrees_of_freedom = (
+                len(dataset_metadata.sample_order) - replicate_structure.set_count
+            )
+            if requested > residual_degrees_of_freedom:
+                raise PhosPyInputError(
+                    "RUV-III factor feasibility validation failed: requested "
+                    f"k={requested} exceeds replicate-residual degrees of freedom="
+                    f"{residual_degrees_of_freedom}"
+                )
+            # Validate that the configured missing-data mechanics can produce the
+            # finite working matrix required by the low-level RUV-III kernel.
+            _prepared_rank_matrix(
+                phospho=request.phospho,
+                missingness_policy=missingness_policy,
+            )
+            return
         if control_count <= requested:
             raise PhosPyInputError(
                 "batch-correction factor feasibility validation failed: eligible "
@@ -181,6 +222,40 @@ def _reject_invalid_supplied_replicate_structure(
             "replicate labels are perfectly confounded with protected condition "
             "metadata"
         )
+
+
+def _validate_ruv_iii_replicate_structure(
+    metadata: ResolvedBatchDesignMetadata,
+) -> None:
+    replicate_by_sample = metadata.replicate_by_sample
+    if replicate_by_sample is None:
+        raise PhosPyInputError(
+            "RUV-III correction requires replicate metadata for every sample"
+        )
+    structure = RuvIIIReplicateStructure.from_assignments(
+        sample_order=metadata.sample_order,
+        replicate_by_sample=replicate_by_sample,
+    )
+    condition_by_sample = metadata.condition_by_sample
+    for replicate_set in structure.set_ids:
+        samples = tuple(
+            sample
+            for sample, assigned_set in zip(
+                structure.sample_order,
+                structure.set_by_sample,
+                strict=True,
+            )
+            if assigned_set == replicate_set
+        )
+        conditions = tuple(
+            dict.fromkeys(condition_by_sample[sample] for sample in samples)
+        )
+        if len(conditions) > 1:
+            raise PhosPyInputError(
+                "RUV-III replicate sets must not cross protected condition "
+                f"strata; replicate set {replicate_set!r} contains conditions "
+                + ", ".join(repr(value) for value in conditions)
+            )
 
 
 def _treatment_coded_design(

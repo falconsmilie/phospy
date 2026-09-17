@@ -236,11 +236,52 @@ def test_internal_batch_correction_request_rejects_imputation_inconsistency() ->
         )
 
 
-def test_internal_batch_correction_request_rejects_ruv_iii_style() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="replicate-aware RUV-III numerical semantics are not implemented",
-    ):
+def test_internal_batch_correction_request_accepts_ruv_iii_style() -> None:
+    request = InternalBatchCorrectionRequest(
+        method=InternalBatchCorrectionMethod.RUV_III_STYLE,
+        batch_column="batch",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        control_site_source=(InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED),
+        control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
+        missing_value_policy=(InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING),
+        imputation_policy=InternalBatchCorrectionImputationPolicy.NONE,
+        n_unwanted_factors=1,
+        stage_order=(
+            InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
+        ),
+        diagnostics_enabled=True,
+    )
+
+    assert request.method is InternalBatchCorrectionMethod.RUV_III_STYLE
+    assert request.replicate_column == "replicate"
+
+
+def test_internal_batch_correction_request_requires_ruv_iii_replicates() -> None:
+    with pytest.raises(PhosPyInputError, match="replicate_column is required"):
+        InternalBatchCorrectionRequest(
+            method=InternalBatchCorrectionMethod.RUV_III_STYLE,
+            batch_column="batch",
+            condition_columns=("condition",),
+            replicate_column=None,
+            control_site_source=(
+                InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED
+            ),
+            control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
+            missing_value_policy=(
+                InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING
+            ),
+            imputation_policy=InternalBatchCorrectionImputationPolicy.NONE,
+            n_unwanted_factors=1,
+            stage_order=(
+                InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
+            ),
+            diagnostics_enabled=True,
+        )
+
+
+def test_internal_batch_correction_request_requires_explicit_ruv_iii_k() -> None:
+    with pytest.raises(PhosPyInputError, match="n_unwanted_factors is required"):
         InternalBatchCorrectionRequest(
             method=InternalBatchCorrectionMethod.RUV_III_STYLE,
             batch_column="batch",

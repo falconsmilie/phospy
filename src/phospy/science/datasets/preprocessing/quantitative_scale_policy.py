@@ -11,6 +11,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.science.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE,
     DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
     SPS_RUV_BATCH_CORRECTION_METHODS,
 )
@@ -36,6 +37,7 @@ class AdditivePreprocessingOperation(str, Enum):
     MEDIAN_CENTER = NormalisationPolicy.MEDIAN_CENTER.value
     LINEAR_RESIDUALIZE_BATCH = DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH
     SPS_RUV_STYLE = DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE
+    RUV_III_STYLE = DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +77,11 @@ def _iter_additive_operations(
     if method == DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH:
         yield AdditivePreprocessingOperation.LINEAR_RESIDUALIZE_BATCH
     elif method in SPS_RUV_BATCH_CORRECTION_METHODS:
-        yield AdditivePreprocessingOperation.SPS_RUV_STYLE
+        yield (
+            AdditivePreprocessingOperation.RUV_III_STYLE
+            if method == DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE
+            else AdditivePreprocessingOperation.SPS_RUV_STYLE
+        )
 
     if (
         corrected_preprocessing_output is None
@@ -86,7 +92,11 @@ def _iter_additive_operations(
     if corrected_method == DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH:
         yield AdditivePreprocessingOperation.LINEAR_RESIDUALIZE_BATCH
     elif corrected_method in SPS_RUV_BATCH_CORRECTION_METHODS:
-        yield AdditivePreprocessingOperation.SPS_RUV_STYLE
+        yield (
+            AdditivePreprocessingOperation.RUV_III_STYLE
+            if corrected_method == DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE
+            else AdditivePreprocessingOperation.SPS_RUV_STYLE
+        )
 
 
 def _resolve_downstream_scale_kind(

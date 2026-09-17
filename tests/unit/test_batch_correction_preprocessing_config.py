@@ -30,6 +30,7 @@ from phospy.contracts.configs import (
     validate_native_executable_temporary_imputation_method,
 )
 from phospy.errors import PhosPyInputError
+from phospy.science.configs.preprocessing import InternalBatchCorrectionMethod
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -120,7 +121,9 @@ def test_sps_ruv_config_docstring_marks_replicates_as_provenance_only() -> None:
     assert "does not enable replicate-aware ruv-iii" in normalized
 
 
-def test_native_temporary_imputation_validator_docstring_rejects_public_nans() -> None:
+def test_native_temporary_imputation_validator_docstring_distinguishes_methods() -> (
+    None
+):
     docstring = (
         inspect.getdoc(validate_native_executable_temporary_imputation_method) or ""
     )
@@ -130,10 +133,9 @@ def test_native_temporary_imputation_validator_docstring_rejects_public_nans() -
         normalized
     )
     assert "policy/mechanics labels" in normalized
-    assert (
-        "actual correction-stage nans are rejected by the public native workflow"
-        in (normalized)
-    )
+    assert "`sps_ruv_style` rejects them" in normalized
+    assert "`ruv_iii_style` can complete them internally" in normalized
+    assert "restore them after correction" in normalized
 
 
 def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> None:
@@ -180,7 +182,7 @@ def test_sps_ruv_batch_correction_config_rejects_knn_temporary_imputation() -> N
         )
 
 
-def test_native_temporary_imputation_error_states_public_nan_rejection() -> None:
+def test_native_temporary_imputation_error_lists_supported_methods() -> None:
     with pytest.raises(PhosPyInputError) as exc_info:
         validate_native_executable_temporary_imputation_method(
             _temporary_imputation_missingness_policy(
@@ -197,11 +199,6 @@ def test_native_temporary_imputation_error_states_public_nan_rejection() -> None
 
     assert "Recognized temporary-imputation policy/mechanics labels" in message
     assert "none and row_median_temporary" in message
-    assert (
-        "actual correction-stage NaNs are rejected by the public native workflow"
-        in message
-    )
-    assert "before executor invocation" in message
 
 
 def test_sps_ruv_batch_correction_config_rejects_minprob_temporary_imputation() -> None:
@@ -262,9 +259,7 @@ def test_sps_ruv_batch_correction_config_accepts_row_median_temporary_imputation
     assert request.imputation_policy.value == "row_median_temporary"
 
 
-def test_sps_ruv_batch_correction_config_accepts_only_sps_ruv_style_public_method() -> (
-    None
-):
+def test_sps_ruv_batch_correction_config_accepts_supported_native_methods() -> None:
     config = SpsRuvBatchCorrectionConfig(
         control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
         batch_column="ms_run",
@@ -275,8 +270,14 @@ def test_sps_ruv_batch_correction_config_accepts_only_sps_ruv_style_public_metho
     )
 
     assert config.method == "sps_ruv_style"
-    assert SPS_RUV_BATCH_CORRECTION_METHODS == {"sps_ruv_style"}
-    assert get_args(SpsRuvBatchCorrectionMethod) == ("sps_ruv_style",)
+    assert SPS_RUV_BATCH_CORRECTION_METHODS == {
+        "sps_ruv_style",
+        "ruv_iii_style",
+    }
+    assert get_args(SpsRuvBatchCorrectionMethod) == (
+        "sps_ruv_style",
+        "ruv_iii_style",
+    )
 
 
 def test_sps_ruv_batch_correction_config_rejects_control_site_ruv_style_publicly() -> (
@@ -285,7 +286,8 @@ def test_sps_ruv_batch_correction_config_rejects_control_site_ruv_style_publicly
     with pytest.raises(
         PhosPyInputError,
         match=(
-            "preprocessing_config.batch_correction.method must be one of: sps_ruv_style"
+            "preprocessing_config.batch_correction.method must be one of: "
+            "ruv_iii_style, sps_ruv_style"
         ),
     ) as exc_info:
         SpsRuvBatchCorrectionConfig(
@@ -300,16 +302,30 @@ def test_sps_ruv_batch_correction_config_rejects_control_site_ruv_style_publicly
     assert "control_site_ruv_style" not in str(exc_info.value)
 
 
-def test_sps_ruv_batch_correction_config_rejects_ruv_iii_style() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="replicate-aware RUV-III numerical semantics are not implemented",
-    ):
+def test_sps_ruv_batch_correction_config_accepts_ruv_iii_style() -> None:
+    config = SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        batch_column="ms_run",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+        method="ruv_iii_style",
+    )
+
+    assert config.method == "ruv_iii_style"
+    assert (
+        config.to_internal_request().method
+        is InternalBatchCorrectionMethod.RUV_III_STYLE
+    )
+
+
+def test_sps_ruv_batch_correction_config_requires_replicates_for_ruv_iii() -> None:
+    with pytest.raises(PhosPyInputError, match="replicate_column is required"):
         SpsRuvBatchCorrectionConfig(
             control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
             batch_column="ms_run",
             condition_columns=("condition",),
-            replicate_column="replicate",
             missingness_policy=CorrectionMissingnessPolicy(),
             n_unwanted_factors=1,
             method="ruv_iii_style",

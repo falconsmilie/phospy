@@ -85,7 +85,9 @@ FIXED_EFFECT_LINEAR_RESIDUALIZE = (
 )
 NATIVE_SPS_RUV_CONFIG = (
     "native phospy sps/ruv-style",
+    "native phospy sps_ruv_style",
     "native sps/ruv-style",
+    "native control-site correction",
     "phospy-native sps/ruv-style",
     "not phosr-equivalent",
     "not ruv-iii",

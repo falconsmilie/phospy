@@ -215,10 +215,12 @@ Common cross-field checks:
   missing values without a supported `CorrectionMissingnessPolicy`, unsupported
   temporary-imputation policies, missing observation masks when temporary
   imputation is allowed, and attempts to run correction without provenance.
-  Optional `replicate_column` metadata is validated and recorded for native-lane
-  provenance and diagnostics only; it is not used for numerical unwanted-factor
-  estimation and does not make RUV-III or replicate-aware RUV-III correction
-  executable.
+  Optional `replicate_column` metadata remains provenance/diagnostic-only for
+  `sps_ruv_style`. It is required and scientifically active for
+  `ruv_iii_style`: every sample must have exactly one assignment, every replicate
+  set must contain at least two samples, sets must not cross protected condition
+  strata, and `k` must fit the replicate-residual degrees of freedom and control
+  count.
   Validation does not infer organism or identifier namespace from `site_key`
   strings and does not fetch metadata online.
 

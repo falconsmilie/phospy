@@ -29,6 +29,8 @@ from phospy.workflows.batch_correction.contracts import (
 from phospy.workflows.batch_correction.interpreter import (
     REPLICATE_METADATA_ROLE,
     REPLICATE_METADATA_ROLE_DESCRIPTION,
+    RUV_III_REPLICATE_METADATA_ROLE,
+    RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION,
     ResolvedBatchCorrectionPlan,
 )
 
@@ -119,7 +121,12 @@ class BatchCorrectionProvenanceRecorder:
                     "condition_by_sample": dict(dataset_metadata.condition_by_sample),
                 }
             ),
-            replicate_metadata=_replicate_metadata(dataset_metadata),
+            replicate_metadata=_replicate_metadata(
+                dataset_metadata,
+                ruv_iii_semantics_enabled=(
+                    request.config.method.value == "ruv_iii_style"
+                ),
+            ),
             design_metadata=_json_mapping(
                 {
                     "condition_columns": list(request.config.condition_columns),
@@ -168,15 +175,22 @@ class BatchCorrectionProvenanceRecorder:
 
 def _config_payload(request: BatchCorrectionWorkflowRequest) -> dict[str, object]:
     config = request.config
+    ruv_iii = config.method.value == "ruv_iii_style"
     return {
         "method": config.method.value,
         "batch_column": config.batch_column,
         "condition_columns": list(config.condition_columns),
         "replicate_column": config.replicate_column,
-        "replicate_metadata_role": REPLICATE_METADATA_ROLE,
-        "replicate_metadata_role_description": REPLICATE_METADATA_ROLE_DESCRIPTION,
-        "replicate_metadata_used_for_numerical_factor_estimation": False,
-        "replicate_metadata_enables_ruv_iii_semantics": False,
+        "replicate_metadata_role": (
+            RUV_III_REPLICATE_METADATA_ROLE if ruv_iii else REPLICATE_METADATA_ROLE
+        ),
+        "replicate_metadata_role_description": (
+            RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION
+            if ruv_iii
+            else REPLICATE_METADATA_ROLE_DESCRIPTION
+        ),
+        "replicate_metadata_used_for_numerical_factor_estimation": ruv_iii,
+        "replicate_metadata_enables_ruv_iii_semantics": ruv_iii,
         "control_site_source": config.control_site_source.value,
         "control_site_mode": config.control_site_mode.value,
         "missing_value_policy": config.missing_value_policy.value,
@@ -401,15 +415,25 @@ def _has_strict_control_source_type(source: Mapping[str, object]) -> bool:
 
 def _replicate_metadata(
     dataset_metadata: ResolvedBatchDesignMetadata,
+    *,
+    ruv_iii_semantics_enabled: bool = False,
 ) -> Mapping[str, JsonValue] | None:
     if dataset_metadata.replicate_by_sample is None:
         return None
     return _json_mapping(
         {
-            "role": REPLICATE_METADATA_ROLE,
-            "role_description": REPLICATE_METADATA_ROLE_DESCRIPTION,
-            "used_for_numerical_factor_estimation": False,
-            "ruv_iii_semantics_enabled": False,
+            "role": (
+                RUV_III_REPLICATE_METADATA_ROLE
+                if ruv_iii_semantics_enabled
+                else REPLICATE_METADATA_ROLE
+            ),
+            "role_description": (
+                RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION
+                if ruv_iii_semantics_enabled
+                else REPLICATE_METADATA_ROLE_DESCRIPTION
+            ),
+            "used_for_numerical_factor_estimation": ruv_iii_semantics_enabled,
+            "ruv_iii_semantics_enabled": ruv_iii_semantics_enabled,
             "replicate_by_sample": dict(dataset_metadata.replicate_by_sample),
             "replicate_labels": list(dataset_metadata.replicate_labels or ()),
             "structure_diagnostics": (
