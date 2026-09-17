@@ -162,6 +162,7 @@ include = [
   "src/phospy/workflows",
 ]
 strict = [
+  "src/phospy/science/batch_correction/ruv_iii.py",
   "src/phospy/science/datasets/models.py",
   "src/phospy/science/datasets/builders/normalizer.py",
   "src/phospy/validation/common/dataframes.py",

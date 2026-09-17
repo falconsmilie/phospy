@@ -11,6 +11,15 @@ from phospy.science.batch_correction.executor import (
     SpsRuvStyleExecutorDiagnostics,
     SpsRuvStyleExecutorResult,
 )
+from phospy.science.batch_correction.ruv_iii import (
+    RUV_III_ALGORITHM_ID,
+    RUV_III_METHOD,
+    RuvIIIDiagnostics,
+    RuvIIIKernel,
+    RuvIIIReplicateStructure,
+    RuvIIIResult,
+    run_ruv_iii,
+)
 from phospy.science.batch_correction.sps_discovery import (
     SPS_DISCOVERY_ALGORITHM_ID,
     SPS_DISCOVERY_ALGORITHM_VERSION,
@@ -44,6 +53,8 @@ __all__ = [
     "SPS_DISCOVERY_CONTROL_SOURCE_TYPE",
     "SPS_DISCOVERY_SELECTION_METHOD_CONSENSUS_STABILITY",
     "SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING",
+    "RUV_III_ALGORITHM_ID",
+    "RUV_III_METHOD",
     "DeterministicSpsRuvStyleExecutor",
     "SpsDatasetSiteStatistic",
     "SpsDiscoveryConfig",
@@ -59,7 +70,12 @@ __all__ = [
     "SpsRuvStyleExecutor",
     "SpsRuvStyleExecutorDiagnostics",
     "SpsRuvStyleExecutorResult",
+    "RuvIIIDiagnostics",
+    "RuvIIIKernel",
+    "RuvIIIReplicateStructure",
+    "RuvIIIResult",
     "SpsSampleConditionAssignment",
     "SpsSelectionBoundaryCounts",
     "SpsSiteStabilityRecord",
+    "run_ruv_iii",
 ]
