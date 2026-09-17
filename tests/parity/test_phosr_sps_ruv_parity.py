@@ -308,6 +308,11 @@ def test_fixture_documents_supported_scope_and_contract_differences() -> None:
         in differences["ambiguous_sps_input"]
     )
     assert "No missing-value parity is claimed" in differences["missing_values"]
+    assert (
+        "rejects singleton replicate groups" in differences["singleton_replicate_sets"]
+    )
+    assert "does not silently cap or reduce it" in differences["non_estimable_k"]
+    assert "supported overlapping domain" in differences["non_estimable_k"]
     assert metadata["redistribution"]["status"] == (
         "approved_for_repository_test_fixture_redistribution"
     )

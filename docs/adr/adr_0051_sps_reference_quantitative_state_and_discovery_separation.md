@@ -102,6 +102,24 @@ contributions, the historical `sps_ruv_style` estimator, the full PhosR
 `RUVphospho` workflow, and empirical biological validation. It therefore does
 not establish full PhosR equivalence.
 
+### Compatibility-boundary clarification
+
+The accepted ADR originally recorded the evidence exclusions above but omitted
+two existing compatibility differences from this boundary. This clarification
+does not change the decision or the implementation:
+
+- PhosPy requires every RUV-III replicate set to contain at least two samples
+  and rejects singleton replicate groups. The pinned `ruv` reference is more
+  permissive.
+- PhosPy rejects a requested `k` that exceeds the estimable latent rank. It does
+  not silently cap or reduce `k`, so requested and effective `k` remain equal
+  for a successful fit; the pinned `ruv` reference may reduce the effective
+  factor count.
+
+Both are conservative PhosPy input-validation contracts. They narrow external
+comparison to inputs supported by both implementations and do not contradict
+the demonstrated complete-input corrected-matrix parity within that domain.
+
 ## Related Records
 
 - [ADR-0027: Target Future Native PhosR-Style SPS/RUV-III Correction](adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md)

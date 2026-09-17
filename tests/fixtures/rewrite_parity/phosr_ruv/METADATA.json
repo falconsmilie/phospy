@@ -29,7 +29,9 @@
     "partial_reference_contributions": "PhosPy can rank a site with exactly minimum_datasets_per_site references. PhosR getSPS 1.13.1 forms one rectangular score table and propagates NA for sites absent from a reference, so external parity is asserted only for sites contributing to every reference. The PhosPy-only boundary is covered by native contract/science tests and is not weakened here.",
     "overlap_floor": "PhosR getSPS rejects fewer than 200 sites shared by at least two datasets; PhosPy exposes minimum_shared_sites explicitly. This fixture uses 210.",
     "missing_values": "The low-level PhosPy RUV-III kernel and this parity lane require complete finite input. ruv::RUVIII warns that missing values are unsupported. No missing-value parity is claimed.",
-    "ambiguous_sps_input": "PhosR leaves scale and baseline preparation to caller convention; PhosPy requires established condition-relative log2 evidence and rejects an unasserted absolute-abundance matrix."
+    "ambiguous_sps_input": "PhosR leaves scale and baseline preparation to caller convention; PhosPy requires established condition-relative log2 evidence and rejects an unasserted absolute-abundance matrix.",
+    "singleton_replicate_sets": "PhosPy requires every RUV-III replicate set to contain at least two samples and rejects singleton replicate groups. The pinned ruv reference is more permissive. This is a stricter PhosPy input-validation contract, not a numerical parity failure for supported inputs.",
+    "non_estimable_k": "PhosPy rejects a requested k that exceeds the estimable latent rank and does not silently cap or reduce it; requested and effective k remain equal for a successful fit. The pinned ruv reference may reduce the effective factor count. External numerical parity applies only to the supported overlapping domain."
   },
   "comparison_policy": {
     "sps_stability_and_consensus_absolute_tolerance": 9.9999999999999998e-13,

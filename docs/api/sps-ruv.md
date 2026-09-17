@@ -288,9 +288,19 @@ regime is scientifically appropriate.
 can legitimately return different corrected values from the same controls and
 target. For `ruv_iii_style`, each sample has exactly one replicate-set
 assignment, sets provide the within-set residual structure used to estimate
-unwanted factors, and a set must not cross protected condition strata. Choose
-`k` (`n_unwanted_factors`) only when control count and replicate-residual rank
-support it.
+unwanted factors, and a set must not cross protected condition strata. Under
+the supported PhosPy contract, every replicate set must contain at least two
+samples; singleton replicate groups are rejected because they are not suitable
+for estimating the intended RUV-III structure.
+
+Choose `k` (`n_unwanted_factors`) only when control count and
+replicate-residual rank support it. PhosPy rejects a requested `k` that exceeds
+the estimable latent rank. It does not silently cap or reduce `k`, so the
+requested and effective factor counts remain the same for a valid fit. The
+pinned `ruv` reference is more permissive about singleton replicate sets and
+non-estimable `k`; these are deliberate PhosPy input-validation restrictions,
+not numerical differences in the estimator over inputs supported by both
+implementations.
 
 Correction provenance records the selected method, selected control identities,
 `ControlSiteSet` source metadata, replicate definition when relevant, `k`,

@@ -10,7 +10,7 @@
     "ruv_version": "0.9.7.1"
   },
   "generator": "scripts/active/generate_phosr_ruv_parity_fixtures.R",
-  "generator_sha256": "b71e089915f002339e0c8b991440477bcdfb71a7054729842f1ebc4626799dfa",
+  "generator_sha256": "3a7ee0be41f722de2a77c8ec5b42971487e73ceae05f4da426e5d5c0e8ae7d67",
   "command": "Rscript scripts/active/generate_phosr_ruv_parity_fixtures.R --outdir tests/fixtures/rewrite_parity/phosr_ruv --timestamp 2026-09-17T00:00:00Z --allow-unpinned-environment false",
   "generation_timestamp_utc": "2026-09-17T00:00:00Z",
   "byte_policy": "utf-8 LF with final newline",
@@ -18,11 +18,11 @@
   "files": [
     {
       "relative_path": "METADATA.json",
-      "sha256": "76bfaa94a0f8f6c2196d0fb3831ed03ea7305a180aaa80e5472207f98388cb5f"
+      "sha256": "28b0925af1ba2ef62f0bf1cd0bb1da58fffd4f3937bc20601f7de3bd959f0731"
     },
     {
       "relative_path": "PROVENANCE.md",
-      "sha256": "1b85bf7567f6fd4d67ba91bcba8332bc741b89b8017b8c978baa973e1331ce87"
+      "sha256": "80d31cc0970fbf75789eab2bfb0a0506c8a443f2eafd851e64ea8574e9cb4984"
     },
     {
       "relative_path": "REFERENCE_ENVIRONMENT.json",

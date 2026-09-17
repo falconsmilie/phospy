@@ -241,8 +241,15 @@ absence of implementation. SPS discovery, `sps_ruv_style`, and
 above may be described as parity evidence.
 
 SPS discovery and the native SPS/RUV-style lane are PhosPy implementations.
-The pinned synthetic evidence establishes fixture-scoped agreement for SPS
-ranking/selection and the complete-input finite-`k` RUV-III kernel; it does not
+SPS parity is partial: the pinned synthetic evidence establishes fixture-scoped
+agreement for SPS ranking/selection, while partial-reference contributions and
+ambiguous absolute-abundance inputs remain outside the comparison. The same
+fixture establishes corrected-matrix parity for the complete-input finite-`k`
+RUV-III kernel only; missing-data parity with PhosR is not established. PhosPy
+also rejects singleton replicate sets and rejects a requested `k` beyond the
+estimable latent rank instead of silently reducing it. Those stricter
+input-validation contracts limit the overlapping comparison domain; they are
+not numerical parity failures for supported inputs. This evidence does not
 establish general PhosR-equivalent SPS/RUV-III workflow behaviour. PhosPy's
 discovery contract additionally requires governed condition-relative log2
 semantics rather than relying on caller convention.

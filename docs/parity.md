@@ -350,13 +350,28 @@ rank/singular-value diagnostics are compared with documented numerical
 tolerances. Latent factor coordinates are not compared directly because SVD
 coordinates admit sign changes and tied subspaces admit rotations.
 
+External numerical parity applies only to the supported overlapping input
+domain. PhosPy deliberately validates that domain more strictly than the pinned
+`ruv` reference in two ways:
+
+- every replicate set must contain at least two samples; singleton replicate
+  groups are rejected as unsuitable for estimating the intended RUV-III
+  structure; and
+- a requested `k` must be estimable from the replicate-residual latent rank.
+  PhosPy rejects an excessive `k` instead of silently capping or reducing it,
+  and therefore never reports different requested and effective factor counts
+  for a successful fit.
+
+These restrictions are PhosPy input-validation contracts, not failures of the
+demonstrated corrected-matrix parity for supported inputs.
+
 This evidence is fixture-scoped, not a blanket package or workflow equivalence
-claim. In particular, PhosR `getSPS` 1.13.1 does not cleanly support PhosPy's
-partial-reference contribution policy, and PhosR leaves scale/baseline
-preparation to caller convention where PhosPy requires governed evidence.
-PhosPy's stricter boundary remains intact. Missing-value RUV-III parity is not
-claimed: the low-level PhosPy kernel requires complete finite input and
-`ruv::RUVIII` documents missing values as unsupported. The native
+claim. SPS parity remains partial: PhosR `getSPS` 1.13.1 does not cleanly
+support PhosPy's partial-reference contribution policy, and PhosR leaves
+scale/baseline preparation to caller convention where PhosPy requires governed
+evidence. PhosPy's stricter boundary remains intact. Missing-value RUV-III
+parity is not claimed: the low-level PhosPy kernel requires complete finite
+input and `ruv::RUVIII` documents missing values as unsupported. The native
 `sps_ruv_style` estimator and full PhosR `RUVphospho` workflow also remain
 outside this fixture's scope.
 

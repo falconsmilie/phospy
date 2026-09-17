@@ -475,6 +475,19 @@ metadata <- list(
       "PhosR leaves scale and baseline preparation to caller convention; PhosPy",
       "requires established condition-relative log2 evidence and rejects an",
       "unasserted absolute-abundance matrix."
+    ),
+    singleton_replicate_sets = paste(
+      "PhosPy requires every RUV-III replicate set to contain at least two",
+      "samples and rejects singleton replicate groups. The pinned ruv reference",
+      "is more permissive. This is a stricter PhosPy input-validation contract,",
+      "not a numerical parity failure for supported inputs."
+    ),
+    non_estimable_k = paste(
+      "PhosPy rejects a requested k that exceeds the estimable latent rank and",
+      "does not silently cap or reduce it; requested and effective k remain equal",
+      "for a successful fit. The pinned ruv reference may reduce the effective",
+      "factor count. External numerical parity applies only to the supported",
+      "overlapping domain."
     )
   ),
   comparison_policy = list(
@@ -530,6 +543,10 @@ provenance_lines <- c(
   "RUV-III consumes the checked-in, already-selected negative controls. It never",
   "reruns SPS. Corrected matrices are compared, while latent factors are not",
   "compared directly because SVD coordinates admit sign/rotation invariances.",
+  "External numerical parity applies only to inputs supported by both implementations.",
+  "PhosPy rejects singleton replicate sets and a requested k beyond the estimable",
+  "latent rank rather than silently reducing it. These are stricter input-validation",
+  "contracts, not corrected-matrix parity failures for the supported domain.",
   "",
   "Regeneration is separate from CI and requires the exact environment recorded in",
   "REFERENCE_ENVIRONMENT.json. The generator refuses version drift by default.",

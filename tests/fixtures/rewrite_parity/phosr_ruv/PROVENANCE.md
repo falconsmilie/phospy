@@ -16,6 +16,10 @@ unchanged to both PhosR getSPS and the PhosPy parity test.
 RUV-III consumes the checked-in, already-selected negative controls. It never
 reruns SPS. Corrected matrices are compared, while latent factors are not
 compared directly because SVD coordinates admit sign/rotation invariances.
+External numerical parity applies only to inputs supported by both implementations.
+PhosPy rejects singleton replicate sets and a requested k beyond the estimable
+latent rank rather than silently reducing it. These are stricter input-validation
+contracts, not corrected-matrix parity failures for the supported domain.
 
 Regeneration is separate from CI and requires the exact environment recorded in
 REFERENCE_ENVIRONMENT.json. The generator refuses version drift by default.
