@@ -28,6 +28,10 @@ This directory contains rewrite-native benchmark scripts that track active code 
 - `measure_signalome_clustering_contracts.py`
   - Measures exact clustering below the exact-tree guardrail, guard failure above `max_exact_tree_sites`, and candidate-scoring policy behavior (`full` vs `sampled`).
   - Targets `phospy.science.signalomes.clustering.run_signalome_clustering_engine` and scale-guard policy thresholds in `phospy.science.signalomes.clustering`.
+- `measure_sps_discovery_performance.py`
+  - Measures the complete validated SPS discovery workflow at a moderate 3-reference, 10,000-site x 24-sample scale and separately times the stability calculation.
+  - Provides an opt-in `--scale stress` path for 3 references with 50,000 sites x 48 samples; the stress path is not part of pytest, CI, or release checks.
+  - Targets `SpsDiscoveryWorkflow.run` and the reference stability calculation while retaining governed `site_key` identity, distinct row/sample orders, multiple conditions, replicates, missing conditions, consensus ranking, and provenance.
 
 All benchmark scripts print plain `key=value` metrics for easy CI/log parsing.
 The optional release-scale builder+differential benchmark and repeated workflow

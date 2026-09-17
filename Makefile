@@ -49,7 +49,7 @@ TWINE ?= $(PYTHON) -m twine
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format type-check pre-commit test tests-all test-unit test-contract test-parity test-performance test-release-gates docs-build validate-reference-bundles release-check benchmark-release-scale test-seams build clean \
+	install install-dev lint format type-check pre-commit test tests-all test-unit test-contract test-parity test-performance test-release-gates docs-build validate-reference-bundles release-check benchmark-release-scale benchmark-sps test-seams build clean \
 	verify-installed-distributions \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-duplicate-correlation-limma fixtures-deqms-depth fixtures-all \
@@ -76,6 +76,7 @@ help:
 	@printf '%s\n' '  make tests-all                     Alias for all-tests'
 	@printf '%s\n' '  make test-seams                    Run seam-focused rewrite parity tests'
 	@printf '%s\n' '  make benchmark-release-scale       Optional local 50,000x48 builder+differential benchmark'
+	@printf '%s\n' '  make benchmark-sps                 SPS discovery 10,000x24x3 benchmark'
 	@printf '%s\n' '  make dataset-builder-demo          Run examples.dataset_builder_demo.main()'
 	@printf '%s\n' '  make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()'
 	@printf '%s\n' '  make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()'
@@ -155,6 +156,9 @@ release-check: lint type-check test-unit test-contract test-parity test-performa
 
 benchmark-release-scale: check-tools
 	$(PYTHON) benchmarks/measure_release_scale_builder_differential.py
+
+benchmark-sps: check-tools
+	$(PYTHON) benchmarks/measure_sps_discovery_performance.py --scale moderate
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"

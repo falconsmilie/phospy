@@ -1570,15 +1570,28 @@ def _reference_stability_evidence(
         )
         for condition in conditions
     }
+    sample_values_by_condition = {
+        condition: tuple(
+            intensities[sample_id].to_numpy(copy=False)
+            for sample_id in samples_by_condition[condition]
+        )
+        for condition in conditions
+    }
+    site_rows = tuple(
+        sorted(
+            (str(site_key), position)
+            for position, site_key in enumerate(intensities.index)
+        )
+    )
     scores: dict[str, float] = {}
-    for site_key in sorted(str(value) for value in intensities.index):
+    for site_key, row_position in site_rows:
         condition_means: list[float] = []
         for condition in conditions:
-            values = tuple(
-                float(cast(float | int, intensities.at[site_key, sample_id]))
-                for sample_id in samples_by_condition[condition]
-                if not pd.isna(intensities.at[site_key, sample_id])
-            )
+            values: list[float] = []
+            for sample_values in sample_values_by_condition[condition]:
+                value = sample_values[row_position]
+                if not pd.isna(value):
+                    values.append(float(cast(float | int, value)))
             if not values or not all(math.isfinite(value) for value in values):
                 condition_means = []
                 break

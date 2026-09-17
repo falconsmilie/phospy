@@ -48,6 +48,7 @@ runner contention to serve as a release gate.
 | Quantile normalisation | sites x samples (dense numeric) | ~O(samples x sites log sites) due to per-column sort | 5,000 x 12 (CI contract fixture) | None | Sorting and rank-averaging create additional dense float arrays | None | Numeric/shape validation failures propagate |
 | Total protein correction | phospho rows, total rows, samples, identity mapping size | O(matched rows x samples) plus mapping resolution | <= 5,000 rows, <= 12 samples | None | Produces corrected phospho copy and diagnostics hashes | Unmatched-row policy can retain uncorrected rows (`allow_uncorrected`) | Raises `PhosPyInputError` for identity mismatches, missing total rows, unresolved mapping, or invalid scale |
 | Differential workflow | sites x samples; design samples; conditions; contrasts | Core fit is roughly O(sites x design columns^2) with per-site moderation/testing | 800 x 8 (2 conditions) to 3,000 x 12 (4 conditions) | Validation contract enforces balanced/estimable design and minimum replicates | Stores per-contrast full output tables (`logFC`, `t`, `P.Value`, `adj.P.Val`) across all sites | No hidden approximations in moderated-statistics path | Raises `WorkflowValidationError` for unsupported/misaligned design, insufficient replicates, missing values, or invalid contrasts |
+| SPS discovery | references x sites x samples plus consensus candidates | Stability calculation is O(reference sites x samples); validation, fingerprints, per-reference ranks, and consensus ranking remain part of the full workflow | 3 references x 10,000 sites x 24 samples (CI performance fixture); optional 3 x 50,000 x 48 local stress path | Complete production workflow must finish in < 20 seconds for the bounded fixture | Each reference already yields an owner-detached frame snapshot; the stability path uses per-sample array views and small row/index mappings without constructing condition-sized full-matrix copies | No approximation; condition means retain `math.fsum`, missing-condition attrition, governed `site_key` alignment, and deterministic ranks | Structured SPS validation errors report invalid references, insufficient overlap, or insufficient rankable overlap |
 | Repeated workflow internal dataset reads | unchanged validated dataset frames across repeated workflow runs | First internal access per frame pays one owner-detached snapshot copy; later views/runs use immutable-buffer wrappers for shareable NumPy-backed columns and per-wrapper copies for unshareable columns | Same dataset reused across differential/kinase/Signalome runs | Unit instrumentation asserts one snapshot per accessed frame, repeated kinase runs avoid full phospho/site-metadata copies, and differential identity assembly performs one projected metadata ownership copy per run | Retains one private immutable copy per accessed dataset frame; optional frames are snapshotted only when internally read; unshareable columns allocate per returned wrapper; differential result identity metadata is projected before its per-run result-owned copy | No global cache and no workflow-instance mutable frame cache | Public exports still copy; workflow computation may still make explicit per-run derived/result tables when scientifically required |
 | Optional release-scale builder plus differential benchmark | 50,000 sites x 48 samples with realistic site/sample metadata, required `site_sequence`, log2 transform, median centering, row-median imputation, preprocessing provenance, table fingerprints, and one two-condition differential contrast | Sum of request preparation, public builder execution, preprocessing/provenance fingerprinting, differential fitting, result-table export, and benchmark summary generation | 50,000 x 48 | None; runtime and RSS are informational local observations | Dense input/output matrices, metadata tables, preprocessing reports, provenance fingerprints, and one full 50,000-row differential result table | No hidden approximation; this benchmark uses public builder/workflow entrypoints | Fails only when the scientific workflow errors, required invariants are violated, output dimensions are wrong, expected preprocessing/differential outputs are absent, or a requested report cannot be produced |
 | ssGSEA substrate enrichment activity | finite ranked sites x kinases x profiles x seeded permutations | Observed score pass is O(sites x kinases x profiles); permutation work is O(kinases x profiles x permutations x selected substrates), with reusable null-score constants cached by equivalent background size, substrate count, and tie-block structure | 720 sites x 32 kinases x 6 profiles x 48 permutations (CI contract fixture) | None | Does not materialize a sites x kinases x profiles x permutations cube; p/q matrices scale with kinases x profiles | No approximation; seeded per-kinase/profile permutation streams and tie-block midrank semantics are preserved | Validation/status diagnostics report insufficient substrates, empty finite background, or all-substrate backgrounds |
@@ -156,6 +157,61 @@ quadratic rescans of routing provenance.
 
 The 50,000 x 48 end-to-end workload is not owned by pytest, CI, or release
 checks. It is owned by the benchmark script described below.
+
+## SPS Discovery Scale Benchmark
+
+SPS discovery has a dedicated scale benchmark because its validated production
+path performs reference alignment, condition/replicate handling, stability
+calculation, per-reference ranking, consensus ranking, attrition, and
+provenance. Timing an isolated synthetic loop would not represent those costs.
+
+The routine performance fixture uses 3 reference experiments, 10,000 governed
+phosphosites per reference, 24 samples, 3 conditions, and 8 biological
+replicates per condition. Deterministic values, different row and sample orders,
+and distinct missing-condition subsets exercise partial-reference
+contributions. The test in `tests/performance/test_sps_discovery_performance.py`
+runs the real `SpsDiscoveryWorkflow`, checks structural outputs, and enforces a
+20-second release budget. The ceiling is approximately twice the observed
+optimized runtime of 10.061645 seconds, leaving broad runner headroom, while
+remaining below the 26.444624-second same-fixture scalar baseline so restoring
+the reviewed hotspot is a release-gate failure.
+
+Run the comparable local benchmark with:
+
+```bash
+make benchmark-sps
+```
+
+The script records total SPS discovery time, a separate stability-calculation
+time, reference/site/sample/condition dimensions, stability input and valid
+entry counts, consensus-ranked sites, selected sites, and environment versions.
+The optional stress path is deliberately outside ordinary pytest and release
+checks:
+
+```bash
+python benchmarks/measure_sps_discovery_performance.py --scale stress
+```
+
+Profiling on 2026-09-17 showed that the reviewed nested scalar `DataFrame.at`
+path was material: on the moderate fixture it consumed 15.806807 seconds, while
+the complete workflow took 26.444624 seconds. Optimization was therefore
+justified. Extracting each aligned sample column once, while preserving the
+original sorted condition/sample order and `math.fsum` aggregation, reduced the
+same stability pass to 0.508876 seconds and the same complete workflow to
+10.061645 seconds. That is a 96.8% reduction for the stability pass and a 61.9%
+reduction for the full workflow on the same machine and fixture.
+
+The comparison used Windows 11 (`Windows-11-10.0.26200-SP0`), Python 3.14.0,
+NumPy 2.4.4, pandas 3.0.2, and SciPy 1.17.1. It is machine-specific evidence,
+not a portable performance guarantee. Both runs produced 29,901 valid
+reference-site stability entries, 10,000 consensus-ranked sites, and identical
+scientific result objects under the scalar equivalence oracle. The optimized
+path uses per-column NumPy views for ordinary numeric frames and does not create
+full-size condition-mean or change matrices, so the speedup does not trade for
+a material full-matrix memory expansion. The optional 3-reference, 50,000-site
+x 48-sample stress path also completed on that environment in 78.380924 seconds
+and ranked all 50,000 consensus-eligible sites; that observation is likewise
+informational rather than a release threshold.
 
 ## Optional Repeated Workflow Snapshot Reuse Benchmark
 

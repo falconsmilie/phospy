@@ -43,6 +43,7 @@ RELEASE_SCALE_BENCHMARK_SCRIPT = (
 REPEATED_WORKFLOW_BENCHMARK_SCRIPT = (
     BENCHMARK_DIR / "measure_repeated_workflow_dataset_snapshot_reuse.py"
 )
+SPS_DISCOVERY_BENCHMARK_SCRIPT = BENCHMARK_DIR / "measure_sps_discovery_performance.py"
 
 
 def _read_source(path: Path) -> str:
@@ -171,6 +172,26 @@ def test_release_scale_benchmark_defaults_are_declared_without_dataset_build() -
     assert config.n_sites == 50_000
     assert config.n_samples == 48
     assert config.missing_fraction == 0.03
+
+
+def test_sps_discovery_benchmark_declares_moderate_and_stress_scales() -> None:
+    module = _load_script_module(SPS_DISCOVERY_BENCHMARK_SCRIPT)
+
+    moderate = module._selected_config("moderate")
+    stress = module._selected_config("stress")
+
+    assert (
+        moderate.n_references,
+        moderate.n_sites,
+        moderate.n_samples,
+        moderate.n_conditions,
+    ) == (3, 10_000, 24, 3)
+    assert (
+        stress.n_references,
+        stress.n_sites,
+        stress.n_samples,
+        stress.n_conditions,
+    ) == (3, 50_000, 48, 4)
 
 
 def test_release_scale_benchmark_declares_linear_imputation_input_scale() -> None:

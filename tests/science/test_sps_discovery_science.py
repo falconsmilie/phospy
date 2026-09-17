@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 import numpy as np
 import pandas as pd
 import pytest
 
+import phospy.science.batch_correction.sps_discovery as sps_science
 from phospy.advanced import (
     SpsDiscoveryConfig,
     SpsDiscoveryRequest,
@@ -106,6 +109,46 @@ def _run(
             reference_datasets=references,
             config=config or SpsDiscoveryConfig(top_n=2),
         )
+    )
+
+
+def _scalar_reference_stability_evidence(
+    reference: SpsReferenceDataset,
+) -> sps_science._ReferenceStabilityEvidence:
+    """Retain the reviewed scalar-access semantics as an equivalence oracle."""
+
+    intensities = reference.intensities
+    conditions = tuple(
+        sorted({str(value) for value in reference.condition_by_sample.values()})
+    )
+    samples_by_condition = {
+        condition: tuple(
+            sorted(
+                str(column)
+                for column in intensities.columns
+                if str(reference.condition_by_sample[str(column)]) == condition
+            )
+        )
+        for condition in conditions
+    }
+    scores: dict[str, float] = {}
+    for site_key in sorted(str(value) for value in intensities.index):
+        condition_means: list[float] = []
+        for condition in conditions:
+            values = tuple(
+                float(cast(float | int, intensities.at[site_key, sample_id]))
+                for sample_id in samples_by_condition[condition]
+                if not pd.isna(intensities.at[site_key, sample_id])
+            )
+            if not values or not all(math.isfinite(value) for value in values):
+                condition_means = []
+                break
+            condition_means.append(math.fsum(values) / float(len(values)))
+        if condition_means:
+            scores[site_key] = max(abs(value) for value in condition_means)
+    return sps_science._ReferenceStabilityEvidence(
+        dataset_id=reference.dataset_id,
+        scores_by_site=scores,
     )
 
 
@@ -452,6 +495,116 @@ def test_partial_reference_contributions_attrition_and_native_handoff() -> None:
         == result.selected_site_keys
     )
     assert mapping.control_status_by_site_key[below_minimum].value == "non_control"
+
+
+def test_array_backed_stability_path_is_exactly_scalar_semantics_equivalent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keys = tuple(str(value) for value in _site_keys(6))
+    references = (
+        _reference(
+            "layout_three_conditions",
+            site_keys=keys,
+            columns={
+                "a_c1_r1": [0.1, 0.1, 0.2, 0.5, 0.3, 0.1],
+                "a_c1_r2": [0.2, 0.2, 0.2, 0.6, 0.4, 0.2],
+                "a_c2_r1": [0.1, 0.1, 0.3, 1.5, 0.2, 0.1],
+                "a_c2_r2": [0.2, 0.2, 0.3, 1.6, 0.3, 0.2],
+                "a_c3_r1": [0.1, 0.1, 0.4, 2.5, 0.1, 0.1],
+                "a_c3_r2": [0.2, 0.2, 0.4, 2.6, 0.2, 0.2],
+            },
+            conditions={
+                "a_c1_r1": "one",
+                "a_c1_r2": "one",
+                "a_c2_r1": "two",
+                "a_c2_r2": "two",
+                "a_c3_r1": "three",
+                "a_c3_r2": "three",
+            },
+        ),
+        _reference(
+            "layout_two_conditions_reordered",
+            site_keys=(keys[3], keys[1], keys[5], keys[0], keys[4], keys[2]),
+            columns={
+                "b_t_r3": [2.4, 0.1, np.nan, 0.1, 0.3, 0.4],
+                "b_c_r2": [0.6, 0.2, 0.2, 0.2, 0.4, 0.2],
+                "b_t_r1": [2.2, 0.1, np.nan, 0.1, 0.3, 0.4],
+                "b_c_r1": [0.5, 0.1, 0.1, 0.1, 0.3, 0.2],
+                "b_t_r2": [2.3, 0.2, np.nan, 0.2, 0.2, 0.3],
+                "b_c_r3": [0.7, 0.3, 0.3, 0.3, 0.5, 0.2],
+            },
+            conditions={
+                "b_t_r3": "treated",
+                "b_c_r2": "control",
+                "b_t_r1": "treated",
+                "b_c_r1": "control",
+                "b_t_r2": "treated",
+                "b_c_r3": "control",
+            },
+        ),
+        _reference(
+            "layout_four_conditions_partial",
+            site_keys=(keys[4], keys[2], keys[0], keys[5], keys[3], keys[1]),
+            columns={
+                "c_four": [np.nan, 0.4, 0.1, np.nan, 2.4, 0.1],
+                "c_two": [np.nan, 0.2, 0.1, np.nan, 1.4, 0.1],
+                "c_one": [np.nan, 0.1, 0.1, 0.1, 0.4, 0.1],
+                "c_three": [np.nan, 0.3, 0.1, np.nan, 1.9, 0.1],
+            },
+            conditions={
+                "c_four": "four",
+                "c_two": "two",
+                "c_one": "one",
+                "c_three": "three",
+            },
+        ),
+    )
+    config = SpsDiscoveryConfig(
+        top_n=4,
+        minimum_reference_datasets=3,
+        minimum_datasets_per_site=2,
+        minimum_shared_sites=4,
+    )
+
+    optimized_evidence = tuple(
+        sps_science._reference_stability_evidence(reference) for reference in references
+    )
+    scalar_evidence = tuple(
+        _scalar_reference_stability_evidence(reference) for reference in references
+    )
+    optimized_result = _run(references, config=config)
+    with monkeypatch.context() as context:
+        context.setattr(
+            sps_science,
+            "_reference_stability_evidence",
+            _scalar_reference_stability_evidence,
+        )
+        scalar_result = _run(references, config=config)
+
+    assert optimized_evidence == scalar_evidence
+    assert optimized_result == scalar_result
+    assert optimized_result.selected_site_keys == scalar_result.selected_site_keys
+    assert tuple(
+        (
+            record.site_key,
+            record.consensus_rank,
+            record.consensus_stability_score,
+            record.contributing_dataset_count,
+            record.dataset_statistics,
+        )
+        for record in optimized_result.site_ranking
+    ) == tuple(
+        (
+            record.site_key,
+            record.consensus_rank,
+            record.consensus_stability_score,
+            record.contributing_dataset_count,
+            record.dataset_statistics,
+        )
+        for record in scalar_result.site_ranking
+    )
+    assert keys[5] not in optimized_result.selected_site_keys
+    assert optimized_result.provenance.selection_boundaries.sites_ranked == 5
 
 
 def test_larger_deterministic_population_selects_only_known_stable_sites() -> None:
