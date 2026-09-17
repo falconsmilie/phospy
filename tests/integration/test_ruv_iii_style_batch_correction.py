@@ -143,6 +143,13 @@ def test_discovery_control_set_is_consumed_directly_without_reference_matrices()
     assert correction.control_site_source["control_site_set_source_type"] == (
         "sps_discovery"
     )
+    identity = controls.source_metadata.sps_discovery_identity
+    assert identity is not None
+    assert correction.control_site_source["sps_discovery_identity"] == identity
+    restored = batch_correction_provenance_from_payload(
+        batch_correction_provenance_to_payload(correction)
+    )
+    assert restored.control_site_source["sps_discovery_identity"] == identity
     assert "reference_datasets" not in correction.control_site_source
     assert "intensities" not in str(correction.resolved_parameters)
 

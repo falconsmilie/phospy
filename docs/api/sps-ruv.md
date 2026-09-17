@@ -181,6 +181,7 @@ discovery = SpsDiscoveryWorkflow().run(
 
 controls = discovery.control_site_set
 print(discovery.selected_site_keys)
+print(discovery.discovery_identity)
 print(discovery.provenance.selection_boundaries.to_payload())
 
 correction = SpsRuvBatchCorrectionConfig(
@@ -246,6 +247,13 @@ reference matrices:
 - per-reference contribution and selection/attrition counts; and
 - ranked and selected controls.
 
+Each result also exposes a deterministic `discovery_identity`. This
+`sha256-stable-json-v1` digest is computed from the deterministic matrix-free
+discovery result: reference identities and quantitative fingerprints, governed
+quantitative evidence, algorithm/configuration, selection boundaries, ranking,
+and selected controls. It is not a hash of the selected `site_key` values alone;
+two runs that select the same controls from different evidence remain distinct.
+
 Persist `discovery.to_payload()` as JSON-compatible data. Later,
 `SpsDiscoveryResult.from_payload(...)` revalidates it and reconstructs a usable
 `ControlSiteSet`; the source matrices are not needed for correction:
@@ -284,11 +292,15 @@ unwanted factors, and a set must not cross protected condition strata. Choose
 `k` (`n_unwanted_factors`) only when control count and replicate-residual rank
 support it.
 
-Correction provenance records the selected method, complete
-`ControlSiteSet` source provenance, replicate definition when relevant, `k`,
+Correction provenance records the selected method, selected control identities,
+`ControlSiteSet` source metadata, replicate definition when relevant, `k`,
 missing-data strategy, control eligibility/attrition, estimator diagnostics,
-warnings, and matrix/mask fingerprints. It need not copy the complete SPS
-reference matrices.
+warnings, and matrix/mask fingerprints. For SPS-derived controls, that source
+metadata carries the same immutable `sps_discovery_identity` as the discovery
+result. The full discovery provenance remains with `SpsDiscoveryResult`; the
+correction record stores its digest link and does not copy the complete SPS
+provenance or reference matrices. Manually or externally defined control sets
+may legitimately have no SPS discovery identity.
 
 ## Missingness
 

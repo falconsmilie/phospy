@@ -18,9 +18,13 @@ from scipy.stats import chi2
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ReferenceValidationError
-from phospy.provenance.hashing import fingerprint_table_normalized_axes
+from phospy.provenance.hashing import (
+    DEFAULT_STABLE_JSON_HASH_ALGORITHM,
+    fingerprint_table_normalized_axes,
+    hash_json_payload,
+)
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
-from phospy.provenance.models import TableFingerprint
+from phospy.provenance.models import JsonValue, TableFingerprint
 from phospy.provenance.serialization.tables import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
@@ -55,6 +59,8 @@ SPS_DISCOVERY_ALGORITHM_ID = "phospy_sps_consensus_stability"
 SPS_DISCOVERY_ALGORITHM_VERSION = "1.0.0"
 SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING = "site_key_ascending"
 SPS_DISCOVERY_CONTROL_SOURCE_TYPE = "sps_discovery"
+SPS_DISCOVERY_IDENTITY_SCHEMA = "phospy-sps-discovery-result-v1"
+SPS_DISCOVERY_IDENTITY_PREFIX = f"{DEFAULT_STABLE_JSON_HASH_ALGORITHM}:"
 SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER = "sps_reference_matrix_fingerprint"
 SPS_REFERENCE_CENTERING_ASSERTION_OPERATION = (
     "phospy.sps_reference.external_reference_centering_assertion"
@@ -1286,6 +1292,7 @@ class SpsDiscoveryResult:
                 source_name=self.provenance.algorithm_id,
                 source_version=self.provenance.algorithm_version,
                 selection_method=self.provenance.config.selection_method,
+                sps_discovery_identity=self.discovery_identity,
                 metadata_missing_reason={
                     "organism": (
                         "SPS reference records do not carry a typed organism field; "
@@ -1306,11 +1313,25 @@ class SpsDiscoveryResult:
 
         return self.to_control_site_set()
 
-    def to_payload(self) -> dict[str, object]:
+    @property
+    def discovery_identity(self) -> str:
+        """Return the canonical immutable identity of this discovery evidence."""
+
+        digest = hash_json_payload(cast(JsonValue, self._identity_payload()))
+        return f"{SPS_DISCOVERY_IDENTITY_PREFIX}{digest}"
+
+    def _identity_payload(self) -> dict[str, object]:
         return {
+            "identity_schema": SPS_DISCOVERY_IDENTITY_SCHEMA,
             "selected_site_keys": list(self.selected_site_keys),
             "site_ranking": [item.to_payload() for item in self.site_ranking],
             "provenance": self.provenance.to_payload(),
+        }
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            **self._identity_payload(),
+            "discovery_identity": self.discovery_identity,
         }
 
     @classmethod
@@ -1326,7 +1347,18 @@ class SpsDiscoveryResult:
             resolved.get("site_ranking"),
             field_name="sps_discovery_result.site_ranking",
         )
-        return cls(
+        serialized_schema = resolved.get("identity_schema")
+        if serialized_schema is not None and (
+            _require_payload_string(
+                serialized_schema,
+                field_name="sps_discovery_result.identity_schema",
+            )
+            != SPS_DISCOVERY_IDENTITY_SCHEMA
+        ):
+            raise PhosPyInputError(
+                "sps_discovery_result.identity_schema is not supported"
+            )
+        result = cls(
             selected_site_keys=tuple(
                 _require_payload_string(
                     item,
@@ -1350,6 +1382,18 @@ class SpsDiscoveryResult:
                 )
             ),
         )
+        serialized_identity = resolved.get("discovery_identity")
+        if serialized_identity is not None:
+            restored_identity = _require_payload_string(
+                serialized_identity,
+                field_name="sps_discovery_result.discovery_identity",
+            )
+            if restored_identity != result.discovery_identity:
+                raise PhosPyInputError(
+                    "sps_discovery_result.discovery_identity does not match the "
+                    "canonical discovery evidence"
+                )
+        return result
 
 
 @dataclass(frozen=True, slots=True)

@@ -622,6 +622,61 @@ def _provenance_and_ranking() -> tuple[
     return result.selected_site_keys, result.provenance, result.site_ranking
 
 
+def _identity_discovery(
+    *,
+    first_source_name: str = "identity-reference-a",
+    first_unstable_value: float = 2.0,
+    minimum_shared_sites: int = 1,
+) -> SpsDiscoveryResult:
+    keys = _site_keys("IDENTITY1", "IDENTITY2", "IDENTITY3")
+    conditions = {"a_1": "a", "a_2": "a", "b_1": "b", "b_2": "b"}
+    references = (
+        SpsReferenceDataset.from_condition_relative_log2(
+            dataset_id="identity-a",
+            intensities=pd.DataFrame(
+                {
+                    "a_1": (0.0, 0.0, 0.0),
+                    "a_2": (0.0, 0.0, 0.0),
+                    "b_1": (0.1, 0.2, first_unstable_value),
+                    "b_2": (0.1, 0.2, first_unstable_value),
+                },
+                index=keys,
+            ),
+            condition_by_sample=conditions,
+            log2_scale_established_by="identity fixture log2 preparation",
+            baseline_centering_established_by="identity fixture centering",
+            source_name=first_source_name,
+            source_version="2026-09",
+        ),
+        SpsReferenceDataset.from_condition_relative_log2(
+            dataset_id="identity-b",
+            intensities=pd.DataFrame(
+                {
+                    "a_1": (0.0, 0.0, 0.0),
+                    "a_2": (0.0, 0.0, 0.0),
+                    "b_1": (0.15, 0.25, 3.0),
+                    "b_2": (0.15, 0.25, 3.0),
+                },
+                index=keys,
+            ),
+            condition_by_sample=conditions,
+            log2_scale_established_by="identity fixture log2 preparation",
+            baseline_centering_established_by="identity fixture centering",
+            source_name="identity-reference-b",
+            source_version="2026-09",
+        ),
+    )
+    return SpsDiscoveryWorkflow().run(
+        SpsDiscoveryRequest(
+            reference_datasets=references,
+            config=SpsDiscoveryConfig(
+                top_n=2,
+                minimum_shared_sites=minimum_shared_sites,
+            ),
+        )
+    )
+
+
 def test_request_construction_is_passive_for_contextually_invalid_payload() -> None:
     request = SpsDiscoveryRequest(
         reference_datasets=None,  # type: ignore[arg-type]
@@ -767,6 +822,49 @@ def test_config_and_provenance_comparison_and_serialization_are_deterministic() 
     assert distinct_scale_evidence.to_payload() != source.to_payload()
 
 
+def test_discovery_identity_is_stable_across_execution_and_reconstruction() -> None:
+    first = _identity_discovery()
+    repeated = _identity_discovery()
+    reconstructed = SpsDiscoveryResult(
+        selected_site_keys=first.selected_site_keys,
+        site_ranking=first.site_ranking,
+        provenance=first.provenance,
+    )
+    restored = SpsDiscoveryResult.from_payload(
+        json.loads(json.dumps(first.to_payload()))
+    )
+
+    assert repeated.discovery_identity == first.discovery_identity
+    assert reconstructed.discovery_identity == first.discovery_identity
+    assert restored.discovery_identity == first.discovery_identity
+    assert restored.to_payload() == first.to_payload()
+    assert first.discovery_identity.startswith("sha256-stable-json-v1:")
+
+
+def test_discovery_identity_depends_on_evidence_not_selected_keys_alone() -> None:
+    baseline = _identity_discovery()
+    different_source = _identity_discovery(
+        first_source_name="different-reference-source"
+    )
+    different_matrix = _identity_discovery(first_unstable_value=4.0)
+    different_config = _identity_discovery(minimum_shared_sites=2)
+
+    assert different_source.selected_site_keys == baseline.selected_site_keys
+    assert different_matrix.selected_site_keys == baseline.selected_site_keys
+    assert different_config.selected_site_keys == baseline.selected_site_keys
+    assert (
+        len(
+            {
+                baseline.discovery_identity,
+                different_source.discovery_identity,
+                different_matrix.discovery_identity,
+                different_config.discovery_identity,
+            }
+        )
+        == 4
+    )
+
+
 def test_discovery_result_converts_to_existing_control_site_set() -> None:
     selected, provenance, ranking = _provenance_and_ranking()
     result = SpsDiscoveryResult(
@@ -787,6 +885,18 @@ def test_discovery_result_converts_to_existing_control_site_set() -> None:
     assert controls.source_metadata.identifier_namespace == "site_key"
     assert controls.source_metadata.source_type == "sps_discovery"
     assert controls.source_metadata.selection_method == "consensus_stability"
+    assert controls.source_metadata.sps_discovery_identity == result.discovery_identity
+
+
+def test_discovery_control_set_round_trip_preserves_discovery_identity() -> None:
+    result = _identity_discovery()
+
+    restored = ControlSiteSet.from_payload(
+        json.loads(json.dumps(result.control_site_set.to_payload()))
+    )
+
+    assert restored == result.control_site_set
+    assert restored.source_metadata.sps_discovery_identity == result.discovery_identity
 
 
 def test_public_discovery_controls_feed_existing_sps_ruv_config_directly() -> None:
@@ -828,6 +938,29 @@ def test_discovery_result_json_round_trip_preserves_typed_governed_provenance() 
     )
     assert restored.provenance.source_datasets[0].intensity_scale_kind.value == "log2"
     assert "intensities" not in payload["provenance"]["source_datasets"][0]
+    assert restored.discovery_identity == result.discovery_identity
+
+
+def test_historical_discovery_payload_without_serialized_identity_remains_readable() -> (
+    None
+):
+    result = _identity_discovery()
+    payload = result.to_payload()
+    payload.pop("discovery_identity")
+    payload.pop("identity_schema")
+
+    restored = SpsDiscoveryResult.from_payload(payload)
+
+    assert restored.discovery_identity == result.discovery_identity
+
+
+def test_discovery_deserialization_rejects_mismatched_identity() -> None:
+    result = _identity_discovery()
+    payload = result.to_payload()
+    payload["discovery_identity"] = "sha256-stable-json-v1:" + "0" * 64
+
+    with pytest.raises(PhosPyInputError, match="canonical discovery evidence"):
+        SpsDiscoveryResult.from_payload(payload)
 
 
 def test_result_deserialization_rejects_tampered_quantitative_state() -> None:

@@ -292,6 +292,12 @@ def _control_site_source_payload(
             selected_metadata_rows,
             "selection_method",
         )
+    discovery_identity = _common_non_empty_metadata_value(
+        selected_metadata_rows,
+        "sps_discovery_identity",
+    )
+    if discovery_identity is not None:
+        payload["sps_discovery_identity"] = discovery_identity
     missing_reason = _common_metadata_missing_reasons(selected_metadata_rows)
     if missing_reason:
         payload["metadata_missing_reason"] = missing_reason

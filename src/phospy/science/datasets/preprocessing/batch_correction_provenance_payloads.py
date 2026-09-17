@@ -58,6 +58,11 @@ def _control_site_source_payload(plan: object) -> Mapping[str, JsonValue]:
                 "reason": "batch-correction plan did not carry a control-site set",
             }
         )
+    source_metadata = _getattr_or(control_site_set, "source_metadata", None)
+    if source_metadata is not None and hasattr(source_metadata, "to_payload"):
+        payload = _payload(source_metadata)
+        if isinstance(payload, Mapping):
+            return _json_mapping(payload)
     if hasattr(control_site_set, "to_payload"):
         payload = _payload(control_site_set)
         if isinstance(payload, Mapping):

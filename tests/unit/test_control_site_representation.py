@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+
+from phospy.advanced import (
+    ControlSiteSourceMetadata as AdvancedControlSiteSourceMetadata,
+)
 from phospy.science.datasets.preprocessing.control_sites import (
     CONTROL_SITE_REASON_CONTROL_ANNOTATION_NOT_IN_SITE_ROWS,
     CONTROL_SITE_REASON_DUPLICATE_CONTROL_ANNOTATION,
@@ -10,6 +15,25 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSourceMetadata,
     ControlSiteStatus,
 )
+
+
+def test_advanced_control_source_metadata_preserves_positional_argument_order() -> None:
+    missing_reason = {"source_version": "legacy reason"}
+
+    metadata = AdvancedControlSiteSourceMetadata(
+        "caller_supplied",
+        "human",
+        "site_key",
+        "manual-controls",
+        "legacy-v1",
+        "caller local use",
+        "not redistributed",
+        "caller_supplied",
+        missing_reason,
+    )
+
+    assert metadata.metadata_missing_reason == missing_reason
+    assert metadata.sps_discovery_identity is None
 
 
 def test_binary_control_annotations_map_to_site_key_rows() -> None:
@@ -57,6 +81,50 @@ def test_control_metadata_missing_rationale_maps_to_eligibility() -> None:
     assert mapping.row_eligibility[0].metadata_missing_reason == {
         "source_version": "caller-supplied local controls have no version",
     }
+
+
+def test_control_site_set_round_trip_preserves_optional_sps_discovery_identity() -> (
+    None
+):
+    identity = "sha256-stable-json-v1:" + "a" * 64
+    control_set = ControlSiteSet.from_site_keys(
+        ("AKT1_S473",),
+        source_metadata=ControlSiteSourceMetadata(
+            source_type="sps_discovery",
+            source_name="phospy_sps_consensus_stability",
+            source_version="1.0.0",
+            selection_method="consensus_stability",
+            sps_discovery_identity=identity,
+        ),
+    )
+
+    restored = ControlSiteSet.from_payload(
+        json.loads(json.dumps(control_set.to_payload()))
+    )
+
+    assert restored == control_set
+    assert restored.source_metadata.sps_discovery_identity == identity
+    assert (
+        restored.map_to_site_keys(("AKT1_S473",))
+        .row_eligibility[0]
+        .sps_discovery_identity
+        == identity
+    )
+
+
+def test_historical_control_source_payload_without_discovery_identity_is_valid() -> (
+    None
+):
+    restored = ControlSiteSourceMetadata.from_payload(
+        {
+            "source_type": "caller_supplied",
+            "source_name": "manual-controls",
+            "selection_method": "caller_supplied",
+            "metadata_missing_reason": {},
+        }
+    )
+
+    assert restored.sps_discovery_identity is None
 
 
 def test_weighted_control_annotations_preserve_weight_without_correction() -> None:

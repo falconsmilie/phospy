@@ -8,6 +8,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias, cast
 
+from phospy.errors.input import PhosPyInputError
 from phospy.policies import PolicyEnum
 from phospy.science.configs.preprocessing.control_sites import (
     CONTROL_SITE_SELECTION_METHOD_CALLER_SUPPLIED,
@@ -43,7 +44,7 @@ class ControlSiteStatus(PolicyEnum):
 
 @dataclass(frozen=True, slots=True)
 class ControlSiteSourceMetadata:
-    """Source metadata attached to caller-supplied control-site annotations."""
+    """Source metadata attached to a governed control-site set."""
 
     source_type: str | None = CONTROL_SITE_SOURCE_CALLER_SUPPLIED
     organism: str | None = None
@@ -54,6 +55,7 @@ class ControlSiteSourceMetadata:
     redistribution: str | None = None
     selection_method: str | None = CONTROL_SITE_SELECTION_METHOD_CALLER_SUPPLIED
     metadata_missing_reason: Mapping[str, str] = field(default_factory=dict)
+    sps_discovery_identity: str | None = None
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -65,6 +67,7 @@ class ControlSiteSourceMetadata:
             "license",
             "redistribution",
             "selection_method",
+            "sps_discovery_identity",
         ):
             object.__setattr__(
                 self,
@@ -89,8 +92,48 @@ class ControlSiteSourceMetadata:
             "license": self.license,
             "redistribution": self.redistribution,
             "selection_method": self.selection_method,
+            "sps_discovery_identity": self.sps_discovery_identity,
             "metadata_missing_reason": dict(self.metadata_missing_reason),
         }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> ControlSiteSourceMetadata:
+        """Restore source metadata, including legacy payloads without SPS lineage."""
+
+        if not isinstance(payload, Mapping):
+            raise PhosPyInputError("control_site_source_metadata must be an object")
+        missing_reason = payload.get("metadata_missing_reason", {})
+        if not isinstance(missing_reason, Mapping):
+            raise PhosPyInputError(
+                "control_site_source_metadata.metadata_missing_reason must be an object"
+            )
+        return cls(
+            source_type=_optional_non_empty_string(
+                payload.get("source_type", CONTROL_SITE_SOURCE_CALLER_SUPPLIED)
+            ),
+            organism=_optional_non_empty_string(payload.get("organism")),
+            identifier_namespace=_optional_non_empty_string(
+                payload.get("identifier_namespace")
+            ),
+            source_name=_optional_non_empty_string(
+                payload.get("source_name", CONTROL_SITE_SOURCE_CALLER_SUPPLIED)
+            ),
+            source_version=_optional_non_empty_string(payload.get("source_version")),
+            license=_optional_non_empty_string(payload.get("license")),
+            redistribution=_optional_non_empty_string(payload.get("redistribution")),
+            selection_method=_optional_non_empty_string(
+                payload.get(
+                    "selection_method",
+                    CONTROL_SITE_SELECTION_METHOD_CALLER_SUPPLIED,
+                )
+            ),
+            sps_discovery_identity=_optional_non_empty_string(
+                payload.get("sps_discovery_identity")
+            ),
+            metadata_missing_reason={
+                str(key): str(value) for key, value in missing_reason.items()
+            },
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,6 +278,7 @@ class ControlSiteEligibility:
     exclusion_reason: str | None = None
     row_position: int | None = None
     annotation_indices: tuple[int, ...] = ()
+    sps_discovery_identity: str | None = None
 
     @property
     def is_control(self) -> bool:
@@ -267,6 +311,7 @@ class ControlSiteEligibility:
             "license": self.license,
             "redistribution": self.redistribution,
             "selection_method": self.selection_method,
+            "sps_discovery_identity": self.sps_discovery_identity,
             "metadata_missing_reason": dict(self.metadata_missing_reason),
             "exclusion_reason": self.exclusion_reason,
             "row_position": self.row_position,
@@ -328,7 +373,7 @@ class ControlSiteMapping:
 
 @dataclass(frozen=True, slots=True)
 class ControlSiteSet:
-    """Caller-supplied control-site annotations and source metadata."""
+    """Control-site annotations and their governed source metadata."""
 
     annotations: Sequence[ControlSiteAnnotation] = ()
     source_metadata: ControlSiteSourceMetadata = field(
@@ -418,6 +463,87 @@ class ControlSiteSet:
             unannotated_site_status=ControlSiteStatus.NON_CONTROL,
         )
 
+    def to_payload(self) -> dict[str, object]:
+        """Return a deterministic JSON-compatible control-set payload."""
+
+        status = cast(ControlSiteStatus, self.unannotated_site_status)
+        return {
+            "annotations": [annotation.to_payload() for annotation in self.annotations],
+            "source_metadata": self.source_metadata.to_payload(),
+            "unannotated_site_status": status.value,
+        }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> ControlSiteSet:
+        """Restore a control set, accepting historical metadata without lineage."""
+
+        if not isinstance(payload, Mapping):
+            raise PhosPyInputError("control_site_set must be an object")
+        annotation_payloads = payload.get("annotations", ())
+        if not isinstance(annotation_payloads, Sequence) or isinstance(
+            annotation_payloads, (str, bytes, bytearray)
+        ):
+            raise PhosPyInputError("control_site_set.annotations must be an array")
+        annotations: list[ControlSiteAnnotation] = []
+        for position, item in enumerate(annotation_payloads):
+            if not isinstance(item, Mapping):
+                raise PhosPyInputError(
+                    f"control_site_set.annotations[{position}] must be an object"
+                )
+            missing_reason = item.get("metadata_missing_reason", {})
+            if not isinstance(missing_reason, Mapping):
+                raise PhosPyInputError(
+                    "control_site_set annotation metadata_missing_reason must be "
+                    "an object"
+                )
+            structural_reasons = item.get("structural_reasons", ())
+            if not isinstance(structural_reasons, Sequence) or isinstance(
+                structural_reasons, (str, bytes, bytearray)
+            ):
+                raise PhosPyInputError(
+                    "control_site_set annotation structural_reasons must be an array"
+                )
+            annotations.append(
+                ControlSiteAnnotation(
+                    site_key=item.get("site_key"),
+                    control_status=item.get(
+                        "control_status", ControlSiteStatus.CONTROL.value
+                    ),
+                    label=item.get("label"),
+                    weight=item.get("weight"),
+                    group=item.get("group"),
+                    source_type=item.get("source_type"),
+                    organism=item.get("organism"),
+                    identifier_namespace=item.get("identifier_namespace"),
+                    source_name=item.get("source_name"),
+                    source_version=item.get("source_version"),
+                    license=item.get("license"),
+                    redistribution=item.get("redistribution"),
+                    selection_method=item.get("selection_method"),
+                    metadata_missing_reason={
+                        str(key): str(value) for key, value in missing_reason.items()
+                    },
+                    exclusion_reason=item.get("exclusion_reason"),
+                    structural_reasons=tuple(
+                        str(value) for value in structural_reasons
+                    ),
+                )
+            )
+        source_payload = payload.get("source_metadata")
+        if source_payload is None and "source_metadata" not in payload:
+            source_metadata = ControlSiteSourceMetadata()
+        elif isinstance(source_payload, Mapping):
+            source_metadata = ControlSiteSourceMetadata.from_payload(source_payload)
+        else:
+            raise PhosPyInputError("control_site_set.source_metadata must be an object")
+        return cls(
+            annotations=tuple(annotations),
+            source_metadata=source_metadata,
+            unannotated_site_status=payload.get(
+                "unannotated_site_status", ControlSiteStatus.UNKNOWN.value
+            ),
+        )
+
     def map_to_site_keys(self, site_keys: Iterable[object]) -> ControlSiteMapping:
         """Map annotations onto an existing site-key axis without selecting sites."""
 
@@ -493,6 +619,7 @@ class ControlSiteSet:
                 license=metadata.license,
                 redistribution=metadata.redistribution,
                 selection_method=metadata.selection_method,
+                sps_discovery_identity=metadata.sps_discovery_identity,
                 metadata_missing_reason=metadata.metadata_missing_reason,
             )
         if len(annotations) > 1:
@@ -522,6 +649,7 @@ class ControlSiteSet:
                 license=metadata.license,
                 redistribution=metadata.redistribution,
                 selection_method=metadata.selection_method,
+                sps_discovery_identity=metadata.sps_discovery_identity,
                 metadata_missing_reason=metadata.metadata_missing_reason,
             )
         annotation_index, annotation = annotations[0]
@@ -559,6 +687,7 @@ class ControlSiteSet:
             license=metadata.license,
             redistribution=metadata.redistribution,
             selection_method=metadata.selection_method,
+            sps_discovery_identity=metadata.sps_discovery_identity,
             metadata_missing_reason=metadata.metadata_missing_reason,
         )
 
@@ -592,6 +721,7 @@ class ControlSiteSet:
             license=metadata.license,
             redistribution=metadata.redistribution,
             selection_method=metadata.selection_method,
+            sps_discovery_identity=metadata.sps_discovery_identity,
             metadata_missing_reason=metadata.metadata_missing_reason,
         )
 
@@ -633,6 +763,7 @@ class ControlSiteSet:
                 "selection_method",
                 metadata.selection_method,
             ),
+            sps_discovery_identity=metadata.sps_discovery_identity,
             metadata_missing_reason=_merged_missing_reason_mapping(
                 metadata.metadata_missing_reason,
                 () if annotation is None else annotation.metadata_missing_reason,

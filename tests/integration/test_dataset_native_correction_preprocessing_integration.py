@@ -1092,6 +1092,9 @@ def test_public_sps_discovery_controls_execute_sps_ruv_preprocessing() -> None:
     assert correction_provenance.control_site_source["source_name"] == (
         discovered_controls.source_metadata.source_name
     )
+    assert correction_provenance.control_site_source["sps_discovery_identity"] == (
+        discovery_result.discovery_identity
+    )
     assert correction_provenance.selected_site_key_rows == tuple(
         annotation.site_key for annotation in discovered_controls.annotations
     )
