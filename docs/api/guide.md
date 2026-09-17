@@ -132,7 +132,9 @@ from phospy.advanced import (
 )
 ```
 
-SPS discovery is also supported from this facade. Request construction only
+SPS discovery is also supported from this facade. The complete scientific and
+API workflow is documented in [SPS Discovery and RUV-Style
+Correction](sps-ruv.md). Request construction only
 stores caller intent. The workflow boundary validates the reference matrices
 as one multi-dataset input while keeping the validator itself private, then
 derives a consensus control set from those explicit references:
@@ -242,9 +244,10 @@ correction = SpsRuvBatchCorrectionConfig(
 ```
 
 Reference matrices are caller-supplied evidence; the target experiment is not
-silently reused for control discovery. SPS discovery is PhosR-inspired and is
-designed for later external parity validation, but it does not claim PhosR or
-RUV-III parity.
+silently reused for control discovery. SPS discovery is PhosR-inspired. Pinned
+external evidence now covers the committed synthetic SPS ranking/selection
+case, but it does not claim general PhosR workflow equivalence. RUV-III is a
+separate correction operation and has its own bounded finite-`k` evidence.
 
 The stable and advanced surfaces are intentional. Do not build user code around
 private validators, internal workflow executors, underscored helpers, or nearby

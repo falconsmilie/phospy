@@ -428,6 +428,12 @@ Batch terms are resolved for validation and diagnostics; they are not directly
 residualized as fixed effects by the native correction. This implementation is
 not PhosR-equivalent SPS/RUV-III parity.
 
+For the complete reference-preparation, SPS-discovery, control-reuse, and
+correction workflow, including the reference-input contract and an end-to-end
+example, see [SPS Discovery and RUV-Style Correction](sps-ruv.md). The
+condition-relative log2 contract belongs to SPS **reference** datasets used for
+discovery; it is not imposed on every correction target.
+
 For the default `sps_ruv_style` method, optional `replicate_column` metadata is
 checked and recorded for diagnostics and provenance only. For
 `ruv_iii_style`, the column is required and defines the replicate-set mapping

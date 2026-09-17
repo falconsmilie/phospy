@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Documentation
+
+- Added the complete SPS reference-preparation, discovery, `ControlSiteSet`
+  reuse, `sps_ruv_style`, and replicate-aware `ruv_iii_style` workflow, with
+  explicit condition-relative log2 reference semantics, missingness and
+  provenance boundaries, method distinctions, valid end-to-end examples, and
+  bounded PhosR/`ruv` parity claims.
+- Added ADR-0051 to record that SPS reference quantitative-state governance is
+  separate from normal target-correction input contracts.
+
 ## [1.7.4] - 2026-09-16
 
 ### Added

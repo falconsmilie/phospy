@@ -8,6 +8,7 @@
 - **Date:** 2026-06-14
 - **Decision Type:** Architecture and Scientific Roadmap
 - **Refined By:** ADR-0029
+- **Further Refined By:** ADR-0051
 - **Implemented By:** `SpsRuvBatchCorrectionConfig` native SPS/RUV-style
   preprocessing correction, including separately identified `sps_ruv_style`
   and replicate-aware `ruv_iii_style` methods. The implementation is not a

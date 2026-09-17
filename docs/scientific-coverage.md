@@ -165,6 +165,10 @@ mixed-effects modelling.
 
 ### RUV/SPS/RUV-III Batch-Correction Posture
 
+The complete user workflow, quantitative reference-input contract, method
+distinction, and `ControlSiteSet` reuse boundary are documented in [SPS
+Discovery and RUV-Style Correction](api/sps-ruv.md).
+
 Supported today:
 
 - `linear_residualize_batch`, a limited fixed-effect residualisation method
@@ -206,7 +210,10 @@ Supported today:
   Batch terms are resolved for validation and diagnostics, not directly
   residualized as fixed effects by the native correction. For `sps_ruv_style`,
   supplied replicate metadata remains provenance-only. For `ruv_iii_style`, it
-  is required and used directly by the numerical estimator.
+  is required and used directly by the numerical estimator, providing
+  replicate-aware RUV-III semantics. The public `sps_ruv_style` workflow
+  requires a complete correction-stage matrix and rejects actual missing values
+  (NaNs) before executor invocation.
 - Fixture-scoped external comparison of SPS discovery against pinned PhosR
   `getSPS` and of the complete-input finite-`k` RUV-III kernel against pinned
   `ruv::RUVIII`. The committed synthetic fixtures use explicitly centred
@@ -227,6 +234,11 @@ Not supported today:
   correction.
 - no treatment of report-only `ruv_readiness` or similar diagnostics as
   correction support.
+
+The first two gaps are deliberately claims about **broad equivalence**, not an
+absence of implementation. SPS discovery, `sps_ruv_style`, and
+`ruv_iii_style` are implemented; only the external evidence scopes listed
+above may be described as parity evidence.
 
 SPS discovery and the native SPS/RUV-style lane are PhosPy implementations.
 The pinned synthetic evidence establishes fixture-scoped agreement for SPS

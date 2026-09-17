@@ -24,6 +24,10 @@ identity.
 Amended 2026-08-06 to make kinase reference-projection summary provenance a
 strictly validated schema-1 contract.
 
+Refined by ADR-0051 for the SPS-reference-specific condition-relative log2
+state, matrix-bound establishment evidence, and separation from target
+correction input state.
+
 ## Context
 
 Recent workflow work introduced explicit scientific state for quantitative

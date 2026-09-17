@@ -68,6 +68,7 @@ nav:
       - Enrichment: api/enrichment.md
       - Kinase Analysis: api/kinase.md
       - Signalome Analysis: api/signalome.md
+      - SPS Discovery and RUV Correction: api/sps-ruv.md
   - Using PhosPy:
       - Public Python API: api/guide.md
       - Reference Data: reference_bundles.md

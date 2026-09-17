@@ -172,12 +172,16 @@ an explicit `ControlSiteSet`, `CorrectionMissingnessPolicy`,
 columns mean the native correction protects joint condition strata such as
 `condition=treated|timepoint=early`; it does not fit additive
 protected-condition terms. Providing `replicate_column` for `sps_ruv_style`
-retains those historical provenance-only semantics. Selecting
+retains those historical provenance-only semantics: it is not used for
+numerical unwanted-factor estimation by that method. Selecting
 `method="ruv_iii_style"` requires `replicate_column`; those assignments define
 the replicate-set mapping used directly by the RUV-III estimator. RUV-III
 protects biological structure through within-replicate-set residualisation,
 while condition metadata remains validated and recorded rather than being
-forced into the `sps_ruv_style` fixed-effect protection model. Temporary
+forced into the `sps_ruv_style` fixed-effect protection model. These are
+replicate-aware RUV-III correction semantics, not a reinterpretation of
+`sps_ruv_style`. The public `sps_ruv_style` workflow requires a complete
+correction-stage matrix and rejects actual missing values (NaNs). Temporary
 imputation is correction mechanics only:
 observation masks preserve which cells were originally observed, and imputed
 temporary values must not be treated as observed evidence. Recognized

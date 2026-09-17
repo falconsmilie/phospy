@@ -334,6 +334,14 @@ site-key-ascending tie order remains its deterministic contract; an external
 tie is compared by score and tie-group membership where package ordering is
 not a scientific result.
 
+The fixture's baseline was selected by the authored synthetic study design
+before centring. Its arithmetic subtraction demonstrates alignment with the
+reference implementation for this case; it is not guidance to subtract any
+convenient condition. PhosR relies on caller convention for this preparation,
+whereas PhosPy validates matrix-bound log2 scale and
+`CONTRAST_LOG2_FOLD_CHANGE` state before ranking. That is a deliberate
+input-governance difference, not a numerical SPS algorithm difference.
+
 The RUV-III evidence consumes already selected synthetic negative controls, so
 it does not rerun or depend on SPS discovery. It covers `k=0`, `k=1`, and
 `k=2`, four replicate sets, two planted technical factors, retained biological

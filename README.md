@@ -176,9 +176,17 @@ GSEA or PTM-SEA support.
 confounded batch/condition designs. It is not ComBat, not RUV, not limma
 `removeBatchEffect` parity, and not mixed-effects modelling. Native
 SPS/RUV-style correction through `SpsRuvBatchCorrectionConfig` is a separate,
-explicit preprocessing method. It is not PhosR-equivalent SPS/RUV-III parity
-and not PhosR-equivalent batch correction. Replicate metadata is checked and
-recorded but is not used for numerical unwanted-factor estimation.
+explicit preprocessing method with distinct `sps_ruv_style` and
+replicate-aware `ruv_iii_style` estimators. Replicate metadata is
+provenance/diagnostics-only for `sps_ruv_style` and is not used for numerical
+unwanted-factor estimation by that method; for `ruv_iii_style` it is required
+and participates directly in estimation. Multi-reference SPS
+discovery is a separate operation with an explicit condition-relative log2
+reference-input contract; the target experiment follows normal PhosPy input
+contracts. See the [SPS discovery and RUV correction
+guide](docs/api/sps-ruv.md). These native methods have narrow fixture-scoped
+external evidence. This is not PhosR-equivalent SPS/RUV-III parity and not
+PhosR-equivalent batch correction.
 `ruv_readiness` values are report-only readiness signals and do not apply
 correction; use native correction only after those prerequisites are
 implemented in the request.

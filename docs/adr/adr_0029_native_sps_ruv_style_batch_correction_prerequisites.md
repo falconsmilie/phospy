@@ -8,6 +8,7 @@
 - **Date:** 2026-06-23
 - **Decision Type:** Scientific Architecture and Roadmap
 - **Refines:** ADR-0027
+- **Further Refined By:** ADR-0051
 - **Implemented By:** `SpsRuvBatchCorrectionConfig` native SPS/RUV-style
   preprocessing correction and batch-correction workflow contracts. This is not
   a PhosR-equivalent SPS/RUV-III parity claim.
