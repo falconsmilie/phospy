@@ -18,6 +18,10 @@ from phospy.advanced import (
     DatasetNormalisationConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
+    SpsDiscoveryConfig,
+    SpsDiscoveryRequest,
+    SpsDiscoveryWorkflow,
+    SpsReferenceDataset,
     SpsRuvBatchCorrectionConfig,
 )
 from phospy.api import (
@@ -993,6 +997,107 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
     assert executor_diagnostics["status"] == "applied"
     assert provenance.output_matrix_fingerprint is not None
     assert not dataset.phospho.equals(phospho)
+
+
+def test_public_sps_discovery_controls_execute_sps_ruv_preprocessing() -> None:
+    phospho = _sps_phospho()
+    site_keys = pd.Index(
+        [
+            _sps_site_key("MAPK14", "Y", "182"),
+            _sps_site_key("AKT1", "T", "308"),
+            _sps_site_key("SRC", "Y", "416"),
+        ],
+        name="site_key",
+    )
+    reference_conditions = {
+        "control_1": "control",
+        "control_2": "control",
+        "treated_1": "treated",
+        "treated_2": "treated",
+    }
+    references = tuple(
+        SpsReferenceDataset.from_condition_relative_log2(
+            dataset_id=dataset_id,
+            intensities=pd.DataFrame(values, index=site_keys),
+            condition_by_sample=reference_conditions,
+            log2_scale_established_by=f"{dataset_id} log2 preprocessing",
+            baseline_centering_established_by=f"{dataset_id} control subtraction",
+            source_name=f"governed-{dataset_id}",
+            source_version="2026-09",
+        )
+        for dataset_id, values in (
+            (
+                "reference_a",
+                {
+                    "control_1": [0.0, 0.0, 0.0],
+                    "control_2": [0.0, 0.0, 0.0],
+                    "treated_1": [0.1, 2.0, 0.2],
+                    "treated_2": [0.1, 2.0, 0.2],
+                },
+            ),
+            (
+                "reference_b",
+                {
+                    "control_1": [0.0, 0.0, 0.0],
+                    "control_2": [0.0, 0.0, 0.0],
+                    "treated_1": [0.2, 3.0, 0.3],
+                    "treated_2": [0.2, 3.0, 0.3],
+                },
+            ),
+        )
+    )
+    discovery_result = SpsDiscoveryWorkflow().run(
+        SpsDiscoveryRequest(
+            reference_datasets=references,
+            config=SpsDiscoveryConfig(top_n=2, minimum_shared_sites=2),
+        )
+    )
+    discovered_controls = discovery_result.control_site_set
+    correction_config = SpsRuvBatchCorrectionConfig(
+        control_site_set=discovered_controls,
+        batch_column="batch",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+        diagnostics_enabled=True,
+        provenance_enabled=True,
+    )
+
+    assert correction_config.control_site_set is discovered_controls
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_sps_site_metadata(phospho),
+            sample_metadata=_sps_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=correction_config
+            ),
+        )
+    )
+
+    assert dataset.preprocessing_report is not None
+    report = dataset.preprocessing_report.batch_correction
+    assert report is not None
+    assert report.status == "applied"
+    assert report.method == "sps_ruv_style"
+    correction_provenance = _attached_batch_correction_provenance(dataset)
+    assert correction_provenance.control_site_source["source_type"] == "caller_supplied"
+    assert (
+        correction_provenance.control_site_source["control_site_set_source_type"]
+        == "sps_discovery"
+    )
+    assert correction_provenance.control_site_source["source_name"] == (
+        discovered_controls.source_metadata.source_name
+    )
+    assert correction_provenance.selected_site_key_rows == tuple(
+        annotation.site_key for annotation in discovered_controls.annotations
+    )
+    executor_diagnostics = correction_provenance.diagnostics["executor"]
+    assert isinstance(executor_diagnostics, Mapping)
+    assert executor_diagnostics["status"] == "applied"
 
 
 def test_workflow_generated_selected_control_provenance_still_passes_validation() -> (

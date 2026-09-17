@@ -39,6 +39,7 @@ from phospy.science.transformations._authority import (
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentProvenance,
+    IntensityScaleEstablishmentSource,
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
@@ -119,6 +120,43 @@ class SpsDiscoveryConfig:
             "tie_handling": self.tie_handling,
             "selection_method": self.selection_method,
         }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> SpsDiscoveryConfig:
+        """Restore a validated SPS configuration from its public payload."""
+
+        resolved = _require_payload_mapping(payload, field_name="sps_discovery_config")
+        return cls(
+            top_n=_require_payload_int(
+                resolved.get("top_n"), field_name="sps_discovery_config.top_n"
+            ),
+            minimum_reference_datasets=_require_payload_int(
+                resolved.get("minimum_reference_datasets"),
+                field_name="sps_discovery_config.minimum_reference_datasets",
+            ),
+            minimum_datasets_per_site=_require_payload_int(
+                resolved.get("minimum_datasets_per_site"),
+                field_name="sps_discovery_config.minimum_datasets_per_site",
+            ),
+            minimum_shared_sites=_require_payload_int(
+                resolved.get("minimum_shared_sites"),
+                field_name="sps_discovery_config.minimum_shared_sites",
+            ),
+            tie_handling=cast(
+                SpsDiscoveryTieHandling,
+                _require_payload_string(
+                    resolved.get("tie_handling"),
+                    field_name="sps_discovery_config.tie_handling",
+                ),
+            ),
+            selection_method=cast(
+                SpsDiscoverySelectionMethod,
+                _require_payload_string(
+                    resolved.get("selection_method"),
+                    field_name="sps_discovery_config.selection_method",
+                ),
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True, eq=False, init=False)
@@ -379,6 +417,24 @@ class SpsSampleConditionAssignment:
     def to_payload(self) -> dict[str, object]:
         return {"sample_id": self.sample_id, "condition": self.condition}
 
+    @classmethod
+    def from_payload(
+        cls, payload: Mapping[str, object]
+    ) -> SpsSampleConditionAssignment:
+        """Restore a validated sample-condition assignment."""
+
+        resolved = _require_payload_mapping(payload, field_name="sps_sample_condition")
+        return cls(
+            sample_id=_require_payload_string(
+                resolved.get("sample_id"),
+                field_name="sps_sample_condition.sample_id",
+            ),
+            condition=_require_payload_string(
+                resolved.get("condition"),
+                field_name="sps_sample_condition.condition",
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class SpsReferenceDatasetProvenance:
@@ -509,6 +565,116 @@ class SpsReferenceDatasetProvenance:
             },
         }
 
+    @classmethod
+    def from_payload(
+        cls, payload: Mapping[str, object]
+    ) -> SpsReferenceDatasetProvenance:
+        """Restore matrix-free SPS reference provenance from serialized evidence."""
+
+        resolved = _require_payload_mapping(payload, field_name="sps_source_provenance")
+        quantitative_state = _require_payload_mapping(
+            resolved.get("quantitative_state"),
+            field_name="sps_source_provenance.quantitative_state",
+        )
+        scale_establishment_payload = _require_payload_mapping(
+            quantitative_state.get("scale_establishment"),
+            field_name=("sps_source_provenance.quantitative_state.scale_establishment"),
+        )
+        meaning_establishment_payload = _require_payload_mapping(
+            quantitative_state.get("quantitative_meaning_establishment"),
+            field_name=(
+                "sps_source_provenance.quantitative_state."
+                "quantitative_meaning_establishment"
+            ),
+        )
+        fingerprint_payload = _require_payload_mapping(
+            resolved.get("intensity_fingerprint"),
+            field_name="sps_source_provenance.intensity_fingerprint",
+        )
+        sample_condition_payloads = _require_payload_sequence(
+            resolved.get("sample_conditions"),
+            field_name="sps_source_provenance.sample_conditions",
+        )
+        try:
+            intensity_scale_kind = IntensityScaleKind(
+                _require_payload_string(
+                    quantitative_state.get("scale"),
+                    field_name="sps_source_provenance.quantitative_state.scale",
+                )
+            )
+            quantitative_meaning = QuantitativeMeaning(
+                _require_payload_string(
+                    quantitative_state.get("quantitative_meaning"),
+                    field_name=(
+                        "sps_source_provenance.quantitative_state.quantitative_meaning"
+                    ),
+                )
+            )
+            scale_establishment = _scale_establishment_from_payload(
+                scale_establishment_payload
+            )
+            meaning_establishment = (
+                QuantitativeMeaningTransitionProvenance.from_payload(
+                    meaning_establishment_payload
+                )
+            )
+            intensity_fingerprint = table_fingerprint_from_payload(fingerprint_payload)
+        except (TypeError, ValueError) as exc:
+            raise PhosPyInputError(
+                "sps_source_provenance contains invalid quantitative or "
+                "fingerprint evidence"
+            ) from exc
+        return cls(
+            dataset_id=_require_payload_string(
+                resolved.get("dataset_id"),
+                field_name="sps_source_provenance.dataset_id",
+            ),
+            source_name=_optional_payload_string(
+                resolved.get("source_name"),
+                field_name="sps_source_provenance.source_name",
+            ),
+            source_version=_optional_payload_string(
+                resolved.get("source_version"),
+                field_name="sps_source_provenance.source_version",
+            ),
+            source_uri=_optional_payload_string(
+                resolved.get("source_uri"),
+                field_name="sps_source_provenance.source_uri",
+            ),
+            site_count=_require_payload_int(
+                resolved.get("site_count"),
+                field_name="sps_source_provenance.site_count",
+            ),
+            sample_count=_require_payload_int(
+                resolved.get("sample_count"),
+                field_name="sps_source_provenance.sample_count",
+            ),
+            sites_passing_required_data=_optional_payload_int(
+                resolved.get("sites_passing_required_data"),
+                field_name="sps_source_provenance.sites_passing_required_data",
+            ),
+            sites_entering_consensus=_optional_payload_int(
+                resolved.get("sites_entering_consensus"),
+                field_name="sps_source_provenance.sites_entering_consensus",
+            ),
+            sample_conditions=tuple(
+                SpsSampleConditionAssignment.from_payload(
+                    _require_payload_mapping(
+                        item,
+                        field_name=(
+                            f"sps_source_provenance.sample_conditions[{position}]"
+                        ),
+                    )
+                )
+                for position, item in enumerate(sample_condition_payloads)
+            ),
+            intensity_fingerprint=intensity_fingerprint,
+            intensity_scale_kind=intensity_scale_kind,
+            quantitative_meaning=quantitative_meaning,
+            intensity_scale_establishment=scale_establishment,
+            quantitative_meaning_establishment=meaning_establishment,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class SpsDiscoveryValidationIssue:
@@ -596,9 +762,13 @@ class SpsDatasetSiteStatistic:
             ),
         )
         _require_positive_int(self.rank, field_name="sps_site_statistic.rank")
-        _require_finite_float(
+        stability_score = _require_finite_float(
             self.stability_score, field_name="sps_site_statistic.stability_score"
         )
+        if stability_score < 0.0:
+            raise PhosPyInputError(
+                "sps_site_statistic.stability_score must be non-negative"
+            )
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -606,6 +776,25 @@ class SpsDatasetSiteStatistic:
             "rank": self.rank,
             "stability_score": self.stability_score,
         }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> SpsDatasetSiteStatistic:
+        """Restore one validated reference-specific site statistic."""
+
+        resolved = _require_payload_mapping(payload, field_name="sps_site_statistic")
+        return cls(
+            dataset_id=_require_payload_string(
+                resolved.get("dataset_id"),
+                field_name="sps_site_statistic.dataset_id",
+            ),
+            rank=_require_payload_int(
+                resolved.get("rank"), field_name="sps_site_statistic.rank"
+            ),
+            stability_score=_require_payload_float(
+                resolved.get("stability_score"),
+                field_name="sps_site_statistic.stability_score",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -627,10 +816,14 @@ class SpsSiteStabilityRecord:
         _require_positive_int(
             self.consensus_rank, field_name="sps_site_record.consensus_rank"
         )
-        _require_finite_float(
+        consensus_stability_score = _require_finite_float(
             self.consensus_stability_score,
             field_name="sps_site_record.consensus_stability_score",
         )
+        if not 0.0 <= consensus_stability_score <= 1.0:
+            raise PhosPyInputError(
+                "sps_site_record.consensus_stability_score must be between 0 and 1"
+            )
         _require_positive_int(
             self.contributing_dataset_count,
             field_name="sps_site_record.contributing_dataset_count",
@@ -666,6 +859,42 @@ class SpsSiteStabilityRecord:
                 item.to_payload() for item in self.dataset_statistics
             ],
         }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> SpsSiteStabilityRecord:
+        """Restore one validated consensus-ranking record."""
+
+        resolved = _require_payload_mapping(payload, field_name="sps_site_record")
+        statistics = _require_payload_sequence(
+            resolved.get("dataset_statistics"),
+            field_name="sps_site_record.dataset_statistics",
+        )
+        return cls(
+            site_key=_require_payload_string(
+                resolved.get("site_key"), field_name="sps_site_record.site_key"
+            ),
+            consensus_rank=_require_payload_int(
+                resolved.get("consensus_rank"),
+                field_name="sps_site_record.consensus_rank",
+            ),
+            consensus_stability_score=_require_payload_float(
+                resolved.get("consensus_stability_score"),
+                field_name="sps_site_record.consensus_stability_score",
+            ),
+            contributing_dataset_count=_require_payload_int(
+                resolved.get("contributing_dataset_count"),
+                field_name="sps_site_record.contributing_dataset_count",
+            ),
+            dataset_statistics=tuple(
+                SpsDatasetSiteStatistic.from_payload(
+                    _require_payload_mapping(
+                        item,
+                        field_name=f"sps_site_record.dataset_statistics[{position}]",
+                    )
+                )
+                for position, item in enumerate(statistics)
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -713,6 +942,36 @@ class SpsSelectionBoundaryCounts:
             "sites_ranked": self.sites_ranked,
             "sites_selected": self.sites_selected,
         }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> SpsSelectionBoundaryCounts:
+        """Restore validated SPS boundary counts."""
+
+        resolved = _require_payload_mapping(
+            payload, field_name="sps_selection_boundaries"
+        )
+        return cls(
+            total_unique_sites=_require_payload_int(
+                resolved.get("total_unique_sites"),
+                field_name="sps_selection_boundaries.total_unique_sites",
+            ),
+            sites_meeting_dataset_overlap=_require_payload_int(
+                resolved.get("sites_meeting_dataset_overlap"),
+                field_name=("sps_selection_boundaries.sites_meeting_dataset_overlap"),
+            ),
+            sites_with_valid_stability=_require_payload_int(
+                resolved.get("sites_with_valid_stability"),
+                field_name="sps_selection_boundaries.sites_with_valid_stability",
+            ),
+            sites_ranked=_require_payload_int(
+                resolved.get("sites_ranked"),
+                field_name="sps_selection_boundaries.sites_ranked",
+            ),
+            sites_selected=_require_payload_int(
+                resolved.get("sites_selected"),
+                field_name="sps_selection_boundaries.sites_selected",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -815,6 +1074,69 @@ class SpsDiscoveryProvenance:
             "selection_boundaries": self.selection_boundaries.to_payload(),
         }
 
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> SpsDiscoveryProvenance:
+        """Restore validated SPS discovery provenance without source matrices."""
+
+        resolved = _require_payload_mapping(
+            payload, field_name="sps_discovery_provenance"
+        )
+        source_payloads = _require_payload_sequence(
+            resolved.get("source_datasets"),
+            field_name="sps_discovery_provenance.source_datasets",
+        )
+        config = SpsDiscoveryConfig.from_payload(
+            _require_payload_mapping(
+                resolved.get("algorithm_parameters"),
+                field_name="sps_discovery_provenance.algorithm_parameters",
+            )
+        )
+        serialized_selection_method = _require_payload_string(
+            resolved.get("selection_method"),
+            field_name="sps_discovery_provenance.selection_method",
+        )
+        if serialized_selection_method != config.selection_method:
+            raise PhosPyInputError(
+                "sps_discovery_provenance.selection_method must match "
+                "algorithm_parameters.selection_method"
+            )
+        return cls(
+            source_datasets=tuple(
+                SpsReferenceDatasetProvenance.from_payload(
+                    _require_payload_mapping(
+                        item,
+                        field_name=(
+                            f"sps_discovery_provenance.source_datasets[{position}]"
+                        ),
+                    )
+                )
+                for position, item in enumerate(source_payloads)
+            ),
+            config=config,
+            requested_control_count=_require_payload_int(
+                resolved.get("requested_control_count"),
+                field_name="sps_discovery_provenance.requested_control_count",
+            ),
+            actual_control_count=_require_payload_int(
+                resolved.get("actual_control_count"),
+                field_name="sps_discovery_provenance.actual_control_count",
+            ),
+            selection_boundaries=SpsSelectionBoundaryCounts.from_payload(
+                _require_payload_mapping(
+                    resolved.get("selection_boundaries"),
+                    field_name="sps_discovery_provenance.selection_boundaries",
+                )
+            ),
+            algorithm_id=_require_payload_string(
+                resolved.get("algorithm_id"),
+                field_name="sps_discovery_provenance.algorithm_id",
+            ),
+            algorithm_version=_require_payload_string(
+                resolved.get("algorithm_version"),
+                field_name="sps_discovery_provenance.algorithm_version",
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class SpsDiscoveryResult:
@@ -855,6 +1177,16 @@ class SpsDiscoveryResult:
                 "sps_discovery_result.site_ranking consensus ranks must be "
                 "contiguous and ordered from 1"
             )
+        for previous, current in zip(
+            self.site_ranking,
+            self.site_ranking[1:],
+            strict=False,
+        ):
+            if previous.consensus_stability_score < current.consensus_stability_score:
+                raise PhosPyInputError(
+                    "sps_discovery_result.site_ranking consensus stability scores "
+                    "must be non-increasing"
+                )
         if self.provenance.config.tie_handling == (
             SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING
         ):
@@ -892,7 +1224,22 @@ class SpsDiscoveryResult:
                 "sps_discovery_result ranking length must equal provenance "
                 "selection boundary sites_ranked"
             )
+        expected_selected_count = min(
+            self.provenance.config.top_n,
+            len(self.site_ranking),
+        )
+        if len(self.selected_site_keys) != expected_selected_count:
+            raise PhosPyInputError(
+                "sps_discovery_result selected site count must equal exactly "
+                "min(config.top_n, sites_ranked)"
+            )
+        if len(self.site_ranking) < self.provenance.config.minimum_shared_sites:
+            raise PhosPyInputError(
+                "sps_discovery_result ranking length must meet "
+                "config.minimum_shared_sites"
+            )
         source_ids = {item.dataset_id for item in self.provenance.source_datasets}
+        statistic_counts_by_source: Counter[str] = Counter()
         for record in self.site_ranking:
             if (
                 record.contributing_dataset_count
@@ -909,6 +1256,24 @@ class SpsDiscoveryResult:
                     "sps_discovery_result.site_ranking references unknown source "
                     f"dataset ids: {', '.join(unknown)}"
                 )
+            statistic_counts_by_source.update(statistic_ids)
+        for source in self.provenance.source_datasets:
+            statistic_count = statistic_counts_by_source[source.dataset_id]
+            if (
+                source.sites_entering_consensus is not None
+                and source.sites_entering_consensus != statistic_count
+            ):
+                raise PhosPyInputError(
+                    "sps_discovery_result source sites_entering_consensus must equal "
+                    "the number of ranking records containing that dataset"
+                )
+        for record in self.site_ranking:
+            for statistic in record.dataset_statistics:
+                if statistic.rank > statistic_counts_by_source[statistic.dataset_id]:
+                    raise PhosPyInputError(
+                        "sps_discovery_result reference-specific rank must not exceed "
+                        "that source dataset's consensus entry count"
+                    )
 
     def to_control_site_set(self) -> ControlSiteSet:
         """Return selected SPS controls through the existing downstream contract."""
@@ -947,6 +1312,44 @@ class SpsDiscoveryResult:
             "site_ranking": [item.to_payload() for item in self.site_ranking],
             "provenance": self.provenance.to_payload(),
         }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> SpsDiscoveryResult:
+        """Restore a validated discovery result from its matrix-free payload."""
+
+        resolved = _require_payload_mapping(payload, field_name="sps_discovery_result")
+        selected = _require_payload_sequence(
+            resolved.get("selected_site_keys"),
+            field_name="sps_discovery_result.selected_site_keys",
+        )
+        ranking = _require_payload_sequence(
+            resolved.get("site_ranking"),
+            field_name="sps_discovery_result.site_ranking",
+        )
+        return cls(
+            selected_site_keys=tuple(
+                _require_payload_string(
+                    item,
+                    field_name=f"sps_discovery_result.selected_site_keys[{position}]",
+                )
+                for position, item in enumerate(selected)
+            ),
+            site_ranking=tuple(
+                SpsSiteStabilityRecord.from_payload(
+                    _require_payload_mapping(
+                        item,
+                        field_name=f"sps_discovery_result.site_ranking[{position}]",
+                    )
+                )
+                for position, item in enumerate(ranking)
+            ),
+            provenance=SpsDiscoveryProvenance.from_payload(
+                _require_payload_mapping(
+                    resolved.get("provenance"),
+                    field_name="sps_discovery_result.provenance",
+                )
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -1473,6 +1876,120 @@ def _require_finite_float(value: object, *, field_name: str) -> float:
     if not math.isfinite(resolved):
         raise PhosPyInputError(f"{field_name} must be a finite number")
     return resolved
+
+
+def _scale_establishment_from_payload(
+    payload: Mapping[str, object],
+) -> IntensityScaleEstablishmentProvenance:
+    """Restore repository-authoritative typed scale-establishment evidence."""
+
+    resolved = _require_payload_mapping(
+        payload,
+        field_name="sps_source_provenance.quantitative_state.scale_establishment",
+    )
+    prefix = "sps_source_provenance.quantitative_state.scale_establishment"
+    try:
+        mode = IntensityScaleEstablishmentMode(
+            _require_payload_string(
+                resolved.get("establishment_mode"),
+                field_name=f"{prefix}.establishment_mode",
+            )
+        )
+        source = IntensityScaleEstablishmentSource(
+            _require_payload_string(
+                resolved.get("establishment_source"),
+                field_name=f"{prefix}.establishment_source",
+            )
+        )
+        evidence_level = IntensityScaleEvidenceLevel(
+            _require_payload_string(
+                resolved.get("evidence_level"),
+                field_name=f"{prefix}.evidence_level",
+            )
+        )
+    except ValueError as exc:
+        raise PhosPyInputError(
+            f"{prefix} contains an unsupported typed policy value"
+        ) from exc
+    warnings = _require_payload_sequence(
+        resolved.get("diagnostic_warnings"),
+        field_name=f"{prefix}.diagnostic_warnings",
+    )
+    return IntensityScaleEstablishmentProvenance(
+        scale=_require_payload_string(
+            resolved.get("scale"), field_name=f"{prefix}.scale"
+        ),
+        mode=mode,
+        source=source,
+        evidence_level=evidence_level,
+        transformer_name=_optional_payload_string(
+            resolved.get("transformer_name"),
+            field_name=f"{prefix}.transformer_name",
+        ),
+        input_declaration_source=_optional_payload_string(
+            resolved.get("input_declaration_source"),
+            field_name=f"{prefix}.input_declaration_source",
+        ),
+        parameters=_require_payload_mapping(
+            resolved.get("parameters"), field_name=f"{prefix}.parameters"
+        ),
+        trace_id=_optional_payload_string(
+            resolved.get("trace_id"), field_name=f"{prefix}.trace_id"
+        ),
+        diagnostic_warnings=tuple(
+            _require_payload_string(
+                item, field_name=f"{prefix}.diagnostic_warnings[{position}]"
+            )
+            for position, item in enumerate(warnings)
+        ),
+    )
+
+
+def _require_payload_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> Mapping[str, object]:
+    if not isinstance(value, Mapping):
+        raise PhosPyInputError(f"{field_name} must be an object")
+    resolved: dict[str, object] = {}
+    for key, item in cast(Mapping[object, object], value).items():
+        if not isinstance(key, str):
+            raise PhosPyInputError(f"{field_name} keys must be strings")
+        resolved[key] = item
+    return resolved
+
+
+def _require_payload_sequence(value: object, *, field_name: str) -> tuple[object, ...]:
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise PhosPyInputError(f"{field_name} must be an array")
+    return tuple(cast(Sequence[object], value))
+
+
+def _require_payload_string(value: object, *, field_name: str) -> str:
+    return _require_non_empty_string(value, field_name=field_name)
+
+
+def _optional_payload_string(value: object, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    return _require_payload_string(value, field_name=field_name)
+
+
+def _require_payload_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(f"{field_name} must be an integer")
+    return value
+
+
+def _optional_payload_int(value: object, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    return _require_payload_int(value, field_name=field_name)
+
+
+def _require_payload_float(value: object, *, field_name: str) -> float:
+    return _require_finite_float(value, field_name=field_name)
 
 
 __all__ = [

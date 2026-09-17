@@ -185,10 +185,15 @@ SPS/RUV control pathway directly.
 Conceptually, callers prepare each reference as follows:
 
 ```text
-processed log2 abundance
-    -> establish appropriate control/reference baseline
-    -> subtract/reference-center measurements
-    -> SPS discovery
+processed log2 measurements
+    ↓
+establish appropriate reference/control baseline
+    ↓
+condition-relative log2 reference measurements (baseline = zero)
+    ↓
+SPS discovery
+    ↓
+ControlSiteSet
 ```
 
 This is the condition-relative input interpretation used by the PhosR `getSPS`
@@ -214,6 +219,27 @@ controls are returned and the requested and actual counts are recorded. If
 fewer than `minimum_shared_sites` are rankable, execution fails with structured
 `insufficient_rankable_overlap` validation. Equal change magnitudes receive an
 equal within-reference rank and final consensus ties use ascending `site_key`.
+
+`result.to_payload()` produces a matrix-free JSON-compatible discovery record,
+and `SpsDiscoveryResult.from_payload(...)` restores it while revalidating the
+typed condition-relative log2 state, baseline-establishment evidence, matrix
+fingerprints, ranking, and selection counts. The serialized result contains
+reference identity, quantitative-state evidence, and fingerprints, but never
+the complete source intensity matrices. Its restored `control_site_set` remains
+reusable with the native PhosPy SPS/RUV-style
+`SpsRuvBatchCorrectionConfig` without access to those matrices.
+
+```python
+from phospy.advanced import SpsRuvBatchCorrectionConfig
+
+correction = SpsRuvBatchCorrectionConfig(
+    control_site_set=result.control_site_set,
+    batch_column="batch",
+    condition_columns=("condition",),
+    missingness_policy=correction_missingness_policy,
+    n_unwanted_factors=1,
+)
+```
 
 Reference matrices are caller-supplied evidence; the target experiment is not
 silently reused for control discovery. SPS discovery is PhosR-inspired and is

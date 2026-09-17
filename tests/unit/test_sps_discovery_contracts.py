@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 import pandas as pd
 import pytest
 
 from phospy.advanced import (
-    SpsDatasetSiteStatistic,
+    ControlSiteSet,
+    ControlSiteStatus,
+    CorrectionMissingnessPolicy,
     SpsDiscoveryConfig,
     SpsDiscoveryProvenance,
     SpsDiscoveryRequest,
@@ -14,14 +17,11 @@ from phospy.advanced import (
     SpsDiscoveryValidationError,
     SpsDiscoveryWorkflow,
     SpsReferenceDataset,
+    SpsRuvBatchCorrectionConfig,
     SpsSelectionBoundaryCounts,
     SpsSiteStabilityRecord,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.control_sites import (
-    ControlSiteSet,
-    ControlSiteStatus,
-)
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -618,34 +618,8 @@ def _provenance_and_ranking() -> tuple[
     )
     config = SpsDiscoveryConfig(top_n=2, minimum_shared_sites=2)
     request = SpsDiscoveryRequest(reference_datasets=references, config=config)
-    provenance = SpsDiscoveryWorkflow().assemble_provenance(
-        request,
-        actual_control_count=2,
-        selection_boundaries=SpsSelectionBoundaryCounts(
-            total_unique_sites=3,
-            sites_meeting_dataset_overlap=3,
-            sites_with_valid_stability=3,
-            sites_ranked=3,
-            sites_selected=2,
-        ),
-    )
-    ranking = tuple(
-        SpsSiteStabilityRecord(
-            site_key=str(site_key),
-            consensus_rank=rank,
-            consensus_stability_score=score,
-            contributing_dataset_count=2,
-            dataset_statistics=(
-                SpsDatasetSiteStatistic("study_a", rank, score),
-                SpsDatasetSiteStatistic("study_b", rank, score + 0.01),
-            ),
-        )
-        for rank, (site_key, score) in enumerate(
-            zip(keys, (0.1, 0.2, 0.3), strict=True),
-            start=1,
-        )
-    )
-    return (str(keys[0]), str(keys[1])), provenance, ranking
+    result = SpsDiscoveryWorkflow().run(request)
+    return result.selected_site_keys, result.provenance, result.site_ranking
 
 
 def test_request_construction_is_passive_for_contextually_invalid_payload() -> None:
@@ -813,6 +787,173 @@ def test_discovery_result_converts_to_existing_control_site_set() -> None:
     assert controls.source_metadata.identifier_namespace == "site_key"
     assert controls.source_metadata.source_type == "sps_discovery"
     assert controls.source_metadata.selection_method == "consensus_stability"
+
+
+def test_public_discovery_controls_feed_existing_sps_ruv_config_directly() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+
+    correction = SpsRuvBatchCorrectionConfig(
+        control_site_set=result.control_site_set,
+        batch_column="batch",
+        condition_columns=("condition",),
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+    )
+
+    assert correction.method == "sps_ruv_style"
+    assert correction.control_site_set == result.control_site_set
+
+
+def test_discovery_result_json_round_trip_preserves_typed_governed_provenance() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+
+    payload = json.loads(json.dumps(result.to_payload()))
+    restored = SpsDiscoveryResult.from_payload(payload)
+
+    assert restored == result
+    assert restored.to_payload() == result.to_payload()
+    assert restored.provenance.config is not result.provenance.config
+    assert restored.provenance.source_datasets[0].quantitative_meaning is (
+        QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE
+    )
+    assert restored.provenance.source_datasets[0].intensity_scale_kind.value == "log2"
+    assert "intensities" not in payload["provenance"]["source_datasets"][0]
+
+
+def test_result_deserialization_rejects_tampered_quantitative_state() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    source = payload["provenance"]["source_datasets"][0]  # type: ignore[index]
+    source["quantitative_state"]["quantitative_meaning"] = "unknown"  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="condition-relative"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+@pytest.mark.parametrize("invalid_score", [-0.01, 1.01])
+def test_result_deserialization_rejects_out_of_range_consensus_score(
+    invalid_score: float,
+) -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    payload["site_ranking"][0]["consensus_stability_score"] = invalid_score  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="must be between 0 and 1"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_deserialization_rejects_consensus_score_order_tampering() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    payload["site_ranking"][0]["consensus_stability_score"] = 0.0  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="must be non-increasing"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_deserialization_rejects_coordinated_selected_count_tampering() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    payload["selected_site_keys"] = []
+    payload["provenance"]["actual_control_count"] = 0  # type: ignore[index]
+    payload["provenance"]["selection_boundaries"]["sites_selected"] = 0  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match=r"min\(config.top_n, sites_ranked\)"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_deserialization_rejects_ranking_below_minimum_shared_sites() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    payload["selected_site_keys"] = []
+    payload["site_ranking"] = []
+    payload["provenance"]["actual_control_count"] = 0  # type: ignore[index]
+    boundaries = payload["provenance"]["selection_boundaries"]  # type: ignore[index]
+    boundaries["sites_ranked"] = 0  # type: ignore[index]
+    boundaries["sites_selected"] = 0  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="minimum_shared_sites"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_deserialization_rejects_negative_reference_stability() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    statistic = payload["site_ranking"][0]["dataset_statistics"][0]  # type: ignore[index]
+    statistic["stability_score"] = -100.0  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="stability_score must be non-negative"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_deserialization_rejects_impossible_reference_rank() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    statistic = payload["site_ranking"][0]["dataset_statistics"][0]  # type: ignore[index]
+    statistic["rank"] = 999  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="rank must not exceed"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_deserialization_rejects_contradictory_source_entry_count() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    source = payload["provenance"]["source_datasets"][0]  # type: ignore[index]
+    source["sites_entering_consensus"] = 0  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="sites_entering_consensus must equal"):
+        SpsDiscoveryResult.from_payload(payload)
 
 
 def test_site_stability_record_rejects_noncanonical_site_key() -> None:
