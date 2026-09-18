@@ -6,6 +6,11 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- SPS discovery retains partial-reference contributions but now orders sites
+  first by descending contributing-reference count, then by the existing
+  Fisher-style consensus score, and finally by canonical site key. Algorithm
+  version `2.0.0` and serialized provenance identify this result-changing
+  policy; version `1.0.0` results retain legacy deserialization semantics.
 - SPS discovery now requires a coherent typed organism, explicit biological
   baseline/reference context, and reconstructable identity for every reference.
   The validated context is retained in discovery provenance and identity, and
@@ -21,6 +26,8 @@ All notable changes to this project are documented here.
   bounded PhosR/`ruv` parity claims.
 - Added ADR-0051 to record that SPS reference quantitative-state governance is
   separate from normal target-correction input contracts.
+- Added ADR-0052 to specify partial-reference SPS cross-count ordering and its
+  complete-reference PhosR parity boundary.
 
 ## [1.7.4] - 2026-09-16
 

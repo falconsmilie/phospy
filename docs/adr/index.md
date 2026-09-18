@@ -68,3 +68,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0049 | Protein-Covariate-Adjusted Differential Estimator | Accepted | 2026-08-31 | [adr_0049_protein_covariate_adjusted_differential_estimator.md](adr_0049_protein_covariate_adjusted_differential_estimator.md) |
 | ADR-0050 | Group-Aware Mixed-Mechanism Missing-Data Imputation | Accepted | 2026-09-15 | [adr_0050_group_aware_mixed_mechanism_missing_data_imputation.md](adr_0050_group_aware_mixed_mechanism_missing_data_imputation.md) |
 | ADR-0051 | SPS Reference Quantitative State and Discovery Separation | Accepted | 2026-09-17 | [adr_0051_sps_reference_quantitative_state_and_discovery_separation.md](adr_0051_sps_reference_quantitative_state_and_discovery_separation.md) |
+| ADR-0052 | Partial-Reference SPS Consensus Ordering | Accepted | 2026-09-18 | [adr_0052_partial_reference_sps_consensus_ordering.md](adr_0052_partial_reference_sps_consensus_ordering.md) |

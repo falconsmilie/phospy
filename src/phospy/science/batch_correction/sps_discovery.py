@@ -58,7 +58,14 @@ from phospy.science.transformations.transformers import IdentityTransformer
 
 SPS_DISCOVERY_SELECTION_METHOD_CONSENSUS_STABILITY = "consensus_stability"
 SPS_DISCOVERY_ALGORITHM_ID = "phospy_sps_consensus_stability"
-SPS_DISCOVERY_ALGORITHM_VERSION = "1.0.0"
+SPS_DISCOVERY_ALGORITHM_VERSION = "2.0.0"
+SPS_DISCOVERY_LEGACY_ALGORITHM_VERSION = "1.0.0"
+SPS_DISCOVERY_CROSS_COUNT_ORDERING_POLICY = (
+    "contributing_dataset_count_descending_then_consensus_stability_descending"
+)
+SPS_DISCOVERY_LEGACY_CROSS_COUNT_ORDERING_POLICY = (
+    "consensus_stability_descending_ignoring_contribution_count"
+)
 SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING = "site_key_ascending"
 SPS_DISCOVERY_CONTROL_SOURCE_TYPE = "sps_discovery"
 SPS_DISCOVERY_IDENTITY_SCHEMA_V1 = "phospy-sps-discovery-result-v1"
@@ -1084,6 +1091,7 @@ class SpsDiscoveryProvenance:
     algorithm_id: str = SPS_DISCOVERY_ALGORITHM_ID
     algorithm_version: str = SPS_DISCOVERY_ALGORITHM_VERSION
     organism: Organism = field(init=False)
+    cross_count_ordering_policy: str = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source_datasets", tuple(self.source_datasets))
@@ -1167,9 +1175,23 @@ class SpsDiscoveryProvenance:
                 field_name="sps_discovery_provenance.algorithm_version",
             ),
         )
+        policies_by_version = {
+            SPS_DISCOVERY_LEGACY_ALGORITHM_VERSION: (
+                SPS_DISCOVERY_LEGACY_CROSS_COUNT_ORDERING_POLICY
+            ),
+            SPS_DISCOVERY_ALGORITHM_VERSION: SPS_DISCOVERY_CROSS_COUNT_ORDERING_POLICY,
+        }
+        try:
+            cross_count_policy = policies_by_version[self.algorithm_version]
+        except KeyError as exc:
+            raise PhosPyInputError(
+                "sps_discovery_provenance.algorithm_version must be one of "
+                f"{sorted(policies_by_version)!r}"
+            ) from exc
+        object.__setattr__(self, "cross_count_ordering_policy", cross_count_policy)
 
     def to_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "organism": self.organism.value,
             "source_datasets": [item.to_payload() for item in self.source_datasets],
             "algorithm_id": self.algorithm_id,
@@ -1180,6 +1202,9 @@ class SpsDiscoveryProvenance:
             "algorithm_parameters": self.config.to_payload(),
             "selection_boundaries": self.selection_boundaries.to_payload(),
         }
+        if self.algorithm_version == SPS_DISCOVERY_ALGORITHM_VERSION:
+            payload["cross_count_ordering_policy"] = self.cross_count_ordering_policy
+        return payload
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> SpsDiscoveryProvenance:
@@ -1243,6 +1268,22 @@ class SpsDiscoveryProvenance:
                 field_name="sps_discovery_provenance.algorithm_version",
             ),
         )
+        serialized_cross_count_policy = resolved.get("cross_count_ordering_policy")
+        if result.algorithm_version == SPS_DISCOVERY_ALGORITHM_VERSION:
+            policy = _require_payload_string(
+                serialized_cross_count_policy,
+                field_name=("sps_discovery_provenance.cross_count_ordering_policy"),
+            )
+            if policy != result.cross_count_ordering_policy:
+                raise PhosPyInputError(
+                    "sps_discovery_provenance.cross_count_ordering_policy must "
+                    "match algorithm_version"
+                )
+        elif serialized_cross_count_policy is not None:
+            raise PhosPyInputError(
+                "legacy SPS discovery provenance must not contain "
+                "cross_count_ordering_policy"
+            )
         serialized_organism = resolved.get("organism")
         if serialized_organism is not None:
             normalized_organism = normalize_optional_organism(
@@ -1297,15 +1338,43 @@ class SpsDiscoveryResult:
                 "sps_discovery_result.site_ranking consensus ranks must be "
                 "contiguous and ordered from 1"
             )
+        for record in self.site_ranking:
+            if (
+                record.contributing_dataset_count
+                < self.provenance.config.minimum_datasets_per_site
+            ):
+                raise PhosPyInputError(
+                    "sps_discovery_result.site_ranking contains a site below "
+                    "config.minimum_datasets_per_site"
+                )
+        count_first_ordering = self.provenance.cross_count_ordering_policy == (
+            SPS_DISCOVERY_CROSS_COUNT_ORDERING_POLICY
+        )
         for previous, current in zip(
             self.site_ranking,
             self.site_ranking[1:],
             strict=False,
         ):
-            if previous.consensus_stability_score < current.consensus_stability_score:
+            if count_first_ordering and (
+                previous.contributing_dataset_count < current.contributing_dataset_count
+            ):
+                raise PhosPyInputError(
+                    "sps_discovery_result.site_ranking contributing dataset counts "
+                    "must be non-increasing"
+                )
+            comparable_consensus = (
+                not count_first_ordering
+                or previous.contributing_dataset_count
+                == current.contributing_dataset_count
+            )
+            if (
+                comparable_consensus
+                and previous.consensus_stability_score
+                < current.consensus_stability_score
+            ):
                 raise PhosPyInputError(
                     "sps_discovery_result.site_ranking consensus stability scores "
-                    "must be non-increasing"
+                    "must be non-increasing within an evidence-count stratum"
                 )
         if self.provenance.config.tie_handling == (
             SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING
@@ -1315,8 +1384,14 @@ class SpsDiscoveryResult:
                 self.site_ranking[1:],
                 strict=False,
             ):
+                same_ordering_stratum = (
+                    not count_first_ordering
+                    or previous.contributing_dataset_count
+                    == current.contributing_dataset_count
+                )
                 if (
-                    previous.consensus_stability_score
+                    same_ordering_stratum
+                    and previous.consensus_stability_score
                     == current.consensus_stability_score
                     and previous.site_key > current.site_key
                 ):
@@ -1374,14 +1449,6 @@ class SpsDiscoveryResult:
         source_ids = {item.dataset_id for item in self.provenance.source_datasets}
         statistic_counts_by_source: Counter[str] = Counter()
         for record in self.site_ranking:
-            if (
-                record.contributing_dataset_count
-                < self.provenance.config.minimum_datasets_per_site
-            ):
-                raise PhosPyInputError(
-                    "sps_discovery_result.site_ranking contains a site below "
-                    "config.minimum_datasets_per_site"
-                )
             statistic_ids = {item.dataset_id for item in record.dataset_statistics}
             unknown = sorted(statistic_ids.difference(source_ids))
             if unknown:
@@ -1628,8 +1695,10 @@ class SpsDiscoveryExecutor:
     central ``getSPS`` stability statistic for condition-relative inputs.
     Smaller magnitudes are more stable.  Reference ranks are converted to the
     half-step empirical quantiles used by ``getSPS`` and combined with its
-    Fisher-style chi-square survival score; larger consensus scores are more
-    stable.
+    Fisher-style chi-square survival score. Within one evidence-count stratum,
+    larger consensus scores are more stable. Across strata, sites supported by
+    more references rank first; this conservative evidence-count policy keeps
+    absence of reference evidence from acting as favorable evidence.
 
     Missing replicate cells are ignored only when their condition retains at
     least one finite observation.  A site with an entirely missing condition
@@ -1725,7 +1794,11 @@ class SpsDiscoveryExecutor:
         ordered_sites = tuple(
             sorted(
                 rankable_sites,
-                key=lambda site_key: (-consensus_scores[site_key], site_key),
+                key=lambda site_key: (
+                    -len(statistics_by_site[site_key]),
+                    -consensus_scores[site_key],
+                    site_key,
+                ),
             )
         )
         ranking = tuple(
@@ -2367,6 +2440,7 @@ def _require_payload_float(value: object, *, field_name: str) -> float:
 __all__ = [
     "SPS_DISCOVERY_ALGORITHM_ID",
     "SPS_DISCOVERY_ALGORITHM_VERSION",
+    "SPS_DISCOVERY_CROSS_COUNT_ORDERING_POLICY",
     "SPS_DISCOVERY_CONTROL_SOURCE_TYPE",
     "SPS_DISCOVERY_SELECTION_METHOD_CONSENSUS_STABILITY",
     "SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING",

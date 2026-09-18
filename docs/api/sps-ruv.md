@@ -238,6 +238,25 @@ when it meets `minimum_datasets_per_site`. Individual missing replicate cells
 are ignored only if a finite value remains for that site and condition.
 Infinite values are rejected.
 
+Cross-count ordering is an explicit evidence policy. For site \(i\), let
+\(k_i\) be its contributing-reference count, \(n_r\) the candidate count in
+reference \(r\), and \(\bar a_{ir}\) its tie-aware stability midrank. Discovery
+computes
+
+\[
+q_{ir}=(n_r-\bar a_{ir}+1/2)/n_r,\quad
+T_i=-2\sum_r\log q_{ir},\quad
+C_i=\Pr\{\chi^2_{2(k_i-1)}\ge T_i\}.
+\]
+
+The final ordering is lexicographic in
+`(-k_i, -C_i, site_key_i)`: more contributing references first, then larger
+consensus stability score within an equal-count stratum, then ascending
+`site_key`. This conservative corroboration policy keeps missing
+reference evidence from behaving like favorable stability evidence. A site
+with stronger per-reference stability can therefore rank below a site with
+more independent reference contributions.
+
 `top_n` is an upper bound. If fewer eligible sites remain, all eligible sites
 are selected and the requested and actual counts are recorded. Equal
 within-reference values receive equal ranks; exact final consensus ties are
@@ -256,6 +275,7 @@ reference matrices:
 - scale, `CONTRAST_LOG2_FOLD_CHANGE` meaning, and baseline-establishment
   evidence;
 - SPS algorithm ID/version and parameters;
+- the explicit cross-count ordering policy;
 - per-reference contribution and selection/attrition counts;
 - per-reference stability scores, reporting ranks, and consensus-input rank
   quantiles; and
@@ -278,6 +298,14 @@ explicitly validates the legacy identity, reconstructs each quantile from the
 serialized stability-score tie groups, and returns a v2 result. A v1 payload
 carrying v2-only quantile fields is rejected rather than interpreted
 ambiguously.
+
+Algorithm version `2.0.0` introduced the evidence-count-first ordering and
+serializes
+`contributing_dataset_count_descending_then_consensus_stability_descending` in
+provenance. Version `1.0.0` results deserialize with their historical
+score-first ordering and omit that newer field, so persisted results are not
+silently reinterpreted. Complete-reference results have a constant contributor
+count and retain their PhosR-compatible score and ordering.
 
 Persist `discovery.to_payload()` as JSON-compatible data. Later,
 `SpsDiscoveryResult.from_payload(...)` revalidates it and reconstructs a usable

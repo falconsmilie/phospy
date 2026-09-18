@@ -190,7 +190,10 @@ Supported today:
   available reference ranks into a deterministic Fisher-style consensus.
   Partially missing sites require at least one finite observation in every
   condition they contribute to and at least the configured number of
-  independent reference contributions. The workflow returns typed provenance,
+  independent reference contributions. Cross-count ordering is conservative:
+  descending contributing-reference count precedes descending consensus score,
+  so absent evidence cannot improve a site's position relative to a site with
+  more independent support. The workflow returns typed provenance,
   attrition, and an existing `ControlSiteSet`; it never derives controls
   implicitly from a correction target.
 - `SpsRuvBatchCorrectionConfig`, a native SPS/RUV-style preprocessing
@@ -242,7 +245,8 @@ above may be described as parity evidence.
 
 SPS discovery and the native SPS/RUV-style lane are PhosPy implementations.
 SPS parity is partial: the pinned synthetic evidence establishes fixture-scoped
-agreement for SPS ranking/selection, while partial-reference contributions and
+agreement for complete-reference SPS ranking/selection, while the explicit
+evidence-count-first partial-reference policy and
 ambiguous absolute-abundance inputs remain outside the comparison. The same
 fixture establishes corrected-matrix parity for the complete-input finite-`k`
 RUV-III kernel only; missing-data parity with PhosR is not established. PhosPy

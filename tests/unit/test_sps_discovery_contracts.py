@@ -1201,7 +1201,11 @@ def test_discovery_result_json_round_trip_preserves_typed_governed_provenance() 
 
 
 def test_baseline_v1_discovery_payload_with_legacy_identity_is_migrated() -> None:
-    result = _identity_discovery()
+    current = _identity_discovery()
+    result = replace(
+        current,
+        provenance=replace(current.provenance, algorithm_version="1.0.0"),
+    )
     payload = result.to_payload()
     payload["identity_schema"] = "phospy-sps-discovery-result-v1"
     for record in payload["site_ranking"]:  # type: ignore[union-attr]
@@ -1227,6 +1231,29 @@ def test_baseline_v1_discovery_payload_with_legacy_identity_is_migrated() -> Non
 
     payload["discovery_identity"] = "sha256-stable-json-v1:" + "0" * 64
     with pytest.raises(PhosPyInputError, match="canonical discovery evidence"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_discovery_provenance_versions_cross_count_ordering_policy() -> None:
+    result = _identity_discovery()
+    payload = result.to_payload()
+
+    assert payload["provenance"]["algorithm_version"] == "2.0.0"  # type: ignore[index]
+    assert payload["provenance"]["cross_count_ordering_policy"] == (  # type: ignore[index]
+        "contributing_dataset_count_descending_then_consensus_stability_descending"
+    )
+
+    legacy = replace(
+        result,
+        provenance=replace(result.provenance, algorithm_version="1.0.0"),
+    )
+    legacy_payload = legacy.to_payload()
+    assert "cross_count_ordering_policy" not in legacy_payload["provenance"]  # type: ignore[operator]
+    assert SpsDiscoveryResult.from_payload(legacy_payload) == legacy
+
+    payload["provenance"]["cross_count_ordering_policy"] = "unrecorded"  # type: ignore[index]
+    payload.pop("discovery_identity")
+    with pytest.raises(PhosPyInputError, match="must match algorithm_version"):
         SpsDiscoveryResult.from_payload(payload)
 
 

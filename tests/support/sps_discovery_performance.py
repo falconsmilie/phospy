@@ -166,7 +166,7 @@ def _benchmark_site_keys(n_sites: int) -> pd.Index:
         [
             encode_site_key(
                 ProteinScopedPhosphositeKey(
-                    organism="human",
+                    organism="rat",
                     protein_namespace="uniprot",
                     protein_identifier=f"BMARK{position:06d}",
                     residue=residues[position % len(residues)],

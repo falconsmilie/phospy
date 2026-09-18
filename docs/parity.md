@@ -367,7 +367,11 @@ demonstrated corrected-matrix parity for supported inputs.
 
 This evidence is fixture-scoped, not a blanket package or workflow equivalence
 claim. SPS parity remains partial: PhosR `getSPS` 1.13.1 does not cleanly
-support PhosPy's partial-reference contribution policy, and PhosR leaves
+support PhosPy's partial-reference contribution policy. PhosPy orders such
+sites lexicographically by descending contributing-reference count, descending
+within-count Fisher-style consensus score, and ascending `site_key`;
+that PhosPy-only policy is synthetic-validation evidence, not external parity.
+PhosR also leaves
 scale/baseline preparation to caller convention where PhosPy requires governed
 evidence. PhosPy's stricter boundary remains intact. Missing-value RUV-III
 parity is not claimed: the low-level PhosPy kernel requires complete finite

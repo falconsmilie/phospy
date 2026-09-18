@@ -442,8 +442,44 @@ def test_partial_reference_contributions_attrition_and_native_handoff() -> None:
     assert below_minimum not in result.selected_site_keys
     assert exact_minimum in result.selected_site_keys
     assert records[all_references].contributing_dataset_count == 3
+    full_but_weaker = records[other_eligible]
+    assert all(
+        statistic.stability_score
+        < min(item.stability_score for item in full_but_weaker.dataset_statistics)
+        for statistic in exact_record.dataset_statistics
+    )
+    assert (
+        exact_record.consensus_stability_score
+        > full_but_weaker.consensus_stability_score
+    )
+    assert full_but_weaker.consensus_rank < exact_record.consensus_rank
+    assert tuple(
+        record.contributing_dataset_count for record in result.site_ranking
+    ) == (3, 3, 2)
     assert _run(tuple(reversed(references)), config=config) == result
     assert sps_science.SpsDiscoveryResult.from_payload(result.to_payload()) == result
+    assert result.provenance.algorithm_version == "2.0.0"
+    assert result.provenance.cross_count_ordering_policy == (
+        sps_science.SPS_DISCOVERY_CROSS_COUNT_ORDERING_POLICY
+    )
+    boundary_result = _run(
+        references,
+        config=SpsDiscoveryConfig(
+            top_n=2,
+            minimum_reference_datasets=3,
+            minimum_datasets_per_site=2,
+            minimum_shared_sites=3,
+        ),
+    )
+    assert full_but_weaker.site_key in boundary_result.selected_site_keys
+    assert exact_record.site_key not in boundary_result.selected_site_keys
+    assert (
+        _run(
+            tuple(reversed(references)),
+            config=boundary_result.provenance.config,
+        )
+        == boundary_result
+    )
 
     boundaries = result.provenance.selection_boundaries
     assert boundaries.to_payload() == {
@@ -513,9 +549,8 @@ def test_partial_reference_contributions_attrition_and_native_handoff() -> None:
     )
     mapping = BatchCorrectionWorkflowControlSiteValidator().run(request=native_request)
 
-    assert (
-        tuple(row.site_key for row in mapping.row_eligibility if row.is_control)
-        == result.selected_site_keys
+    assert {row.site_key for row in mapping.row_eligibility if row.is_control} == set(
+        result.selected_site_keys
     )
     assert mapping.control_status_by_site_key[below_minimum].value == "non_control"
 
