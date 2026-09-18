@@ -144,8 +144,12 @@ def _synthetic_sps_reference_evidence() -> tuple[SpsReferenceDataset, ...]:
                 baseline_centering_established_by=(
                     f"{prefix} explicit baseline-condition mean subtraction"
                 ),
+                organism="rat",
+                baseline_context="synthetic baseline condition",
+                reference_context="synthetic rat SPS/RUV benchmark",
                 source_name="deterministic synthetic SPS reference evidence",
                 source_version="PHOSPY-RUV-07-v1",
+                source_uri=f"https://example.test/sps-ruv/{prefix}",
             )
         )
     return tuple(references)

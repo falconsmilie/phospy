@@ -17,15 +17,21 @@ from phospy.advanced import (
     SpsDiscoveryValidationError,
     SpsDiscoveryWorkflow,
     SpsReferenceDataset,
+    SpsReferenceDatasetProvenance,
     SpsRuvBatchCorrectionConfig,
     SpsSelectionBoundaryCounts,
     SpsSiteStabilityRecord,
 )
+from phospy.api import Organism
 from phospy.errors.input import PhosPyInputError
+from phospy.science.sites.site_keys import decode_site_key
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
+)
+from phospy.validation.workflows.batch_correction import (
+    ControlSiteEligibilityValidator,
 )
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -35,10 +41,11 @@ from tests.support.intensity_scale_states import (
 from tests.support.site_keys import protein_site_key_index
 
 
-def _site_keys(*proteins: str) -> pd.Index:
+def _site_keys(*proteins: str, organism: str = "rat") -> pd.Index:
     return protein_site_key_index(
         protein_identifiers=list(proteins),
         sites=[f"S{position + 1}" for position in range(len(proteins))],
+        organism=organism,
     )
 
 
@@ -60,6 +67,10 @@ def _reference(
     site_keys: pd.Index,
     *,
     conditions: dict[str, str] | None = None,
+    organism: Organism | str | None = "rat",
+    baseline_context: str | None = "untreated control condition",
+    reference_context: str | None = "synthetic rat phosphoproteomics fixture",
+    source_uri: str | None = "https://example.test/sps/reference",
 ) -> SpsReferenceDataset:
     return SpsReferenceDataset.from_condition_relative_log2(
         dataset_id=dataset_id,
@@ -80,8 +91,12 @@ def _reference(
         ),
         log2_scale_established_by="test fixture log2 preparation",
         baseline_centering_established_by="test fixture control subtraction",
+        organism=organism,
+        baseline_context=baseline_context,
+        reference_context=reference_context,
         source_name=f"reference-{dataset_id}",
         source_version="2026-01",
+        source_uri=source_uri,
     )
 
 
@@ -117,6 +132,162 @@ def test_valid_multi_dataset_discovery_configuration() -> None:
     assert request.reference_datasets[0].sample_conditions != (
         request.reference_datasets[1].sample_conditions
     )
+
+
+def test_reference_source_positional_slots_accept_keyword_only_context() -> None:
+    keys = _site_keys("P1", "P2")
+    references: list[SpsReferenceDataset] = []
+    for dataset_id in ("positional-a", "positional-b"):
+        prepared = _reference(dataset_id, keys)
+        references.append(
+            SpsReferenceDataset(
+                dataset_id,
+                prepared.intensities,
+                prepared.condition_by_sample,
+                prepared.intensity_scale_state,
+                f"legacy-source-{dataset_id}",
+                "2026-09",
+                f"https://example.test/sps/{dataset_id}",
+                organism=Organism.RAT,
+                baseline_context="untreated control condition",
+                reference_context="synthetic rat positional fixture",
+            )
+        )
+
+    result = SpsDiscoveryWorkflow().run(
+        SpsDiscoveryRequest(
+            reference_datasets=tuple(references),
+            config=SpsDiscoveryConfig(top_n=1),
+        )
+    )
+
+    assembled = result.provenance.source_datasets[0]
+    assert assembled.source_name == "legacy-source-positional-a"
+    assert assembled.source_version == "2026-09"
+    assert assembled.source_uri == "https://example.test/sps/positional-a"
+    assert assembled.organism is Organism.RAT
+    assert assembled.baseline_context == "untreated control condition"
+    assert assembled.reference_context == "synthetic rat positional fixture"
+
+    reconstructed = SpsReferenceDatasetProvenance(
+        assembled.dataset_id,
+        assembled.site_count,
+        assembled.sample_count,
+        assembled.sample_conditions,
+        assembled.intensity_fingerprint,
+        assembled.intensity_scale_kind,
+        assembled.quantitative_meaning,
+        assembled.intensity_scale_establishment,
+        assembled.quantitative_meaning_establishment,
+        "legacy-provenance-source",
+        "2026-08",
+        "https://example.test/sps/provenance",
+        organism=Organism.RAT,
+        baseline_context="untreated control condition",
+        reference_context="synthetic rat reconstructed provenance",
+    )
+
+    assert reconstructed.source_name == "legacy-provenance-source"
+    assert reconstructed.source_version == "2026-08"
+    assert reconstructed.source_uri == "https://example.test/sps/provenance"
+    assert reconstructed.organism is Organism.RAT
+    assert reconstructed.baseline_context == "untreated control condition"
+    assert reconstructed.reference_context == "synthetic rat reconstructed provenance"
+
+
+def test_mixed_organism_references_have_structured_validation() -> None:
+    keys = _site_keys("P1", "P2")
+    request = SpsDiscoveryRequest(
+        reference_datasets=(
+            _reference("rat-study", keys),
+            _reference(
+                "mouse-study",
+                _site_keys("P1", "P2", organism="mouse"),
+                organism=Organism.MOUSE,
+            ),
+        ),
+        config=SpsDiscoveryConfig(top_n=1),
+    )
+
+    validation = SpsDiscoveryWorkflow().validate(request)
+
+    issue = next(
+        issue
+        for issue in validation.issues
+        if issue.code == "incompatible_reference_organisms"
+    )
+    assert issue.field_name == "reference_datasets"
+    assert "rat-study=rat" in issue.message
+    assert "mouse-study=mouse" in issue.message
+
+
+def test_declared_reference_organism_must_match_encoded_site_keys() -> None:
+    keys = _site_keys("P1", "P2")
+
+    validation = SpsDiscoveryWorkflow().validate(
+        SpsDiscoveryRequest(
+            reference_datasets=(
+                _reference("study-a", keys, organism=Organism.HUMAN),
+                _reference("study-b", keys, organism=Organism.HUMAN),
+            ),
+            config=SpsDiscoveryConfig(top_n=1),
+        )
+    )
+
+    issues = {
+        (issue.dataset_id, issue.code, issue.field_name) for issue in validation.issues
+    }
+    assert (
+        "study-a",
+        "reference_organism_site_key_mismatch",
+        "intensities.index",
+    ) in issues
+    assert (
+        "study-b",
+        "reference_organism_site_key_mismatch",
+        "intensities.index",
+    ) in issues
+
+
+@pytest.mark.parametrize(
+    ("missing_field", "expected_code"),
+    [
+        ("organism", "missing_reference_organism"),
+        ("baseline_context", "missing_baseline_context"),
+        ("reference_context", "missing_reference_context"),
+        ("source_uri", "missing_source_identity"),
+    ],
+)
+def test_missing_biological_context_or_source_identity_is_structured(
+    missing_field: str,
+    expected_code: str,
+) -> None:
+    keys = _site_keys("P1", "P2")
+    invalid = _reference(
+        "invalid",
+        keys,
+        organism=None if missing_field == "organism" else "rat",
+        baseline_context=(
+            None if missing_field == "baseline_context" else "control condition"
+        ),
+        reference_context=(
+            None if missing_field == "reference_context" else "synthetic rat reference"
+        ),
+        source_uri=(
+            None
+            if missing_field == "source_uri"
+            else "https://example.test/sps/invalid"
+        ),
+    )
+
+    validation = SpsDiscoveryWorkflow().validate(
+        SpsDiscoveryRequest(
+            reference_datasets=(invalid, _reference("valid", keys)),
+            config=SpsDiscoveryConfig(top_n=1),
+        )
+    )
+
+    assert expected_code in {issue.code for issue in validation.issues}
 
 
 def test_condition_relative_log2_state_is_preserved_in_provenance() -> None:
@@ -607,7 +778,7 @@ def test_insufficient_potential_overlap_has_structured_validation() -> None:
 
 
 def _provenance_and_ranking() -> tuple[
-    tuple[str, str],
+    tuple[str, ...],
     SpsDiscoveryProvenance,
     tuple[SpsSiteStabilityRecord, ...],
 ]:
@@ -627,6 +798,7 @@ def _identity_discovery(
     first_source_name: str = "identity-reference-a",
     first_unstable_value: float = 2.0,
     minimum_shared_sites: int = 1,
+    first_reference_context: str = "synthetic rat identity fixture",
 ) -> SpsDiscoveryResult:
     keys = _site_keys("IDENTITY1", "IDENTITY2", "IDENTITY3")
     conditions = {"a_1": "a", "a_2": "a", "b_1": "b", "b_2": "b"}
@@ -645,8 +817,12 @@ def _identity_discovery(
             condition_by_sample=conditions,
             log2_scale_established_by="identity fixture log2 preparation",
             baseline_centering_established_by="identity fixture centering",
+            organism="rat",
+            baseline_context="condition a",
+            reference_context=first_reference_context,
             source_name=first_source_name,
             source_version="2026-09",
+            source_uri="https://example.test/sps/identity-a",
         ),
         SpsReferenceDataset.from_condition_relative_log2(
             dataset_id="identity-b",
@@ -662,8 +838,12 @@ def _identity_discovery(
             condition_by_sample=conditions,
             log2_scale_established_by="identity fixture log2 preparation",
             baseline_centering_established_by="identity fixture centering",
+            organism="rat",
+            baseline_context="condition a",
+            reference_context="synthetic rat identity fixture",
             source_name="identity-reference-b",
             source_version="2026-09",
+            source_uri="https://example.test/sps/identity-b",
         ),
     )
     return SpsDiscoveryWorkflow().run(
@@ -848,6 +1028,9 @@ def test_discovery_identity_depends_on_evidence_not_selected_keys_alone() -> Non
     )
     different_matrix = _identity_discovery(first_unstable_value=4.0)
     different_config = _identity_discovery(minimum_shared_sites=2)
+    different_context = _identity_discovery(
+        first_reference_context="different rat biological context"
+    )
 
     assert different_source.selected_site_keys == baseline.selected_site_keys
     assert different_matrix.selected_site_keys == baseline.selected_site_keys
@@ -859,9 +1042,10 @@ def test_discovery_identity_depends_on_evidence_not_selected_keys_alone() -> Non
                 different_source.discovery_identity,
                 different_matrix.discovery_identity,
                 different_config.discovery_identity,
+                different_context.discovery_identity,
             }
         )
-        == 4
+        == 5
     )
 
 
@@ -884,8 +1068,30 @@ def test_discovery_result_converts_to_existing_control_site_set() -> None:
     )
     assert controls.source_metadata.identifier_namespace == "site_key"
     assert controls.source_metadata.source_type == "sps_discovery"
+    assert controls.source_metadata.organism == "rat"
     assert controls.source_metadata.selection_method == "consensus_stability"
     assert controls.source_metadata.sps_discovery_identity == result.discovery_identity
+
+
+def test_discovery_result_rejects_ranked_site_key_organism_mismatch() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    human_provenance = replace(
+        provenance,
+        source_datasets=tuple(
+            replace(source, organism=Organism.HUMAN)
+            for source in provenance.source_datasets
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"site_ranking\[0\]\.site_key organism 'rat'.*provenance\.organism 'human'",
+    ):
+        SpsDiscoveryResult(
+            selected_site_keys=selected,
+            site_ranking=ranking,
+            provenance=human_provenance,
+        )
 
 
 def test_discovery_control_set_round_trip_preserves_discovery_identity() -> None:
@@ -897,6 +1103,33 @@ def test_discovery_control_set_round_trip_preserves_discovery_identity() -> None
 
     assert restored == result.control_site_set
     assert restored.source_metadata.sps_discovery_identity == result.discovery_identity
+    assert restored.source_metadata.organism == "rat"
+
+
+def test_discovery_controls_enforce_target_organism_compatibility() -> None:
+    result = _identity_discovery()
+
+    mapping = ControlSiteEligibilityValidator().run(
+        control_set=result.control_site_set,
+        method="sps_ruv_style",
+        min_eligible_controls=1,
+        site_keys=result.selected_site_keys,
+        dataset_organism=Organism.RAT,
+        control_site_source_type="sps_discovery",
+    )
+    assert sum(row.is_control for row in mapping.row_eligibility) == len(
+        result.selected_site_keys
+    )
+
+    with pytest.raises(PhosPyInputError, match="incompatible organism metadata"):
+        ControlSiteEligibilityValidator().run(
+            control_set=result.control_site_set,
+            method="sps_ruv_style",
+            min_eligible_controls=1,
+            site_keys=result.selected_site_keys,
+            dataset_organism=Organism.MOUSE,
+            control_site_source_type="sps_discovery",
+        )
 
 
 def test_public_discovery_controls_feed_existing_sps_ruv_config_directly() -> None:
@@ -932,6 +1165,14 @@ def test_discovery_result_json_round_trip_preserves_typed_governed_provenance() 
 
     assert restored == result
     assert restored.to_payload() == result.to_payload()
+    assert restored.provenance.organism is Organism.RAT
+    assert all(
+        source.organism is Organism.RAT
+        and source.baseline_context
+        and source.reference_context
+        and source.source_uri
+        for source in restored.provenance.source_datasets
+    )
     assert restored.provenance.config is not result.provenance.config
     assert restored.provenance.source_datasets[0].quantitative_meaning is (
         QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE
@@ -939,6 +1180,19 @@ def test_discovery_result_json_round_trip_preserves_typed_governed_provenance() 
     assert restored.provenance.source_datasets[0].intensity_scale_kind.value == "log2"
     assert "intensities" not in payload["provenance"]["source_datasets"][0]
     assert restored.discovery_identity == result.discovery_identity
+    controls = restored.control_site_set
+    assert all(
+        decode_site_key(
+            site_key,
+            field_name="round_trip.site_key",
+            error_type=PhosPyInputError,
+        ).organism.value
+        == controls.source_metadata.organism
+        for site_key in (
+            *restored.selected_site_keys,
+            *(record.site_key for record in restored.site_ranking),
+        )
+    )
 
 
 def test_historical_discovery_payload_without_serialized_identity_remains_readable() -> (
@@ -952,6 +1206,23 @@ def test_historical_discovery_payload_without_serialized_identity_remains_readab
     restored = SpsDiscoveryResult.from_payload(payload)
 
     assert restored.discovery_identity == result.discovery_identity
+
+
+def test_result_deserialization_without_identity_rejects_ranked_organism_mismatch() -> (
+    None
+):
+    result = _identity_discovery()
+    payload = result.to_payload()
+    payload.pop("discovery_identity")
+    payload["provenance"]["organism"] = "human"  # type: ignore[index]
+    for source in payload["provenance"]["source_datasets"]:  # type: ignore[index]
+        source["organism"] = "human"
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"site_ranking\[0\]\.site_key organism 'rat'.*provenance\.organism 'human'",
+    ):
+        SpsDiscoveryResult.from_payload(payload)
 
 
 def test_discovery_deserialization_rejects_mismatched_identity() -> None:

@@ -62,6 +62,9 @@ data for discovery requires a deliberate, documented scientific justification.
 Every `SpsReferenceDataset` must already have the repository-authoritative
 state used for condition-relative measurements:
 
+- one supported, typed organism shared by every reference in the request;
+- explicit biological baseline and reference-context descriptions;
+- a reconstructable source name, version, and URI;
 - `IntensityScaleKind.LOG2` scale;
 - `QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE` meaning;
 - zero denoting the established reference/control baseline; and
@@ -151,8 +154,12 @@ def prepare_reference(
         baseline_centering_established_by=(
             f"{dataset_id}:study-design-control-mean-v1"
         ),
+        organism="human",
+        baseline_context="untreated control condition",
+        reference_context="human cell-line treatment time course",
         source_name="independent phosphoproteomics reference",
         source_version="2026-09",
+        source_uri=f"https://example.org/references/{dataset_id}",
     )
 
 
@@ -199,7 +206,7 @@ target_dataset = AnalysisReadyDatasetBuilder().run(
         phospho=target_phospho,
         site_metadata=target_site_metadata,
         sample_metadata=target_sample_metadata,
-        organism="rat",
+        organism="human",
         input_intensity_scale="log2",
         preprocessing_config=DatasetPreprocessingConfig(
             batch_correction=correction,
@@ -239,8 +246,9 @@ ordered by ascending `site_key`, so selection is deterministic.
 The discovery record makes the following auditable without embedding complete
 reference matrices:
 
-- reference dataset identities, sources, versions, sample-condition mappings,
-  and matrix fingerprints;
+- typed organism, biological baseline/reference context, reconstructable
+  reference source identities, sample-condition mappings, and matrix
+  fingerprints;
 - scale, `CONTRAST_LOG2_FOLD_CHANGE` meaning, and baseline-establishment
   evidence;
 - SPS algorithm ID/version and parameters;
@@ -253,6 +261,9 @@ discovery result: reference identities and quantitative fingerprints, governed
 quantitative evidence, algorithm/configuration, selection boundaries, ranking,
 and selected controls. It is not a hash of the selected `site_key` values alone;
 two runs that select the same controls from different evidence remain distinct.
+The validated organism is also copied to the generated `ControlSiteSet`, so a
+target dataset with a conflicting organism is rejected by the existing control
+compatibility boundary.
 
 Persist `discovery.to_payload()` as JSON-compatible data. Later,
 `SpsDiscoveryResult.from_payload(...)` revalidates it and reconstructs a usable

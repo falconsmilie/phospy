@@ -126,8 +126,12 @@ def build_sps_benchmark_references(
                 baseline_centering_established_by=(
                     "deterministic SPS benchmark reference centering"
                 ),
+                organism="rat",
+                baseline_context="benchmark control condition",
+                reference_context="synthetic rat SPS performance fixture",
                 source_name="deterministic-sps-performance-fixture",
                 source_version="1",
+                source_uri="https://example.test/sps/performance-fixture",
             )
         )
     return tuple(references)

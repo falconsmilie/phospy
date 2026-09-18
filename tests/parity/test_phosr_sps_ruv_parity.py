@@ -56,8 +56,12 @@ def _sps_result():
                 baseline_centering_established_by=(
                     "fixture generator subtracts each site's baseline-condition mean"
                 ),
+                organism="rat",
+                baseline_context="fixture baseline condition",
+                reference_context="synthetic rat PhosR parity fixture",
                 source_name="synthetic PhosR parity fixture",
                 source_version="phosr-ruv-parity-v1",
+                source_uri=("https://example.test/phosr-parity/" + str(dataset_id)),
             )
         )
     case = metadata["sps_case"]

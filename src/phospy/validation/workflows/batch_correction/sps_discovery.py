@@ -24,6 +24,7 @@ from phospy.science.batch_correction.sps_discovery import (
     _sps_reference_intensity_fingerprint,
     _sps_scale_evidence_matches_matrix,
 )
+from phospy.science.sites.site_keys import decode_site_key
 from phospy.science.sites.validation import require_site_key_index
 from phospy.science.transformations.models import (
     IntensityScaleEvidenceLevel,
@@ -110,6 +111,7 @@ class SpsDiscoveryRequestValidator:
             )
 
         dataset_ids: list[str] = []
+        organisms_by_dataset: list[tuple[str, str]] = []
         site_occurrences: Counter[str] = Counter()
         structurally_valid_dataset_count = 0
         for position, dataset in enumerate(datasets):
@@ -126,6 +128,10 @@ class SpsDiscoveryRequestValidator:
                 )
                 continue
             dataset_ids.append(dataset.dataset_id)
+            if dataset.organism is not None:
+                organisms_by_dataset.append(
+                    (dataset.dataset_id, dataset.organism.value)
+                )
             dataset_issues, site_keys = self._validate_dataset(dataset)
             issues.extend(dataset_issues)
             if not dataset_issues:
@@ -144,6 +150,23 @@ class SpsDiscoveryRequestValidator:
                     message=(
                         "reference dataset_id values must be unique; duplicates: "
                         + ", ".join(duplicate_ids)
+                    ),
+                    field_name="reference_datasets",
+                )
+            )
+
+        distinct_organisms = sorted({organism for _, organism in organisms_by_dataset})
+        if len(distinct_organisms) > 1:
+            declarations = ", ".join(
+                f"{dataset_id}={organism}"
+                for dataset_id, organism in organisms_by_dataset
+            )
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="incompatible_reference_organisms",
+                    message=(
+                        "SPS discovery requires biologically coherent references "
+                        "from one organism; observed " + declarations
                     ),
                     field_name="reference_datasets",
                 )
@@ -182,22 +205,73 @@ class SpsDiscoveryRequestValidator:
     ) -> tuple[list[SpsDiscoveryValidationIssue], tuple[str, ...]]:
         issues: list[SpsDiscoveryValidationIssue] = []
         dataset_id = dataset.dataset_id
+        required_context = (
+            (
+                "organism",
+                dataset.organism,
+                "missing_reference_organism",
+                "reference organism must be declared with a supported Organism",
+            ),
+            (
+                "baseline_context",
+                dataset.baseline_context,
+                "missing_baseline_context",
+                (
+                    "reference baseline_context must identify the biological "
+                    "reference/control baseline represented by zero"
+                ),
+            ),
+            (
+                "reference_context",
+                dataset.reference_context,
+                "missing_reference_context",
+                (
+                    "reference_context must describe the biological context in "
+                    "which the reference evidence was produced"
+                ),
+            ),
+        )
+        for field_name, value, code, message in required_context:
+            if value is None:
+                issues.append(
+                    SpsDiscoveryValidationIssue(
+                        code=code,
+                        message=message,
+                        dataset_id=dataset_id,
+                        field_name=field_name,
+                    )
+                )
+        missing_source_fields = tuple(
+            field_name
+            for field_name in ("source_name", "source_version", "source_uri")
+            if getattr(dataset, field_name) is None
+        )
+        if missing_source_fields:
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="missing_source_identity",
+                    message=(
+                        "reference source identity must be reconstructable; missing "
+                        + ", ".join(missing_source_fields)
+                    ),
+                    dataset_id=dataset_id,
+                    field_name="source_identity",
+                )
+            )
         intensities = dataset._intensities_snapshot()
         issues.extend(
             self._validate_quantitative_state(dataset, intensities=intensities)
         )
         if not isinstance(intensities, pd.DataFrame):
-            return (
-                [
-                    SpsDiscoveryValidationIssue(
-                        code="missing_intensity_data",
-                        message="reference intensities must be a pandas DataFrame",
-                        dataset_id=dataset_id,
-                        field_name="intensities",
-                    )
-                ],
-                (),
+            issues.append(
+                SpsDiscoveryValidationIssue(
+                    code="missing_intensity_data",
+                    message="reference intensities must be a pandas DataFrame",
+                    dataset_id=dataset_id,
+                    field_name="intensities",
+                )
             )
+            return issues, ()
         if intensities.empty or intensities.shape[1] == 0:
             issues.append(
                 SpsDiscoveryValidationIssue(
@@ -258,6 +332,34 @@ class SpsDiscoveryRequestValidator:
                 )
             else:
                 site_keys = tuple(str(value) for value in intensities.index)
+                encoded_organisms = {
+                    decode_site_key(
+                        site_key,
+                        field_name=(
+                            f"sps_reference_dataset[{dataset_id!r}].intensities.index"
+                        ),
+                        error_type=ReferenceValidationError,
+                    ).organism
+                    for site_key in site_keys
+                }
+                if dataset.organism is not None and encoded_organisms != {
+                    dataset.organism
+                }:
+                    observed = ", ".join(
+                        sorted(organism.value for organism in encoded_organisms)
+                    )
+                    issues.append(
+                        SpsDiscoveryValidationIssue(
+                            code="reference_organism_site_key_mismatch",
+                            message=(
+                                "reference organism must match every encoded "
+                                "site_key organism; declared "
+                                f"{dataset.organism.value!r}, observed {observed!r}"
+                            ),
+                            dataset_id=dataset_id,
+                            field_name="intensities.index",
+                        )
+                    )
 
         try:
             require_numeric_dataframe(

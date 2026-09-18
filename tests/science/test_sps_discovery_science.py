@@ -54,8 +54,12 @@ def _reference(
         condition_by_sample=conditions,
         log2_scale_established_by="test fixture log2 preparation",
         baseline_centering_established_by="test fixture control subtraction",
+        organism="rat",
+        baseline_context="control condition",
+        reference_context="synthetic rat SPS science fixture",
         source_name=f"synthetic-{dataset_id}",
         source_version="1",
+        source_uri=f"https://example.test/sps/{dataset_id}",
     )
 
 
@@ -185,8 +189,12 @@ def test_row_reference_and_replicate_order_do_not_change_result() -> None:
             for sample_id, condition in reversed(reference_a.sample_conditions.items())
         },
         intensity_scale_state=reference_a.intensity_scale_state,
+        organism=reference_a.organism,
+        baseline_context=reference_a.baseline_context,
+        reference_context=reference_a.reference_context,
         source_name=reference_a.source_name,
         source_version=reference_a.source_version,
+        source_uri=reference_a.source_uri,
     )
     reordered_b = SpsReferenceDataset(
         dataset_id=reference_b.dataset_id,
@@ -196,8 +204,12 @@ def test_row_reference_and_replicate_order_do_not_change_result() -> None:
             for sample_id in reversed(reference_b.intensities.columns)
         },
         intensity_scale_state=reference_b.intensity_scale_state,
+        organism=reference_b.organism,
+        baseline_context=reference_b.baseline_context,
+        reference_context=reference_b.reference_context,
         source_name=reference_b.source_name,
         source_version=reference_b.source_version,
+        source_uri=reference_b.source_uri,
     )
 
     expected = _run((reference_a, reference_b))
@@ -338,8 +350,12 @@ def test_site_key_alignment_and_attrition_are_explicit() -> None:
         intensities=reference_b.intensities.iloc[[3, 1, 0, 2]],
         condition_by_sample=reference_b.sample_conditions,  # type: ignore[arg-type]
         intensity_scale_state=reference_b.intensity_scale_state,
+        organism=reference_b.organism,
+        baseline_context=reference_b.baseline_context,
+        reference_context=reference_b.reference_context,
         source_name=reference_b.source_name,
         source_version=reference_b.source_version,
+        source_uri=reference_b.source_uri,
     )
 
     result = _run((reference_a, reordered_b), config=SpsDiscoveryConfig(top_n=2))

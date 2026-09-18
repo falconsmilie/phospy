@@ -25,6 +25,7 @@ from phospy.provenance.hashing import (
 )
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.provenance.models import JsonValue, TableFingerprint
+from phospy.provenance.organisms import Organism, normalize_optional_organism
 from phospy.provenance.serialization.tables import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
@@ -36,6 +37,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
+from phospy.science.sites.site_keys import decode_site_key
 from phospy.science.sites.validation import require_site_key_index
 from phospy.science.transformations._authority import (
     sps_reference_quantitative_meaning_transition_authority,
@@ -175,6 +177,8 @@ class SpsReferenceDataset:
     alter a validated request. ``intensity_scale_state`` carries the governed
     scale, quantitative meaning, and establishment evidence; SPS validation
     requires it to describe pre-established condition-relative log2 values.
+    Successful discovery additionally requires a typed organism, explicit
+    biological baseline and reference context, and complete source identity.
     """
 
     dataset_id: str
@@ -184,6 +188,9 @@ class SpsReferenceDataset:
     source_name: str | None = None
     source_version: str | None = None
     source_uri: str | None = None
+    organism: Organism | None = None
+    baseline_context: str | None = None
+    reference_context: str | None = None
 
     def __init__(
         self,
@@ -194,6 +201,10 @@ class SpsReferenceDataset:
         source_name: str | None = None,
         source_version: str | None = None,
         source_uri: str | None = None,
+        *,
+        organism: Organism | str | None = None,
+        baseline_context: str | None = None,
+        reference_context: str | None = None,
     ) -> None:
         object.__setattr__(self, "dataset_id", dataset_id)
         object.__setattr__(
@@ -207,6 +218,9 @@ class SpsReferenceDataset:
         )
         object.__setattr__(self, "condition_by_sample", condition_by_sample)
         object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
+        object.__setattr__(self, "organism", organism)
+        object.__setattr__(self, "baseline_context", baseline_context)
+        object.__setattr__(self, "reference_context", reference_context)
         object.__setattr__(self, "source_name", source_name)
         object.__setattr__(self, "source_version", source_version)
         object.__setattr__(self, "source_uri", source_uri)
@@ -244,7 +258,22 @@ class SpsReferenceDataset:
                 )
                 raise SpsDiscoveryValidationError(validation) from exc
             object.__setattr__(self, "condition_by_sample", frozen_conditions)
-        for field_name in ("source_name", "source_version", "source_uri"):
+        object.__setattr__(
+            self,
+            "organism",
+            normalize_optional_organism(
+                self.organism,
+                field_name=(f"sps_reference_dataset[{self.dataset_id!r}].organism"),
+                error_type=PhosPyInputError,
+            ),
+        )
+        for field_name in (
+            "baseline_context",
+            "reference_context",
+            "source_name",
+            "source_version",
+            "source_uri",
+        ):
             value = getattr(self, field_name)
             if value is not None:
                 object.__setattr__(
@@ -267,6 +296,9 @@ class SpsReferenceDataset:
         *,
         log2_scale_established_by: str,
         baseline_centering_established_by: str,
+        organism: Organism | str | None = None,
+        baseline_context: str | None = None,
+        reference_context: str | None = None,
         source_name: str | None = None,
         source_version: str | None = None,
         source_uri: str | None = None,
@@ -279,6 +311,8 @@ class SpsReferenceDataset:
         baseline, centre values, transform values, or infer semantics from the
         numeric matrix. Both evidence-source identifiers are required, and the
         resulting typed evidence is bound to the exact submitted matrix.
+        Organism, biological contexts, and source identity remain caller
+        assertions and are validated by ``SpsDiscoveryWorkflow``.
         """
 
         resolved_dataset_id = _require_non_empty_string(
@@ -348,6 +382,9 @@ class SpsReferenceDataset:
             intensities=owned_intensities,
             condition_by_sample=condition_by_sample,
             intensity_scale_state=quantitative_state,
+            organism=organism,
+            baseline_context=baseline_context,
+            reference_context=reference_context,
             source_name=source_name,
             source_version=source_version,
             source_uri=source_uri,
@@ -455,11 +492,14 @@ class SpsReferenceDatasetProvenance:
     quantitative_meaning: QuantitativeMeaning
     intensity_scale_establishment: IntensityScaleEstablishmentProvenance
     quantitative_meaning_establishment: QuantitativeMeaningTransitionProvenance
-    source_name: str | None = None
-    source_version: str | None = None
-    source_uri: str | None = None
+    source_name: str
+    source_version: str
+    source_uri: str
     sites_passing_required_data: int | None = None
     sites_entering_consensus: int | None = None
+    organism: Organism = field(kw_only=True)
+    baseline_context: str = field(kw_only=True)
+    reference_context: str = field(kw_only=True)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -512,17 +552,31 @@ class SpsReferenceDatasetProvenance:
                 "governed 'site_key' index"
             )
         _require_sps_provenance_quantitative_contract(self)
-        for field_name in ("source_name", "source_version", "source_uri"):
-            value = getattr(self, field_name)
-            if value is not None:
-                object.__setattr__(
-                    self,
-                    field_name,
-                    _require_non_empty_string(
-                        value,
-                        field_name=f"sps_source_provenance.{field_name}",
-                    ),
-                )
+        normalized_organism = normalize_optional_organism(
+            self.organism,
+            field_name="sps_source_provenance.organism",
+            error_type=PhosPyInputError,
+        )
+        if normalized_organism is None:
+            raise PhosPyInputError(
+                "sps_source_provenance.organism must be a supported organism"
+            )
+        object.__setattr__(self, "organism", normalized_organism)
+        for field_name in (
+            "baseline_context",
+            "reference_context",
+            "source_name",
+            "source_version",
+            "source_uri",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _require_non_empty_string(
+                    getattr(self, field_name),
+                    field_name=f"sps_source_provenance.{field_name}",
+                ),
+            )
         for field_name in (
             "sites_passing_required_data",
             "sites_entering_consensus",
@@ -550,6 +604,9 @@ class SpsReferenceDatasetProvenance:
     def to_payload(self) -> dict[str, object]:
         return {
             "dataset_id": self.dataset_id,
+            "organism": self.organism.value,
+            "baseline_context": self.baseline_context,
+            "reference_context": self.reference_context,
             "source_name": self.source_name,
             "source_version": self.source_version,
             "source_uri": self.source_uri,
@@ -625,6 +682,12 @@ class SpsReferenceDatasetProvenance:
                 )
             )
             intensity_fingerprint = table_fingerprint_from_payload(fingerprint_payload)
+            organism = Organism(
+                _require_payload_string(
+                    resolved.get("organism"),
+                    field_name="sps_source_provenance.organism",
+                )
+            )
         except (TypeError, ValueError) as exc:
             raise PhosPyInputError(
                 "sps_source_provenance contains invalid quantitative or "
@@ -635,15 +698,24 @@ class SpsReferenceDatasetProvenance:
                 resolved.get("dataset_id"),
                 field_name="sps_source_provenance.dataset_id",
             ),
-            source_name=_optional_payload_string(
+            organism=organism,
+            baseline_context=_require_payload_string(
+                resolved.get("baseline_context"),
+                field_name="sps_source_provenance.baseline_context",
+            ),
+            reference_context=_require_payload_string(
+                resolved.get("reference_context"),
+                field_name="sps_source_provenance.reference_context",
+            ),
+            source_name=_require_payload_string(
                 resolved.get("source_name"),
                 field_name="sps_source_provenance.source_name",
             ),
-            source_version=_optional_payload_string(
+            source_version=_require_payload_string(
                 resolved.get("source_version"),
                 field_name="sps_source_provenance.source_version",
             ),
-            source_uri=_optional_payload_string(
+            source_uri=_require_payload_string(
                 resolved.get("source_uri"),
                 field_name="sps_source_provenance.source_uri",
             ),
@@ -991,6 +1063,7 @@ class SpsDiscoveryProvenance:
     selection_boundaries: SpsSelectionBoundaryCounts
     algorithm_id: str = SPS_DISCOVERY_ALGORITHM_ID
     algorithm_version: str = SPS_DISCOVERY_ALGORITHM_VERSION
+    organism: Organism = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source_datasets", tuple(self.source_datasets))
@@ -1012,6 +1085,13 @@ class SpsDiscoveryProvenance:
                 "sps_discovery_provenance.source_datasets must not contain "
                 "duplicate dataset_id values"
             )
+        organisms = {item.organism for item in self.source_datasets}
+        if len(organisms) != 1:
+            raise PhosPyInputError(
+                "sps_discovery_provenance.source_datasets must declare one "
+                "coherent organism"
+            )
+        object.__setattr__(self, "organism", next(iter(organisms)))
         if not isinstance(cast(object, self.config), SpsDiscoveryConfig):
             raise PhosPyInputError(
                 "sps_discovery_provenance.config must be an SpsDiscoveryConfig"
@@ -1070,6 +1150,7 @@ class SpsDiscoveryProvenance:
 
     def to_payload(self) -> dict[str, object]:
         return {
+            "organism": self.organism.value,
             "source_datasets": [item.to_payload() for item in self.source_datasets],
             "algorithm_id": self.algorithm_id,
             "algorithm_version": self.algorithm_version,
@@ -1106,7 +1187,7 @@ class SpsDiscoveryProvenance:
                 "sps_discovery_provenance.selection_method must match "
                 "algorithm_parameters.selection_method"
             )
-        return cls(
+        result = cls(
             source_datasets=tuple(
                 SpsReferenceDatasetProvenance.from_payload(
                     _require_payload_mapping(
@@ -1142,6 +1223,19 @@ class SpsDiscoveryProvenance:
                 field_name="sps_discovery_provenance.algorithm_version",
             ),
         )
+        serialized_organism = resolved.get("organism")
+        if serialized_organism is not None:
+            normalized_organism = normalize_optional_organism(
+                serialized_organism,
+                field_name="sps_discovery_provenance.organism",
+                error_type=PhosPyInputError,
+            )
+            if normalized_organism is not result.organism:
+                raise PhosPyInputError(
+                    "sps_discovery_provenance.organism must match all source "
+                    "dataset organisms"
+                )
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -1211,6 +1305,19 @@ class SpsDiscoveryResult:
                         "must use ascending site_key tie handling"
                     )
         ranked_site_keys = tuple(item.site_key for item in self.site_ranking)
+        for position, site_key in enumerate(ranked_site_keys):
+            ranked_organism = decode_site_key(
+                site_key,
+                field_name=(f"sps_discovery_result.site_ranking[{position}].site_key"),
+                error_type=PhosPyInputError,
+            ).organism
+            if ranked_organism != self.provenance.organism:
+                raise PhosPyInputError(
+                    "sps_discovery_result.site_ranking"
+                    f"[{position}].site_key organism {ranked_organism.value!r} "
+                    "must match sps_discovery_result.provenance.organism "
+                    f"{self.provenance.organism.value!r}"
+                )
         if len(set(ranked_site_keys)) != len(ranked_site_keys):
             raise PhosPyInputError(
                 "sps_discovery_result.site_ranking site_key values must be unique"
@@ -1288,16 +1395,13 @@ class SpsDiscoveryResult:
             self.selected_site_keys,
             source_metadata=ControlSiteSourceMetadata(
                 source_type=SPS_DISCOVERY_CONTROL_SOURCE_TYPE,
+                organism=self.provenance.organism.value,
                 identifier_namespace="site_key",
                 source_name=self.provenance.algorithm_id,
                 source_version=self.provenance.algorithm_version,
                 selection_method=self.provenance.config.selection_method,
                 sps_discovery_identity=self.discovery_identity,
                 metadata_missing_reason={
-                    "organism": (
-                        "SPS reference records do not carry a typed organism field; "
-                        "organism coherence remains caller-audited reference context"
-                    ),
                     "license": "retained in caller-owned reference source records",
                     "redistribution": (
                         "no external SPS reference data is bundled or redistributed"
@@ -1640,9 +1744,12 @@ def _reference_provenance(
     )
     return SpsReferenceDatasetProvenance(
         dataset_id=reference.dataset_id,
-        source_name=reference.source_name,
-        source_version=reference.source_version,
-        source_uri=reference.source_uri,
+        organism=cast(Organism, reference.organism),
+        baseline_context=cast(str, reference.baseline_context),
+        reference_context=cast(str, reference.reference_context),
+        source_name=cast(str, reference.source_name),
+        source_version=cast(str, reference.source_version),
+        source_uri=cast(str, reference.source_uri),
         site_count=int(intensities.shape[0]),
         sample_count=int(intensities.shape[1]),
         sample_conditions=assignments,

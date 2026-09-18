@@ -155,6 +155,12 @@ reference_a = SpsReferenceDataset.from_condition_relative_log2(
     # Audit identifiers for preparation that happened before this call.
     log2_scale_established_by="proteomics-pipeline-v3/log2-normalisation",
     baseline_centering_established_by="study-a/control-mean-subtraction-v1",
+    organism="human",
+    baseline_context="untreated control condition",
+    reference_context="human tumour-cell treatment time course",
+    source_name="independent phosphoproteomics reference",
+    source_version="2026-09",
+    source_uri="https://example.org/references/study-a",
 )
 
 request = SpsDiscoveryRequest(
@@ -176,7 +182,9 @@ measurements for which zero is the established reference/control baseline, such
 as log2 fold changes or equivalent reference-centred log2 differences. Unknown
 meaning, absolute abundance, linear scale, and missing scale or centring evidence
 are rejected before ranking. Numeric values, column names, and condition labels
-are never treated as evidence of those semantics. Discovery
+are never treated as evidence of those semantics. References must additionally
+declare one coherent typed organism, biological baseline/reference context, and
+reconstructable source identity. Discovery
 averages biological replicates within each condition and scores a site in each
 reference by its largest absolute condition mean. It ranks smaller change
 magnitudes as more stable and combines reference ranks with a Fisher-style
@@ -225,8 +233,9 @@ equal within-reference rank and final consensus ties use ascending `site_key`.
 `result.to_payload()` produces a matrix-free JSON-compatible discovery record,
 and `SpsDiscoveryResult.from_payload(...)` restores it while revalidating the
 typed condition-relative log2 state, baseline-establishment evidence, matrix
-fingerprints, ranking, and selection counts. The serialized result contains
-reference identity, quantitative-state evidence, and fingerprints, but never
+fingerprints, organism/context, ranking, and selection counts. The serialized
+result contains reference identity, quantitative-state evidence, and
+fingerprints, but never
 the complete source intensity matrices. Its restored `control_site_set` remains
 reusable with the native PhosPy SPS/RUV-style
 `SpsRuvBatchCorrectionConfig` without access to those matrices.

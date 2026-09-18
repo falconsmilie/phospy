@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- SPS discovery now requires a coherent typed organism, explicit biological
+  baseline/reference context, and reconstructable identity for every reference.
+  The validated context is retained in discovery provenance and identity, and
+  the organism is propagated to generated controls for target compatibility
+  validation.
+
 ### Documentation
 
 - Added the complete SPS reference-preparation, discovery, `ControlSiteSet`

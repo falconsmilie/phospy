@@ -1022,8 +1022,12 @@ def test_public_sps_discovery_controls_execute_sps_ruv_preprocessing() -> None:
             condition_by_sample=reference_conditions,
             log2_scale_established_by=f"{dataset_id} log2 preprocessing",
             baseline_centering_established_by=f"{dataset_id} control subtraction",
+            organism="rat",
+            baseline_context="control condition",
+            reference_context="synthetic rat native-correction integration",
             source_name=f"governed-{dataset_id}",
             source_version="2026-09",
+            source_uri=f"https://example.test/sps/{dataset_id}",
         )
         for dataset_id, values in (
             (

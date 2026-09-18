@@ -452,8 +452,12 @@ def _discovered_controls() -> ControlSiteSet:
             baseline_centering_established_by=(
                 f"{dataset_id} governed condition-relative centering"
             ),
+            organism="rat",
+            baseline_context="condition a",
+            reference_context="synthetic rat RUV-III integration fixture",
             source_name=f"governed-{dataset_id}",
             source_version="2026-09",
+            source_uri=f"https://example.test/sps/{dataset_id}",
         )
         for dataset_id, values in (
             (
