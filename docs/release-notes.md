@@ -1,97 +1,85 @@
 # PhosPy Release Notes
 
-## Version 1.7.4
+## Version 1.7.5
 
-Release date: 2026-09-16.
+Release date: 2026-09-18.
 
-These notes describe the changes since Version 1.7.3.
+These notes describe only the changes since Version 1.7.4.
 
 ## Release Overview
 
-PhosPy 1.7.4 adds an opt-in, PhosPy-native group-aware mixed-mechanism
-missing-data policy:
+PhosPy 1.7.5 completes the package's SPS discovery and RUV-III path:
 
-```python
-policy = "impute_group_aware"
+```text
+reference phosphoproteomics datasets
+    -> SPS discovery
+    -> ControlSiteSet
+    -> ruv_iii_style correction
+    -> corrected dataset
 ```
 
-The policy uses exact, aligned sample-group metadata and the original observed
-missingness pattern to route eligible targets. It does not detect or prove MAR
-or MNAR, and it does not claim numerical parity with PhosR `scImpute` or
-`ptImpute`.
+SPS discovery is a separate, explicit operation over suitable independent
+reference phosphoproteomics evidence. It is not mandatory for correction:
+existing governed caller-supplied controls remain valid. The new
+`ruv_iii_style` method is also explicitly opt-in, so existing analyses are not
+automatically migrated.
 
-## Kinase Scientific-Policy Versions
+The established `method="sps_ruv_style"` method predates this release. It
+remains the PhosPy-native SPS/control-based unwanted-variation estimator and is
+not retrospectively described as RUV-III. Version 1.7.5 extends the existing
+infrastructure with discovery and a separate replicate-aware RUV-III route; it
+does not replace `sps_ruv_style`.
 
-The current implementation owns these policy and schema versions:
+## SPS Discovery
 
-| Policy | Implemented version |
-| --- | ---: |
-| KSEA activity policy | 5 |
-| Membership-selection policy | 4 |
-| Inferential policy | 4 |
-| Membership payload schema | 2 |
-| Membership-independence policy | 2 |
+`SpsDiscoveryWorkflow` discovers stable phosphosite candidates across multiple
+prepared reference datasets. References share governed, protein-scoped
+`site_key` identity and must declare coherent organism, biological baseline,
+reference context, source identity, and established condition-relative log2
+semantics. The caller remains responsible for choosing scientifically
+appropriate reference evidence and its biological control baseline.
 
-These versions govern the KSEA scientific contract recorded in provenance and
-bundles: membership evidence, whether substrate membership was selected
-independently of the tested matrix, whether ordinary KSEA p/q output is
-eligible, and compatibility for persisted membership and provenance payloads.
-They are compatibility and interpretation contract identifiers, not empirical
-proof of scientific validity.
+Discovery provides explicit configuration, per-reference contribution and
+attrition records, deterministic consensus ranking, serializable provenance,
+and a `ControlSiteSet` suitable for correction. Partial-reference candidates
+are ordered conservatively by descending contributing-reference count, then by
+the Fisher-style consensus score and governed `site_key`.
 
-## Group-Aware Imputation
+The discovery identity is immutable and evidence-sensitive. It passes through
+the generated `ControlSiteSet` into correction provenance, so identical selected
+keys derived from different reference evidence retain distinct lineage.
 
-- Complete groups require no imputation.
-- Sufficiently supported partially observed groups route missing targets to
-  KNN.
-- Fully missing groups route to MinProb only when another group for the same
-  site provides sufficient reference observation, expressing an explicit
-  left-censored modelling assumption.
-- Rows containing unsupported or ambiguous patterns are removed rather than
-  forced through an imputation mechanism.
+## Native SPS/RUV-Style Replicate-Aware RUV-III Compatibility
 
-The policy requires aligned `sample_metadata`, a valid `group_column`,
-established log2 quantitative input, explicit routing thresholds, KNN settings
-(`k` and `distance="nan_euclidean"`), and MinProb settings (`q`, `width`, and
-`seed`). Group-aware KNN uses strict `no_overlap_policy="error"`; the standalone
-KNN column-mean fallback is not available in this mixed policy.
+`method="ruv_iii_style"` requires replicate-set metadata and uses replicate
+membership directly in estimation. Protected biological-condition terms remain
+explicit. Singleton replicate sets are rejected, as is a requested `k` that is
+not estimable from the validated controls and replicate structure; PhosPy does
+not silently cap it. These are deliberate, stricter input and error contracts,
+not failures of the RUV-III mathematics.
 
-KNN and MinProb consume independent copies of the same original retained
-matrix. Their target masks cannot overlap, and synthetic values from one
-mechanism never become routing evidence, donor evidence, or numerical input for
-the other. Originally observed values and the existing binary observation-mask
-semantics are preserved.
+Governed row-median completion can be used internally by `ruv_iii_style` for
+estimation, after which original missing positions are restored. Normal
+analysis-ready construction still requires complete numeric output, so upstream
+missing-data processing remains necessary. This behavior is a PhosPy contract
+and is not an external PhosR missing-data parity claim.
 
-See [Dataset Build Workflow](api/dataset-build-workflow.md#group-aware-knn-minprob)
-for the complete user-facing configuration and interpretation contract.
+The pinned external fixtures establish only bounded evidence:
 
-## Diagnostics and Compatibility
+- SPS ranking and selection agree with PhosR `getSPS` in the tested
+  complete-reference supported domain.
+- RUV-III corrected matrices agree with pinned `ruv::RUVIII` for the tested
+  complete-data finite-`k` cases.
+- Partial-reference SPS ordering, missing-data execution, `sps_ruv_style`, and
+  the complete PhosR `RUVphospho` workflow are outside those parity claims.
 
-- Typed routing, mechanism provenance, row audits, and diagnostics record the
-  group-aware decision path.
-- Diagnostics schema v2 preserves exact dataset-facing sample and group labels
-  through serialization and bundle reconstruction.
-- Historical schema-v1 parsing, normalization, round trips, and bundle
-  reconstruction retain their previous semantics. Schema-v1 payloads are not
-  migrated automatically, and schema v1 cannot represent
-  `impute_group_aware` diagnostics.
-- Existing standalone `forbid`, `impute_row_median`, `impute_knn`, and
-  `impute_minprob` policies remain available with unchanged behavior.
+Scientific validation covers planted nuisance-factor removal, protected-signal
+retention, downstream differential-analysis compatibility, lineage and
+serialization, and SPS-specific performance contracts. Normal execution and
+tests consume the pinned fixture outputs without requiring R or network access.
 
-## Scientific Scope
-
-Observed missingness patterns are modelling evidence used to select an explicit
-route; they do not establish the missingness mechanism for any value. The
-MinProb route makes a left-censored assumption only for eligible asymmetric
-fully missing groups. The partial-observation KNN route is a PhosPy mechanism,
-not a reimplementation of PhosR `scImpute`.
-
-The broader PhosPy scientific boundaries remain in force: differential analysis
-is limited to tested design and contrast envelopes; bundled runtime references
-are rat-only; enrichment is offline ORA over caller-supplied collections; native
-SPS/RUV-style correction is not PhosR-equivalent RUV/SPS/RUV-III parity;
-`duplicate_correlation` is a narrow paired-design GLS route rather than a
-mixed-effects framework; and kinase/signalome outputs should be interpreted
-through the documented workflow assumptions and caveats.
+See [SPS Discovery and Native SPS/RUV-Style Correction](api/sps-ruv.md),
+[Parity](parity.md), and [Scientific Coverage](scientific-coverage.md) for the
+complete contracts and evidence boundaries.
 
 Next: [Quickstart](quickstart.md) or [API Guide](api/guide.md).

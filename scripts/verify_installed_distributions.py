@@ -56,6 +56,7 @@ from phospy.advanced import DifferentialProteinAwareModelConfig
 from phospy.advanced import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
 from phospy.advanced import KinaseScoringConfig
 from phospy.advanced import ReferenceContextCompatibilityPolicy
+from phospy.advanced import SpsDiscoveryConfig, SpsReferenceDataset
 from phospy.advanced import publish_dataset
 from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
 from phospy import KinaseWorkflow
@@ -71,6 +72,8 @@ from phospy.science.references.resources import load_bundled_motif_scores
 from phospy.science.references.resources import load_bundled_motif_sizes
 from phospy.science.references.resources import load_bundled_reference_manifest
 from phospy.science.references.resources import load_bundled_site_sequences
+from phospy.science.batch_correction import RuvIIIReplicateStructure, run_ruv_iii
+from phospy.advanced import SpsDiscoveryRequest, SpsDiscoveryWorkflow
 
 
 REQUIRED_API_NAMES = (
@@ -273,12 +276,6 @@ def _verify_bundled_rat_reference_resources() -> dict[str, object]:
     if manifest_payload.get("reference_id") != "l6_native":
         raise AssertionError("bundled rat manifest reference_id changed")
 
-    manifest = load_bundled_reference_manifest(Organism.RAT)
-    if manifest.reference_id != "l6_native":
-        raise AssertionError("typed bundled rat manifest reference_id changed")
-    if manifest.reference_version != manifest_payload.get("reference_version"):
-        raise AssertionError("typed manifest version does not match resource JSON")
-
     verified_files: dict[str, str] = {}
     for file_manifest in manifest_payload["files"]:
         relative_path = file_manifest["relative_path"]
@@ -293,6 +290,12 @@ def _verify_bundled_rat_reference_resources() -> dict[str, object]:
                 f"{relative_path}; expected={declared_hash}; actual={actual_hash}"
             )
         verified_files[str(relative_path)] = actual_hash
+
+    manifest = load_bundled_reference_manifest(Organism.RAT)
+    if manifest.reference_id != "l6_native":
+        raise AssertionError("typed bundled rat manifest reference_id changed")
+    if manifest.reference_version != manifest_payload.get("reference_version"):
+        raise AssertionError("typed manifest version does not match resource JSON")
 
     substrate_map = load_bundled_kinase_substrate_map(Organism.RAT)
     site_sequences = load_bundled_site_sequences(Organism.RAT)
@@ -387,6 +390,7 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
         kinase_result=kinase_result,
     )
     publisher_report = _exercise_advanced_table_publisher(dataset)
+    sps_ruv_report = _exercise_sps_ruv_contracts()
 
     return {
         "imputed_dataset_shape": [
@@ -406,6 +410,109 @@ def _exercise_public_scientific_contracts() -> dict[str, object]:
         ],
         "bundle_round_trip": bundle_report,
         "advanced_table_publisher": publisher_report,
+        "sps_ruv": sps_ruv_report,
+    }
+
+
+def _exercise_sps_ruv_contracts() -> dict[str, object]:
+    site_keys = pd.Index(
+        (
+            "phospy:v1|organism=rat|protein_namespace=protein_id|"
+            "protein_identifier=P0001|residue=S|position=1",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|"
+            "protein_identifier=P0002|residue=S|position=2",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|"
+            "protein_identifier=P0003|residue=S|position=3",
+        ),
+        name="site_key",
+    )
+    condition_by_sample = {
+        "a_1": "a",
+        "a_2": "a",
+        "b_1": "b",
+        "b_2": "b",
+    }
+    references = tuple(
+        SpsReferenceDataset.from_condition_relative_log2(
+            dataset_id=dataset_id,
+            intensities=pd.DataFrame(values, index=site_keys),
+            condition_by_sample=condition_by_sample,
+            log2_scale_established_by=f"{dataset_id} governed log2 transform",
+            baseline_centering_established_by=(
+                f"{dataset_id} governed condition-relative centering"
+            ),
+            organism="rat",
+            baseline_context="condition a",
+            reference_context="installed-distribution SPS smoke fixture",
+            source_name=f"governed-{dataset_id}",
+            source_version="1",
+            source_uri=f"https://example.test/sps/{dataset_id}",
+        )
+        for dataset_id, values in (
+            (
+                "reference_a",
+                {
+                    "a_1": (0.0, 0.0, 0.0),
+                    "a_2": (0.0, 0.0, 0.0),
+                    "b_1": (0.1, 0.2, 2.0),
+                    "b_2": (0.1, 0.2, 2.0),
+                },
+            ),
+            (
+                "reference_b",
+                {
+                    "a_1": (0.0, 0.0, 0.0),
+                    "a_2": (0.0, 0.0, 0.0),
+                    "b_1": (0.2, 0.3, 3.0),
+                    "b_2": (0.2, 0.3, 3.0),
+                },
+            ),
+        )
+    )
+    discovery = SpsDiscoveryWorkflow().run(
+        SpsDiscoveryRequest(
+            reference_datasets=references,
+            config=SpsDiscoveryConfig(top_n=2, minimum_shared_sites=2),
+        )
+    )
+    controls = discovery.control_site_set
+    if len(controls.annotations) != 2:
+        raise AssertionError("installed SPS discovery did not select two controls")
+
+    samples = ("sample_1", "sample_2", "sample_3", "sample_4")
+    phospho = pd.DataFrame(
+        {
+            "sample_1": (1.0, 2.0, 5.0),
+            "sample_2": (2.0, 4.0, 5.5),
+            "sample_3": (3.0, 1.0, 6.0),
+            "sample_4": (4.0, 3.0, 7.0),
+        },
+        index=site_keys,
+    )
+    replicate_structure = RuvIIIReplicateStructure.from_assignments(
+        sample_order=samples,
+        replicate_by_sample={
+            "sample_1": "replicate_1",
+            "sample_2": "replicate_1",
+            "sample_3": "replicate_2",
+            "sample_4": "replicate_2",
+        },
+    )
+    corrected = run_ruv_iii(
+        phospho,
+        control_site_keys=discovery.selected_site_keys,
+        replicate_structure=replicate_structure,
+        k=1,
+    )
+    if corrected.corrected_matrix.shape != phospho.shape:
+        raise AssertionError("installed RUV-III changed the phospho matrix shape")
+    if corrected.diagnostics.method != "ruv_iii":
+        raise AssertionError("installed RUV-III reported an unexpected method")
+    return {
+        "sps_selected_control_count": len(controls.annotations),
+        "sps_discovery_identity": discovery.discovery_identity,
+        "ruv_iii_method": corrected.diagnostics.method,
+        "ruv_iii_output_shape": list(corrected.corrected_matrix.shape),
     }
 
 
@@ -877,12 +984,13 @@ def _verify_one_artifact(
         constraint=None,
         arguments=["check"],
     )
+    probe_path = run_directory / "installed_distribution_probe.py"
+    probe_path.write_text(INSTALLED_PROBE_SOURCE, encoding="utf-8", newline="\n")
     result = _run(
         [
             str(environment_python),
             "-I",
-            "-c",
-            INSTALLED_PROBE_SOURCE,
+            str(probe_path),
             str(repo_root),
             str(environment_root.resolve()),
             artifact_kind,
@@ -1111,12 +1219,16 @@ def _run_pip(
         "-m",
         "pip",
         "--disable-pip-version-check",
+        "--no-cache-dir",
         arguments[0],
     ]
-    environment_overrides = None
+    # The CLI flag applies only to this pip process. Propagate the equivalent
+    # environment setting so pip's build-isolation subprocess also avoids any
+    # ambient package cache while installing sdist build requirements.
+    environment_overrides = {"PIP_NO_CACHE_DIR": "1"}
     if constraint is not None and arguments[0] == "install":
         command.extend(["-c", str(constraint)])
-        environment_overrides = {"PIP_BUILD_CONSTRAINT": str(constraint)}
+        environment_overrides["PIP_BUILD_CONSTRAINT"] = str(constraint)
     command.extend(arguments[1:])
     return _run(
         command,

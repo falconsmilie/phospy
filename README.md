@@ -142,6 +142,7 @@ from phospy.api import EnrichmentConfig, EnrichmentWorkflow, EnrichmentWorkflowR
 
 - [Prepare a dataset](docs/api/dataset-build-workflow.md)
 - [Run differential analysis](docs/api/differential-analysis.md)
+- [Discover SPS controls and configure native SPS/RUV-style correction](docs/api/sps-ruv.md)
 - [Run enrichment](docs/api/enrichment.md)
 - [Run kinase analysis](docs/api/kinase.md)
 - [Run signalome analysis](docs/api/signalome.md)

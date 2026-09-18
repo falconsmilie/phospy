@@ -4,21 +4,38 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.7.5] - 2026-09-18
+
+### Added
+
+- Added phosphoproteomics-specific SPS discovery across multiple governed
+  reference datasets. Discovery uses protein-scoped `site_key` identity,
+  deterministic evidence-count-first consensus ranking, explicit configuration
+  and attrition, serializable provenance, and a reusable `ControlSiteSet`
+  handoff to correction.
+- Added the opt-in, replicate-aware `ruv_iii_style` correction method. Replicate
+  sets participate directly in RUV-III estimation, protected biological
+  condition terms remain explicit, and governed missingness handling preserves
+  the original observation mask.
+- Added pinned external fixtures comparing the supported complete-reference SPS
+  domain with PhosR `getSPS` and complete-data finite-`k` corrected matrices
+  with `ruv::RUVIII`, plus scientific validation, downstream differential
+  integration, and SPS-specific performance coverage.
+
 ### Changed
 
-- SPS discovery retains partial-reference contributions but now orders sites
-  first by descending contributing-reference count, then by the existing
-  Fisher-style consensus score, and finally by canonical site key. Algorithm
-  version `2.0.0` and serialized provenance identify this result-changing
-  policy; version `1.0.0` results retain legacy deserialization semantics.
-- SPS discovery now requires a coherent typed organism, explicit biological
-  baseline/reference context, and reconstructable identity for every reference.
-  The validated context is retained in discovery provenance and identity, and
-  the organism is propagated to generated controls for target compatibility
-  validation.
-- The SPS 10,000-site release fixture now shares one explicit rat organism
-  contract across its reference metadata and governed site keys, and retained
-  CI performance reports include the measured runtime and declared threshold.
+- Batch-correction orchestration now supports `ruv_iii_style` separately from
+  the existing `sps_ruv_style` method. `sps_ruv_style` remains available with
+  its prior numerical and replicate-metadata semantics; SPS discovery is
+  optional and existing caller-supplied control sets remain valid.
+- SPS discovery requires coherent typed organism, biological baseline and
+  reference context, reconstructable reference identity, and established
+  condition-relative log2 semantics. Immutable discovery lineage is propagated
+  through generated controls into correction provenance.
+- Partial-reference candidates are ordered first by contributing-reference
+  count, then Fisher-style consensus score, then canonical `site_key`.
+  Algorithm version `2.0.0` identifies this policy while version `1.0.0`
+  results retain legacy deserialization semantics.
 
 ### Documentation
 
@@ -35,6 +52,17 @@ All notable changes to this project are documented here.
   rank, control-count, non-estimable-`k`, and tied-cutoff restrictions, with
   recovery guidance. CI now runs the strict documentation build alongside the
   existing performance and release-gate jobs.
+
+### Fixed
+
+- Preserved the exact SPS discovery identity through `ControlSiteSet` and into
+  correction provenance, so controls selected from different reference
+  evidence cannot collapse to the same lineage merely because their selected
+  `site_key` values match.
+- Defined singleton-replicate rejection and strict rejection of a requested
+  non-estimable `k` as deliberate PhosPy input/error contracts. These do not
+  change the supported RUV-III mathematics or imply missing-data parity with
+  PhosR/`ruv`.
 
 ## [1.7.4] - 2026-09-16
 

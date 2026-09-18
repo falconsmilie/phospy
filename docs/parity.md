@@ -60,6 +60,10 @@ Current active parity coverage includes:
   `tests/parity/test_l6_prediction_parity.py`, and
   `tests/parity/test_public_predmat_parity.py`
 - selected preprocessing behaviours with explicit fixtures
+- fixture-scoped multi-reference SPS discovery against pinned PhosR `getSPS`
+  and complete-data finite-`k` replicate-aware RUV-III matrices for the native
+  SPS/RUV-style lane against pinned `ruv::RUVIII`
+  (`tests/parity/test_phosr_sps_ruv_parity.py`)
 - activity-stage behaviours in `tests/parity/test_activity_stage_parity.py`
 - signalome workflow and clustering backend fixture lanes:
   `tests/parity/test_signalome_workflow_parity.py` and
@@ -181,6 +185,7 @@ pytest tests/parity -m "parity_diagnostic" -s
 | Shared parity helpers | `tests/support/` |
 | Public workflow reference fixtures | `tests/fixtures/public_workflow_reference/` |
 | Differential external reference fixtures | `tests/fixtures/rewrite_parity/differential_r_reference/`, `tests/fixtures/rewrite_parity/differential_limma_envelope/`, `tests/fixtures/rewrite_parity/differential_limma_trend_large/`, `tests/fixtures/rewrite_parity/differential_deqms_depth/` |
+| SPS/RUV-III external reference fixtures | `tests/fixtures/rewrite_parity/phosr_ruv/` |
 | PhosPy release-validation regression fixtures | `tests/fixtures/release_validation_regression/` |
 | Regeneration scripts | `scripts/active/` |
 

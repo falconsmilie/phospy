@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import tomllib
 import zipfile
 from pathlib import Path
@@ -32,7 +33,7 @@ pytestmark = pytest.mark.release_gate
 
 ROOT = Path(__file__).resolve().parents[2]
 CONSTRAINT = ROOT / "constraints" / "ci.txt"
-CURRENT_RELEASE_VERSION = "1.7.4"
+CURRENT_RELEASE_VERSION = "1.7.5"
 WHEEL_DECLARED_RESOURCE = (
     "phospy/data/reference_bundles/rat/l6_native/substrate_map.csv"
 )
@@ -162,17 +163,20 @@ def _verify_single_artifact(
     artifact_path: Path,
     tmp_path: Path,
 ) -> InstalledDistributionReport:
-    work_root = tmp_path / f"{artifact_kind}-verification-work"
-    work_root.mkdir()
-    return _verify_one_artifact(
-        artifact_kind=artifact_kind,
-        artifact_path=artifact_path,
-        work_root=work_root,
-        repo_root=ROOT.resolve(),
-        python_executable=sys.executable,
-        constraint=CONSTRAINT,
-        **DAMAGED_ARTIFACT_INSTALL_KWARGS,
-    )
+    del tmp_path
+    # Keep the isolated environment close to the runner-provided temporary root.
+    # Deep pytest node directories otherwise exceed the legacy Windows path limit
+    # when dependencies such as joblib install long fixture filenames.
+    with tempfile.TemporaryDirectory(prefix=f"phospy-{artifact_kind}-damage-") as root:
+        return _verify_one_artifact(
+            artifact_kind=artifact_kind,
+            artifact_path=artifact_path,
+            work_root=Path(root),
+            repo_root=ROOT.resolve(),
+            python_executable=sys.executable,
+            constraint=CONSTRAINT,
+            **DAMAGED_ARTIFACT_INSTALL_KWARGS,
+        )
 
 
 def test_distribution_artifact_discovery_requires_exactly_one_wheel_and_sdist(
@@ -386,13 +390,15 @@ def test_pip_installs_apply_explicit_constraint_to_build_dependencies(
         "-m",
         "pip",
         "--disable-pip-version-check",
+        "--no-cache-dir",
         "install",
         "-c",
         str(constraint),
         sdist_name,
     ]
     assert captured["environment_overrides"] == {
-        "PIP_BUILD_CONSTRAINT": str(constraint)
+        "PIP_BUILD_CONSTRAINT": str(constraint),
+        "PIP_NO_CACHE_DIR": "1",
     }
 
 
@@ -532,14 +538,15 @@ def test_damaged_sdist_manifest_resource_fails_installed_probe(
         )
 
 
-def test_installed_probe_rejects_source_checkout_import_origin() -> None:
+def test_installed_probe_rejects_source_checkout_import_origin(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT / "src")
+    probe_path = tmp_path / "installed_distribution_probe.py"
+    probe_path.write_text(INSTALLED_PROBE_SOURCE, encoding="utf-8", newline="\n")
     result = subprocess.run(
         [
             sys.executable,
-            "-c",
-            INSTALLED_PROBE_SOURCE,
+            str(probe_path),
             str(ROOT.resolve()),
             str(ROOT.resolve()),
             "source-checkout",
@@ -625,3 +632,10 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
     assert "load_kinase_workflow_bundle" in INSTALLED_PROBE_SOURCE
     assert "ticket_1_posthoc_peptide_to_site_boundary" in INSTALLED_PROBE_SOURCE
     assert "withdrawn_asserted" in INSTALLED_PROBE_SOURCE
+    assert "SpsDiscoveryWorkflow" in INSTALLED_PROBE_SOURCE
+    assert "SpsDiscoveryRequest" in INSTALLED_PROBE_SOURCE
+    assert "SpsReferenceDataset.from_condition_relative_log2" in INSTALLED_PROBE_SOURCE
+    assert "RuvIIIReplicateStructure" in INSTALLED_PROBE_SOURCE
+    assert "run_ruv_iii" in INSTALLED_PROBE_SOURCE
+    assert "_exercise_sps_ruv_contracts" in INSTALLED_PROBE_SOURCE
+    assert '"sps_ruv": sps_ruv_report' in INSTALLED_PROBE_SOURCE
