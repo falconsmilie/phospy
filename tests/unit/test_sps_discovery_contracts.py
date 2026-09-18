@@ -1180,6 +1180,11 @@ def test_discovery_result_json_round_trip_preserves_typed_governed_provenance() 
     assert restored.provenance.source_datasets[0].intensity_scale_kind.value == "log2"
     assert "intensities" not in payload["provenance"]["source_datasets"][0]
     assert restored.discovery_identity == result.discovery_identity
+    assert all(
+        statistic.to_payload()["rank_quantile"] == statistic.rank_quantile
+        for record in restored.site_ranking
+        for statistic in record.dataset_statistics
+    )
     controls = restored.control_site_set
     assert all(
         decode_site_key(
@@ -1195,17 +1200,43 @@ def test_discovery_result_json_round_trip_preserves_typed_governed_provenance() 
     )
 
 
-def test_historical_discovery_payload_without_serialized_identity_remains_readable() -> (
-    None
-):
+def test_baseline_v1_discovery_payload_with_legacy_identity_is_migrated() -> None:
     result = _identity_discovery()
     payload = result.to_payload()
-    payload.pop("discovery_identity")
-    payload.pop("identity_schema")
+    payload["identity_schema"] = "phospy-sps-discovery-result-v1"
+    for record in payload["site_ranking"]:  # type: ignore[union-attr]
+        for statistic in record["dataset_statistics"]:
+            statistic.pop("rank_quantile")
+    payload["discovery_identity"] = (
+        "sha256-stable-json-v1:"
+        "3414e58723d4bd23234ad60113663baf9dcf72342083b75a3aec40b1d2f7024b"
+    )
 
     restored = SpsDiscoveryResult.from_payload(payload)
 
+    assert restored == result
     assert restored.discovery_identity == result.discovery_identity
+    assert restored.to_payload()["identity_schema"] == (
+        "phospy-sps-discovery-result-v2"
+    )
+    assert all(
+        "rank_quantile" in statistic
+        for record in restored.to_payload()["site_ranking"]  # type: ignore[union-attr]
+        for statistic in record["dataset_statistics"]
+    )
+
+    payload["discovery_identity"] = "sha256-stable-json-v1:" + "0" * 64
+    with pytest.raises(PhosPyInputError, match="canonical discovery evidence"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_v1_schema_rejects_v2_rank_quantile_shape() -> None:
+    payload = _identity_discovery().to_payload()
+    payload["identity_schema"] = "phospy-sps-discovery-result-v1"
+    payload.pop("discovery_identity")
+
+    with pytest.raises(PhosPyInputError, match="v1.*must not contain rank_quantile"):
+        SpsDiscoveryResult.from_payload(payload)
 
 
 def test_result_deserialization_without_identity_rejects_ranked_organism_mismatch() -> (
@@ -1328,6 +1359,79 @@ def test_result_deserialization_rejects_negative_reference_stability() -> None:
 
     with pytest.raises(PhosPyInputError, match="stability_score must be non-negative"):
         SpsDiscoveryResult.from_payload(payload)
+
+
+@pytest.mark.parametrize("invalid_quantile", [0.0, 1.0, -0.01, 1.01])
+def test_result_deserialization_rejects_invalid_reference_rank_quantile(
+    invalid_quantile: float,
+) -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    result = SpsDiscoveryResult(
+        selected_site_keys=selected,
+        site_ranking=ranking,
+        provenance=provenance,
+    )
+    payload = result.to_payload()
+    statistic = payload["site_ranking"][0]["dataset_statistics"][0]  # type: ignore[index]
+    statistic["rank_quantile"] = invalid_quantile  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="rank_quantile must be strictly"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_rejects_valid_range_quantile_inconsistent_with_midrank() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    first = ranking[0]
+    inconsistent_statistic = replace(
+        first.dataset_statistics[0],
+        rank_quantile=0.5,
+    )
+    inconsistent_record = replace(
+        first,
+        dataset_statistics=(
+            inconsistent_statistic,
+            *first.dataset_statistics[1:],
+        ),
+    )
+
+    with pytest.raises(PhosPyInputError, match="tie-derived midrank quantile"):
+        SpsDiscoveryResult(
+            selected_site_keys=selected,
+            site_ranking=(inconsistent_record, *ranking[1:]),
+            provenance=provenance,
+        )
+
+
+def test_identityless_v2_payload_rejects_quantile_inconsistent_with_midrank() -> None:
+    result = _identity_discovery()
+    payload = result.to_payload()
+    payload.pop("discovery_identity")
+    statistic = payload["site_ranking"][0]["dataset_statistics"][0]  # type: ignore[index]
+    statistic["rank_quantile"] = 0.5  # type: ignore[index]
+
+    with pytest.raises(PhosPyInputError, match="tie-derived midrank quantile"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_result_rejects_consensus_inconsistent_with_reference_quantiles() -> None:
+    selected, provenance, ranking = _provenance_and_ranking()
+    inconsistent_ranking = tuple(
+        replace(
+            record,
+            consensus_stability_score=record.consensus_stability_score * 0.9,
+        )
+        for record in ranking
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="consensus_stability_score must match.*rank_quantiles",
+    ):
+        SpsDiscoveryResult(
+            selected_site_keys=selected,
+            site_ranking=inconsistent_ranking,
+            provenance=provenance,
+        )
 
 
 def test_result_deserialization_rejects_impossible_reference_rank() -> None:

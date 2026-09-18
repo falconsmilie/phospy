@@ -178,9 +178,7 @@ caller-intent payload. `SpsDiscoveryWorkflow` is the supported multi-reference
 validation, execution, and provenance-assembly boundary and delegates
 validation to a private collaborator and ranking mathematics to the scientific
 core; no validator or executor is promoted. The advanced-to-workflows
-dependency is restricted by architecture tests to this supported boundary. SPS
-execution does not change the existing native SPS/RUV-style method or claim
-PhosR or RUV parity.
+dependency is restricted by architecture tests to this supported boundary.
 
 ## Contract Facade Dependency and Ownership Audit
 
@@ -393,12 +391,16 @@ of truth; this ADR records the policy classification for review.
 - WorkflowBoundaryError
 - SignalomeScaleError
 
-### Advanced Supported API (101 names)
+### Advanced Supported API (124 names)
 
 - ControlSiteAnnotation
 - ControlSiteSet
 - ControlSiteSourceMetadata
 - ControlSiteStatus
+- SpsDiscoveryRequest
+- SpsDiscoveryWorkflow
+- SpsDiscoveryValidationError
+- SpsReferenceDataset
 - CorrectionMaskPolicy
 - CorrectionMissingnessPolicy
 - ObservationMask
@@ -408,9 +410,9 @@ of truth; this ADR records the policy classification for review.
 - DatasetBatchCorrectionConfig
 - DatasetBatchCorrectionMethod
 - DatasetPreprocessingBatchCorrectionConfig
-- SpsRuvBatchCorrectionConfig (native PhosPy `sps_ruv_style` and
-  replicate-aware `ruv_iii_style`; not a PhosR parity claim)
+- SpsRuvBatchCorrectionConfig (native PhosPy SPS/RUV-style)
 - SpsRuvBatchCorrectionMethod
+- SpsDiscoveryConfig
 - DatasetComparisonBuildingConfig
 - DatasetComparisonBuildingPolicy
 - DatasetComparisonPair
@@ -442,13 +444,18 @@ of truth; this ADR records the policy classification for review.
 - DatasetTotalProteinCorrectionIdentityMode
 - DatasetTotalProteinCorrectionPolicy
 - DatasetTotalProteinCorrectionUnmatchedPolicy
+- DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1
 - DifferentialAnalysisConfig
 - DifferentialImputedValuePolicy
+- DifferentialProteinAwareModelConfig
 - DifferentialReliabilityProfile
 - EmpiricalBayesConfig
 - MultipleTestingConfig
 - MultipleTestingCorrection
 - MultipleTestingMethod
+- PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+- PAIRED_DESIGN_POLICY_FIXED_BLOCK
+- PAIRED_DESIGN_POLICY_REJECT
 - PairedDesignPolicy
 - EnrichmentIdentifierKind
 - EnrichmentMethod
@@ -490,15 +497,28 @@ of truth; this ADR records the policy classification for review.
 - load_kinase_library_resource
 - filter_differential_results
 - rank_differential_results
+- publish_dataset
+- publish_kinase_workflow
+- publish_signalome_workflow
 - DifferentialModelDiagnostics
+- QuantificationDepthTrendDiagnostics
 - KinaseEligibilityReport
 - KinaseWorkflowAttritionProvenance
 - KinaseWorkflowCaveat
 - KinaseWorkflowPreprocessingAttritionSummary
 - KinaseWorkflowScoringAttritionSummary
 - KinaseWorkflowSiteAttritionSummary
+- SpsDatasetSiteStatistic
+- SpsDiscoveryProvenance
+- SpsDiscoveryResult
+- SpsDiscoveryValidationIssue
+- SpsDiscoveryValidationResult
+- SpsReferenceDatasetProvenance
+- SpsSampleConditionAssignment
+- SpsSelectionBoundaryCounts
+- SpsSiteStabilityRecord
 
-### Internal / Experimental API (102 names)
+### Internal / Experimental API (100 names)
 
 - ActivityMethodDiagnostics
 - BatchCorrectionDiagnostics
@@ -565,8 +585,6 @@ of truth; this ADR records the policy classification for review.
 - MULTIPLE_TESTING_METHOD_HOLM
 - MULTIPLE_TESTING_METHOD_NONE
 - NormalisationState
-- PAIRED_DESIGN_POLICY_FIXED_BLOCK
-- PAIRED_DESIGN_POLICY_REJECT
 - PhosPyBuildError
 - PhosPyTransformationError
 - ProteinAwareMappingDiagnostics

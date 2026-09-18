@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -140,6 +141,17 @@ def test_sps_ranking_intermediates_and_top_n_match_pinned_phosr_getsps() -> None
                 abs=tolerance,
                 rel=0.0,
             )
+            assert statistic.rank_quantile == pytest.approx(
+                expected[f"{statistic.dataset_id}_rank_quantile"],
+                abs=tolerance,
+                rel=0.0,
+            )
+        reconstructed_fisher_statistic = -2.0 * math.fsum(
+            math.log(statistic.rank_quantile) for statistic in record.dataset_statistics
+        )
+        assert reconstructed_fisher_statistic == pytest.approx(
+            expected["fisher_statistic"], abs=tolerance, rel=0.0
+        )
 
     # This fixture's selected boundary has no cross-boundary tie, so the exact
     # top-N sequence is defined. Tie-group evidence is checked separately below.
@@ -193,6 +205,37 @@ def test_sps_tie_group_matches_phosr_evidence_and_phospy_order_is_deterministic(
     positions = tuple(record.site_key for record in result.site_ranking)
     observed_tie_order = tuple(key for key in positions if key in set(tie_keys))
     assert observed_tie_order == tie_keys
+
+    source_entry_counts = {
+        source.dataset_id: source.sites_entering_consensus
+        for source in result.provenance.source_datasets
+    }
+    for dataset_id, candidate_count in source_entry_counts.items():
+        assert candidate_count is not None
+        tied_statistics = tuple(
+            next(
+                statistic
+                for statistic in records[site_key].dataset_statistics
+                if statistic.dataset_id == dataset_id
+            )
+            for site_key in tie_keys
+        )
+        assert tied_statistics[0].rank == tied_statistics[1].rank
+        assert tied_statistics[0].rank_quantile == pytest.approx(
+            tied_statistics[1].rank_quantile,
+            abs=1e-15,
+            rel=0.0,
+        )
+        estimator_midrank = (
+            float(candidate_count)
+            + 0.5
+            - (tied_statistics[0].rank_quantile * float(candidate_count))
+        )
+        assert estimator_midrank == pytest.approx(
+            float(tied_statistics[0].rank) + 0.5,
+            abs=1e-12,
+            rel=0.0,
+        )
 
 
 def _ruv_inputs() -> tuple[

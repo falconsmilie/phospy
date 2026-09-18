@@ -249,6 +249,12 @@ def test_ties_have_equal_evidence_and_use_site_key_ascending_order() -> None:
     assert tied[0].site_key < tied[1].site_key
     assert tied[0].consensus_stability_score == tied[1].consensus_stability_score
     assert all(item.rank == 1 for record in tied for item in record.dataset_statistics)
+    assert all(
+        item.rank_quantile == pytest.approx(2.0 / 3.0)
+        for record in tied
+        for item in record.dataset_statistics
+    )
+    assert sps_science.SpsDiscoveryResult.from_payload(result.to_payload()) == result
 
 
 def test_missing_data_requires_each_condition_but_not_every_replicate() -> None:
@@ -437,6 +443,7 @@ def test_partial_reference_contributions_attrition_and_native_handoff() -> None:
     assert exact_minimum in result.selected_site_keys
     assert records[all_references].contributing_dataset_count == 3
     assert _run(tuple(reversed(references)), config=config) == result
+    assert sps_science.SpsDiscoveryResult.from_payload(result.to_payload()) == result
 
     boundaries = result.provenance.selection_boundaries
     assert boundaries.to_payload() == {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 from types import ModuleType
 
@@ -35,6 +36,25 @@ DATASET_INTERNAL_DIAGNOSTIC_NAMES = frozenset(
 )
 
 
+def _adr_inventory(section_name: str) -> tuple[int, tuple[str, ...]]:
+    adr = POLICY_ADR.read_text(encoding="utf-8")
+    section = re.search(
+        rf"^### {re.escape(section_name)} \((\d+) names\)\n(?P<body>.*?)(?=^### |\Z)",
+        adr,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    assert section is not None
+    names = tuple(
+        match.group(1)
+        for match in re.finditer(
+            r"^- ([A-Za-z_][A-Za-z0-9_]*)",
+            section.group("body"),
+            flags=re.MULTILINE,
+        )
+    )
+    return int(section.group(1)), names
+
+
 def test_api_tiers_are_explicit_disjoint_and_drive_all() -> None:
     stable_inventory = public_api._STABLE_PUBLIC_API
     advanced_inventory = public_api._ADVANCED_SUPPORTED_API
@@ -59,6 +79,22 @@ def test_api_tiers_are_explicit_disjoint_and_drive_all() -> None:
 def test_api_surface_counts_do_not_increase_without_contract_review() -> None:
     assert len(public_api.__all__) == STABLE_PUBLIC_API_BASELINE_COUNT
     assert len(advanced_api.__all__) == ADVANCED_PUBLIC_API_BASELINE_COUNT
+
+
+def test_adr_advanced_inventory_matches_authoritative_facade() -> None:
+    advanced_count, advanced_names = _adr_inventory("Advanced Supported API")
+    internal_count, internal_names = _adr_inventory("Internal / Experimental API")
+
+    assert advanced_count == ADVANCED_PUBLIC_API_BASELINE_COUNT == 124
+    assert len(advanced_names) == advanced_count
+    assert len(set(advanced_names)) == advanced_count
+    assert set(advanced_names) == set(advanced_api.__all__)
+    assert len(internal_names) == internal_count
+    assert len(set(internal_names)) == internal_count
+    assert set(advanced_names).isdisjoint(internal_names)
+
+    adr_words = " ".join(POLICY_ADR.read_text(encoding="utf-8").split())
+    assert "raising the governed advanced facade count from 110 to 124" in adr_words
 
 
 def test_advanced_api_names_have_stability_justifications() -> None:

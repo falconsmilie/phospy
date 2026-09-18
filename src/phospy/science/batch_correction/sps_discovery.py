@@ -61,7 +61,8 @@ SPS_DISCOVERY_ALGORITHM_ID = "phospy_sps_consensus_stability"
 SPS_DISCOVERY_ALGORITHM_VERSION = "1.0.0"
 SPS_DISCOVERY_TIE_HANDLING_SITE_KEY_ASCENDING = "site_key_ascending"
 SPS_DISCOVERY_CONTROL_SOURCE_TYPE = "sps_discovery"
-SPS_DISCOVERY_IDENTITY_SCHEMA = "phospy-sps-discovery-result-v1"
+SPS_DISCOVERY_IDENTITY_SCHEMA_V1 = "phospy-sps-discovery-result-v1"
+SPS_DISCOVERY_IDENTITY_SCHEMA = "phospy-sps-discovery-result-v2"
 SPS_DISCOVERY_IDENTITY_PREFIX = f"{DEFAULT_STABLE_JSON_HASH_ALGORITHM}:"
 SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER = "sps_reference_matrix_fingerprint"
 SPS_REFERENCE_CENTERING_ASSERTION_OPERATION = (
@@ -825,11 +826,18 @@ class SpsDiscoveryValidationError(ReferenceValidationError):
 
 @dataclass(frozen=True, slots=True)
 class SpsDatasetSiteStatistic:
-    """Reference-specific rank/stability evidence for one candidate site."""
+    """Reference-specific ranking evidence for one candidate site.
+
+    ``rank`` is the deterministic competition rank used for reporting, while
+    ``rank_quantile`` is the half-step quantile derived from the estimator
+    midrank and supplied directly to the Fisher-style consensus calculation.
+    They differ for tied stability scores.
+    """
 
     dataset_id: str
     rank: int
     stability_score: float
+    rank_quantile: float = field(kw_only=True)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -847,12 +855,20 @@ class SpsDatasetSiteStatistic:
             raise PhosPyInputError(
                 "sps_site_statistic.stability_score must be non-negative"
             )
+        rank_quantile = _require_finite_float(
+            self.rank_quantile, field_name="sps_site_statistic.rank_quantile"
+        )
+        if not 0.0 < rank_quantile < 1.0:
+            raise PhosPyInputError(
+                "sps_site_statistic.rank_quantile must be strictly between 0 and 1"
+            )
 
     def to_payload(self) -> dict[str, object]:
         return {
             "dataset_id": self.dataset_id,
             "rank": self.rank,
             "stability_score": self.stability_score,
+            "rank_quantile": self.rank_quantile,
         }
 
     @classmethod
@@ -871,6 +887,10 @@ class SpsDatasetSiteStatistic:
             stability_score=_require_payload_float(
                 resolved.get("stability_score"),
                 field_name="sps_site_statistic.stability_score",
+            ),
+            rank_quantile=_require_payload_float(
+                resolved.get("rank_quantile"),
+                field_name="sps_site_statistic.rank_quantile",
             ),
         )
 
@@ -1387,6 +1407,58 @@ class SpsDiscoveryResult:
                         "sps_discovery_result reference-specific rank must not exceed "
                         "that source dataset's consensus entry count"
                     )
+        statistics_by_source: dict[str, list[tuple[str, SpsDatasetSiteStatistic]]] = {
+            source_id: [] for source_id in source_ids
+        }
+        for record in self.site_ranking:
+            for statistic in record.dataset_statistics:
+                statistics_by_source[statistic.dataset_id].append(
+                    (record.site_key, statistic)
+                )
+        for dataset_id, source_statistics in statistics_by_source.items():
+            expected_ranks = _stable_ranks(
+                tuple(
+                    (site_key, statistic.stability_score)
+                    for site_key, statistic in source_statistics
+                )
+            )
+            entry_count = len(source_statistics)
+            for site_key, statistic in source_statistics:
+                expected_rank, expected_midrank = expected_ranks[site_key]
+                if statistic.rank != expected_rank:
+                    raise PhosPyInputError(
+                        "sps_discovery_result reference-specific rank must match "
+                        f"the stability-score competition rank for {dataset_id!r}"
+                    )
+                expected_quantile = (
+                    float(entry_count) - expected_midrank + 0.5
+                ) / float(entry_count)
+                if not math.isclose(
+                    statistic.rank_quantile,
+                    expected_quantile,
+                    rel_tol=1e-12,
+                    abs_tol=1e-15,
+                ):
+                    raise PhosPyInputError(
+                        "sps_discovery_result reference-specific rank_quantile must "
+                        "match the tie-derived midrank quantile"
+                    )
+        for record in self.site_ranking:
+            expected_consensus = _fisher_style_consensus_score(
+                tuple(
+                    statistic.rank_quantile for statistic in record.dataset_statistics
+                )
+            )
+            if not math.isclose(
+                record.consensus_stability_score,
+                expected_consensus,
+                rel_tol=1e-12,
+                abs_tol=1e-15,
+            ):
+                raise PhosPyInputError(
+                    "sps_discovery_result consensus_stability_score must match "
+                    "the serialized reference rank_quantiles"
+                )
 
     def to_control_site_set(self) -> ControlSiteSet:
         """Return selected SPS controls through the existing downstream contract."""
@@ -1432,6 +1504,35 @@ class SpsDiscoveryResult:
             "provenance": self.provenance.to_payload(),
         }
 
+    def _legacy_v1_identity_payload(self) -> dict[str, object]:
+        return {
+            "identity_schema": SPS_DISCOVERY_IDENTITY_SCHEMA_V1,
+            "selected_site_keys": list(self.selected_site_keys),
+            "site_ranking": [
+                {
+                    **{
+                        key: value
+                        for key, value in record.to_payload().items()
+                        if key != "dataset_statistics"
+                    },
+                    "dataset_statistics": [
+                        {
+                            key: value
+                            for key, value in statistic.to_payload().items()
+                            if key != "rank_quantile"
+                        }
+                        for statistic in record.dataset_statistics
+                    ],
+                }
+                for record in self.site_ranking
+            ],
+            "provenance": self.provenance.to_payload(),
+        }
+
+    def _legacy_v1_discovery_identity(self) -> str:
+        digest = hash_json_payload(cast(JsonValue, self._legacy_v1_identity_payload()))
+        return f"{SPS_DISCOVERY_IDENTITY_PREFIX}{digest}"
+
     def to_payload(self) -> dict[str, object]:
         return {
             **self._identity_payload(),
@@ -1452,16 +1553,30 @@ class SpsDiscoveryResult:
             field_name="sps_discovery_result.site_ranking",
         )
         serialized_schema = resolved.get("identity_schema")
-        if serialized_schema is not None and (
-            _require_payload_string(
+        schema = (
+            SPS_DISCOVERY_IDENTITY_SCHEMA_V1
+            if serialized_schema is None
+            else _require_payload_string(
                 serialized_schema,
                 field_name="sps_discovery_result.identity_schema",
             )
-            != SPS_DISCOVERY_IDENTITY_SCHEMA
-        ):
+        )
+        if schema not in {
+            SPS_DISCOVERY_IDENTITY_SCHEMA_V1,
+            SPS_DISCOVERY_IDENTITY_SCHEMA,
+        }:
             raise PhosPyInputError(
                 "sps_discovery_result.identity_schema is not supported"
             )
+        ranking_payloads = tuple(
+            _require_payload_mapping(
+                item,
+                field_name=f"sps_discovery_result.site_ranking[{position}]",
+            )
+            for position, item in enumerate(ranking)
+        )
+        if schema == SPS_DISCOVERY_IDENTITY_SCHEMA_V1:
+            ranking_payloads = _migrate_sps_discovery_v1_ranking(ranking_payloads)
         result = cls(
             selected_site_keys=tuple(
                 _require_payload_string(
@@ -1471,13 +1586,7 @@ class SpsDiscoveryResult:
                 for position, item in enumerate(selected)
             ),
             site_ranking=tuple(
-                SpsSiteStabilityRecord.from_payload(
-                    _require_payload_mapping(
-                        item,
-                        field_name=f"sps_discovery_result.site_ranking[{position}]",
-                    )
-                )
-                for position, item in enumerate(ranking)
+                SpsSiteStabilityRecord.from_payload(item) for item in ranking_payloads
             ),
             provenance=SpsDiscoveryProvenance.from_payload(
                 _require_payload_mapping(
@@ -1492,7 +1601,12 @@ class SpsDiscoveryResult:
                 serialized_identity,
                 field_name="sps_discovery_result.discovery_identity",
             )
-            if restored_identity != result.discovery_identity:
+            expected_identity = (
+                result._legacy_v1_discovery_identity()
+                if schema == SPS_DISCOVERY_IDENTITY_SCHEMA_V1
+                else result.discovery_identity
+            )
+            if restored_identity != expected_identity:
                 raise PhosPyInputError(
                     "sps_discovery_result.discovery_identity does not match the "
                     "canonical discovery evidence"
@@ -1591,17 +1705,18 @@ class SpsDiscoveryExecutor:
             consensus_entries_by_reference[item.dataset_id] = candidate_count
             for site_key, score in scored_candidates:
                 competition_rank, average_rank = ranks[site_key]
+                rank_quantile = (float(candidate_count) - average_rank + 0.5) / float(
+                    candidate_count
+                )
                 statistics_by_site[site_key].append(
                     SpsDatasetSiteStatistic(
                         dataset_id=item.dataset_id,
                         rank=competition_rank,
                         stability_score=score,
+                        rank_quantile=rank_quantile,
                     )
                 )
-                quantiles_by_site[site_key].append(
-                    (float(candidate_count) - average_rank + 0.5)
-                    / float(candidate_count)
-                )
+                quantiles_by_site[site_key].append(rank_quantile)
 
         consensus_scores = {
             site_key: _fisher_style_consensus_score(quantiles_by_site[site_key])
@@ -1781,6 +1896,99 @@ def _stable_ranks(
             ranks[site_key] = (competition_rank, average_rank)
         start = stop
     return ranks
+
+
+def _migrate_sps_discovery_v1_ranking(
+    ranking_payloads: Sequence[Mapping[str, object]],
+) -> tuple[Mapping[str, object], ...]:
+    """Upgrade baseline v1 ranking evidence with reconstructible quantiles."""
+
+    scored_sites_by_source: dict[str, list[tuple[str, float]]] = {}
+    for record_position, record in enumerate(ranking_payloads):
+        site_key = _require_payload_string(
+            record.get("site_key"),
+            field_name=f"sps_discovery_result.site_ranking[{record_position}].site_key",
+        )
+        statistics = _require_payload_sequence(
+            record.get("dataset_statistics"),
+            field_name=(
+                "sps_discovery_result.site_ranking"
+                f"[{record_position}].dataset_statistics"
+            ),
+        )
+        for statistic_position, statistic_payload in enumerate(statistics):
+            field_name = (
+                "sps_discovery_result.site_ranking"
+                f"[{record_position}].dataset_statistics[{statistic_position}]"
+            )
+            statistic = _require_payload_mapping(
+                statistic_payload,
+                field_name=field_name,
+            )
+            if "rank_quantile" in statistic:
+                raise PhosPyInputError(
+                    "phospy-sps-discovery-result-v1 dataset statistics must not "
+                    "contain rank_quantile; use the v2 identity schema"
+                )
+            dataset_id = _require_payload_string(
+                statistic.get("dataset_id"),
+                field_name=f"{field_name}.dataset_id",
+            )
+            stability_score = _require_payload_float(
+                statistic.get("stability_score"),
+                field_name=f"{field_name}.stability_score",
+            )
+            scored_sites_by_source.setdefault(dataset_id, []).append(
+                (site_key, stability_score)
+            )
+
+    ranks_by_source = {
+        dataset_id: _stable_ranks(scored_sites)
+        for dataset_id, scored_sites in scored_sites_by_source.items()
+    }
+    migrated: list[Mapping[str, object]] = []
+    for record_position, record in enumerate(ranking_payloads):
+        site_key = _require_payload_string(
+            record.get("site_key"),
+            field_name=f"sps_discovery_result.site_ranking[{record_position}].site_key",
+        )
+        statistics = _require_payload_sequence(
+            record.get("dataset_statistics"),
+            field_name=(
+                "sps_discovery_result.site_ranking"
+                f"[{record_position}].dataset_statistics"
+            ),
+        )
+        migrated_statistics: list[dict[str, object]] = []
+        for statistic_position, statistic_payload in enumerate(statistics):
+            field_name = (
+                "sps_discovery_result.site_ranking"
+                f"[{record_position}].dataset_statistics[{statistic_position}]"
+            )
+            statistic = _require_payload_mapping(
+                statistic_payload,
+                field_name=field_name,
+            )
+            dataset_id = _require_payload_string(
+                statistic.get("dataset_id"),
+                field_name=f"{field_name}.dataset_id",
+            )
+            entry_count = len(scored_sites_by_source[dataset_id])
+            _, midrank = ranks_by_source[dataset_id][site_key]
+            migrated_statistics.append(
+                {
+                    **statistic,
+                    "rank_quantile": (float(entry_count) - midrank + 0.5)
+                    / float(entry_count),
+                }
+            )
+        migrated.append(
+            {
+                **record,
+                "dataset_statistics": migrated_statistics,
+            }
+        )
+    return tuple(migrated)
 
 
 def _fisher_style_consensus_score(quantiles: Sequence[float]) -> float:

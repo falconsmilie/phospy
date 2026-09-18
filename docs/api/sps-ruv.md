@@ -241,7 +241,11 @@ Infinite values are rejected.
 `top_n` is an upper bound. If fewer eligible sites remain, all eligible sites
 are selected and the requested and actual counts are recorded. Equal
 within-reference values receive equal ranks; exact final consensus ties are
-ordered by ascending `site_key`, so selection is deterministic.
+ordered by ascending `site_key`, so selection is deterministic. Each
+`SpsDatasetSiteStatistic.rank` is the reporting competition rank. Its
+`rank_quantile` is derived from the tie-aware estimator midrank and is the
+value supplied directly to the Fisher-style consensus, so serialized results
+retain the complete per-reference consensus inputs.
 
 The discovery record makes the following auditable without embedding complete
 reference matrices:
@@ -252,10 +256,12 @@ reference matrices:
 - scale, `CONTRAST_LOG2_FOLD_CHANGE` meaning, and baseline-establishment
   evidence;
 - SPS algorithm ID/version and parameters;
-- per-reference contribution and selection/attrition counts; and
+- per-reference contribution and selection/attrition counts;
+- per-reference stability scores, reporting ranks, and consensus-input rank
+  quantiles; and
 - ranked and selected controls.
 
-Each result also exposes a deterministic `discovery_identity`. This
+Each result also exposes a deterministic `discovery_identity`. Its
 `sha256-stable-json-v1` digest is computed from the deterministic matrix-free
 discovery result: reference identities and quantitative fingerprints, governed
 quantitative evidence, algorithm/configuration, selection boundaries, ranking,
@@ -264,6 +270,14 @@ two runs that select the same controls from different evidence remain distinct.
 The validated organism is also copied to the generated `ControlSiteSet`, so a
 target dataset with a conflicting organism is rejected by the existing control
 compatibility boundary.
+
+The identity is serialized with the `phospy-sps-discovery-result-v2` schema,
+which requires every per-reference `rank_quantile`. Baseline
+`phospy-sps-discovery-result-v1` payloads omitted that field; loading v1
+explicitly validates the legacy identity, reconstructs each quantile from the
+serialized stability-score tie groups, and returns a v2 result. A v1 payload
+carrying v2-only quantile fields is rejected rather than interpreted
+ambiguously.
 
 Persist `discovery.to_payload()` as JSON-compatible data. Later,
 `SpsDiscoveryResult.from_payload(...)` revalidates it and reconstructs a usable
