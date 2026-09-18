@@ -16,6 +16,9 @@ All notable changes to this project are documented here.
   The validated context is retained in discovery provenance and identity, and
   the organism is propagated to generated controls for target compatibility
   validation.
+- The SPS 10,000-site release fixture now shares one explicit rat organism
+  contract across its reference metadata and governed site keys, and retained
+  CI performance reports include the measured runtime and declared threshold.
 
 ### Documentation
 
@@ -28,6 +31,10 @@ All notable changes to this project are documented here.
   separate from normal target-correction input contracts.
 - Added ADR-0052 to specify partial-reference SPS cross-count ordering and its
   complete-reference PhosR parity boundary.
+- Documented all RUV-III estimator rejection boundaries, including singleton,
+  rank, control-count, non-estimable-`k`, and tied-cutoff restrictions, with
+  recovery guidance. CI now runs the strict documentation build alongside the
+  existing performance and release-gate jobs.
 
 ## [1.7.4] - 2026-09-16
 

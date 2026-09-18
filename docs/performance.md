@@ -213,6 +213,17 @@ x 48-sample stress path also completed on that environment in 78.380924 seconds
 and ranked all 50,000 consensus-eligible sites; that observation is likewise
 informational rather than a release threshold.
 
+The performance stage of a release-check rerun on 2026-09-18 used the same
+moderate 10,000-site fixture on Windows 11 with Python 3.12.10. The complete
+production workflow finished in 10.671174 seconds, below the declared
+20-second release threshold. A direct benchmark-script run in the Python 3.14
+environment above finished in 10.715662 seconds, with the separate stability
+pass taking 0.497013 seconds. Both runs again produced 29,901 valid
+reference-site entries, ranked all 10,000 eligible sites, and selected 100.
+The performance test writes both the measured workflow runtime and declared
+threshold into its JUnit properties, which the CI performance job retains as
+the threshold evidence artifact.
+
 ## Optional Repeated Workflow Snapshot Reuse Benchmark
 
 The explicit local command is:

@@ -355,6 +355,38 @@ non-estimable `k`; these are deliberate PhosPy input-validation restrictions,
 not numerical differences in the estimator over inputs supported by both
 implementations.
 
+### Estimator rejection boundaries and recovery
+
+`ruv_iii_style` fails closed when its requested factor space cannot be
+identified unambiguously. Its user-visible restrictions are:
+
+- **Singleton replicate sets:** every replicate set must contain at least two
+  samples. Merge or redesign singleton sets only when the resulting assignment
+  is scientifically valid; otherwise collect another replicate or do not use
+  `ruv_iii_style`.
+- **Rank restrictions:** the replicate mapping, replicate-residual matrix, and
+  negative-control loading matrix must have the rank required by the requested
+  fit. Review replicate assignments and controls, remove redundant or
+  non-informative controls, or choose a smaller `k`; do not add noise merely to
+  force full rank.
+- **Control-count restrictions:** at least `k` eligible negative-control sites
+  must reach the estimator. Supply more defensible controls, resolve control
+  attrition, or reduce `k`.
+- **Non-estimable `k`:** `k` cannot exceed either the available within-set
+  residual degrees of freedom or the numerical rank of the
+  replicate-residual matrix. Increase supported replication or reduce `k`.
+  PhosPy never silently substitutes a smaller effective value.
+- **Tied singular-value cutoff:** `k` must not split a numerically tied block
+  of replicate-residual singular values. A split would select an arbitrary
+  orientation-dependent subset of one latent subspace. Choose `k` immediately
+  below or above the complete tied block, subject to the other rank and control
+  restrictions, and rerun. Reordering samples is not a recovery strategy.
+
+The exception reports the failed boundary and relevant count, rank, or `k`.
+Treat these messages as study-design and estimator diagnostics. Do not perturb
+measurements, relabel replicates, or replace controls solely to bypass a
+rejection.
+
 Correction provenance records the selected method, selected control identities,
 `ControlSiteSet` source metadata, replicate definition when relevant, `k`,
 missing-data strategy, control eligibility/attrition, estimator diagnostics,

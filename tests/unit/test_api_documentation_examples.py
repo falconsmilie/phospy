@@ -66,6 +66,7 @@ DIFFERENTIAL_DOC = WORKFLOW_DOCS_DIR / "differential-analysis.md"
 ENRICHMENT_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
 KINASE_DOC = WORKFLOW_DOCS_DIR / "kinase.md"
 SIGNALOME_DOC = WORKFLOW_DOCS_DIR / "signalome.md"
+SPS_RUV_DOC = WORKFLOW_DOCS_DIR / "sps-ruv.md"
 
 
 def _read(path: Path) -> str:
@@ -738,6 +739,23 @@ def test_api_docs_batch_correction_example_is_constructible() -> None:
     assert report.confounding_check_status == "passed"
     assert report.batch_levels == ("run_1", "run_2")
     assert report.condition_levels == ("control", "treated")
+
+
+def test_sps_ruv_docs_list_estimator_restrictions_and_recovery() -> None:
+    source = _read(SPS_RUV_DOC)
+
+    _assert_documented_terms(
+        source,
+        (
+            "Singleton replicate sets",
+            "Rank restrictions",
+            "Control-count restrictions",
+            "Non-estimable `k`",
+            "Tied singular-value cutoff",
+            "below or above the complete tied block",
+        ),
+        context="RUV-III estimator restrictions and recovery guidance",
+    )
 
 
 def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:

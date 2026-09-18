@@ -19,6 +19,7 @@ from phospy.science.sites.site_keys import (
 )
 
 SPS_BENCHMARK_SEED = 20260917
+SPS_BENCHMARK_ORGANISM = "rat"
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,7 +127,7 @@ def build_sps_benchmark_references(
                 baseline_centering_established_by=(
                     "deterministic SPS benchmark reference centering"
                 ),
-                organism="rat",
+                organism=SPS_BENCHMARK_ORGANISM,
                 baseline_context="benchmark control condition",
                 reference_context="synthetic rat SPS performance fixture",
                 source_name="deterministic-sps-performance-fixture",
@@ -166,7 +167,7 @@ def _benchmark_site_keys(n_sites: int) -> pd.Index:
         [
             encode_site_key(
                 ProteinScopedPhosphositeKey(
-                    organism="rat",
+                    organism=SPS_BENCHMARK_ORGANISM,
                     protein_namespace="uniprot",
                     protein_identifier=f"BMARK{position:06d}",
                     residue=residues[position % len(residues)],

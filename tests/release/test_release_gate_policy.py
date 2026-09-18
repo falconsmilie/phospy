@@ -2322,6 +2322,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     hard_parity = _workflow_job_block(workflow, "parity-tests")
     diagnostics = _workflow_job_block(workflow, "parity-diagnostics")
     performance = _workflow_job_block(workflow, "performance-contracts")
+    documentation = _workflow_job_block(workflow, "documentation")
     reference_bundles = _workflow_job_block(workflow, "reference-bundles")
     fixture_integrity = _workflow_job_block(workflow, "fixture-integrity")
     release_gates = _workflow_job_block(workflow, "release-gates")
@@ -2343,6 +2344,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         minimum,
         benchmark,
         testing_audit,
+        documentation,
         reference_bundles,
         adaptive,
         diagnostics,
@@ -2350,9 +2352,9 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         assert "python-version: '3.11'" in lowest_supported_job
     assert "make test-contract" in contract
     assert "public-consumer-contracts-py${{ matrix.python-version }}" in contract
-    assert re.search(r"(?m)^  documentation:", workflow) is None
-    assert 'pip install -e ".[docs]"' not in workflow
-    assert "make docs-build" not in workflow
+    assert re.search(r"(?m)^  documentation:", workflow) is not None
+    assert 'pip install -e ".[docs]"' in documentation
+    assert "make docs-build" in documentation
     assert "$(MKDOCS) build --strict" in _make_target_body("docs-build")
     assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance

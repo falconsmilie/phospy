@@ -20,6 +20,7 @@ for _path in (ROOT, SRC):
 from phospy.science.batch_correction.sps_discovery import (
     _reference_stability_evidence,
 )
+from tests.support.performance_contracts import SPS_DISCOVERY_RUNTIME_SECONDS_MAX
 from tests.support.sps_discovery_performance import (
     MODERATE_SPS_BENCHMARK_CONFIG,
     SpsDiscoveryBenchmarkConfig,
@@ -95,6 +96,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"sites_reaching_consensus_ranking={boundaries.sites_ranked}")
     print(f"selected_site_count={boundaries.sites_selected}")
     print(f"total_sps_discovery_seconds={benchmark.runtime_seconds:.6f}")
+    print(f"release_runtime_threshold_seconds={SPS_DISCOVERY_RUNTIME_SECONDS_MAX:.6f}")
+    print(
+        "release_runtime_threshold_met="
+        f"{str(benchmark.runtime_seconds < SPS_DISCOVERY_RUNTIME_SECONDS_MAX).lower()}"
+    )
     if stability_seconds is None:
         print("stability_calculation_seconds=skipped")
         print("stability_valid_site_entries=skipped")

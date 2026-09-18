@@ -138,7 +138,7 @@ test-parity: check-tools
 
 test-performance: check-tools
 	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
-	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" --junitxml "$(PYTEST_REPORT_DIR)/performance.xml"
+	$(PYTEST) -o junit_family=legacy $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" --junitxml "$(PYTEST_REPORT_DIR)/performance.xml"
 
 test-release-gates: check-tools
 	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
