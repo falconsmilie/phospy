@@ -801,6 +801,9 @@ def _identity_discovery(
     first_reference_context: str = "synthetic rat identity fixture",
 ) -> SpsDiscoveryResult:
     keys = _site_keys("IDENTITY1", "IDENTITY2", "IDENTITY3")
+    # Pandas 2.x and 3.x infer different string-index dtypes, and the dtype is
+    # intentionally part of the discovery provenance identity.
+    key_index = pd.Index(keys, dtype=object)
     conditions = {"a_1": "a", "a_2": "a", "b_1": "b", "b_2": "b"}
     references = (
         SpsReferenceDataset.from_condition_relative_log2(
@@ -812,7 +815,7 @@ def _identity_discovery(
                     "b_1": (0.1, 0.2, first_unstable_value),
                     "b_2": (0.1, 0.2, first_unstable_value),
                 },
-                index=keys,
+                index=key_index,
             ),
             condition_by_sample=conditions,
             log2_scale_established_by="identity fixture log2 preparation",
@@ -833,7 +836,7 @@ def _identity_discovery(
                     "b_1": (0.15, 0.25, 3.0),
                     "b_2": (0.15, 0.25, 3.0),
                 },
-                index=keys,
+                index=key_index,
             ),
             condition_by_sample=conditions,
             log2_scale_established_by="identity fixture log2 preparation",
@@ -1213,7 +1216,7 @@ def test_baseline_v1_discovery_payload_with_legacy_identity_is_migrated() -> Non
             statistic.pop("rank_quantile")
     payload["discovery_identity"] = (
         "sha256-stable-json-v1:"
-        "3414e58723d4bd23234ad60113663baf9dcf72342083b75a3aec40b1d2f7024b"
+        "797e448621da35a79c5bc7fadfb8db04c8b0e2a992e363a779f40ade8d935603"
     )
 
     restored = SpsDiscoveryResult.from_payload(payload)

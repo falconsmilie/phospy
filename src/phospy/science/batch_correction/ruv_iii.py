@@ -13,6 +13,7 @@ from numbers import Integral
 from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -122,7 +123,7 @@ class RuvIIIReplicateStructure:
 
         return len(self.set_ids)
 
-    def to_mapping_matrix(self) -> np.ndarray:
+    def to_mapping_matrix(self) -> npt.NDArray[np.float64]:
         """Return the samples-by-replicate-sets indicator matrix."""
 
         set_position = {
@@ -250,6 +251,7 @@ class RuvIIIKernel:
                 residual,
                 name="replicate-residual matrix",
             )
+            residual_shape = (int(residual.shape[0]), int(residual.shape[1]))
             left_vectors, residual_singular_values, _ = np.linalg.svd(
                 residual,
                 full_matrices=False,
@@ -264,7 +266,7 @@ class RuvIIIKernel:
                 "replicate-residual variation; verify matrix scaling and rank"
             ) from error
         residual_rank = _rank_from_singular_values(
-            matrix_shape=residual.shape,
+            matrix_shape=residual_shape,
             singular_values=residual_singular_values,
         )
         if requested_k > residual_rank:
@@ -274,7 +276,7 @@ class RuvIIIKernel:
             )
         if _singular_value_tie_at_cutoff(
             singular_values=residual_singular_values,
-            matrix_shape=residual.shape,
+            matrix_shape=residual_shape,
             k=requested_k,
         ):
             raise PhosPyInputError(
@@ -292,7 +294,7 @@ class RuvIIIKernel:
                 left_vectors[:, :requested_k],
                 singular_values=residual_singular_values[:requested_k],
                 sample_ids=sample_ids,
-                matrix_shape=residual.shape,
+                matrix_shape=residual_shape,
             )
             with np.errstate(over="ignore", invalid="ignore"):
                 loadings = selected_vectors.T @ values
@@ -315,7 +317,7 @@ class RuvIIIKernel:
                     "RUV-III negative-control loading matrix is rank-deficient for "
                     f"k={requested_k}; control_loading_rank={control_loading_rank}"
                 )
-            factors = factor_solution.T
+            factors = cast(npt.NDArray[np.float64], factor_solution.T)
             _require_finite_intermediate(factors, name="estimated unwanted factors")
             with np.errstate(over="ignore", invalid="ignore"):
                 corrected_values = values - factors @ loadings
@@ -385,7 +387,7 @@ def run_ruv_iii(
 
 def _validated_matrix(
     phospho: pd.DataFrame,
-) -> tuple[np.ndarray, tuple[str, ...], tuple[str, ...]]:
+) -> tuple[npt.NDArray[np.float64], tuple[str, ...], tuple[str, ...]]:
     if not isinstance(cast(object, phospho), pd.DataFrame):
         raise PhosPyInputError("RUV-III requires phospho to be a pandas DataFrame")
     if phospho.shape[0] < 1:
@@ -427,7 +429,10 @@ def _validated_matrix(
             "RUV-III requires numeric, non-boolean phospho columns; invalid "
             "column(s): " + ", ".join(repr(value) for value in non_numeric)
         )
-    values = phospho.to_numpy(dtype="float64", copy=True)
+    values = cast(
+        npt.NDArray[np.float64],
+        phospho.to_numpy(dtype="float64", copy=True),
+    )
     if not np.isfinite(values).all():
         row_position, column_position = np.argwhere(~np.isfinite(values))[0]
         raise PhosPyInputError(
@@ -503,7 +508,7 @@ def _require_label_tuple(
     return tuple(labels)
 
 
-def _matrix_rank(matrix: np.ndarray) -> int:
+def _matrix_rank(matrix: npt.NDArray[np.float64]) -> int:
     try:
         return int(np.linalg.matrix_rank(matrix))
     except np.linalg.LinAlgError as error:
@@ -516,7 +521,7 @@ def _matrix_rank(matrix: np.ndarray) -> int:
 def _rank_from_singular_values(
     *,
     matrix_shape: tuple[int, int],
-    singular_values: np.ndarray,
+    singular_values: npt.NDArray[np.float64],
 ) -> int:
     if singular_values.size == 0:
         return 0
@@ -528,7 +533,7 @@ def _rank_from_singular_values(
 
 def _singular_value_tie_at_cutoff(
     *,
-    singular_values: np.ndarray,
+    singular_values: npt.NDArray[np.float64],
     matrix_shape: tuple[int, int],
     k: int,
 ) -> bool:
@@ -546,7 +551,7 @@ def _singular_values_are_tied(
     *,
     left: float,
     right: float,
-    singular_values: np.ndarray,
+    singular_values: npt.NDArray[np.float64],
     matrix_shape: tuple[int, int],
 ) -> bool:
     scale = max(abs(left), abs(right))
@@ -554,10 +559,10 @@ def _singular_values_are_tied(
         max(matrix_shape) * np.finfo(np.float64).eps * float(np.max(singular_values))
     )
     tie_tolerance = max(rank_tolerance, 1e-12 * scale)
-    return abs(left - right) <= tie_tolerance
+    return bool(abs(left - right) <= tie_tolerance)
 
 
-def _require_finite_intermediate(matrix: np.ndarray, *, name: str) -> None:
+def _require_finite_intermediate(matrix: npt.NDArray[np.float64], *, name: str) -> None:
     if not np.isfinite(matrix).all():
         raise PhosPyInputError(
             f"RUV-III numerical estimation produced a non-finite {name}; "
@@ -566,12 +571,12 @@ def _require_finite_intermediate(matrix: np.ndarray, *, name: str) -> None:
 
 
 def _canonicalize_vector_basis(
-    vectors: np.ndarray,
+    vectors: npt.NDArray[np.float64],
     *,
-    singular_values: np.ndarray,
+    singular_values: npt.NDArray[np.float64],
     sample_ids: tuple[str, ...],
     matrix_shape: tuple[int, int],
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     canonical = vectors.copy()
     block_start = 0
     component_count = int(singular_values.size)
@@ -594,10 +599,10 @@ def _canonicalize_vector_basis(
 
 
 def _canonical_basis_for_subspace(
-    vectors: np.ndarray,
+    vectors: npt.NDArray[np.float64],
     *,
     sample_ids: tuple[str, ...],
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     dimension = int(vectors.shape[1])
     basis = np.zeros_like(vectors)
     basis_count = 0
@@ -622,10 +627,10 @@ def _canonical_basis_for_subspace(
 
 
 def _canonicalize_vector_signs(
-    vectors: np.ndarray,
+    vectors: npt.NDArray[np.float64],
     *,
     sample_ids: tuple[str, ...],
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     canonical = vectors.copy()
     lexical_positions = tuple(
         sorted(range(len(sample_ids)), key=sample_ids.__getitem__)

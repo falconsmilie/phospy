@@ -87,7 +87,7 @@ tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
 tests/release/test_release_dependency_artifact_policy.py,release,429,14,true,false,,,,,,
-tests/release/test_release_gate_policy.py,release,2390,40,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
+tests/release/test_release_gate_policy.py,release,2389,40,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,218,7,true,false,,,,,,
 tests/science/test_differential_adverse_design_contracts.py,science,371,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -331,7 +331,7 @@ tests/unit/test_site_identifier_module_ownership.py,unit,39,3,false,false,,,,,,
 tests/unit/test_site_identity_validation.py,unit,528,21,true,true,,,,,,
 tests/unit/test_site_matrix_components.py,unit,864,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for site matrix components, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_site_validation_helpers.py,unit,90,5,false,false,,,,,,
-tests/unit/test_sps_discovery_contracts.py,unit,1644,67,true,true,,,,,,
+tests/unit/test_sps_discovery_contracts.py,unit,1647,67,true,true,,,,,,
 tests/unit/test_sps_ruv_style_executor.py,unit,884,21,false,false,,,,,,
 tests/unit/test_sps_ruv_upstream_imputation_masks.py,unit,770,16,true,true,,,,,,
 tests/unit/test_table_schemas.py,unit,1108,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,

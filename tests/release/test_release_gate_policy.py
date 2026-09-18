@@ -2275,7 +2275,9 @@ def test_publish_workflow_builds_once_and_publishes_uploaded_dist() -> None:
     pypi = _workflow_job_block(workflow, "publish-to-pypi")
 
     assert "run: make release-check" in build
-    assert ".[dev,test,parquet,docs]" in build
+    assert ".[dev,test,parquet]" in build
+    assert ".[dev,test,parquet,docs]" not in build
+    assert "make docs-build" not in workflow
     assert "name: python-package-distributions" in build
     assert _has_needs(verifier, "build")
     _assert_supported_python_matrix(verifier)
@@ -2322,7 +2324,6 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     hard_parity = _workflow_job_block(workflow, "parity-tests")
     diagnostics = _workflow_job_block(workflow, "parity-diagnostics")
     performance = _workflow_job_block(workflow, "performance-contracts")
-    documentation = _workflow_job_block(workflow, "documentation")
     reference_bundles = _workflow_job_block(workflow, "reference-bundles")
     fixture_integrity = _workflow_job_block(workflow, "fixture-integrity")
     release_gates = _workflow_job_block(workflow, "release-gates")
@@ -2344,7 +2345,6 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         minimum,
         benchmark,
         testing_audit,
-        documentation,
         reference_bundles,
         adaptive,
         diagnostics,
@@ -2352,10 +2352,9 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         assert "python-version: '3.11'" in lowest_supported_job
     assert "make test-contract" in contract
     assert "public-consumer-contracts-py${{ matrix.python-version }}" in contract
-    assert re.search(r"(?m)^  documentation:", workflow) is not None
-    assert 'pip install -e ".[docs]"' in documentation
-    assert "make docs-build" in documentation
-    assert "$(MKDOCS) build --strict" in _make_target_body("docs-build")
+    assert re.search(r"(?m)^  documentation:", workflow) is None
+    assert 'pip install -e ".[docs]"' not in workflow
+    assert "make docs-build" not in workflow
     assert "timeout-minutes: 90" in performance
     assert "make test-performance" in performance
     assert "make validate-reference-bundles" in reference_bundles
