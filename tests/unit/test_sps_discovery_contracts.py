@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from typing import cast
 
 import pandas as pd
 import pytest
@@ -24,6 +25,8 @@ from phospy.advanced import (
 )
 from phospy.api import Organism
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_json_payload
+from phospy.provenance.models import JsonValue
 from phospy.science.sites.site_keys import decode_site_key
 from phospy.science.transformations.models import (
     IntensityScaleState,
@@ -1214,9 +1217,15 @@ def test_baseline_v1_discovery_payload_with_legacy_identity_is_migrated() -> Non
     for record in payload["site_ranking"]:  # type: ignore[union-attr]
         for statistic in record["dataset_statistics"]:
             statistic.pop("rank_quantile")
+    # The generated consensus scores may differ in their final floating-point
+    # bits across supported SciPy versions. Bind the fixture to the canonical
+    # v1 payload produced by the active supported dependency set.
+    legacy_identity_payload = {
+        key: value for key, value in payload.items() if key != "discovery_identity"
+    }
     payload["discovery_identity"] = (
         "sha256-stable-json-v1:"
-        "797e448621da35a79c5bc7fadfb8db04c8b0e2a992e363a779f40ade8d935603"
+        f"{hash_json_payload(cast(JsonValue, legacy_identity_payload))}"
     )
 
     restored = SpsDiscoveryResult.from_payload(payload)
