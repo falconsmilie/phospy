@@ -80,8 +80,8 @@ tests/performance/test_sps_discovery_performance.py,performance,51,1,true,false,
 tests/performance/test_ssgsea_activity_performance.py,performance,123,2,true,false,,,,,,
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
-tests/release/test_installed_distribution_verifier.py,release,627,16,true,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
-tests/release/test_kinase_policy_documentation.py,release,117,2,true,false,,,,,,
+tests/release/test_installed_distribution_verifier.py,release,641,16,true,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
+tests/release/test_kinase_policy_documentation.py,release,27,1,true,false,,,,,,
 tests/release/test_manifest_fixture_byte_reproducibility.py,release,399,7,true,false,,,,,,
 tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
