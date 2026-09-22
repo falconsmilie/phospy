@@ -12,6 +12,9 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import TableFingerprint
+from phospy.science.batch_correction._missingness_preparation import (
+    materialize_originally_missing,
+)
 from phospy.science.configs.preprocessing import TemporaryImputationMethod
 from phospy.science.datasets.preprocessing.correction_output import (
     CorrectedPreprocessingOutput,
@@ -498,13 +501,13 @@ def _prepare_matrix(
     if tuple(mask.sample_ids) != sample_ids:
         raise PhosPyInputError("observation mask sample_ids must match phospho.columns")
 
-    originally_missing = pd.DataFrame(
-        False,
-        index=phospho.index.copy(),
-        columns=phospho.columns.copy(),
+    originally_missing = materialize_originally_missing(
+        index=phospho.index,
+        columns=phospho.columns,
+        feature_ids=mask.feature_ids,
+        sample_ids=mask.sample_ids,
+        missing_cells=mask.originally_missing_cells,
     )
-    for feature_id, sample_id in mask.originally_missing_cells:
-        originally_missing.loc[feature_id, sample_id] = True
 
     actual_missing = values.isna()
     untracked_missing = actual_missing & ~originally_missing
@@ -595,24 +598,27 @@ def _row_median_temporary_impute(
     missing_mask: pd.DataFrame,
     min_observed_values: int,
 ) -> pd.DataFrame:
-    imputed = matrix.copy(deep=True)
-    for row_id in matrix.index.tolist():
-        row = matrix.loc[row_id, :]
-        observed = row.dropna()
-        if int(observed.shape[0]) < min_observed_values:
-            raise PhosPyInputError(
-                "SPS/RUV-style executor cannot temporarily impute row "
-                f"{str(row_id)!r}; observed values are below min_observed_values"
-            )
-        row_missing = missing_mask.loc[row_id, :]
-        if bool(row_missing.any()):
-            imputed.loc[row_id, row_missing] = float(observed.median())
-    values = imputed.to_numpy(dtype="float64", copy=True)
+    missing_values = missing_mask.to_numpy(dtype=bool, copy=False)
+    observed_counts = np.count_nonzero(~missing_values, axis=1)
+    insufficient_rows = np.flatnonzero(observed_counts < min_observed_values)
+    if insufficient_rows.size:
+        row_id = matrix.index[int(insufficient_rows[0])]
+        raise PhosPyInputError(
+            "SPS/RUV-style executor cannot temporarily impute row "
+            f"{str(row_id)!r}; observed values are below min_observed_values"
+        )
+    values = matrix.to_numpy(dtype="float64", copy=True)
+    row_medians = np.nanmedian(values, axis=1)
+    np.copyto(values, row_medians[:, np.newaxis], where=missing_values)
     if not np.isfinite(values).all():
         raise PhosPyInputError(
             "SPS/RUV-style executor requires finite values after temporary imputation"
         )
-    return imputed
+    return pd.DataFrame(
+        values,
+        index=matrix.index.copy(),
+        columns=matrix.columns.copy(),
+    )
 
 
 def _min_observed_values(policy: _TemporaryImputationPolicyLike) -> int:

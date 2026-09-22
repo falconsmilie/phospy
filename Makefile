@@ -53,7 +53,8 @@ TWINE ?= $(PYTHON) -m twine
 	verify-installed-distributions \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-duplicate-correlation-limma fixtures-deqms-depth fixtures-all \
-	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
+	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all \
+	benchmark-ruv-iii-missingness
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -77,6 +78,7 @@ help:
 	@printf '%s\n' '  make test-seams                    Run seam-focused rewrite parity tests'
 	@printf '%s\n' '  make benchmark-release-scale       Optional local 50,000x48 builder+differential benchmark'
 	@printf '%s\n' '  make benchmark-sps                 SPS discovery 10,000x24x3 benchmark'
+	@printf '%s\n' '  make benchmark-ruv-iii-missingness RUV-III missingness preparation small tier'
 	@printf '%s\n' '  make dataset-builder-demo          Run examples.dataset_builder_demo.main()'
 	@printf '%s\n' '  make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()'
 	@printf '%s\n' '  make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()'
@@ -159,6 +161,9 @@ benchmark-release-scale: check-tools
 
 benchmark-sps: check-tools
 	$(PYTHON) benchmarks/measure_sps_discovery_performance.py --scale moderate
+
+benchmark-ruv-iii-missingness: check-tools
+	$(PYTHON) benchmarks/measure_ruv_iii_missingness_preparation.py --tier small
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"

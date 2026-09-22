@@ -12,6 +12,9 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import TableFingerprint
+from phospy.science.batch_correction._missingness_preparation import (
+    materialize_originally_missing,
+)
 from phospy.science.batch_correction.ruv_iii import (
     RUV_III_ALGORITHM_ID,
     RuvIIIDiagnostics,
@@ -44,43 +47,92 @@ JsonScalar: TypeAlias = str | int | float | bool | None
 
 
 class _ControlRowLike(Protocol):
-    site_key: str
-    row_position: int
+    @property
+    def site_key(self) -> str: ...
+
+    @property
+    def row_position(self) -> int: ...
 
 
-class _ObservationMaskLike(Protocol):
-    feature_ids: tuple[str, ...]
-    sample_ids: tuple[str, ...]
-    originally_missing_cells: tuple[tuple[str, str], ...]
+class _PreparationObservationMaskLike(Protocol):
+    @property
+    def feature_ids(self) -> tuple[str, ...]: ...
 
+    @property
+    def sample_ids(self) -> tuple[str, ...]: ...
+
+    @property
+    def originally_missing_cells(self) -> tuple[tuple[str, str], ...]: ...
+
+
+class _ObservationMaskLike(_PreparationObservationMaskLike, Protocol):
     def to_payload(self) -> dict[str, object]: ...
 
 
-class _TemporaryImputationPolicyLike(Protocol):
-    allowed: bool
-    method: object
-    method_parameters: tuple[tuple[str, JsonScalar], ...]
+class _PreparationTemporaryImputationPolicyLike(Protocol):
+    @property
+    def allowed(self) -> bool: ...
 
+    @property
+    def method(self) -> object: ...
+
+    @property
+    def method_parameters(self) -> tuple[tuple[str, JsonScalar], ...]: ...
+
+
+class _TemporaryImputationPolicyLike(
+    _PreparationTemporaryImputationPolicyLike, Protocol
+):
     def to_payload(self) -> dict[str, object]: ...
 
 
 class _ReplicateStructureLike(Protocol):
-    replicate_by_sample: Mapping[str, str] | None
+    @property
+    def replicate_by_sample(self) -> Mapping[str, str] | None: ...
 
     def to_payload(self) -> dict[str, object]: ...
 
 
-class _ResolvedPlanLike(Protocol):
-    method: str
-    condition_terms_to_preserve: tuple[str, ...]
-    batch_terms: tuple[str, ...]
-    replicate_structure: _ReplicateStructureLike
-    eligible_control_site_rows: tuple[_ControlRowLike, ...]
-    observation_mask: _ObservationMaskLike
-    temporary_imputation_policy: _TemporaryImputationPolicyLike
-    n_unwanted_factors: int | None
-    stage_order: tuple[str, ...]
-    provenance_seed_data: Mapping[str, object]
+class _PreparationPlanLike(Protocol):
+    @property
+    def observation_mask(self) -> _PreparationObservationMaskLike: ...
+
+    @property
+    def temporary_imputation_policy(
+        self,
+    ) -> _PreparationTemporaryImputationPolicyLike: ...
+
+
+class _ResolvedPlanLike(_PreparationPlanLike, Protocol):
+    @property
+    def method(self) -> str: ...
+
+    @property
+    def condition_terms_to_preserve(self) -> tuple[str, ...]: ...
+
+    @property
+    def batch_terms(self) -> tuple[str, ...]: ...
+
+    @property
+    def replicate_structure(self) -> _ReplicateStructureLike: ...
+
+    @property
+    def eligible_control_site_rows(self) -> tuple[_ControlRowLike, ...]: ...
+
+    @property
+    def observation_mask(self) -> _ObservationMaskLike: ...
+
+    @property
+    def temporary_imputation_policy(self) -> _TemporaryImputationPolicyLike: ...
+
+    @property
+    def n_unwanted_factors(self) -> int | None: ...
+
+    @property
+    def stage_order(self) -> tuple[str, ...]: ...
+
+    @property
+    def provenance_seed_data(self) -> Mapping[str, object]: ...
 
     def to_payload(self) -> dict[str, object]: ...
 
@@ -281,9 +333,42 @@ class RuvIIIStyleExecutor:
 
 
 def _prepare_matrix(
-    *, phospho: pd.DataFrame, plan: _ResolvedPlanLike
+    *, phospho: pd.DataFrame, plan: _PreparationPlanLike
 ) -> _PreparedMatrix:
-    values = phospho.astype("float64").copy(deep=True)
+    values = phospho.to_numpy(dtype="float64", copy=True)
+    originally_missing = _materialize_observation_mask(phospho=phospho, plan=plan)
+    actual_missing = _validate_actual_vs_governed_missingness(
+        values=values,
+        originally_missing=originally_missing,
+    )
+    completion_applied = _temporary_row_median_completion(
+        values=values,
+        actual_missing=actual_missing,
+        index=phospho.index,
+        policy=plan.temporary_imputation_policy,
+    )
+    return _PreparedMatrix(
+        working=pd.DataFrame(
+            values,
+            index=phospho.index.copy(),
+            columns=phospho.columns.copy(),
+            copy=False,
+        ),
+        originally_missing=originally_missing,
+        actual_missing=pd.DataFrame(
+            actual_missing,
+            index=phospho.index.copy(),
+            columns=phospho.columns.copy(),
+            copy=False,
+        ),
+        missing_cells=tuple(plan.observation_mask.originally_missing_cells),
+        temporary_completion_applied=completion_applied,
+    )
+
+
+def _materialize_observation_mask(
+    *, phospho: pd.DataFrame, plan: _PreparationPlanLike
+) -> pd.DataFrame:
     feature_ids = tuple(str(value) for value in phospho.index.tolist())
     sample_ids = tuple(str(value) for value in phospho.columns.tolist())
     mask = plan.observation_mask
@@ -291,61 +376,70 @@ def _prepare_matrix(
         raise PhosPyInputError(
             "RUV-III observation mask axes must match the correction matrix"
         )
-    originally_missing = pd.DataFrame(
-        False, index=phospho.index.copy(), columns=phospho.columns.copy()
+    return materialize_originally_missing(
+        index=phospho.index,
+        columns=phospho.columns,
+        feature_ids=mask.feature_ids,
+        sample_ids=mask.sample_ids,
+        missing_cells=mask.originally_missing_cells,
     )
-    for feature_id, sample_id in mask.originally_missing_cells:
-        originally_missing.loc[feature_id, sample_id] = True
-    actual_missing = values.isna()
-    if bool((actual_missing & ~originally_missing).to_numpy().any()):
+
+
+def _validate_actual_vs_governed_missingness(
+    *, values: np.ndarray, originally_missing: pd.DataFrame
+) -> np.ndarray:
+    actual_missing = np.isnan(values)
+    governed_missing = originally_missing.to_numpy(dtype=bool, copy=False)
+    if bool((actual_missing & ~governed_missing).any()):
         raise PhosPyInputError(
             "RUV-III found missing cells not governed by the observation mask"
         )
-    finite_or_missing = np.isfinite(values.to_numpy(dtype="float64", copy=True)) | (
-        actual_missing.to_numpy(dtype=bool, copy=True)
-    )
+    finite_or_missing = np.isfinite(values) | actual_missing
     if not bool(finite_or_missing.all()):
         raise PhosPyInputError("RUV-III observed input values must be finite")
-    completion_applied = bool(actual_missing.to_numpy().any())
-    if completion_applied:
-        policy = plan.temporary_imputation_policy
-        method = TemporaryImputationMethod.parse(
-            policy.method,
-            field_name="RUV-III temporary imputation policy.method",
-        )
-        if (
-            not policy.allowed
-            or method is not TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY
-        ):
-            raise PhosPyInputError(
-                "RUV-III missing values require explicit row_median_temporary "
-                "completion with observation-mask restoration"
-            )
-        parameters = dict(policy.method_parameters)
-        minimum = parameters.get("min_observed_values", 1)
-        if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
-            raise PhosPyInputError(
-                "RUV-III row_median_temporary min_observed_values must be a "
-                "positive integer"
-            )
-        for row_id in values.index.tolist():
-            row = values.loc[row_id, :]
-            observed = row.dropna()
-            if int(observed.shape[0]) < minimum:
-                raise PhosPyInputError(
-                    f"RUV-III cannot temporarily complete row {str(row_id)!r}; "
-                    "too few observed values"
-                )
-            missing = row.isna()
-            if bool(missing.any()):
-                values.loc[row_id, missing] = float(observed.median())
-    return _PreparedMatrix(
-        working=values,
-        originally_missing=originally_missing,
-        actual_missing=actual_missing,
-        missing_cells=tuple(mask.originally_missing_cells),
-        temporary_completion_applied=completion_applied,
+    return actual_missing
+
+
+def _temporary_row_median_completion(
+    *,
+    values: np.ndarray,
+    actual_missing: np.ndarray,
+    index: pd.Index,
+    policy: _PreparationTemporaryImputationPolicyLike,
+) -> bool:
+    completion_applied = bool(actual_missing.any())
+    if not completion_applied:
+        return False
+    method = TemporaryImputationMethod.parse(
+        policy.method,
+        field_name="RUV-III temporary imputation policy.method",
     )
+    if (
+        not policy.allowed
+        or method is not TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY
+    ):
+        raise PhosPyInputError(
+            "RUV-III missing values require explicit row_median_temporary "
+            "completion with observation-mask restoration"
+        )
+    parameters = dict(policy.method_parameters)
+    minimum = parameters.get("min_observed_values", 1)
+    if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
+        raise PhosPyInputError(
+            "RUV-III row_median_temporary min_observed_values must be a "
+            "positive integer"
+        )
+    observed_counts = np.count_nonzero(~actual_missing, axis=1)
+    insufficient_rows = np.flatnonzero(observed_counts < minimum)
+    if insufficient_rows.size:
+        row_id = index[int(insufficient_rows[0])]
+        raise PhosPyInputError(
+            f"RUV-III cannot temporarily complete row {str(row_id)!r}; "
+            "too few observed values"
+        )
+    row_medians = np.nanmedian(values, axis=1)
+    np.copyto(values, row_medians[:, np.newaxis], where=actual_missing)
+    return True
 
 
 def _missingness_summary(

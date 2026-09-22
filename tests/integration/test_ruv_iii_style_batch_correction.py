@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -32,6 +34,10 @@ from phospy.provenance.serialization import (
     batch_correction_provenance_to_payload,
 )
 from phospy.science.batch_correction import RuvIIIStyleExecutor
+from phospy.science.batch_correction import ruv_iii_executor as ruv_iii_executor_module
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+)
 from phospy.validation.workflows.batch_correction.control_site_workflow import (
     BatchCorrectionWorkflowControlSiteValidator,
 )
@@ -46,6 +52,7 @@ from phospy.workflows.batch_correction import (
     BatchCorrectionPlanInterpreter,
     BatchCorrectionWorkflowRequest,
 )
+from phospy.workflows.batch_correction.interpreter import ResolvedBatchCorrectionPlan
 
 pytestmark = pytest.mark.integration
 
@@ -56,10 +63,12 @@ def test_public_ruv_iii_style_executes_with_active_replicates_and_provenance() -
     phospho = _phospho()
     dataset = _build(phospho=phospho, replicates=("r1", "r1", "r2", "r2", "r3", "r3"))
 
+    assert dataset.preprocessing_report is not None
     report = dataset.preprocessing_report.batch_correction
     assert report is not None
     assert report.method == "ruv_iii_style"
     assert not dataset.phospho.equals(phospho)
+    assert dataset.provenance is not None
     correction = next(
         stage.batch_correction_provenance
         for stage in dataset.provenance.preprocessing_stages
@@ -134,6 +143,7 @@ def test_discovery_control_set_is_consumed_directly_without_reference_matrices()
         config=config,
     )
 
+    assert dataset.provenance is not None
     correction = next(
         stage.batch_correction_provenance
         for stage in dataset.provenance.preprocessing_stages
@@ -176,30 +186,7 @@ def test_ruv_iii_executor_temporarily_completes_and_restores_missing_positions()
         ),
         observation_mask=mask,
     )
-    config = _config(replicate_column="replicate", missingness_policy=policy)
-    request = BatchCorrectionWorkflowRequest(
-        phospho=phospho,
-        config=config.to_internal_request(),
-        sample_metadata=_resolved_sample_metadata(),
-        control_site_set=config.control_site_set,
-        missingness_policy=policy,
-        dataset_organism=Organism.RAT,
-    )
-    metadata = BatchCorrectionWorkflowDesignValidator().run(request=request)
-    mapping = BatchCorrectionWorkflowControlSiteValidator().run(request=request)
-    resolved_policy = BatchCorrectionWorkflowMissingnessValidator().run(request=request)
-    BatchCorrectionWorkflowFactorFeasibilityValidator().run(
-        request=request,
-        dataset_metadata=metadata,
-        control_site_mapping=mapping,
-        missingness_policy=resolved_policy,
-    )
-    plan = BatchCorrectionPlanInterpreter().run(
-        config=request.config,
-        dataset_metadata=metadata,
-        control_site_mapping=mapping,
-        missingness_policy=resolved_policy,
-    )
+    plan = _resolved_plan(phospho=phospho, policy=policy)
 
     result = RuvIIIStyleExecutor().run(phospho=phospho, plan=plan)
 
@@ -210,6 +197,65 @@ def test_ruv_iii_executor_temporarily_completes_and_restores_missing_positions()
     assert summary["temporary_completion_applied"] is True
     assert summary["restored_missing_cell_count"] == 1
     assert summary["imputed_values_are_observed_evidence"] is False
+
+
+@pytest.mark.parametrize("case", ["actual_missing", "upstream_imputed", "mixed"])
+def test_vectorized_preparation_preserves_complete_executor_result(
+    case: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho = _resolved_phospho()
+    actual_cell = (str(phospho.index[2]), "sample_1")
+    upstream_cell = (str(phospho.index[3]), "sample_2")
+    governed_cells = {
+        "actual_missing": (actual_cell,),
+        "upstream_imputed": (upstream_cell,),
+        "mixed": (actual_cell, upstream_cell),
+    }[case]
+    if case in {"actual_missing", "mixed"}:
+        phospho.loc[actual_cell[0], actual_cell[1]] = np.nan
+    policy = _missingness_policy(phospho=phospho, governed_cells=governed_cells)
+    plan = _resolved_plan(phospho=phospho, policy=policy)
+
+    vectorized = RuvIIIStyleExecutor().run(phospho=phospho, plan=plan)
+    monkeypatch.setattr(
+        ruv_iii_executor_module,
+        "_prepare_matrix",
+        _scalar_reference_prepare_matrix,
+    )
+    scalar = RuvIIIStyleExecutor().run(phospho=phospho, plan=plan)
+
+    pd.testing.assert_frame_equal(
+        vectorized.corrected_matrix,
+        scalar.corrected_matrix,
+        check_exact=True,
+    )
+    pd.testing.assert_frame_equal(
+        vectorized.estimated_unwanted_factors,
+        scalar.estimated_unwanted_factors,
+        check_exact=True,
+    )
+    pd.testing.assert_frame_equal(
+        vectorized.output_observation_mask,
+        scalar.output_observation_mask,
+        check_exact=True,
+    )
+    pd.testing.assert_frame_equal(
+        vectorized.corrected_cell_status,
+        scalar.corrected_cell_status,
+        check_exact=True,
+    )
+    assert vectorized.withheld_rows == scalar.withheld_rows
+    assert vectorized.rejected_rows == scalar.rejected_rows
+    assert vectorized.withheld_cells == scalar.withheld_cells
+    assert vectorized.rejected_cells == scalar.rejected_cells
+    assert vectorized.warnings == scalar.warnings
+    assert vectorized.diagnostics.to_payload() == scalar.diagnostics.to_payload()
+    assert vectorized.provenance_payload == scalar.provenance_payload
+    _assert_corrected_outputs_equal(
+        vectorized.corrected_preprocessing_output,
+        scalar.corrected_preprocessing_output,
+    )
 
 
 def test_ruv_iii_style_requires_replicate_column_and_non_singleton_sets() -> None:
@@ -276,6 +322,7 @@ def test_public_ruv_iii_style_enforces_protected_condition_strata() -> None:
         phospho=_phospho(),
         replicates=("r1", "r1", "r2", "r2", "r3", "r3"),
     )
+    assert aligned.preprocessing_report is not None
     assert aligned.preprocessing_report.batch_correction is not None
 
     with pytest.raises(
@@ -426,6 +473,197 @@ def _resolved_sample_metadata() -> pd.DataFrame:
         },
         index=pd.Index(_SAMPLES),
     )
+
+
+def _missingness_policy(
+    *,
+    phospho: pd.DataFrame,
+    governed_cells: tuple[tuple[str, str], ...],
+) -> CorrectionMissingnessPolicy:
+    return CorrectionMissingnessPolicy(
+        temporary_imputation=TemporaryImputationPolicy(
+            allowed=True,
+            method=TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
+            method_parameters=(("min_observed_values", 2),),
+        ),
+        originally_missing_cells_tracked_by=(
+            OriginallyMissingCellTracking.OBSERVATION_MASK
+        ),
+        observation_mask=ObservationMask(
+            feature_ids=tuple(phospho.index.astype(str)),
+            sample_ids=tuple(phospho.columns.astype(str)),
+            originally_missing_cells=governed_cells,
+        ),
+    )
+
+
+def _resolved_plan(
+    *,
+    phospho: pd.DataFrame,
+    policy: CorrectionMissingnessPolicy,
+) -> ResolvedBatchCorrectionPlan:
+    actual_missing = phospho.isna()
+    actual_missing_cells = frozenset(
+        (str(phospho.index[row]), str(phospho.columns[column]))
+        for row, column in zip(*np.nonzero(actual_missing.to_numpy()), strict=True)
+    )
+    mask = policy.observation_mask
+    workflow_policy = policy
+    if mask is not None and actual_missing_cells:
+        workflow_policy = replace(
+            policy,
+            observation_mask=ObservationMask(
+                feature_ids=mask.feature_ids,
+                sample_ids=mask.sample_ids,
+                originally_missing_cells=tuple(
+                    cell
+                    for cell in mask.originally_missing_cells
+                    if cell in actual_missing_cells
+                ),
+            ),
+        )
+    config = _config(
+        replicate_column="replicate",
+        missingness_policy=workflow_policy,
+    )
+    has_upstream_imputed_cells = mask is not None and bool(
+        frozenset(mask.originally_missing_cells) - actual_missing_cells
+    )
+    upstream_observation_mask: pd.DataFrame | None = None
+    if has_upstream_imputed_cells and not actual_missing_cells and mask is not None:
+        upstream_observation_mask = pd.DataFrame(
+            True,
+            index=phospho.index.copy(),
+            columns=phospho.columns.copy(),
+        )
+        for feature_id, sample_id in mask.originally_missing_cells:
+            upstream_observation_mask.loc[feature_id, sample_id] = False
+    request = BatchCorrectionWorkflowRequest(
+        phospho=phospho,
+        config=config.to_internal_request(),
+        sample_metadata=_resolved_sample_metadata(),
+        control_site_set=cast(ControlSiteSet, config.control_site_set),
+        missingness_policy=workflow_policy,
+        upstream_observation_mask=upstream_observation_mask,
+        dataset_organism=Organism.RAT,
+    )
+    metadata = BatchCorrectionWorkflowDesignValidator().run(request=request)
+    mapping = BatchCorrectionWorkflowControlSiteValidator().run(request=request)
+    resolved_policy = BatchCorrectionWorkflowMissingnessValidator().run(request=request)
+    BatchCorrectionWorkflowFactorFeasibilityValidator().run(
+        request=request,
+        dataset_metadata=metadata,
+        control_site_mapping=mapping,
+        missingness_policy=resolved_policy,
+    )
+    plan = BatchCorrectionPlanInterpreter().run(
+        config=request.config,
+        dataset_metadata=metadata,
+        control_site_mapping=mapping,
+        missingness_policy=resolved_policy,
+    )
+    if mask is not None and plan.observation_mask != mask:
+        return replace(plan, observation_mask=mask)
+    return plan
+
+
+def _scalar_reference_prepare_matrix(
+    *,
+    phospho: pd.DataFrame,
+    plan: ResolvedBatchCorrectionPlan,
+) -> ruv_iii_executor_module._PreparedMatrix:
+    """Retain the previous scalar preparation only as an integration oracle."""
+    values = phospho.astype("float64").copy(deep=True)
+    feature_ids = tuple(str(value) for value in phospho.index.tolist())
+    sample_ids = tuple(str(value) for value in phospho.columns.tolist())
+    mask = plan.observation_mask
+    if tuple(mask.feature_ids) != feature_ids or tuple(mask.sample_ids) != sample_ids:
+        raise PhosPyInputError(
+            "RUV-III observation mask axes must match the correction matrix"
+        )
+    originally_missing = pd.DataFrame(
+        False,
+        index=phospho.index.copy(),
+        columns=phospho.columns.copy(),
+    )
+    for feature_id, sample_id in mask.originally_missing_cells:
+        originally_missing.loc[feature_id, sample_id] = True
+    actual_missing = values.isna()
+    if bool((actual_missing & ~originally_missing).to_numpy().any()):
+        raise PhosPyInputError(
+            "RUV-III found missing cells not governed by the observation mask"
+        )
+    finite_or_missing = np.isfinite(values.to_numpy(dtype="float64", copy=True)) | (
+        actual_missing.to_numpy(dtype=bool, copy=True)
+    )
+    if not bool(finite_or_missing.all()):
+        raise PhosPyInputError("RUV-III observed input values must be finite")
+    completion_applied = bool(actual_missing.to_numpy().any())
+    if completion_applied:
+        policy = plan.temporary_imputation_policy
+        method = TemporaryImputationMethod.parse(
+            policy.method,
+            field_name="RUV-III temporary imputation policy.method",
+        )
+        if (
+            not policy.allowed
+            or method is not TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY
+        ):
+            raise PhosPyInputError(
+                "RUV-III missing values require explicit row_median_temporary "
+                "completion with observation-mask restoration"
+            )
+        minimum = dict(policy.method_parameters).get("min_observed_values", 1)
+        if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
+            raise PhosPyInputError(
+                "RUV-III row_median_temporary min_observed_values must be a "
+                "positive integer"
+            )
+        for row_id in values.index.tolist():
+            row = values.loc[row_id, :]
+            observed = row.dropna()
+            if int(observed.shape[0]) < minimum:
+                raise PhosPyInputError(
+                    f"RUV-III cannot temporarily complete row {str(row_id)!r}; "
+                    "too few observed values"
+                )
+            missing = row.isna()
+            if bool(missing.any()):
+                values.loc[row_id, missing] = float(observed.median())
+    return ruv_iii_executor_module._PreparedMatrix(  # noqa: SLF001
+        working=values,
+        originally_missing=originally_missing,
+        actual_missing=actual_missing,
+        missing_cells=tuple(mask.originally_missing_cells),
+        temporary_completion_applied=completion_applied,
+    )
+
+
+def _assert_corrected_outputs_equal(
+    left: CorrectedPreprocessingOutput | None,
+    right: CorrectedPreprocessingOutput | None,
+) -> None:
+    if left is None or right is None:
+        assert left is right
+        return
+    pd.testing.assert_frame_equal(left.corrected_matrix, right.corrected_matrix)
+    assert left.output_observation_mask is not None
+    assert right.output_observation_mask is not None
+    pd.testing.assert_frame_equal(
+        left.output_observation_mask,
+        right.output_observation_mask,
+    )
+    assert left.corrected_cell_status is not None
+    assert right.corrected_cell_status is not None
+    pd.testing.assert_frame_equal(
+        left.corrected_cell_status,
+        right.corrected_cell_status,
+    )
+    assert left.batch_correction_report == right.batch_correction_report
+    assert left.diagnostics == right.diagnostics
+    assert left.provenance == right.provenance
+    assert left.stage_order == right.stage_order
+    assert left.consumed_by_downstream is right.consumed_by_downstream
 
 
 def _discovered_controls() -> ControlSiteSet:

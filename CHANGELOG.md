@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- Vectorised governed observation-mask materialisation and temporary row-median
+  completion in RUV-III and SPS/RUV-style correction preparation while
+  preserving missingness classifications, restored positions, diagnostics,
+  provenance, fingerprints, errors, and numerical results.
+
 ## [1.7.5] - 2026-09-18
 
 ### Added

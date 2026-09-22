@@ -1,0 +1,61 @@
+{
+  "benchmark": "ruv_iii_missingness_preparation",
+  "environment": {
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10"
+  },
+  "generated_at_utc": "2026-09-22T06:24:41.832630+00:00",
+  "kernel_context_excluded_from_preparation": true,
+  "phase": "baseline",
+  "results": [
+    {
+      "actual_missing_cell_count": 0,
+      "actual_vs_governed_validation_seconds": 0.005177800019737333,
+      "case": "complete",
+      "columns": 100,
+      "complete_matrix_preparation_seconds": 0.010682700027246028,
+      "completion_fraction_of_preparation": 0.0,
+      "governed_missing_cell_count": 0,
+      "governed_missing_fraction": 0.3,
+      "mask_fraction_of_preparation": 0.16971364421252677,
+      "observation_mask_materialisation_seconds": 0.0018129999516531825,
+      "peak_process_rss_mib": 221.2109375,
+      "preparation_peak_rss_delta_mib": 20.05859375,
+      "repeats": 9,
+      "rows": 30000,
+      "ruv_iii_kernel_seconds": null,
+      "temporary_row_median_completion_seconds": 0.0,
+      "tier": "stress",
+      "upstream_imputed_cell_count": 0
+    }
+  ],
+  "schema_version": 1,
+  "source_provenance": {
+    "command": [
+      "C:\\Users\\Netts\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "benchmarks\\measure_ruv_iii_missingness_preparation.py",
+      "--tier",
+      "stress",
+      "--case",
+      "complete",
+      "--repeats",
+      "9",
+      "--skip-kernel",
+      "--phase",
+      "baseline",
+      "--output",
+      "benchmarks\\evidence\\ruv-iii-missingness-preparation-complete-baseline-2026-09-22.json"
+    ],
+    "git_head": "73a48193ca9523dddc5ed8fff4b20f8e8151b6ae",
+    "git_worktree_dirty": true,
+    "production_source_sha256": {
+      "src/phospy/science/batch_correction/_missingness_preparation.py": "eecab5831e3000bb6b19039c63c083c9b5934531cf9fbb88d52a29a37c92b6cb",
+      "src/phospy/science/batch_correction/executor.py": "fe277c491441bd21b9c6ac5c5aa853244fdfa1288a29d1420c9b9507d45268e4",
+      "src/phospy/science/batch_correction/ruv_iii_executor.py": "61e2f8852e0dd4d5ad3d8258d1b019ef405819572bee220766530a5efa6f6e15"
+    },
+    "tracked_source_diff_sha256": "c04afafefaec7fcad9e84f4a51b271936112ccf5d4700051259559faa0dd34fa"
+  },
+  "stage_measurement_method": "direct repeated calls to the private production materialisation, validation, and completion stages; completion setup copies are performed before timing"
+}

@@ -32,6 +32,11 @@ This directory contains rewrite-native benchmark scripts that track active code 
   - Measures the complete validated SPS discovery workflow at a moderate 3-reference, 10,000-site x 24-sample scale and separately times the stability calculation.
   - Provides an opt-in `--scale stress` path for 3 references with 50,000 sites x 48 samples; the stress path is not part of pytest, CI, or release checks.
   - Targets `SpsDiscoveryWorkflow.run` and the reference stability calculation while retaining governed `site_key` identity, distinct row/sample orders, multiple conditions, replicates, missing conditions, consensus ranking, and provenance.
+- `measure_ruv_iii_missingness_preparation.py`
+  - Measures production RUV-III observation-mask materialisation, actual-versus-governed missingness validation, temporary row-median completion, complete preparation, peak process RSS, and the RUV-III kernel as separate context.
+  - Provides deterministic small (1,000 x 20), representative (10,000 x 50), and explicitly selected stress (30,000 x 100) tiers across complete, actual-missing, upstream-imputed, and mixed inputs.
+  - Writes machine-readable JSON when `--output` is supplied and emits the same payload as a `benchmark_result_json=<json>` metric.
+  - Retained baseline/final measurements, decision-gate analysis, and the bounded peak-memory tradeoff are documented in [the 2026-09-22 evidence report](evidence/ruv-iii-missingness-preparation-2026-09-22.md).
 
 All benchmark scripts print plain `key=value` metrics for easy CI/log parsing.
 The optional release-scale builder+differential benchmark and repeated workflow
