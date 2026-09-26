@@ -241,8 +241,18 @@ scientifically appropriate.
 | `"impute_group_aware"` | `group_column`, `min_partial_observed_fraction`, `min_reference_observed_fraction`, `q`, `width`, `seed`, `k`, `distance`, `input_scale`, `no_overlap_policy` | Log2-only, seeded-stochastic routing to KNN or MinProb using aligned sample metadata. Unsupported rows are dropped first; both mechanisms consume the same original retained matrix. `no_overlap_policy` defaults to `"error"` and no other value is accepted. |
 
 The dataset retains observation metadata so downstream workflows can distinguish
-originally observed values from imputed replacements. Imputation can affect
-scientific inference; inspect the workflow-specific policy before analysis.
+originally observed values from imputed replacements.
+
+!!! warning "Differential analysis rejects imputed datasets by default"
+    Choosing `"impute_row_median"`, `"impute_minprob"`, `"impute_knn"`, or
+    `"impute_group_aware"` can produce an analysis-ready dataset that carries
+    imputed cells. Successful dataset construction does not itself authorise
+    differential testing of those values. If the resulting dataset carries any
+    imputed cells, `DifferentialAnalysisWorkflow` rejects it under its default
+    configuration. Before choosing an imputation policy, review the
+    [Missing, Imputed, and Authoritative Matrix Policy](differential-analysis.md#missing-imputed-and-authoritative-matrix-policy)
+    and decide whether to supply a non-imputed dataset or explicitly use the
+    feature-level `"withhold_imputed_features"` policy.
 
 #### Group-Aware KNN + MinProb
 

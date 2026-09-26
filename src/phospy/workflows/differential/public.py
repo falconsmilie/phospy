@@ -15,7 +15,19 @@ from phospy.workflows.differential.validator import DifferentialAnalysisValidato
 
 
 class DifferentialAnalysisWorkflow:
-    """Public entrypoint for differential analysis workflow execution."""
+    """Public entrypoint for differential analysis workflow execution.
+
+    By default, this workflow rejects datasets containing cells imputed during
+    upstream dataset preparation. This boundary is controlled by
+    ``DifferentialAnalysisConfig.imputed_value_policy="reject"``. Callers who
+    deliberately want to analyse an imputed dataset must explicitly select
+    ``"withhold_imputed_features"`` or provide a non-imputed dataset.
+
+    The non-default policy performs feature-level withholding, not
+    observed-only fitting. A retained tested feature can still contain imputed
+    cells within the configured threshold, and those cells participate in
+    fitting.
+    """
 
     def __init__(self) -> None:
         self._init_components(

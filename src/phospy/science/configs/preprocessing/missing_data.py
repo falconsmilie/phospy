@@ -83,6 +83,14 @@ class DatasetMissingDataConfig:
     `min_observed_values` is required for `"impute_row_median"` and must stay
     unset for `"forbid"`, `"impute_minprob"`, and `"impute_knn"`.
 
+    An imputation policy records an imputed dataset state when it actually
+    fills cells. ``DifferentialAnalysisWorkflow`` rejects datasets carrying
+    those imputed cells by default. To opt into the explicit non-default
+    differential policy, set
+    ``DifferentialAnalysisConfig.imputed_value_policy="withhold_imputed_features"``.
+    This policy can retain imputed cells in tested features and is not
+    observed-only fitting.
+
     For `"impute_minprob"`, required parameters are:
 
     - `q` with `0 < q < 0.5` (recommended: `0.01`)

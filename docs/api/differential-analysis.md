@@ -32,6 +32,21 @@ analysis requires:
   mode; and
 - localization evidence that meets the dataset policy.
 
+!!! warning "Upstream-imputed datasets are rejected by default"
+    `DifferentialAnalysisConfig.imputed_value_policy="reject"` applies when
+    dataset preprocessing has carried any imputed cells into the analysis-ready
+    dataset. Supply a non-imputed dataset to retain this default, or deliberately
+    select `"withhold_imputed_features"`.
+
+    Under the non-default policy, a feature is eligible only when its imputed
+    fraction is within `imputed_value_max_fraction` and every condition used by
+    a requested contrast has at least `minimum_condition_replicates` originally
+    observed values. Retained tested features can still contain imputed cells
+    when a positive threshold permits them, and those values participate in
+    fitting. This is not observed-only fitting. Read
+    [Missing, Imputed, and Authoritative Matrix Policy](#missing-imputed-and-authoritative-matrix-policy)
+    for the full semantics.
+
 Use `DatasetIntensityTransformConfig(policy="log2")` when the source matrix is
 linear. A declared log2 scale with suspicious diagnostics fails by default
 unless you deliberately enable the recorded override.
@@ -705,17 +720,21 @@ before GLS.
 
 Differential fitting consumes the workflow-approved analysis matrix. Actual
 missing values (`NaN`) are rejected before model fitting. By default,
-upstream-imputed datasets are also rejected.
+`DifferentialAnalysisConfig.imputed_value_policy="reject"` rejects an
+analysis-ready dataset containing upstream-imputed cells.
 
 If `imputed_value_policy="withhold_imputed_features"` is selected, PhosPy uses
 dataset-owned observation metadata to decide which features remain `tested`.
-Withheld rows do not contribute to duplicate-correlation consensus estimation,
-GLS fitting, or multiple-testing adjustment. Tested rows are fitted on the
-workflow-approved matrix. If tested rows contain retained imputed cells, those
-cells participate in REML and GLS, and the result records this through
-imputation provenance and caveats. This is not observed-only fitting, does not
-use feature-specific residual degrees of freedom, and does not change the
-duplicate-correlation covariance model.
+A feature is withheld when its imputed fraction exceeds
+`imputed_value_max_fraction` or a condition in any requested contrast has fewer
+originally observed values than `minimum_condition_replicates`. Withheld rows
+do not contribute to duplicate-correlation consensus estimation, GLS fitting,
+or multiple-testing adjustment. Tested rows are fitted on the workflow-approved
+matrix. If tested rows contain retained imputed cells, those cells participate
+in REML and GLS, and the result records this through imputation provenance and
+caveats. This is not observed-only fitting, does not use feature-specific
+residual degrees of freedom, and does not change the duplicate-correlation
+covariance model.
 
 For `duplicate_correlation`, provenance records the
 `analysis_matrix_fingerprint` and `authoritative_matrix_fingerprint`. They

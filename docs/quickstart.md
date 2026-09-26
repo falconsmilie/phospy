@@ -62,6 +62,13 @@ dataset = AnalysisReadyDatasetBuilder().run(
 )
 ```
 
+!!! note "This quickstart uses non-imputed data"
+    The example has no missing cells and uses no dataset imputation policy, so
+    differential analysis keeps its default imputed-value policy. If you select
+    any dataset imputation policy, review the differential guide's
+    [Missing, Imputed, and Authoritative Matrix Policy](api/differential-analysis.md#missing-imputed-and-authoritative-matrix-policy)
+    before running `DifferentialAnalysisWorkflow`.
+
 ## Describe the Experiment and Run the Contrast
 
 ```python

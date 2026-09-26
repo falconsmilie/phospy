@@ -11,6 +11,13 @@ All notable changes to this project are documented here.
   preserving missingness classifications, restored positions, diagnostics,
   provenance, fingerprints, errors, and numerical results.
 
+### Documentation
+
+- Clarified in the dataset-building guide, differential quickstart, workflow
+  guide, and public docstrings that differential analysis rejects
+  upstream-imputed datasets by default, and documented the explicit
+  feature-withholding policy's eligibility and fitting semantics.
+
 ## [1.7.5] - 2026-09-18
 
 ### Added
