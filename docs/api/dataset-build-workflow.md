@@ -150,7 +150,7 @@ Create a `DatasetBuildRequest`.
 | `organism` | `Organism` or `None` | `None` | Species represented by the dataset. | Must agree with supplied identity metadata. |
 | `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | Groups dataset preprocessing policies. | Incompatible stages fail before construction. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | Declares an already established `"linear"` or `"log2"` scale when no transform establishes it. | Suspicious declarations fail by default. |
-| `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | Allows a suspicious declared log2 scale with recorded warnings. | Use only when independent evidence supports the declaration. |
+| `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | Allows dataset construction with a suspicious declared log2 scale while retaining recorded warnings. | Applies only to dataset construction; use only when independent evidence supports the declaration. |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | Declares what the supplied matrix represents. | Must agree with the established scale and cannot claim an operation PhosPy did not perform. |
 | `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | Supplies externally corrected output at the supported boundary. | Cannot be combined with downstream matrix-changing preprocessing stages. |
 
@@ -206,6 +206,14 @@ request = DatasetBuildRequest(
 A suspicious declared log2 scale fails by default rather than being silently
 accepted or transformed again. Any deliberate override is recorded in the
 preprocessing report and provenance.
+
+This is a two-stage acknowledgement for scale-sensitive analysis.
+`DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale=True`
+permits dataset construction and preserves the suspicious-scale warning; it
+does not authorize downstream workflows. A downstream workflow may validate
+the declaration independently. In particular, differential analysis that
+produces `logFC` requires its own explicit acknowledgement with
+`DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True`.
 
 ### Normalisation
 

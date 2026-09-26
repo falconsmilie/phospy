@@ -9,7 +9,10 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     DifferentialAnalysisWorkflow,
 )
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.advanced import (
+    DatasetIntensityTransformConfig,
+    DifferentialAnalysisConfig,
+)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
@@ -313,6 +316,90 @@ def test_differential_workflow_runs_on_builder_log2_dataset() -> None:
             contrasts=_contrasts(),
         )
     )
+    assert "B_vs_A" in result.contrast_tables
+
+
+def test_suspicious_declared_scale_requires_independent_workflow_override() -> None:
+    phospho = pd.DataFrame(
+        {
+            "A_1": [12000.0, 14000.0, 16000.0, 18000.0],
+            "A_2": [12100.0, 14100.0, 16100.0, 18100.0],
+            "B_1": [12500.0, 14500.0, 16500.0, 18500.0],
+            "B_2": [12600.0, 14600.0, 16600.0, 18600.0],
+        },
+        index=pd.Index(
+            ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;", "RPS6KB1;T389;"],
+            name="site_id",
+        ),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B", "AKT1", "RPS6KB1"],
+            "site": ["Y182", "S9", "T308", "T389"],
+            "site_sequence": [
+                ("A" * 15) + site[0] + ("A" * 15)
+                for site in ["Y182", "S9", "T308", "T389"]
+            ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
+            "protein_id": ["MAPK14", "GSK3B", "AKT1", "RPS6KB1"],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+            allow_suspicious_declared_input_intensity_scale=True,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(policy="identity")
+            ),
+        )
+    )
+
+    provenance = dataset.intensity_scale_state.establishment_provenance
+    assert provenance is not None
+    assert any(
+        "declared log2 scale is suspicious" in warning
+        for warning in provenance.diagnostic_warnings
+    )
+    assert any(
+        "accepted for dataset construction only" in warning
+        for warning in provenance.diagnostic_warnings
+    )
+    request = DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=_design(),
+        contrasts=_contrasts(),
+    )
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        DifferentialAnalysisWorkflow().run(request)
+
+    message = str(exc_info.value)
+    assert (
+        "previously accepted for dataset construction through "
+        "DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale" in message
+    )
+    assert "permits dataset construction only" in message
+    assert "earlier acceptance does not authorize differential analysis" in message
+    assert (
+        "DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True"
+        in message
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=_design(),
+            contrasts=_contrasts(),
+            config=DifferentialAnalysisConfig(
+                allow_suspicious_declared_input_scale=True
+            ),
+        )
+    )
+
     assert "B_vs_A" in result.contrast_tables
 
 

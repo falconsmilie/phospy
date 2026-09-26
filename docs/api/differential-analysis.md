@@ -633,11 +633,18 @@ constructed designs, limitations, and provenance fields are documented below.
 | `imputed_value_policy` | `"reject"` or `"withhold_imputed_features"` | `"reject"` | Rejects upstream imputation or withholds affected features using dataset-owned observation metadata. |
 | `imputed_value_max_fraction` | `float` | `0.0` | Maximum imputed-cell fraction for a tested feature under the withhold policy. |
 | `allow_design_subset` | `bool` | `False` | Allows the design to use an intentional subset of dataset samples. |
-| `allow_suspicious_declared_input_scale` | `bool` | `False` | Allows a suspicious declared log2 scale and records the override. |
+| `allow_suspicious_declared_input_scale` | `bool` | `False` | Accepts a recorded suspicious-scale declaration for differential analysis and records this workflow-level override. |
 | `minimum_condition_replicates` | `int` | `2` | Minimum biological replicates per contrasted condition after policy resolution. |
 | `empirical_bayes` | `EmpiricalBayesConfig` | `EmpiricalBayesConfig()` | Moderation settings. |
 | `multiple_testing` | `MultipleTestingConfig` | `MultipleTestingConfig()` | Per-contrast *p*-value adjustment. |
 | `protein_aware_model` | `DifferentialProteinAwareModelConfig` or `None` | `None` | Selects the experimental protein-covariate-adjusted lane. When absent, ordinary differential analysis ignores any dataset-owned protein-aware preparation sidecar. |
+
+Suspicious declared input scales use two independent acknowledgements.
+`DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale=True`
+permits construction while preserving the warning and provenance. It does not
+authorize scale-sensitive differential results such as `logFC`. Set
+`DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True` only
+when that warned declaration is also accepted for this differential analysis.
 
 ### `DifferentialProteinAwareModelConfig`
 

@@ -459,7 +459,7 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
         assert (table.loc[:, "adj.P.Val"] <= 1.0).all()
 
 
-def test_differential_rejects_suspicious_declared_log2_by_default() -> None:
+def test_differential_rejects_trusted_suspicious_declared_log2_by_default() -> None:
     suspicious_matrix = _matrix() * 10000.0
     state = _declared_log2_intensity_scale_state(suspicious_matrix)
     provenance = state.establishment_provenance
@@ -485,7 +485,17 @@ def test_differential_rejects_suspicious_declared_log2_by_default() -> None:
     assert provenance.diagnostic_warnings[0] in message
     assert "rebuild dataset with correct input scale" in message
     assert "apply supported log2 transformation" in message
-    assert "explicitly set differential override" in message
+    assert (
+        "DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale" in message
+    )
+    assert "When used" in message
+    assert "permits dataset construction only and preserves the warning" in message
+    assert "does not authorize differential analysis" in message
+    assert "previously accepted for dataset construction through" not in message
+    assert (
+        "DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True"
+        in message
+    )
 
 
 def test_differential_accepts_declared_log2_without_warnings() -> None:

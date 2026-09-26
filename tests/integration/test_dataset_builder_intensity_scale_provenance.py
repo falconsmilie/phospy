@@ -437,6 +437,12 @@ def test_builder_records_suspicious_declared_log2_override_in_provenance() -> No
     warnings = workflow_payload["diagnostic_warnings"]
     assert isinstance(warnings, list)
     assert any("declared log2 scale is suspicious" in warning for warning in warnings)
+    assert any(
+        "accepted for dataset construction only" in warning
+        and "DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True"
+        in warning
+        for warning in warnings
+    )
     assert workflow_payload["establishment_mode"] == "declared"
     assert workflow_payload["input_declaration_source"] == (
         "dataset_build_request.input_intensity_scale"
@@ -465,6 +471,12 @@ def test_builder_records_suspicious_declared_log2_override_in_provenance() -> No
     assert isinstance(final_warnings, list)
     assert any(
         "declared log2 scale is suspicious" in warning for warning in final_warnings
+    )
+    assert any(
+        "accepted for dataset construction only" in warning
+        and "DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True"
+        in warning
+        for warning in final_warnings
     )
 
 

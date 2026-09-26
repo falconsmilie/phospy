@@ -282,7 +282,8 @@ class DifferentialDatasetEligibilityValidator:
         ):
             raise WorkflowValidationError(
                 _suspicious_declared_scale_error_message(
-                    first_warning=provenance.diagnostic_warnings[0]
+                    first_warning=provenance.diagnostic_warnings[0],
+                    build_override_was_used=(_dataset_build_override_was_used(dataset)),
                 )
             )
 
@@ -294,11 +295,49 @@ __all__ = [
 ]
 
 
-def _suspicious_declared_scale_error_message(*, first_warning: str) -> str:
+def _dataset_build_override_was_used(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> bool:
+    provenance = dataset.provenance
+    if provenance is None:
+        return False
+    return (
+        provenance.workflow_parameters.get(
+            "allow_suspicious_declared_input_intensity_scale"
+        )
+        is True
+    )
+
+
+def _suspicious_declared_scale_error_message(
+    *,
+    first_warning: str,
+    build_override_was_used: bool,
+) -> str:
+    build_override_context = (
+        "The suspicious declared input intensity scale was previously accepted "
+        "for dataset construction through "
+        "DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale, "
+        "which permits dataset construction only and preserves the warning; this "
+        "earlier acceptance does not authorize differential analysis or production "
+        "of differential/logFC results. "
+        if build_override_was_used
+        else (
+            "When used, "
+            "DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale "
+            "permits dataset construction only and preserves the warning; it does "
+            "not authorize differential analysis or production of differential/logFC "
+            "results. "
+        )
+    )
     return (
         f"{_DIFFERENTIAL_SUSPICIOUS_DECLARED_SCALE_ERROR_PREFIX}; "
+        "this recorded warning requires a separate differential-analysis decision. "
+        f"{build_override_context}"
+        "To proceed when the declaration is scientifically trusted, "
+        "set DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True. "
         f"first diagnostic warning: {first_warning}. "
         "recommended fix: rebuild dataset with correct input scale; "
-        "apply supported log2 transformation; or explicitly set differential override "
-        "if the declaration is scientifically trusted."
+        "apply supported log2 transformation; or use the explicit differential "
+        "override named above."
     )

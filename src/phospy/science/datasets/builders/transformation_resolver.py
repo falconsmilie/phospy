@@ -188,6 +188,15 @@ class DatasetIntensityScaleResolver:
                     declared_scale_kind=state.phospho.kind,
                     diagnostic_warnings=diagnostic_warnings,
                 )
+            if (
+                diagnostic_warnings
+                and state.phospho.kind is IntensityScaleKind.LOG2
+                and diagnostic_policy is DeclaredIntensityScaleDiagnosticPolicy.WARN
+            ):
+                diagnostic_warnings = (
+                    *diagnostic_warnings,
+                    _dataset_build_override_scope_warning(),
+                )
         transformer_source = (
             f"{self._transformer.__class__.__module__}."
             f"{self._transformer.__class__.__qualname__}"
@@ -336,6 +345,16 @@ def _declared_scale_diagnostic_error(
         "override with "
         "allow_suspicious_declared_input_intensity_scale=True on "
         "DatasetBuildRequest."
+    )
+
+
+def _dataset_build_override_scope_warning() -> str:
+    return (
+        "The suspicious declared input intensity scale was accepted for dataset "
+        "construction only. Downstream workflows may independently validate this "
+        "declaration and may require their own explicit override. Differential "
+        "analysis requires "
+        "DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True."
     )
 
 
