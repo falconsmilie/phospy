@@ -1,9 +1,12 @@
 # PhosPy
 
+![repo-banner-thin.png](repo-banner-thin.png)
+
 [![PyPI version](https://img.shields.io/pypi/v/phospy.svg)](https://pypi.org/project/phospy/)
 [![Python versions](https://img.shields.io/pypi/pyversions/phospy.svg)](https://pypi.org/project/phospy/)
 [![Tests](https://github.com/falconsmilie/phospy/actions/workflows/ci.yml/badge.svg)](https://github.com/falconsmilie/phospy/actions/workflows/ci.yml)
 [![License](https://img.shields.io/pypi/l/phospy.svg)](https://github.com/falconsmilie/phospy/blob/main/LICENSE)
+
 
 PhosPy helps you turn phosphosite intensity tables into analysis-ready datasets
 and run focused phosphoproteomics workflows from Python.
