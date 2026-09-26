@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import math
@@ -491,6 +492,48 @@ def test_release_scale_source_tree_digest_is_deterministic(tmp_path: Path) -> No
     assert first["sha256"] == second["sha256"]
     assert first["file_count"] == 2
     assert DIGEST_RE.fullmatch(first["sha256"])
+
+
+def test_release_scale_git_provenance_preserves_porcelain_status_columns(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    module = _load_benchmark_script()
+    (tmp_path / ".git").mkdir()
+    status_lines = (
+        " M CHANGELOG.md",
+        "?? benchmarks/evidence/release-scale-builder-differential-test.json",
+    )
+
+    def fake_git_run(command: list[str], **_: object) -> object:
+        git_args = tuple(command[3:])
+        stdout_by_args = {
+            ("rev-parse", "--is-inside-work-tree"): "true\n",
+            ("rev-parse", "HEAD"): f"{'1' * 40}\n",
+            ("rev-parse", "HEAD^{tree}"): f"{'2' * 40}\n",
+            (
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+            ): "\n".join(status_lines) + "\n",
+        }
+        return module.subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=stdout_by_args[git_args],
+            stderr="",
+        )
+
+    monkeypatch.setattr(module.subprocess, "run", fake_git_run)
+
+    provenance = module._git_provenance_payload(tmp_path)
+
+    assert provenance["status_porcelain_v1"] == list(status_lines)
+    assert provenance["status_porcelain_v1"][0].startswith(" M ")
+    assert (
+        provenance["status_porcelain_v1_sha256"]
+        == hashlib.sha256("\n".join(status_lines).encode("utf-8")).hexdigest()
+    )
 
 
 def test_release_scale_generation_uses_actual_differential_table_dimensions(

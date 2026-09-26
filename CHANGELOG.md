@@ -4,12 +4,30 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-09-26
+
 ### Changed
 
+- Suspicious declared-log2 diagnostics now explain that the dataset-builder
+  override permits construction only. Differential analysis still requires its
+  separate, existing `allow_suspicious_declared_input_scale=True` override and
+  otherwise fails with direct recovery guidance.
+
+### Scientific and Numerical Behaviour
+
 - Vectorised governed observation-mask materialisation and temporary row-median
-  completion in RUV-III and SPS/RUV-style correction preparation while
-  preserving missingness classifications, restored positions, diagnostics,
-  provenance, fingerprints, errors, and numerical results.
+  completion in RUV-III and SPS/RUV-style correction preparation. Scalar-oracle
+  and complete-executor tests preserve missingness classifications, restored
+  positions, diagnostics, provenance, fingerprints, errors, and numerical
+  results; this release does not expand external parity claims or change the
+  supported estimators.
+
+### Internal
+
+- Moved shared batch-correction mask materialisation into an array-oriented
+  helper and added focused equivalence, boundary, and bounded performance
+  coverage. Checked-in same-machine benchmark reports document the preparation
+  measurements and the accepted temporary-memory tradeoff.
 
 ### Documentation
 
@@ -17,6 +35,9 @@ All notable changes to this project are documented here.
   guide, and public docstrings that differential analysis rejects
   upstream-imputed datasets by default, and documented the explicit
   feature-withholding policy's eligibility and fitting semantics.
+- Clarified the independent dataset-build and differential-analysis
+  suspicious-scale acknowledgements, and added a repository banner to the
+  README.
 
 ## [1.7.5] - 2026-09-18
 

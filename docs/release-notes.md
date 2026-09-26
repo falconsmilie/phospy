@@ -1,85 +1,79 @@
 # PhosPy Release Notes
 
-## Version 1.7.5
+## Version 1.7.6
 
-Release date: 2026-09-18.
+Release date: 2026-09-26.
 
-These notes describe only the changes since Version 1.7.4.
+These notes describe only the changes since Version 1.7.5.
 
 ## Release Overview
 
-PhosPy 1.7.5 completes the package's SPS discovery and RUV-III path:
+PhosPy 1.7.6 makes two important workflow boundaries easier to discover and
+reduces the preparation cost of native RUV-style correction. It does not add or
+remove public symbols, change configuration defaults, change a supported
+scientific estimator, or broaden the package's external parity claims.
 
-```text
-reference phosphoproteomics datasets
-    -> SPS discovery
-    -> ControlSiteSet
-    -> ruv_iii_style correction
-    -> corrected dataset
+## Differential Input Boundaries
+
+Dataset imputation and differential fitting remain separate decisions. A
+dataset produced with `impute_row_median`, `impute_minprob`, `impute_knn`, or
+`impute_group_aware` can carry imputed cells even though its numeric matrix is
+complete. `DifferentialAnalysisWorkflow` rejects such a dataset by default.
+
+The existing explicit alternative,
+`imputed_value_policy="withhold_imputed_features"`, first withholds a feature
+when its imputed fraction exceeds `imputed_value_max_fraction` or when a
+condition used by any requested contrast has fewer than
+`minimum_condition_replicates` originally observed values. Remaining tested
+features are fitted on the workflow-approved matrix. If the configured positive
+threshold retains imputed cells, those values participate in fitting; this is
+not observed-only fitting. The dataset guide, quickstart, differential guide,
+and public docstrings now state this boundary before users select imputation.
+
+Suspicious declared-log2 input also has two independent acknowledgements.
+`DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale=True`
+permits dataset construction and preserves the warning in provenance. It does
+not authorize scale-sensitive differential output. Differential analysis still
+requires the separate existing
+`DifferentialAnalysisConfig.allow_suspicious_declared_input_scale=True`
+override. Builder warnings and differential validation errors now name that
+scope and recovery path directly; the underlying default rejection policy is
+unchanged.
+
+## RUV-Style Preparation Internals
+
+Governed observation-mask materialisation and temporary row-median completion
+now use array-oriented implementations in both RUV-III and native SPS/RUV-style
+correction paths; mask materialisation is factored into a shared internal
+helper. The scientific and numerical contracts are unchanged: exact
+scalar-reference and complete-executor tests cover prepared and corrected
+matrices, missingness classification, restored positions, ordered coordinates,
+statuses, diagnostics, warnings, provenance, and fingerprints.
+
+Checked-in same-machine reports record materially lower preparation times for
+the governed missingness cases at small, representative, and stress tiers. The
+reports also record the temporary dense-workspace memory tradeoff and a separate
+complete-input fast-path comparison. These measurements are local benchmark
+evidence, not a general runtime guarantee; kernel timing is outside their
+preparation measurement.
+
+The release adds a focused benchmark command:
+
+```bash
+make benchmark-ruv-iii-missingness
 ```
 
-SPS discovery is a separate, explicit operation over suitable independent
-reference phosphoproteomics evidence. It is not mandatory for correction:
-existing governed caller-supplied controls remain valid. The new
-`ruv_iii_style` method is also explicitly opt-in, so existing analyses are not
-automatically migrated.
+See [RUV-III missingness-preparation evidence](https://github.com/falconsmilie/phospy/blob/main/benchmarks/evidence/ruv-iii-missingness-preparation-2026-09-22.md)
+for the environment, exact measurements, source hashes, and scope. The README
+also now includes the project repository banner.
 
-The established `method="sps_ruv_style"` method predates this release. It
-remains the PhosPy-native SPS/control-based unwanted-variation estimator and is
-not retrospectively described as RUV-III. Version 1.7.5 extends the existing
-infrastructure with discovery and a separate replicate-aware RUV-III route; it
-does not replace `sps_ruv_style`.
+## Compatibility and Scientific Scope
 
-## SPS Discovery
-
-`SpsDiscoveryWorkflow` discovers stable phosphosite candidates across multiple
-prepared reference datasets. References share governed, protein-scoped
-`site_key` identity and must declare coherent organism, biological baseline,
-reference context, source identity, and established condition-relative log2
-semantics. The caller remains responsible for choosing scientifically
-appropriate reference evidence and its biological control baseline.
-
-Discovery provides explicit configuration, per-reference contribution and
-attrition records, deterministic consensus ranking, serializable provenance,
-and a `ControlSiteSet` suitable for correction. Partial-reference candidates
-are ordered conservatively by descending contributing-reference count, then by
-the Fisher-style consensus score and governed `site_key`.
-
-The discovery identity is immutable and evidence-sensitive. It passes through
-the generated `ControlSiteSet` into correction provenance, so identical selected
-keys derived from different reference evidence retain distinct lineage.
-
-## Native SPS/RUV-Style Replicate-Aware RUV-III Compatibility
-
-`method="ruv_iii_style"` requires replicate-set metadata and uses replicate
-membership directly in estimation. Protected biological-condition terms remain
-explicit. Singleton replicate sets are rejected, as is a requested `k` that is
-not estimable from the validated controls and replicate structure; PhosPy does
-not silently cap it. These are deliberate, stricter input and error contracts,
-not failures of the RUV-III mathematics.
-
-Governed row-median completion can be used internally by `ruv_iii_style` for
-estimation, after which original missing positions are restored. Normal
-analysis-ready construction still requires complete numeric output, so upstream
-missing-data processing remains necessary. This behavior is a PhosPy contract
-and is not an external PhosR missing-data parity claim.
-
-The pinned external fixtures establish only bounded evidence:
-
-- SPS ranking and selection agree with PhosR `getSPS` in the tested
-  complete-reference supported domain.
-- RUV-III corrected matrices agree with pinned `ruv::RUVIII` for the tested
-  complete-data finite-`k` cases.
-- Partial-reference SPS ordering, missing-data execution, `sps_ruv_style`, and
-  the complete PhosR `RUVphospho` workflow are outside those parity claims.
-
-Scientific validation covers planted nuisance-factor removal, protected-signal
-retention, downstream differential-analysis compatibility, lineage and
-serialization, and SPS-specific performance contracts. Normal execution and
-tests consume the pinned fixture outputs without requiring R or network access.
-
-See [SPS Discovery and Native SPS/RUV-Style Correction](api/sps-ruv.md),
-[Parity](parity.md), and [Scientific Coverage](scientific-coverage.md) for the
-complete contracts and evidence boundaries.
+No compatibility shim or migration is required. Existing public request and
+configuration names remain in place, and default differential eligibility and
+RUV-style scientific behaviour remain unchanged. The RUV preparation work does
+not establish new PhosR or `ruv` parity; the bounded claims documented in
+[Parity](parity.md) and [Scientific Coverage](scientific-coverage.md) still
+apply.
 
 Next: [Quickstart](quickstart.md) or [API Guide](api/guide.md).

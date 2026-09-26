@@ -865,7 +865,7 @@ def _git_stdout(repo_root: Path, *args: str) -> str:
             f"git {' '.join(args)} failed with exit code "
             f"{completed.returncode}: {stderr}"
         )
-    return completed.stdout.strip()
+    return completed.stdout.rstrip("\r\n")
 
 
 def _file_sha256(path: Path) -> str:
