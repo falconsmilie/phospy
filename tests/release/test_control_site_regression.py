@@ -21,12 +21,14 @@ from tools.architecture.capture_control_site_regression import (
 pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
 
 EXPECTED_NORMALIZED_CASES_SHA256 = (
-    "406e0b512225d93ef9f947cd4a1da1842829deb3a095deeff1294129453bc729"
+    "13060c58576146850cba72dbbddddf84e2d32da4903019200986c6726a8ffa9a"
 )
 EXPECTED_NORMALIZED_PAYLOAD_SHA256 = (
-    "a5bd027abf5cfe758cde1087eaf15d634382b0816af28c85d3dfb4ee0de972ac"
+    "facf92fb50440fb7dcfc2f7aa53d95da3a3b25c7f0773fb4a06f98ee0b6859c6"
 )
 EXPECTED_LEGACY_CONTROL_DISCOVERY_IDENTITY = "sha256-stable-json-v1:1d4091e2ba3aaae65d54b25b3688cf53a28a9a96fcf553de5f8805f4d69004f3"
+SVD_SIGN_INDETERMINATE_FINGERPRINT_NAME = "batch_correction.sps_ruv.unwanted_factors"
+SVD_SIGN_INDETERMINATE_HASH = "svd-factor-orientation-indeterminate"
 PYTHON_VERSION_PROVENANCE_PATH = (
     "cases",
     "correction_from_restored_controls",
@@ -140,7 +142,11 @@ def _normalize_platform_sensitive_payload(value: Any) -> Any:
             "tolerance_hash_value",
         }
         if fingerprint_fields <= normalized.keys():
-            normalized["exact_hash_value"] = normalized["tolerance_hash_value"]
+            comparison_hash = normalized["tolerance_hash_value"]
+            if normalized.get("name") == SVD_SIGN_INDETERMINATE_FINGERPRINT_NAME:
+                comparison_hash = SVD_SIGN_INDETERMINATE_HASH
+                normalized["tolerance_hash_value"] = comparison_hash
+            normalized["exact_hash_value"] = comparison_hash
         return normalized
     return value
 
@@ -235,7 +241,35 @@ def test_control_site_regression_permits_only_python_patch_difference() -> None:
     )
 
 
-@pytest.mark.parametrize("change", ["scientific", "dependency", "major_minor"])
+def test_control_site_regression_permits_svd_factor_orientation_difference() -> None:
+    payload = _fresh_process_comparison_payload()
+    fingerprint = cast(
+        dict[str, object],
+        _payload_value(
+            payload,
+            (
+                "cases",
+                "correction_from_restored_controls",
+                "provenance",
+                "resolved_parameters",
+                "executor",
+                "estimated_unwanted_factors_fingerprint",
+            ),
+        ),
+    )
+    fingerprint["exact_hash_value"] = "opposite-svd-orientation-exact"
+    fingerprint["tolerance_hash_value"] = "opposite-svd-orientation-tolerance"
+    payload["cases_sha256"] = _canonical_sha256(payload["cases"])
+
+    _assert_regression_payload_match(
+        payload,
+        actual_python_version=platform.python_version(),
+    )
+
+
+@pytest.mark.parametrize(
+    "change", ["scientific", "dependency", "corrected_matrix", "major_minor"]
+)
 def test_control_site_regression_rejects_unapproved_payload_changes(
     change: str,
 ) -> None:
@@ -257,6 +291,22 @@ def test_control_site_regression_rejects_unapproved_payload_changes(
             cast(dict[str, object], provenance)["dependency_versions"],
         )
         dependency_versions["numpy"] = "999.0.0"
+    elif change == "corrected_matrix":
+        fingerprint = cast(
+            dict[str, object],
+            _payload_value(
+                payload,
+                (
+                    "cases",
+                    "correction_from_restored_controls",
+                    "provenance",
+                    "resolved_parameters",
+                    "executor",
+                    "corrected_matrix_fingerprint",
+                ),
+            ),
+        )
+        fingerprint["tolerance_hash_value"] = "unapproved-corrected-matrix"
     else:
         major, minor, patch = (int(part) for part in actual_python_version.split("."))
         actual_python_version = f"{major}.{minor + 1}.{patch}"
