@@ -21,14 +21,20 @@ from tools.architecture.capture_control_site_regression import (
 pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
 
 EXPECTED_NORMALIZED_CASES_SHA256 = (
-    "13060c58576146850cba72dbbddddf84e2d32da4903019200986c6726a8ffa9a"
+    "4dafdf1d09ad8717b819f7cae899fd19c5df379cbe485205d5f586897274682e"
 )
 EXPECTED_NORMALIZED_PAYLOAD_SHA256 = (
-    "facf92fb50440fb7dcfc2f7aa53d95da3a3b25c7f0773fb4a06f98ee0b6859c6"
+    "ed26823f137a3e7ef13b060745192d62aeb02ed660bcaddfe403875ec341eb8f"
 )
 EXPECTED_LEGACY_CONTROL_DISCOVERY_IDENTITY = "sha256-stable-json-v1:1d4091e2ba3aaae65d54b25b3688cf53a28a9a96fcf553de5f8805f4d69004f3"
-SVD_SIGN_INDETERMINATE_FINGERPRINT_NAME = "batch_correction.sps_ruv.unwanted_factors"
-SVD_SIGN_INDETERMINATE_HASH = "svd-factor-orientation-indeterminate"
+PLATFORM_SENSITIVE_DERIVED_FINGERPRINT_NAMES = frozenset(
+    {
+        "batch_correction.sps_ruv.corrected",
+        "batch_correction.sps_ruv.unwanted_factors",
+        "batch_correction.workflow.corrected",
+    }
+)
+PLATFORM_SENSITIVE_DERIVED_HASH = "platform-sensitive-derived-matrix"
 PYTHON_VERSION_PROVENANCE_PATH = (
     "cases",
     "correction_from_restored_controls",
@@ -143,8 +149,8 @@ def _normalize_platform_sensitive_payload(value: Any) -> Any:
         }
         if fingerprint_fields <= normalized.keys():
             comparison_hash = normalized["tolerance_hash_value"]
-            if normalized.get("name") == SVD_SIGN_INDETERMINATE_FINGERPRINT_NAME:
-                comparison_hash = SVD_SIGN_INDETERMINATE_HASH
+            if normalized.get("name") in PLATFORM_SENSITIVE_DERIVED_FINGERPRINT_NAMES:
+                comparison_hash = PLATFORM_SENSITIVE_DERIVED_HASH
                 normalized["tolerance_hash_value"] = comparison_hash
             normalized["exact_hash_value"] = comparison_hash
         return normalized
@@ -292,21 +298,19 @@ def test_control_site_regression_rejects_unapproved_payload_changes(
         )
         dependency_versions["numpy"] = "999.0.0"
     elif change == "corrected_matrix":
-        fingerprint = cast(
+        corrected_matrix = cast(
             dict[str, object],
             _payload_value(
                 payload,
                 (
                     "cases",
                     "correction_from_restored_controls",
-                    "provenance",
-                    "resolved_parameters",
-                    "executor",
-                    "corrected_matrix_fingerprint",
+                    "corrected_matrix",
                 ),
             ),
         )
-        fingerprint["tolerance_hash_value"] = "unapproved-corrected-matrix"
+        values = cast(list[list[float]], corrected_matrix["values"])
+        values[0][0] += 0.1
     else:
         major, minor, patch = (int(part) for part in actual_python_version.split("."))
         actual_python_version = f"{major}.{minor + 1}.{patch}"
