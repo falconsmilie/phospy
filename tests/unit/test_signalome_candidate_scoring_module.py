@@ -297,7 +297,9 @@ def test_sampled_candidate_scoring_matches_independent_hash_seed_draw_golden(
     ]
     ordered_hashes = sorted(row_hashes)
     seed_material = 0xD2B74407B1CE6E93 ^ len(row_hashes) ^ 3
-    seed_material ^= np.bitwise_xor.reduce(np.asarray(ordered_hashes, dtype=np.uint64))
+    seed_material ^= int(
+        np.bitwise_xor.reduce(np.asarray(ordered_hashes, dtype=np.uint64))
+    )
     seed_material ^= int(sum(ordered_hashes) & mask)
     seed_material ^= ordered_hashes[len(ordered_hashes) // 2]
     seed = splitmix64(int(seed_material))

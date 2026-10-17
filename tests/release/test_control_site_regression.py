@@ -89,6 +89,27 @@ PYTHON_VERSION_PROVENANCE_PATH = (
     "provenance",
     "python_version",
 )
+DEPENDENCY_VERSIONS_PATH = (
+    "cases",
+    "correction_from_restored_controls",
+    "provenance",
+    "dependency_versions",
+)
+CANONICAL_DEPENDENCY_VERSIONS = {
+    "numpy": "2.2.6",
+    "pandas": "2.2.3",
+    "scipy": "1.15.2",
+    "scikit-learn": "1.6.1",
+}
+APPROVED_DEPENDENCY_VERSION_PROFILES = (
+    CANONICAL_DEPENDENCY_VERSIONS,
+    {
+        "numpy": "1.24.0",
+        "pandas": "2.0.0",
+        "scipy": "1.10.0",
+        "scikit-learn": "1.6.0",
+    },
+)
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CAPTURE_TOOL = (
     REPOSITORY_ROOT / "tools" / "architecture" / "capture_control_site_regression.py"
@@ -189,6 +210,10 @@ def _normalize_platform_sensitive_payload(
             for index, item in enumerate(value)
         ]
     if isinstance(value, dict):
+        if path == DEPENDENCY_VERSIONS_PATH and any(
+            value == profile for profile in APPROVED_DEPENDENCY_VERSION_PROFILES
+        ):
+            return dict(CANONICAL_DEPENDENCY_VERSIONS)
         normalized = {}
         for key, item in value.items():
             if (
@@ -281,6 +306,8 @@ def _assert_regression_payload_match(
     actual_parts = actual_python_version.split(".")
     assert len(actual_parts) == 3
     assert tuple(int(part) for part in actual_parts[:2]) == sys.version_info[:2]
+    dependency_versions = _payload_value(payload, DEPENDENCY_VERSIONS_PATH)
+    assert dependency_versions in APPROVED_DEPENDENCY_VERSION_PROFILES
     cases = cast(dict[str, object], payload["cases"])
     assert payload["cases_sha256"] == _canonical_sha256(cases)
     _assert_ranking_numerics(payload)

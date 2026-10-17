@@ -144,7 +144,9 @@ def _apply_log2(
             f"{offending_value!r} with pseudocount={pseudocount}. Increase pseudocount "
             "or adjust/remove non-positive values before applying log2."
         )
-    transformed_values = np.log2(adjusted.to_numpy(dtype=float, copy=False))
+    transformed_values = np.log2(
+        adjusted.to_numpy(dtype=float, copy=False, na_value=np.nan)
+    )
     return pd.DataFrame(
         transformed_values,
         index=matrix.index.copy(),
