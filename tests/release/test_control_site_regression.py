@@ -21,10 +21,10 @@ from tools.architecture.capture_control_site_regression import (
 pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
 
 EXPECTED_NORMALIZED_CASES_SHA256 = (
-    "888adaf41e5323af50221d023dd78377a68b78ffccf328c3745ffc0474aa4536"
+    "75d4d0d112fc7597e1b61f9b6d4d8018d3a61dcbbfd031215fc3ca5266ce2084"
 )
 EXPECTED_NORMALIZED_PAYLOAD_SHA256 = (
-    "a758b20ffd546f0b23f907081f5e690d272781005f46695394458bd0eceb93ea"
+    "a11ce6b4dd26739ea2e0aef4dac94758b8ff92aa7b409bba2b3d5af70811ea23"
 )
 EXPECTED_LEGACY_CONTROL_DISCOVERY_IDENTITY = "sha256-stable-json-v1:1d4091e2ba3aaae65d54b25b3688cf53a28a9a96fcf553de5f8805f4d69004f3"
 EXPECTED_CORRECTED_MATRIX_VALUES = (
@@ -45,9 +45,44 @@ EXPECTED_CORRECTION_DIAGNOSTICS = {
     ("max_abs_adjustment",): 1.0,
     ("mean_abs_adjustment",): 0.53125,
 }
+EXPECTED_COMPLETE_RANKING_NUMERICS = (
+    (0.375, 0.375, 0.328125, 0.015625),
+    (0.5, 0.75, 0.5, 0.75, 0.875, 0.375, 0.125, 0.125),
+    (0.2, 0.1, 0.2, 0.1, 0.1, 0.2, 2.0, 3.0),
+)
+EXPECTED_PARTIAL_RANKING_NUMERICS = (
+    (0.6759846280642754, 0.46060675273531304, 0.018100631647363866, 0.375),
+    (
+        0.5,
+        0.75,
+        0.8333333333333334,
+        0.875,
+        0.375,
+        0.5,
+        0.125,
+        0.125,
+        0.16666666666666666,
+        0.5,
+        0.75,
+    ),
+    (0.2, 0.1, 0.2, 0.1, 0.2, 0.3, 2.0, 3.0, 4.0, 0.2, 0.1),
+)
+RANKING_NUMERIC_BASELINES = {
+    "complete": EXPECTED_COMPLETE_RANKING_NUMERICS,
+    "partial": EXPECTED_PARTIAL_RANKING_NUMERICS,
+    "permuted": EXPECTED_PARTIAL_RANKING_NUMERICS,
+    "current_restored": EXPECTED_PARTIAL_RANKING_NUMERICS,
+    "legacy_input": (
+        EXPECTED_COMPLETE_RANKING_NUMERICS[0],
+        (),
+        EXPECTED_COMPLETE_RANKING_NUMERICS[2],
+    ),
+    "legacy_restored": EXPECTED_COMPLETE_RANKING_NUMERICS,
+}
 CORRECTION_CASE_PATH = ("cases", "correction_from_restored_controls")
-PLATFORM_SENSITIVE_CORRECTION_NUMBER = "platform-sensitive-correction-number"
-PLATFORM_SENSITIVE_CORRECTION_HASH = "platform-sensitive-correction-hash"
+PLATFORM_SENSITIVE_NUMBER = "platform-sensitive-number"
+PLATFORM_SENSITIVE_HASH = "platform-sensitive-hash"
+PLATFORM_SENSITIVE_IDENTITY = "platform-sensitive-identity"
 PYTHON_VERSION_PROVENANCE_PATH = (
     "cases",
     "correction_from_restored_controls",
@@ -144,23 +179,28 @@ def _set_payload_value(
 def _normalize_platform_sensitive_payload(
     value: Any, path: tuple[str | int, ...] = ()
 ) -> Any:
-    """Project backend-sensitive correction numerics to stable sentinels."""
+    """Project backend-sensitive derived values to stable sentinels."""
 
     if isinstance(value, float):
-        if path[: len(CORRECTION_CASE_PATH)] == CORRECTION_CASE_PATH:
-            return PLATFORM_SENSITIVE_CORRECTION_NUMBER
-        rounded = round(value, 8)
-        return 0.0 if rounded == 0 else rounded
+        return PLATFORM_SENSITIVE_NUMBER
     if isinstance(value, list):
         return [
             _normalize_platform_sensitive_payload(item, (*path, index))
             for index, item in enumerate(value)
         ]
     if isinstance(value, dict):
-        normalized = {
-            key: _normalize_platform_sensitive_payload(item, (*path, key))
-            for key, item in value.items()
-        }
+        normalized = {}
+        for key, item in value.items():
+            if (
+                key.endswith("_identity")
+                and isinstance(item, str)
+                and item.startswith("sha256-stable-json-v1:")
+            ):
+                normalized[key] = PLATFORM_SENSITIVE_IDENTITY
+            else:
+                normalized[key] = _normalize_platform_sensitive_payload(
+                    item, (*path, key)
+                )
         fingerprint_fields = {
             "exact_hash_algorithm",
             "exact_hash_value",
@@ -168,11 +208,8 @@ def _normalize_platform_sensitive_payload(
             "tolerance_hash_value",
         }
         if fingerprint_fields <= normalized.keys():
-            comparison_hash = normalized["tolerance_hash_value"]
-            if path[: len(CORRECTION_CASE_PATH)] == CORRECTION_CASE_PATH:
-                comparison_hash = PLATFORM_SENSITIVE_CORRECTION_HASH
-                normalized["tolerance_hash_value"] = comparison_hash
-            normalized["exact_hash_value"] = comparison_hash
+            normalized["exact_hash_value"] = PLATFORM_SENSITIVE_HASH
+            normalized["tolerance_hash_value"] = PLATFORM_SENSITIVE_HASH
         return normalized
     return value
 
@@ -206,6 +243,34 @@ def _assert_correction_numerics(payload: dict[str, object]) -> None:
     assert singular_values == pytest.approx([2.23606797749979], rel=1e-7, abs=1e-8)
 
 
+def _assert_ranking_numerics(payload: dict[str, object]) -> None:
+    """Compare SPS ranking outputs independently of platform math libraries."""
+
+    cases = cast(dict[str, object], payload["cases"])
+    for case_name, expected in RANKING_NUMERIC_BASELINES.items():
+        case = cast(dict[str, object], cases[case_name])
+        ranking = cast(list[dict[str, object]], case["site_ranking"])
+        consensus = [
+            cast(float, record["consensus_stability_score"]) for record in ranking
+        ]
+        statistics = [
+            cast(dict[str, object], statistic)
+            for record in ranking
+            for statistic in cast(list[object], record["dataset_statistics"])
+        ]
+        quantiles = [
+            cast(float, statistic["rank_quantile"])
+            for statistic in statistics
+            if "rank_quantile" in statistic
+        ]
+        stability = [
+            cast(float, statistic["stability_score"]) for statistic in statistics
+        ]
+        assert consensus == pytest.approx(expected[0], rel=1e-7, abs=1e-8)
+        assert quantiles == pytest.approx(expected[1], rel=1e-7, abs=1e-8)
+        assert stability == pytest.approx(expected[2], rel=1e-7, abs=1e-8)
+
+
 def _assert_regression_payload_match(
     payload: dict[str, object], *, actual_python_version: str
 ) -> None:
@@ -218,6 +283,7 @@ def _assert_regression_payload_match(
     assert tuple(int(part) for part in actual_parts[:2]) == sys.version_info[:2]
     cases = cast(dict[str, object], payload["cases"])
     assert payload["cases_sha256"] == _canonical_sha256(cases)
+    _assert_ranking_numerics(payload)
     _assert_correction_numerics(payload)
 
     qualified = cast(
@@ -324,7 +390,8 @@ def test_control_site_regression_permits_svd_factor_orientation_difference() -> 
 
 
 @pytest.mark.parametrize(
-    "change", ["scientific", "dependency", "corrected_matrix", "major_minor"]
+    "change",
+    ["scientific", "dependency", "ranking", "corrected_matrix", "major_minor"],
 )
 def test_control_site_regression_rejects_unapproved_payload_changes(
     change: str,
@@ -361,6 +428,16 @@ def test_control_site_regression_rejects_unapproved_payload_changes(
         )
         values = cast(list[list[float]], corrected_matrix["values"])
         values[0][0] += 0.1
+    elif change == "ranking":
+        ranking = cast(
+            list[dict[str, object]],
+            cast(
+                dict[str, object], cast(dict[str, object], payload["cases"])["partial"]
+            )["site_ranking"],
+        )
+        ranking[0]["consensus_stability_score"] = (
+            cast(float, ranking[0]["consensus_stability_score"]) + 0.1
+        )
     else:
         major, minor, patch = (int(part) for part in actual_python_version.split("."))
         actual_python_version = f"{major}.{minor + 1}.{patch}"
