@@ -21,20 +21,33 @@ from tools.architecture.capture_control_site_regression import (
 pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
 
 EXPECTED_NORMALIZED_CASES_SHA256 = (
-    "4dafdf1d09ad8717b819f7cae899fd19c5df379cbe485205d5f586897274682e"
+    "888adaf41e5323af50221d023dd78377a68b78ffccf328c3745ffc0474aa4536"
 )
 EXPECTED_NORMALIZED_PAYLOAD_SHA256 = (
-    "ed26823f137a3e7ef13b060745192d62aeb02ed660bcaddfe403875ec341eb8f"
+    "a758b20ffd546f0b23f907081f5e690d272781005f46695394458bd0eceb93ea"
 )
 EXPECTED_LEGACY_CONTROL_DISCOVERY_IDENTITY = "sha256-stable-json-v1:1d4091e2ba3aaae65d54b25b3688cf53a28a9a96fcf553de5f8805f4d69004f3"
-PLATFORM_SENSITIVE_DERIVED_FINGERPRINT_NAMES = frozenset(
-    {
-        "batch_correction.sps_ruv.corrected",
-        "batch_correction.sps_ruv.unwanted_factors",
-        "batch_correction.workflow.corrected",
-    }
+EXPECTED_CORRECTED_MATRIX_VALUES = (
+    (2.0, 3.0, 2.0, 3.0),
+    (1.5, 3.5, 1.5, 3.5),
+    (5.625, 6.125, 5.375, 6.375),
+    (8.0, 7.0, 9.0, 6.0),
 )
-PLATFORM_SENSITIVE_DERIVED_HASH = "platform-sensitive-derived-matrix"
+EXPECTED_CORRECTION_DIAGNOSTICS = {
+    ("batch_associated_variance", "after", "max_r_squared"): 0.0,
+    ("batch_associated_variance", "after", "mean_r_squared"): 0.0,
+    ("batch_associated_variance", "after", "median_r_squared"): 0.0,
+    ("batch_associated_variance", "before", "max_r_squared"): 1.0,
+    ("batch_associated_variance", "before", "mean_r_squared"): 0.740384615384615,
+    ("batch_associated_variance", "before", "median_r_squared"): 0.9807692307692302,
+    ("batch_associated_variance", "delta_mean_r_squared"): -0.740384615384615,
+    ("batch_associated_variance", "delta_median_r_squared"): -0.9807692307692302,
+    ("max_abs_adjustment",): 1.0,
+    ("mean_abs_adjustment",): 0.53125,
+}
+CORRECTION_CASE_PATH = ("cases", "correction_from_restored_controls")
+PLATFORM_SENSITIVE_CORRECTION_NUMBER = "platform-sensitive-correction-number"
+PLATFORM_SENSITIVE_CORRECTION_HASH = "platform-sensitive-correction-hash"
 PYTHON_VERSION_PROVENANCE_PATH = (
     "cases",
     "correction_from_restored_controls",
@@ -128,17 +141,24 @@ def _set_payload_value(
     parent[path[-1]] = value
 
 
-def _normalize_platform_sensitive_payload(value: Any) -> Any:
-    """Use the payload's declared 8-decimal tolerance for comparisons."""
+def _normalize_platform_sensitive_payload(
+    value: Any, path: tuple[str | int, ...] = ()
+) -> Any:
+    """Project backend-sensitive correction numerics to stable sentinels."""
 
     if isinstance(value, float):
+        if path[: len(CORRECTION_CASE_PATH)] == CORRECTION_CASE_PATH:
+            return PLATFORM_SENSITIVE_CORRECTION_NUMBER
         rounded = round(value, 8)
         return 0.0 if rounded == 0 else rounded
     if isinstance(value, list):
-        return [_normalize_platform_sensitive_payload(item) for item in value]
+        return [
+            _normalize_platform_sensitive_payload(item, (*path, index))
+            for index, item in enumerate(value)
+        ]
     if isinstance(value, dict):
         normalized = {
-            key: _normalize_platform_sensitive_payload(item)
+            key: _normalize_platform_sensitive_payload(item, (*path, key))
             for key, item in value.items()
         }
         fingerprint_fields = {
@@ -149,18 +169,47 @@ def _normalize_platform_sensitive_payload(value: Any) -> Any:
         }
         if fingerprint_fields <= normalized.keys():
             comparison_hash = normalized["tolerance_hash_value"]
-            if normalized.get("name") in PLATFORM_SENSITIVE_DERIVED_FINGERPRINT_NAMES:
-                comparison_hash = PLATFORM_SENSITIVE_DERIVED_HASH
+            if path[: len(CORRECTION_CASE_PATH)] == CORRECTION_CASE_PATH:
+                comparison_hash = PLATFORM_SENSITIVE_CORRECTION_HASH
                 normalized["tolerance_hash_value"] = comparison_hash
             normalized["exact_hash_value"] = comparison_hash
         return normalized
     return value
 
 
+def _assert_correction_numerics(payload: dict[str, object]) -> None:
+    """Compare scientific correction outputs independently of BLAS byte identity."""
+
+    corrected_matrix = cast(
+        dict[str, object],
+        _payload_value(payload, (*CORRECTION_CASE_PATH, "corrected_matrix")),
+    )
+    actual_rows = cast(list[list[float]], corrected_matrix["values"])
+    assert [len(row) for row in actual_rows] == [4, 4, 4, 4]
+    actual_values = [value for row in actual_rows for value in row]
+    expected_values = [
+        value for row in EXPECTED_CORRECTED_MATRIX_VALUES for value in row
+    ]
+    assert actual_values == pytest.approx(expected_values, rel=1e-7, abs=1e-8)
+
+    executor = cast(
+        dict[str, object],
+        _payload_value(payload, (*CORRECTION_CASE_PATH, "diagnostics", "executor")),
+    )
+    for path, expected in EXPECTED_CORRECTION_DIAGNOSTICS.items():
+        value: object = executor
+        for key in path:
+            value = cast(dict[str, object], value)[key]
+        assert isinstance(value, float)
+        assert value == pytest.approx(expected, rel=1e-7, abs=1e-8)
+    singular_values = cast(list[float], executor["singular_values"])
+    assert singular_values == pytest.approx([2.23606797749979], rel=1e-7, abs=1e-8)
+
+
 def _assert_regression_payload_match(
     payload: dict[str, object], *, actual_python_version: str
 ) -> None:
-    """Check every leaf while normalizing the Python runtime version."""
+    """Check stable structure exactly and correction numerics within tolerance."""
 
     actual_provenance = _payload_value(payload, PYTHON_VERSION_PROVENANCE_PATH)
     assert actual_provenance == actual_python_version
@@ -169,6 +218,7 @@ def _assert_regression_payload_match(
     assert tuple(int(part) for part in actual_parts[:2]) == sys.version_info[:2]
     cases = cast(dict[str, object], payload["cases"])
     assert payload["cases_sha256"] == _canonical_sha256(cases)
+    _assert_correction_numerics(payload)
 
     qualified = cast(
         dict[str, object],
