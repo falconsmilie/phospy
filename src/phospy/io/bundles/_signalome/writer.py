@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.io.bundles._shared.integrity import build_json_file_entry
 from phospy.io.bundles._shared.json_files import write_json
 from phospy.io.bundles._shared.tables import (
@@ -19,6 +18,7 @@ from phospy.io.bundles._signalome.constants import (
 from phospy.io.bundles._signalome.manifest import build_manifest
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
 from phospy.io.readers.tables import table_suffix_for_format
+from phospy.signalome.results import SignalomeWorkflowResult
 
 
 def save_signalome_workflow_bundle(

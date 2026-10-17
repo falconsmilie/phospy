@@ -3,14 +3,15 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
 from phospy.advanced import (
     DifferentialAnalysisConfig,
     TechnicalReplicatePolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

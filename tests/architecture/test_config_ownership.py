@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import get_type_hints
 
 from phospy.advanced import DifferentialAnalysisConfig
-from phospy.workflows.differential.interpreter import _resolve_execution_config
-from phospy.workflows.differential.models import ResolvedDifferentialExecutionConfig
-from phospy.workflows.kinase.contracts import ResolvedKinaseExecutionConfig
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.signalome.contracts import ResolvedSignalomeExecutionConfig
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.differential.planning.interpreter import _resolve_execution_config
+from phospy.differential.planning.models import ResolvedDifferentialExecutionConfig
+from phospy.kinase.contracts import ResolvedKinaseExecutionConfig
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.signalome.contracts import ResolvedSignalomeExecutionConfig
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -20,85 +20,20 @@ CONTRACT_CONFIG_ROOT = PHOSPY_ROOT / "contracts" / "configs"
 SCIENCE_CONFIG_ROOT = PHOSPY_ROOT / "science" / "configs"
 SCIENCE_ROOT = PHOSPY_ROOT / "science"
 
+SCIENCE_CONTRACT_IMPORT_ALLOWLIST: frozenset[str] = frozenset()
 PRIVATE_DUPLICATE_ALLOWLIST_WITH_REASONS: dict[str, str] = {}
 
 FULL_MODULE_REEXPORTS = (
-    ("phospy.contracts.configs._validation", "phospy.policies.config_values"),
-    ("phospy.science.configs._validation", "phospy.policies.config_values"),
-    ("phospy.contracts.configs.dataset", "phospy.science.configs.dataset"),
-    ("phospy.contracts.configs.localisation", "phospy.science.configs.localisation"),
+    ("phospy.evidence.config", "phospy.evidence.config"),
     (
-        "phospy.contracts.configs.reference_context",
-        "phospy.science.configs.reference_context",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing._validation",
-        "phospy.science.configs.preprocessing.validation",
-    ),
-    (
-        "phospy.science.configs.preprocessing._validation",
-        "phospy.science.configs.preprocessing.validation",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.batch_correction",
-        "phospy.science.configs.preprocessing.batch_correction",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.comparisons",
-        "phospy.science.configs.preprocessing.comparisons",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.control_sites",
-        "phospy.science.configs.preprocessing.control_sites",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.correction_missingness",
-        "phospy.science.configs.preprocessing.correction_missingness",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.coverage_filter",
-        "phospy.science.configs.preprocessing.coverage_filter",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.intensity_transform",
-        "phospy.science.configs.preprocessing.intensity_transform",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.internal_batch_correction",
-        "phospy.science.configs.preprocessing.internal_batch_correction",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.localisation",
-        "phospy.science.configs.preprocessing.localisation",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.missing_data",
-        "phospy.science.configs.preprocessing.missing_data",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.normalisation",
-        "phospy.science.configs.preprocessing.normalisation",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.site_matrix",
-        "phospy.science.configs.preprocessing.site_matrix",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.site_sequence",
-        "phospy.science.configs.preprocessing.site_sequence",
-    ),
-    (
-        "phospy.contracts.configs.preprocessing.total_protein",
-        "phospy.science.configs.preprocessing.total_protein",
+        "phospy.references.config",
+        "phospy.references.config",
     ),
 )
 
 COMMON_NAME_REEXPORTS = (
-    ("phospy.contracts.configs.differential", "phospy.science.configs.differential"),
-    ("phospy.contracts.configs.enrichment", "phospy.science.configs.enrichment"),
-    ("phospy.contracts.configs.kinase", "phospy.science.configs.kinase"),
-    ("phospy.contracts.configs.prediction", "phospy.science.configs.prediction"),
-    ("phospy.contracts.configs.signalome", "phospy.science.configs.signalome"),
+    ("phospy.differential.config", "phospy.differential.policies"),
+    ("phospy.signalome.config", "phospy.signalome.config"),
 )
 
 PUBLIC_WORKFLOW_CONFIG_DTO_NAMES = frozenset(
@@ -163,29 +98,32 @@ def test_deliberate_science_owned_reexports_preserve_object_identity() -> None:
             ), symbol_name
 
 
-def test_science_package_does_not_import_contracts() -> None:
+def test_science_package_does_not_import_horizontal_contracts() -> None:
     offenders: list[str] = []
     for path in sorted(SCIENCE_ROOT.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for imported_module in _imported_modules(tree):
-            if imported_module == "phospy.contracts" or imported_module.startswith(
-                "phospy.contracts."
-            ):
+            if (
+                imported_module == "phospy.contracts"
+                or imported_module.startswith("phospy.contracts.")
+            ) and imported_module not in SCIENCE_CONTRACT_IMPORT_ALLOWLIST:
                 offenders.append(f"{_module_name(path)} -> {imported_module}")
 
     assert offenders == []
 
 
 def test_public_api_config_imports_remain_available() -> None:
-    public_configs = importlib.import_module("phospy.api.configs")
+    ordinary = importlib.import_module("phospy.api")
+    advanced = importlib.import_module("phospy.advanced")
 
     missing = [
         symbol_name
-        for symbol_name in public_configs.__all__
-        if not hasattr(public_configs, symbol_name)
+        for symbol_name in PUBLIC_WORKFLOW_CONFIG_DTO_NAMES
+        if not hasattr(ordinary, symbol_name) and not hasattr(advanced, symbol_name)
     ]
 
     assert missing == []
+    assert list((PHOSPY_ROOT / "api" / "configs").rglob("*.py")) == []
 
 
 def test_workflow_interpreters_return_distinct_resolved_config_models() -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     decode_site_key,
     encode_site_key,

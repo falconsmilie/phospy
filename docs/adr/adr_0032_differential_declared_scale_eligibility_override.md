@@ -59,14 +59,14 @@ When the override is set, differential policy provenance records
 ## Implementation Notes
 
 - Public config:
-  `src/phospy/contracts/configs/differential.py`
+  `src/phospy/differential/config.py`
 - Eligibility validation:
-  `src/phospy/validation/workflows/differential.py`
+  `src/phospy/differential/validation/dataset.py`
 - Workflow request validation:
-  `src/phospy/workflows/differential/validator.py`
+  `src/phospy/differential/validation/workflow.py`
 - Policy provenance:
-  `src/phospy/science/differential/models/provenance.py` and
-  `src/phospy/workflows/differential/provenance.py`
+  `src/phospy/differential/provenance/models.py` and
+  `src/phospy/differential/provenance/assembly.py`
 - Tests:
   `tests/unit/test_differential_analysis.py` and
   `tests/integration/workflows/differential/test_differential_result_provenance.py`

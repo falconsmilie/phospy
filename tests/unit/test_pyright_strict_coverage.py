@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import ast
 import json
 import subprocess
 import sys
+import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -32,16 +34,63 @@ def test_repository_strict_coverage_policy_is_clean_and_above_floor() -> None:
     assert coverage.passes_policy
 
 
-def test_contract_results_contribute_to_strict_coverage() -> None:
+def test_contract_result_strict_scope_targets_live_owner() -> None:
     coverage = pyright_strict_coverage(ROOT)
-    contract_result_files = {
-        path.relative_to(ROOT).as_posix()
-        for path in (ROOT / "src" / "phospy" / "contracts" / "results").glob("*.py")
-    }
+    old_scope = "src/phospy/contracts/results"
+    relocated_owner = "src/phospy/io/importers/contracts.py"
+    pyright = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
+        "tool"
+    ]["pyright"]
 
-    assert contract_result_files
-    assert contract_result_files <= set(coverage.declared_strict_source_files)
-    assert contract_result_files <= set(coverage.strict_source_files_inside_include)
+    assert old_scope not in pyright["strict"]
+    assert not (ROOT / old_scope).exists()
+    assert relocated_owner in pyright["strict"]
+    assert relocated_owner in coverage.declared_strict_source_files
+    assert relocated_owner in coverage.strict_source_files_inside_include
+    relocated_tree = ast.parse((ROOT / relocated_owner).read_text(encoding="utf-8"))
+    relocated_definitions = {
+        node.name
+        for node in relocated_tree.body
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef))
+    }
+    relocated_definitions.update(
+        node.target.id
+        for node in relocated_tree.body
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+    )
+    assert {
+        "ImporterQualityStatus",
+        "IMPORTER_QUALITY_STATUS_REPORTED",
+        "IMPORTER_QUALITY_STATUS_NOT_REPORTED",
+        "IMPORTER_QUALITY_STATUS_NOT_APPLICABLE",
+        "_empty_quality_count_mapping",
+        "_empty_json_mapping",
+        "ImporterDetectedIntensityColumn",
+        "ImporterQualityCount",
+        "ImporterMissingIntensitySummary",
+        "ImporterLocalisationConfidenceSummary",
+        "ImporterFlaggedRowSummary",
+        "ImporterDuplicateKeySummary",
+        "ImporterQualityReport",
+        "PhosphositeImportResult",
+        "_validate_quality_status",
+        "_validate_non_empty_quality_text",
+        "_validate_optional_quality_text",
+        "_validate_optional_non_negative_quality_int",
+        "_validate_quality_count_mapping",
+        "_validate_sample_column_mapping",
+        "_validate_warning",
+        "_validate_source_name",
+        "_validate_optional_non_empty_text",
+        "_validate_optional_json_mapping",
+        "_validate_importer_quality_count",
+        "_validate_detected_intensity_column",
+        "_validate_missing_intensity_summary",
+        "_validate_localisation_confidence_summary",
+        "_validate_flagged_row_summary",
+        "_validate_duplicate_key_summary",
+        "_validate_optional_quality_report",
+    } <= relocated_definitions
 
 
 def test_strict_file_outside_include_is_reported_as_policy_failure(

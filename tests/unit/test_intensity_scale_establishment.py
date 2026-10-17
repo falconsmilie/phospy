@@ -3,23 +3,23 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors.transformations import TransformationStateEstablishmentError
-from phospy.errors.validation import TransformationValidationError
-from phospy.science.datasets.builders.preprocessing import (
-    build_dataset_processing_state,
-)
-from phospy.science.datasets.builders.transformation_resolver import (
+from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.transformations.models import (
+from phospy.datasets.construction.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.errors.transformations import TransformationStateEstablishmentError
+from phospy.errors.validation import TransformationValidationError
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.quantitative.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentSource,
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.science.transformations.transformers import IdentityTransformer
+from phospy.quantitative.transformers import IdentityTransformer
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

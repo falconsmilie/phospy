@@ -8,13 +8,13 @@ import numpy.typing as npt
 import pandas as pd
 import pytest
 
-import phospy.science.differential.compound_symmetry_gls as gls_module
-from phospy.errors import PhosPyInputError
-from phospy.science.differential.compound_symmetry_gls import (
+import phospy.differential.execution.compound_symmetry_gls as gls_module
+from phospy.differential.execution.compound_symmetry_gls import (
     COMPOUND_SYMMETRY_GLS_STATUS_PARTIAL_RANK_LOSS,
     fit_compound_symmetry_gls,
 )
-from phospy.science.differential.linear_model import decompose_differential_design
+from phospy.differential.execution.linear_model import decompose_differential_design
+from phospy.errors import PhosPyInputError
 from tests.support.duplicate_correlation_parity_scopes import (
     ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS,
     FULL_PIPELINE_FIXTURE_IDS,

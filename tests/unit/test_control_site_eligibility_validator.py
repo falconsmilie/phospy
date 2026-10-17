@@ -4,15 +4,15 @@ import pandas as pd
 import pytest
 
 from phospy.errors import PhosPyInputError
-from phospy.science.datasets.preprocessing.control_sites import (
+from phospy.preprocessing.control_sites.contracts import (
     ControlSiteAnnotation,
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.science.references.models import Organism
-from phospy.validation.workflows.batch_correction import (
+from phospy.preprocessing.control_sites.validation import (
     ControlSiteEligibilityValidator,
 )
+from phospy.taxonomy import Organism
 
 
 def _metadata(site_keys: tuple[str, ...], *, organism: str = "rat") -> pd.DataFrame:

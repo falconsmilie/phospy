@@ -4,25 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.contracts.configs import (
-    SIGNALOME_ASSIGNMENT_POLICIES,
-    SIGNALOME_CANDIDATE_SCORING_POLICIES,
-    SIGNALOME_CLUSTERING_ENGINES,
-    SIGNALOME_KINASE_NETWORK_POLICIES,
-    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
-    SIGNALOME_MODES,
-    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
-    LocalisationRequirement,
-    ReferenceContextCompatibilityPolicy,
-    SignalomeClusteringConfig,
-    SignalomeConfig,
-    SignalomeOutputConfig,
-    SignalomePerformanceConfig,
-    SignalomeScientificConfig,
-    SignalomeValidationConfig,
-)
 from phospy.errors.input import PhosPyInputError
+from phospy.evidence.config import LocalisationRequirement
 from phospy.io.bundles._shared.primitives import (
     require_bool,
     require_float,
@@ -34,6 +17,23 @@ from phospy.io.bundles._signalome.primitives import (
     _reject_unsupported_fields,
     _require_fields,
     _require_int,
+)
+from phospy.references.config import ReferenceContextCompatibilityPolicy
+from phospy.signalome.config import (
+    SIGNALOME_ASSIGNMENT_POLICIES,
+    SIGNALOME_CANDIDATE_SCORING_POLICIES,
+    SIGNALOME_CLUSTERING_ENGINES,
+    SIGNALOME_KINASE_NETWORK_POLICIES,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    SIGNALOME_MODES,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
+    SignalomeClusteringConfig,
+    SignalomeConfig,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
 )
 
 _SIGNALOME_CONFIG_ALLOWED_FIELDS = frozenset(

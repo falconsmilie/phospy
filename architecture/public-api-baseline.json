@@ -1,0 +1,1393 @@
+{
+  "schema_version": 2,
+  "python": "3.11.15",
+  "surfaces": {
+    "phospy": {
+      "count": 3,
+      "ordered_names": [
+        "AnalysisReadyDatasetBuilder",
+        "KinaseWorkflow",
+        "SignalomeWorkflow"
+      ],
+      "definitions": [
+        {
+          "name": "AnalysisReadyDatasetBuilder",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.datasets.builder:AnalysisReadyDatasetBuilder",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflow",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.public:KinaseWorkflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeWorkflow",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.public:SignalomeWorkflow",
+          "kind": "callable_or_type"
+        }
+      ]
+    },
+    "phospy.api": {
+      "count": 66,
+      "ordered_names": [
+        "AnalysisReadyDatasetBuilder",
+        "AnalysisReadyPhosphoDataset",
+        "ReferenceBundleBuilder",
+        "DatasetBuildRequest",
+        "PhosphositeImporter",
+        "PhosphositeImportRequest",
+        "PhosphositeImportResult",
+        "DatasetLocalisationConfig",
+        "DatasetPreprocessingConfig",
+        "BatchCovariate",
+        "CategoricalCovariate",
+        "ContinuousCovariate",
+        "FixedEffectCovariate",
+        "ExperimentalDesign",
+        "SampleDesignRecord",
+        "Contrast",
+        "DifferentialAnalysisRequest",
+        "EnrichmentDerivedQuantitativeSetProvenance",
+        "EnrichmentDerivedSetMissingValueRule",
+        "EnrichmentDerivedSetSourceResultKind",
+        "EnrichmentDerivedSetThresholdDirection",
+        "EnrichmentDerivedSetValueMeaning",
+        "EnrichmentDerivedSetValueScale",
+        "EnrichmentIdentifierSetProvenance",
+        "EnrichmentIdentifierSetSourceType",
+        "EnrichmentSet",
+        "EnrichmentSetCollection",
+        "EnrichmentWorkflowRequest",
+        "InputIntensityScaleEvidence",
+        "EnrichmentConfig",
+        "GeneSetCollection",
+        "PtmSetCollection",
+        "KinaseWorkflowRequest",
+        "SignalomeWorkflowRequest",
+        "all_pairwise_contrasts",
+        "contrasts_vs_control",
+        "DifferentialAnalysisWorkflow",
+        "EnrichmentWorkflow",
+        "KinaseWorkflow",
+        "SignalomeWorkflow",
+        "DifferentialAnalysisResult",
+        "EnrichmentResultRecord",
+        "EnrichmentWorkflowResult",
+        "KinaseActivityResult",
+        "KinasePredictionResult",
+        "KinaseScoringResult",
+        "KinaseWorkflowResult",
+        "ResultCaveat",
+        "SignalomeWorkflowResult",
+        "Organism",
+        "ReferenceBundle",
+        "ReferenceBundleBuildRequest",
+        "ReferencePreset",
+        "IntensityScaleKind",
+        "PhosPyError",
+        "PhosPyInputError",
+        "UnsupportedInputFormatError",
+        "PhosPyValidationError",
+        "ContractValidationError",
+        "PhosPyReferenceError",
+        "ReferenceResolutionError",
+        "ReferenceCompatibilityError",
+        "PhosPyWorkflowError",
+        "WorkflowValidationError",
+        "WorkflowBoundaryError",
+        "SignalomeScaleError"
+      ],
+      "definitions": [
+        {
+          "name": "AnalysisReadyDatasetBuilder",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.datasets.builder:AnalysisReadyDatasetBuilder",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "AnalysisReadyPhosphoDataset",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.datasets.models:AnalysisReadyPhosphoDataset",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ReferenceBundleBuilder",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.references.builder:ReferenceBundleBuilder",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetBuildRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.datasets.contracts:DatasetBuildRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosphositeImporter",
+          "runtime_type": "typing._ProtocolMeta",
+          "definition": "phospy.io.importers.contracts:PhosphositeImporter",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosphositeImportRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.io.importers.contracts:PhosphositeImportRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosphositeImportResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.io.importers.contracts:PhosphositeImportResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetLocalisationConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.localisation:DatasetLocalisationConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetPreprocessingConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.dataset:DatasetPreprocessingConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "BatchCovariate",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.design.models:BatchCovariate",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "CategoricalCovariate",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.design.models:CategoricalCovariate",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ContinuousCovariate",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.design.models:ContinuousCovariate",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "FixedEffectCovariate",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.design.models:FixedEffectCovariate",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ExperimentalDesign",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.design.models:ExperimentalDesign",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SampleDesignRecord",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.design.models:SampleDesignRecord",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "Contrast",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.design.models:Contrast",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DifferentialAnalysisRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.contracts:DifferentialAnalysisRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentDerivedQuantitativeSetProvenance",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentDerivedQuantitativeSetProvenance",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentDerivedSetMissingValueRule",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentDerivedSetMissingValueRule",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentDerivedSetSourceResultKind",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentDerivedSetSourceResultKind",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentDerivedSetThresholdDirection",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentDerivedSetThresholdDirection",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentDerivedSetValueMeaning",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentDerivedSetValueMeaning",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentDerivedSetValueScale",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentDerivedSetValueScale",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentIdentifierSetProvenance",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentIdentifierSetProvenance",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentIdentifierSetSourceType",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.enrichment.contracts.identifier_sets:EnrichmentIdentifierSetSourceType",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentSet",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.collections:EnrichmentSet",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentSetCollection",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.collections:EnrichmentSetCollection",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentWorkflowRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.requests:EnrichmentWorkflowRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "InputIntensityScaleEvidence",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.quantitative.evidence:InputIntensityScaleEvidence",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.config:EnrichmentConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "GeneSetCollection",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.collections:GeneSetCollection",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PtmSetCollection",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.collections:PtmSetCollection",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflowRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.requests:KinaseWorkflowRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeWorkflowRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.requests:SignalomeWorkflowRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "all_pairwise_contrasts",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.differential.design.contrast_helpers:all_pairwise_contrasts",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "contrasts_vs_control",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.differential.design.contrast_helpers:contrasts_vs_control",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DifferentialAnalysisWorkflow",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.public:DifferentialAnalysisWorkflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentWorkflow",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.workflow:EnrichmentWorkflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflow",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.public:KinaseWorkflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeWorkflow",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.public:SignalomeWorkflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DifferentialAnalysisResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.results:DifferentialAnalysisResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentResultRecord",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.results:EnrichmentResultRecord",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentWorkflowResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.enrichment.contracts.results:EnrichmentWorkflowResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseActivityResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.activity.results:KinaseActivityResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinasePredictionResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.prediction.results:KinasePredictionResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseScoringResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.scoring.results:KinaseScoringResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflowResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.results:KinaseWorkflowResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ResultCaveat",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.provenance.result_caveats:ResultCaveat",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeWorkflowResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.results:SignalomeWorkflowResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "Organism",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.taxonomy.organisms:Organism",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ReferenceBundle",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.references.models:ReferenceBundle",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ReferenceBundleBuildRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.references.models:ReferenceBundleBuildRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ReferencePreset",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.references.models:ReferencePreset",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "IntensityScaleKind",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.quantitative.policy:IntensityScaleKind",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosPyError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.base:PhosPyError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosPyInputError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.input:PhosPyInputError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "UnsupportedInputFormatError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.input:UnsupportedInputFormatError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosPyValidationError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.validation:PhosPyValidationError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ContractValidationError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.validation:ContractValidationError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosPyReferenceError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.references:PhosPyReferenceError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ReferenceResolutionError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.references:ReferenceResolutionError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ReferenceCompatibilityError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.references:ReferenceCompatibilityError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PhosPyWorkflowError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.workflows:PhosPyWorkflowError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "WorkflowValidationError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.validation:WorkflowValidationError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "WorkflowBoundaryError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.errors.workflows:WorkflowBoundaryError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeScaleError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.errors:SignalomeScaleError",
+          "kind": "callable_or_type"
+        }
+      ]
+    },
+    "phospy.advanced": {
+      "count": 124,
+      "ordered_names": [
+        "ControlSiteAnnotation",
+        "ControlSiteSet",
+        "ControlSiteSourceMetadata",
+        "ControlSiteStatus",
+        "SpsDiscoveryRequest",
+        "SpsDiscoveryWorkflow",
+        "SpsDiscoveryValidationError",
+        "SpsReferenceDataset",
+        "CorrectionMaskPolicy",
+        "CorrectionMissingnessPolicy",
+        "ObservationMask",
+        "OriginallyMissingCellTracking",
+        "TemporaryImputationMethod",
+        "TemporaryImputationPolicy",
+        "DatasetBatchCorrectionConfig",
+        "DatasetBatchCorrectionMethod",
+        "DatasetPreprocessingBatchCorrectionConfig",
+        "SpsRuvBatchCorrectionConfig",
+        "SpsRuvBatchCorrectionMethod",
+        "SpsDiscoveryConfig",
+        "DatasetComparisonBuildingConfig",
+        "DatasetComparisonBuildingPolicy",
+        "DatasetComparisonPair",
+        "DatasetGroupCoverageFilterConfig",
+        "DatasetIntensityTransformConfig",
+        "DatasetIntensityTransformPolicy",
+        "DatasetLocalisationMode",
+        "DatasetMissingDataConfig",
+        "DatasetMissingDataInputScale",
+        "DatasetMissingDataKnnNoOverlapPolicy",
+        "DatasetMissingDataPolicy",
+        "DatasetNormalisationConfig",
+        "DatasetNormalisationPolicy",
+        "DatasetProteinAwarePreparationConfig",
+        "DatasetProteinAwarePreparationMappingPolicy",
+        "DatasetProteinAwarePreparationPolicy",
+        "DatasetRuvReadinessConfig",
+        "DatasetSiteMatrixConfig",
+        "DatasetSiteMatrixDuplicateSitePolicy",
+        "DatasetSiteMatrixMissingDataPolicy",
+        "DatasetSiteMatrixPolicy",
+        "DatasetSiteSequenceConflictPolicy",
+        "DatasetSiteSequenceResolutionConfig",
+        "DatasetSiteSequenceResolutionMode",
+        "DatasetTotalProteinCorrectionConfig",
+        "DatasetTotalProteinCorrectionDuplicatePolicy",
+        "DatasetTotalProteinCorrectionIdentityConfig",
+        "DatasetTotalProteinCorrectionIdentityMatchingPolicy",
+        "DatasetTotalProteinCorrectionIdentityMode",
+        "DatasetTotalProteinCorrectionPolicy",
+        "DatasetTotalProteinCorrectionUnmatchedPolicy",
+        "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
+        "DifferentialAnalysisConfig",
+        "DifferentialImputedValuePolicy",
+        "DifferentialProteinAwareModelConfig",
+        "DifferentialReliabilityProfile",
+        "EmpiricalBayesConfig",
+        "MultipleTestingConfig",
+        "MultipleTestingCorrection",
+        "MultipleTestingMethod",
+        "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
+        "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+        "PAIRED_DESIGN_POLICY_REJECT",
+        "PairedDesignPolicy",
+        "EnrichmentIdentifierKind",
+        "EnrichmentMethod",
+        "EnrichmentOutsideBackgroundPolicy",
+        "KinaseActivityConfig",
+        "KinaseActivityMethod",
+        "KinaseActivityPValueMethod",
+        "KinaseActivitySsgseaRankingDirection",
+        "KinaseAdaptivePolicy",
+        "KinaseAttritionPolicy",
+        "KinaseAttritionViolationMode",
+        "KinasePredictionConfig",
+        "KinasePredictionMode",
+        "KinaseProfileMissingValueStrategy",
+        "KinaseReferenceDisplayAmbiguityPolicy",
+        "KinaseReliabilityProfile",
+        "KinaseScoringConfig",
+        "KinaseScoringMode",
+        "KinaseSiteSequenceConflictPolicy",
+        "LocalisationPolicy",
+        "LocalisationRequirement",
+        "ProfileSelfInclusionPolicy",
+        "ReferenceContextCompatibilityPolicy",
+        "SignalomeAssignmentPolicy",
+        "SignalomeCandidateScoringPolicy",
+        "SignalomeClusteringConfig",
+        "SignalomeConfig",
+        "SignalomeKinaseNetworkPolicy",
+        "SignalomeMode",
+        "SignalomeOutputConfig",
+        "SignalomePerformanceConfig",
+        "SignalomeScientificConfig",
+        "SignalomeScorePreconditioningPolicy",
+        "SignalomeValidationConfig",
+        "TechnicalReplicatePolicy",
+        "KinaseLibraryResource",
+        "KinaseLibraryResourceLoadRequest",
+        "KinaseLibraryResourceLoader",
+        "load_kinase_library_resource",
+        "filter_differential_results",
+        "rank_differential_results",
+        "publish_dataset",
+        "publish_kinase_workflow",
+        "publish_signalome_workflow",
+        "DifferentialModelDiagnostics",
+        "QuantificationDepthTrendDiagnostics",
+        "KinaseEligibilityReport",
+        "KinaseWorkflowAttritionProvenance",
+        "KinaseWorkflowCaveat",
+        "KinaseWorkflowPreprocessingAttritionSummary",
+        "KinaseWorkflowScoringAttritionSummary",
+        "KinaseWorkflowSiteAttritionSummary",
+        "SpsDatasetSiteStatistic",
+        "SpsDiscoveryProvenance",
+        "SpsDiscoveryResult",
+        "SpsDiscoveryValidationIssue",
+        "SpsDiscoveryValidationResult",
+        "SpsReferenceDatasetProvenance",
+        "SpsSampleConditionAssignment",
+        "SpsSelectionBoundaryCounts",
+        "SpsSiteStabilityRecord"
+      ],
+      "definitions": [
+        {
+          "name": "ControlSiteAnnotation",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.contracts:ControlSiteAnnotation",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ControlSiteSet",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.contracts:ControlSiteSet",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ControlSiteSourceMetadata",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.contracts:ControlSiteSourceMetadata",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ControlSiteStatus",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.preprocessing.control_sites.contracts:ControlSiteStatus",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_contracts:SpsDiscoveryRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryWorkflow",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.workflow:SpsDiscoveryWorkflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryValidationError",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_contracts:SpsDiscoveryValidationError",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsReferenceDataset",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_contracts:SpsReferenceDataset",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "CorrectionMaskPolicy",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.batch_correction.contracts.missingness:CorrectionMaskPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "CorrectionMissingnessPolicy",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.batch_correction.contracts.missingness:CorrectionMissingnessPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ObservationMask",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.batch_correction.contracts.missingness:ObservationMask",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "OriginallyMissingCellTracking",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.preprocessing.batch_correction.contracts.missingness:OriginallyMissingCellTracking",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "TemporaryImputationMethod",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.preprocessing.batch_correction.contracts.missingness:TemporaryImputationMethod",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "TemporaryImputationPolicy",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.batch_correction.contracts.missingness:TemporaryImputationPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetBatchCorrectionConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.batch_correction.contracts.configuration:DatasetBatchCorrectionConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetBatchCorrectionMethod",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetPreprocessingBatchCorrectionConfig",
+          "runtime_type": "types.UnionType",
+          "kind": "value",
+          "value_repr": "phospy.preprocessing.batch_correction.contracts.configuration.DatasetBatchCorrectionConfig | phospy.preprocessing.batch_correction.contracts.configuration.SpsRuvBatchCorrectionConfig"
+        },
+        {
+          "name": "SpsRuvBatchCorrectionConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.batch_correction.contracts.configuration:SpsRuvBatchCorrectionConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsRuvBatchCorrectionMethod",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_contracts:SpsDiscoveryConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetComparisonBuildingConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.comparisons:DatasetComparisonBuildingConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetComparisonBuildingPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetComparisonPair",
+          "runtime_type": "types.GenericAlias",
+          "definition": "builtins:tuple",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetGroupCoverageFilterConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.coverage_filter:DatasetGroupCoverageFilterConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetIntensityTransformConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.intensity_transform:DatasetIntensityTransformConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetIntensityTransformPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetLocalisationMode",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetMissingDataConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.missing_data:DatasetMissingDataConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetMissingDataInputScale",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetMissingDataKnnNoOverlapPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetMissingDataPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetNormalisationConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.normalisation:DatasetNormalisationConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetNormalisationPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetProteinAwarePreparationConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.total_protein:DatasetProteinAwarePreparationConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetProteinAwarePreparationMappingPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetProteinAwarePreparationPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetRuvReadinessConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.site_sequence:DatasetRuvReadinessConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetSiteMatrixConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.site_matrix:DatasetSiteMatrixConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetSiteMatrixDuplicateSitePolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetSiteMatrixMissingDataPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetSiteMatrixPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetSiteSequenceConflictPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetSiteSequenceResolutionConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.site_sequence:DatasetSiteSequenceResolutionConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetSiteSequenceResolutionMode",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetTotalProteinCorrectionConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.total_protein:DatasetTotalProteinCorrectionConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetTotalProteinCorrectionDuplicatePolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetTotalProteinCorrectionIdentityConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.contracts.configuration.total_protein:DatasetTotalProteinCorrectionIdentityConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetTotalProteinCorrectionIdentityMatchingPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetTotalProteinCorrectionIdentityMode",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetTotalProteinCorrectionPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DatasetTotalProteinCorrectionUnmatchedPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
+          "runtime_type": "builtins.str",
+          "kind": "value",
+          "value_repr": "'protein_covariate_adjusted_moderated_linear_model_v1'"
+        },
+        {
+          "name": "DifferentialAnalysisConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.config:DifferentialAnalysisConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DifferentialImputedValuePolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DifferentialProteinAwareModelConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.config:DifferentialProteinAwareModelConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DifferentialReliabilityProfile",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EmpiricalBayesConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.moderation.config:EmpiricalBayesConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "MultipleTestingConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.config:MultipleTestingConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "MultipleTestingCorrection",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "phospy.statistics.multiple_testing:MultipleTestingCorrection",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "MultipleTestingMethod",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
+          "runtime_type": "builtins.str",
+          "kind": "value",
+          "value_repr": "'duplicate_correlation'"
+        },
+        {
+          "name": "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+          "runtime_type": "builtins.str",
+          "kind": "value",
+          "value_repr": "'fixed_block'"
+        },
+        {
+          "name": "PAIRED_DESIGN_POLICY_REJECT",
+          "runtime_type": "builtins.str",
+          "kind": "value",
+          "value_repr": "'reject'"
+        },
+        {
+          "name": "PairedDesignPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentIdentifierKind",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentMethod",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "EnrichmentOutsideBackgroundPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseActivityConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.activity.config:KinaseActivityConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseActivityMethod",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseActivityPValueMethod",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseActivitySsgseaRankingDirection",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseAdaptivePolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseAttritionPolicy",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.scoring.config:KinaseAttritionPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseAttritionViolationMode",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinasePredictionConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.prediction.config:KinasePredictionConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinasePredictionMode",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseProfileMissingValueStrategy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseReferenceDisplayAmbiguityPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseReliabilityProfile",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.kinase.scoring.config:KinaseReliabilityProfile",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseScoringConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.scoring.config:KinaseScoringConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseScoringMode",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseSiteSequenceConflictPolicy",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.kinase.scoring.config:KinaseSiteSequenceConflictPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "LocalisationPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "LocalisationRequirement",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.evidence.config:LocalisationRequirement",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ProfileSelfInclusionPolicy",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.kinase.scoring.policies:ProfileSelfInclusionPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "ReferenceContextCompatibilityPolicy",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.references.config:ReferenceContextCompatibilityPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeAssignmentPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeCandidateScoringPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeClusteringConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.config:SignalomeClusteringConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.config:SignalomeConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeKinaseNetworkPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeMode",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeOutputConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.config:SignalomeOutputConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomePerformanceConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.config:SignalomePerformanceConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeScientificConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.config:SignalomeScientificConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeScorePreconditioningPolicy",
+          "runtime_type": "typing._LiteralGenericAlias",
+          "definition": "typing:Literal",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SignalomeValidationConfig",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.signalome.config:SignalomeValidationConfig",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "TechnicalReplicatePolicy",
+          "runtime_type": "enum.EnumType",
+          "definition": "phospy.differential.policies:TechnicalReplicatePolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseLibraryResource",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.references.models:KinaseLibraryResource",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseLibraryResourceLoadRequest",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.references.models:KinaseLibraryResourceLoadRequest",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseLibraryResourceLoader",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.io.bundles.kinase_library:KinaseLibraryResourceLoader",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "load_kinase_library_resource",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.io.bundles.kinase_library:load_kinase_library_resource",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "filter_differential_results",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.differential.tables:filter_differential_results",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "rank_differential_results",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.differential.tables:rank_differential_results",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "publish_dataset",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.io.publishers.workflows:publish_dataset",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "publish_kinase_workflow",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.io.publishers.workflows:publish_kinase_workflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "publish_signalome_workflow",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.io.publishers.workflows:publish_signalome_workflow",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "DifferentialModelDiagnostics",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.diagnostics:DifferentialModelDiagnostics",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "QuantificationDepthTrendDiagnostics",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.differential.diagnostics:QuantificationDepthTrendDiagnostics",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseEligibilityReport",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.results:KinaseEligibilityReport",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflowAttritionProvenance",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.results:KinaseWorkflowAttritionProvenance",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflowCaveat",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.provenance.result_caveats:ResultCaveat",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflowPreprocessingAttritionSummary",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.results:KinaseWorkflowPreprocessingAttritionSummary",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflowScoringAttritionSummary",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.results:KinaseWorkflowScoringAttritionSummary",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "KinaseWorkflowSiteAttritionSummary",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.kinase.results:KinaseWorkflowSiteAttritionSummary",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDatasetSiteStatistic",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_results:SpsDatasetSiteStatistic",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryProvenance",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_provenance:SpsDiscoveryProvenance",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_results:SpsDiscoveryResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryValidationIssue",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_contracts:SpsDiscoveryValidationIssue",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsDiscoveryValidationResult",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_contracts:SpsDiscoveryValidationResult",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsReferenceDatasetProvenance",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_provenance:SpsReferenceDatasetProvenance",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsSampleConditionAssignment",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_provenance:SpsSampleConditionAssignment",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsSelectionBoundaryCounts",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_provenance:SpsSelectionBoundaryCounts",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "SpsSiteStabilityRecord",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.control_sites.discovery_results:SpsSiteStabilityRecord",
+          "kind": "callable_or_type"
+        }
+      ]
+    }
+  },
+  "concrete_facade_builders": [
+    {
+      "name": "AnalysisReadyDatasetBuilder",
+      "runtime_type": "builtins.type",
+      "definition": "phospy.datasets.builder:AnalysisReadyDatasetBuilder",
+      "kind": "callable_or_type"
+    },
+    {
+      "name": "ReferenceBundleBuilder",
+      "runtime_type": "builtins.type",
+      "definition": "phospy.references.builder:ReferenceBundleBuilder",
+      "kind": "callable_or_type"
+    }
+  ],
+  "compatibility_registry_present": false
+}

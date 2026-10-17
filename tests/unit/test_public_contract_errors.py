@@ -10,43 +10,41 @@ import phospy.api as public_api
 import phospy.errors as public_errors
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
 )
 from phospy.advanced import DatasetSiteMatrixConfig
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     PhosPyInputError,
     PhosPyValidationError,
     ReferenceBundle,
+    SignalomeWorkflowResult,
     UnsupportedInputFormatError,
 )
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    SignalomeWorkflowResult,
-)
+from phospy.datasets.validation.request import DatasetBuildRequestValidator
 from phospy.errors import (
     ContractValidationError,
     DatasetValidationError,
     ReferenceValidationError,
 )
 from phospy.io.readers.tables import read_table
-from phospy.science.signalomes.constants import (
+from phospy.signalome.constants import (
     DISPLAY_ID_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
     SITE_ID_COLUMN,
     SITE_KEY_COLUMN,
 )
-from phospy.science.signalomes.models import (
+from phospy.signalome.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
 )
-from phospy.validation.datasets.builder_request import DatasetBuildRequestValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -71,7 +69,6 @@ TOP_LEVEL_ERROR_FACADE = {
     "ReferenceResolutionError",
     "PhosPyWorkflowError",
     "WorkflowBoundaryError",
-    "SignalomeScaleError",
 }
 
 NON_FACADE_ERROR_TYPES = {
@@ -321,6 +318,12 @@ def test_top_level_exception_exports_match_curated_facade() -> None:
         assert exported not in public_api.__all__
         assert not hasattr(public_api, exported)
         assert exported not in phospy.__all__
+
+    from phospy.signalome.errors import SignalomeScaleError
+
+    assert public_api.SignalomeScaleError is SignalomeScaleError
+    assert "SignalomeScaleError" in public_api.__all__
+    assert "SignalomeScaleError" not in public_errors.__all__
 
 
 def test_dataset_build_request_uses_phospy_exception_for_invalid_sources() -> None:

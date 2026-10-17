@@ -96,13 +96,13 @@ RNG streams from the user seed.
 ## Affected Modules
 
 - `src/phospy/api/configs/prediction.py`
-- `src/phospy/science/prediction/policies.py`
-- `src/phospy/science/prediction/sampling_runtime.py`
-- `src/phospy/science/prediction/sampling_core.py`
-- `src/phospy/science/prediction/execution.py`
-- `src/phospy/science/activities/methods/ssgsea_substrate_enrichment.py`
-- `src/phospy/science/activities/scientific_policies.py`
-- `src/phospy/workflows/kinase/provenance.py`
+- `src/phospy/kinase/prediction/policies.py`
+- `src/phospy/kinase/prediction/sampling_runtime.py`
+- `src/phospy/kinase/prediction/sampling_core.py`
+- `src/phospy/kinase/prediction/execution.py`
+- `src/phospy/kinase/activity/methods/ssgsea_substrate_enrichment.py`
+- `src/phospy/kinase/activity/policies.py`
+- `src/phospy/kinase/provenance.py`
 - `tests/unit/test_prediction_adaptive_sampling.py`
 - `tests/unit/test_activity_science.py`
 - `tests/parity/test_adaptive_replay_parity.py`

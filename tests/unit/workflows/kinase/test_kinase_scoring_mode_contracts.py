@@ -16,36 +16,39 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs.kinase import (
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors import (
+    PhosPyWorkflowError,
+    WorkflowBoundaryError,
+    WorkflowValidationError,
+)
+from phospy.kinase.contracts import ValidatedKinaseWorkflowRequest
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.references.models import (
+    KinaseLibraryMatrix,
+    KinaseLibraryResidueClass,
+    KinaseLibraryResource,
+)
+from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
+from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES,
     KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
     normalize_kinase_scoring_mode,
 )
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import KinaseLibraryResourceProvenance
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.motif_scoring.models import AMINO_ACIDS
-from phospy.science.references.kinase_library import (
-    KinaseLibraryMatrix,
-    KinaseLibraryResidueClass,
-    KinaseLibraryResource,
-)
-from phospy.science.references.models import SequenceWindowDefinition
-from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.scoring_mode_contracts import (
+from phospy.kinase.scoring.contracts import (
     KINASE_ANALYSIS_READY_SITE_METADATA_COLUMNS,
     KINASE_SCORING_MODE_INPUT_CONTRACTS,
     kinase_scoring_mode_input_contract,
 )
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from phospy.kinase.scoring.motif.models import AMINO_ACIDS
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.provenance.hashing import fingerprint_table
+from phospy.references.models import SequenceWindowDefinition
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -173,14 +176,9 @@ def test_every_canonical_kinase_scoring_mode_has_input_contract() -> None:
     assert contract_modes - canonical_config_modes == set()
 
 
-def test_deprecated_kinase_library_motif_alias_uses_contextual_contract() -> None:
-    contract = kinase_scoring_mode_input_contract(
-        KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF
-    )
-
-    assert contract.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
-    assert contract.requires_substrate_reference_overlap is True
-    assert contract.requires_profile_construction is True
+def test_removed_kinase_library_motif_alias_has_no_input_contract() -> None:
+    with pytest.raises(PhosPyWorkflowError, match="input contract is not defined"):
+        kinase_scoring_mode_input_contract("kinase_library_motif")
 
 
 def test_public_kinase_library_resource_mode_constant_matches_mode_contracts() -> None:

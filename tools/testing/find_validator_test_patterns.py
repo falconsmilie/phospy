@@ -463,7 +463,7 @@ def main() -> None:
     )
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(report, encoding="utf-8")
+    OUTPUT_PATH.write_bytes(report.encode("utf-8"))
 
 
 if __name__ == "__main__":

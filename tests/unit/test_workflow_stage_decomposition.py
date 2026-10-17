@@ -15,47 +15,50 @@ from phospy.api import (
     GeneSetCollection,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
-from phospy.errors import WorkflowBoundaryError
-from phospy.science.design.models import PAIRED_DESIGN_POLICY_REJECT
-from phospy.science.differential.executor import (
+from phospy.differential.design.models import PAIRED_DESIGN_POLICY_REJECT
+from phospy.differential.execution.fitting import DifferentialModelFitter
+from phospy.differential.execution.linear_model import decompose_differential_design
+from phospy.differential.execution.model_executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
-from phospy.science.differential.linear_model import decompose_differential_design
-from phospy.science.differential.models import (
-    DIFFERENTIAL_RESULT_STATUS_COLUMN,
-    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
-    DIFFERENTIAL_RESULT_STATUS_TESTED,
-)
-from phospy.science.differential.models import (
+from phospy.differential.models.design import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
-from phospy.science.enrichment.ora import OraConfig, OraEngine
-from phospy.workflows.differential.design_assembly import (
+from phospy.differential.planning.design import (
     DifferentialExecutionDesignAssembler,
 )
-from phospy.workflows.differential.eligibility import (
+from phospy.differential.planning.eligibility import (
     DifferentialComputationEligibilityResolver,
     DifferentialExecutionEligibilityResolution,
 )
-from phospy.workflows.differential.fitting import DifferentialModelFitter
-from phospy.workflows.differential.models import (
+from phospy.differential.planning.models import (
     DifferentialFeatureEligibilityInputs,
     InterpretedDifferentialAnalysisRequest,
     ResolvedDifferentialExecutionConfig,
 )
-from phospy.workflows.differential.provenance import (
+from phospy.differential.provenance.assembly import (
     DifferentialWorkflowProvenanceAssembler,
 )
-from phospy.workflows.differential.result_assembly import DifferentialResultAssembler
-from phospy.workflows.enrichment.models import (
+from phospy.differential.result_assembly import DifferentialResultAssembler
+from phospy.differential.tables import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+)
+from phospy.enrichment.assembly import EnrichmentResultAssembler
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
+from phospy.enrichment.execution import EnrichmentWorkflowExecutor
+from phospy.enrichment.filtering import EnrichmentSetExecutionPreparer
+from phospy.enrichment.ora import OraConfig, OraEngine
+from phospy.enrichment.ora_execution import EnrichmentOraRunner
+from phospy.enrichment.planning import (
     EnrichmentIdentifierSemantics,
     InterpretedEnrichmentWorkflowRequest,
 )
-from phospy.workflows.enrichment.ora_execution import EnrichmentOraRunner
-from phospy.workflows.enrichment.provenance import EnrichmentRunProvenanceAssembler
-from phospy.workflows.enrichment.result_assembly import EnrichmentResultAssembler
-from phospy.workflows.enrichment.set_filtering import EnrichmentSetExecutionPreparer
+from phospy.enrichment.provenance import EnrichmentRunProvenanceAssembler
+from phospy.errors import WorkflowBoundaryError
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -502,7 +505,7 @@ def test_enrichment_provenance_assembler_owns_run_fingerprints() -> None:
 
 
 def test_ora_kernel_has_no_workflow_or_output_serialization_imports() -> None:
-    import phospy.science.enrichment.ora as ora
+    import phospy.enrichment.ora as ora
 
     tree = ast.parse(inspect.getsource(ora))
     imported_modules: set[str] = set()
@@ -519,8 +522,7 @@ def test_ora_kernel_has_no_workflow_or_output_serialization_imports() -> None:
 
 
 def test_workflow_executors_no_longer_build_public_structures_directly() -> None:
-    from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
-    from phospy.workflows.enrichment.executor import EnrichmentWorkflowExecutor
+    from phospy.differential.execution.workflow import DifferentialAnalysisExecutor
 
     differential_source = inspect.getsource(DifferentialAnalysisExecutor)
     enrichment_source = inspect.getsource(EnrichmentWorkflowExecutor)
@@ -533,8 +535,10 @@ def test_workflow_executors_no_longer_build_public_structures_directly() -> None
 
 
 def test_differential_execution_stages_do_not_rebuild_design_decomposition() -> None:
-    from phospy.workflows.differential import eligibility, fitting, result_assembly
-    from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
+    import phospy.differential.execution.fitting as fitting
+    import phospy.differential.planning.eligibility as eligibility
+    import phospy.differential.result_assembly as result_assembly
+    from phospy.differential.execution.workflow import DifferentialAnalysisExecutor
 
     sources = (
         inspect.getsource(DifferentialComputationExecutor),
@@ -550,11 +554,11 @@ def test_differential_execution_stages_do_not_rebuild_design_decomposition() -> 
 
 def test_decomposed_workflow_modules_do_not_create_import_cycles() -> None:
     package_dirs = (
-        ROOT / "src" / "phospy" / "workflows" / "differential",
-        ROOT / "src" / "phospy" / "workflows" / "enrichment",
+        ROOT / "src" / "phospy" / "differential",
+        ROOT / "src" / "phospy" / "enrichment",
     )
     module_paths = [
-        path for package_dir in package_dirs for path in package_dir.glob("*.py")
+        path for package_dir in package_dirs for path in package_dir.rglob("*.py")
     ]
     modules = {
         "phospy." + ".".join(path.relative_to(ROOT / "src").with_suffix("").parts): path
@@ -587,8 +591,8 @@ def _internal_imports(tree: ast.AST) -> set[str]:
     return {
         imported
         for imported in imports
-        if imported.startswith("phospy.workflows.differential")
-        or imported.startswith("phospy.workflows.enrichment")
+        if imported.startswith("phospy.differential")
+        or imported.startswith("phospy.enrichment")
     }
 
 

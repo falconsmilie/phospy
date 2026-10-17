@@ -43,8 +43,6 @@ for _path in (ROOT, SRC):
 import phospy
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
-    DifferentialAnalysisWorkflow,
 )
 from phospy.advanced import (
     DatasetIntensityTransformConfig,
@@ -55,18 +53,22 @@ from phospy.advanced import (
     EmpiricalBayesConfig,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisResult,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs.differential import (
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.differential.config import (
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
 )
+from phospy.preprocessing.provenance.models import PreprocessingStageProvenance
 from phospy.provenance.hashing import (
     DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM,
     hash_json_payload,
@@ -74,10 +76,8 @@ from phospy.provenance.hashing import (
 )
 from phospy.provenance.models import (
     JsonValue,
-    PreprocessingStageProvenance,
     TableFingerprint,
 )
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from tests.support.performance_contracts import (
     DEFAULT_PERFORMANCE_SEED,
     deterministic_analysis_ready_site_keys,
@@ -395,7 +395,7 @@ def report_payload(
         "source_provenance": _json_compatible_payload(resolved_source_provenance),
         "command": dict(command) if command is not None else _command_payload(None),
         "report_path": (
-            None if report_path is None else _display_path(Path(report_path))
+            None if report_path is None else str(Path(report_path).resolve())
         ),
         "dataset_dimensions": dataset_dimensions,
         "workload": {

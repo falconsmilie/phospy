@@ -8,17 +8,19 @@ from phospy.api import (
     EnrichmentWorkflowRequest,
     GeneSetCollection,
 )
-from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
-from phospy.errors import WorkflowBoundaryError
-from phospy.science.enrichment.ora import OraResult, OraResultRecord
-from phospy.workflows.enrichment.executor import EnrichmentWorkflowExecutor
-from phospy.workflows.enrichment.interpreter import EnrichmentWorkflowInterpreter
-from phospy.workflows.enrichment.models import (
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
+from phospy.enrichment.execution import EnrichmentWorkflowExecutor
+from phospy.enrichment.interpreter import EnrichmentWorkflowInterpreter
+from phospy.enrichment.ora import OraResult, OraResultRecord
+from phospy.enrichment.planning import (
     InterpretedEnrichmentWorkflowRequest,
     ValidatedEnrichmentWorkflowRequest,
 )
-from phospy.workflows.enrichment.validator import EnrichmentWorkflowValidator
-from phospy.workflows.enrichment.workflow import EnrichmentWorkflow
+from phospy.enrichment.validation import EnrichmentWorkflowValidator
+from phospy.enrichment.workflow import EnrichmentWorkflow
+from phospy.errors import WorkflowBoundaryError
 
 
 def _gene_collection() -> GeneSetCollection:
@@ -93,7 +95,7 @@ def test_enrichment_stage_components_expose_run() -> None:
 def test_enrichment_workflow_validator_does_not_run_ora(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.science.enrichment.ora as ora
+    import phospy.enrichment.ora as ora
 
     def fail_if_called(*args: object, **kwargs: object) -> object:
         raise AssertionError("ORA must not run during enrichment validation")

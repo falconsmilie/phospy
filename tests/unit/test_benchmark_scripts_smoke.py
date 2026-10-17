@@ -22,8 +22,7 @@ LOCAL_IMPORT_ROOTS = {"phospy", "tests"}
 DISALLOWED_SEAM_TOKENS = (
     "phospy.science.prediction.aggregation",
     "phospy.science.prediction.sampling",
-    "phospy.preprocessing",
-    "phospy.science.signalomes.analysis",
+    "phospy.signalome.analysis",
     "tests/test_parity-with_metrics.py",
     "tests/test_end_to_end_parity.py",
 )

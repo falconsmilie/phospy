@@ -7,21 +7,22 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.errors import PhosPyInputError
-from phospy.errors.validation import DatasetValidationError
-from phospy.provenance.derived_quantitative import (
-    DerivedQuantitativeDataProvenance,
-    DerivedSampleMapping,
-    build_derived_quantitative_run_provenance,
-)
-from phospy.provenance.hashing import fingerprint_optional_table_strict
-from phospy.provenance.models import RunProvenance, TableFingerprint
-from phospy.science.datasets.derived_quantitative import (
+from phospy.datasets.derived_quantitative import (
     CertifiedDerivedQuantitativeParentState,
     DerivedAnalysisReadyPhosphoDataset,
+    DerivedQuantitativeDataProvenance,
+    DerivedSampleMapping,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.models import Organism
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.provenance.lineage import (
+    build_derived_quantitative_run_provenance,
+)
+from phospy.errors import PhosPyInputError
+from phospy.errors.validation import DatasetValidationError
+from phospy.provenance.hashing import fingerprint_optional_table_strict
+from phospy.provenance.models import TableFingerprint
+from phospy.run_lineage.models import RunProvenance
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

@@ -22,25 +22,27 @@ from phospy.api import (
     PhosphositeImportResult,
     SampleDesignRecord,
 )
-from phospy.api.requests import (
+from phospy.differential.moderation.config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+)
+from phospy.errors import PhosPyInputError
+from phospy.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
-from phospy.contracts.results import (
+from phospy.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
+from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
 )
-from phospy.errors import PhosPyInputError
 from phospy.io.readers import (
     MaxQuantColumnMapping,
     MaxQuantPhosphositeImporter,
     MaxQuantPhosphositeImportRequest,
-)
-from phospy.science.differential.models import (
-    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
-    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
 )
 
 ROOT = Path(__file__).resolve().parents[2]

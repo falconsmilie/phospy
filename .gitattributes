@@ -1,5 +1,6 @@
 # Reference bundles are exact-byte release assets.
 # Their manifest digests, rather than an EOL convention, define their bytes.
+.gitattributes text eol=lf
 src/phospy/data/reference_bundles/** -text
 src/phospy/data/reference_bundles/** -diff
 
@@ -21,3 +22,9 @@ scripts/support/generate_peptide_site_bias_regime_fixtures.py text eol=lf
 scripts/active/generate_differential_duplicate_correlation_limma_fixtures.R text eol=lf
 scripts/active/generate_large_differential_limma_trend_fixture.R text eol=lf
 scripts/active/generate_phosr_ruv_parity_fixtures.R text eol=lf
+
+# Active machine-readable architecture authority and generated test inventories.
+architecture/*.csv text eol=lf
+architecture/*.json text eol=lf
+docs/testing/*.csv text eol=lf
+docs/testing/*.md text eol=lf

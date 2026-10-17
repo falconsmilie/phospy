@@ -9,7 +9,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -19,36 +19,39 @@ from phospy.advanced.configs import (
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.api.configs import (
+from phospy.api import (
+    DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
 )
-from phospy.api.requests import DatasetBuildRequest
-from phospy.contracts.configs import DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.contracts import (
+from phospy.datasets.construction.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.science.datasets.builders.preprocessing import (
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.construction.intensity_scale import (
+    ResolvedIntensityScale,
+)
+from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
+from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.science.datasets.builders.transformation_resolver import (
-    ResolvedIntensityScale,
+from phospy.errors.input import PhosPyInputError
+from phospy.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
 )
-from phospy.science.datasets.preprocessing.batch_correction import (
+from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
-from phospy.science.datasets.preprocessing.correction_output import (
+from phospy.preprocessing.batch_correction.contracts.output import (
     CorrectedPreprocessingOutput,
 )
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
@@ -56,16 +59,14 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.stage_registry import (
-    PreprocessingStageMetadata,
+from phospy.preprocessing.contracts.configuration import (
+    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
 )
-from phospy.science.references.models import Organism
-from phospy.science.sites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
+from phospy.preprocessing.contracts.stage import (
+    PreprocessingStageContract,
 )
-from phospy.science.transformations.models import (
+from phospy.preprocessing.execution.pipeline import PreprocessingPipeline
+from phospy.quantitative.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
     IntensityScaleEvidenceLevel,
@@ -73,9 +74,10 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     QuantitativeMeaning,
 )
-from phospy.science.transformations.quantitative_contracts import (
+from phospy.quantitative.quantitative_contracts import (
     preserve_quantitative_contract,
 )
+from phospy.taxonomy import Organism
 from tests.support.dataset_preprocessor_fakes import (
     ConformingDatasetPreprocessorFake,
 )
@@ -309,8 +311,8 @@ def _total(columns: pd.Index) -> pd.DataFrame:
     )
 
 
-def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
-    return PreprocessingStageMetadata(
+def _custom_stage_metadata(stage_key: str) -> PreprocessingStageContract:
+    return PreprocessingStageContract(
         stage_key=stage_key,
         display_label=stage_key,
         provenance_stage=stage_key,

@@ -7,11 +7,13 @@ import pandas as pd
 import pytest
 
 from phospy.errors.validation import ReferenceValidationError
-from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
-from phospy.science.references import (
-    KinaseLibraryResidueClass,
+from phospy.kinase.references.loading import (
     KinaseLibraryResourceLoader,
 )
+from phospy.kinase.references.models import (
+    KinaseLibraryResidueClass,
+)
+from phospy.references.acquisition import ReferenceSourceTableReader
 
 
 def test_kinase_library_loader_loads_ser_thr_matrix(tmp_path: Path) -> None:

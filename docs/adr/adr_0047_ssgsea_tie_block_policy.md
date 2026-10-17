@@ -17,7 +17,7 @@ activity scores and seeded empirical p-values depend on arbitrary row order when
 a tie block crossed kinase substrate membership.
 
 This responsibility belongs inside
-`phospy.science.activities.methods.ssgsea_substrate_enrichment`. Dataset
+`phospy.kinase.activity.methods.ssgsea_substrate_enrichment`. Dataset
 construction, workflow interpretation, reference projection, and callers must
 not pre-sort rows to make ssGSEA results deterministic.
 
@@ -77,11 +77,11 @@ Negative consequences:
 ## Implementation Notes
 
 - Method implementation:
-  `src/phospy/science/activities/methods/ssgsea_substrate_enrichment.py`
+  `src/phospy/kinase/activity/methods/ssgsea_substrate_enrichment.py`
 - Policy provenance:
-  `src/phospy/science/activities/scientific_policies.py`
+  `src/phospy/kinase/activity/policies.py`
 - Method quantitative contract:
-  `src/phospy/science/activities/method_contracts.py`
+  `src/phospy/kinase/activity/contracts.py`
 
 ## Related Records
 

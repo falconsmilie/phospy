@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -26,17 +26,15 @@ from phospy.advanced.configs import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.api.requests import (
+from phospy.api import (
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinaseWorkflowResult
-from phospy.contracts.configs import (
-    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
-    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
-)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.validation.request import DatasetBuildRequestValidator
 from phospy.errors import (
     ContractValidationError,
     PhosPyInputError,
@@ -46,17 +44,23 @@ from phospy.errors import (
     WorkflowValidationError,
 )
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.science.transformations.models import QuantitativeMeaning
-from phospy.validation.datasets.builder_request import DatasetBuildRequestValidator
-from phospy.validation.datasets.preprocessing import (
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.public import KinaseWorkflow
+from phospy.kinase.scoring.config import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+)
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.preprocessing.contracts.configuration import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+)
+from phospy.preprocessing.validation.configuration import (
     DatasetPreprocessingConfigValidator,
 )
-from phospy.workflows.kinase.public import KinaseWorkflow
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.quantitative.models import QuantitativeMeaning
+from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.signalome.validator import SignalomeWorkflowValidator
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -1590,7 +1594,7 @@ def test_signalome_validator_accepts_complete_signalome_grouping_metadata() -> N
     validated = SignalomeWorkflowValidator().run(request)
 
     assert validated.request is request
-    assert validated.kinase_result.dataset.site_metadata.loc[
+    assert validated.request.kinase_result.dataset.site_metadata.loc[
         :, "protein_id"
     ].tolist() == ["MAPK14"]
 
@@ -2001,11 +2005,11 @@ def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> N
     validated = SignalomeWorkflowValidator().run(request)
     assert validated.request is request
     assert (
-        validated.kinase_result.dataset._borrow_phospho_frame().index.tolist()
+        validated.request.kinase_result.dataset._borrow_phospho_frame().index.tolist()
         == site_ids.tolist()
     )
     assert (
-        validated.kinase_result.dataset._borrow_site_metadata_frame().index.tolist()
+        validated.request.kinase_result.dataset._borrow_site_metadata_frame().index.tolist()
         == site_ids.tolist()
     )
 
@@ -2026,7 +2030,7 @@ def test_signalome_validator_does_not_cast_numeric_matrices(
     assert validated.request is request
 
 
-def test_signalome_validator_uses_internal_borrowed_dataframe_access(
+def test_signalome_validator_uses_public_kinase_accessors_once_and_internal_dataset_view(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     request = SignalomeWorkflowRequest(
@@ -2050,24 +2054,44 @@ def test_signalome_validator_uses_internal_borrowed_dataframe_access(
         "site_metadata",
         _blocked_property("dataset.site_metadata"),
     )
+
+    prediction_getter = KinasePredictionResult.pred_mat.fget
+    score_getter = KinaseScoringResult.authoritative_scores.fget
+    assert prediction_getter is not None
+    assert score_getter is not None
+    calls = {"prediction": 0, "score": 0}
+    exported: dict[str, pd.DataFrame] = {}
+
+    def _counted_prediction_getter(
+        result: KinasePredictionResult,
+    ) -> pd.DataFrame:
+        calls["prediction"] += 1
+        frame = prediction_getter(result)
+        exported["prediction"] = frame
+        return frame
+
+    def _counted_score_getter(result: KinaseScoringResult) -> pd.DataFrame:
+        calls["score"] += 1
+        frame = score_getter(result)
+        exported["score"] = frame
+        return frame
+
     monkeypatch.setattr(
         KinasePredictionResult,
         "pred_mat",
-        _blocked_property("prediction_result.pred_mat"),
+        property(_counted_prediction_getter),
     )
     monkeypatch.setattr(
         KinaseScoringResult,
-        "profile_scores",
-        _blocked_property("scoring_result.profile_scores"),
-    )
-    monkeypatch.setattr(
-        KinaseScoringResult,
-        "rank_weighted_fusion_scores",
-        _blocked_property("scoring_result.rank_weighted_fusion_scores"),
+        "authoritative_scores",
+        property(_counted_score_getter),
     )
 
     validated = SignalomeWorkflowValidator().run(request)
     assert validated.request is request
+    assert calls == {"prediction": 1, "score": 1}
+    assert validated.prediction_matrix is exported["prediction"]
+    assert validated.authoritative_score_matrix is exported["score"]
 
 
 def test_signalome_validator_allows_prediction_matrix_missingness() -> None:

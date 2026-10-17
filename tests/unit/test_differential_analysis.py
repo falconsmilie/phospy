@@ -25,60 +25,68 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import (
+from phospy.datasets.construction.intensity_scale import (
+    DatasetIntensityScaleResolver,
+)
+from phospy.datasets.construction.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.models.design import (
+    ContrastMatrix,
+    DesignMatrix,
+)
+from phospy.differential.models.design import (
+    DifferentialAnalysisRequest as DifferentialComputationRequest,
+)
+from phospy.differential.moderation.config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES,
+)
+from phospy.differential.planning.interpreter import DifferentialAnalysisInterpreter
+from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
 )
+from phospy.differential.results import (
+    DifferentialAnalysisResult,
+)
+from phospy.differential.tables import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+)
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.errors import (
     ContractValidationError,
     PhosPyInputError,
     WorkflowValidationError,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.datasets.builders.preprocessing import (
-    build_dataset_processing_state,
-)
-from phospy.science.datasets.builders.transformation_resolver import (
-    DatasetIntensityScaleResolver,
-)
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.differential.models import (
-    DIFFERENTIAL_RESULT_STATUS_COLUMN,
-    DIFFERENTIAL_RESULT_STATUS_TESTED,
-    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
-    EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
-    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
-    SUPPORTED_EMPIRICAL_BAYES_TREND_COVARIATES,
     SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
-    ContrastMatrix,
-    DesignMatrix,
-    DifferentialAnalysisResult,
 )
-from phospy.science.differential.models import (
-    DifferentialAnalysisRequest as DifferentialComputationRequest,
-)
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
-from phospy.science.statistics.multiple_testing import adjust_p_values
-from phospy.science.transformations.models import (
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.quantitative.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentSource,
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.science.transformations.transformers import (
+from phospy.quantitative.transformers import (
     IdentityTransformer,
     Log2Transformer,
 )
-from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from phospy.statistics.multiple_testing import adjust_p_values
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

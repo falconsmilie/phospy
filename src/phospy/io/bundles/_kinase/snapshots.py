@@ -6,7 +6,16 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
-from phospy.contracts.configs import (
+from phospy.errors.input import PhosPyInputError
+from phospy.evidence.config import LocalisationRequirement
+from phospy.io.bundles._shared.primitives import (
+    require_bool,
+    require_float,
+    require_int,
+    require_mapping,
+    require_str,
+)
+from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_KSEA_P_VALUE_METHODS,
     KINASE_ACTIVITY_METHODS,
     KINASE_ACTIVITY_SSGSEA_DEFAULT_ADJUST_P_VALUES,
@@ -15,43 +24,38 @@ from phospy.contracts.configs import (
     KINASE_ACTIVITY_SSGSEA_DEFAULT_RANDOM_SEED,
     KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_DESCENDING,
     KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS,
+    KinaseActivityConfig,
+    KinaseActivityMethod,
+    KinaseActivityPValueMethod,
+    KinaseActivitySsgseaRankingDirection,
+)
+from phospy.kinase.prediction.config import (
     KINASE_ADAPTIVE_POLICIES,
-    KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES,
     KINASE_PREDICTION_MODES,
+    KinaseAdaptivePolicy,
+    KinasePredictionConfig,
+    KinasePredictionMode,
+)
+from phospy.kinase.scoring.config import (
+    KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_PROFILE_SELF_INCLUSION_POLICIES,
     KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW,
     KINASE_RELIABILITY_PROFILES,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES,
-    KinaseActivityConfig,
-    KinaseActivityMethod,
-    KinaseActivityPValueMethod,
-    KinaseActivitySsgseaRankingDirection,
-    KinaseAdaptivePolicy,
     KinaseAttritionPolicy,
     KinaseAttritionViolationMode,
-    KinasePredictionConfig,
-    KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
     KinaseReliabilityProfile,
     KinaseScoringConfig,
     KinaseScoringMode,
-    LocalisationRequirement,
-    ProfileSelfInclusionPolicy,
-    ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._shared.primitives import (
-    require_bool,
-    require_float,
-    require_int,
-    require_mapping,
-    require_str,
-)
+from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
+from phospy.references.config import ReferenceContextCompatibilityPolicy
 
 if TYPE_CHECKING:
-    from phospy.contracts.requests import KinaseWorkflowRequest
+    from phospy.kinase.requests import KinaseWorkflowRequest
 
 _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
     {
@@ -161,7 +165,7 @@ class KinaseWorkflowConfigSnapshot:
     ) -> KinaseWorkflowConfigSnapshot:
         """Create a config snapshot from a workflow request."""
 
-        from phospy.contracts.requests import KinaseWorkflowRequest
+        from phospy.kinase.requests import KinaseWorkflowRequest
 
         if not isinstance(request, KinaseWorkflowRequest):
             raise PhosPyInputError(

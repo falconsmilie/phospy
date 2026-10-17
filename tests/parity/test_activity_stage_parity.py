@@ -4,8 +4,8 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.science.activities.scoring import compute_activity_from_inputs
-from phospy.validation.workflows.activity import KinaseActivityInputValidator
+from phospy.kinase.activity.execution import compute_activity_from_inputs
+from phospy.kinase.activity.validation import KinaseActivityInputValidator
 from tests.support.parity_reporting import (
     format_shape,
     record_parity_metrics,

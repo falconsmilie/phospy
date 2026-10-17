@@ -16,7 +16,7 @@ from phospy.advanced import (
     SpsDiscoveryWorkflow,
     SpsReferenceDataset,
 )
-from phospy.science.batch_correction import (
+from phospy.preprocessing.batch_correction.execution import (
     RuvIIIReplicateStructure,
     run_ruv_iii,
 )

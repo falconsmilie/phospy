@@ -18,11 +18,9 @@ ENRICHMENT_API = ROOT / "docs" / "api" / "enrichment.md"
 DATASET_BUILD_API = ROOT / "docs" / "api" / "dataset-build-workflow.md"
 CHANGELOG = ROOT / "CHANGELOG.md"
 
-DIFFERENTIAL_CAVEATS = (
-    ROOT / "src" / "phospy" / "workflows" / "differential" / "caveats.py"
-)
-KINASE_CAVEATS = ROOT / "src" / "phospy" / "workflows" / "kinase" / "caveats.py"
-ENRICHMENT_CAVEATS = ROOT / "src" / "phospy" / "workflows" / "enrichment" / "caveats.py"
+DIFFERENTIAL_CAVEATS = ROOT / "src" / "phospy" / "differential" / "caveats.py"
+KINASE_CAVEATS = ROOT / "src" / "phospy" / "kinase" / "caveats.py"
+ENRICHMENT_CAVEATS = ROOT / "src" / "phospy" / "enrichment" / "caveats.py"
 
 
 def _read(path: Path) -> str:

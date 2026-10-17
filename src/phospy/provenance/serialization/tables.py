@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.provenance.models import TableFingerprint
+from phospy.provenance.models import (
+    TableFingerprint,
+)
 from phospy.provenance.serialization._payload import (
     optional_mapping,
     optional_str,

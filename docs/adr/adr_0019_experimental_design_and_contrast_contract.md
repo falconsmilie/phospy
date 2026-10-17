@@ -172,20 +172,19 @@ condition number, and maximum admissible condition number.
   `src/phospy/api/requests.py` and
   `src/phospy/api/configs/differential.py`.
 - Technical replicate policy enum:
-  `src/phospy/science/differential/policy_models.py`.
+  `src/phospy/differential/policies.py`.
 - Differential structured policy provenance model:
-  `src/phospy/science/differential/models/provenance.py`.
+  `src/phospy/differential/provenance/models.py`.
 - Planner, aggregator, and compatibility-resolver behavior:
-  `src/phospy/workflows/differential/replicates.py`.
+  `src/phospy/differential/planning/replicates.py`.
 - Derived quantitative dataset and lineage models:
-  `src/phospy/science/datasets/derived_quantitative.py` and
-  `src/phospy/provenance/derived_quantitative.py`.
+  `src/phospy/datasets/derived_quantitative.py`.
 - Differential request validation pipeline:
-  `src/phospy/workflows/differential/validator.py`.
+  `src/phospy/differential/validation/workflow.py`.
 - Differential provenance construction:
-  `src/phospy/workflows/differential/provenance.py`.
+  `src/phospy/differential/provenance/assembly.py`.
 - Differential numerical linear-model decomposition:
-  `src/phospy/science/differential/linear_model.py`.
+  `src/phospy/differential/execution/linear_model.py`.
 - Ownership registry alignment:
   `docs/validation-ownership.md` (Design matrix validity, Contrast validity,
   Replicate policy).

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.validation.datasets.importers import normalise_sample_column_mapping
+from phospy.io.importers.validation import normalise_sample_column_mapping
 
 _MULTI_VALUE_SPLIT_PATTERN = re.compile(r"\s*[,;]\s*")
 

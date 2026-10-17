@@ -3,22 +3,22 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors.input import UnsupportedInputFormatError
-from phospy.science.datasets.builders.normalization_reporter import (
+from phospy.datasets.construction.normalization_reporting import (
     DatasetConventionNormalisationReporter,
 )
-from phospy.science.datasets.builders.sample_metadata_normalizer import (
+from phospy.datasets.construction.sample_metadata import (
     SampleMetadataNormalizer,
 )
-from phospy.science.datasets.builders.site_metadata_normalizer import (
+from phospy.datasets.construction.site_metadata import (
     SiteIdentityFieldNormalizer,
     SiteMetadataColumnAliasResolver,
     SiteMetadataIndexNormalizer,
     SiteMetadataNormalizer,
 )
-from phospy.science.datasets.builders.total_matrix_normalizer import (
+from phospy.datasets.construction.total_matrix import (
     TotalProteinMatrixNormalizer,
 )
+from phospy.errors.input import UnsupportedInputFormatError
 
 
 def test_site_metadata_column_alias_resolver_maps_supported_aliases() -> None:

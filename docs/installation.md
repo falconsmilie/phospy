@@ -16,8 +16,10 @@ pip install "phospy[parquet]"
 
 Confirm the installation:
 
-```bash
-python -c "import phospy; print(phospy.__version__)"
+```python
+import phospy
+
+print(phospy.__version__)
 ```
 
 ## Install for Development

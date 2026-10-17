@@ -6,8 +6,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = PROJECT_ROOT / "src" / "phospy"
 _BUILDER_OUTPUT_ALLOWED_PATHS = {
-    Path("science/datasets/builders/executor.py"),
-    Path("science/datasets/models.py"),
+    Path("datasets/construction/executor.py"),
+    Path("datasets/models.py"),
 }
 
 

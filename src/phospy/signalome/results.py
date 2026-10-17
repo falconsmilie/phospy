@@ -1,0 +1,568 @@
+"""Public signalome workflow result contracts."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import pandas as pd
+
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.errors.validation import ContractValidationError, PhosPyValidationError
+from phospy.frames.comparison import optional_dataframe_equals
+from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.provenance.result_caveats import ResultCaveat, validate_result_caveats
+from phospy.run_lineage.models import (
+    RunProvenance,
+)
+from phospy.signalome.constants import (
+    DISPLAY_ID_COLUMN,
+    EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+    EXPANDED_SIGNALOME_ROW_KIND_SITE,
+    SITE_KEY_COLUMN,
+)
+from phospy.signalome.models import (
+    KinaseNetwork,
+    SignalomeAlignmentDiagnostics,
+    SignalomeAssignments,
+    SignalomeClusteringPreparationDiagnostics,
+    SignalomeModules,
+    SignalomeModuleSelectionDiagnostics,
+    SignalomeScorePreconditioningDiagnostics,
+    default_signalome_alignment_diagnostics,
+    default_signalome_clustering_preparation_diagnostics,
+    default_signalome_module_selection_diagnostics,
+    default_signalome_score_preconditioning_diagnostics,
+)
+from phospy.signalome.tables import (
+    SignalomeProteinSiteContext,
+    SignalomeSiteContext,
+)
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False)
+class SignalomeWorkflowResult:
+    """Top-level public signalome workflow result.
+
+    This is a workflow-owned result object. Direct construction is supported for
+    bundle reconstruction and tests, but the signalome workflow is the
+    recommended public construction path for scientific coherence across module
+    assignment, module summary, kinase-network, and context sidecars.
+
+    `expanded_signalome` is a flattened optional DataFrame contract populated by
+    the supported signalome executor lane. It includes focal-kinase rows with
+    linked-kinase metadata, regulated module IDs, and selected site-membership
+    rows with stable `site_order`. `score_preconditioning_diagnostics` reports
+    downstream-score row preconditioning counts and the active
+    `SignalomeConfig.validation.score_preconditioning_policy`.
+    `site_membership` and
+    `protein_site_context` provide optional signalome provenance sidecars for
+    site-level and protein-level phosphosite context.
+
+    Python equality and hashing are identity-based. Use
+    :meth:`scientifically_equals` for explicit workflow-result content
+    comparison.
+
+    Provenance in this object describes owned internal state at creation time.
+    Public export helpers return defensive snapshots; mutating exported
+    DataFrames does not mutate this owning result. Constructor validation is
+    intentionally limited to ownership, provenance type, and local public table
+    shape contracts. It does not run clustering, mapping, scoring, reference
+    resolution, dataset identity validation, dataset repair, file export,
+    plotting, or report formatting.
+    """
+
+    __hash__ = object.__hash__
+
+    dataset: AnalysisReadyPhosphoDataset
+    kinase_result: KinaseWorkflowResult
+    module_assignments: SignalomeAssignments
+    signalome_modules: SignalomeModules
+    kinase_network: KinaseNetwork
+    module_selection_diagnostics: SignalomeModuleSelectionDiagnostics = field(
+        default_factory=default_signalome_module_selection_diagnostics
+    )
+    clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics = (
+        field(default_factory=default_signalome_clustering_preparation_diagnostics)
+    )
+    score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
+        default_factory=default_signalome_score_preconditioning_diagnostics
+    )
+    alignment_diagnostics: SignalomeAlignmentDiagnostics = field(
+        default_factory=default_signalome_alignment_diagnostics
+    )
+    provenance: RunProvenance | None = None
+    caveats: tuple[ResultCaveat, ...] = ()
+    _expanded_signalome: pd.DataFrame | None = field(init=False, repr=False)
+    _site_membership: pd.DataFrame | None = field(init=False, repr=False)
+    _protein_site_context: pd.DataFrame | None = field(init=False, repr=False)
+    _init_payload: (
+        tuple[pd.DataFrame | None, pd.DataFrame | None, pd.DataFrame | None, bool]
+        | None
+    ) = field(init=False, repr=False, default=None)
+
+    def __init__(
+        self,
+        dataset: AnalysisReadyPhosphoDataset,
+        kinase_result: KinaseWorkflowResult,
+        module_assignments: SignalomeAssignments,
+        signalome_modules: SignalomeModules,
+        kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
+        expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+    ) -> None:
+        self._init_signalome_workflow_result(
+            dataset=dataset,
+            kinase_result=kinase_result,
+            module_assignments=module_assignments,
+            signalome_modules=signalome_modules,
+            kinase_network=kinase_network,
+            module_selection_diagnostics=module_selection_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
+            score_preconditioning_diagnostics=score_preconditioning_diagnostics,
+            alignment_diagnostics=alignment_diagnostics,
+            expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
+            provenance=provenance,
+            caveats=caveats,
+            assume_owned=False,
+        )
+
+    def _init_signalome_workflow_result(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        kinase_result: KinaseWorkflowResult,
+        module_assignments: SignalomeAssignments,
+        signalome_modules: SignalomeModules,
+        kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
+        expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+        assume_owned: bool,
+    ) -> None:
+        object.__setattr__(self, "dataset", dataset)
+        object.__setattr__(self, "kinase_result", kinase_result)
+        object.__setattr__(self, "module_assignments", module_assignments)
+        object.__setattr__(self, "signalome_modules", signalome_modules)
+        object.__setattr__(self, "kinase_network", kinase_network)
+        object.__setattr__(
+            self,
+            "module_selection_diagnostics",
+            (
+                default_signalome_module_selection_diagnostics()
+                if module_selection_diagnostics is None
+                else module_selection_diagnostics
+            ),
+        )
+        object.__setattr__(
+            self,
+            "clustering_preparation_diagnostics",
+            (
+                default_signalome_clustering_preparation_diagnostics()
+                if clustering_preparation_diagnostics is None
+                else clustering_preparation_diagnostics
+            ),
+        )
+        object.__setattr__(
+            self,
+            "score_preconditioning_diagnostics",
+            (
+                default_signalome_score_preconditioning_diagnostics()
+                if score_preconditioning_diagnostics is None
+                else score_preconditioning_diagnostics
+            ),
+        )
+        object.__setattr__(
+            self,
+            "alignment_diagnostics",
+            (
+                default_signalome_alignment_diagnostics()
+                if alignment_diagnostics is None
+                else alignment_diagnostics
+            ),
+        )
+        object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(
+            self,
+            "caveats",
+            validate_result_caveats(
+                caveats,
+                field_name="signalome_result.caveats",
+                error_type=ContractValidationError,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_init_payload",
+            (
+                expanded_signalome,
+                site_membership,
+                protein_site_context,
+                assume_owned,
+            ),
+        )
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        payload = self._init_payload
+        if payload is None:
+            raise ContractValidationError(
+                "signalome_result internal initialization payload missing"
+            )
+        _require_instance(
+            self.dataset,
+            AnalysisReadyPhosphoDataset,
+            field_name="signalome_result.dataset",
+        )
+        _require_instance(
+            self.kinase_result,
+            KinaseWorkflowResult,
+            field_name="signalome_result.kinase_result",
+        )
+        _require_instance(
+            self.module_assignments,
+            SignalomeAssignments,
+            field_name="signalome_result.module_assignments",
+        )
+        _require_instance(
+            self.signalome_modules,
+            SignalomeModules,
+            field_name="signalome_result.signalome_modules",
+        )
+        _require_instance(
+            self.kinase_network,
+            KinaseNetwork,
+            field_name="signalome_result.kinase_network",
+        )
+        _require_instance(
+            self.module_selection_diagnostics,
+            SignalomeModuleSelectionDiagnostics,
+            field_name="signalome_result.module_selection_diagnostics",
+        )
+        _require_instance(
+            self.clustering_preparation_diagnostics,
+            SignalomeClusteringPreparationDiagnostics,
+            field_name="signalome_result.clustering_preparation_diagnostics",
+        )
+        _require_instance(
+            self.score_preconditioning_diagnostics,
+            SignalomeScorePreconditioningDiagnostics,
+            field_name="signalome_result.score_preconditioning_diagnostics",
+        )
+        _require_instance(
+            self.alignment_diagnostics,
+            SignalomeAlignmentDiagnostics,
+            field_name="signalome_result.alignment_diagnostics",
+        )
+        expanded_signalome, site_membership, protein_site_context, assume_owned = (
+            payload
+        )
+        expanded_signalome = own_optional_dataframe(
+            expanded_signalome,
+            field_name="signalome_result.expanded_signalome",
+            error_type=ContractValidationError,
+            assume_owned=assume_owned,
+        )
+        site_membership = own_optional_dataframe(
+            site_membership,
+            field_name="signalome_result.site_membership",
+            error_type=ContractValidationError,
+            assume_owned=assume_owned,
+        )
+        protein_site_context = own_optional_dataframe(
+            protein_site_context,
+            field_name="signalome_result.protein_site_context",
+            error_type=ContractValidationError,
+            assume_owned=assume_owned,
+        )
+        _validate_expanded_signalome_shape(expanded_signalome)
+        if site_membership is not None:
+            try:
+                site_membership = SignalomeSiteContext(
+                    frame=site_membership,
+                    _assume_owned=True,
+                ).frame
+            except PhosPyValidationError as exc:
+                raise ContractValidationError(str(exc)) from exc
+        if protein_site_context is not None:
+            try:
+                protein_site_context = SignalomeProteinSiteContext(
+                    frame=protein_site_context,
+                    _assume_owned=True,
+                ).frame
+            except PhosPyValidationError as exc:
+                raise ContractValidationError(str(exc)) from exc
+        provenance = _validate_optional_run_provenance(
+            self.provenance,
+            field_name="signalome_result.provenance",
+        )
+        object.__setattr__(self, "_expanded_signalome", expanded_signalome)
+        object.__setattr__(self, "_site_membership", site_membership)
+        object.__setattr__(self, "_protein_site_context", protein_site_context)
+        object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(self, "_init_payload", None)
+
+    @property
+    def expanded_signalome(self) -> pd.DataFrame | None:
+        """Return an expanded-signalome snapshot when available."""
+
+        return export_optional_dataframe(self._expanded_signalome)
+
+    @property
+    def site_membership(self) -> pd.DataFrame | None:
+        """Return a site-membership snapshot when available."""
+
+        return export_optional_dataframe(self._site_membership)
+
+    @property
+    def protein_site_context(self) -> pd.DataFrame | None:
+        """Return a protein-site context snapshot when available."""
+
+        return export_optional_dataframe(self._protein_site_context)
+
+    @property
+    def input_dataset_preprocessing_report(self) -> DatasetPreprocessingReport | None:
+        """Return preprocessing provenance of the input analysis-ready dataset."""
+
+        return self.dataset.preprocessing_report
+
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        kinase_result: KinaseWorkflowResult,
+        module_assignments: SignalomeAssignments,
+        signalome_modules: SignalomeModules,
+        kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
+        expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+    ) -> SignalomeWorkflowResult:
+        result = object.__new__(cls)
+        SignalomeWorkflowResult._init_signalome_workflow_result(
+            result,
+            dataset=dataset,
+            kinase_result=kinase_result,
+            module_assignments=module_assignments,
+            signalome_modules=signalome_modules,
+            kinase_network=kinase_network,
+            module_selection_diagnostics=module_selection_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
+            score_preconditioning_diagnostics=score_preconditioning_diagnostics,
+            alignment_diagnostics=alignment_diagnostics,
+            expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
+            provenance=provenance,
+            caveats=caveats,
+            assume_owned=True,
+        )
+        return result
+
+    @classmethod
+    def from_trusted_owned(
+        cls,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        kinase_result: KinaseWorkflowResult,
+        module_assignments: SignalomeAssignments,
+        signalome_modules: SignalomeModules,
+        kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        clustering_preparation_diagnostics: SignalomeClusteringPreparationDiagnostics
+        | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
+        expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
+    ) -> SignalomeWorkflowResult:
+        """Construct from already-owned tables at trusted workflow boundaries."""
+
+        return cls._from_owned(
+            dataset=dataset,
+            kinase_result=kinase_result,
+            module_assignments=module_assignments,
+            signalome_modules=signalome_modules,
+            kinase_network=kinase_network,
+            module_selection_diagnostics=module_selection_diagnostics,
+            clustering_preparation_diagnostics=clustering_preparation_diagnostics,
+            score_preconditioning_diagnostics=score_preconditioning_diagnostics,
+            alignment_diagnostics=alignment_diagnostics,
+            expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
+            provenance=provenance,
+            caveats=caveats,
+        )
+
+    def to_dataframe(self) -> pd.DataFrame | None:
+        """Return an expanded-signalome snapshot, not an export."""
+
+        return export_optional_dataframe(self._expanded_signalome)
+
+    def site_membership_dataframe(self) -> pd.DataFrame | None:
+        """Return a site-membership snapshot, not an export."""
+
+        return export_optional_dataframe(self._site_membership)
+
+    def protein_site_context_dataframe(self) -> pd.DataFrame | None:
+        """Return a protein-site context snapshot, not an export."""
+
+        return export_optional_dataframe(self._protein_site_context)
+
+    def scientifically_equals(
+        self,
+        other: object,
+        *,
+        include_provenance: bool = True,
+    ) -> bool:
+        """Return ``True`` when another signalome result has the same content."""
+
+        if not isinstance(other, SignalomeWorkflowResult):
+            return False
+        same_content = (
+            self.dataset.scientifically_equals(
+                other.dataset,
+                include_provenance=include_provenance,
+            )
+            and self.kinase_result.scientifically_equals(
+                other.kinase_result,
+                include_provenance=include_provenance,
+            )
+            and self.module_assignments.scientifically_equals(other.module_assignments)
+            and self.signalome_modules.scientifically_equals(other.signalome_modules)
+            and self.kinase_network.scientifically_equals(other.kinase_network)
+            and self.module_selection_diagnostics == other.module_selection_diagnostics
+            and self.clustering_preparation_diagnostics
+            == other.clustering_preparation_diagnostics
+            and self.score_preconditioning_diagnostics
+            == other.score_preconditioning_diagnostics
+            and self.alignment_diagnostics == other.alignment_diagnostics
+            and self.caveats == other.caveats
+            and optional_dataframe_equals(
+                self._expanded_signalome,
+                other._expanded_signalome,
+            )
+            and optional_dataframe_equals(
+                self._site_membership,
+                other._site_membership,
+            )
+            and optional_dataframe_equals(
+                self._protein_site_context,
+                other._protein_site_context,
+            )
+        )
+        if not same_content:
+            return False
+        if include_provenance:
+            return self.provenance == other.provenance
+        return True
+
+
+def _validate_expanded_signalome_shape(
+    expanded_signalome: pd.DataFrame | None,
+) -> None:
+    missing = [
+        column
+        for column in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN)
+        if expanded_signalome is not None and column not in expanded_signalome.columns
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise ContractValidationError(
+            f"signalome_result.expanded_signalome is missing required columns: {joined}"
+        )
+    if expanded_signalome is None or expanded_signalome.empty:
+        return
+
+    site_rows = expanded_signalome
+    if EXPANDED_SIGNALOME_ROW_KIND_COLUMN in expanded_signalome.columns:
+        site_rows = expanded_signalome.loc[
+            expanded_signalome.loc[:, EXPANDED_SIGNALOME_ROW_KIND_COLUMN].astype(str)
+            == EXPANDED_SIGNALOME_ROW_KIND_SITE,
+            :,
+        ]
+    _validate_non_empty_site_identity_columns(
+        site_rows,
+        field_name="signalome_result.expanded_signalome",
+    )
+
+
+def _validate_non_empty_site_identity_columns(
+    table: pd.DataFrame,
+    *,
+    field_name: str,
+) -> None:
+    if table.empty:
+        return
+    for column_name in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN):
+        invalid_count = int(
+            sum(
+                1
+                for value in table.loc[:, column_name].tolist()
+                if not isinstance(value, str) or value.strip() == ""
+            )
+        )
+        if invalid_count:
+            raise ContractValidationError(
+                f"{field_name} site rows require non-empty "
+                f"{column_name} values; invalid_count={invalid_count}"
+            )
+
+
+def _require_instance(
+    value: object,
+    expected_type: type[object],
+    *,
+    field_name: str,
+) -> None:
+    if not isinstance(value, expected_type):
+        raise ContractValidationError(f"{field_name} must be {expected_type.__name__}")
+
+
+def _validate_optional_run_provenance(
+    value: object | None,
+    *,
+    field_name: str,
+) -> RunProvenance | None:
+    if value is None or isinstance(value, RunProvenance):
+        return value
+    raise ContractValidationError(f"{field_name} must be RunProvenance or None")
+
+
+__all__ = [
+    "SignalomeWorkflowResult",
+]

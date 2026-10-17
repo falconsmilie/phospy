@@ -12,7 +12,7 @@ from phospy.advanced import (
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.api import DatasetPreprocessingConfig, PhosPyInputError
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
 )

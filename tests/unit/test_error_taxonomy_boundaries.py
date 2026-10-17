@@ -6,23 +6,21 @@ import pytest
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
 from phospy.api import (
     DatasetBuildRequest,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     ReferencePreset,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
-)
 from phospy.errors import (
     PhosPyInputError,
     ReferenceValidationError,
-    SignalomeScaleError,
     WorkflowValidationError,
 )
+from phospy.signalome.errors import SignalomeScaleError
 from tests.support.signalome_config import build_signalome_config
 
 

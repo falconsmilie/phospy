@@ -11,7 +11,7 @@ from phospy.api import (
     ExperimentalDesign,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import (
+from phospy.differential.policies import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,

@@ -6,7 +6,7 @@ import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import Organism
-from phospy.api.requests import (
+from phospy.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_SPLIT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )

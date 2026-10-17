@@ -8,16 +8,9 @@ import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest, Organism, PhosPyInputError
-from phospy.api.requests import (
-    DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
-    DATASET_MULTI_SITE_POLICY_REJECT,
-    DATASET_MULTI_SITE_POLICY_SPLIT,
-    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
-)
-from phospy.provenance.serialization import from_payload
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.evidence import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.validation.request import DatasetBuildRequestValidator
+from phospy.evidence import (
     DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH,
     DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE,
     DATASET_PEPTIDE_DUPLICATE_EVIDENCE_POLICY_RETAIN_DUPLICATE_ROWS,
@@ -49,11 +42,18 @@ from phospy.science.evidence import (
     PeptideEvidenceTable,
     build_multi_site_handling_config_for_dataset_policy,
 )
-from phospy.science.evidence.dataset_resolution import (
+from phospy.evidence.dataset_resolution import (
     _single_non_empty_string_or_error,
 )
-from phospy.science.sites.site_keys import decode_site_key
-from phospy.validation.datasets.builder_request import DatasetBuildRequestValidator
+from phospy.evidence.dataset_resolution.models import (
+    DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
+    DATASET_MULTI_SITE_POLICY_REJECT,
+    DATASET_MULTI_SITE_POLICY_SPLIT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+)
+from phospy.phosphosites.site_keys import decode_site_key
+from phospy.run_lineage.serialization import from_payload
 
 
 def _site_key_for_display_id(

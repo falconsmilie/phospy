@@ -7,6 +7,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.activities.contracts import (
+    MethodQuantitativeInputContract,
+    method_contracts_to_markdown_table,
+)
+from phospy.activities.semantics import (
+    ActivityInputMatrix,
+    ActivityProfileAxis,
+    ActivityQuantitativeSemantics,
+)
+from phospy.activities.validation import (
+    MethodQuantitativeInputValidator,
+)
 from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -19,54 +31,46 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+)
+from phospy.kinase.activity.contracts import (
+    all_kinase_activity_method_quantitative_contracts,
+    kinase_activity_method_quantitative_input_contract,
+)
+from phospy.kinase.activity.inputs import (
+    KinaseActivityInputs,
+    PredMatOverlapSummary,
+)
+from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
+    SsgseaSubstrateEnrichmentActivityMethod,
+)
+from phospy.kinase.activity.methods.weighted_substrate_activity import (
+    SimplifiedWeightedSubstrateActivityMethod,
+)
+from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
 )
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
-from phospy.science.activities.method_contracts import (
-    all_kinase_activity_method_quantitative_contracts,
-    kinase_activity_method_quantitative_input_contract,
-)
-from phospy.science.activities.methods import (
-    SimplifiedWeightedSubstrateActivityMethod,
-    SsgseaSubstrateEnrichmentActivityMethod,
-)
-from phospy.science.activities.models import (
-    KinaseActivityInputs,
-    PredMatOverlapSummary,
-)
-from phospy.science.activities.semantics import (
-    ActivityInputMatrix,
-    ActivityProfileAxis,
-    ActivityQuantitativeSemantics,
-)
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.quantitative_method_contracts import (
-    MethodQuantitativeInputContract,
-    method_contracts_to_markdown_table,
-)
-from phospy.science.transformations.models import (
-    IntensityScaleKind,
-    QuantitativeMeaning,
-)
-from phospy.validation.workflows.method_quantitative import (
-    MethodQuantitativeInputValidator,
-)
-from phospy.workflows.kinase.science import (
-    build_kinase_profiles,
-    score_profile_correlations,
-)
-from phospy.workflows.kinase.scoring_mode_contracts import (
+from phospy.kinase.scoring.contracts import (
     all_kinase_scoring_method_quantitative_contracts,
     kinase_scoring_method_quantitative_input_contract,
 )
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from phospy.kinase.scoring.profile import (
+    build_kinase_profiles,
+    score_profile_correlations,
+)
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.quantitative.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -268,8 +272,10 @@ def test_activity_method_contract_validator_accepts_declared_inputs(
     dataset: Callable[[], AnalysisReadyPhosphoDataset],
     method: str,
 ) -> None:
+    candidate = dataset()
     resolved = MethodQuantitativeInputValidator().run(
-        dataset=dataset(),
+        intensity_scale_state=candidate.intensity_scale_state,
+        has_total_matrix=candidate._borrow_total_frame() is not None,
         contract=kinase_activity_method_quantitative_input_contract(method),
         context="test activity contract",
     )
@@ -307,9 +313,11 @@ def test_activity_method_contract_validator_rejects_invalid_scale_or_meaning(
     method: str,
     message: str,
 ) -> None:
+    candidate = dataset()
     with pytest.raises(WorkflowValidationError, match=message):
         MethodQuantitativeInputValidator().run(
-            dataset=dataset(),
+            intensity_scale_state=candidate.intensity_scale_state,
+            has_total_matrix=candidate._borrow_total_frame() is not None,
             contract=kinase_activity_method_quantitative_input_contract(method),
             context="test activity contract",
         )

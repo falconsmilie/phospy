@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import numpy as np
 
-from phospy.science.signalomes.clustering.candidate_scoring import (
+from phospy.signalome.clustering.candidate_scoring import (
     _ProfileDegeneracySummary,
 )
-from phospy.science.signalomes.clustering.candidate_selection import (
+from phospy.signalome.clustering.candidate_selection import (
     filter_cluster_candidates,
     select_best_candidate_count,
     select_threshold_candidate,
 )
-from phospy.science.signalomes.clustering.policies import (
+from phospy.signalome.clustering.policies import (
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_TREE_ENGINE_EXACT,
 )
-from phospy.science.signalomes.models import SignalomeClusterCandidateScore
+from phospy.signalome.models import SignalomeClusterCandidateScore
 
 
 def test_select_best_candidate_count_prefers_lower_count_on_tie() -> None:

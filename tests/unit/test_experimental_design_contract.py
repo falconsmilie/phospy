@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
@@ -14,13 +14,12 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
-from phospy.errors import ContractValidationError, WorkflowValidationError
-from phospy.science.design.matrix_builder import DesignMatrixBuilder
-from phospy.validation.workflows.differential import (
+from phospy.differential.design.matrix_builder import DesignMatrixBuilder
+from phospy.differential.policies import PAIRED_DESIGN_POLICY_FIXED_BLOCK
+from phospy.differential.validation.dataset import (
     ExperimentalDesignContractValidator,
 )
-from phospy.validation.workflows.differential_design_rules import (
+from phospy.differential.validation.design import (
     ContrastFrameBuilder,
     ExperimentalDesignConditionReplicateValidator,
     ExperimentalDesignContrastSetValidator,
@@ -30,6 +29,7 @@ from phospy.validation.workflows.differential_design_rules import (
     FixedBlockDesignValidator,
     ResolvedDifferentialDesignMatrixValidator,
 )
+from phospy.errors import ContractValidationError, WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

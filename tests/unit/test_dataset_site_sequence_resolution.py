@@ -5,23 +5,28 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import DatasetSiteSequenceResolutionConfig
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
+from phospy.advanced import (
+    DatasetSiteSequenceResolutionConfig,
 )
-from phospy.science.datasets.builders.preprocessing import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.datasets.preprocessing.policy_models import (
+from phospy.errors.input import PhosPyInputError
+from phospy.io.bundles._shared.processing_state import processing_state_to_payload
+from phospy.preparation_records.policies import (
     SiteSequenceConflictPolicy,
     SiteSequenceResolutionMode,
 )
-from phospy.science.datasets.preprocessing.site_sequence.reference_loader import (
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.preprocessing.sequence.reference import (
     SiteSequenceReferenceLoader,
+)
+from phospy.quantitative.serialization import (
+    intensity_scale_state_from_payload,
 )
 
 
@@ -413,6 +418,7 @@ def test_site_sequence_resolution_processing_state_populates_fasta_provenance(
     assert resolution.fasta_source_label == diagnostics.get("fasta_source_label")
     assert resolution.fasta_sha256 == diagnostics.get("fasta_sha256")
     assert resolution.resolver_version == diagnostics.get("resolver_version")
+    assert resolution.resolver_version == "phospy.science.sequences.resolver.v1"
     assert resolution.resolved_site_count == diagnostics.get("resolved_site_count")
     assert resolution.unresolved_site_count == diagnostics.get("unresolved_site_count")
     assert resolution.unresolved_counts_by_reason == diagnostics.get(
@@ -431,6 +437,37 @@ def test_site_sequence_resolution_processing_state_populates_fasta_provenance(
     assert resolution.conflict_policy == "replace_existing"
     assert len(resolution.row_diagnostics) == 2
     assert resolution.row_diagnostics[1].action == "replace_existing"
+    resolution_payload = processing_state_to_payload(processing_state)[
+        "site_sequence_resolution"
+    ]
+    assert isinstance(resolution_payload, dict)
+    assert tuple(resolution_payload) == (
+        "configured",
+        "mode",
+        "flank_size",
+        "fasta_source_path",
+        "fasta_source_label",
+        "fasta_sha256",
+        "resolver_version",
+        "resolved_site_count",
+        "unresolved_site_count",
+        "unresolved_counts_by_reason",
+        "filled_missing_count",
+        "replaced_existing_count",
+        "preserved_existing_count",
+        "existing_sequence_conflict_count",
+        "conflict_policy",
+        "row_diagnostics",
+    )
+    assert (
+        resolution_payload["resolver_version"] == "phospy.science.sequences.resolver.v1"
+    )
+    row_payloads = resolution_payload["row_diagnostics"]
+    assert isinstance(row_payloads, list)
+    assert all(
+        row["resolver_version"] == "phospy.science.sequences.resolver.v1"
+        for row in row_payloads
+    )
 
 
 def test_missing_reference_data_raises_input_error(tmp_path: Path) -> None:

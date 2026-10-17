@@ -6,10 +6,10 @@ import pandas as pd
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
+from phospy.activities.semantics import ActivityInputMatrix
 from phospy.advanced import (
     DatasetMissingDataConfig,
     KinaseActivityConfig,
@@ -19,8 +19,12 @@ from phospy.advanced import (
     SignalomeConfig,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
+    KinaseActivityResult,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
@@ -29,32 +33,26 @@ from phospy.api import (
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )
-from phospy.api.results import (
-    KinaseActivityResult,
-    KinasePredictionResult,
-    KinaseScoringResult,
-)
-from phospy.science.activities.semantics import ActivityInputMatrix
-from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.prediction.policies import resolve_prediction_sampling_policy
-from phospy.science.references.models import ReferenceContext
-from phospy.science.signalomes.models import (
-    KinaseNetwork,
-    SignalomeAssignments,
-    SignalomeModules,
-)
-from phospy.workflows.kinase.contracts import (
-    ResolvedKinaseActivityExecutionConfig,
+from phospy.datasets.construction.contracts import InterpretedDatasetBuildRequest
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
+from phospy.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.signalome.contracts import (
+from phospy.kinase.prediction.policies import resolve_prediction_sampling_policy
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.references.models import ReferenceContext
+from phospy.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
     ValidatedSignalomeWorkflowRequest,
+)
+from phospy.signalome.models import (
+    KinaseNetwork,
+    SignalomeAssignments,
+    SignalomeModules,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

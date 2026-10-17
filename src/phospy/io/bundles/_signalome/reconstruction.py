@@ -9,18 +9,10 @@ from typing import NoReturn, TypeGuard
 
 import pandas as pd
 
-from phospy.contracts.result_caveats import result_caveats_from_payloads
-from phospy.contracts.results import (
-    KinaseWorkflowAttritionProvenance,
-    KinaseWorkflowCaveat,
-    KinaseWorkflowResult,
-    SignalomeWorkflowResult,
-)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowStageError
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
-)
 from phospy.io.bundles._shared.organisms import (
     parse_optional_organism,
     parse_required_organism,
@@ -52,23 +44,30 @@ from phospy.io.bundles._signalome.tables import (
     migrate_signalome_protein_group_id_column,
     normalize_module_assignments_table,
 )
-from phospy.provenance.models import RunProvenance
-from phospy.provenance.serialization import from_payload as provenance_from_payload
-from phospy.science.activities.models import KinaseActivityResult
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.processing_state import DatasetProcessingState
-from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.science.references.models import ReferenceBundle
-from phospy.science.signalomes._result_validation import (
-    validate_signalome_result_site_level_identity,
+from phospy.kinase.activity.results import KinaseActivityResult
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.results import (
+    KinaseWorkflowAttritionProvenance,
+    KinaseWorkflowCaveat,
+    KinaseWorkflowResult,
 )
-from phospy.science.signalomes.constants import (
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.provenance.result_caveats import result_caveats_from_payloads
+from phospy.quantitative.models import IntensityScaleState
+from phospy.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+)
+from phospy.references.models import ReferenceBundle
+from phospy.run_lineage.models import (
+    RunProvenance,
+)
+from phospy.run_lineage.serialization import from_payload as provenance_from_payload
+from phospy.signalome.constants import (
     LEGACY_PROTEIN_GROUP_ID_COLUMN,
     PROTEIN_GROUP_ID_COLUMN,
 )
-from phospy.science.signalomes.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
-from phospy.science.signalomes.models import (
+from phospy.signalome.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
+from phospy.signalome.models import (
     KinaseNetwork,
     SignalomeAlignmentDiagnostics,
     SignalomeAssignments,
@@ -79,7 +78,10 @@ from phospy.science.signalomes.models import (
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_alignment_diagnostics,
 )
-from phospy.science.transformations.models import IntensityScaleState
+from phospy.signalome.result_validation import (
+    validate_signalome_result_site_level_identity,
+)
+from phospy.signalome.results import SignalomeWorkflowResult
 
 _LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR = (
     "Legacy signalome bundle schemas are no longer supported. Regenerate the bundle "
@@ -275,7 +277,7 @@ def reconstruct_signalome_result(
             module_assignments=result.module_assignments.table,
             expanded_signalome=result.expanded_signalome,
             site_membership=result.site_membership,
-            site_metadata=DatasetInternalView(dataset).site_metadata,
+            site_metadata=dataset.site_metadata,
         )
     except WorkflowStageError as exc:
         raise PhosPyInputError(

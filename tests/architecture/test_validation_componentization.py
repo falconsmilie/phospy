@@ -7,69 +7,40 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
 
 EXTRACTED_RULE_COMPONENTS = (
-    SRC_ROOT / "phospy" / "validation" / "workflows" / "differential_design_rules.py",
-    SRC_ROOT / "phospy" / "science" / "datasets" / "preprocessing" / "plan_rules.py",
-    SRC_ROOT
-    / "phospy"
-    / "science"
-    / "datasets"
-    / "preprocessing"
-    / "plan_stage_order.py",
-    SRC_ROOT
-    / "phospy"
-    / "science"
-    / "datasets"
-    / "preprocessing"
-    / "plan_config_resolution.py",
+    SRC_ROOT / "phospy" / "differential" / "validation" / "design.py",
+    SRC_ROOT / "phospy" / "preprocessing" / "planning" / "rules.py",
+    SRC_ROOT / "phospy" / "preprocessing" / "planning" / "ordering.py",
+    SRC_ROOT / "phospy" / "preprocessing" / "planning" / "configuration.py",
 )
 
 COMPLEXITY_BUDGETS = {
     (
-        SRC_ROOT / "phospy" / "validation" / "workflows" / "differential.py",
+        SRC_ROOT / "phospy" / "differential" / "validation" / "dataset.py",
         "ExperimentalDesignContractValidator",
         "run",
     ): 4,
     (
-        SRC_ROOT / "phospy" / "science" / "datasets" / "preprocessing" / "plan.py",
+        SRC_ROOT / "phospy" / "preprocessing" / "contracts" / "plan.py",
         "PreprocessingPlan",
         "__post_init__",
     ): 4,
     (
-        SRC_ROOT
-        / "phospy"
-        / "science"
-        / "datasets"
-        / "preprocessing"
-        / "plan_interpreter.py",
+        SRC_ROOT / "phospy" / "preprocessing" / "planning" / "boundary.py",
         "PreprocessingPlanInterpreter",
         "run",
     ): 4,
     (
-        SRC_ROOT
-        / "phospy"
-        / "validation"
-        / "workflows"
-        / "differential_design_rules.py",
+        SRC_ROOT / "phospy" / "differential" / "validation" / "design.py",
         "FixedBlockDesignValidator",
         "run",
     ): 24,
     (
-        SRC_ROOT
-        / "phospy"
-        / "science"
-        / "datasets"
-        / "preprocessing"
-        / "plan_stage_order.py",
+        SRC_ROOT / "phospy" / "preprocessing" / "planning" / "ordering.py",
         "PreprocessingStageOrderPlanner",
         "run",
     ): 18,
     (
-        SRC_ROOT
-        / "phospy"
-        / "science"
-        / "datasets"
-        / "preprocessing"
-        / "plan_rules.py",
+        SRC_ROOT / "phospy" / "preprocessing" / "planning" / "rules.py",
         "PreprocessingBatchCorrectionPlanRuleFamily",
         "run",
     ): 18,

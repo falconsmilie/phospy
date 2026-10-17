@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from phospy.workflows.kinase.scoring_transforms import (
+from phospy.kinase.scoring.transforms import (
     shift_correlation_to_unit_support,
 )
 

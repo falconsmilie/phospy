@@ -7,17 +7,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.datasets.construction.intensity_scale import (
+    DatasetIntensityScaleResolver,
+)
 from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.models import JsonValue
-from phospy.science.datasets.builders.transformation_resolver import (
-    DatasetIntensityScaleResolver,
-)
-from phospy.science.transformations._authority import (
+from phospy.quantitative._authority import (
     dataset_quantitative_meaning_transition_authority,
     dataset_resolver_establishment_authority,
 )
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentProvenance,
@@ -29,7 +29,7 @@ from phospy.science.transformations.models import (
     QuantitativeMeaningEvidenceMode,
     QuantitativeMeaningTransitionProvenance,
 )
-from phospy.science.transformations.transformers import IdentityTransformer
+from phospy.quantitative.transformers import IdentityTransformer
 
 
 def _phospho() -> pd.DataFrame:

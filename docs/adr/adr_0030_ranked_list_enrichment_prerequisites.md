@@ -276,12 +276,10 @@ evidence and scope decision exists.
 Likely future ownership areas are:
 
 ```text
-src/phospy/contracts/configs/
-src/phospy/science/enrichment/
-src/phospy/workflows/enrichment/
+src/phospy/enrichment/contracts/
+src/phospy/enrichment/
 src/phospy/provenance/
-phospy.contracts.results (future package candidate)
-phospy.validation.workflows.enrichment (future package candidate)
+phospy.enrichment.validation
 tests/
 docs/api/enrichment.md
 docs/workflow_contracts.md

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.science.enrichment import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+from phospy.enrichment.contracts.collections import (
     EnrichmentSet,
     EnrichmentSetCollection,
 )
-from phospy.science.enrichment.ora import (
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
+from phospy.enrichment.ora import (
     ORA_OUTSIDE_BACKGROUND_POLICY_DROP,
     ORA_OUTSIDE_BACKGROUND_POLICY_ERROR,
     OraConfig,

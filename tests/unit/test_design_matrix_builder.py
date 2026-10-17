@@ -5,17 +5,17 @@ from types import MappingProxyType
 import pandas as pd
 import pytest
 
-from phospy.errors import WorkflowValidationError
-from phospy.science.design import (
+from phospy.differential.design.matrix_builder import DesignMatrixBuilder
+from phospy.differential.design.models import (
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
-    DesignMatrixBuilder,
     ExperimentalDesign,
     SampleDesignRecord,
 )
+from phospy.errors import WorkflowValidationError
 
 
 def _expected_frame(

@@ -18,7 +18,14 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
-from phospy.contracts.configs.preprocessing import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction import (
+    REPLICATE_METADATA_ROLE,
+    BatchCorrectionWorkflow,
+    BatchCorrectionWorkflowRequest,
+)
+from phospy.preprocessing.batch_correction.contracts import (
     CorrectionMaskPolicy,
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionControlSiteMode,
@@ -33,19 +40,14 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.errors import PhosPyInputError
-from phospy.provenance import fingerprint_matrix
-from phospy.provenance.models import BatchCorrectionProvenance
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.preprocessing.control_sites import (
+from phospy.preprocessing.batch_correction.contracts.workflow import (
+    BatchCorrectionExecutorContract,
+)
+from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSourceMetadata,
 )
-from phospy.workflows.batch_correction import (
-    REPLICATE_METADATA_ROLE,
-    BatchCorrectionWorkflow,
-    BatchCorrectionWorkflowRequest,
-)
-from phospy.workflows.batch_correction.contracts import BatchCorrectionExecutorContract
+from phospy.provenance import fingerprint_matrix
+from phospy.provenance.models import BatchCorrectionProvenance
 
 _MAPK14_SITE_KEY = (
     "phospy:v1|organism=rat|protein_namespace=protein_id|"

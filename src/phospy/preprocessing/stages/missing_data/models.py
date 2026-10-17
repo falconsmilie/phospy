@@ -1,0 +1,310 @@
+"""Typed policy outcomes and shared missing-data stage inputs."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from enum import Enum
+from types import MappingProxyType
+
+import pandas as pd
+
+from phospy.preparation_records.validation.sample_groups import (
+    ResolvedSampleGroups,
+)
+from phospy.preprocessing.results.missing_data import JsonValue
+
+
+class GroupMissingnessClassification(str, Enum):
+    """Observed-pattern classification for one phosphosite/group block."""
+
+    COMPLETE = "complete"
+    SUPPORTED_PARTIAL = "supported_partial"
+    UNSUPPORTED_PARTIAL = "unsupported_partial"
+    SUPPORTED_FULLY_MISSING = "supported_fully_missing"
+    UNSUPPORTED_FULLY_MISSING = "unsupported_fully_missing"
+
+
+class GroupMissingnessRoute(str, Enum):
+    """Allowed numerical route assigned from original missingness only."""
+
+    NONE = "none"
+    KNN = "knn"
+    MINPROB = "minprob"
+
+
+class GroupRoutingAssumption(str, Enum):
+    """Scientific assumption attached to an eligible routing decision."""
+
+    NONE = "none"
+    SIMILARITY_BASED_ELIGIBILITY = "similarity_based_eligibility"
+    ASYMMETRIC_LEFT_CENSORED = "asymmetric_left_censored"
+
+
+class GroupAwareRouteCategory(str, Enum):
+    """Neutral, auditable names for group-aware routing outcomes."""
+
+    PARTIAL_OBSERVATION_KNN = "partial_observation_knn"
+    ASYMMETRIC_ABSENCE_MINPROB = "asymmetric_absence_minprob"
+    UNSUPPORTED_PARTIAL = "unsupported_partial"
+    UNSUPPORTED_ABSENCE = "unsupported_absence"
+
+
+@dataclass(frozen=True, slots=True)
+class GroupRoutingFact:
+    """Compact classification facts for one phosphosite/group block."""
+
+    row_id: str
+    group_label: str
+    group_sample_count: int
+    observed_finite_count: int
+    missing_count: int
+    observed_fraction: float
+    classification: GroupMissingnessClassification
+    route: GroupMissingnessRoute
+    routing_assumption: GroupRoutingAssumption
+    qualifying_reference_group_labels: tuple[str, ...] = ()
+
+    @property
+    def route_category(self) -> GroupAwareRouteCategory | None:
+        """Return the neutral diagnostic category for this routing fact."""
+
+        categories = {
+            GroupMissingnessClassification.SUPPORTED_PARTIAL: (
+                GroupAwareRouteCategory.PARTIAL_OBSERVATION_KNN
+            ),
+            GroupMissingnessClassification.SUPPORTED_FULLY_MISSING: (
+                GroupAwareRouteCategory.ASYMMETRIC_ABSENCE_MINPROB
+            ),
+            GroupMissingnessClassification.UNSUPPORTED_PARTIAL: (
+                GroupAwareRouteCategory.UNSUPPORTED_PARTIAL
+            ),
+            GroupMissingnessClassification.UNSUPPORTED_FULLY_MISSING: (
+                GroupAwareRouteCategory.UNSUPPORTED_ABSENCE
+            ),
+        }
+        return categories.get(self.classification)
+
+
+@dataclass(frozen=True, slots=True)
+class GroupRoutingFactsByRow:
+    """Read-only, row-addressable index over group routing facts."""
+
+    _facts_by_row: Mapping[str, tuple[GroupRoutingFact, ...]]
+
+    @classmethod
+    def build(
+        cls,
+        group_facts: Sequence[GroupRoutingFact],
+    ) -> GroupRoutingFactsByRow:
+        """Index every fact exactly once while preserving routing order."""
+
+        mutable_index: dict[str, list[GroupRoutingFact]] = {}
+        for fact in group_facts:
+            mutable_index.setdefault(fact.row_id, []).append(fact)
+        return cls(
+            _facts_by_row=MappingProxyType(
+                {
+                    row_id: tuple(row_facts)
+                    for row_id, row_facts in mutable_index.items()
+                }
+            )
+        )
+
+    def for_row(self, row_id: str) -> tuple[GroupRoutingFact, ...]:
+        """Return facts for one row in constant-time lookup."""
+
+        return self._facts_by_row[row_id]
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedRowRoutingRecord:
+    """Unsupported group states that make one row ineligible for retention."""
+
+    row_id: str
+    reasons_by_group: Mapping[str, GroupMissingnessClassification]
+
+    @property
+    def route_categories_by_group(self) -> Mapping[str, GroupAwareRouteCategory]:
+        """Return neutral unsupported-route categories keyed by group."""
+
+        return {
+            group: (
+                GroupAwareRouteCategory.UNSUPPORTED_PARTIAL
+                if classification is GroupMissingnessClassification.UNSUPPORTED_PARTIAL
+                else GroupAwareRouteCategory.UNSUPPORTED_ABSENCE
+            )
+            for group, classification in self.reasons_by_group.items()
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class GroupAwareRoutingOutcome:
+    """Typed, pre-imputation result of group-aware missingness routing."""
+
+    retained_row_mask: pd.Series
+    retained_row_ids: tuple[str, ...]
+    dropped_row_ids: tuple[str, ...]
+    dropped_row_reasons: tuple[DroppedRowRoutingRecord, ...]
+    resolved_groups: ResolvedSampleGroups
+    group_facts: tuple[GroupRoutingFact, ...]
+    knn_target_mask: pd.DataFrame
+    minprob_target_mask: pd.DataFrame
+    knn_target_cell_count: int
+    minprob_target_cell_count: int
+    unsupported_group_count: int
+    unsupported_partial_group_count: int
+    unsupported_fully_missing_group_count: int
+    min_partial_observed_fraction: float
+    min_reference_observed_fraction: float
+    original_missingness_mask_hash: str
+
+    def retain_rows(self, frame: pd.DataFrame) -> pd.DataFrame:
+        """Return a copy containing only rows eligible for numerical imputation."""
+
+        if not frame.index.equals(self.retained_row_mask.index):
+            raise ValueError(
+                "group-aware routing can retain rows only from a frame aligned "
+                "to the classified phospho index"
+            )
+        return frame.loc[self.retained_row_mask].copy(deep=True)
+
+
+@dataclass(frozen=True, slots=True)
+class MissingDataInputProfile:
+    """Input missingness profile computed once by the stage coordinator."""
+
+    input_missing_cell_count: int
+    affected_row_ids: tuple[str, ...]
+    affected_column_ids: tuple[str, ...]
+    missingness_mask_hash: str
+
+    @property
+    def affected_row_count(self) -> int:
+        return len(self.affected_row_ids)
+
+    @property
+    def affected_column_count(self) -> int:
+        return len(self.affected_column_ids)
+
+
+@dataclass(frozen=True, slots=True)
+class RowImputationRecord:
+    """Per-row imputation summary used to build row-audit records."""
+
+    row_id: str
+    imputed_columns: tuple[str, ...]
+    imputed_cell_count: int
+    nearest_neighbour_imputed_columns: tuple[str, ...] = ()
+    column_mean_fallback_columns: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class RowMedianPolicyOutcome:
+    """Numerical output for row-median missing-data policy."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
+    min_observed_values: int
+    dropped_row_ids: tuple[str, ...]
+    dropped_row_observed_values: tuple[tuple[str, int], ...]
+    imputed_cell_count: int
+    imputed_row_ids: tuple[str, ...]
+    imputed_column_ids: tuple[str, ...]
+    output_missing_cell_count: int
+    rows_not_imputable: tuple[str, ...]
+    row_medians_used: dict[str, float]
+    imputed_rows: tuple[RowImputationRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class KnnPolicyOutcome:
+    """Numerical output for KNN missing-data policy."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
+    nearest_neighbour_imputed_mask: pd.DataFrame
+    column_mean_fallback_imputed_mask: pd.DataFrame
+    k: int
+    distance: str
+    max_missing_fraction_per_row: float
+    no_overlap_policy: str
+    no_overlap_policy_version: int
+    dropped_row_ids: tuple[str, ...]
+    dropped_rows_missing_fraction: tuple[tuple[str, float], ...]
+    imputed_cell_count: int
+    imputed_row_ids: tuple[str, ...]
+    imputed_column_ids: tuple[str, ...]
+    nearest_neighbour_imputed_cell_count: int
+    nearest_neighbour_imputed_row_ids: tuple[str, ...]
+    nearest_neighbour_imputed_column_ids: tuple[str, ...]
+    column_mean_fallback_imputed_cell_count: int
+    column_mean_fallback_row_ids: tuple[str, ...]
+    column_mean_fallback_column_ids: tuple[str, ...]
+    nearest_neighbour_imputation_mask_hash: str
+    column_mean_fallback_imputation_mask_hash: str
+    fully_column_mean_fallback_row_ids: tuple[str, ...]
+    output_missing_cell_count: int
+    rows_not_imputable: tuple[str, ...]
+    imputed_rows: tuple[RowImputationRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class MinProbPolicyOutcome:
+    """Numerical output for minprob missing-data policy."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
+    q: float
+    width: float
+    seed: int
+    max_missing_fraction_per_row: float
+    dropped_row_ids: tuple[str, ...]
+    dropped_rows_missing_fraction: tuple[tuple[str, float], ...]
+    imputed_cell_count: int
+    imputed_row_ids: tuple[str, ...]
+    imputed_column_ids: tuple[str, ...]
+    output_missing_cell_count: int
+    rows_not_imputable: tuple[str, ...]
+    per_column_distribution_parameters: dict[str, dict[str, JsonValue]]
+    imputed_rows: tuple[RowImputationRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class GroupAwarePolicyOutcome:
+    """Merged numerical output for group-aware mixed-mechanism imputation."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
+    knn_target_mask: pd.DataFrame
+    minprob_target_mask: pd.DataFrame
+    knn_imputed_mask: pd.DataFrame
+    minprob_imputed_mask: pd.DataFrame
+    routing: GroupAwareRoutingOutcome
+    q: float
+    width: float
+    seed: int
+    k: int
+    distance: str
+    no_overlap_policy: str
+    per_column_distribution_parameters: dict[str, dict[str, JsonValue]]
+    dropped_row_ids: tuple[str, ...]
+    imputed_cell_count: int
+    imputed_row_ids: tuple[str, ...]
+    imputed_column_ids: tuple[str, ...]
+    output_missing_cell_count: int
+    rows_not_imputable: tuple[str, ...]
+    imputed_rows: tuple[RowImputationRecord, ...]
+    knn_target_cell_count: int
+    minprob_target_cell_count: int
+    knn_imputed_cell_count: int
+    minprob_imputed_cell_count: int
+    knn_target_mask_hash: str
+    minprob_target_mask_hash: str
+    knn_imputation_mask_hash: str
+    minprob_imputation_mask_hash: str
+    imputation_mask_hash: str

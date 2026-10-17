@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import AnalysisReadyPhosphoDataset
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DifferentialAnalysisConfig,
     KinasePredictionConfig,
     KinaseReferenceDisplayAmbiguityPolicy,
@@ -11,23 +10,24 @@ from phospy.advanced.configs import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
-)
-from phospy.contracts.configs import (
-    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+from phospy.differential.policies import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+)
+from phospy.kinase.scoring.config import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

@@ -7,13 +7,13 @@ from pathlib import Path
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.frames.table_formats import supported_table_input_formats
 from phospy.io.readers.tables import (
     read_phospho_matrix,
     read_sample_metadata,
     read_site_metadata,
     read_table,
     read_total_matrix,
-    supported_table_input_formats,
 )
 
 

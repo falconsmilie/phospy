@@ -6,33 +6,39 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import SpsRuvBatchCorrectionConfig
-from phospy.api.configs import (
+from phospy.advanced import (
+    SpsRuvBatchCorrectionConfig,
+)
+from phospy.api import (
     DatasetPreprocessingConfig,
+)
+from phospy.datasets.construction.state_assembly import (
+    DatasetProcessingStateBuilder,
 )
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.transformations import InvalidTransformationStateError
-from phospy.provenance.models import BatchCorrectionProvenance
-from phospy.science.configs import (
-    DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
-)
-from phospy.science.configs.preprocessing import CorrectionMissingnessPolicy
-from phospy.science.datasets.preprocessing.batch_correction import (
+from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
-from phospy.science.datasets.preprocessing.batch_correction_provenance import (
-    build_native_batch_correction_provenance,
+from phospy.preparation_records.policies import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
 )
-from phospy.science.datasets.preprocessing.control_sites import (
-    ControlSiteSet,
-    ControlSiteSourceMetadata,
+from phospy.preprocessing.batch_correction.contracts.configuration import (
+    DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
 )
-from phospy.science.datasets.preprocessing.correction_output import (
+from phospy.preprocessing.batch_correction.contracts.missingness import (
+    CorrectionMissingnessPolicy,
+)
+from phospy.preprocessing.batch_correction.contracts.output import (
     CorrectedPreprocessingOutput,
 )
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.batch_correction.provenance.assembly import (
+    build_native_batch_correction_provenance,
+)
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
@@ -46,34 +52,36 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingState,
     PreprocessingStateTableKey,
 )
-from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.policy_models import (
+from phospy.preprocessing.contracts.policies import (
     ComparisonBuildingPolicy,
     ImputationInputScale,
     IntensityTransformPolicy,
     LocalisationEligibilityMode,
-    MissingDataPolicy,
     SiteMatrixPolicy,
-    TotalProteinCorrectionPolicy,
 )
-from phospy.science.datasets.preprocessing.quantitative_evidence import (
+from phospy.preprocessing.contracts.stage import (
+    PreprocessingStageContract,
+)
+from phospy.preprocessing.control_sites.contracts import (
+    ControlSiteSet,
+    ControlSiteSourceMetadata,
+)
+from phospy.preprocessing.execution.pipeline import PreprocessingPipeline
+from phospy.preprocessing.planning.registry import (
+    list_registered_preprocessing_stages,
+    resolve_registered_preprocessing_stages,
+)
+from phospy.preprocessing.results.quantitative_evidence import (
     QuantitativeOperationEvidence,
     QuantitativeOperationEvidenceValidator,
     RowAuditEvidence,
     TotalProteinRowMappingEvidence,
 )
-from phospy.science.datasets.preprocessing.stage_registry import (
-    PreprocessingStageMetadata,
-    list_registered_preprocessing_stages,
-    resolve_registered_preprocessing_stages,
-)
-from phospy.science.datasets.preprocessing.state_builder import (
-    DatasetProcessingStateBuilder,
-)
-from phospy.science.transformations._authority import (
+from phospy.provenance.models import BatchCorrectionProvenance
+from phospy.quantitative._authority import (
     dataset_resolver_establishment_authority,
 )
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
@@ -82,7 +90,7 @@ from phospy.science.transformations.models import (
     QuantitativeMeaning,
     establish_intensity_scale_state,
 )
-from phospy.science.transformations.quantitative_contracts import (
+from phospy.quantitative.quantitative_contracts import (
     NegativeDomainPolicy,
     QuantitativeEvidenceRequirement,
     QuantitativeInformationLossKind,
@@ -526,7 +534,7 @@ def test_registration_rejects_empty_and_mixed_none_evidence() -> None:
 def test_validator_exhaustiveness_failure_is_deterministic(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.science.datasets.preprocessing.quantitative_evidence as module
+    import phospy.preprocessing.results.quantitative_evidence as module
 
     reduced = {
         key: value
@@ -775,8 +783,8 @@ def _custom_metadata(
     ),
     provenance_input_tables: tuple[str, ...] = (),
     provenance_output_table: str | None = None,
-) -> PreprocessingStageMetadata:
-    return PreprocessingStageMetadata(
+) -> PreprocessingStageContract:
+    return PreprocessingStageContract(
         stage_key=stage_key,
         display_label=stage_key,
         provenance_stage=stage_key,

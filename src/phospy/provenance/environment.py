@@ -21,7 +21,6 @@ from phospy.provenance.models import (
 )
 
 CORE_ENVIRONMENT_DEPENDENCIES = ("numpy", "pandas", "scipy", "scikit-learn")
-BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES = CORE_ENVIRONMENT_DEPENDENCIES
 OPTIONAL_ENVIRONMENT_DEPENDENCIES = ("pyarrow", "openpyxl")
 DEFAULT_ENVIRONMENT_DEPENDENCIES = (
     *CORE_ENVIRONMENT_DEPENDENCIES,
@@ -62,18 +61,6 @@ def collect_environment_provenance(
     return _collect_environment_provenance_uncached(
         package_name=package_name,
         dependency_names=dependency_names,
-    )
-
-
-def collect_batch_correction_environment_provenance(
-    *,
-    use_cache: bool = True,
-) -> EnvironmentProvenance:
-    """Collect versions relevant to numerical batch-correction provenance."""
-
-    return collect_environment_provenance(
-        dependency_names=BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES,
-        use_cache=use_cache,
     )
 
 
@@ -386,12 +373,10 @@ def _project_root_from_module() -> Path:
 
 
 __all__ = [
-    "BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES",
     "CORE_ENVIRONMENT_DEPENDENCIES",
     "DEFAULT_ENVIRONMENT_DEPENDENCIES",
     "OPTIONAL_ENVIRONMENT_DEPENDENCIES",
     "THREAD_ENVIRONMENT_VARIABLES",
     "clear_environment_provenance_cache",
-    "collect_batch_correction_environment_provenance",
     "collect_environment_provenance",
 ]

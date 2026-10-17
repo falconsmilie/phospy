@@ -3,7 +3,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -11,22 +10,20 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import (
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.kinase.contracts import ValidatedKinaseWorkflowRequest
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.scoring import execution as scoring_runner_module
+from phospy.kinase.scoring.config import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
 )
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.prediction.scoring import (
-    KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
-    KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
-)
-from phospy.workflows.kinase import scoring_runner as scoring_runner_module
-from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
-from phospy.workflows.kinase.contributions import (
+from phospy.kinase.scoring.contributions import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
     KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES,
     KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_MISSING_SCORE_VALUE,
@@ -36,8 +33,11 @@ from phospy.workflows.kinase.contributions import (
     KinaseSubstrateContributionReferenceSource,
     build_kinase_substrate_contribution_table,
 )
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
+from phospy.kinase.scoring.execution import KinaseScoringRunner
+from phospy.kinase.scoring.selection import (
+    KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
+    KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
+)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

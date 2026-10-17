@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.contracts.results import KinaseWorkflowResult
 from phospy.io.bundles._kinase.constants import (
     CONFIG_SNAPSHOT_RELATIVE_PATH,
     MANIFEST_FILENAME,
@@ -19,6 +18,7 @@ from phospy.io.bundles._shared.tables import (
 )
 from phospy.io.bundles._shared.transactions import write_bundle_atomically
 from phospy.io.readers.tables import table_suffix_for_format
+from phospy.kinase.results import KinaseWorkflowResult
 
 
 def save_kinase_workflow_bundle(

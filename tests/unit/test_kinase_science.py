@@ -4,21 +4,21 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.contracts.configs import (
+from phospy.errors import WorkflowStageError
+from phospy.kinase.prediction.outputs import build_prediction_outputs
+from phospy.kinase.scoring.config import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
 )
-from phospy.errors import WorkflowStageError
-from phospy.tables.kinase import (
+from phospy.kinase.scoring.profile import (
+    build_kinase_profiles,
+    score_profile_correlations,
+    score_profile_correlations_leave_one_out_with_diagnostics,
+)
+from phospy.kinase.scoring.tables import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
-)
-from phospy.workflows.kinase.science import (
-    build_kinase_profiles,
-    build_prediction_outputs,
-    score_profile_correlations,
-    score_profile_correlations_leave_one_out_with_diagnostics,
 )
 
 

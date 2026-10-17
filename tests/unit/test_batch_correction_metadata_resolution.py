@@ -11,7 +11,7 @@ from phospy.api import (
     Organism,
 )
 from phospy.errors import PhosPyInputError
-from phospy.science.datasets.preprocessing.batch_correction_metadata import (
+from phospy.preprocessing.batch_correction.metadata import (
     BatchCorrectionMetadataResolver,
 )
 

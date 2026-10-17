@@ -247,11 +247,11 @@ but cannot claim deep immutability.
 ## Affected Modules
 
 - `src/phospy/frames/ownership.py`
-- `src/phospy/science/datasets/models.py`
+- `src/phospy/datasets/models.py`
 - `src/phospy/api/results.py`
-- `src/phospy/science/activities/models.py`
-- `src/phospy/science/prediction/models.py`
-- `src/phospy/science/signalomes/models.py`
+- `src/phospy/kinase/activity/results.py`
+- `src/phospy/kinase/prediction/results.py`
+- `src/phospy/signalome/models.py`
 - `src/phospy/provenance/`
 - `src/phospy/io/`
 

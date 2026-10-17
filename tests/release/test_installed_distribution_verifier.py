@@ -33,9 +33,26 @@ pytestmark = pytest.mark.release_gate
 
 ROOT = Path(__file__).resolve().parents[2]
 CONSTRAINT = ROOT / "constraints" / "ci.txt"
+FIXED_DISTRIBUTION_ARTIFACTS_ENV = "PHOSPY_TEST_DISTRIBUTION_ARTIFACTS"
 CURRENT_RELEASE_VERSION = "1.7.6"
+EXPECTED_FIXED_ARTIFACTS = {
+    "wheel": (
+        "phospy-1.7.6-py3-none-any.whl",
+        1_731_940,
+        "be16e6dba5945d1f6a8d96bef6060eebf983ebf76bb16d562f963b496f9271fa",
+    ),
+    "sdist": (
+        "phospy-1.7.6.tar.gz",
+        1_397_979,
+        "f734950dfc5eb23b7751f3ab873d583920ca6efa510fd6ebb531b0c4458b803d",
+    ),
+}
 WHEEL_DECLARED_RESOURCE = (
     "phospy/data/reference_bundles/rat/l6_native/substrate_map.csv"
+)
+WHEEL_ENRICHMENT_PROVENANCE_ASSEMBLER = "phospy/enrichment/provenance.py"
+WHEEL_SPS_DISCOVERY_CONTRACTS = (
+    "phospy/preprocessing/control_sites/discovery_contracts.py"
 )
 SDIST_DECLARED_RESOURCE_SUFFIX = (
     "/src/phospy/data/reference_bundles/rat/l6_native/substrate_map.csv"
@@ -67,7 +84,24 @@ requires_supported_release_python = pytest.mark.skipif(
 def built_distribution_artifacts(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> DistributionArtifacts:
-    dist = tmp_path_factory.mktemp("phospy-built-dist") / "dist"
+    fixed_dist = os.environ.get(FIXED_DISTRIBUTION_ARTIFACTS_ENV)
+    if fixed_dist is not None:
+        artifacts = find_distribution_artifacts(Path(fixed_dist))
+        for artifact_kind, artifact in (
+            ("wheel", artifacts.wheel),
+            ("sdist", artifacts.sdist),
+        ):
+            expected_name, expected_size, expected_sha256 = EXPECTED_FIXED_ARTIFACTS[
+                artifact_kind
+            ]
+            assert artifact.name == expected_name
+            assert artifact.stat().st_size == expected_size
+            assert _sha256_file(artifact) == expected_sha256
+        return artifacts
+
+    fixture_root = tmp_path_factory.mktemp("phospy-built-dist")
+    dist = fixture_root / "dist"
+    build_base = fixture_root / "build"
     dist.mkdir()
     build_script = """
 import pathlib
@@ -76,14 +110,19 @@ import sys
 import setuptools.build_meta as build_meta
 
 dist = pathlib.Path(sys.argv[1])
+build_base = pathlib.Path(sys.argv[2])
 build_meta.build_sdist(str(dist))
-build_meta.build_wheel(str(dist))
+build_meta.build_wheel(
+    str(dist),
+    {"--global-option": ["build", "--build-base", str(build_base)]},
+)
 """
     command = [
         sys.executable,
         "-c",
         build_script,
         str(dist),
+        str(build_base),
     ]
     result = subprocess.run(
         command,
@@ -125,6 +164,57 @@ def _damaged_wheel(source: Path, destination: Path) -> Path:
     if not damaged:
         raise AssertionError(
             f"wheel did not contain expected manifest resource: {WHEEL_DECLARED_RESOURCE}"
+        )
+    return destination.resolve()
+
+
+def _wheel_omitting_workflow_identity(source: Path, destination: Path) -> Path:
+    original = b'workflow_name="enrichment",'
+    replacement = b"workflow_name=None,"
+    changed = False
+    with zipfile.ZipFile(source, "r") as source_zip:
+        with zipfile.ZipFile(destination, "w") as destination_zip:
+            for item in source_zip.infolist():
+                data = source_zip.read(item.filename)
+                if item.filename == WHEEL_ENRICHMENT_PROVENANCE_ASSEMBLER:
+                    if data.count(original) != 1:
+                        raise AssertionError(
+                            "wheel Enrichment provenance assembler did not contain "
+                            "the expected workflow_name serialization"
+                        )
+                    data = data.replace(original, replacement)
+                    changed = True
+                destination_zip.writestr(item, data)
+    if not changed:
+        raise AssertionError(
+            "wheel did not contain the Enrichment provenance assembler: "
+            f"{WHEEL_ENRICHMENT_PROVENANCE_ASSEMBLER}"
+        )
+    return destination.resolve()
+
+
+def _wheel_mutating_sps_provenance(source: Path, destination: Path) -> Path:
+    original = b'SPS_DISCOVERY_ALGORITHM_ID = "phospy_sps_consensus_stability"'
+    replacement = b'SPS_DISCOVERY_ALGORITHM_ID = "phospy_sps_consensus_changed__"'
+    if len(original) != len(replacement):
+        raise AssertionError("SPS provenance mutation must preserve archive size")
+    changed = False
+    with zipfile.ZipFile(source, "r") as source_zip:
+        with zipfile.ZipFile(destination, "w") as destination_zip:
+            for item in source_zip.infolist():
+                data = source_zip.read(item.filename)
+                if item.filename == WHEEL_SPS_DISCOVERY_CONTRACTS:
+                    if data.count(original) != 1:
+                        raise AssertionError(
+                            "wheel SPS owner did not contain the expected algorithm ID"
+                        )
+                    data = data.replace(original, replacement)
+                    changed = True
+                destination_zip.writestr(item, data)
+    if not changed:
+        raise AssertionError(
+            "wheel did not contain the SPS discovery contracts: "
+            f"{WHEEL_SPS_DISCOVERY_CONTRACTS}"
         )
     return destination.resolve()
 
@@ -518,6 +608,48 @@ def test_damaged_wheel_manifest_resource_fails_installed_probe(
 
 
 @requires_supported_release_python
+def test_installed_probe_rejects_omitted_run_provenance_workflow_identity(
+    tmp_path: Path,
+    built_distribution_artifacts: DistributionArtifacts,
+) -> None:
+    wheel = _wheel_omitting_workflow_identity(
+        built_distribution_artifacts.wheel,
+        tmp_path / built_distribution_artifacts.wheel.name,
+    )
+
+    with pytest.raises(
+        InstalledDistributionVerificationError,
+        match="complete RunProvenance payload changed",
+    ):
+        _verify_single_artifact(
+            artifact_kind="wheel",
+            artifact_path=wheel,
+            tmp_path=tmp_path,
+        )
+
+
+@requires_supported_release_python
+def test_installed_probe_rejects_changed_sps_provenance(
+    tmp_path: Path,
+    built_distribution_artifacts: DistributionArtifacts,
+) -> None:
+    wheel = _wheel_mutating_sps_provenance(
+        built_distribution_artifacts.wheel,
+        tmp_path / built_distribution_artifacts.wheel.name,
+    )
+
+    with pytest.raises(
+        InstalledDistributionVerificationError,
+        match="complete SPS discovery/control/correction payload changed",
+    ):
+        _verify_single_artifact(
+            artifact_kind="wheel",
+            artifact_path=wheel,
+            tmp_path=tmp_path,
+        )
+
+
+@requires_supported_release_python
 def test_damaged_sdist_manifest_resource_fails_installed_probe(
     tmp_path: Path,
     built_distribution_artifacts: DistributionArtifacts,
@@ -610,7 +742,90 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
     )
     assert "conftest" not in imported_modules
     assert "PYTHONPATH" not in INSTALLED_PROBE_SOURCE
+    assert "from phospy.signalome.requests import SignalomeWorkflowRequest" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert 'SignalomeWorkflowRequest.__module__ != "phospy.signalome.requests"' in (
+        INSTALLED_PROBE_SOURCE
+    )
+    for retired_route in verifier.RETIRED_HORIZONTAL_ROUTES:
+        assert retired_route in INSTALLED_PROBE_SOURCE
+    assert '"exception_type": "ModuleNotFoundError"' in INSTALLED_PROBE_SOURCE
+    assert 'route_result["module_not_found_error_name"]' in INSTALLED_PROBE_SOURCE
+    assert 'module_name.startswith(missing_name + ".")' in INSTALLED_PROBE_SOURCE
     assert "manifest-declared resource is missing" in INSTALLED_PROBE_SOURCE
+    assert "api.ReferenceBundleBuilder is not OwnerReferenceBundleBuilder" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "api.ReferenceBundleBuildRequest" in INSTALLED_PROBE_SOURCE
+    assert "_exercise_reference_bundle_builder" in INSTALLED_PROBE_SOURCE
+    assert 'bundle.site_sequences.to_dict(orient="index")' in INSTALLED_PROBE_SOURCE
+    assert "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA" in INSTALLED_PROBE_SOURCE
+    assert "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA" in INSTALLED_PROBE_SOURCE
+    assert "expected_manifest_metadata" in INSTALLED_PROBE_SOURCE
+    assert "expected_provenance_metadata" in INSTALLED_PROBE_SOURCE
+    assert "expected_source_file_metadata" in INSTALLED_PROBE_SOURCE
+    assert "expected_table_fingerprints" in INSTALLED_PROBE_SOURCE
+    assert '"rows": 2' in INSTALLED_PROBE_SOURCE
+    assert '"columns": 4' in INSTALLED_PROBE_SOURCE
+    assert "sha256-stable-json-v1" in INSTALLED_PROBE_SOURCE
+    assert (
+        "a490fb6499d5c9deb87a7ce28284db5e916be44527efc9657827274520e696c6"
+        in INSTALLED_PROBE_SOURCE
+    )
+    assert (
+        "d6ca2a89d15e7a9882e23e7e2ff55325b84e818125b7ae903a218f5fd88e021a"
+        in INSTALLED_PROBE_SOURCE
+    )
+    assert "_verify_references_evidence_import_orders" in INSTALLED_PROBE_SOURCE
+    assert '("references", "evidence")' in INSTALLED_PROBE_SOURCE
+    assert '("evidence", "references")' in INSTALLED_PROBE_SOURCE
+    assert "aggregate_inventory_sha256" in INSTALLED_PROBE_SOURCE
+    assert '"environment_versions"' in INSTALLED_PROBE_SOURCE
+    assert '"runtime_platform"' in INSTALLED_PROBE_SOURCE
+    assert '"dependency_identities"' in INSTALLED_PROBE_SOURCE
+    assert "_exercise_enrichment_capability" in INSTALLED_PROBE_SOURCE
+    assert "_verify_enrichment_import_orders" in INSTALLED_PROBE_SOURCE
+    assert "_verify_control_site_import_orders" in INSTALLED_PROBE_SOURCE
+    assert "_verify_batch_correction_boundary_import_orders" in INSTALLED_PROBE_SOURCE
+    assert "_verify_protein_aware_boundary_import_orders" in INSTALLED_PROBE_SOURCE
+    assert "ProteinAwarePreparationStageOutput" in INSTALLED_PROBE_SOURCE
+    assert "compose_protein_aware_preparation_result" in INSTALLED_PROBE_SOURCE
+    assert "phospy.datasets.models" in INSTALLED_PROBE_SOURCE
+    assert "phospy.datasets.internal_view" in INSTALLED_PROBE_SOURCE
+    assert "phospy.datasets.protein_aware" in INSTALLED_PROBE_SOURCE
+    assert "phospy.science.datasets.builders.protein_aware_binding" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "phospy.science.datasets.preprocessing.protein_aware_models" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "phospy.contracts.results.preprocessing" in INSTALLED_PROBE_SOURCE
+    assert "name.startswith('phospy.run_lineage.')" in INSTALLED_PROBE_SOURCE
+    assert "name.startswith('phospy.datasets.')" in INSTALLED_PROBE_SOURCE
+    assert "name.startswith('phospy.science.datasets.')" in INSTALLED_PROBE_SOURCE
+    assert "phospy.provenance.serialization.batch_correction" in INSTALLED_PROBE_SOURCE
+    assert (
+        "phospy.preprocessing.batch_correction.adapters.preprocessing"
+        in INSTALLED_PROBE_SOURCE
+    )
+    assert "synthetic_gene_sets" in INSTALLED_PROBE_SOURCE
+    assert "synthetic_ptm_sets" in INSTALLED_PROBE_SOURCE
+    assert "correction_owner" in INSTALLED_PROBE_SOURCE
+    assert "run_provenance_to_payload" in INSTALLED_PROBE_SOURCE
+    assert "_fixed_enrichment_environment" in INSTALLED_PROBE_SOURCE
+    assert "1a20b51c3ae39867e2d005c12dafde31077dc89f88e290b5a4bba40b23e0727d" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "d34915364a6b40ef0d80a59bddd1acaeace302c314f15a33246dbc4a7a2cee56" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "ccc7cd07bd3a37df872906a6664cf8e820a5e24609c875baa6adaba59445b6d9" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "1e68f999766e008ce26433937343a064f0a88e9ce5f49f14958cf53a6540788f" in (
+        INSTALLED_PROBE_SOURCE
+    )
     assert "manifest-declared resource hash mismatch" in INSTALLED_PROBE_SOURCE
     assert "load_bundled_reference_manifest" in INSTALLED_PROBE_SOURCE
     assert "DifferentialAnalysisWorkflow" in INSTALLED_PROBE_SOURCE
@@ -626,16 +841,103 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
         in INSTALLED_PROBE_SOURCE
     )
     assert "KinaseWorkflow" in INSTALLED_PROBE_SOURCE
+    assert "phospy.kinase.result_boundary" in INSTALLED_PROBE_SOURCE
+    assert "installed Kinase boundary type ownership changed" in INSTALLED_PROBE_SOURCE
+    assert (
+        "installed Kinase selection policy identity changed" in INSTALLED_PROBE_SOURCE
+    )
+    assert "installed Kinase boundary retained a former route" in INSTALLED_PROBE_SOURCE
     assert "publish_dataset" in INSTALLED_PROBE_SOURCE
     assert "advanced_table_publisher" in INSTALLED_PROBE_SOURCE
     assert "save_kinase_workflow_bundle" in INSTALLED_PROBE_SOURCE
     assert "load_kinase_workflow_bundle" in INSTALLED_PROBE_SOURCE
+    assert "publish_kinase_workflow" in INSTALLED_PROBE_SOURCE
+    assert "_exercise_signalome_round_trip" in INSTALLED_PROBE_SOURCE
+    assert "save_signalome_workflow_bundle" in INSTALLED_PROBE_SOURCE
+    assert "load_signalome_workflow_bundle" in INSTALLED_PROBE_SOURCE
+    assert "publish_signalome_workflow" in INSTALLED_PROBE_SOURCE
+    assert "processing_state_round_trip" in INSTALLED_PROBE_SOURCE
+    assert "_assert_frame_snapshot_isolation" in INSTALLED_PROBE_SOURCE
+    assert "_assert_published_table_isolation" in INSTALLED_PROBE_SOURCE
     assert "ticket_1_posthoc_peptide_to_site_boundary" in INSTALLED_PROBE_SOURCE
     assert "withdrawn_asserted" in INSTALLED_PROBE_SOURCE
     assert "SpsDiscoveryWorkflow" in INSTALLED_PROBE_SOURCE
     assert "SpsDiscoveryRequest" in INSTALLED_PROBE_SOURCE
     assert "SpsReferenceDataset.from_condition_relative_log2" in INSTALLED_PROBE_SOURCE
-    assert "RuvIIIReplicateStructure" in INSTALLED_PROBE_SOURCE
+    assert "RuvIIIReplicateStructure.from_assignments" in INSTALLED_PROBE_SOURCE
     assert "run_ruv_iii" in INSTALLED_PROBE_SOURCE
+    assert "installed RUV-III changed the phospho matrix shape" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "installed RUV-III reported an unexpected method" in INSTALLED_PROBE_SOURCE
+    assert '"ruv_iii_method"' in INSTALLED_PROBE_SOURCE
+    assert '"ruv_iii_output_shape"' in INSTALLED_PROBE_SOURCE
+    assert "BatchCorrectionWorkflow" in INSTALLED_PROBE_SOURCE
+    assert "BatchCorrectionWorkflowRequest" in INSTALLED_PROBE_SOURCE
+    assert "LinearResidualizeBatchCorrectionEngine" in INSTALLED_PROBE_SOURCE
+    assert "default dataset build lost no-op correction execution" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "collect_batch_correction_environment_provenance" in (INSTALLED_PROBE_SOURCE)
+    assert "installed RUV-III did not restore the governed cell" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "SpsRuvBatchCorrectionConfig" in INSTALLED_PROBE_SOURCE
+    assert "batch_correction_provenance_to_payload" in INSTALLED_PROBE_SOURCE
+    assert "batch_correction_provenance_from_payload" in INSTALLED_PROBE_SOURCE
+    assert "run_provenance_from_payload" in INSTALLED_PROBE_SOURCE
+    assert "installed direct correction provenance round trip changed" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "installed nested correction provenance round trip changed" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "installed malformed correction payload was accepted" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "installed correction recorded the wrong Python version" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "installed correction environment recorded the wrong Python version" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "installed correction recorded the wrong dependency versions" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "compared-with-rtol-1e-10-atol-1e-12" in INSTALLED_PROBE_SOURCE
+    assert (
+        "published processing-state payload unexpectedly contains batch_correction"
+        in (INSTALLED_PROBE_SOURCE)
+    )
     assert "_exercise_sps_ruv_contracts" in INSTALLED_PROBE_SOURCE
     assert '"sps_ruv": sps_ruv_report' in INSTALLED_PROBE_SOURCE
+    assert "SpsDiscoveryResult.from_payload" in INSTALLED_PROBE_SOURCE
+    assert "ControlSiteSet.from_payload" in INSTALLED_PROBE_SOURCE
+    assert "corrected_preprocessing_output.output_observation_mask" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "corrected_preprocessing_output.corrected_cell_status" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert '"complete_correction"' in INSTALLED_PROBE_SOURCE
+    assert '"sps_discovery_identity"' in INSTALLED_PROBE_SOURCE
+    assert "inspect.signature(SpsDiscoveryRequest)" in INSTALLED_PROBE_SOURCE
+    assert "inspect.signature(SpsDiscoveryWorkflow)" in INSTALLED_PROBE_SOURCE
+    assert "OwnerSpsDiscoveryRequest" in INSTALLED_PROBE_SOURCE
+    assert "OwnerSpsDiscoveryResult" in INSTALLED_PROBE_SOURCE
+    assert "phospy-sps-discovery-result-v1" in INSTALLED_PROBE_SOURCE
+    assert "legacy_restored.control_site_set.to_payload()" in INSTALLED_PROBE_SOURCE
+    assert "legacy_controls = ControlSiteSet.from_payload(" in INSTALLED_PROBE_SOURCE
+    assert 'legacy_controls.source_metadata.source_version != "1.0.0"' in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "legacy_controls.source_metadata.sps_discovery_identity" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert '"legacy_restored_controls"' in INSTALLED_PROBE_SOURCE
+    assert "6f43b82b9ebaec9779fe1f9cf4fb02751369c715e797212d630a278a5e15fe23" in (
+        INSTALLED_PROBE_SOURCE
+    )
+    assert "complete SPS discovery/control/correction payload changed" in (
+        INSTALLED_PROBE_SOURCE
+    )

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.science.signalomes.science import (
+from phospy.signalome.assignments import build_module_assignments
+from phospy.signalome.constants import (
     LEXICOGRAPHIC_TIE_BREAK_POLICY,
     NO_SUPPORT_SELECTION_POLICY,
     UNSUPPORTED_KINASE,
-    build_module_assignments,
 )
 from tests.support.site_keys import site_key_index_from_display_ids
 

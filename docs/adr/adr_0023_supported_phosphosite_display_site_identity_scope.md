@@ -23,8 +23,8 @@ biological correctness.
 
 Update note (2026-07-29, current contract ownership): current implementation
 guidance lives in ADR-0024 and ADR-0021. The concrete owners are
-`phospy.science.sites.identity_contracts` for reusable phosphosite identity
-contracts and `phospy.science.sites.sequence_context` for workflow
+`phospy.phosphosites.contracts` for reusable phosphosite identity
+contracts and `phospy.phosphosites.sequence_context` for workflow
 sequence-context semantics; validation-package routes are compatibility
 re-exports/composers.
 

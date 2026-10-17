@@ -5,38 +5,37 @@ import inspect
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
 )
-from phospy.api.requests import (
+from phospy.api import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,
-    SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
     KinaseWorkflowResult,
+    SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )
-from phospy.errors import ReferenceCompatibilityError
-from phospy.science.datasets.construction.service import (
+from phospy.datasets._construction.service import (
     _AnalysisReadyDatasetConstructionService,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.science.sites.site_keys import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.validation.model_boundary import (
+    AnalysisReadyDatasetModelBoundaryValidator,
+)
+from phospy.errors import ReferenceCompatibilityError
+from phospy.kinase.public import KinaseWorkflow
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
-from phospy.validation.datasets.analysis_ready import (
-    AnalysisReadyDatasetModelBoundaryValidator,
-)
+from phospy.references.compatibility import ReferenceCompatibilityValidator
+from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.references.resolution import ReferenceResolver
+from phospy.references.validation.bundle import ReferenceBundleValidator
+from phospy.taxonomy import Organism
 from phospy.validation.ownership import VALIDATION_RULE_OWNERS
-from phospy.validation.references.bundle import ReferenceBundleValidator
-from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
-from phospy.workflows.kinase.public import KinaseWorkflow
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -144,20 +143,20 @@ def test_reference_compatibility_validator_is_single_owner_for_compatibility_rul
 
 
 def test_reference_bundle_contract_validation_has_single_owner() -> None:
-    from phospy.science.references import models as reference_models
+    from phospy.references import models as reference_models
 
     bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)
     validation_source = inspect.getsource(
-        reference_models._run_reference_bundle_validation
+        reference_models.run_reference_bundle_validation
     )
     validator_source = inspect.getsource(ReferenceBundleValidator.run)
     resolver_source = inspect.getsource(ReferenceResolver.run)
-    assert "_run_reference_bundle_validation(" in bundle_source
+    assert "run_reference_bundle_validation(" in bundle_source
     assert "KinaseSubstrateReference(" not in bundle_source
     assert "SiteSequenceReference(" not in bundle_source
     assert "KinaseSubstrateReference(" in validation_source
     assert "SiteSequenceReference(" in validation_source
-    assert "_run_reference_bundle_validation(" in validator_source
+    assert "run_reference_bundle_validation(" in validator_source
     assert "ReferenceBundleValidator" not in resolver_source
 
 
@@ -218,6 +217,6 @@ def test_major_validation_rules_have_documented_owners() -> None:
     assert documented["dataset/intensity-scale-state coherence"]
     assert (
         documented["sequence-aware workflow centred site-sequence context"]
-        == "phospy.science.sites.sequence_context.enforce_site_sequence_context_contract"
+        == "phospy.phosphosites.sequence_context.enforce_site_sequence_context_contract"
     )
     assert documented["signalome result expanded_signalome field type/ownership"]

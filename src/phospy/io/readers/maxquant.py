@@ -10,16 +10,30 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.contracts.requests import PhosphositeImportRequest
-from phospy.contracts.results import (
+from phospy.errors.input import PhosPyInputError
+from phospy.evidence.multi_site import parse_phospho_site_tokens
+from phospy.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+    QuantificationDepthKind,
+)
+from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
     ImporterFlaggedRowSummary,
     ImporterQualityCount,
     ImporterQualityReport,
+    PhosphositeImportRequest,
     PhosphositeImportResult,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.io.importers.maxquant_validation import (
+    MAXQUANT_FLAG_POLICY_ERROR,
+    MAXQUANT_FLAG_POLICY_FLAG,
+    MAXQUANT_FLAG_POLICY_REMOVE,
+    validate_maxquant_flag_policy,
+    validate_optional_maxquant_column_name,
+)
 from phospy.io.readers._table_parsing import (
     build_row_ids,
     build_unique_feature_ids,
@@ -39,22 +53,6 @@ from phospy.io.readers._table_parsing import (
 from phospy.io.readers.importers import (
     MappedPhosphositeTableImporter,
     _read_upstream_table,
-)
-from phospy.science.differential.models import (
-    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
-    QuantificationDepthKind,
-)
-from phospy.science.differential.quantification_depth import (
-    QUANTIFICATION_DEPTH_COLUMN,
-    QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
-)
-from phospy.science.evidence.multi_site import parse_phospho_site_tokens
-from phospy.validation.datasets.maxquant import (
-    MAXQUANT_FLAG_POLICY_ERROR,
-    MAXQUANT_FLAG_POLICY_FLAG,
-    MAXQUANT_FLAG_POLICY_REMOVE,
-    validate_maxquant_flag_policy,
-    validate_optional_maxquant_column_name,
 )
 
 _ADAPTED_ROW_ID_COLUMN = "__phospy_maxquant_row_id"

@@ -4,33 +4,13 @@ import pandas as pd
 import pytest
 
 from phospy.errors import WorkflowValidationError
-from phospy.science.sites.identity_contracts import (
-    PhosphositeIdentityContract as SciencePhosphositeIdentityContract,
+from phospy.phosphosites.contracts import (
+    WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
+    PhosphositeIdentityContract,
 )
-from phospy.science.sites.identity_contracts import (
-    SequenceContextContract as ScienceIdentityRouteSequenceContextContract,
-)
-from phospy.science.sites.sequence_context import (
-    WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT as SCIENCE_WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
-)
-from phospy.science.sites.sequence_context import (
-    SequenceContextContract as ScienceSequenceContextContract,
-)
-from phospy.science.sites.sequence_context import (
-    enforce_site_sequence_context_contract as science_enforce_site_sequence_context_contract,
-)
-from phospy.validation.datasets.site_metadata import (
+from phospy.phosphosites.sequence_context import (
     SequenceContextContract,
     enforce_site_sequence_context_contract,
-)
-from phospy.validation.identity_contracts import (
-    WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT as VALIDATION_WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
-)
-from phospy.validation.identity_contracts import (
-    PhosphositeIdentityContract as ValidationPhosphositeIdentityContract,
-)
-from phospy.validation.identity_contracts import (
-    SequenceContextContract as ValidationIdentityRouteSequenceContextContract,
 )
 
 
@@ -86,24 +66,20 @@ def _enforce(
     )
 
 
-def test_sequence_context_contract_import_routes_are_identity_preserving() -> None:
-    assert SequenceContextContract is ScienceSequenceContextContract
+def test_sequence_context_contract_has_one_phosphosites_owner() -> None:
+    assert SequenceContextContract.__module__ == "phospy.phosphosites.sequence_context"
     assert (
-        ValidationIdentityRouteSequenceContextContract is ScienceSequenceContextContract
+        enforce_site_sequence_context_contract.__module__
+        == "phospy.phosphosites.sequence_context"
     )
-    assert ScienceIdentityRouteSequenceContextContract is ScienceSequenceContextContract
-    assert (
-        enforce_site_sequence_context_contract
-        is science_enforce_site_sequence_context_contract
-    )
-    assert (
-        VALIDATION_WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT
-        is SCIENCE_WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT
+    assert isinstance(
+        WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
+        SequenceContextContract,
     )
 
 
-def test_phosphosite_identity_contract_import_routes_are_identity_preserving() -> None:
-    assert ValidationPhosphositeIdentityContract is SciencePhosphositeIdentityContract
+def test_phosphosite_identity_contract_has_one_phosphosites_owner() -> None:
+    assert PhosphositeIdentityContract.__module__ == "phospy.phosphosites.contracts"
 
 
 def test_fixed_centered_phosphosite_window_passes() -> None:
@@ -213,7 +189,7 @@ def test_known_sequence_source_is_required_when_contract_requires_it() -> None:
 def test_science_owned_enforcement_uses_sequence_source_arguments() -> None:
     contract = _contract(requires_known_sequence_source=True)
 
-    science_enforce_site_sequence_context_contract(
+    enforce_site_sequence_context_contract(
         site_metadata=_site_metadata(),
         field_name="test.site_metadata",
         workflow_name="kinase workflow request",

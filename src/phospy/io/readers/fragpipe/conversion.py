@@ -9,6 +9,12 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.evidence.modified_peptides import ModifiedResidue
+from phospy.evidence.multi_site import parse_phospho_site_tokens
+from phospy.io.importers.fragpipe_validation import (
+    FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE,
+    FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PROTEIN,
+)
 from phospy.io.readers._table_parsing import (
     first_list_token,
     is_missing,
@@ -25,12 +31,6 @@ from phospy.io.readers.fragpipe.models import (
     _ProteinSiteCandidate,
     _ResolvedFragPipeColumns,
     _SiteCall,
-)
-from phospy.science.evidence.modified_peptides import ModifiedResidue
-from phospy.science.evidence.multi_site import parse_phospho_site_tokens
-from phospy.validation.datasets.fragpipe import (
-    FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE,
-    FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PROTEIN,
 )
 
 

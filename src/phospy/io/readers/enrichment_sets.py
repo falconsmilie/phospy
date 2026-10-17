@@ -8,15 +8,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO, cast
 
-from phospy._deprecations import warn_deprecated
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.errors.validation import ContractValidationError, WorkflowValidationError
-from phospy.science.enrichment.collections import (
-    EnrichmentCollectionKind,
-    EnrichmentIdentifierKind,
+from phospy.enrichment.contracts.collections import (
     EnrichmentSet,
     EnrichmentSetCollection,
 )
+from phospy.enrichment.contracts.vocabulary import (
+    EnrichmentCollectionKind,
+    EnrichmentIdentifierKind,
+)
+from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.errors.validation import ContractValidationError, WorkflowValidationError
 
 _CSV = "csv"
 _TSV = "tsv"
@@ -166,105 +167,6 @@ def read_enrichment_sets_tsv(
         collection_kind=collection_kind,
         source_name=source_name,
         source_version=source_version,
-    )
-
-
-def load_enrichment_sets_gmt(
-    path: Path,
-    *,
-    identifier_kind: EnrichmentIdentifierKind,
-    collection_kind: EnrichmentCollectionKind | None = None,
-    source_name: str | None = None,
-    source_version: str | None = None,
-) -> EnrichmentSetCollection:
-    """Deprecated alias for ``read_enrichment_sets_gmt``."""
-
-    _warn_deprecated_load_alias(
-        "load_enrichment_sets_gmt",
-        "read_enrichment_sets_gmt",
-    )
-    return read_enrichment_sets_gmt(
-        path,
-        identifier_kind=identifier_kind,
-        collection_kind=collection_kind,
-        source_name=source_name,
-        source_version=source_version,
-    )
-
-
-def load_enrichment_sets_table(
-    path: Path,
-    *,
-    identifier_kind: EnrichmentIdentifierKind | None = None,
-    collection_kind: EnrichmentCollectionKind | None = None,
-    source_name: str | None = None,
-    source_version: str | None = None,
-) -> EnrichmentSetCollection:
-    """Deprecated alias for ``read_enrichment_sets_table``."""
-
-    _warn_deprecated_load_alias(
-        "load_enrichment_sets_table",
-        "read_enrichment_sets_table",
-    )
-    return read_enrichment_sets_table(
-        path,
-        identifier_kind=identifier_kind,
-        collection_kind=collection_kind,
-        source_name=source_name,
-        source_version=source_version,
-    )
-
-
-def load_enrichment_sets_csv(
-    path: Path,
-    *,
-    identifier_kind: EnrichmentIdentifierKind | None = None,
-    collection_kind: EnrichmentCollectionKind | None = None,
-    source_name: str | None = None,
-    source_version: str | None = None,
-) -> EnrichmentSetCollection:
-    """Deprecated alias for ``read_enrichment_sets_csv``."""
-
-    _warn_deprecated_load_alias(
-        "load_enrichment_sets_csv",
-        "read_enrichment_sets_csv",
-    )
-    return read_enrichment_sets_csv(
-        path,
-        identifier_kind=identifier_kind,
-        collection_kind=collection_kind,
-        source_name=source_name,
-        source_version=source_version,
-    )
-
-
-def load_enrichment_sets_tsv(
-    path: Path,
-    *,
-    identifier_kind: EnrichmentIdentifierKind | None = None,
-    collection_kind: EnrichmentCollectionKind | None = None,
-    source_name: str | None = None,
-    source_version: str | None = None,
-) -> EnrichmentSetCollection:
-    """Deprecated alias for ``read_enrichment_sets_tsv``."""
-
-    _warn_deprecated_load_alias(
-        "load_enrichment_sets_tsv",
-        "read_enrichment_sets_tsv",
-    )
-    return read_enrichment_sets_tsv(
-        path,
-        identifier_kind=identifier_kind,
-        collection_kind=collection_kind,
-        source_name=source_name,
-        source_version=source_version,
-    )
-
-
-def _warn_deprecated_load_alias(alias_name: str, replacement_name: str) -> None:
-    warn_deprecated(
-        f"io.enrichment.{alias_name}",
-        stacklevel=3,
     )
 
 
@@ -570,10 +472,6 @@ def _table_format_from_path(path: Path) -> str:
 
 
 __all__ = [
-    "load_enrichment_sets_csv",
-    "load_enrichment_sets_gmt",
-    "load_enrichment_sets_table",
-    "load_enrichment_sets_tsv",
     "read_enrichment_sets_csv",
     "read_enrichment_sets_gmt",
     "read_enrichment_sets_table",

@@ -1,0 +1,1 @@
+"""Signalome capability owner."""

@@ -15,6 +15,7 @@ from phospy.api import (
     PhosphositeImportRequest,
     PhosphositeImportResult,
 )
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 from phospy.io.readers import (
     FragPipePTMProphetImporter,
@@ -23,7 +24,6 @@ from phospy.io.readers import (
     MaxQuantPhosphositeImporter,
     MaxQuantPhosphositeImportRequest,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 
 class _RecordingMappedImporter:

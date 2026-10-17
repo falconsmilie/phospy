@@ -11,7 +11,9 @@ coverage.xml
 # Packaging
 *.egg-info/
 build/
+.build/
 dist/
+/artifacts/
 
 # Virtual environments and local tooling
 .venv/

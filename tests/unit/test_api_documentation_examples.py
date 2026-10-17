@@ -7,7 +7,9 @@ from typing import Any
 
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
 from phospy.advanced import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     ControlSiteSet,
@@ -41,12 +43,15 @@ from phospy.api import (
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     EnrichmentConfig,
     EnrichmentWorkflow,
     EnrichmentWorkflowRequest,
     ExperimentalDesign,
     GeneSetCollection,
     IntensityScaleKind,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
@@ -55,7 +60,6 @@ from phospy.api import (
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
@@ -467,8 +471,6 @@ def test_api_docs_public_imports_are_valid() -> None:
     exec(
         """from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
-    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )""",
@@ -476,11 +478,13 @@ def test_api_docs_public_imports_are_valid() -> None:
     )
     exec(
         """from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     ExperimentalDesign,
     Contrast,
     SampleDesignRecord,
     DatasetPreprocessingConfig,
+    DifferentialAnalysisWorkflow,
     DifferentialAnalysisRequest,
     KinaseWorkflowRequest,
     Organism,
@@ -1291,7 +1295,7 @@ def test_api_docs_differential_import_route_uses_supported_public_path() -> None
 
     _assert_python_imports(
         source,
-        "phospy",
+        "phospy.api",
         ("DifferentialAnalysisWorkflow",),
         context="differential workflow import route",
     )

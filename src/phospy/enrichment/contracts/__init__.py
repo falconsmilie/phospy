@@ -1,0 +1,1 @@
+"""Passive Enrichment capability contracts."""

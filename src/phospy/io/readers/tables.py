@@ -9,21 +9,23 @@ from typing import Any, NoReturn, cast
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-
-_CSV = "csv"
-_TSV = "tsv"
-_PARQUET = "parquet"
-_SUPPORTED_OUTPUT_FORMATS = (_CSV, _TSV, _PARQUET)
-_SUPPORTED_INPUT_FORMATS_LABEL = (
-    "csv (.csv), tsv (.tsv), txt as tab-separated tsv (.txt), parquet (.parquet)"
+from phospy.frames.table_formats import (
+    SUPPORTED_TABLE_OUTPUT_FORMATS as _SUPPORTED_OUTPUT_FORMATS,
 )
+from phospy.frames.table_formats import (
+    TABLE_FORMAT_CSV as _CSV,
+)
+from phospy.frames.table_formats import (
+    TABLE_FORMAT_PARQUET as _PARQUET,
+)
+from phospy.frames.table_formats import (
+    TABLE_FORMAT_TSV as _TSV,
+)
+from phospy.frames.table_formats import (
+    table_format_from_path,
+)
+
 _MISSING_NUMERIC_TOKENS = frozenset({"", "na", "n/a", "nan", "null"})
-
-
-def supported_table_input_formats() -> str:
-    """Return the user-facing list of supported table input formats."""
-
-    return _SUPPORTED_INPUT_FORMATS_LABEL
 
 
 def read_table(path: Path) -> pd.DataFrame:
@@ -133,22 +135,6 @@ def write_table(table: pd.DataFrame, path: Path) -> None:
         raise PhosPyInputError(
             f"failed to write output table '{normalized_path}': {exc}"
         ) from exc
-
-
-def table_format_from_path(path: Path) -> str:
-    """Infer supported table format from file suffix."""
-
-    suffix = path.suffix.lower()
-    if suffix == ".csv":
-        return _CSV
-    if suffix in {".tsv", ".txt"}:
-        return _TSV
-    if suffix == ".parquet":
-        return _PARQUET
-    raise UnsupportedInputFormatError(
-        "unsupported table file format for "
-        f"'{path}'. supported formats: {supported_table_input_formats()}"
-    )
 
 
 def table_suffix_for_format(output_format: str) -> str:

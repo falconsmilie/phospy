@@ -5,7 +5,9 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
 from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -16,6 +18,7 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     KinasePredictionResult,
@@ -35,7 +38,7 @@ from phospy.io.bundles._shared.processing_state import (
 )
 from phospy.provenance.hashing import hash_table_exact, hash_table_tolerance
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.provenance.serialization import from_payload, to_payload
+from phospy.run_lineage.serialization import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

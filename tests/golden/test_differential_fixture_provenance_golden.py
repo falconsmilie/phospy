@@ -5,10 +5,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

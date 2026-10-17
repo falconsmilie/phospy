@@ -11,18 +11,22 @@ import pandas as pd
 import pytest
 
 from phospy.api import DatasetBuildRequest, Organism, ReferenceBundle
-from phospy.errors import PhosPyInputError
-from phospy.provenance.immutability import FrozenJsonMapping, thaw_json_mapping
-from phospy.provenance.models import RunProvenance
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.differential.models import (
-    ContrastMatrix,
-    DesignMatrix,
-    DifferentialAnalysisResult,
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     QuantificationDepthTrendDiagnostics,
 )
-from phospy.science.tables.activity import ActivityMatrix
+from phospy.differential.models.design import (
+    ContrastMatrix,
+    DesignMatrix,
+)
+from phospy.differential.results import (
+    DifferentialAnalysisResult,
+)
+from phospy.errors import PhosPyInputError
+from phospy.kinase.activity.tables import ActivityMatrix
+from phospy.provenance.immutability import FrozenJsonMapping, thaw_json_mapping
+from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -34,36 +38,38 @@ from tests.support.site_keys import protein_site_key_index, site_key_context_col
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PUBLIC_PANDAS_CONTAINER_PATHS = (
-    "src/phospy/contracts/dataset_build.py",
-    "src/phospy/contracts/requests.py",
-    "src/phospy/contracts/results/base.py",
-    "src/phospy/contracts/results/enrichment.py",
-    "src/phospy/contracts/results/kinase.py",
-    "src/phospy/contracts/results/signalome.py",
+    "src/phospy/datasets/contracts.py",
+    "src/phospy/io/importers/contracts.py",
+    "src/phospy/enrichment/contracts/results.py",
+    "src/phospy/kinase/results.py",
+    "src/phospy/signalome/results.py",
     "src/phospy/frames/table_schema.py",
-    "src/phospy/science/activities/diagnostics.py",
-    "src/phospy/science/activities/inputs.py",
-    "src/phospy/science/activities/results.py",
-    "src/phospy/science/activities/semantics.py",
-    "src/phospy/science/datasets/construction/analysis_ready.py",
-    "src/phospy/science/datasets/imputation_metadata.py",
-    "src/phospy/science/datasets/preprocessing/protein_aware_preparation.py",
-    "src/phospy/science/datasets/processing_state.py",
-    "src/phospy/science/differential/linear_model.py",
-    "src/phospy/science/differential/models/design.py",
-    "src/phospy/science/differential/models/diagnostics.py",
-    "src/phospy/science/differential/models/results.py",
-    "src/phospy/science/prediction/models.py",
-    "src/phospy/science/references/models.py",
-    "src/phospy/science/signalomes/models.py",
-    "src/phospy/science/tables/activity.py",
-    "src/phospy/science/tables/datasets.py",
-    "src/phospy/science/tables/kinase.py",
-    "src/phospy/science/tables/references.py",
-    "src/phospy/science/tables/signalome/assignments.py",
-    "src/phospy/science/tables/signalome/context.py",
-    "src/phospy/science/tables/signalome/modules.py",
-    "src/phospy/science/tables/signalome/network.py",
+    "src/phospy/kinase/activity/diagnostics.py",
+    "src/phospy/kinase/activity/inputs.py",
+    "src/phospy/kinase/activity/results.py",
+    "src/phospy/activities/semantics.py",
+    "src/phospy/datasets/models.py",
+    "src/phospy/datasets/imputation_metadata.py",
+    "src/phospy/preprocessing/results/protein_aware.py",
+    "src/phospy/preparation_records/protein_aware.py",
+    "src/phospy/datasets/protein_aware.py",
+    "src/phospy/datasets/processing_state.py",
+    "src/phospy/differential/execution/linear_model.py",
+    "src/phospy/differential/models/design.py",
+    "src/phospy/differential/diagnostics.py",
+    "src/phospy/differential/results.py",
+    "src/phospy/kinase/prediction/diagnostics.py",
+    "src/phospy/kinase/prediction/results.py",
+    "src/phospy/references/models.py",
+    "src/phospy/signalome/models.py",
+    "src/phospy/datasets/schemas.py",
+    "src/phospy/kinase/prediction/tables.py",
+    "src/phospy/kinase/scoring/tables.py",
+    "src/phospy/references/tables.py",
+    "src/phospy/signalome/tables/assignments.py",
+    "src/phospy/signalome/tables/context.py",
+    "src/phospy/signalome/tables/modules.py",
+    "src/phospy/signalome/tables/network.py",
 )
 _PANDAS_NUMPY_FIELD_TOKENS = (
     "DatasetInput",
@@ -375,23 +381,35 @@ def test_public_pandas_dataclasses_do_not_use_implicit_dataclass_equality() -> N
 
     for relative_path in _PUBLIC_PANDAS_CONTAINER_PATHS:
         path = _REPO_ROOT / relative_path
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in (item for item in tree.body if isinstance(item, ast.ClassDef)):
-            dataclass_decorator = _dataclass_decorator(node)
-            if dataclass_decorator is None:
-                continue
-            if _dataclass_flag(dataclass_decorator, "unsafe_hash") is True:
-                unsafe_hashes.append(f"{relative_path}:{node.name}")
-            if not _class_contains_pandas_payload(node):
-                continue
-            if _dataclass_flag(dataclass_decorator, "eq") is False:
-                continue
-            if _defines_method(node, "__eq__"):
-                continue
-            problems.append(f"{relative_path}:{node.name}")
+        path_problems, path_unsafe_hashes = _pandas_dataclass_policy_problems(
+            path.read_text(encoding="utf-8"),
+            source_name=relative_path,
+        )
+        problems.extend(path_problems)
+        unsafe_hashes.extend(path_unsafe_hashes)
 
     assert problems == []
     assert unsafe_hashes == []
+
+
+def test_public_pandas_dataclass_guard_rejects_implicit_equality_and_unsafe_hash() -> (
+    None
+):
+    implicit_problems, implicit_unsafe_hashes = _pandas_dataclass_policy_problems(
+        "@dataclass\nclass PublicFrame:\n    table: pd.DataFrame\n",
+        source_name="implicit.py",
+    )
+    unsafe_problems, unsafe_hashes = _pandas_dataclass_policy_problems(
+        "@dataclass(eq=False, unsafe_hash=True)\n"
+        "class UnsafeFrame:\n"
+        "    table: pd.DataFrame\n",
+        source_name="unsafe.py",
+    )
+
+    assert implicit_problems == ["implicit.py:PublicFrame"]
+    assert implicit_unsafe_hashes == []
+    assert unsafe_problems == []
+    assert unsafe_hashes == ["unsafe.py:UnsafeFrame"]
 
 
 def _dataset(
@@ -603,6 +621,30 @@ def _dataclass_decorator(
         if isinstance(target, ast.Attribute) and target.attr == "dataclass":
             return decorator
     return None
+
+
+def _pandas_dataclass_policy_problems(
+    source: str,
+    *,
+    source_name: str,
+) -> tuple[list[str], list[str]]:
+    tree = ast.parse(source, filename=source_name)
+    problems: list[str] = []
+    unsafe_hashes: list[str] = []
+    for node in (item for item in tree.body if isinstance(item, ast.ClassDef)):
+        dataclass_decorator = _dataclass_decorator(node)
+        if dataclass_decorator is None:
+            continue
+        if _dataclass_flag(dataclass_decorator, "unsafe_hash") is True:
+            unsafe_hashes.append(f"{source_name}:{node.name}")
+        if not _class_contains_pandas_payload(node):
+            continue
+        if _dataclass_flag(dataclass_decorator, "eq") is False:
+            continue
+        if _defines_method(node, "__eq__"):
+            continue
+        problems.append(f"{source_name}:{node.name}")
+    return problems, unsafe_hashes
 
 
 def _dataclass_flag(

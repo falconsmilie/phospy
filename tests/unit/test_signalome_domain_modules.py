@@ -3,14 +3,14 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.contracts.configs import (
+from phospy.errors import WorkflowStageError
+from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
 )
-from phospy.errors import WorkflowStageError
-from phospy.science.signalomes.expanded import build_expanded_signalome_table
-from phospy.science.signalomes.modules import build_signalome_module_table
-from phospy.science.signalomes.network import (
+from phospy.signalome.expanded import build_expanded_signalome_table
+from phospy.signalome.modules import build_signalome_module_table
+from phospy.signalome.network import (
     build_kinase_network_with_diagnostics,
 )
 

@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from typing import get_type_hints
 
-import phospy.api.requests as request_models
+import phospy.api as request_models
 from phospy.advanced import (
     DifferentialAnalysisConfig,
     MultipleTestingConfig,
     TechnicalReplicatePolicy,
 )
-from phospy.advanced.configs import DifferentialAnalysisConfig as ConfigFromConfigs
+from phospy.advanced import (
+    DifferentialAnalysisConfig as ConfigFromConfigs,
+)
 from phospy.api import DifferentialAnalysisRequest
-from phospy.science.differential.policy_models import (
+from phospy.differential.policies import (
     TechnicalReplicatePolicy as PolicyFromDifferentialPolicyModels,
 )
 

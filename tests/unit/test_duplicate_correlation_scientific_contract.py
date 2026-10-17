@@ -4,9 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from phospy.errors import PhosPyInputError
-from phospy.provenance.models import TableFingerprint
-from phospy.science.differential.models.duplicate_correlation import (
+from phospy.differential.models.duplicate_correlation import (
     DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION,
     DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY,
     DUPLICATE_CORRELATION_ESTIMATOR_FEATURE_WISE_REML,
@@ -27,6 +25,8 @@ from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationWorkflowProvenance,
     duplicate_correlation_workflow_provenance_from_payload,
 )
+from phospy.errors import PhosPyInputError
+from phospy.provenance.models import TableFingerprint
 
 
 def _matrix_fingerprint() -> TableFingerprint:

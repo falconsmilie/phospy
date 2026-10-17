@@ -11,20 +11,20 @@ import pandas as pd
 import pytest
 
 from phospy.api import Organism
-from phospy.errors import DatasetValidationError, PhosPyInputError
-from phospy.provenance import (
-    ReferenceProvenance,
-    RunProvenance,
-    TableFingerprint,
+from phospy.datasets._construction import service as construction_service
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
-    from_payload,
-    to_payload,
 )
-from phospy.provenance.reference_context import ReferenceContext
-from phospy.science.datasets.construction import service as construction_service
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.transformations.state_coherence import observe_numeric_domain
+from phospy.errors import DatasetValidationError, PhosPyInputError
+from phospy.provenance import (
+    TableFingerprint,
+)
+from phospy.quantitative.state_coherence import observe_numeric_domain
+from phospy.references.provenance.context import ReferenceContext
+from phospy.references.provenance.models import ReferenceProvenance
+from phospy.run_lineage import RunProvenance, from_payload, to_payload
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

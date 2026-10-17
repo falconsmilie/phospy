@@ -1,0 +1,61 @@
+"""Request-shell validation for batch-correction workflows."""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from phospy.errors.input import PhosPyInputError
+from phospy.preprocessing.batch_correction.contracts.request import (
+    InternalBatchCorrectionRequest,
+)
+from phospy.preprocessing.batch_correction.validation.protocols import (
+    BatchCorrectionWorkflowRequestProtocol,
+)
+
+
+class BatchCorrectionWorkflowRequestValidator:
+    """Validate workflow request containers without scientific interpretation."""
+
+    def run(self, request: object) -> BatchCorrectionWorkflowRequestProtocol:
+        if not isinstance(request, BatchCorrectionWorkflowRequestProtocol):
+            raise PhosPyInputError(
+                "batch-correction workflow request must be "
+                "BatchCorrectionWorkflowRequest-compatible"
+            )
+        if not isinstance(request.config, InternalBatchCorrectionRequest):
+            raise PhosPyInputError(
+                "batch-correction workflow request.config must be "
+                "InternalBatchCorrectionRequest"
+            )
+        if not isinstance(request.phospho, pd.DataFrame):
+            raise PhosPyInputError(
+                "batch-correction workflow request.phospho must be a pandas DataFrame"
+            )
+        if request.sample_metadata is not None and not isinstance(
+            request.sample_metadata,
+            pd.DataFrame,
+        ):
+            raise PhosPyInputError(
+                "batch-correction workflow request.sample_metadata must be a pandas "
+                "DataFrame when provided"
+            )
+        if request.site_metadata is not None and not isinstance(
+            request.site_metadata,
+            pd.DataFrame,
+        ):
+            raise PhosPyInputError(
+                "batch-correction workflow request.site_metadata must be a pandas "
+                "DataFrame when provided"
+            )
+        if request.upstream_observation_mask is not None and not isinstance(
+            request.upstream_observation_mask,
+            pd.DataFrame,
+        ):
+            raise PhosPyInputError(
+                "batch-correction workflow request.upstream_observation_mask must "
+                "be a pandas DataFrame when provided"
+            )
+        return request
+
+
+__all__ = ["BatchCorrectionWorkflowRequestValidator"]

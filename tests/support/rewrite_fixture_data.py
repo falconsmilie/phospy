@@ -11,9 +11,9 @@ import pandas as pd
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     Organism,
 )

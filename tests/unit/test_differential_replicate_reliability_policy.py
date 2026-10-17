@@ -6,27 +6,28 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
 from phospy.advanced import (
     DifferentialAnalysisConfig,
     TechnicalReplicatePolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import (
+from phospy.differential.caveats import (
+    DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE,
+)
+from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
 )
-from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.errors import WorkflowValidationError
-from phospy.workflows.differential.caveats import (
-    DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE,
-)
+from phospy.provenance.result_caveats import result_caveats_from_payloads
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -417,10 +418,15 @@ def test_production_fixed_block_two_biological_replicates_passes() -> None:
 def test_replicate_reliability_policy_is_not_owned_by_numerical_execution() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     executor_source = (
-        repo_root / "src" / "phospy" / "science" / "differential" / "executor.py"
+        repo_root
+        / "src"
+        / "phospy"
+        / "differential"
+        / "execution"
+        / "model_executor.py"
     ).read_text(encoding="utf-8")
     linear_model_source = (
-        repo_root / "src" / "phospy" / "science" / "differential" / "linear_model.py"
+        repo_root / "src" / "phospy" / "differential" / "execution" / "linear_model.py"
     ).read_text(encoding="utf-8")
 
     assert "reliability_profile" not in executor_source

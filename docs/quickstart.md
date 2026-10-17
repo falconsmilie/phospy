@@ -9,13 +9,14 @@ public API before using your own data.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import AnalysisReadyDatasetBuilder
 from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
+    DifferentialAnalysisWorkflow,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,

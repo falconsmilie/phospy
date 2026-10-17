@@ -17,14 +17,14 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.kinase.scoring.config import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

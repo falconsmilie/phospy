@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.errors.workflows import SignalomeScaleError
-from phospy.science.signalomes.clustering.policies import (
+from phospy.signalome.clustering.policies import (
     MAX_FULL_CORRELATION_SITE_COUNT,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
 )
-from phospy.science.signalomes.clustering.scale_guards import (
+from phospy.signalome.clustering.scale_guards import (
     raise_if_exact_tree_limit_exceeded,
     raise_if_full_candidate_scoring_limit_exceeded,
     resolve_max_exact_tree_sites,
 )
+from phospy.signalome.errors import SignalomeScaleError
 
 
 def test_resolve_max_exact_tree_sites_uses_safe_default() -> None:

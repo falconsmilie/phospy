@@ -28,15 +28,15 @@ from phospy.api import (
     Organism,
     ReferencePreset,
 )
-from phospy.contracts.configs import (
-    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
-)
 from phospy.errors import PhosPyInputError
 from phospy.io.publishers.workflows import publish_dataset
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.science.transformations.models import (
+from phospy.preprocessing.contracts.configuration import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+)
+from phospy.quantitative.models import (
     MatrixIntensityScaleState,
 )
+from phospy.references.resolution import ReferenceResolver
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration
@@ -506,6 +506,19 @@ def test_dataset_builder_marks_mixed_quantitative_meaning_when_uncorrected_rows_
     mixed_meaning = "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
     assert built.intensity_scale_state.quantity is not None
     assert built.intensity_scale_state.quantity.value == mixed_meaning
+    meaning_provenance = built.intensity_scale_state.quantitative_meaning_provenance
+    assert meaning_provenance is not None
+    assert meaning_provenance.diagnostic_caveat_codes == (
+        "quantitative_meaning_mixed_total_protein_correction",
+    )
+    assert built.provenance is not None
+    meaning_payload = built.provenance.workflow_parameters[
+        "quantitative_meaning_provenance"
+    ]
+    assert isinstance(meaning_payload, dict)
+    assert meaning_payload["diagnostic_caveat_codes"] == [
+        "quantitative_meaning_mixed_total_protein_correction"
+    ]
     correction = built.processing_state.total_protein_correction
     assert correction.quantitative_meaning == mixed_meaning
     assert correction.diagnostics is not None

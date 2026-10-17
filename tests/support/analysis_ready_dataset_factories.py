@@ -6,28 +6,35 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
-from phospy.api import DatasetBuildRequest
-from phospy.contracts.configs import DatasetPreprocessingConfig
-from phospy.errors.validation import TransformationValidationError
-from phospy.provenance.models import (
-    JsonValue,
-    RunProvenance,
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    DatasetBuildRequest,
+)
+from phospy.datasets.processing_state import (
+    DatasetPreprocessingReport,
+    DatasetProcessingState,
+)
+from phospy.datasets.protein_aware import ProteinAwarePreparationResult
+from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
-    ProteinAwarePreparationResult,
+from phospy.errors.validation import TransformationValidationError
+from phospy.preprocessing.contracts.configuration.dataset import (
+    DatasetPreprocessingConfig,
 )
-from phospy.science.datasets.processing_state import DatasetProcessingState
-from phospy.science.references.models import Organism
-from phospy.science.transformations.models import (
+from phospy.provenance.models import JsonValue
+from phospy.quantitative.models import (
     IntensityScaleKind,
     IntensityScaleState,
     QuantitativeMeaning,
 )
-from phospy.science.transformations.state_coherence import observe_numeric_domain
+from phospy.quantitative.state_coherence import observe_numeric_domain
+from phospy.run_lineage.models import RunProvenance
+from phospy.taxonomy import Organism
 
 
 def complete_trusted_dataset_construction_assertions_for_tests(

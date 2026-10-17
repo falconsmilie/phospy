@@ -49,7 +49,7 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0030 | Ranked-List Enrichment Prerequisites | Accepted | 2026-06-23 | [adr_0030_ranked_list_enrichment_prerequisites.md](adr_0030_ranked_list_enrichment_prerequisites.md) |
 | ADR-0031 | Public API Stability Tiers | Accepted | 2026-06-30 | [adr_0031_public_api_stability_tiers.md](adr_0031_public_api_stability_tiers.md) |
 | ADR-0032 | Differential Declared Scale Eligibility Override | Accepted | 2026-07-01 | [adr_0032_differential_declared_scale_eligibility_override.md](adr_0032_differential_declared_scale_eligibility_override.md) |
-| ADR-0033 | Result Caveats and Scientific Warning Ownership | Accepted | 2026-07-06 | [adr_0033_result_caveats.md](adr_0033_result_caveats.md) |
+| ADR-0033 | Result Caveats and Scientific Warning Ownership | Amended | 2026-07-06 | [adr_0033_result_caveats.md](adr_0033_result_caveats.md) |
 | ADR-0034 | Quantitative State, Motif Scoring Semantics, and Reference Context | Amended | 2026-07-09 | [adr_0034_quantitative_state_motif_semantics_and_reference_context.md](adr_0034_quantitative_state_motif_semantics_and_reference_context.md) |
 | ADR-0035 | Provenance Immutability and Stable Serialization | Accepted | 2026-07-15 | [adr_0035_provenance_immutability_and_stable_serialization.md](adr_0035_provenance_immutability_and_stable_serialization.md) |
 | ADR-0036 | Enrichment Universe and Attrition Policy | Accepted | 2026-07-16 | [adr_0036_enrichment_universe_and_attrition_policy.md](adr_0036_enrichment_universe_and_attrition_policy.md) |
@@ -69,3 +69,5 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0050 | Group-Aware Mixed-Mechanism Missing-Data Imputation | Accepted | 2026-09-15 | [adr_0050_group_aware_mixed_mechanism_missing_data_imputation.md](adr_0050_group_aware_mixed_mechanism_missing_data_imputation.md) |
 | ADR-0051 | SPS Reference Quantitative State and Discovery Separation | Accepted | 2026-09-17 | [adr_0051_sps_reference_quantitative_state_and_discovery_separation.md](adr_0051_sps_reference_quantitative_state_and_discovery_separation.md) |
 | ADR-0052 | Partial-Reference SPS Consensus Ordering | Accepted | 2026-09-18 | [adr_0052_partial_reference_sps_consensus_ordering.md](adr_0052_partial_reference_sps_consensus_ordering.md) |
+| ADR-0053 | Domain-First Capability Architecture and Dependency Governance | Accepted | 2026-09-26 | [adr_0053_domain_first_capability_architecture.md](adr_0053_domain_first_capability_architecture.md) |
+| ADR-0054 | Public API Reset and Compatibility Removal | Accepted | 2026-09-26 | [adr_0054_public_api_reset_and_compatibility_removal.md](adr_0054_public_api_reset_and_compatibility_removal.md) |

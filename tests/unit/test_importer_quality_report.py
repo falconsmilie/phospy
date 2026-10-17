@@ -5,7 +5,8 @@ from collections.abc import Iterator, Mapping
 import numpy as np
 import pytest
 
-from phospy.contracts.results import (
+from phospy.errors import PhosPyInputError
+from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_NOT_REPORTED,
     IMPORTER_QUALITY_STATUS_REPORTED,
@@ -17,7 +18,6 @@ from phospy.contracts.results import (
     ImporterQualityCount,
     ImporterQualityReport,
 )
-from phospy.errors import PhosPyInputError
 
 
 class _DuplicateKeyMapping(Mapping[object, object]):

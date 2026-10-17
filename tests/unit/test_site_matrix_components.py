@@ -6,7 +6,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from phospy.contracts.configs import (
+from phospy.errors.input import PhosPyInputError
+from phospy.preprocessing.contracts import (
+    DuplicateSiteResolutionResult,
+    PreprocessingPlan,
+    PreprocessingState,
+)
+from phospy.preprocessing.contracts.configuration import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
@@ -15,14 +21,8 @@ from phospy.contracts.configs import (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.models import (
-    DuplicateSiteResolutionResult,
-    PreprocessingPlan,
-    PreprocessingState,
-)
-from phospy.science.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
-from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
+from phospy.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
     MetadataConflictDetector,
     MissingDataSiteFilter,

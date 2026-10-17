@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import warnings
-
 import pandas as pd
+import pytest
 
 from phospy import KinaseWorkflow
-from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -16,8 +14,11 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.prediction.motif_scoring import (
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.kinase.contracts import ValidatedKinaseWorkflowRequest
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.scoring.execution import KinaseScoringRunner
+from phospy.kinase.scoring.motif import (
     DEFAULT_MOTIF_FLANK_SIZE,
     SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     SEQUENCE_SEMANTICS_CENTRED_WINDOW,
@@ -27,7 +28,7 @@ from phospy.science.prediction.motif_scoring import (
     get_motif_library_validation,
     score_phosphosite_motifs,
 )
-from phospy.science.prediction.sequence_validation import (
+from phospy.kinase.scoring.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
     SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE,
     SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE,
@@ -38,9 +39,6 @@ from phospy.science.prediction.sequence_validation import (
     MotifSequenceValidator,
     SequenceValidationInput,
 )
-from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -960,85 +958,32 @@ def test_structured_explicit_sequence_rejects_invalid_site_id_format() -> None:
     assert validation.rows[0].status == SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID
 
 
-def test_structured_explicit_sequences_do_not_emit_bare_string_warning() -> None:
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        _, motif_sizes = build_motif_library_from_sequences(
-            motif_sequences={
-                "K1": [
-                    {
-                        "reference_id": "REF_VALID",
-                        "site_id": "MAPK1;S202;",
-                        "kinase": "K1",
-                        "sequence": "AAAAAAASAAAAAAA",
-                    }
-                ]
-            },
-            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
-        )
+def test_structured_explicit_sequences_remain_supported() -> None:
+    _, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={
+            "K1": [
+                {
+                    "reference_id": "REF_VALID",
+                    "site_id": "MAPK1;S202;",
+                    "kinase": "K1",
+                    "sequence": "AAAAAAASAAAAAAA",
+                }
+            ]
+        },
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
 
     validation = get_motif_library_validation(motif_sizes)
     assert validation is not None
     assert validation.accepted_reference_sequences == 1
-    assert not any(
-        issubclass(item.category, PhosPyDeprecationWarning)
-        and "Bare motif sequence strings" in str(item.message)
-        for item in caught
-    )
 
 
-def test_bare_explicit_sequences_warn_and_remain_supported_without_site_mismatch_claims() -> (
-    None
-):
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        _, motif_sizes = build_motif_library_from_sequences(
+def test_bare_explicit_sequences_are_rejected() -> None:
+    with pytest.raises(TypeError, match="ExplicitMotifSequence or mapping"):
+        build_motif_library_from_sequences(
             motif_sequences={"K1": ["AAAAAAASAAAAAAA", "AAAAAAATAAAAAAA"]},
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
         )
-
-    validation = get_motif_library_validation(motif_sizes)
-    assert validation is not None
-    summary = validation.summary()
-    assert summary["reference_sequences_provided"] == 2
-    assert summary["reference_sequences_accepted"] == 2
-    assert summary["excluded_site_residue_mismatch"] == 0
-    assert summary["excluded_invalid_site_id"] == 0
-    for row in validation.rows:
-        assert row.status == "valid"
-        assert row.site_id is None
-        assert row.expected_centre_residue is None
-    assert any(
-        issubclass(item.category, PhosPyDeprecationWarning)
-        and "Bare motif sequence strings" in str(item.message)
-        and "ExplicitMotifSequence" in str(item.message)
-        for item in caught
-    )
-
-
-def test_bare_explicit_invalid_sequence_is_rejected_and_reported() -> None:
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        _, motif_sizes = build_motif_library_from_sequences(
-            motif_sequences={"K1": ["AAAAAAAXAAAAAAA"]},
-            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
-        )
-
-    validation = get_motif_library_validation(motif_sizes)
-    assert validation is not None
-    summary = validation.summary()
-    assert summary["reference_sequences_accepted"] == 0
-    assert summary["reference_sequences_excluded"] == 1
-    assert summary["excluded_unsupported_residue"] == 1
-    assert (
-        validation.rows[0].status
-        == SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
-    )
-    assert any(
-        issubclass(item.category, PhosPyDeprecationWarning)
-        and "Bare motif sequence strings" in str(item.message)
-        for item in caught
-    )
 
 
 def test_motif_library_validation_rows_preserve_reference_provenance() -> None:

@@ -548,56 +548,53 @@ Neutral consequences:
 ## Implementation Notes
 
 - Quantitative state and evidence enums:
-  `src/phospy/science/transformations/policy.py`
+  `src/phospy/quantitative/policy.py`
 - Transformation value models and state transitions:
-  `src/phospy/science/transformations/scale_values.py` and
-  `src/phospy/science/transformations/scale_state.py`; the historical
-  `src/phospy/science/transformations/models.py` route is identity-preserving
-  only.
+  `src/phospy/quantitative/scale_values.py` and
+  `src/phospy/quantitative/scale_state.py`.
 - Workflow-visible intensity-scale evidence and declared-scale caveats:
-  `src/phospy/workflows/intensity_scale_evidence.py`
+  `src/phospy/quantitative/evidence.py`
 - Provenance payload model:
-  `src/phospy/provenance/models/workflows.py`
+  `src/phospy/run_lineage/models.py`
 - Kinase scoring config and public scoring-mode strings:
-  `src/phospy/contracts/configs/kinase.py`
+  `src/phospy/kinase/scoring/config.py`
 - Kinase reference-projection summary contract:
-  `src/phospy/contracts/kinase_reference_projection.py`; projection execution
-  remains in `src/phospy/workflows/kinase/reference_projection.py`
+  `src/phospy/kinase/references/projection_contracts.py`; projection execution
+  lives in `src/phospy/kinase/references/projection.py`
 - Internal kinase scoring-mode input contracts:
-  `src/phospy/workflows/kinase/scoring_mode_contracts.py`
+  `src/phospy/kinase/scoring/contracts.py`
 - Method quantitative input contract models:
-  `src/phospy/science/quantitative_method_contracts.py`
+  `src/phospy/activities/contracts.py`
 - Kinase activity method quantitative contracts:
-  `src/phospy/science/activities/method_contracts.py`
-- Shared method-contract validation primitive:
-  `src/phospy/validation/workflows/method_quantitative.py`
+  `src/phospy/kinase/activity/contracts.py`
+- Kinase method-contract validation primitive:
+  `src/phospy/activities/validation.py`
 - Kinase scoring execution branches:
-  `src/phospy/workflows/kinase/scoring_runner.py`
+  `src/phospy/kinase/scoring/execution.py`
 - Kinase result caveat assembly:
-  `src/phospy/workflows/kinase/caveats.py`
+  `src/phospy/kinase/caveats.py`
 - Scoring policy enums:
-  `src/phospy/science/scoring/policy_models.py`
+  `src/phospy/kinase/policies.py`
 - Protein-scoped `site_key` encoding:
-  `src/phospy/science/sites/site_keys.py`
+  `src/phospy/phosphosites/site_keys.py`
 - Reference context and reference bundle models:
-  `src/phospy/science/references/models.py`; reference manifest value models
-  are split across `src/phospy/science/references/manifest_policy.py`,
-  `src/phospy/science/references/manifest_files.py`,
-  `src/phospy/science/references/redistribution.py`, and
-  `src/phospy/science/references/manifest_model.py`, with
-  `src/phospy/science/references/manifest.py` retained as an identity-preserving
-  route.
-- Shared phosphosite identity and reference-context contract implementation:
-  `src/phospy/science/sites/identity_contracts.py`; the validation-package
-  route `src/phospy/validation/identity_contracts.py` is a compatibility
-  re-export.
+  `src/phospy/references/models.py`; reference manifest value models are split
+  across `src/phospy/references/manifest_policy.py`,
+  `src/phospy/references/manifest_files.py`,
+  `src/phospy/references/redistribution.py`, and
+  `src/phospy/references/manifest_model.py`, with
+  `src/phospy/references/manifest.py` as the owner aggregate.
+- Shared phosphosite identity contract implementation:
+  `src/phospy/phosphosites/contracts.py`; reference-context compatibility is
+  owned provisionally by
+  `src/phospy/references/context_compatibility.py`.
 - Workflow phosphosite sequence-context contract implementation:
-  `src/phospy/science/sites/sequence_context.py`
+  `src/phospy/phosphosites/sequence_context.py`
 - Kinase and signalome workflow validators:
-  `src/phospy/workflows/kinase/validator.py` and
-  `src/phospy/workflows/signalome/validator.py`
+  `src/phospy/kinase/validator.py` and
+  `src/phospy/signalome/validator.py`
 - Analysis-ready dataset boundary:
-  `src/phospy/science/datasets/construction/analysis_ready.py`
+  `src/phospy/datasets/models.py`
 
 ## Related Records
 

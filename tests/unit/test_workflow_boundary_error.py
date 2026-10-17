@@ -3,27 +3,25 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import ReferenceContextCompatibilityPolicy
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
-    Organism,
-    SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
+    Organism,
+    SignalomeWorkflowRequest,
 )
+from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.science.references.models import ReferenceBundle
-from phospy.workflows.signalome.constants import (
+from phospy.references.models import ReferenceBundle
+from phospy.signalome.constants import (
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
 )
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

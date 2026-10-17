@@ -5,28 +5,30 @@ from typing import cast
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
-from phospy.provenance.derived_quantitative import (
+from phospy.datasets.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
     DerivedSampleMapping,
+)
+from phospy.errors.input import PhosPyInputError
+from phospy.preprocessing.provenance.models import (
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    PreprocessingStageProvenance,
+    ReproducibilityCaveat,
 )
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.immutability import FrozenJsonMapping
 from phospy.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     EnvironmentProvenance,
     JsonValue,
-    PreprocessingStageProvenance,
-    ReproducibilityCaveat,
-    RunProvenance,
     TableFingerprint,
 )
 from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )
-from phospy.provenance.serialization import from_payload, to_payload
+from phospy.run_lineage.models import RunProvenance
+from phospy.run_lineage.serialization import from_payload, to_payload
 
 
 class _DuplicateKeyMapping(Mapping[str, object]):

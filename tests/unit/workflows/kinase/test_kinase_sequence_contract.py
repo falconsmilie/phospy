@@ -15,25 +15,25 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs.kinase import (
-    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
-    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
-)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowValidationError
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import KinaseLibraryResourceProvenance
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.motif_scoring.models import AMINO_ACIDS
-from phospy.science.references.kinase_library import (
+from phospy.kinase.references.models import (
     KinaseLibraryMatrix,
     KinaseLibraryResidueClass,
     KinaseLibraryResource,
 )
-from phospy.science.references.models import SequenceWindowDefinition
-from phospy.workflows.kinase.validator import (
+from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
+from phospy.kinase.scoring.config import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
+)
+from phospy.kinase.scoring.motif.models import AMINO_ACIDS
+from phospy.kinase.validator import (
     KinaseWorkflowValidator,
     _selected_explicit_reference_sequence_context,
 )
+from phospy.provenance.hashing import fingerprint_table
+from phospy.references.models import SequenceWindowDefinition
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

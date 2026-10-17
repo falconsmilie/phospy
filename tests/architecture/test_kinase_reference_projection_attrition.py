@@ -3,12 +3,12 @@ from __future__ import annotations
 import dataclasses
 import inspect
 
-from phospy.workflows.kinase import provenance
-from phospy.workflows.kinase.contracts import (
+from phospy.kinase import provenance
+from phospy.kinase.contracts import (
     ResolvedKinaseSiteUniverses,
     ResolvedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.reference_projection import (
+from phospy.kinase.references.projection import (
     KinaseReferenceProjectionSummary,
 )
 

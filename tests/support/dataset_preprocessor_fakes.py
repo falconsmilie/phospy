@@ -4,16 +4,16 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
-from phospy.science.datasets.preprocessing.correction_output import (
+from phospy.datasets.construction.contracts import PreprocessedDatasetBuildTables
+from phospy.preprocessing.batch_correction.contracts.output import (
     CorrectedPreprocessingOutput,
 )
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.transformations.models import (
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.quantitative.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
 )
-from phospy.science.transformations.quantitative_contracts import (
+from phospy.quantitative.quantitative_contracts import (
     QuantitativeContractState,
     initial_quantitative_contract_state,
 )

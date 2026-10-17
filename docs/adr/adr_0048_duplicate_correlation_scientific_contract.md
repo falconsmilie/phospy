@@ -45,7 +45,7 @@ variance-component REML formulation. It does not define the estimator as a
 direct one-dimensional profile-likelihood optimiser over correlation, and this
 ADR does not claim algebraic equivalence to that alternative formulation.
 PhosPy's scientific authority for this implementation is the residual-space
-estimator in `src/phospy/science/differential/duplicate_correlation.py` together
+estimator in `src/phospy/differential/execution/duplicate_correlation.py` together
 with the version-pinned limma fixtures that verify feature-level estimates and
 the consensus correlation.
 
@@ -221,10 +221,10 @@ thousands of feature-wise values.
 ## Implementation Notes
 
 - Public paired-design constants include `reject`, `fixed_block`, and
-  `duplicate_correlation` in `src/phospy/science/configs/differential.py` and
+  `duplicate_correlation` in `src/phospy/differential/policies.py` and
   are re-exported through the supported configuration facades.
 - Internal typed contracts live in
-  `src/phospy/science/differential/models/duplicate_correlation.py`.
+  `src/phospy/differential/models/duplicate_correlation.py`.
 - Fixture parity scopes are declared in
   `tests/support/duplicate_correlation_parity_scopes.py` and checked against the
   committed fixture manifest by the release-gated fixture integrity tests.
@@ -232,8 +232,8 @@ thousands of feature-wise values.
   provenance model for the authoritative fitting matrix and serializes through
   narrow `to_payload()` methods that omit retained feature-wise estimates.
 - Linear-model decomposition remains in
-  `src/phospy/science/differential/linear_model.py`.
+  `src/phospy/differential/execution/linear_model.py`.
 - Empirical-Bayes moderation remains in
-  `src/phospy/science/differential/empirical_bayes.py`.
+  `src/phospy/differential/moderation/empirical_bayes.py`.
 - Related ADRs: [ADR-0019](adr_0019_experimental_design_and_contrast_contract.md)
   and [ADR-0044](adr_0044_differential_replicate_reliability_policy.md).

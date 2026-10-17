@@ -5,9 +5,9 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
+from phospy.activities.semantics import ActivityInputMatrix
 from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -15,26 +15,26 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     ReferencePreset,
 )
+from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors import WorkflowBoundaryError
-from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
-from phospy.science.activities.semantics import ActivityInputMatrix
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.prediction.models import KinasePredictionResult
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.workflows.kinase.contracts import (
-    ResolvedKinaseActivityExecutionConfig,
+from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
+from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.kinase.activity.runner import KinaseActivityRunner
+from phospy.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.references.resolution import ReferenceResolver
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -738,7 +738,7 @@ def test_boundary_error_reports_activity_overlap_edge_case() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        KinaseWorkflowExecutor()._run_activity_stage(
+        KinaseActivityRunner().run(
             request=request,
             config=request.execution_config,
             prediction_result=prediction_result,
@@ -811,7 +811,7 @@ def test_boundary_error_reports_no_activity_candidates_after_filtering() -> None
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        KinaseWorkflowExecutor()._run_activity_stage(
+        KinaseActivityRunner().run(
             request=request,
             config=request.execution_config,
             prediction_result=prediction_result,
@@ -859,7 +859,7 @@ def test_activity_stage_returns_weighted_thresholded_mean_and_target_outputs() -
         ),
     )
 
-    result = KinaseWorkflowExecutor()._run_activity_stage(
+    result = KinaseActivityRunner().run(
         request=request,
         config=request.execution_config,
         prediction_result=prediction_result,
@@ -931,12 +931,12 @@ def test_weighted_activity_is_stable_under_zero_padding_matrix_growth() -> None:
         ),
     )
 
-    compact = KinaseWorkflowExecutor()._run_activity_stage(
+    compact = KinaseActivityRunner().run(
         request=compact_request,
         config=compact_request.execution_config,
         prediction_result=predictions,
     )
-    expanded = KinaseWorkflowExecutor()._run_activity_stage(
+    expanded = KinaseActivityRunner().run(
         request=expanded_request,
         config=expanded_request.execution_config,
         prediction_result=predictions,

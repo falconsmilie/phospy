@@ -17,20 +17,20 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
+from phospy.differential.planning.protein_aware_inputs import (
+    ProteinAwareDifferentialInputResolver,
+)
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.preprocessing.protein_aware.alignment import (
     ProteinAwareAlignmentConfig,
     ProteinAwareAlignmentEligibilityResolver,
 )
-from phospy.science.datasets.preprocessing.protein_mapping import (
+from phospy.preprocessing.protein_aware.mapping import (
     ProteinMappingConfig,
     ProteinMappingResolver,
 )
-from phospy.workflows.differential.protein_aware_inputs import (
-    ProteinAwareDifferentialInputResolver,
-)
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 
 pytestmark = pytest.mark.integration
 

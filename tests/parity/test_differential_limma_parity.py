@@ -19,8 +19,8 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.differential.models import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,

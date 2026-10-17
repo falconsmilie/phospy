@@ -14,8 +14,7 @@ from phospy.api import (
     GeneSetCollection,
     WorkflowValidationError,
 )
-from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
-from phospy.contracts.enrichment_identifier_sets import (
+from phospy.enrichment.contracts.identifier_sets import (
     EnrichmentDerivedQuantitativeSetProvenance,
     EnrichmentDerivedSetMissingValueRule,
     EnrichmentDerivedSetSourceResultKind,
@@ -23,16 +22,18 @@ from phospy.contracts.enrichment_identifier_sets import (
     EnrichmentDerivedSetValueMeaning,
     EnrichmentDerivedSetValueScale,
 )
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
+from phospy.enrichment.interpreter import EnrichmentWorkflowInterpreter
+from phospy.enrichment.validation import EnrichmentWorkflowValidator
 from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import InputIntensityScaleEvidence
-from phospy.validation.workflows.enrichment import EnrichmentWorkflowValidator
-from phospy.workflows.enrichment.interpreter import EnrichmentWorkflowInterpreter
-from phospy.workflows.enrichment.validator import (
-    EnrichmentWorkflowValidator as InternalEnrichmentWorkflowValidator,
-)
-from phospy.workflows.intensity_scale_evidence import (
+from phospy.quantitative.evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
+    InputIntensityScaleEvidence,
 )
+
+InternalEnrichmentWorkflowValidator = EnrichmentWorkflowValidator
 
 
 def _gene_collection() -> GeneSetCollection:

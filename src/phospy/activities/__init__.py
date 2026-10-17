@@ -1,0 +1,1 @@
+"""Passive activity quantitative contracts."""

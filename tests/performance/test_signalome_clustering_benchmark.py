@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.signalomes.clustering as clustering
+from phospy.signalome.clustering.tree_building import build_cluster_tree
 from tests.support.performance_contracts import (
     SIGNALOME_CLUSTER_TREE_BENCHMARK_N_KINASES,
     SIGNALOME_CLUSTER_TREE_BENCHMARK_N_SITES,
@@ -63,7 +63,7 @@ def test_cluster_tree_builder_medium_input_benchmark() -> None:
     scoring_values = scoring_matrix.to_numpy(dtype=float, copy=False)
 
     cluster_tree, elapsed_seconds, peak_mib = measure_runtime_and_peak_mib(
-        lambda: clustering._build_cluster_tree(scoring_values),
+        lambda: build_cluster_tree(scoring_values),
         warmup=True,
     )
 

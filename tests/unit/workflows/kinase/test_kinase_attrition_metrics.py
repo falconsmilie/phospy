@@ -14,15 +14,15 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.kinase.attrition_metrics import (
+from phospy.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
     build_kinase_attrition_provenance_payload,
 )
-from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.contracts import ValidatedKinaseWorkflowRequest
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

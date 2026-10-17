@@ -4,15 +4,14 @@ import pandas as pd
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.group_coverage_metadata import (
-    GroupCoverageFilterMetadataValidator,
-    ResolvedGroupCoverageFilterMetadata,
-)
-from phospy.science.datasets.preprocessing.sample_group_metadata import (
+from phospy.preparation_records.validation.sample_groups import (
     ResolvedSampleGroups,
     SampleGroupMetadataResolver,
 )
-from phospy.validation.datasets import group_coverage_filter as validation_facade
+from phospy.preprocessing.validation.group_coverage import (
+    GroupCoverageFilterMetadataValidator,
+    ResolvedGroupCoverageFilterMetadata,
+)
 
 
 def _phospho(*, columns: pd.Index | None = None) -> pd.DataFrame:
@@ -284,12 +283,10 @@ def test_group_coverage_validator_composes_resolver_then_checks_threshold() -> N
         )
 
 
-def test_validation_facade_reuses_preprocessing_owned_coverage_objects() -> None:
-    assert (
-        validation_facade.GroupCoverageFilterMetadataValidator
-        is GroupCoverageFilterMetadataValidator
+def test_group_coverage_objects_have_preprocessing_owner() -> None:
+    assert GroupCoverageFilterMetadataValidator.__module__ == (
+        "phospy.preprocessing.validation.group_coverage"
     )
-    assert (
-        validation_facade.ResolvedGroupCoverageFilterMetadata
-        is ResolvedGroupCoverageFilterMetadata
+    assert ResolvedGroupCoverageFilterMetadata.__module__ == (
+        "phospy.preprocessing.validation.group_coverage"
     )

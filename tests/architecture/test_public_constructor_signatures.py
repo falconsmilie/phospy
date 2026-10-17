@@ -4,14 +4,15 @@ import inspect
 
 import phospy
 import phospy.api as public_api
-from phospy.api import AnalysisReadyPhosphoDataset, ReferenceBundle
-from phospy.api.results import (
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DifferentialAnalysisResult,
     KinaseActivityResult,
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
     PhosphositeImportResult,
+    ReferenceBundle,
     SignalomeWorkflowResult,
 )
 

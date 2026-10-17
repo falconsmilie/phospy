@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import inspect
 
-from phospy.validation.datasets import (
-    protein_scoped_site_identity as site_key_validation,
-)
-from phospy.validation.datasets import site_metadata as site_metadata_validation
-from phospy.validation.workflows import enrichment as enrichment_validation
-from phospy.validation.workflows import identity as workflow_identity_validation
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
-from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.enrichment import validation as enrichment_validation
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.phosphosites import dataset_identity as site_key_validation
+from phospy.phosphosites import metadata_validation as site_metadata_validation
+from phospy.phosphosites import sequence_context as site_sequence_validation
+from phospy.phosphosites import workflow_identity as workflow_identity_validation
+from phospy.signalome.result_assembly import SignalomeResultAssembler
+from phospy.signalome.validator import SignalomeWorkflowValidator
 
 
 def test_workflow_validators_compose_shared_site_identity_validator() -> None:
@@ -57,7 +56,7 @@ def test_sequence_aware_workflow_validators_compose_shared_centred_context_valid
     None
 ):
     shared_source = inspect.getsource(
-        site_metadata_validation.enforce_centred_site_sequence_context
+        site_sequence_validation.enforce_centred_site_sequence_context
     )
     workflow_shared_source = inspect.getsource(
         workflow_identity_validation.enforce_workflow_site_identity_contract
@@ -77,7 +76,7 @@ def test_sequence_aware_workflow_validators_compose_shared_centred_context_valid
 def test_signalome_module_selection_stability_computation_stays_in_clustering_science() -> (
     None
 ):
-    from phospy.science.signalomes.clustering import stability as clustering_stability
+    from phospy.signalome.clustering import stability as clustering_stability
 
     stability_source = inspect.getsource(
         clustering_stability.evaluate_module_selection_stability

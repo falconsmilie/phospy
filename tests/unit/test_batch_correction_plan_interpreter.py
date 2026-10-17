@@ -5,7 +5,9 @@ from collections.abc import Mapping
 
 import pytest
 
-from phospy.contracts.configs.preprocessing import (
+from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction import BatchCorrectionPlanInterpreter
+from phospy.preprocessing.batch_correction.contracts import (
     CorrectionMaskPolicy,
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionControlSiteMode,
@@ -20,15 +22,17 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.errors import PhosPyInputError
-from phospy.science.datasets.preprocessing.control_sites import (
+from phospy.preprocessing.batch_correction.planning import REPLICATE_METADATA_ROLE
+from phospy.preprocessing.batch_correction.validation.design import (
+    ResolvedBatchDesignMetadata,
+)
+from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
-from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
-from phospy.workflows.batch_correction import BatchCorrectionPlanInterpreter
-from phospy.workflows.batch_correction.interpreter import REPLICATE_METADATA_ROLE
+from phospy.preprocessing.control_sites.validation import (
+    ControlSiteEligibilityValidator,
+)
 
 
 def test_batch_correction_interpreter_resolves_controls_and_design() -> None:

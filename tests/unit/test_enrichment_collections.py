@@ -8,7 +8,7 @@ from phospy.api import (
     EnrichmentSetCollection,
     GeneSetCollection,
 )
-from phospy.contracts.configs import (
+from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
 )

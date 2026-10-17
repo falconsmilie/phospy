@@ -7,26 +7,21 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.preprocessing.pipeline as pipeline_module
-import phospy.science.datasets.preprocessing.stage_registry as stage_registry_module
-from phospy._deprecations import PhosPyDeprecationWarning
-from phospy.advanced.configs import (
+import phospy.preprocessing.execution.pipeline as pipeline_module
+import phospy.preprocessing.planning.registry as stage_registry_module
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetNormalisationConfig,
     DatasetSiteMatrixConfig,
 )
-from phospy.api.configs import (
+from phospy.api import (
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
 )
-from phospy.contracts.configs import DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER
+from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.errors.build import DatasetBuildError
-from phospy.provenance.models import (
-    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
-)
-from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
@@ -42,25 +37,31 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingState,
     PreprocessingStateTableKey,
 )
-from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.stage_contract import (
+from phospy.preprocessing.contracts.configuration import (
+    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+)
+from phospy.preprocessing.contracts.stage import (
     DeterminismKind,
+    PreprocessingStageContract,
     PreprocessingStageFactoryContext,
     PreprocessingStagePlanInterpreter,
     PreprocessingStageRegistrationMetadata,
 )
-from phospy.science.datasets.preprocessing.stage_registry import (
-    PreprocessingStageMetadata,
+from phospy.preprocessing.execution.pipeline import PreprocessingPipeline
+from phospy.preprocessing.planning.registry import (
     build_registered_preprocessing_stage_instances,
     get_preprocessing_stage_metadata,
     list_registered_preprocessing_stages,
     resolve_builder_provenance_stage_order,
     resolve_registered_preprocessing_stages,
 )
-from phospy.science.datasets.preprocessing.stages.batch_correction import (
+from phospy.preprocessing.provenance.models import (
+    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
+)
+from phospy.preprocessing.stages.batch_correction import (
     BATCH_CORRECTION_STAGE_CONTRACT,
 )
-from phospy.science.transformations.quantitative_contracts import (
+from phospy.quantitative.quantitative_contracts import (
     QuantitativeOperationContract,
     preserve_quantitative_contract,
 )
@@ -218,7 +219,7 @@ def test_stage_contract_can_resolve_plan_dependent_consumed_tables() -> None:
         *base_tables,
         PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
     )
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="conditional_inputs",
         display_label="conditional_inputs",
         operation_name=lambda _plan: "conditional_inputs",
@@ -252,7 +253,7 @@ def test_stage_contract_can_resolve_plan_dependent_consumed_tables() -> None:
 def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
     duplicate_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
     duplicate_entries = (
-        PreprocessingStageMetadata(
+        PreprocessingStageContract(
             stage_key=duplicate_key,
             display_label="missing_data_override_a",
             operation_name=lambda _plan: "forbid",
@@ -262,7 +263,7 @@ def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
             quantitative_contract=_preserve_quantitative_contract(),
             diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
         ),
-        PreprocessingStageMetadata(
+        PreprocessingStageContract(
             stage_key=duplicate_key,
             display_label="missing_data_override_b",
             operation_name=lambda _plan: "forbid",
@@ -279,7 +280,7 @@ def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
 
 
 def test_registry_rejects_quantitative_stage_without_semantic_contract() -> None:
-    missing_contract = PreprocessingStageMetadata(
+    missing_contract = PreprocessingStageContract(
         stage_key="custom_quantitative_stage",
         display_label="custom_quantitative_stage",
         operation_name=lambda _plan: "custom_quantitative_stage",
@@ -297,7 +298,7 @@ def test_registry_rejects_quantitative_stage_without_semantic_contract() -> None
 
 def test_stage_metadata_rejects_unknown_consumed_table_key() -> None:
     with pytest.raises(DatasetBuildError, match="unknown table key"):
-        PreprocessingStageMetadata(
+        PreprocessingStageContract(
             stage_key="custom_stage",
             display_label="custom_stage",
             operation_name=lambda _plan: "custom_stage",
@@ -311,7 +312,7 @@ def test_stage_metadata_rejects_unknown_consumed_table_key() -> None:
 
 def test_stage_metadata_rejects_unknown_produced_table_key() -> None:
     with pytest.raises(DatasetBuildError, match="unknown table key"):
-        PreprocessingStageMetadata(
+        PreprocessingStageContract(
             stage_key="custom_stage",
             display_label="custom_stage",
             operation_name=lambda _plan: "custom_stage",
@@ -338,7 +339,7 @@ def test_known_optional_missing_table_is_skipped_in_trace_fingerprints() -> None
         total=None,
         plan=PreprocessingPlan(stage_order=("optional_sample_metadata_stage",)),
     )
-    metadata = PreprocessingStageMetadata(
+    metadata = PreprocessingStageContract(
         stage_key="optional_sample_metadata_stage",
         display_label="optional_sample_metadata_stage",
         operation_name=lambda _plan: "optional_sample_metadata_stage",
@@ -482,7 +483,7 @@ def test_custom_stage_valid_only_under_non_default_plan() -> None:
     ) -> NonDefaultOnlyStage:
         return NonDefaultOnlyStage()
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="non_default_only_stage",
         display_label="non_default_only_stage",
         operation_name=_operation,
@@ -525,7 +526,7 @@ def test_stage_pre_quantitative_contract_validator_is_invoked_explicitly() -> No
     ) -> ExplicitValidatorStage:
         return ExplicitValidatorStage()
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="explicit_validator_stage",
         display_label="explicit_validator_stage",
         operation_name=lambda _plan: "explicit_validator_stage",
@@ -556,7 +557,7 @@ def test_missing_required_lifecycle_method_fails_at_composition() -> None:
     ) -> MissingPreContractValidatorStage:
         return MissingPreContractValidatorStage()
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="missing_pre_contract_validator_stage",
         display_label="missing_pre_contract_validator_stage",
         operation_name=lambda _plan: "missing_pre_contract_validator_stage",
@@ -590,7 +591,7 @@ def test_plan_table_dependency_validation_uses_actual_stage_order() -> None:
     ) -> RowAuditConsumerStage:
         return RowAuditConsumerStage()
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="row_audit_consumer_stage",
         display_label="row_audit_consumer_stage",
         operation_name=lambda _plan: "row_audit_consumer_stage",
@@ -642,7 +643,7 @@ def test_dependency_free_stage_factory_receives_uniform_context() -> None:
         observed_contexts.append(context)
         return ContextFreeStage()
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="context_free_stage",
         display_label="context_free_stage",
         operation_name=lambda _plan: "context_free",
@@ -683,7 +684,7 @@ def test_dependency_bearing_stage_receives_collaborator_from_uniform_context() -
     ) -> CollaboratorStage:
         return CollaboratorStage(context.batch_correction_runner)
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="collaborator_stage",
         display_label="collaborator_stage",
         operation_name=lambda _plan: "collaborator_stage",
@@ -734,7 +735,7 @@ def test_pipeline_builds_dependency_bearing_custom_stage_without_registry_branch
             cast(FakeCollaborator, context.batch_correction_runner)
         )
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="future_dependency_stage",
         display_label="future_dependency_stage",
         operation_name=lambda _plan: "future_dependency_stage",
@@ -800,48 +801,9 @@ def test_registry_instance_builder_contains_no_concrete_batch_special_case() -> 
             assert "stage_key" not in ast.unparse(node.test)
 
 
-def test_pipeline_rejects_both_registry_aliases() -> None:
-    with pytest.warns(PhosPyDeprecationWarning, match="stage_metadata_registry"):
-        with pytest.raises(
-            DatasetBuildError,
-            match="stage_contract_registry.*stage_metadata_registry.*aliases.*only one",
-        ):
-            PreprocessingPipeline(
-                stage_contract_registry=(),
-                # phospy-deprecation-compat: preprocessing.pipeline.stage_metadata_registry
-                stage_metadata_registry=(),
-            )
-
-
-def test_legacy_stage_metadata_registry_alias_warns_and_still_works() -> None:
-    class FakeStage(_NoOpPreQuantitativeContractStage):
-        stage_key = "legacy_alias_stage"
-
-        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
-            return PreprocessingStageResult(state=state)
-
-    contract = PreprocessingStageMetadata(
-        stage_key="legacy_alias_stage",
-        display_label="legacy_alias_stage",
-        operation_name=lambda _plan: "legacy_alias_stage",
-        serialize_parameters=lambda _plan: {},
-        consumed_input_tables=("dataset.phospho",),
-        produced_output_tables=("dataset.phospho",),
-        quantitative_contract=_preserve_quantitative_contract(),
-        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
-    )
-    state = _fake_stage_state("legacy_alias_stage")
-
-    with pytest.warns(PhosPyDeprecationWarning, match="stage_metadata_registry"):
-        pipeline = PreprocessingPipeline(
-            stage_registry=(FakeStage(),),
-            # phospy-deprecation-compat: preprocessing.pipeline.stage_metadata_registry
-            stage_metadata_registry=(contract,),
-        )
-
-    _, trace = pipeline.run_with_trace(state)
-
-    assert trace[0].stage == "legacy_alias_stage"
+def test_removed_stage_metadata_registry_argument_fails() -> None:
+    with pytest.raises(TypeError, match="stage_metadata_registry"):
+        PreprocessingPipeline(stage_metadata_registry=())  # type: ignore[call-arg]
 
 
 def test_custom_stage_registration_is_stage_owned() -> None:
@@ -860,7 +822,7 @@ def test_custom_stage_registration_is_stage_owned() -> None:
     def _build_fake_stage(_context: PreprocessingStageFactoryContext) -> FakeStage:
         return FakeStage()
 
-    fake_contract = PreprocessingStageMetadata(
+    fake_contract = PreprocessingStageContract(
         stage_key="fake_stage",
         display_label="fake_stage",
         provenance_stage="fake_stage",
@@ -906,8 +868,8 @@ def _fake_stage_contract(
     *,
     stage_key: str,
     determinism_kind: DeterminismKind,
-) -> PreprocessingStageMetadata:
-    return PreprocessingStageMetadata(
+) -> PreprocessingStageContract:
+    return PreprocessingStageContract(
         stage_key=stage_key,
         display_label=stage_key,
         provenance_stage=stage_key,

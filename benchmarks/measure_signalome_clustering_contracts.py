@@ -103,8 +103,8 @@ def _measure(
 
 
 def _run_fixture(*, fixture: _Fixture) -> dict[str, object]:
-    from phospy.errors.workflows import SignalomeScaleError
-    from phospy.science.signalomes.clustering import run_signalome_clustering_engine
+    from phospy.signalome.clustering import run_signalome_clustering_engine
+    from phospy.signalome.errors import SignalomeScaleError
 
     result, error, runtime_seconds, peak_mib = _measure(
         lambda: run_signalome_clustering_engine(
@@ -164,7 +164,7 @@ def _run_fixture(*, fixture: _Fixture) -> dict[str, object]:
 
 
 def main() -> None:
-    from phospy.science.signalomes.clustering import (
+    from phospy.signalome.clustering import (
         SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     )

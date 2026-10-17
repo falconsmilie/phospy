@@ -5,7 +5,8 @@ import json
 import pandas as pd
 import pytest
 
-from phospy.contracts.configs.preprocessing import (
+from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction.contracts import (
     CorrectedMissingCellAction,
     CorrectionMaskPolicy,
     CorrectionMissingnessCompatibilityValidator,
@@ -16,7 +17,6 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.errors import PhosPyInputError
 
 
 def test_observation_mask_distinguishes_original_missing_from_observed_cells() -> None:

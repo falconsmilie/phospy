@@ -13,12 +13,12 @@ from phospy.api import (
     PtmSetCollection,
     WorkflowValidationError,
 )
-from phospy.contracts.configs import (
+from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
 )
-from phospy.validation.workflows.enrichment import EnrichmentWorkflowValidator
+from phospy.enrichment.validation import EnrichmentWorkflowValidator
 
 
 def _gene_collection() -> GeneSetCollection:
@@ -357,7 +357,7 @@ def test_enrichment_validation_preserves_selected_identifiers_with_explicit_drop
 def test_enrichment_validation_does_not_run_ora(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.science.enrichment.ora as ora
+    import phospy.enrichment.ora as ora
 
     def fail_if_called(*args: object, **kwargs: object) -> object:
         raise AssertionError("ORA must not run during enrichment validation")

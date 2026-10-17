@@ -12,14 +12,12 @@ import pytest
 import phospy
 import phospy.advanced as advanced_api
 import phospy.api as public_api
-import phospy.api.configs as stable_config_api
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
 from phospy._api_inventory import (
-    ADVANCED_API_STABILITY_JUSTIFICATIONS,
-    ADVANCED_CONFIG_API,
     ADVANCED_PUBLIC_API,
-    STABLE_CONFIG_API,
-    STABLE_PUBLIC_API,
+    ORDINARY_PUBLIC_API,
 )
 from phospy.advanced import (
     DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
@@ -30,26 +28,26 @@ from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.errors import ContractValidationError, PhosPyInputError
-from phospy.errors.validation import WorkflowValidationError
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.differential.models import (
-    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
-    EmpiricalBayesConfig,
+from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
     QuantificationDepthTrendDiagnostics,
 )
-from phospy.science.differential.models.protein_aware import (
+from phospy.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
     ProteinAwareDifferentialComputationResult,
 )
-from phospy.science.differential.models.tables import (
+from phospy.differential.moderation.config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    EmpiricalBayesConfig,
+)
+from phospy.differential.planning.interpreter import _resolve_execution_config
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
@@ -69,8 +67,11 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
     validate_result_table_contract,
 )
-from phospy.workflows.differential.interpreter import _resolve_execution_config
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.errors import ContractValidationError, PhosPyInputError
+from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 METHOD_ID = DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1
@@ -123,15 +124,10 @@ def test_protein_aware_config_is_advanced_only_api_surface() -> None:
         advanced_api.DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1
         == METHOD_ID
     )
-    assert ADVANCED_PROTEIN_AWARE_SYMBOLS <= set(ADVANCED_CONFIG_API)
     assert ADVANCED_PROTEIN_AWARE_SYMBOLS <= set(ADVANCED_PUBLIC_API)
     assert ADVANCED_PROTEIN_AWARE_SYMBOLS <= set(advanced_api.__all__)
-    assert ADVANCED_PROTEIN_AWARE_SYMBOLS <= set(ADVANCED_API_STABILITY_JUSTIFICATIONS)
-
-    assert ADVANCED_PROTEIN_AWARE_SYMBOLS.isdisjoint(STABLE_CONFIG_API)
-    assert ADVANCED_PROTEIN_AWARE_SYMBOLS.isdisjoint(STABLE_PUBLIC_API)
+    assert ADVANCED_PROTEIN_AWARE_SYMBOLS.isdisjoint(ORDINARY_PUBLIC_API)
     assert ADVANCED_PROTEIN_AWARE_SYMBOLS.isdisjoint(public_api.__all__)
-    assert ADVANCED_PROTEIN_AWARE_SYMBOLS.isdisjoint(stable_config_api.__all__)
     for symbol_name in ADVANCED_PROTEIN_AWARE_SYMBOLS:
         assert not hasattr(phospy, symbol_name)
         with pytest.raises(ImportError):
@@ -142,16 +138,15 @@ def test_protein_aware_config_has_no_stable_compatibility_import_routes() -> Non
     blocked_symbols = (
         ADVANCED_PROTEIN_AWARE_SYMBOLS | UNSUPPORTED_PROTEIN_AWARE_CONFIG_SYMBOLS
     )
-    for module_name in (
-        "phospy.api",
-        "phospy.api.configs",
-        "phospy.api.configs.differential",
-    ):
+    for module_name in ("phospy.api",):
         module = importlib.import_module(module_name)
         for symbol_name in blocked_symbols:
             assert not hasattr(module, symbol_name)
             with pytest.raises(ImportError):
                 exec(f"from {module_name} import {symbol_name}", {})
+    for module_name in ("phospy.api.configs.differential",):
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(module_name)
 
 
 def test_differential_request_fields_remain_unchanged() -> None:

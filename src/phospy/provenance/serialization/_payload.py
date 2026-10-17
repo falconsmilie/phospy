@@ -7,7 +7,9 @@ from typing import cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.immutability import thaw_json_value
-from phospy.provenance.models import JsonValue
+from phospy.provenance.models import (
+    JsonValue,
+)
 
 _LEGACY_PROVENANCE_SCHEMA_ERROR = (
     "Legacy provenance schemas are no longer supported. Regenerate the result "

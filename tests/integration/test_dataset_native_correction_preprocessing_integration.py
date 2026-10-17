@@ -8,7 +8,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import DifferentialAnalysisWorkflow
 from phospy.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
@@ -30,26 +29,27 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs.preprocessing import InternalBatchCorrectionStageOrder
+from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.errors import PhosPyInputError
-from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
-from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.science.datasets.preprocessing import (
+from phospy.preprocessing.batch_correction.contracts import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
     CorrectedPreprocessingOutput,
+    InternalBatchCorrectionStageOrder,
 )
-from phospy.science.datasets.preprocessing.control_sites import (
-    ControlSiteSourceMetadata,
-)
-from phospy.validation.datasets.batch_correction import (
+from phospy.preprocessing.batch_correction.provenance.validation import (
     validate_applied_native_sps_ruv_correction_provenance,
 )
+from phospy.preprocessing.control_sites.contracts import (
+    ControlSiteSourceMetadata,
+)
+from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
 
 pytestmark = pytest.mark.integration
 

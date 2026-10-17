@@ -18,37 +18,47 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.internal_frame_store as internal_frame_store_module
-import phospy.workflows.differential.interpreter as differential_interpreter_module
+import phospy.datasets._internal.frame_store as internal_frame_store_module
+import phospy.differential.planning.interpreter as differential_interpreter_module
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
-    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
+from phospy.activities.semantics import ActivityInputMatrix
 from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisResult,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
+    KinasePredictionResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
+    PhosphositeImportResult,
     ReferenceBundle,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
-    DifferentialAnalysisResult,
-    KinasePredictionResult,
-    KinaseWorkflowResult,
-    PhosphositeImportResult,
     SignalomeWorkflowResult,
+)
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.datasets.schemas import (
+    PhosphoIntensityMatrix,
+)
+from phospy.differential.diagnostics import (
+    EmpiricalBayesPriorDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.errors.validation import DatasetValidationError, PhosPyValidationError
 from phospy.frames.ownership import (
@@ -63,18 +73,16 @@ from phospy.frames.ownership import (
     own_optional_series,
     own_series,
 )
-from phospy.provenance.hashing import fingerprint_table
-from phospy.science.activities.models import (
-    KinaseActivityInputs,
-    KinaseActivityResult,
-    PredMatOverlapSummary,
+from phospy.frames.table_schema import (
+    TableSchema,
 )
-from phospy.science.activities.semantics import ActivityInputMatrix
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.report_schema import (
+from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.kinase.activity.results import KinaseActivityResult
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.kinase.scoring.tables import (
+    KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
+)
+from phospy.preparation_records.report_schema import (
     ComparisonGroupStatsRow,
     ComparisonPairStatsRow,
     DuplicateSiteResolutionRow,
@@ -83,12 +91,8 @@ from phospy.science.datasets.preprocessing.report_schema import (
     PreprocessingRowAuditRow,
     PreprocessingRowCountRow,
 )
-from phospy.science.differential.models.diagnostics import (
-    EmpiricalBayesPriorDiagnostics,
-    QuantificationDepthTrendDiagnostics,
-)
-from phospy.science.prediction.models import KinaseScoringResult
-from phospy.science.signalomes.constants import (
+from phospy.provenance.hashing import fingerprint_table
+from phospy.signalome.constants import (
     CORRELATION_COLUMN,
     DISPLAY_ID_COLUMN,
     GENE_SYMBOL_COLUMN,
@@ -113,16 +117,13 @@ from phospy.science.signalomes.constants import (
     TOP_KINASE_WEIGHTS_COLUMN,
     TOP_SCORE_COLUMN,
 )
-from phospy.science.signalomes.models import (
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
 )
-from phospy.tables.base import TableSchema
-from phospy.tables.datasets import PhosphoIntensityMatrix
-from phospy.tables.kinase import KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -3129,10 +3130,8 @@ def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None
 def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
     import phospy
     import phospy.frames.ownership as frame_ownership
-    import phospy.science.datasets as datasets
 
     assert not any("borrow" in name for name in phospy.__all__)
-    assert not any("borrow" in name for name in datasets.__all__)
     assert not any("borrow" in name for name in frame_ownership.__all__)
     assert not hasattr(AnalysisReadyPhosphoDataset, "borrow_phospho_frame")
     assert not hasattr(AnalysisReadyPhosphoDataset, "borrow_site_metadata_frame")

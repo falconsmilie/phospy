@@ -220,13 +220,13 @@ The executable import policy is:
    contracts-facade role only while `phospy.contracts` actually imports that
    exact module as an identity-preserving facade dependency.
 
-Public request DTOs in `phospy.contracts.requests` and
-`phospy.contracts.dataset_build` record caller intent only. Workflow
-validators, dataset builders, and interpreters own contextual validation,
-default resolution, dataset readiness checks, and scientific eligibility
-checks. Contracts-owned config DTOs define public configuration shape and local
-scalar invariants; workflow/science modules consume resolved execution models
-or science-owned policy values.
+Public workflow request DTOs in `phospy.contracts.requests` record caller
+intent only. The active Dataset build request owner is
+`phospy.datasets.contracts`. Workflow validators, dataset builders, and
+interpreters own contextual validation, default resolution, dataset readiness
+checks, and scientific eligibility checks. Contracts-owned config DTOs define
+public configuration shape and local scalar invariants; workflow/science
+modules consume resolved execution models or science-owned policy values.
 
 Science models retain behavioural ownership because their invariants are not
 transport-only facts. Dataset identity, processing state, quantitative meaning,

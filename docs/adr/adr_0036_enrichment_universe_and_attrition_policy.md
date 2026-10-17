@@ -87,11 +87,11 @@ Neutral consequences:
 
 ## Implementation Notes
 
-The public policy fields live in `src/phospy/contracts/configs/enrichment.py`.
-Workflow validation is implemented in
-`src/phospy/validation/workflows/enrichment.py`. Interpreter propagation lives
-in `src/phospy/workflows/enrichment/interpreter.py`, and result diagnostics plus
-run provenance are assembled in `src/phospy/workflows/enrichment/executor.py`.
+The public policy fields live in `src/phospy/enrichment/contracts/config.py`.
+Workflow validation is implemented in `src/phospy/enrichment/validation.py`.
+Interpreter propagation lives in `src/phospy/enrichment/interpreter.py`, and
+result diagnostics plus run provenance are assembled in
+`src/phospy/enrichment/execution.py`.
 
 `EnrichmentWorkflowResult` stores `diagnostics`, `method_metadata`,
 `background_summary`, and `set_collection_summary` with the shared recursive

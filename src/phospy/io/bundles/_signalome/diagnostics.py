@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from phospy.contracts.configs import SIGNALOME_SCORE_PRECONDITIONING_POLICIES
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
     require_bool,
@@ -20,7 +19,8 @@ from phospy.provenance.serialization import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
 )
-from phospy.science.signalomes.models import (
+from phospy.signalome.config import SIGNALOME_SCORE_PRECONDITIONING_POLICIES
+from phospy.signalome.models import (
     SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_NOT_COMPUTABLE,
     SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_STABLE,
     SIGNALOME_MODULE_SELECTION_STABILITY_STATUS_UNSTABLE,

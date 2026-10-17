@@ -8,7 +8,6 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
 from phospy.advanced import (
@@ -16,6 +15,7 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,

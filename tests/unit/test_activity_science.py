@@ -10,16 +10,28 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-import phospy.science.activities.methods.ksea_zscore as ksea_zscore_module
-from phospy._deprecations import PhosPyDeprecationWarning
+import phospy.kinase.activity.methods.ksea_zscore as ksea_zscore_module
+from phospy.activities.semantics import (
+    ActivityAggregationMetadata,
+    ActivityAggregationRecord,
+    ActivityInputMatrix,
+    ActivityProfileAxis,
+    ActivityProfileMetadata,
+    ActivityQuantitativeSemantics,
+)
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.provenance.hashing import fingerprint_table_normalized_axes
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
+from phospy.kinase.activity.diagnostics import (
+    KseaZScoreActivityDiagnostics,
+    SsgseaSubstrateEnrichmentActivityDiagnostics,
+    WeightedSubstrateActivityDiagnostics,
 )
-from phospy.science.activities.membership import (
+from phospy.kinase.activity.execution import (
+    SimplifiedWeightedSubstrateActivityPolicy,
+    compute_activity_from_inputs,
+)
+from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.kinase.activity.membership import (
     ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
     ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
     ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
@@ -41,13 +53,13 @@ from phospy.science.activities.membership import (
     fingerprint_ksea_selection_quantitative_matrix,
     fingerprint_ksea_tested_quantitative_matrix,
 )
-from phospy.science.activities.methods.ksea_zscore import (
+from phospy.kinase.activity.methods.ksea_zscore import (
     KSEA_STATUS_COMPUTED,
     KSEA_STATUS_INSUFFICIENT_SUBSTRATES,
     KSEA_STATUS_ZERO_BACKGROUND_VARIANCE,
     KseaZScoreActivityMethod,
 )
-from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
+from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
     SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,
     SSGSEA_SIGNIFICANCE_STATUS_P_VALUE_AVAILABLE_Q_VALUE_DISABLED,
@@ -62,17 +74,11 @@ from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
     _ssgsea_permutation_seed_material,
     _SsgseaNullScoreCache,
 )
-from phospy.science.activities.models import (
+from phospy.kinase.activity.models import (
     KSEA_ZSCORE_ACTIVITY_METHOD,
     ActivityMethodSummary,
-    KinaseActivityInputs,
-    KinaseActivityResult,
-    KseaZScoreActivityDiagnostics,
-    PredMatOverlapSummary,
-    SsgseaSubstrateEnrichmentActivityDiagnostics,
-    WeightedSubstrateActivityDiagnostics,
 )
-from phospy.science.activities.scientific_policies import (
+from phospy.kinase.activity.policies import (
     KSEA_ZSCORE_ACTIVITY_POLICY_VERSION,
     SSGSEA_PERMUTATION_RNG_SEED_MATERIAL,
     SSGSEA_PERMUTATION_RNG_SEED_POLICY,
@@ -80,28 +86,22 @@ from phospy.science.activities.scientific_policies import (
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
     SSGSEA_TIE_POLICY,
 )
-from phospy.science.activities.scoring import (
-    SimplifiedWeightedSubstrateActivityPolicy,
-    compute_activity_from_inputs,
-)
-from phospy.science.activities.semantics import (
-    ActivityAggregationMetadata,
-    ActivityAggregationRecord,
-    ActivityInputMatrix,
-    ActivityProfileAxis,
-    ActivityProfileMetadata,
-    ActivityQuantitativeSemantics,
-)
-from phospy.science.activities.statistics import (
+from phospy.kinase.activity.results import KinaseActivityResult
+from phospy.kinase.activity.statistics import (
     benjamini_hochberg_q_values,
     two_sided_normal_p_value,
 )
-from phospy.science.activities.threshold_membership import (
+from phospy.kinase.activity.threshold_membership import (
     THRESHOLD_MEMBERSHIP_DESCRIPTION,
     THRESHOLD_MEMBERSHIP_OPERATOR,
     THRESHOLD_MEMBERSHIP_RULE,
     ActivityThresholdMembershipDiagnostics,
     threshold_membership_mask_array,
+)
+from phospy.provenance.hashing import fingerprint_table_normalized_axes
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
 )
 from tests.support.site_keys import site_key_index_from_display_ids
 
@@ -2002,7 +2002,7 @@ def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
 
 def test_ssgsea_public_seed_policy_documentation_is_profile_based() -> None:
     public_paths = (
-        Path("src/phospy/science/activities/scientific_policies.py"),
+        Path("src/phospy/kinase/activity/policies.py"),
         Path(
             "docs/adr/adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md"
         ),
@@ -2097,31 +2097,6 @@ def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:
     assert row["p_value"] == pytest.approx(0.27332167829229814)
     assert row["n_substrates"] == 2
     assert row["n_background_sites"] == 4
-
-
-def test_activity_scores_compatibility_alias_matches_activity_matrix() -> None:
-    pred_mat = pd.DataFrame(
-        {"K1": [0.9, 0.8, 0.1, 0.2]},
-        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
-    )
-    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
-
-    result = _ksea_result(
-        pred_mat=pred_mat,
-        phospho_matrix=phospho,
-        evidence_threshold=0.5,
-        min_substrates=2,
-    )
-
-    assert result.activity_method.activity_method_id == "ksea_zscore_v1"
-    assert result.activity_matrix.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="KinaseActivityResult.activity_scores.*activity_matrix",
-    ):
-        # phospy-deprecation-compat: activities.result.activity_scores
-        activity_scores = result.activity_scores
-    pdt.assert_frame_equal(activity_scores, result.activity_matrix)
 
 
 def test_ksea_result_populates_extensible_activity_contract() -> None:
@@ -3149,47 +3124,6 @@ def test_weighted_activity_ignores_missing_values_per_sample() -> None:
     )
 
 
-def test_weighted_activity_compatibility_alias_matches_activity_matrix() -> None:
-    pred_mat = pd.DataFrame(
-        {"PRKACA": [0.9, 0.8, 0.7]},
-        index=["A;S1;", "B;S2;", "C;S3;"],
-    )
-    phospho_matrix = pd.DataFrame(
-        {
-            "phospho_corrected_1": [10.0, float("nan"), 1.0],
-            "phospho_corrected_2": [20.0, 6.0, float("nan")],
-        },
-        index=pred_mat.index.copy(),
-    )
-
-    result = compute_activity_from_inputs(
-        _inputs(
-            pred_mat=pred_mat,
-            phospho_matrix=phospho_matrix,
-            threshold=0.6,
-            min_substrates=3,
-            top_n_substrates=3,
-        )
-    )
-
-    assert result.activity_method.activity_method_id == (
-        "simplified_weighted_substrate_activity_v1"
-    )
-    assert result.activity_matrix.at["PRKACA", "phospho_corrected_1"] == pytest.approx(
-        6.0625
-    )
-    assert result.activity_matrix.at["PRKACA", "phospho_corrected_2"] == pytest.approx(
-        (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8)
-    )
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="KinaseActivityResult.weighted_activity.*activity_matrix",
-    ):
-        # phospy-deprecation-compat: activities.result.weighted_activity
-        weighted_activity = result.weighted_activity
-    pdt.assert_frame_equal(weighted_activity, result.activity_matrix)
-
-
 def test_weighted_result_populates_extensible_activity_contract() -> None:
     pred_mat = pd.DataFrame(
         {"PRKACA": [0.9, 0.8, 0.7]},
@@ -3334,9 +3268,7 @@ def test_activity_statistics_table_rejects_condition_claim_on_sample_profiles() 
         )
 
 
-def test_activity_method_summary_accepts_legacy_payload_but_serializes_profile_fields() -> (
-    None
-):
+def test_activity_method_summary_rejects_legacy_payload_fields() -> None:
     legacy_payload = {
         "kinases_evaluated": 1,
         "kinase_condition_pairs_evaluated": 2,
@@ -3347,23 +3279,12 @@ def test_activity_method_summary_accepts_legacy_payload_but_serializes_profile_f
         "kinase_condition_pairs_no_finite_substrate_values": 7,
     }
 
-    summary = ActivityMethodSummary.from_payload(legacy_payload)
-
-    assert summary.kinase_profile_pairs_evaluated == 2
-    assert summary.kinase_profile_pairs_computed == 3
-    payload = summary.to_payload()
-    assert "kinase_profile_pairs_evaluated" in payload
-    assert "kinase_condition_pairs_evaluated" not in payload
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="kinase_condition_pairs_evaluated.*kinase_profile_pairs_evaluated",
-    ):
-        # phospy-deprecation-compat: activities.method_summary.kinase_condition_pairs_evaluated
-        assert summary.kinase_condition_pairs_evaluated == 2
+    with pytest.raises(ValueError, match="unsupported activity summary fields"):
+        ActivityMethodSummary.from_payload(legacy_payload)
 
 
-def test_activity_method_summary_rejects_conflicting_payload_aliases() -> None:
-    with pytest.raises(ValueError, match="conflicts with legacy alias"):
+def test_activity_method_summary_rejects_mixed_legacy_payload_fields() -> None:
+    with pytest.raises(ValueError, match="unsupported activity summary fields"):
         ActivityMethodSummary.from_payload(
             {
                 "kinases_evaluated": 1,
@@ -3371,35 +3292,6 @@ def test_activity_method_summary_rejects_conflicting_payload_aliases() -> None:
                 "kinase_condition_pairs_evaluated": 3,
             }
         )
-
-
-def test_legacy_condition_statistics_table_adapter_is_deprecated_and_defensive() -> (
-    None
-):
-    activity_matrix = pd.DataFrame(
-        {"sample_a": [1.0]},
-        index=pd.Index(["site_a"], name="site_id"),
-        dtype=float,
-    )
-    activity_input = ActivityInputMatrix.sample_level_abundance(activity_matrix)
-    result = _activity_result_from_statistics_table(
-        _statistics_table(["sample_a"]),
-        activity_input=activity_input,
-    )
-
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="does not establish a biological condition contract",
-    ):
-        # phospy-deprecation-compat: activities.result.legacy_condition_statistics_table
-        legacy = result.legacy_condition_statistics_table_dataframe()
-
-    assert legacy is not None
-    assert legacy["condition"].tolist() == legacy["profile_id"].tolist()
-    legacy.loc[0, "condition"] = "mutated"
-    stats = result.statistics_table
-    assert stats is not None
-    assert "condition" not in stats.columns
 
 
 def test_activity_input_matrix_owns_caller_frame_and_exports_snapshots() -> None:

@@ -5,24 +5,27 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import ReferenceContextCompatibilityPolicy
+from phospy.advanced import (
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api import (
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinasePredictionResult, KinaseScoringResult
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
-from phospy.provenance.models import (
-    EnvironmentProvenance,
-    ReferenceProvenance,
-    RunProvenance,
+from phospy.provenance.models import EnvironmentProvenance
+from phospy.references.context_compatibility import (
+    REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.models import ReferenceContext
-from phospy.validation.identity_contracts import REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE
+from phospy.references.models import ReferenceContext
+from phospy.references.provenance.models import ReferenceProvenance
+from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

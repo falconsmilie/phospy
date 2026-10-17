@@ -9,6 +9,13 @@ from typing import cast
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.evidence.quantification_depth import (
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+    QuantificationDepthKind,
+)
+from phospy.io.importers.fragpipe_validation import (
+    validate_optional_fragpipe_column_name,
+)
 from phospy.io.readers._table_parsing import (
     resolve_column,
     resolve_intensity_columns,
@@ -32,11 +39,6 @@ from phospy.io.readers.fragpipe.models import (
     FragPipeColumnMapping,
     _ResolvedFragPipeColumns,
 )
-from phospy.science.differential.models import (
-    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
-    QuantificationDepthKind,
-)
-from phospy.validation.datasets.fragpipe import validate_optional_fragpipe_column_name
 
 
 def _resolve_fragpipe_columns(

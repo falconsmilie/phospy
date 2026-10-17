@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetProteinAwarePreparationConfig,
@@ -11,34 +11,38 @@ from phospy.advanced.configs import (
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preparation_records.policies import (
+    MissingDataPolicy,
+    NormalisationPolicy,
+    TotalProteinCorrectionPolicy,
+)
+from phospy.preprocessing.contracts import (
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PreprocessingPlan,
 )
-from phospy.science.datasets.preprocessing.plan_interpreter import (
-    PreprocessingPlanInterpreter,
-)
-from phospy.science.datasets.preprocessing.plan_rules import (
-    PreprocessingBatchCorrectionPlanRuleFamily,
-    PreprocessingGroupCoveragePlanRuleFamily,
-    PreprocessingLocalisationPlanRuleFamily,
-)
-from phospy.science.datasets.preprocessing.plan_stage_order import (
-    PreprocessingStageOrderPlanner,
-)
-from phospy.science.datasets.preprocessing.policy_models import (
+from phospy.preprocessing.contracts.policies import (
     ComparisonBuildingPolicy,
     ImputationInputScale,
     IntensityTransformPolicy,
     LocalisationEligibilityMode,
-    MissingDataPolicy,
-    NormalisationPolicy,
     SiteMatrixPolicy,
-    TotalProteinCorrectionPolicy,
 )
-from phospy.science.transformations.models import IntensityScaleKind
+from phospy.preprocessing.planning.boundary import (
+    PreprocessingPlanInterpreter,
+)
+from phospy.preprocessing.planning.ordering import (
+    PreprocessingStageOrderPlanner,
+)
+from phospy.preprocessing.planning.rules import (
+    PreprocessingBatchCorrectionPlanRuleFamily,
+    PreprocessingGroupCoveragePlanRuleFamily,
+    PreprocessingLocalisationPlanRuleFamily,
+)
+from phospy.quantitative.models import IntensityScaleKind
 
 
 def test_preprocessing_plan_interpreter_builds_default_plan() -> None:

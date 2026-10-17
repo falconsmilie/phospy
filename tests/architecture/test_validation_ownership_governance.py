@@ -7,17 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import phospy.frames.validation as frame_validation
-import phospy.science.sites.identity_columns as site_identity_column_compat
-import phospy.science.sites.identity_rules.contracts as site_identity_contract_records
-import phospy.science.sites.identity_rules.dataset_identity as site_dataset_identity
-import phospy.science.sites.identity_rules.reference_context as site_reference_context
-import phospy.science.sites.identity_rules.result_identity as site_result_identity
-import phospy.science.sites.metadata_validation as site_metadata_validation
-import phospy.science.sites.sequence_context as site_sequence_context
 import phospy.validation.common.dataframes as validation_dataframe_compat
-import phospy.validation.datasets.protein_scoped_site_identity as site_key_compat
-import phospy.validation.datasets.site_metadata as site_metadata_compat
-import phospy.validation.identity_contracts as identity_contract_compat
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -55,11 +45,12 @@ class ReexportRoute:
 FRAME_SEARCH_ROOTS = (
     PACKAGE_ROOT / "frames",
     PACKAGE_ROOT / "validation" / "common",
-    PACKAGE_ROOT / "science" / "sites",
+    PACKAGE_ROOT / "phosphosites",
     PACKAGE_ROOT / "workflows",
 )
 SITE_IDENTITY_SEARCH_ROOTS = (
-    PACKAGE_ROOT / "science" / "sites",
+    PACKAGE_ROOT / "phosphosites",
+    PACKAGE_ROOT / "references",
     PACKAGE_ROOT / "validation",
     PACKAGE_ROOT / "workflows",
 )
@@ -87,7 +78,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "science" / "sites" / "identity.py",
+            owner_path=PACKAGE_ROOT / "phosphosites" / "identity.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in ("build_phosphosite_identity",)
@@ -95,7 +86,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "science" / "sites" / "validation.py",
+            owner_path=PACKAGE_ROOT / "phosphosites" / "validation.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -107,7 +98,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "science" / "sites" / "metadata_validation.py",
+            owner_path=PACKAGE_ROOT / "phosphosites" / "metadata_validation.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -119,7 +110,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "science" / "sites" / "sequence_context.py",
+            owner_path=PACKAGE_ROOT / "phosphosites" / "sequence_context.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -131,37 +122,25 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=(
-                PACKAGE_ROOT / "science" / "sites" / "identity_rules" / "contracts.py"
-            ),
+            owner_path=PACKAGE_ROOT / "phosphosites" / "contracts.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
-        for symbol_name in (
-            "PhosphositeIdentityContract",
-            "ReferenceContextCompatibilityWarning",
-        )
+        for symbol_name in ("PhosphositeIdentityContract",)
+    ),
+    ConcreteSymbolOwner(
+        symbol_name="ReferenceContextCompatibilityWarning",
+        owner_path=PACKAGE_ROOT / "references" / "context_compatibility.py",
+        search_roots=SITE_IDENTITY_SEARCH_ROOTS,
     ),
     ConcreteSymbolOwner(
         symbol_name="validate_reference_context_compatibility",
-        owner_path=(
-            PACKAGE_ROOT
-            / "science"
-            / "sites"
-            / "identity_rules"
-            / "reference_context.py"
-        ),
+        owner_path=PACKAGE_ROOT / "references" / "context_compatibility.py",
         search_roots=SITE_IDENTITY_SEARCH_ROOTS,
     ),
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=(
-                PACKAGE_ROOT
-                / "science"
-                / "sites"
-                / "identity_rules"
-                / "dataset_identity.py"
-            ),
+            owner_path=(PACKAGE_ROOT / "phosphosites" / "dataset_identity.py"),
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -176,9 +155,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     ),
     ConcreteSymbolOwner(
         symbol_name="enforce_result_identity_metadata_coherence",
-        owner_path=(
-            PACKAGE_ROOT / "science" / "sites" / "identity_rules" / "result_identity.py"
-        ),
+        owner_path=(PACKAGE_ROOT / "phosphosites" / "result_identity.py"),
         search_roots=SITE_IDENTITY_SEARCH_ROOTS,
     ),
 )
@@ -199,73 +176,6 @@ IDENTITY_PRESERVING_REEXPORT_ROUTES = (
             "require_no_duplicate_labels",
             "require_unique_row_pairs",
         ),
-    ),
-    ReexportRoute(
-        reexport_module=identity_contract_compat,
-        owner_module=site_identity_contract_records,
-        symbols=(
-            "PhosphositeIdentityContract",
-            "ReferenceContextCompatibilityWarning",
-            "SequenceContextContract",
-        ),
-    ),
-    ReexportRoute(
-        reexport_module=identity_contract_compat,
-        owner_module=site_reference_context,
-        symbols=("validate_reference_context_compatibility",),
-    ),
-    ReexportRoute(
-        reexport_module=identity_contract_compat,
-        owner_module=site_dataset_identity,
-        symbols=(
-            "enforce_phosphosite_identity_contract",
-            "enforce_analysis_ready_site_key_index",
-            "enforce_site_key_column",
-            "enforce_display_id_column",
-            "enforce_unique_site_key_identity",
-            "enforce_site_key_column_matches_index",
-            "enforce_site_key_matches_metadata",
-        ),
-    ),
-    ReexportRoute(
-        reexport_module=identity_contract_compat,
-        owner_module=site_result_identity,
-        symbols=("enforce_result_identity_metadata_coherence",),
-    ),
-    ReexportRoute(
-        reexport_module=site_key_compat,
-        owner_module=site_dataset_identity,
-        symbols=(
-            "enforce_analysis_ready_site_key_index",
-            "enforce_site_key_column",
-            "enforce_display_id_column",
-            "enforce_unique_site_key_identity",
-            "enforce_site_key_column_matches_index",
-            "enforce_site_key_matches_metadata",
-        ),
-    ),
-    ReexportRoute(
-        reexport_module=site_metadata_compat,
-        owner_module=site_metadata_validation,
-        symbols=(
-            "validate_site_identity_metadata",
-            "validate_site_sequence_column",
-            "enforce_site_identity_rows",
-        ),
-    ),
-    ReexportRoute(
-        reexport_module=site_metadata_compat,
-        owner_module=site_sequence_context,
-        symbols=(
-            "SequenceContextContract",
-            "enforce_site_sequence_context_contract",
-            "enforce_centred_site_sequence_context",
-        ),
-    ),
-    ReexportRoute(
-        reexport_module=site_identity_column_compat,
-        owner_module=site_dataset_identity,
-        symbols=("enforce_display_id_column", "enforce_site_key_column"),
     ),
 )
 
@@ -325,7 +235,7 @@ def test_identity_preserving_reexport_fixture_detects_copied_object() -> None:
     ) == ["Symbol"]
 
 
-def test_deliberate_validation_compatibility_reexports_preserve_identity() -> None:
+def test_deliberate_frame_validation_reexports_preserve_identity() -> None:
     mismatches = [
         mismatch
         for route in IDENTITY_PRESERVING_REEXPORT_ROUTES
@@ -383,23 +293,23 @@ def test_validation_ownership_map_assigns_frame_and_science_owners() -> None:
                 "Strict phosphosite identifier format and site-ID/metadata coherence"
             ].owner
         )
-        == "phospy.science.sites.validation"
+        == "phospy.phosphosites.validation"
     )
     assert (
         _first_code_span(rows["Reusable phosphosite identity contracts"].owner)
-        == "phospy.science.sites.identity_rules.contracts"
+        == "phospy.phosphosites.contracts"
     )
     assert (
         _first_code_span(rows["Analysis-ready `site_key` row identity"].owner)
-        == "phospy.science.sites.identity_rules.dataset_identity"
+        == "phospy.phosphosites.dataset_identity"
     )
     assert (
         _first_code_span(rows["Analysis-ready `site_sequence` evidence"].owner)
-        == "phospy.science.sites.metadata_validation.validate_site_sequence_column"
+        == "phospy.phosphosites.metadata_validation.validate_site_sequence_column"
     )
     assert (
         _first_code_span(rows["Workflow-specific centered sequence context"].owner)
-        == "phospy.science.sites.sequence_context"
+        == "phospy.phosphosites.sequence_context"
     )
 
 
@@ -450,13 +360,13 @@ def test_ownership_map_records_sps_discovery_composition() -> None:
     row = rows["SPS discovery reference-input composition"]
 
     assert (
-        "phospy.validation.workflows.batch_correction.sps_discovery."
+        "phospy.preprocessing.control_sites.discovery_validation."
         "SpsDiscoveryRequestValidator" in row.owner
     )
-    assert "phospy.science.sites.validation.require_site_key_index" in row.owner
+    assert "phospy.phosphosites.validation.require_site_key_index" in row.owner
     assert "phospy.frames.validation.require_numeric_dataframe" in row.owner
     assert (
-        "phospy.workflows.batch_correction.sps_discovery.SpsDiscoveryWorkflow"
+        "phospy.preprocessing.control_sites.workflow.SpsDiscoveryWorkflow"
         in row.enforcement_point
     )
     assert "tests/unit/test_sps_discovery_contracts.py" in row.tests

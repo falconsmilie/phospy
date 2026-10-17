@@ -7,8 +7,6 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
-    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
@@ -17,21 +15,21 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     EnrichmentWorkflowRequest,
     ExperimentalDesign,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
 )
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (

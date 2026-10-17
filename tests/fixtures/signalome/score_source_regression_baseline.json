@@ -1,0 +1,3501 @@
+{
+  "baseline_sha": "177558170b205a63da4881192878caf3113568b3",
+  "cases": {
+    "combined_profile_motif_scores": {
+      "alignment_diagnostics": {
+        "dataset_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "downstream_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "kinases": {
+          "dropped_count": 0,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "missing_kinase_support": 0
+          },
+          "provided_count": 3,
+          "retained_count": 3
+        },
+        "prediction_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_downstream_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "protein_group_ids": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_protein_group_id": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        }
+      },
+      "caveats": [
+        {
+          "code": "input_intensity_scale_declared_by_user",
+          "details": {
+            "input_intensity_scale": "linear",
+            "input_intensity_scale_evidence_level": "declared_by_user",
+            "input_intensity_scale_source": "declared_by_user",
+            "input_intensity_scale_source_detail": "tests.support.intensity_scale_states",
+            "workflow_scope": "signalome"
+          },
+          "message": "Input intensity scale was accepted from user-declared metadata rather than an observed transformation event. Downstream quantitative results depend on that declaration being correct.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_prediction_reference_limitations",
+          "details": {
+            "downstream_score_source": "combined_profile_motif_scores",
+            "upstream_caveat_codes": [],
+            "upstream_reference_bundle_id": null,
+            "upstream_reference_source_type": "explicit",
+            "upstream_score_scale": "combined_profile_kinase_library_motif_unit_interval",
+            "upstream_scoring_mode": "phosr_rank_weighted"
+          },
+          "message": "Signalome workflow consumes upstream kinase prediction and score matrices; reference and scoring limitations from the kinase result carry into signalome summaries.",
+          "severity": "info"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase result",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+          "severity": "warning"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase reference",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_permissive_localisation_policy",
+          "details": {
+            "known_localisation_count": 0,
+            "minimum_probability": null,
+            "missing_or_unknown_localisation_count": 12,
+            "policy": "allow_unknown",
+            "policy_is_permissive": true,
+            "require_present": false,
+            "resolved_column": null,
+            "retained_signalome_site_count": 11,
+            "site_count": 12,
+            "workflow_scope": "signalome"
+          },
+          "message": "Signalome workflow localisation policy does not enforce a minimum localisation probability; unknown or low-confidence phosphosites can contribute to modules and kinase score-profile associations.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_descriptive_network_association_policy",
+          "details": {
+            "modules_are_descriptive": true,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "network_policy": "signed",
+            "networks_are_descriptive": true,
+            "not_inferential_evidence": true,
+            "policy_identifier": "signalome_network_min_paired_finite_observations_floor3_default5_v1"
+          },
+          "message": "Signalome modules and kinase-network correlations are descriptive score-derived summaries, not inferential, experimental, directional, or causal evidence.",
+          "severity": "info"
+        },
+        {
+          "code": "signalome_protein_group_id_grouping_assumption",
+          "details": {
+            "grouping_column": "protein_group_id",
+            "grouping_source": "dataset.site_metadata.protein_id",
+            "legacy_alias": "protein_id",
+            "legacy_alias_used": true,
+            "max_sites_per_protein_group": 2,
+            "multi_site_protein_group_count": 5,
+            "protein_group_id_grouping_is_explicit": true,
+            "retained_signalome_site_count": 11,
+            "site_to_protein_group_id_index_matches_score_matrix": true,
+            "unique_protein_group_count": 6
+          },
+          "message": "Signalome workflow groups phosphosites by dataset.site_metadata.protein_group_id; module context assumes those protein_group_id values are the intended Signalome grouping labels. The legacy protein_id column is accepted only as a migration alias.",
+          "severity": "info"
+        }
+      ],
+      "provenance": {
+        "alignment_diagnostics": {
+          "dataset_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "downstream_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "kinases": {
+            "dropped_count": 0,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "missing_kinase_support": 0
+            },
+            "provided_count": 3,
+            "retained_count": 3
+          },
+          "prediction_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_downstream_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "protein_group_ids": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_protein_group_id": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          }
+        },
+        "output_tables": {
+          "count": 8,
+          "names": [
+            "outputs.signalome.module_assignments",
+            "outputs.signalome.signalome_modules",
+            "outputs.signalome.kinase_network.edges",
+            "outputs.signalome.kinase_network.nodes",
+            "outputs.signalome.kinase_network.candidate_correlations",
+            "outputs.signalome.expanded_signalome",
+            "outputs.signalome.site_membership",
+            "outputs.signalome.protein_site_context"
+          ],
+          "sha256": "64a26cccce8c0a5e3daa428ada463846ed85f61ba580be7b6ea8d6880e6847a7"
+        },
+        "row_attrition": {
+          "final_rows": 11,
+          "input_rows": 12,
+          "records": [
+            {
+              "examples": [
+                "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+              ],
+              "input_rows": 12,
+              "output_rows": 11,
+              "reason": "sites_removed_by_score_preconditioning",
+              "removed_rows": 1,
+              "stage": "signalome_score_preconditioning"
+            }
+          ]
+        },
+        "scientific_policies": {
+          "count": 8,
+          "ids": [
+            "signalome_module_candidate_score_v1",
+            "signalome_missing_value_clustering_v1",
+            "signalome_assignment_policy_v1",
+            "signalome_network_policy_v1",
+            "signalome_score_preconditioning_v1",
+            "protein_module_from_site_membership_v1",
+            "signalome_downstream_score_selection_v1",
+            "signalome_candidate_scoring_v1"
+          ],
+          "sha256": "c75b6c5539b88c9aca7d11c0e16280c9122414e78a9b6b5109b5237446598664"
+        },
+        "score_preconditioning_diagnostics": {
+          "dropped_all_missing_row_count": 1,
+          "input_row_count": 12,
+          "policy": "allow_and_report",
+          "retained_row_count": 11
+        },
+        "signalome_score_semantics": {
+          "assignment_semantics": {
+            "module_id": "score-derived candidate kinase-supported module identifier for the current dataset and configuration",
+            "module_top_kinase": "top supported kinase candidate summarized across sites in the candidate module; this is a label, not a causal mechanism claim",
+            "top_kinase": "top supported kinase candidate by site-level prediction score; ties are reported with the configured selection policy"
+          },
+          "candidate_scoring_is_approximate": false,
+          "candidate_scoring_mode": "full",
+          "candidate_scoring_sampled_pair_count": null,
+          "candidate_scoring_sampled_site_total": null,
+          "candidate_scoring_scope": "candidate_module_count_evaluation_only",
+          "clustering_engine": "scipy_hierarchical",
+          "constant_profile_handling": {
+            "meaning": "constant/near-constant profiles have weak or undefined correlation signal and are tracked explicitly in diagnostics",
+            "module_selection_excluded_from_correlation_count": 0,
+            "module_selection_near_constant_profile_count": 0,
+            "module_selection_zero_variance_profile_count": 0,
+            "network_constant_profile_correlations": 0
+          },
+          "downstream_score_meaning": "upstream combined profile and Kinase Library motif lane; larger values indicate stronger relative downstream support within the run",
+          "downstream_score_source": "combined_profile_motif_scores",
+          "input_sizes": {
+            "candidate_module_count_upper_bound": 10,
+            "candidate_module_counts_evaluated": 9,
+            "kinase_count": 3,
+            "protein_count": 6,
+            "site_count": 11
+          },
+          "missing_profile_handling": {
+            "all_missing_rows_before_execution": {
+              "dropped_row_count": 1,
+              "policy": "allow_and_report",
+              "retained_row_count": 11
+            },
+            "clustering_distance_input": {
+              "applies_to": "module_count_selection_and_tree_construction",
+              "dropped_fully_missing_dimension_count": 0,
+              "dropped_fully_missing_dimension_labels": [],
+              "dropped_fully_missing_dimension_preview": [],
+              "dropped_fully_missing_value_count": 0,
+              "fully_missing_column_handling": "columns with all values missing are dropped before median imputation and tree construction",
+              "imputed_value_count": 0,
+              "imputed_value_counts_by_dimension": {
+                "K1": 0,
+                "K2": 0,
+                "K3": 0
+              },
+              "missing_after_non_finite_normalization_count": 0,
+              "non_finite_handling": "non-finite values are treated as missing before imputation",
+              "non_finite_input_value_count": 0,
+              "output_tables_include_imputed_values": false,
+              "partial_missingness_handling": "missing entries in retained columns are imputed with the median of the same column",
+              "policy": "drop_fully_missing_then_column_median_impute",
+              "preparation_policy_id": "drop_fully_missing_then_column_median_impute",
+              "prepared_matrix_fingerprint": {
+                "column_index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "kinase"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "K1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K3"
+                    }
+                  ]
+                },
+                "column_names": [
+                  "K1",
+                  "K2",
+                  "K3"
+                ],
+                "columns": 3,
+                "dtypes": [
+                  "float64",
+                  "float64",
+                  "float64"
+                ],
+                "exact_hash_algorithm": "sha256-stable-json-v1",
+                "exact_hash_value": "285dae91e59b9c4e3119a2c0ae310e835d29b909e6df0bdb4a019f517c82d860",
+                "index_name": "site_key",
+                "index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "site_key"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+                    }
+                  ]
+                },
+                "name": "signalome.clustering.prepared_matrix",
+                "rows": 11,
+                "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+                "tolerance_hash_value": "fc287e5f1fc36ac1515873f641314917e4c4eda576232758e7f2451fdc718220"
+              }
+            },
+            "correlation_calculation": "partially missing rows are retained for pairwise-complete correlation; pairs with missing/non-finite issues are labeled via correlation_status and excluded from finite-edge creation",
+            "network_insufficient_observation_correlations": 0,
+            "network_missing_value_correlations": 0,
+            "network_non_finite_value_correlations": 0
+          },
+          "module_selection_score_meaning": "module-count selection uses within-cluster correlation summaries over downstream score profiles across candidate module counts",
+          "module_selection_stability": {
+            "assignment_similarity": {
+              "evaluated_perturbations": 8,
+              "maximum": 1.0,
+              "mean": 0.9227272727,
+              "median": 0.9272727273,
+              "metric": "pairwise_coassignment_agreement",
+              "minimum": 0.7454545455
+            },
+            "assignment_similarity_metric": "pairwise_coassignment_agreement",
+            "base_selected_module_count": 5,
+            "evaluation_method": "seeded_score_perturbation_and_threshold_grid",
+            "evaluation_version": "1",
+            "input_dimension_count": 3,
+            "input_site_count": 11,
+            "limitations": [
+              "This report is descriptive sensitivity analysis for automatic module-count selection, not a statistical significance test.",
+              "Selected-count frequencies are counts across seeded perturbations, not probabilities or calibrated confidence values.",
+              "Assignment similarity is a descriptive partition-agreement score, not a confidence probability.",
+              "Seeded score perturbations do not replace biological replication, an independent validation cohort, or a pre-specified inferential design.",
+              "At least one seeded perturbation or threshold-grid point changed the selected count or assignment partition; downstream module summaries should be interpreted as configuration-sensitive descriptive output."
+            ],
+            "not_computable_reason": null,
+            "perturbation_count": 8,
+            "random_seed": 2066998615,
+            "seed_policy": "deterministic_seed_from_scoring_values_and_method_version",
+            "selected_count_frequency": {
+              "3": 1,
+              "4": 2,
+              "5": 5
+            },
+            "status": "unstable",
+            "threshold_sensitivity": {
+              "disagrees_with_selected_count": false,
+              "method": "primary_fallback_threshold_grid",
+              "records": [
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                }
+              ],
+              "selected_count_frequency": {
+                "5": 9
+              },
+              "version": "1"
+            }
+          },
+          "module_selection_stability_meaning": "stability status is a descriptive seeded sensitivity diagnostic for automatic module-count selection; it is not an inferential p-value, confidence interval, calibrated probability, or validation of signalling biology",
+          "negative_correlation_handling": "negative correlations can pass eligibility when absolute magnitude meets threshold; edge correlation values retain sign",
+          "network_correlation_meaning": "network candidate and edge scores are score-profile associations: pairwise correlations between downstream kinase score profiles, computed on finite paired observations. They are descriptive associations, not inferential, directional, or causal evidence",
+          "network_edge_semantics": {
+            "direction": "not inferred; source_kinase and target_kinase are deterministic table labels for an undirected score-profile association",
+            "edge_diagnostics": {
+              "retained_edges": 1,
+              "skipped_below_threshold": 2,
+              "skipped_constant_profile": 0,
+              "skipped_insufficient_paired_observations": 0,
+              "skipped_missing_score": 0,
+              "skipped_non_finite_score": 0,
+              "skipped_undefined_correlation": 0
+            },
+            "edges": "correlation edge between kinase score profiles that passed the configured threshold and network policy",
+            "interpretation_limit": "correlations are not causal evidence and do not prove signalling relationships",
+            "nodes": "kinases retained in the aligned prediction and downstream score matrices",
+            "threshold_policy": {
+              "network_correlation_threshold": 0.5,
+              "network_min_paired_finite_observations": 5,
+              "network_min_paired_finite_observations_effective": 5,
+              "network_min_paired_finite_observations_requested": null,
+              "network_minimum_observation_policy_id": "signalome_network_min_paired_finite_observations_floor3_default5_v1",
+              "network_policy": "signed"
+            },
+            "weight": "correlation column derived from pairwise finite downstream score profile correlations; signed and absolute-threshold policies determine whether the stored value keeps sign or stores magnitude"
+          },
+          "network_policy": "signed",
+          "scale_guard_status": {
+            "candidate_scoring_guard_triggered": false,
+            "exact_tree_guard_triggered": false,
+            "passed": true
+          },
+          "scientific_interpretation_limits": "signalome module assignments, module scores, and kinase score-profile association edges are derived summary statistics for this dataset and configuration; they are not probabilities, calibrated confidence values, experimental validation of signalling relationships, or causal evidence",
+          "thresholds_and_limits": {
+            "max_exact_tree_sites": 2000,
+            "max_full_candidate_scoring_sites": 2000,
+            "module_selection_fallback_correlation_threshold": 0.1,
+            "module_selection_max_clusters": 10,
+            "module_selection_primary_correlation_threshold": 0.5,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations": 5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "substrate_support_cutoff": 0.5
+          },
+          "tree_generation_backend": "scipy_hierarchical_tree",
+          "tree_generation_is_approximate": false,
+          "tree_generation_mode": "full_exact_tree_construction",
+          "tree_generation_scope": "module_count_selection_and_final_assignment"
+        },
+        "workflow_name": "signalome_workflow"
+      },
+      "row_attrition": {
+        "final_rows": 11,
+        "input_rows": 12,
+        "records": [
+          {
+            "examples": [
+              "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+            ],
+            "input_rows": 12,
+            "output_rows": 11,
+            "reason": "sites_removed_by_score_preconditioning",
+            "removed_rows": 1,
+            "stage": "signalome_score_preconditioning"
+          }
+        ]
+      },
+      "score_preconditioning_diagnostics": {
+        "dropped_all_missing_row_count": 1,
+        "input_row_count": 12,
+        "policy": "allow_and_report",
+        "retained_row_count": 11
+      },
+      "selected_matrix": {
+        "columns": [
+          "K1",
+          "K2",
+          "K3"
+        ],
+        "index": [
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+        ],
+        "missing_values": 0,
+        "sha256": "d7a98d81137cdd1bf3b06c6f2e296ff1fae1b8a72e20240c1d3e75a207c127fa",
+        "shape": [
+          11,
+          3
+        ]
+      },
+      "selected_source": "combined_profile_motif_scores",
+      "tables": {
+        "candidate_correlations": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "correlation_status",
+            "valid_observations",
+            "correlation_reason"
+          ],
+          "index": [
+            0,
+            1,
+            2
+          ],
+          "missing_values": 3,
+          "sha256": "10c1a5c3f74e7af7e02ed3f49775a3c675fe793bccfa6993c34a3d08284409e0",
+          "shape": [
+            3,
+            6
+          ]
+        },
+        "expanded_signalome": {
+          "columns": [
+            "kinase",
+            "row_kind",
+            "assignment_policy",
+            "linked_kinases",
+            "regulated_module_ids",
+            "site_key",
+            "display_id",
+            "site_id",
+            "site_order",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "support_kinases",
+            "support_weight",
+            "top_kinase",
+            "top_score"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "missing_values": 0,
+          "sha256": "0beb35417e217218d3c8ba4b0805e1cdec39f5a8e23ab11d0d55db519f97b580",
+          "shape": [
+            13,
+            19
+          ]
+        },
+        "module_assignments": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "top_kinase",
+            "top_score",
+            "top_kinase_candidates",
+            "top_kinase_weights",
+            "top_kinase_tie_count",
+            "top_kinase_is_ambiguous",
+            "top_kinase_selection_policy",
+            "module_top_kinase",
+            "module_top_kinase_candidates",
+            "module_top_kinase_tie_count",
+            "module_top_kinase_is_ambiguous",
+            "module_top_kinase_selection_policy"
+          ],
+          "index": [
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+          ],
+          "missing_values": 0,
+          "sha256": "206ff943779a7683553a49a95fda1589ccaf9c41fb93b4456faa1f9ced97b292",
+          "shape": [
+            11,
+            20
+          ]
+        },
+        "network_edges": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "valid_observations"
+          ],
+          "index": [
+            0
+          ],
+          "missing_values": 0,
+          "sha256": "cdb2ddeb9ef77f204d4d278850f3a84bed1047928382ed7d4566af4373ff68ab",
+          "shape": [
+            1,
+            4
+          ]
+        },
+        "network_nodes": {
+          "columns": [
+            "degree",
+            "n_substrates"
+          ],
+          "index": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "missing_values": 0,
+          "sha256": "c647b34688c6eaa4d6bd3c22e3c5b570eada904f0833a31e0c79dd7fc8e0bf01",
+          "shape": [
+            3,
+            2
+          ]
+        },
+        "protein_site_context": {
+          "columns": [
+            "protein_group_id",
+            "n_sites",
+            "site_ids",
+            "site_keys",
+            "display_ids",
+            "site_clusters",
+            "n_distinct_site_clusters",
+            "protein_module_id",
+            "multi_site_protein",
+            "ambiguous_module_context",
+            "gene_symbol",
+            "site",
+            "protein_accession",
+            "isoform_id",
+            "top_kinases_by_site",
+            "module_ids_by_site",
+            "site_key_to_display_id"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "missing_values": 0,
+          "sha256": "b797ee24b0f89727ccbd98f4bb9a41a59ce914b109d19a59230c2d9b5a7ff85c",
+          "shape": [
+            6,
+            17
+          ]
+        },
+        "signalome_modules": {
+          "columns": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "index": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "missing_values": 0,
+          "sha256": "b2f9e3fa88aee1d5e6965da9b4bce541d9e6889e9abef28e0720a3bf6b062868",
+          "shape": [
+            5,
+            3
+          ]
+        },
+        "site_membership": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "site_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "site_cluster",
+            "protein_module_id",
+            "included_in_module_table",
+            "excluded_reason",
+            "top_kinase",
+            "top_kinase_score",
+            "top_kinase_weight",
+            "n_supported_kinases"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "missing_values": 0,
+          "sha256": "f5d0db2e63841907ce416c5312b06170afed2ffa46f1f471d3d8ca0c6f8e7fd9",
+          "shape": [
+            11,
+            16
+          ]
+        }
+      }
+    },
+    "kinase_library_motif_scores": {
+      "alignment_diagnostics": {
+        "dataset_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "downstream_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "kinases": {
+          "dropped_count": 0,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "missing_kinase_support": 0
+          },
+          "provided_count": 3,
+          "retained_count": 3
+        },
+        "prediction_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_downstream_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "protein_group_ids": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_protein_group_id": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        }
+      },
+      "caveats": [
+        {
+          "code": "input_intensity_scale_declared_by_user",
+          "details": {
+            "input_intensity_scale": "linear",
+            "input_intensity_scale_evidence_level": "declared_by_user",
+            "input_intensity_scale_source": "declared_by_user",
+            "input_intensity_scale_source_detail": "tests.support.intensity_scale_states",
+            "workflow_scope": "signalome"
+          },
+          "message": "Input intensity scale was accepted from user-declared metadata rather than an observed transformation event. Downstream quantitative results depend on that declaration being correct.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_prediction_reference_limitations",
+          "details": {
+            "downstream_score_source": "kinase_library_motif_scores",
+            "upstream_caveat_codes": [],
+            "upstream_reference_bundle_id": null,
+            "upstream_reference_source_type": "explicit",
+            "upstream_score_scale": "kinase_library_motif_minmax_unit_interval",
+            "upstream_scoring_mode": "phosr_rank_weighted"
+          },
+          "message": "Signalome workflow consumes upstream kinase prediction and score matrices; reference and scoring limitations from the kinase result carry into signalome summaries.",
+          "severity": "info"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase result",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+          "severity": "warning"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase reference",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_permissive_localisation_policy",
+          "details": {
+            "known_localisation_count": 0,
+            "minimum_probability": null,
+            "missing_or_unknown_localisation_count": 12,
+            "policy": "allow_unknown",
+            "policy_is_permissive": true,
+            "require_present": false,
+            "resolved_column": null,
+            "retained_signalome_site_count": 11,
+            "site_count": 12,
+            "workflow_scope": "signalome"
+          },
+          "message": "Signalome workflow localisation policy does not enforce a minimum localisation probability; unknown or low-confidence phosphosites can contribute to modules and kinase score-profile associations.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_descriptive_network_association_policy",
+          "details": {
+            "modules_are_descriptive": true,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "network_policy": "signed",
+            "networks_are_descriptive": true,
+            "not_inferential_evidence": true,
+            "policy_identifier": "signalome_network_min_paired_finite_observations_floor3_default5_v1"
+          },
+          "message": "Signalome modules and kinase-network correlations are descriptive score-derived summaries, not inferential, experimental, directional, or causal evidence.",
+          "severity": "info"
+        },
+        {
+          "code": "signalome_protein_group_id_grouping_assumption",
+          "details": {
+            "grouping_column": "protein_group_id",
+            "grouping_source": "dataset.site_metadata.protein_id",
+            "legacy_alias": "protein_id",
+            "legacy_alias_used": true,
+            "max_sites_per_protein_group": 2,
+            "multi_site_protein_group_count": 5,
+            "protein_group_id_grouping_is_explicit": true,
+            "retained_signalome_site_count": 11,
+            "site_to_protein_group_id_index_matches_score_matrix": true,
+            "unique_protein_group_count": 6
+          },
+          "message": "Signalome workflow groups phosphosites by dataset.site_metadata.protein_group_id; module context assumes those protein_group_id values are the intended Signalome grouping labels. The legacy protein_id column is accepted only as a migration alias.",
+          "severity": "info"
+        }
+      ],
+      "provenance": {
+        "alignment_diagnostics": {
+          "dataset_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "downstream_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "kinases": {
+            "dropped_count": 0,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "missing_kinase_support": 0
+            },
+            "provided_count": 3,
+            "retained_count": 3
+          },
+          "prediction_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_downstream_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "protein_group_ids": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_protein_group_id": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          }
+        },
+        "output_tables": {
+          "count": 8,
+          "names": [
+            "outputs.signalome.module_assignments",
+            "outputs.signalome.signalome_modules",
+            "outputs.signalome.kinase_network.edges",
+            "outputs.signalome.kinase_network.nodes",
+            "outputs.signalome.kinase_network.candidate_correlations",
+            "outputs.signalome.expanded_signalome",
+            "outputs.signalome.site_membership",
+            "outputs.signalome.protein_site_context"
+          ],
+          "sha256": "d42e13da20cd134839d6898b9080af34c568ef4e8f4701f9277e692c39895620"
+        },
+        "row_attrition": {
+          "final_rows": 11,
+          "input_rows": 12,
+          "records": [
+            {
+              "examples": [
+                "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+              ],
+              "input_rows": 12,
+              "output_rows": 11,
+              "reason": "sites_removed_by_score_preconditioning",
+              "removed_rows": 1,
+              "stage": "signalome_score_preconditioning"
+            }
+          ]
+        },
+        "scientific_policies": {
+          "count": 8,
+          "ids": [
+            "signalome_module_candidate_score_v1",
+            "signalome_missing_value_clustering_v1",
+            "signalome_assignment_policy_v1",
+            "signalome_network_policy_v1",
+            "signalome_score_preconditioning_v1",
+            "protein_module_from_site_membership_v1",
+            "signalome_downstream_score_selection_v1",
+            "signalome_candidate_scoring_v1"
+          ],
+          "sha256": "c75b6c5539b88c9aca7d11c0e16280c9122414e78a9b6b5109b5237446598664"
+        },
+        "score_preconditioning_diagnostics": {
+          "dropped_all_missing_row_count": 1,
+          "input_row_count": 12,
+          "policy": "allow_and_report",
+          "retained_row_count": 11
+        },
+        "signalome_score_semantics": {
+          "assignment_semantics": {
+            "module_id": "score-derived candidate kinase-supported module identifier for the current dataset and configuration",
+            "module_top_kinase": "top supported kinase candidate summarized across sites in the candidate module; this is a label, not a causal mechanism claim",
+            "top_kinase": "top supported kinase candidate by site-level prediction score; ties are reported with the configured selection policy"
+          },
+          "candidate_scoring_is_approximate": false,
+          "candidate_scoring_mode": "full",
+          "candidate_scoring_sampled_pair_count": null,
+          "candidate_scoring_sampled_site_total": null,
+          "candidate_scoring_scope": "candidate_module_count_evaluation_only",
+          "clustering_engine": "scipy_hierarchical",
+          "constant_profile_handling": {
+            "meaning": "constant/near-constant profiles have weak or undefined correlation signal and are tracked explicitly in diagnostics",
+            "module_selection_excluded_from_correlation_count": 0,
+            "module_selection_near_constant_profile_count": 0,
+            "module_selection_zero_variance_profile_count": 0,
+            "network_constant_profile_correlations": 0
+          },
+          "downstream_score_meaning": "upstream Kinase Library motif-score lane normalized to within-run unit support; larger values indicate stronger relative motif support",
+          "downstream_score_source": "kinase_library_motif_scores",
+          "input_sizes": {
+            "candidate_module_count_upper_bound": 10,
+            "candidate_module_counts_evaluated": 9,
+            "kinase_count": 3,
+            "protein_count": 6,
+            "site_count": 11
+          },
+          "missing_profile_handling": {
+            "all_missing_rows_before_execution": {
+              "dropped_row_count": 1,
+              "policy": "allow_and_report",
+              "retained_row_count": 11
+            },
+            "clustering_distance_input": {
+              "applies_to": "module_count_selection_and_tree_construction",
+              "dropped_fully_missing_dimension_count": 0,
+              "dropped_fully_missing_dimension_labels": [],
+              "dropped_fully_missing_dimension_preview": [],
+              "dropped_fully_missing_value_count": 0,
+              "fully_missing_column_handling": "columns with all values missing are dropped before median imputation and tree construction",
+              "imputed_value_count": 0,
+              "imputed_value_counts_by_dimension": {
+                "K1": 0,
+                "K2": 0,
+                "K3": 0
+              },
+              "missing_after_non_finite_normalization_count": 0,
+              "non_finite_handling": "non-finite values are treated as missing before imputation",
+              "non_finite_input_value_count": 0,
+              "output_tables_include_imputed_values": false,
+              "partial_missingness_handling": "missing entries in retained columns are imputed with the median of the same column",
+              "policy": "drop_fully_missing_then_column_median_impute",
+              "preparation_policy_id": "drop_fully_missing_then_column_median_impute",
+              "prepared_matrix_fingerprint": {
+                "column_index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "kinase"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "K1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K3"
+                    }
+                  ]
+                },
+                "column_names": [
+                  "K1",
+                  "K2",
+                  "K3"
+                ],
+                "columns": 3,
+                "dtypes": [
+                  "float64",
+                  "float64",
+                  "float64"
+                ],
+                "exact_hash_algorithm": "sha256-stable-json-v1",
+                "exact_hash_value": "b0eb44846016a21d19c1984d838e98412aba7c16cad874a922df57a175d197fa",
+                "index_name": "site_key",
+                "index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "site_key"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+                    }
+                  ]
+                },
+                "name": "signalome.clustering.prepared_matrix",
+                "rows": 11,
+                "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+                "tolerance_hash_value": "ef2390cf0c07eb3c4e134cc727a436a3982bccfd27dd8fe6a79de47cc510afad"
+              }
+            },
+            "correlation_calculation": "partially missing rows are retained for pairwise-complete correlation; pairs with missing/non-finite issues are labeled via correlation_status and excluded from finite-edge creation",
+            "network_insufficient_observation_correlations": 0,
+            "network_missing_value_correlations": 0,
+            "network_non_finite_value_correlations": 0
+          },
+          "module_selection_score_meaning": "module-count selection uses within-cluster correlation summaries over downstream score profiles across candidate module counts",
+          "module_selection_stability": {
+            "assignment_similarity": {
+              "evaluated_perturbations": 8,
+              "maximum": 1.0,
+              "mean": 0.9636363636,
+              "median": 0.9636363636,
+              "metric": "pairwise_coassignment_agreement",
+              "minimum": 0.9272727273
+            },
+            "assignment_similarity_metric": "pairwise_coassignment_agreement",
+            "base_selected_module_count": 5,
+            "evaluation_method": "seeded_score_perturbation_and_threshold_grid",
+            "evaluation_version": "1",
+            "input_dimension_count": 3,
+            "input_site_count": 11,
+            "limitations": [
+              "This report is descriptive sensitivity analysis for automatic module-count selection, not a statistical significance test.",
+              "Selected-count frequencies are counts across seeded perturbations, not probabilities or calibrated confidence values.",
+              "Assignment similarity is a descriptive partition-agreement score, not a confidence probability.",
+              "Seeded score perturbations do not replace biological replication, an independent validation cohort, or a pre-specified inferential design.",
+              "At least one seeded perturbation or threshold-grid point changed the selected count or assignment partition; downstream module summaries should be interpreted as configuration-sensitive descriptive output."
+            ],
+            "not_computable_reason": null,
+            "perturbation_count": 8,
+            "random_seed": 3391401017,
+            "seed_policy": "deterministic_seed_from_scoring_values_and_method_version",
+            "selected_count_frequency": {
+              "5": 8
+            },
+            "status": "unstable",
+            "threshold_sensitivity": {
+              "disagrees_with_selected_count": false,
+              "method": "primary_fallback_threshold_grid",
+              "records": [
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                }
+              ],
+              "selected_count_frequency": {
+                "5": 9
+              },
+              "version": "1"
+            }
+          },
+          "module_selection_stability_meaning": "stability status is a descriptive seeded sensitivity diagnostic for automatic module-count selection; it is not an inferential p-value, confidence interval, calibrated probability, or validation of signalling biology",
+          "negative_correlation_handling": "negative correlations can pass eligibility when absolute magnitude meets threshold; edge correlation values retain sign",
+          "network_correlation_meaning": "network candidate and edge scores are score-profile associations: pairwise correlations between downstream kinase score profiles, computed on finite paired observations. They are descriptive associations, not inferential, directional, or causal evidence",
+          "network_edge_semantics": {
+            "direction": "not inferred; source_kinase and target_kinase are deterministic table labels for an undirected score-profile association",
+            "edge_diagnostics": {
+              "retained_edges": 2,
+              "skipped_below_threshold": 1,
+              "skipped_constant_profile": 0,
+              "skipped_insufficient_paired_observations": 0,
+              "skipped_missing_score": 0,
+              "skipped_non_finite_score": 0,
+              "skipped_undefined_correlation": 0
+            },
+            "edges": "correlation edge between kinase score profiles that passed the configured threshold and network policy",
+            "interpretation_limit": "correlations are not causal evidence and do not prove signalling relationships",
+            "nodes": "kinases retained in the aligned prediction and downstream score matrices",
+            "threshold_policy": {
+              "network_correlation_threshold": 0.5,
+              "network_min_paired_finite_observations": 5,
+              "network_min_paired_finite_observations_effective": 5,
+              "network_min_paired_finite_observations_requested": null,
+              "network_minimum_observation_policy_id": "signalome_network_min_paired_finite_observations_floor3_default5_v1",
+              "network_policy": "signed"
+            },
+            "weight": "correlation column derived from pairwise finite downstream score profile correlations; signed and absolute-threshold policies determine whether the stored value keeps sign or stores magnitude"
+          },
+          "network_policy": "signed",
+          "scale_guard_status": {
+            "candidate_scoring_guard_triggered": false,
+            "exact_tree_guard_triggered": false,
+            "passed": true
+          },
+          "scientific_interpretation_limits": "signalome module assignments, module scores, and kinase score-profile association edges are derived summary statistics for this dataset and configuration; they are not probabilities, calibrated confidence values, experimental validation of signalling relationships, or causal evidence",
+          "thresholds_and_limits": {
+            "max_exact_tree_sites": 2000,
+            "max_full_candidate_scoring_sites": 2000,
+            "module_selection_fallback_correlation_threshold": 0.1,
+            "module_selection_max_clusters": 10,
+            "module_selection_primary_correlation_threshold": 0.5,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations": 5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "substrate_support_cutoff": 0.5
+          },
+          "tree_generation_backend": "scipy_hierarchical_tree",
+          "tree_generation_is_approximate": false,
+          "tree_generation_mode": "full_exact_tree_construction",
+          "tree_generation_scope": "module_count_selection_and_final_assignment"
+        },
+        "workflow_name": "signalome_workflow"
+      },
+      "row_attrition": {
+        "final_rows": 11,
+        "input_rows": 12,
+        "records": [
+          {
+            "examples": [
+              "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+            ],
+            "input_rows": 12,
+            "output_rows": 11,
+            "reason": "sites_removed_by_score_preconditioning",
+            "removed_rows": 1,
+            "stage": "signalome_score_preconditioning"
+          }
+        ]
+      },
+      "score_preconditioning_diagnostics": {
+        "dropped_all_missing_row_count": 1,
+        "input_row_count": 12,
+        "policy": "allow_and_report",
+        "retained_row_count": 11
+      },
+      "selected_matrix": {
+        "columns": [
+          "K1",
+          "K2",
+          "K3"
+        ],
+        "index": [
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+        ],
+        "missing_values": 0,
+        "sha256": "6a28802858a37c8284d3c21275dfbfdb299e3ced75cd7a6303b7980bf5b82d0f",
+        "shape": [
+          11,
+          3
+        ]
+      },
+      "selected_source": "kinase_library_motif_scores",
+      "tables": {
+        "candidate_correlations": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "correlation_status",
+            "valid_observations",
+            "correlation_reason"
+          ],
+          "index": [
+            0,
+            1,
+            2
+          ],
+          "missing_values": 3,
+          "sha256": "cdff21ff7060e4d886e0aeef034a7e3e914f5a0efb6884457bd2d12f59c3567a",
+          "shape": [
+            3,
+            6
+          ]
+        },
+        "expanded_signalome": {
+          "columns": [
+            "kinase",
+            "row_kind",
+            "assignment_policy",
+            "linked_kinases",
+            "regulated_module_ids",
+            "site_key",
+            "display_id",
+            "site_id",
+            "site_order",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "support_kinases",
+            "support_weight",
+            "top_kinase",
+            "top_score"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "missing_values": 0,
+          "sha256": "5efc1871431889e4ee964d2cc37a3e05a6364775d222ab62f89db17318580f57",
+          "shape": [
+            15,
+            19
+          ]
+        },
+        "module_assignments": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "top_kinase",
+            "top_score",
+            "top_kinase_candidates",
+            "top_kinase_weights",
+            "top_kinase_tie_count",
+            "top_kinase_is_ambiguous",
+            "top_kinase_selection_policy",
+            "module_top_kinase",
+            "module_top_kinase_candidates",
+            "module_top_kinase_tie_count",
+            "module_top_kinase_is_ambiguous",
+            "module_top_kinase_selection_policy"
+          ],
+          "index": [
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+          ],
+          "missing_values": 0,
+          "sha256": "155a5e2fc999beb83a2099d2e2ccdb5dd10f49c2d092e21ff721da90e91d59a2",
+          "shape": [
+            11,
+            20
+          ]
+        },
+        "network_edges": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "valid_observations"
+          ],
+          "index": [
+            0,
+            1
+          ],
+          "missing_values": 0,
+          "sha256": "216ab8040fe45ee3515ff4f18adf6ec9fea58ee44b9497a7b32dc82fceb4cf24",
+          "shape": [
+            2,
+            4
+          ]
+        },
+        "network_nodes": {
+          "columns": [
+            "degree",
+            "n_substrates"
+          ],
+          "index": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "missing_values": 0,
+          "sha256": "58d6f5e754dce1cfd827f12ccd43fe909bd5f01febbdd657f39916808075887d",
+          "shape": [
+            3,
+            2
+          ]
+        },
+        "protein_site_context": {
+          "columns": [
+            "protein_group_id",
+            "n_sites",
+            "site_ids",
+            "site_keys",
+            "display_ids",
+            "site_clusters",
+            "n_distinct_site_clusters",
+            "protein_module_id",
+            "multi_site_protein",
+            "ambiguous_module_context",
+            "gene_symbol",
+            "site",
+            "protein_accession",
+            "isoform_id",
+            "top_kinases_by_site",
+            "module_ids_by_site",
+            "site_key_to_display_id"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "missing_values": 0,
+          "sha256": "95d372ec7c7e9f3ab93089ea9361f922bfa6d847783913b7dea0eaa47bd02d3e",
+          "shape": [
+            6,
+            17
+          ]
+        },
+        "signalome_modules": {
+          "columns": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "index": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "missing_values": 0,
+          "sha256": "f38b7cb306d36a42efbc1f6eb540b39fc7e49f2e12abb5e5f88317f6c175ceaa",
+          "shape": [
+            6,
+            3
+          ]
+        },
+        "site_membership": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "site_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "site_cluster",
+            "protein_module_id",
+            "included_in_module_table",
+            "excluded_reason",
+            "top_kinase",
+            "top_kinase_score",
+            "top_kinase_weight",
+            "n_supported_kinases"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "missing_values": 0,
+          "sha256": "68eed16e2f0878e08ac3ed55c9a1060afd4e0c07744558479c513eb2c5852cfe",
+          "shape": [
+            11,
+            16
+          ]
+        }
+      }
+    },
+    "profile_scores": {
+      "alignment_diagnostics": {
+        "dataset_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "downstream_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "kinases": {
+          "dropped_count": 0,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "missing_kinase_support": 0
+          },
+          "provided_count": 3,
+          "retained_count": 3
+        },
+        "prediction_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_downstream_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "protein_group_ids": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_protein_group_id": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        }
+      },
+      "caveats": [
+        {
+          "code": "input_intensity_scale_declared_by_user",
+          "details": {
+            "input_intensity_scale": "linear",
+            "input_intensity_scale_evidence_level": "declared_by_user",
+            "input_intensity_scale_source": "declared_by_user",
+            "input_intensity_scale_source_detail": "tests.support.intensity_scale_states",
+            "workflow_scope": "signalome"
+          },
+          "message": "Input intensity scale was accepted from user-declared metadata rather than an observed transformation event. Downstream quantitative results depend on that declaration being correct.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_prediction_reference_limitations",
+          "details": {
+            "downstream_score_source": "profile_scores",
+            "upstream_caveat_codes": [],
+            "upstream_reference_bundle_id": null,
+            "upstream_reference_source_type": "explicit",
+            "upstream_score_scale": "relative_support_score_unit_interval",
+            "upstream_scoring_mode": "phosr_rank_weighted"
+          },
+          "message": "Signalome workflow consumes upstream kinase prediction and score matrices; reference and scoring limitations from the kinase result carry into signalome summaries.",
+          "severity": "info"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase result",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+          "severity": "warning"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase reference",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_permissive_localisation_policy",
+          "details": {
+            "known_localisation_count": 0,
+            "minimum_probability": null,
+            "missing_or_unknown_localisation_count": 12,
+            "policy": "allow_unknown",
+            "policy_is_permissive": true,
+            "require_present": false,
+            "resolved_column": null,
+            "retained_signalome_site_count": 11,
+            "site_count": 12,
+            "workflow_scope": "signalome"
+          },
+          "message": "Signalome workflow localisation policy does not enforce a minimum localisation probability; unknown or low-confidence phosphosites can contribute to modules and kinase score-profile associations.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_descriptive_network_association_policy",
+          "details": {
+            "modules_are_descriptive": true,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "network_policy": "signed",
+            "networks_are_descriptive": true,
+            "not_inferential_evidence": true,
+            "policy_identifier": "signalome_network_min_paired_finite_observations_floor3_default5_v1"
+          },
+          "message": "Signalome modules and kinase-network correlations are descriptive score-derived summaries, not inferential, experimental, directional, or causal evidence.",
+          "severity": "info"
+        },
+        {
+          "code": "signalome_protein_group_id_grouping_assumption",
+          "details": {
+            "grouping_column": "protein_group_id",
+            "grouping_source": "dataset.site_metadata.protein_id",
+            "legacy_alias": "protein_id",
+            "legacy_alias_used": true,
+            "max_sites_per_protein_group": 2,
+            "multi_site_protein_group_count": 5,
+            "protein_group_id_grouping_is_explicit": true,
+            "retained_signalome_site_count": 11,
+            "site_to_protein_group_id_index_matches_score_matrix": true,
+            "unique_protein_group_count": 6
+          },
+          "message": "Signalome workflow groups phosphosites by dataset.site_metadata.protein_group_id; module context assumes those protein_group_id values are the intended Signalome grouping labels. The legacy protein_id column is accepted only as a migration alias.",
+          "severity": "info"
+        }
+      ],
+      "provenance": {
+        "alignment_diagnostics": {
+          "dataset_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "downstream_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "kinases": {
+            "dropped_count": 0,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "missing_kinase_support": 0
+            },
+            "provided_count": 3,
+            "retained_count": 3
+          },
+          "prediction_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_downstream_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "protein_group_ids": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_protein_group_id": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          }
+        },
+        "output_tables": {
+          "count": 8,
+          "names": [
+            "outputs.signalome.module_assignments",
+            "outputs.signalome.signalome_modules",
+            "outputs.signalome.kinase_network.edges",
+            "outputs.signalome.kinase_network.nodes",
+            "outputs.signalome.kinase_network.candidate_correlations",
+            "outputs.signalome.expanded_signalome",
+            "outputs.signalome.site_membership",
+            "outputs.signalome.protein_site_context"
+          ],
+          "sha256": "61bfc665191faff2bc26d706bf4bb75470eef0721df1048c8424dfcbe5a7545b"
+        },
+        "row_attrition": {
+          "final_rows": 11,
+          "input_rows": 12,
+          "records": [
+            {
+              "examples": [
+                "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+              ],
+              "input_rows": 12,
+              "output_rows": 11,
+              "reason": "sites_removed_by_score_preconditioning",
+              "removed_rows": 1,
+              "stage": "signalome_score_preconditioning"
+            }
+          ]
+        },
+        "scientific_policies": {
+          "count": 8,
+          "ids": [
+            "signalome_module_candidate_score_v1",
+            "signalome_missing_value_clustering_v1",
+            "signalome_assignment_policy_v1",
+            "signalome_network_policy_v1",
+            "signalome_score_preconditioning_v1",
+            "protein_module_from_site_membership_v1",
+            "signalome_downstream_score_selection_v1",
+            "signalome_candidate_scoring_v1"
+          ],
+          "sha256": "c75b6c5539b88c9aca7d11c0e16280c9122414e78a9b6b5109b5237446598664"
+        },
+        "score_preconditioning_diagnostics": {
+          "dropped_all_missing_row_count": 1,
+          "input_row_count": 12,
+          "policy": "allow_and_report",
+          "retained_row_count": 11
+        },
+        "signalome_score_semantics": {
+          "assignment_semantics": {
+            "module_id": "score-derived candidate kinase-supported module identifier for the current dataset and configuration",
+            "module_top_kinase": "top supported kinase candidate summarized across sites in the candidate module; this is a label, not a causal mechanism claim",
+            "top_kinase": "top supported kinase candidate by site-level prediction score; ties are reported with the configured selection policy"
+          },
+          "candidate_scoring_is_approximate": false,
+          "candidate_scoring_mode": "full",
+          "candidate_scoring_sampled_pair_count": null,
+          "candidate_scoring_sampled_site_total": null,
+          "candidate_scoring_scope": "candidate_module_count_evaluation_only",
+          "clustering_engine": "scipy_hierarchical",
+          "constant_profile_handling": {
+            "meaning": "constant/near-constant profiles have weak or undefined correlation signal and are tracked explicitly in diagnostics",
+            "module_selection_excluded_from_correlation_count": 0,
+            "module_selection_near_constant_profile_count": 0,
+            "module_selection_zero_variance_profile_count": 0,
+            "network_constant_profile_correlations": 0
+          },
+          "downstream_score_meaning": "upstream downstream profile-score lane; larger values indicate stronger relative downstream support within the run",
+          "downstream_score_source": "profile_scores",
+          "input_sizes": {
+            "candidate_module_count_upper_bound": 10,
+            "candidate_module_counts_evaluated": 9,
+            "kinase_count": 3,
+            "protein_count": 6,
+            "site_count": 11
+          },
+          "missing_profile_handling": {
+            "all_missing_rows_before_execution": {
+              "dropped_row_count": 1,
+              "policy": "allow_and_report",
+              "retained_row_count": 11
+            },
+            "clustering_distance_input": {
+              "applies_to": "module_count_selection_and_tree_construction",
+              "dropped_fully_missing_dimension_count": 0,
+              "dropped_fully_missing_dimension_labels": [],
+              "dropped_fully_missing_dimension_preview": [],
+              "dropped_fully_missing_value_count": 0,
+              "fully_missing_column_handling": "columns with all values missing are dropped before median imputation and tree construction",
+              "imputed_value_count": 0,
+              "imputed_value_counts_by_dimension": {
+                "K1": 0,
+                "K2": 0,
+                "K3": 0
+              },
+              "missing_after_non_finite_normalization_count": 0,
+              "non_finite_handling": "non-finite values are treated as missing before imputation",
+              "non_finite_input_value_count": 0,
+              "output_tables_include_imputed_values": false,
+              "partial_missingness_handling": "missing entries in retained columns are imputed with the median of the same column",
+              "policy": "drop_fully_missing_then_column_median_impute",
+              "preparation_policy_id": "drop_fully_missing_then_column_median_impute",
+              "prepared_matrix_fingerprint": {
+                "column_index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "kinase"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "K1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K3"
+                    }
+                  ]
+                },
+                "column_names": [
+                  "K1",
+                  "K2",
+                  "K3"
+                ],
+                "columns": 3,
+                "dtypes": [
+                  "float64",
+                  "float64",
+                  "float64"
+                ],
+                "exact_hash_algorithm": "sha256-stable-json-v1",
+                "exact_hash_value": "80ea78d937437c5152bcba19c64b2062feb1134940c4bdd110415934db3d25ae",
+                "index_name": "site_key",
+                "index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "site_key"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+                    }
+                  ]
+                },
+                "name": "signalome.clustering.prepared_matrix",
+                "rows": 11,
+                "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+                "tolerance_hash_value": "59a8558717d0b6b7d84c8a5e42923f6b6e3a96a8c05c763dd5835bc88004f1ba"
+              }
+            },
+            "correlation_calculation": "partially missing rows are retained for pairwise-complete correlation; pairs with missing/non-finite issues are labeled via correlation_status and excluded from finite-edge creation",
+            "network_insufficient_observation_correlations": 0,
+            "network_missing_value_correlations": 0,
+            "network_non_finite_value_correlations": 0
+          },
+          "module_selection_score_meaning": "module-count selection uses within-cluster correlation summaries over downstream score profiles across candidate module counts",
+          "module_selection_stability": {
+            "assignment_similarity": {
+              "evaluated_perturbations": 8,
+              "maximum": 1.0,
+              "mean": 0.9727272727,
+              "median": 1.0,
+              "metric": "pairwise_coassignment_agreement",
+              "minimum": 0.9272727273
+            },
+            "assignment_similarity_metric": "pairwise_coassignment_agreement",
+            "base_selected_module_count": 5,
+            "evaluation_method": "seeded_score_perturbation_and_threshold_grid",
+            "evaluation_version": "1",
+            "input_dimension_count": 3,
+            "input_site_count": 11,
+            "limitations": [
+              "This report is descriptive sensitivity analysis for automatic module-count selection, not a statistical significance test.",
+              "Selected-count frequencies are counts across seeded perturbations, not probabilities or calibrated confidence values.",
+              "Assignment similarity is a descriptive partition-agreement score, not a confidence probability.",
+              "Seeded score perturbations do not replace biological replication, an independent validation cohort, or a pre-specified inferential design.",
+              "At least one seeded perturbation or threshold-grid point changed the selected count or assignment partition; downstream module summaries should be interpreted as configuration-sensitive descriptive output."
+            ],
+            "not_computable_reason": null,
+            "perturbation_count": 8,
+            "random_seed": 1571484983,
+            "seed_policy": "deterministic_seed_from_scoring_values_and_method_version",
+            "selected_count_frequency": {
+              "5": 8
+            },
+            "status": "unstable",
+            "threshold_sensitivity": {
+              "disagrees_with_selected_count": false,
+              "method": "primary_fallback_threshold_grid",
+              "records": [
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                }
+              ],
+              "selected_count_frequency": {
+                "5": 9
+              },
+              "version": "1"
+            }
+          },
+          "module_selection_stability_meaning": "stability status is a descriptive seeded sensitivity diagnostic for automatic module-count selection; it is not an inferential p-value, confidence interval, calibrated probability, or validation of signalling biology",
+          "negative_correlation_handling": "negative correlations can pass eligibility when absolute magnitude meets threshold; edge correlation values retain sign",
+          "network_correlation_meaning": "network candidate and edge scores are score-profile associations: pairwise correlations between downstream kinase score profiles, computed on finite paired observations. They are descriptive associations, not inferential, directional, or causal evidence",
+          "network_edge_semantics": {
+            "direction": "not inferred; source_kinase and target_kinase are deterministic table labels for an undirected score-profile association",
+            "edge_diagnostics": {
+              "retained_edges": 2,
+              "skipped_below_threshold": 1,
+              "skipped_constant_profile": 0,
+              "skipped_insufficient_paired_observations": 0,
+              "skipped_missing_score": 0,
+              "skipped_non_finite_score": 0,
+              "skipped_undefined_correlation": 0
+            },
+            "edges": "correlation edge between kinase score profiles that passed the configured threshold and network policy",
+            "interpretation_limit": "correlations are not causal evidence and do not prove signalling relationships",
+            "nodes": "kinases retained in the aligned prediction and downstream score matrices",
+            "threshold_policy": {
+              "network_correlation_threshold": 0.5,
+              "network_min_paired_finite_observations": 5,
+              "network_min_paired_finite_observations_effective": 5,
+              "network_min_paired_finite_observations_requested": null,
+              "network_minimum_observation_policy_id": "signalome_network_min_paired_finite_observations_floor3_default5_v1",
+              "network_policy": "signed"
+            },
+            "weight": "correlation column derived from pairwise finite downstream score profile correlations; signed and absolute-threshold policies determine whether the stored value keeps sign or stores magnitude"
+          },
+          "network_policy": "signed",
+          "scale_guard_status": {
+            "candidate_scoring_guard_triggered": false,
+            "exact_tree_guard_triggered": false,
+            "passed": true
+          },
+          "scientific_interpretation_limits": "signalome module assignments, module scores, and kinase score-profile association edges are derived summary statistics for this dataset and configuration; they are not probabilities, calibrated confidence values, experimental validation of signalling relationships, or causal evidence",
+          "thresholds_and_limits": {
+            "max_exact_tree_sites": 2000,
+            "max_full_candidate_scoring_sites": 2000,
+            "module_selection_fallback_correlation_threshold": 0.1,
+            "module_selection_max_clusters": 10,
+            "module_selection_primary_correlation_threshold": 0.5,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations": 5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "substrate_support_cutoff": 0.5
+          },
+          "tree_generation_backend": "scipy_hierarchical_tree",
+          "tree_generation_is_approximate": false,
+          "tree_generation_mode": "full_exact_tree_construction",
+          "tree_generation_scope": "module_count_selection_and_final_assignment"
+        },
+        "workflow_name": "signalome_workflow"
+      },
+      "row_attrition": {
+        "final_rows": 11,
+        "input_rows": 12,
+        "records": [
+          {
+            "examples": [
+              "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+            ],
+            "input_rows": 12,
+            "output_rows": 11,
+            "reason": "sites_removed_by_score_preconditioning",
+            "removed_rows": 1,
+            "stage": "signalome_score_preconditioning"
+          }
+        ]
+      },
+      "score_preconditioning_diagnostics": {
+        "dropped_all_missing_row_count": 1,
+        "input_row_count": 12,
+        "policy": "allow_and_report",
+        "retained_row_count": 11
+      },
+      "selected_matrix": {
+        "columns": [
+          "K1",
+          "K2",
+          "K3"
+        ],
+        "index": [
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+        ],
+        "missing_values": 0,
+        "sha256": "24e1485225c81d67897d2ceafbcd0dc5b6f71ddf9543b57b94e8233662df1db0",
+        "shape": [
+          11,
+          3
+        ]
+      },
+      "selected_source": "profile_scores",
+      "tables": {
+        "candidate_correlations": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "correlation_status",
+            "valid_observations",
+            "correlation_reason"
+          ],
+          "index": [
+            0,
+            1,
+            2
+          ],
+          "missing_values": 3,
+          "sha256": "0f1461a981808394ad1698e8aa76d2834c6d794823c8ed138de94239632f686b",
+          "shape": [
+            3,
+            6
+          ]
+        },
+        "expanded_signalome": {
+          "columns": [
+            "kinase",
+            "row_kind",
+            "assignment_policy",
+            "linked_kinases",
+            "regulated_module_ids",
+            "site_key",
+            "display_id",
+            "site_id",
+            "site_order",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "support_kinases",
+            "support_weight",
+            "top_kinase",
+            "top_score"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "missing_values": 0,
+          "sha256": "6da1f8a1a8a6a074ff44ce7de23b7ee85a3b43be5c09a055953f88c0a7207f2e",
+          "shape": [
+            13,
+            19
+          ]
+        },
+        "module_assignments": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "top_kinase",
+            "top_score",
+            "top_kinase_candidates",
+            "top_kinase_weights",
+            "top_kinase_tie_count",
+            "top_kinase_is_ambiguous",
+            "top_kinase_selection_policy",
+            "module_top_kinase",
+            "module_top_kinase_candidates",
+            "module_top_kinase_tie_count",
+            "module_top_kinase_is_ambiguous",
+            "module_top_kinase_selection_policy"
+          ],
+          "index": [
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+          ],
+          "missing_values": 0,
+          "sha256": "155a5e2fc999beb83a2099d2e2ccdb5dd10f49c2d092e21ff721da90e91d59a2",
+          "shape": [
+            11,
+            20
+          ]
+        },
+        "network_edges": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "valid_observations"
+          ],
+          "index": [
+            0,
+            1
+          ],
+          "missing_values": 0,
+          "sha256": "efea5a28415354ce77946bcd98f1b1eb9d6ed752231695e6601aa5203c1bad85",
+          "shape": [
+            2,
+            4
+          ]
+        },
+        "network_nodes": {
+          "columns": [
+            "degree",
+            "n_substrates"
+          ],
+          "index": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "missing_values": 0,
+          "sha256": "ad99cb3d8533d1ae1a8a6a1e706c5932ac5f681bad37820ae9f970d5c3059386",
+          "shape": [
+            3,
+            2
+          ]
+        },
+        "protein_site_context": {
+          "columns": [
+            "protein_group_id",
+            "n_sites",
+            "site_ids",
+            "site_keys",
+            "display_ids",
+            "site_clusters",
+            "n_distinct_site_clusters",
+            "protein_module_id",
+            "multi_site_protein",
+            "ambiguous_module_context",
+            "gene_symbol",
+            "site",
+            "protein_accession",
+            "isoform_id",
+            "top_kinases_by_site",
+            "module_ids_by_site",
+            "site_key_to_display_id"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "missing_values": 0,
+          "sha256": "95d372ec7c7e9f3ab93089ea9361f922bfa6d847783913b7dea0eaa47bd02d3e",
+          "shape": [
+            6,
+            17
+          ]
+        },
+        "signalome_modules": {
+          "columns": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "index": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "missing_values": 0,
+          "sha256": "f38b7cb306d36a42efbc1f6eb540b39fc7e49f2e12abb5e5f88317f6c175ceaa",
+          "shape": [
+            6,
+            3
+          ]
+        },
+        "site_membership": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "site_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "site_cluster",
+            "protein_module_id",
+            "included_in_module_table",
+            "excluded_reason",
+            "top_kinase",
+            "top_kinase_score",
+            "top_kinase_weight",
+            "n_supported_kinases"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "missing_values": 0,
+          "sha256": "68eed16e2f0878e08ac3ed55c9a1060afd4e0c07744558479c513eb2c5852cfe",
+          "shape": [
+            11,
+            16
+          ]
+        }
+      }
+    },
+    "rank_weighted_fusion_scores": {
+      "alignment_diagnostics": {
+        "dataset_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "downstream_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_prediction_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "kinases": {
+          "dropped_count": 0,
+          "dropped_reasons": {
+            "missing_from_downstream_scores": 0,
+            "missing_from_prediction_scores": 0,
+            "missing_kinase_support": 0
+          },
+          "provided_count": 3,
+          "retained_count": 3
+        },
+        "prediction_score_sites": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_from_dataset": 0,
+            "missing_from_downstream_scores": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        },
+        "protein_group_ids": {
+          "dropped_count": 1,
+          "dropped_reasons": {
+            "missing_protein_group_id": 0,
+            "removed_by_score_preconditioning": 1,
+            "removed_by_validation_policy": 0
+          },
+          "provided_count": 12,
+          "retained_count": 11
+        }
+      },
+      "caveats": [
+        {
+          "code": "input_intensity_scale_declared_by_user",
+          "details": {
+            "input_intensity_scale": "linear",
+            "input_intensity_scale_evidence_level": "declared_by_user",
+            "input_intensity_scale_source": "declared_by_user",
+            "input_intensity_scale_source_detail": "tests.support.intensity_scale_states",
+            "workflow_scope": "signalome"
+          },
+          "message": "Input intensity scale was accepted from user-declared metadata rather than an observed transformation event. Downstream quantitative results depend on that declaration being correct.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_prediction_reference_limitations",
+          "details": {
+            "downstream_score_source": "rank_weighted_fusion_scores",
+            "upstream_caveat_codes": [],
+            "upstream_reference_bundle_id": null,
+            "upstream_reference_source_type": "explicit",
+            "upstream_score_scale": "relative_support_score_unit_interval",
+            "upstream_scoring_mode": "phosr_rank_weighted"
+          },
+          "message": "Signalome workflow consumes upstream kinase prediction and score matrices; reference and scoring limitations from the kinase result carry into signalome summaries.",
+          "severity": "info"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase result",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase result'.",
+          "severity": "warning"
+        },
+        {
+          "code": "reference_context_unknown",
+          "details": {
+            "code": "reference_context_unknown",
+            "left_reference_context_id": null,
+            "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+            "missing_contexts": [
+              "left",
+              "right"
+            ],
+            "operation": "signalome workflow result dataset/upstream kinase reference",
+            "policy": "allow_unknown_with_caveat",
+            "right_reference_context_id": null,
+            "severity": "warning",
+            "workflow_scope": "signalome"
+          },
+          "message": "Reference-context compatibility could not be proven because left, right contexts are unknown for operation='signalome workflow result dataset/upstream kinase reference'.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_permissive_localisation_policy",
+          "details": {
+            "known_localisation_count": 0,
+            "minimum_probability": null,
+            "missing_or_unknown_localisation_count": 12,
+            "policy": "allow_unknown",
+            "policy_is_permissive": true,
+            "require_present": false,
+            "resolved_column": null,
+            "retained_signalome_site_count": 11,
+            "site_count": 12,
+            "workflow_scope": "signalome"
+          },
+          "message": "Signalome workflow localisation policy does not enforce a minimum localisation probability; unknown or low-confidence phosphosites can contribute to modules and kinase score-profile associations.",
+          "severity": "warning"
+        },
+        {
+          "code": "signalome_descriptive_network_association_policy",
+          "details": {
+            "modules_are_descriptive": true,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "network_policy": "signed",
+            "networks_are_descriptive": true,
+            "not_inferential_evidence": true,
+            "policy_identifier": "signalome_network_min_paired_finite_observations_floor3_default5_v1"
+          },
+          "message": "Signalome modules and kinase-network correlations are descriptive score-derived summaries, not inferential, experimental, directional, or causal evidence.",
+          "severity": "info"
+        },
+        {
+          "code": "signalome_protein_group_id_grouping_assumption",
+          "details": {
+            "grouping_column": "protein_group_id",
+            "grouping_source": "dataset.site_metadata.protein_id",
+            "legacy_alias": "protein_id",
+            "legacy_alias_used": true,
+            "max_sites_per_protein_group": 2,
+            "multi_site_protein_group_count": 5,
+            "protein_group_id_grouping_is_explicit": true,
+            "retained_signalome_site_count": 11,
+            "site_to_protein_group_id_index_matches_score_matrix": true,
+            "unique_protein_group_count": 6
+          },
+          "message": "Signalome workflow groups phosphosites by dataset.site_metadata.protein_group_id; module context assumes those protein_group_id values are the intended Signalome grouping labels. The legacy protein_id column is accepted only as a migration alias.",
+          "severity": "info"
+        }
+      ],
+      "provenance": {
+        "alignment_diagnostics": {
+          "dataset_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "downstream_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_prediction_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "kinases": {
+            "dropped_count": 0,
+            "dropped_reasons": {
+              "missing_from_downstream_scores": 0,
+              "missing_from_prediction_scores": 0,
+              "missing_kinase_support": 0
+            },
+            "provided_count": 3,
+            "retained_count": 3
+          },
+          "prediction_score_sites": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_from_dataset": 0,
+              "missing_from_downstream_scores": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          },
+          "protein_group_ids": {
+            "dropped_count": 1,
+            "dropped_reasons": {
+              "missing_protein_group_id": 0,
+              "removed_by_score_preconditioning": 1,
+              "removed_by_validation_policy": 0
+            },
+            "provided_count": 12,
+            "retained_count": 11
+          }
+        },
+        "output_tables": {
+          "count": 8,
+          "names": [
+            "outputs.signalome.module_assignments",
+            "outputs.signalome.signalome_modules",
+            "outputs.signalome.kinase_network.edges",
+            "outputs.signalome.kinase_network.nodes",
+            "outputs.signalome.kinase_network.candidate_correlations",
+            "outputs.signalome.expanded_signalome",
+            "outputs.signalome.site_membership",
+            "outputs.signalome.protein_site_context"
+          ],
+          "sha256": "080393b6ecfdbbd85e67d195f4eeba5d8dd9448f55183ab2df4996f879fa4856"
+        },
+        "row_attrition": {
+          "final_rows": 11,
+          "input_rows": 12,
+          "records": [
+            {
+              "examples": [
+                "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+              ],
+              "input_rows": 12,
+              "output_rows": 11,
+              "reason": "sites_removed_by_score_preconditioning",
+              "removed_rows": 1,
+              "stage": "signalome_score_preconditioning"
+            }
+          ]
+        },
+        "scientific_policies": {
+          "count": 8,
+          "ids": [
+            "signalome_module_candidate_score_v1",
+            "signalome_missing_value_clustering_v1",
+            "signalome_assignment_policy_v1",
+            "signalome_network_policy_v1",
+            "signalome_score_preconditioning_v1",
+            "protein_module_from_site_membership_v1",
+            "signalome_downstream_score_selection_v1",
+            "signalome_candidate_scoring_v1"
+          ],
+          "sha256": "c75b6c5539b88c9aca7d11c0e16280c9122414e78a9b6b5109b5237446598664"
+        },
+        "score_preconditioning_diagnostics": {
+          "dropped_all_missing_row_count": 1,
+          "input_row_count": 12,
+          "policy": "allow_and_report",
+          "retained_row_count": 11
+        },
+        "signalome_score_semantics": {
+          "assignment_semantics": {
+            "module_id": "score-derived candidate kinase-supported module identifier for the current dataset and configuration",
+            "module_top_kinase": "top supported kinase candidate summarized across sites in the candidate module; this is a label, not a causal mechanism claim",
+            "top_kinase": "top supported kinase candidate by site-level prediction score; ties are reported with the configured selection policy"
+          },
+          "candidate_scoring_is_approximate": false,
+          "candidate_scoring_mode": "full",
+          "candidate_scoring_sampled_pair_count": null,
+          "candidate_scoring_sampled_site_total": null,
+          "candidate_scoring_scope": "candidate_module_count_evaluation_only",
+          "clustering_engine": "scipy_hierarchical",
+          "constant_profile_handling": {
+            "meaning": "constant/near-constant profiles have weak or undefined correlation signal and are tracked explicitly in diagnostics",
+            "module_selection_excluded_from_correlation_count": 0,
+            "module_selection_near_constant_profile_count": 0,
+            "module_selection_zero_variance_profile_count": 0,
+            "network_constant_profile_correlations": 0
+          },
+          "downstream_score_meaning": "rank-weighted fusion of upstream downstream-score lanes; larger values indicate stronger relative downstream support within the run",
+          "downstream_score_source": "rank_weighted_fusion_scores",
+          "input_sizes": {
+            "candidate_module_count_upper_bound": 10,
+            "candidate_module_counts_evaluated": 9,
+            "kinase_count": 3,
+            "protein_count": 6,
+            "site_count": 11
+          },
+          "missing_profile_handling": {
+            "all_missing_rows_before_execution": {
+              "dropped_row_count": 1,
+              "policy": "allow_and_report",
+              "retained_row_count": 11
+            },
+            "clustering_distance_input": {
+              "applies_to": "module_count_selection_and_tree_construction",
+              "dropped_fully_missing_dimension_count": 0,
+              "dropped_fully_missing_dimension_labels": [],
+              "dropped_fully_missing_dimension_preview": [],
+              "dropped_fully_missing_value_count": 0,
+              "fully_missing_column_handling": "columns with all values missing are dropped before median imputation and tree construction",
+              "imputed_value_count": 0,
+              "imputed_value_counts_by_dimension": {
+                "K1": 0,
+                "K2": 0,
+                "K3": 0
+              },
+              "missing_after_non_finite_normalization_count": 0,
+              "non_finite_handling": "non-finite values are treated as missing before imputation",
+              "non_finite_input_value_count": 0,
+              "output_tables_include_imputed_values": false,
+              "partial_missingness_handling": "missing entries in retained columns are imputed with the median of the same column",
+              "policy": "drop_fully_missing_then_column_median_impute",
+              "preparation_policy_id": "drop_fully_missing_then_column_median_impute",
+              "prepared_matrix_fingerprint": {
+                "column_index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "kinase"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "K1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "K3"
+                    }
+                  ]
+                },
+                "column_names": [
+                  "K1",
+                  "K2",
+                  "K3"
+                ],
+                "columns": 3,
+                "dtypes": [
+                  "float64",
+                  "float64",
+                  "float64"
+                ],
+                "exact_hash_algorithm": "sha256-stable-json-v1",
+                "exact_hash_value": "abb47f151a153603de799ee4d997e6eb59f8b13d9140e32ea014e73731f69179",
+                "index_name": "site_key",
+                "index_structure": {
+                  "dtype": "object",
+                  "index_class": "Index",
+                  "name": {
+                    "kind": "str",
+                    "value": "site_key"
+                  },
+                  "type": "index",
+                  "values": [
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11"
+                    },
+                    {
+                      "kind": "str",
+                      "value": "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+                    }
+                  ]
+                },
+                "name": "signalome.clustering.prepared_matrix",
+                "rows": 11,
+                "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+                "tolerance_hash_value": "98245801cd93165feba41be264d02eacf26e49b74afec1aed1546cd4b31be3a4"
+              }
+            },
+            "correlation_calculation": "partially missing rows are retained for pairwise-complete correlation; pairs with missing/non-finite issues are labeled via correlation_status and excluded from finite-edge creation",
+            "network_insufficient_observation_correlations": 0,
+            "network_missing_value_correlations": 0,
+            "network_non_finite_value_correlations": 0
+          },
+          "module_selection_score_meaning": "module-count selection uses within-cluster correlation summaries over downstream score profiles across candidate module counts",
+          "module_selection_stability": {
+            "assignment_similarity": {
+              "evaluated_perturbations": 8,
+              "maximum": 1.0,
+              "mean": 0.9636363636,
+              "median": 0.9636363636,
+              "metric": "pairwise_coassignment_agreement",
+              "minimum": 0.9272727273
+            },
+            "assignment_similarity_metric": "pairwise_coassignment_agreement",
+            "base_selected_module_count": 5,
+            "evaluation_method": "seeded_score_perturbation_and_threshold_grid",
+            "evaluation_version": "1",
+            "input_dimension_count": 3,
+            "input_site_count": 11,
+            "limitations": [
+              "This report is descriptive sensitivity analysis for automatic module-count selection, not a statistical significance test.",
+              "Selected-count frequencies are counts across seeded perturbations, not probabilities or calibrated confidence values.",
+              "Assignment similarity is a descriptive partition-agreement score, not a confidence probability.",
+              "Seeded score perturbations do not replace biological replication, an independent validation cohort, or a pre-specified inferential design.",
+              "At least one seeded perturbation or threshold-grid point changed the selected count or assignment partition; downstream module summaries should be interpreted as configuration-sensitive descriptive output."
+            ],
+            "not_computable_reason": null,
+            "perturbation_count": 8,
+            "random_seed": 774793343,
+            "seed_policy": "deterministic_seed_from_scoring_values_and_method_version",
+            "selected_count_frequency": {
+              "5": 8
+            },
+            "status": "unstable",
+            "threshold_sensitivity": {
+              "disagrees_with_selected_count": false,
+              "method": "primary_fallback_threshold_grid",
+              "records": [
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.45,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.45
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.5,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.5
+                },
+                {
+                  "fallback_threshold": 0.05,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.1,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                },
+                {
+                  "fallback_threshold": 0.15,
+                  "primary_threshold": 0.55,
+                  "selected_module_count": 5,
+                  "threshold_used": 0.55
+                }
+              ],
+              "selected_count_frequency": {
+                "5": 9
+              },
+              "version": "1"
+            }
+          },
+          "module_selection_stability_meaning": "stability status is a descriptive seeded sensitivity diagnostic for automatic module-count selection; it is not an inferential p-value, confidence interval, calibrated probability, or validation of signalling biology",
+          "negative_correlation_handling": "negative correlations can pass eligibility when absolute magnitude meets threshold; edge correlation values retain sign",
+          "network_correlation_meaning": "network candidate and edge scores are score-profile associations: pairwise correlations between downstream kinase score profiles, computed on finite paired observations. They are descriptive associations, not inferential, directional, or causal evidence",
+          "network_edge_semantics": {
+            "direction": "not inferred; source_kinase and target_kinase are deterministic table labels for an undirected score-profile association",
+            "edge_diagnostics": {
+              "retained_edges": 2,
+              "skipped_below_threshold": 1,
+              "skipped_constant_profile": 0,
+              "skipped_insufficient_paired_observations": 0,
+              "skipped_missing_score": 0,
+              "skipped_non_finite_score": 0,
+              "skipped_undefined_correlation": 0
+            },
+            "edges": "correlation edge between kinase score profiles that passed the configured threshold and network policy",
+            "interpretation_limit": "correlations are not causal evidence and do not prove signalling relationships",
+            "nodes": "kinases retained in the aligned prediction and downstream score matrices",
+            "threshold_policy": {
+              "network_correlation_threshold": 0.5,
+              "network_min_paired_finite_observations": 5,
+              "network_min_paired_finite_observations_effective": 5,
+              "network_min_paired_finite_observations_requested": null,
+              "network_minimum_observation_policy_id": "signalome_network_min_paired_finite_observations_floor3_default5_v1",
+              "network_policy": "signed"
+            },
+            "weight": "correlation column derived from pairwise finite downstream score profile correlations; signed and absolute-threshold policies determine whether the stored value keeps sign or stores magnitude"
+          },
+          "network_policy": "signed",
+          "scale_guard_status": {
+            "candidate_scoring_guard_triggered": false,
+            "exact_tree_guard_triggered": false,
+            "passed": true
+          },
+          "scientific_interpretation_limits": "signalome module assignments, module scores, and kinase score-profile association edges are derived summary statistics for this dataset and configuration; they are not probabilities, calibrated confidence values, experimental validation of signalling relationships, or causal evidence",
+          "thresholds_and_limits": {
+            "max_exact_tree_sites": 2000,
+            "max_full_candidate_scoring_sites": 2000,
+            "module_selection_fallback_correlation_threshold": 0.1,
+            "module_selection_max_clusters": 10,
+            "module_selection_primary_correlation_threshold": 0.5,
+            "network_correlation_threshold": 0.5,
+            "network_min_paired_finite_observations": 5,
+            "network_min_paired_finite_observations_effective": 5,
+            "network_min_paired_finite_observations_requested": null,
+            "substrate_support_cutoff": 0.5
+          },
+          "tree_generation_backend": "scipy_hierarchical_tree",
+          "tree_generation_is_approximate": false,
+          "tree_generation_mode": "full_exact_tree_construction",
+          "tree_generation_scope": "module_count_selection_and_final_assignment"
+        },
+        "workflow_name": "signalome_workflow"
+      },
+      "row_attrition": {
+        "final_rows": 11,
+        "input_rows": 12,
+        "records": [
+          {
+            "examples": [
+              "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=5"
+            ],
+            "input_rows": 12,
+            "output_rows": 11,
+            "reason": "sites_removed_by_score_preconditioning",
+            "removed_rows": 1,
+            "stage": "signalome_score_preconditioning"
+          }
+        ]
+      },
+      "score_preconditioning_diagnostics": {
+        "dropped_all_missing_row_count": 1,
+        "input_row_count": 12,
+        "policy": "allow_and_report",
+        "retained_row_count": 11
+      },
+      "selected_matrix": {
+        "columns": [
+          "K1",
+          "K2",
+          "K3"
+        ],
+        "index": [
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+          "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+        ],
+        "missing_values": 0,
+        "sha256": "458727f3b4f3b7da054118bc3e59ff3d9a5e126e67f9c755a5e1024f5ba11f5a",
+        "shape": [
+          11,
+          3
+        ]
+      },
+      "selected_source": "rank_weighted_fusion_scores",
+      "tables": {
+        "candidate_correlations": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "correlation_status",
+            "valid_observations",
+            "correlation_reason"
+          ],
+          "index": [
+            0,
+            1,
+            2
+          ],
+          "missing_values": 3,
+          "sha256": "3d9720ee3fe2f6a28aa4887875331e4c9fc08c3eafceeb372cba0ed1910a000f",
+          "shape": [
+            3,
+            6
+          ]
+        },
+        "expanded_signalome": {
+          "columns": [
+            "kinase",
+            "row_kind",
+            "assignment_policy",
+            "linked_kinases",
+            "regulated_module_ids",
+            "site_key",
+            "display_id",
+            "site_id",
+            "site_order",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "support_kinases",
+            "support_weight",
+            "top_kinase",
+            "top_score"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "missing_values": 0,
+          "sha256": "72a210fe8047836667c80f003a9f78631747e16fa69d88be4fa20b47f9227254",
+          "shape": [
+            15,
+            19
+          ]
+        },
+        "module_assignments": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "module_id",
+            "top_kinase",
+            "top_score",
+            "top_kinase_candidates",
+            "top_kinase_weights",
+            "top_kinase_tie_count",
+            "top_kinase_is_ambiguous",
+            "top_kinase_selection_policy",
+            "module_top_kinase",
+            "module_top_kinase_candidates",
+            "module_top_kinase_tie_count",
+            "module_top_kinase_is_ambiguous",
+            "module_top_kinase_selection_policy"
+          ],
+          "index": [
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=4",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=6",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=7",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P4|residue=S|position=8",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=9",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P5|residue=S|position=10",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=11",
+            "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P6|residue=S|position=12"
+          ],
+          "missing_values": 0,
+          "sha256": "155a5e2fc999beb83a2099d2e2ccdb5dd10f49c2d092e21ff721da90e91d59a2",
+          "shape": [
+            11,
+            20
+          ]
+        },
+        "network_edges": {
+          "columns": [
+            "source_kinase",
+            "target_kinase",
+            "correlation",
+            "valid_observations"
+          ],
+          "index": [
+            0,
+            1
+          ],
+          "missing_values": 0,
+          "sha256": "44cdfe2b1ae375269e87e8d59e560420f4355ac0b2fe5fa87b042059d9c30b9e",
+          "shape": [
+            2,
+            4
+          ]
+        },
+        "network_nodes": {
+          "columns": [
+            "degree",
+            "n_substrates"
+          ],
+          "index": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "missing_values": 0,
+          "sha256": "8223b1e548cdfcd5eff57a4c0d1323f029c40ac5425129cfe770f69ba856d19f",
+          "shape": [
+            3,
+            2
+          ]
+        },
+        "protein_site_context": {
+          "columns": [
+            "protein_group_id",
+            "n_sites",
+            "site_ids",
+            "site_keys",
+            "display_ids",
+            "site_clusters",
+            "n_distinct_site_clusters",
+            "protein_module_id",
+            "multi_site_protein",
+            "ambiguous_module_context",
+            "gene_symbol",
+            "site",
+            "protein_accession",
+            "isoform_id",
+            "top_kinases_by_site",
+            "module_ids_by_site",
+            "site_key_to_display_id"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "missing_values": 0,
+          "sha256": "95d372ec7c7e9f3ab93089ea9361f922bfa6d847783913b7dea0eaa47bd02d3e",
+          "shape": [
+            6,
+            17
+          ]
+        },
+        "signalome_modules": {
+          "columns": [
+            "K1",
+            "K2",
+            "K3"
+          ],
+          "index": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "missing_values": 0,
+          "sha256": "f38b7cb306d36a42efbc1f6eb540b39fc7e49f2e12abb5e5f88317f6c175ceaa",
+          "shape": [
+            6,
+            3
+          ]
+        },
+        "site_membership": {
+          "columns": [
+            "site_key",
+            "display_id",
+            "site_id",
+            "gene_symbol",
+            "site",
+            "protein_group_id",
+            "protein_accession",
+            "isoform_id",
+            "site_cluster",
+            "protein_module_id",
+            "included_in_module_table",
+            "excluded_reason",
+            "top_kinase",
+            "top_kinase_score",
+            "top_kinase_weight",
+            "n_supported_kinases"
+          ],
+          "index": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "missing_values": 0,
+          "sha256": "68eed16e2f0878e08ac3ed55c9a1060afd4e0c07744558479c513eb2c5852cfe",
+          "shape": [
+            11,
+            16
+          ]
+        }
+      }
+    }
+  }
+}

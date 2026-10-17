@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.advanced.configs import DatasetGroupCoverageFilterConfig
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.advanced import (
+    DatasetGroupCoverageFilterConfig,
+)
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.preprocessing.contracts import PreprocessingPlan
 
 
 def test_group_coverage_filter_accepts_count_threshold_config() -> None:

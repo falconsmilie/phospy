@@ -16,23 +16,23 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.errors import WorkflowBoundaryError
-from phospy.provenance.immutability import thaw_json_mapping
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.differential.executor import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.execution.model_executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
-from phospy.science.differential.models import (
+from phospy.differential.execution.workflow import (
+    DifferentialAnalysisExecutor as DifferentialWorkflowExecutor,
+)
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
 )
-from phospy.science.statistics.multiple_testing import adjust_p_values
-from phospy.workflows.differential.executor import (
-    DifferentialAnalysisExecutor as DifferentialWorkflowExecutor,
-)
+from phospy.errors import WorkflowBoundaryError
+from phospy.provenance.immutability import thaw_json_mapping
+from phospy.statistics.multiple_testing import adjust_p_values
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

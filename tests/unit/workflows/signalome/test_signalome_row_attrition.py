@@ -3,18 +3,16 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.api import (
+    KinasePredictionResult,
+    KinaseScoringResult,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
-)
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
-from phospy.workflows.signalome.row_attrition import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.row_attrition import (
     build_signalome_row_attrition_provenance,
 )
 from tests.support.analysis_ready_dataset_factories import (

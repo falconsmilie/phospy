@@ -9,31 +9,34 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
 from phospy.advanced import (
     DatasetProteinAwarePreparationConfig,
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
 )
-from phospy.errors import DatasetValidationError, PhosPyInputError
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.datasets.preprocessing.policy_models import (
-    TotalProteinCorrectionPolicy,
-)
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
-    ProteinAwareSampleAlignmentDiagnostics,
-)
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
+)
+from phospy.errors import DatasetValidationError, PhosPyInputError
+from phospy.preparation_records.policies import (
+    TotalProteinCorrectionPolicy,
+)
+from phospy.preparation_records.protein_aware import (
+    ProteinAwareSampleAlignmentDiagnostics,
     ProteinAwareSiteEligibility,
 )
+from phospy.preprocessing.contracts import PreprocessingPlan
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -49,16 +52,16 @@ _DIFFERENTIAL_CODE_DIRS = (
     ROOT / "src" / "phospy" / "science" / "differential",
 )
 _FORBIDDEN_DIFFERENTIAL_OWNER_MODULE_PREFIXES = (
-    "phospy.science.datasets.construction",
-    "phospy.science.datasets.preprocessing.pipeline",
+    "phospy.datasets._construction",
+    "phospy.preprocessing.execution.pipeline",
     "phospy.science.datasets.preprocessing.plan",
     "phospy.science.datasets.preprocessing.plan_",
     "phospy.science.datasets.preprocessing.stage_",
     "phospy.science.datasets.preprocessing.stages.protein_aware_preparation",
-    "phospy.science.datasets.preprocessing.state_builder",
-    "phospy.science.datasets.preprocessing.trace_builder",
+    "phospy.science.datasets.builders.state_builder",
+    "phospy.preprocessing.execution.trace_builder",
     "phospy.science.datasets.preprocessing.protein_aware_preparation",
-    "phospy.science.datasets.preprocessing.protein_mapping",
+    "phospy.preprocessing.protein_aware.mapping",
 )
 _FORBIDDEN_DIFFERENTIAL_OWNER_AGGREGATE_MODULES = (
     "phospy.science.datasets.preprocessing",

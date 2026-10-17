@@ -5,20 +5,25 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.api.requests import KinaseWorkflowRequest, SignalomeWorkflowRequest
-from phospy.api.results import KinaseWorkflowResult
+from phospy.api import (
+    KinaseWorkflowRequest,
+    KinaseWorkflowResult,
+    SignalomeWorkflowRequest,
+)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.science.references.models import Organism, ReferenceBundle
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.references.models import ReferenceBundle
+from phospy.signalome.validator import SignalomeWorkflowValidator
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

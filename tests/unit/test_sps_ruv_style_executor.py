@@ -7,7 +7,22 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.contracts.configs.preprocessing import (
+from phospy.datasets.builder import AnalysisReadyDatasetBuilder
+from phospy.datasets.contracts import DatasetBuildRequest
+from phospy.errors import PhosPyInputError
+from phospy.errors.validation import DatasetValidationError
+from phospy.preparation_records.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
+from phospy.preprocessing.batch_correction import (
+    BatchCorrectionPlanInterpreter,
+    BatchCorrectionWorkflow,
+    BatchCorrectionWorkflowRequest,
+    ResolvedBatchCorrectionPlan,
+)
+from phospy.preprocessing.batch_correction.contracts import (
     CorrectionMaskPolicy,
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionControlSiteMode,
@@ -22,11 +37,10 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.contracts.requests import DatasetBuildRequest
-from phospy.errors import PhosPyInputError
-from phospy.errors.validation import DatasetValidationError
-from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
-from phospy.science.batch_correction import (
+from phospy.preprocessing.batch_correction.contracts.output import (
+    CorrectedPreprocessingOutput,
+)
+from phospy.preprocessing.batch_correction.execution import (
     SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
     SPS_RUV_STYLE_BATCH_TERM_ROLE,
     SPS_RUV_STYLE_EXECUTOR_ID,
@@ -34,29 +48,19 @@ from phospy.science.batch_correction import (
     DeterministicSpsRuvStyleExecutor,
     SpsRuvStyleExecutorResult,
 )
-from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
-from phospy.science.datasets.preprocessing.batch_correction import (
-    BatchCorrectionDiagnostics,
-    BatchCorrectionPolicy,
-    BatchCorrectionReport,
+from phospy.preprocessing.batch_correction.validation.design import (
+    ResolvedBatchDesignMetadata,
 )
-from phospy.science.datasets.preprocessing.control_sites import (
+from phospy.preprocessing.control_sites.contracts import (
     ControlSiteAnnotation,
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.science.datasets.preprocessing.correction_output import (
-    CorrectedPreprocessingOutput,
+from phospy.preprocessing.control_sites.validation import (
+    ControlSiteEligibilityValidator,
 )
-from phospy.science.references.models import Organism
-from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
-from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
-from phospy.workflows.batch_correction import (
-    BatchCorrectionPlanInterpreter,
-    BatchCorrectionWorkflow,
-    BatchCorrectionWorkflowRequest,
-    ResolvedBatchCorrectionPlan,
-)
+from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
+from phospy.taxonomy import Organism
 
 
 def test_sps_ruv_style_executor_produces_stable_expected_corrected_values() -> None:

@@ -10,8 +10,6 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
-    DifferentialAnalysisWorkflow,
 )
 from phospy.advanced import (
     DatasetIntensityTransformConfig,
@@ -21,18 +19,35 @@ from phospy.advanced import (
     EmpiricalBayesConfig,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisResult,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     PhosphositeImportResult,
     SampleDesignRecord,
 )
-from phospy.api.requests import DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
-from phospy.api.results import DifferentialAnalysisResult
+from phospy.differential.moderation.config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+)
+from phospy.differential.tables import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+)
 from phospy.errors import WorkflowBoundaryError
+from phospy.evidence.dataset_resolution.models import (
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+)
+from phospy.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
 from phospy.io.readers import (
     FragPipeColumnMapping,
     FragPipePTMProphetImporter,
@@ -40,15 +55,6 @@ from phospy.io.readers import (
     MaxQuantColumnMapping,
     MaxQuantPhosphositeImporter,
     MaxQuantPhosphositeImportRequest,
-)
-from phospy.science.differential.models import (
-    DIFFERENTIAL_RESULT_STATUS_COLUMN,
-    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
-    DIFFERENTIAL_RESULT_STATUS_TESTED,
-    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
-    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
-    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
 )
 
 pytestmark = pytest.mark.integration

@@ -16,19 +16,21 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowValidationError
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import KinaseLibraryResourceProvenance
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.motif_scoring.models import AMINO_ACIDS
-from phospy.science.references.kinase_library import (
+from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.kinase.references.models import (
     KinaseLibraryMatrix,
     KinaseLibraryResidueClass,
     KinaseLibraryResource,
 )
-from phospy.science.references.models import SequenceWindowDefinition
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
+from phospy.kinase.scoring.config import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+)
+from phospy.kinase.scoring.motif.models import AMINO_ACIDS
+from phospy.provenance.hashing import fingerprint_table
+from phospy.references.models import SequenceWindowDefinition
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

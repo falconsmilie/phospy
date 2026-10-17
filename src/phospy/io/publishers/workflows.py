@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy.contracts.results import KinaseWorkflowResult, SignalomeWorkflowResult
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.bundles._shared.transactions import write_output_tree_atomically
@@ -15,9 +15,10 @@ from phospy.io.bundles._signalome.diagnostics import (
     signalome_module_selection_stability_report_to_payload,
 )
 from phospy.io.readers.tables import table_suffix_for_format, write_table
-from phospy.provenance.serialization import to_payload as provenance_to_payload
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.signalomes.models import SignalomeAlignmentInputDiagnostics
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.run_lineage.serialization import to_payload as provenance_to_payload
+from phospy.signalome.models import SignalomeAlignmentInputDiagnostics
+from phospy.signalome.results import SignalomeWorkflowResult
 
 
 def publish_dataset(

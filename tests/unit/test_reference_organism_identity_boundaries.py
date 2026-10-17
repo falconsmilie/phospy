@@ -7,38 +7,39 @@ import pandas as pd
 import pytest
 
 from phospy.api import AnalysisReadyDatasetBuilder
-from phospy.contracts.requests import DatasetBuildRequest
+from phospy.datasets.construction.provenance import (
+    DatasetRunProvenanceAssembler,
+)
+from phospy.datasets.contracts import DatasetBuildRequest
+from phospy.datasets.derived_quantitative import (
+    CertifiedDerivedQuantitativeParentState,
+    DerivedAnalysisReadyPhosphoDataset,
+    DerivedQuantitativeDataProvenance,
+    DerivedSampleMapping,
+)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.processing_state import DatasetProcessingState
+from phospy.differential.provenance.lineage import (
+    build_derived_quantitative_run_provenance,
+)
 from phospy.errors import DatasetValidationError, UnsupportedOrganismError
 from phospy.errors.references import ReferenceCompatibilityError
 from phospy.errors.validation import ReferenceValidationError
-from phospy.provenance.derived_quantitative import (
-    DerivedQuantitativeDataProvenance,
-    DerivedSampleMapping,
-    build_derived_quantitative_run_provenance,
-)
+from phospy.phosphosites.site_keys import ProteinScopedPhosphositeKey
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import ReferenceProvenance, RunProvenance
-from phospy.provenance.reference_context import ReferenceContext
-from phospy.provenance.serialization import from_payload, to_payload
-from phospy.science.datasets.builders.provenance_assembler import (
-    DatasetRunProvenanceAssembler,
-)
-from phospy.science.datasets.derived_quantitative import (
-    CertifiedDerivedQuantitativeParentState,
-    DerivedAnalysisReadyPhosphoDataset,
-)
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.processing_state import DatasetProcessingState
-from phospy.science.references.models import (
-    Organism,
+from phospy.quantitative.models import IntensityScaleState
+from phospy.references.compatibility import ReferenceCompatibilityValidator
+from phospy.references.models import (
     ReferenceBundle,
     ReferencePreset,
 )
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.science.sites.site_keys import ProteinScopedPhosphositeKey
-from phospy.science.transformations.models import IntensityScaleState
-from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
+from phospy.references.provenance.context import ReferenceContext
+from phospy.references.provenance.models import ReferenceProvenance
+from phospy.references.resolution import ReferenceResolver
+from phospy.run_lineage.models import RunProvenance
+from phospy.run_lineage.serialization import from_payload, to_payload
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     complete_trusted_dataset_construction_assertions_for_tests,
     trusted_analysis_ready_dataset_from_tables,

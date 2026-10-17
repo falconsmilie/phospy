@@ -1,0 +1,696 @@
+"""Dataset construction input resolution."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from os import PathLike
+from pathlib import Path
+from typing import NoReturn, Protocol
+
+import pandas as pd
+
+from phospy.datasets.construction.contracts import (
+    DatasetBuildRequestProtocol,
+    DatasetInput,
+)
+from phospy.datasets.construction.normalization import (
+    DatasetConventionNormalizer,
+    NormalizedDatasetInputs,
+)
+from phospy.datasets.construction.site_identity import DatasetSiteIdentityDeriver
+from phospy.errors.input import PhosPyInputError
+from phospy.evidence.dataset_resolution.models import (
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+    PeptideEvidenceResolutionSummary,
+)
+from phospy.evidence.dataset_resolution.policies import (
+    build_multi_site_handling_config_for_dataset_policy,
+)
+from phospy.evidence.dataset_resolution.resolver import PeptideEvidenceDatasetResolver
+from phospy.evidence.models import PeptideEvidenceTable
+from phospy.phosphosites.dataset_identity import (
+    enforce_display_id_column,
+    enforce_site_key_column,
+)
+from phospy.phosphosites.identifiers import SiteIdentifierNormalisationReport
+from phospy.phosphosites.validation import require_no_mixed_site_key_isoform_scope
+from phospy.preprocessing.contracts.policies import (
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixPolicy,
+)
+from phospy.quantitative.models import IntensityScaleKind
+from phospy.taxonomy.organisms import Organism
+from phospy.validation.common.input_sources import validate_dataframe_or_path
+
+
+class DatasetInputSourceValidatorProtocol(Protocol):
+    """Validate one dataset builder input source before reading."""
+
+    def run(
+        self,
+        value: object | None,
+        *,
+        field_name: str,
+        allow_none: bool = False,
+    ) -> object: ...
+
+
+class _DatasetInputSourceValidator:
+    """Construction adapter preserving the reader's input error policy."""
+
+    def run(
+        self,
+        source: object | None,
+        *,
+        field_name: str,
+        allow_none: bool = False,
+    ) -> pd.DataFrame | str | Path | None:
+        return validate_dataframe_or_path(
+            source,
+            field_name=field_name,
+            allow_none=allow_none,
+            error_type=PhosPyInputError,
+        )
+
+
+class DatasetPathTableReader(Protocol):
+    """Reader protocol for dataset builder local table paths."""
+
+    def run(self, path: Path, *, field_name: str) -> pd.DataFrame: ...
+
+
+class DatasetInputReader:
+    """Resolve one supported builder input source into a DataFrame."""
+
+    def __init__(
+        self,
+        *,
+        source_validator: DatasetInputSourceValidatorProtocol | None = None,
+        path_reader: DatasetPathTableReader | None = None,
+    ) -> None:
+        self._source_validator = source_validator or _DatasetInputSourceValidator()
+        self._path_reader = path_reader
+
+    def run(self, source: DatasetInput, *, field_name: str) -> pd.DataFrame:
+        validated_source = self._source_validator.run(source, field_name=field_name)
+        if isinstance(validated_source, pd.DataFrame):
+            return validated_source
+        if not isinstance(validated_source, (str, Path, PathLike)):
+            raise PhosPyInputError(
+                f"dataset build request {field_name} source validator produced "
+                f"unsupported value type {type(validated_source).__name__}; expected "
+                "a pandas DataFrame or file path"
+            )
+        return self._read_from_path(validated_source, field_name=field_name)
+
+    def _read_from_path(
+        self,
+        source: str | Path | PathLike,
+        *,
+        field_name: str,
+    ) -> pd.DataFrame:
+        if self._path_reader is None:
+            raise PhosPyInputError(
+                "dataset build request path inputs require an injected "
+                "DatasetPathTableReader"
+            )
+        path = Path(source.strip()) if isinstance(source, str) else Path(source)
+        return self._path_reader.run(path, field_name=field_name)
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedDatasetBuildSources:
+    """Input tables resolved from a validated dataset build request."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    sample_metadata: pd.DataFrame | None
+    total: pd.DataFrame | None
+    site_resolution_mode: str
+    multi_site_policy: str | None
+    peptide_evidence_resolution: PeptideEvidenceResolutionSummary | None
+    site_identifier_normalisation: SiteIdentifierNormalisationReport | None
+
+
+class DatasetBuildSourceResolver:
+    """Read and normalize input sources for dataset builder execution planning."""
+
+    def __init__(
+        self,
+        *,
+        reader: DatasetInputReader | None = None,
+        normalizer: DatasetConventionNormalizer | None = None,
+        peptide_evidence_resolver: PeptideEvidenceDatasetResolver | None = None,
+        site_identity_deriver: DatasetSiteIdentityDeriver | None = None,
+    ) -> None:
+        self._reader = reader or DatasetInputReader()
+        self._normalizer = normalizer or DatasetConventionNormalizer()
+        self._peptide_evidence_resolver = (
+            peptide_evidence_resolver or PeptideEvidenceDatasetResolver()
+        )
+        self._site_identity_deriver = (
+            site_identity_deriver or DatasetSiteIdentityDeriver()
+        )
+
+    def run(
+        self,
+        request: DatasetBuildRequestProtocol,
+        *,
+        declared_input_intensity_scale_kind: IntensityScaleKind | None = None,
+    ) -> ResolvedDatasetBuildSources:
+        resolved_input_intensity_scale_kind = (
+            declared_input_intensity_scale_kind
+            if declared_input_intensity_scale_kind is not None
+            else _resolve_request_input_intensity_scale_kind(
+                request.input_intensity_scale
+            )
+        )
+        sample_metadata = self._read_optional(
+            request.sample_metadata,
+            field_name="sample_metadata",
+        )
+        total = self._read_optional(request.total, field_name="total")
+        site_resolution_mode = str(request.site_resolution_mode).strip()
+        multi_site_policy: str | None = None
+        peptide_evidence_resolution_summary: PeptideEvidenceResolutionSummary | None = (
+            None
+        )
+        if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED:
+            phospho = self._reader.run(
+                _require_dataset_input(
+                    request.phospho,
+                    field_name="dataset build request phospho",
+                ),
+                field_name="phospho",
+            )
+            site_metadata = self._reader.run(
+                _require_dataset_input(
+                    request.site_metadata,
+                    field_name="dataset build request site_metadata",
+                ),
+                field_name="site_metadata",
+            )
+        elif site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE:
+            (
+                phospho,
+                site_metadata,
+                multi_site_policy,
+                peptide_evidence_resolution_summary,
+            ) = self._resolve_peptide_evidence_inputs(
+                request,
+                input_intensity_scale=resolved_input_intensity_scale_kind,
+            )
+        else:  # pragma: no cover - validator owns this branch; keep defensive.
+            raise PhosPyInputError(
+                "dataset build request site_resolution_mode is unsupported after "
+                "validation"
+            )
+        normalized = self._normalize(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+        )
+        site_matrix_policy = str(request.preprocessing_config.site_matrix.policy)
+        duplicate_site_policy = str(
+            request.preprocessing_config.site_matrix.duplicate_site_policy
+        )
+        identity_enriched_site_metadata = self._derive_site_identity(
+            site_metadata=normalized.site_metadata,
+            organism=request.organism,
+        )
+        (
+            normalized_phospho,
+            identity_enriched_site_metadata,
+        ) = self._reindex_as_input_rows_to_site_key_index_when_needed(
+            phospho=normalized.phospho,
+            site_metadata=identity_enriched_site_metadata,
+            site_matrix_policy=site_matrix_policy,
+        )
+        self._enforce_site_key_identity_validity(
+            identity_enriched_site_metadata,
+            site_matrix_policy=site_matrix_policy,
+            duplicate_site_policy=duplicate_site_policy,
+        )
+        return ResolvedDatasetBuildSources(
+            phospho=normalized_phospho,
+            site_metadata=identity_enriched_site_metadata,
+            sample_metadata=normalized.sample_metadata,
+            total=normalized.total,
+            site_resolution_mode=site_resolution_mode,
+            multi_site_policy=multi_site_policy,
+            peptide_evidence_resolution=peptide_evidence_resolution_summary,
+            site_identifier_normalisation=normalized.site_identifier_normalisation,
+        )
+
+    def _read_optional(
+        self,
+        value: DatasetInput | None,
+        *,
+        field_name: str,
+    ) -> pd.DataFrame | None:
+        if value is None:
+            return None
+        return self._reader.run(value, field_name=field_name)
+
+    def _resolve_peptide_evidence_inputs(
+        self,
+        request: DatasetBuildRequestProtocol,
+        *,
+        input_intensity_scale: IntensityScaleKind | None,
+    ) -> tuple[pd.DataFrame, pd.DataFrame, str, PeptideEvidenceResolutionSummary]:
+        peptide_evidence = self._reader.run(
+            _require_dataset_input(
+                request.peptide_evidence,
+                field_name="dataset build request peptide_evidence",
+            ),
+            field_name="peptide_evidence",
+        )
+        peptide_site_mapping = self._read_optional(
+            request.peptide_site_mapping,
+            field_name="peptide_site_mapping",
+        )
+        multi_site_policy = str(request.multi_site_policy)
+        try:
+            evidence = PeptideEvidenceTable(
+                frame=peptide_evidence,
+                sample_intensity_columns=(
+                    ()
+                    if request.peptide_evidence_sample_intensity_columns is None
+                    else request.peptide_evidence_sample_intensity_columns
+                ),
+                site_mapping=peptide_site_mapping,
+                multi_site_handling_config=build_multi_site_handling_config_for_dataset_policy(
+                    multi_site_policy=multi_site_policy
+                ),
+            )
+            resolved = self._peptide_evidence_resolver.run(
+                evidence=evidence,
+                multi_site_policy=multi_site_policy,
+                input_intensity_scale=input_intensity_scale,
+            )
+        except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
+            _raise_wrapped_input_error(
+                stage_name="dataset_builder.peptide_evidence_resolution",
+                field_name="dataset build request peptide_evidence",
+                operation=(
+                    "resolving peptide evidence into site-level phospho and "
+                    "site_metadata tables"
+                ),
+                next_action=(
+                    "provide peptide_evidence with required evidence columns, valid "
+                    "peptide_evidence_sample_intensity_columns, and a compatible "
+                    "multi_site_policy/site mapping"
+                ),
+                original_error=exc,
+            )
+        return (
+            resolved.phospho,
+            resolved.site_metadata,
+            multi_site_policy,
+            resolved.summary,
+        )
+
+    def _normalize(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        sample_metadata: pd.DataFrame | None,
+        total: pd.DataFrame | None,
+    ) -> NormalizedDatasetInputs:
+        try:
+            return self._normalizer.run(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+            )
+        except (TypeError, ValueError, KeyError) as exc:
+            _raise_wrapped_input_error(
+                stage_name="dataset_builder.normalization",
+                field_name="dataset build request input tables",
+                operation="normalizing input indices and metadata column conventions",
+                next_action=(
+                    "ensure phospho/site_metadata/sample_metadata/total tables use "
+                    "supported rectangular DataFrame shapes, supported site labels, "
+                    "and non-conflicting metadata column conventions"
+                ),
+                original_error=exc,
+            )
+
+    def _derive_site_identity(
+        self,
+        *,
+        site_metadata: pd.DataFrame,
+        organism: Organism | None,
+    ) -> pd.DataFrame:
+        if _has_blank_or_missing_site_identity_fields(site_metadata):
+            return site_metadata
+        try:
+            explicit_site_keys = _normalize_complete_explicit_site_key_column_or_none(
+                site_metadata
+            )
+            explicit_display_ids = _normalize_complete_display_id_column_or_none(
+                site_metadata
+            )
+            if explicit_site_keys is not None or explicit_display_ids is not None:
+                return _validate_and_normalize_explicit_site_identity_fields(
+                    site_metadata=site_metadata,
+                    organism=organism,
+                    site_identity_deriver=self._site_identity_deriver,
+                    explicit_site_keys=explicit_site_keys,
+                    explicit_display_ids=explicit_display_ids,
+                )
+        except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
+            _raise_wrapped_input_error(
+                stage_name="dataset_builder.site_identity_derivation",
+                field_name="dataset build request site_metadata",
+                operation=(
+                    "validating explicit display_id/site_key metadata columns "
+                    "against row metadata"
+                ),
+                next_action=(
+                    "ensure explicit display_id/site_key values match "
+                    "gene_symbol, site, organism, residue/position, and "
+                    "protein context metadata; otherwise omit legacy identity "
+                    "columns and provide enough metadata to derive them"
+                ),
+                original_error=exc,
+            )
+        try:
+            return self._site_identity_deriver.run(
+                site_metadata=site_metadata,
+                organism=organism,
+                copy_site_metadata=False,
+            )
+        except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
+            _raise_wrapped_input_error(
+                stage_name="dataset_builder.site_identity_derivation",
+                field_name="dataset build request site_metadata",
+                operation="deriving display_id and site_key metadata columns",
+                next_action=(
+                    "ensure site_metadata provides normalized gene/site values, "
+                    "strict residue/position site tokens, organism, and explicit "
+                    "protein context via protein_accession, protein_id, or "
+                    "protein_identifier plus protein_namespace. Peptide-evidence "
+                    "protein_accession remains accession identity; do not rewrite "
+                    "it into protein_id grouping metadata."
+                ),
+                original_error=exc,
+            )
+
+    @staticmethod
+    def _enforce_site_key_identity_validity(
+        site_metadata: pd.DataFrame,
+        *,
+        site_matrix_policy: str,
+        duplicate_site_policy: str,
+    ) -> None:
+        if "site_key" not in site_metadata.columns:
+            return
+        site_keys = enforce_site_key_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
+        require_no_mixed_site_key_isoform_scope(
+            site_keys=site_keys,
+            field_name="dataset build request site_metadata.site_key",
+            error_type=PhosPyInputError,
+        )
+        resolved_site_matrix_policy = SiteMatrixPolicy.parse(
+            site_matrix_policy,
+            field_name="dataset build request preprocessing_config.site_matrix.policy",
+        )
+        if resolved_site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA:
+            SiteMatrixDuplicateSitePolicy.parse(
+                duplicate_site_policy,
+                field_name=(
+                    "dataset build request "
+                    "preprocessing_config.site_matrix.duplicate_site_policy"
+                ),
+            )
+            enforce_display_id_column(
+                site_metadata=site_metadata,
+                field_name="dataset build request site_metadata",
+                error_type=PhosPyInputError,
+            )
+
+        if resolved_site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA:
+            return
+        duplicate_mask = site_keys.duplicated(keep=False)
+        if not bool(duplicate_mask.any()):
+            return
+        duplicate_values = list(dict.fromkeys(site_keys.loc[duplicate_mask].tolist()))
+        preview = ", ".join(repr(value) for value in duplicate_values[:5])
+        suffix = "" if len(duplicate_values) <= 5 else " ..."
+        raise PhosPyInputError(
+            "dataset build request site_metadata.site_key must be unique when "
+            "site_matrix.policy='as_input'; "
+            f"duplicate_values=[{preview}{suffix}]"
+        )
+
+    @staticmethod
+    def _reindex_as_input_rows_to_site_key_index_when_needed(
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        site_matrix_policy: str,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        if (
+            SiteMatrixPolicy.parse(
+                site_matrix_policy,
+                field_name="dataset build request preprocessing_config.site_matrix.policy",
+            )
+            is not SiteMatrixPolicy.AS_INPUT
+        ):
+            return phospho, site_metadata
+        if "site_key" not in site_metadata.columns:
+            return phospho, site_metadata
+        enforce_display_id_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
+        site_keys = enforce_site_key_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
+        aligned_index = pd.Index(
+            site_keys.astype(str).tolist(),
+            name="site_key",
+        )
+        if len(aligned_index) != len(phospho.index):
+            raise PhosPyInputError(
+                "dataset build request phospho and site_metadata row counts must "
+                "match before site_key indexing"
+            )
+        values_aligned = phospho.index.equals(
+            aligned_index
+        ) and site_metadata.index.equals(aligned_index)
+        names_aligned = str(phospho.index.name) == str(aligned_index.name) and str(
+            site_metadata.index.name
+        ) == str(aligned_index.name)
+        if values_aligned and names_aligned:
+            return phospho, site_metadata
+        phospho.index = aligned_index
+        site_metadata.index = aligned_index.copy()
+        site_metadata.loc[:, "site_key"] = aligned_index.tolist()
+        return phospho, site_metadata
+
+
+def _require_dataset_input(
+    value: DatasetInput | None, *, field_name: str
+) -> DatasetInput:
+    if value is None:
+        raise PhosPyInputError(f"{field_name} is required")
+    return value
+
+
+def _raise_wrapped_input_error(
+    *,
+    stage_name: str,
+    field_name: str,
+    operation: str,
+    next_action: str,
+    original_error: Exception,
+) -> NoReturn:
+    original_message = " ".join(str(original_error).split())
+    raise PhosPyInputError(
+        f"{stage_name} failed while {operation} for {field_name}. "
+        f"Original error: {type(original_error).__name__}: {original_message}. "
+        f"Next action: {next_action}"
+    ) from original_error
+
+
+def _has_blank_or_missing_site_identity_fields(site_metadata: pd.DataFrame) -> bool:
+    if (
+        "gene_symbol" not in site_metadata.columns
+        or "site" not in site_metadata.columns
+    ):
+        return True
+    gene_symbol = site_metadata.loc[:, "gene_symbol"]
+    site = site_metadata.loc[:, "site"]
+    gene_token = gene_symbol.astype("string").str.strip()
+    site_token = site.astype("string").str.strip()
+    has_blank_or_missing = (
+        gene_symbol.isna()
+        | site.isna()
+        | gene_token.isna()
+        | site_token.isna()
+        | (gene_token == "")
+        | (site_token == "")
+    )
+    return bool(has_blank_or_missing.any())
+
+
+def _normalize_complete_explicit_site_key_column_or_none(
+    site_metadata: pd.DataFrame,
+) -> pd.Series | None:
+    if not _has_complete_column(site_metadata, "site_key"):
+        return None
+    try:
+        return enforce_site_key_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
+    except PhosPyInputError:
+        if _has_encoded_site_key_prefix(site_metadata):
+            raise
+        return None
+
+
+def _normalize_complete_display_id_column_or_none(
+    site_metadata: pd.DataFrame,
+) -> pd.Series | None:
+    if not _has_complete_column(site_metadata, "display_id"):
+        return None
+    return enforce_display_id_column(
+        site_metadata=site_metadata,
+        field_name="dataset build request site_metadata",
+        error_type=PhosPyInputError,
+    )
+
+
+def _validate_and_normalize_explicit_site_identity_fields(
+    *,
+    site_metadata: pd.DataFrame,
+    organism: Organism | None,
+    site_identity_deriver: DatasetSiteIdentityDeriver,
+    explicit_site_keys: pd.Series | None,
+    explicit_display_ids: pd.Series | None,
+) -> pd.DataFrame:
+    expected_input = site_metadata.copy(deep=False)
+    expected = site_identity_deriver.run(
+        site_metadata=expected_input,
+        organism=organism,
+        copy_site_metadata=False,
+    )
+    mismatches = _explicit_identity_mismatches(
+        site_metadata=site_metadata,
+        expected=expected,
+        explicit_site_keys=explicit_site_keys,
+        explicit_display_ids=explicit_display_ids,
+    )
+    if mismatches:
+        preview = ", ".join(mismatches[:5])
+        suffix = "" if len(mismatches) <= 5 else " ..."
+        raise PhosPyInputError(
+            "dataset build request site_metadata explicit identity fields must "
+            "match metadata-derived display_id/site_key values; "
+            f"mismatches=[{preview}{suffix}]"
+        )
+    return expected
+
+
+def _explicit_identity_mismatches(
+    *,
+    site_metadata: pd.DataFrame,
+    expected: pd.DataFrame,
+    explicit_site_keys: pd.Series | None,
+    explicit_display_ids: pd.Series | None,
+) -> list[str]:
+    row_ids = site_metadata.index.tolist()
+    mismatches: list[str] = []
+    if explicit_display_ids is not None:
+        observed_display_ids = explicit_display_ids.astype(str).tolist()
+        expected_display_ids = expected.loc[:, "display_id"].astype(str).tolist()
+        mismatches.extend(
+            _field_mismatches(
+                row_ids=row_ids,
+                field_name="display_id",
+                observed=observed_display_ids,
+                expected=expected_display_ids,
+            )
+        )
+    if explicit_site_keys is not None:
+        observed_site_keys = explicit_site_keys.astype(str).tolist()
+        expected_site_keys = expected.loc[:, "site_key"].astype(str).tolist()
+        mismatches.extend(
+            _field_mismatches(
+                row_ids=row_ids,
+                field_name="site_key",
+                observed=observed_site_keys,
+                expected=expected_site_keys,
+            )
+        )
+    return mismatches
+
+
+def _field_mismatches(
+    *,
+    row_ids: list[object],
+    field_name: str,
+    observed: list[str],
+    expected: list[str],
+) -> list[str]:
+    mismatches: list[str] = []
+    for position, (observed_value, expected_value) in enumerate(
+        zip(observed, expected, strict=True)
+    ):
+        if observed_value == expected_value:
+            continue
+        row_id = row_ids[position]
+        mismatches.append(
+            f"position {position} row={row_id!r} {field_name}:"
+            f"observed={observed_value!r}:expected={expected_value!r}"
+        )
+    return mismatches
+
+
+def _has_encoded_site_key_prefix(site_metadata: pd.DataFrame) -> bool:
+    if "site_key" not in site_metadata.columns:
+        return False
+    for raw_value in site_metadata.loc[:, "site_key"].tolist():
+        if isinstance(raw_value, str) and raw_value.strip().startswith("phospy:v1"):
+            return True
+    return False
+
+
+def _resolve_request_input_intensity_scale_kind(
+    input_intensity_scale: IntensityScaleKind | str | None,
+) -> IntensityScaleKind | None:
+    if input_intensity_scale is None:
+        return None
+    if isinstance(input_intensity_scale, IntensityScaleKind):
+        return input_intensity_scale
+    try:
+        return IntensityScaleKind(str(input_intensity_scale))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in IntensityScaleKind)
+        raise PhosPyInputError(
+            f"dataset build request input_intensity_scale must be one of: {supported}"
+        ) from exc
+
+
+def _has_complete_column(site_metadata: pd.DataFrame, column_name: str) -> bool:
+    if column_name not in site_metadata.columns:
+        return False
+    values = site_metadata.loc[:, column_name]
+    tokens = values.astype("string").str.strip()
+    blank_or_missing = values.isna() | tokens.isna() | (tokens == "")
+    return not bool(blank_or_missing.any())

@@ -4,6 +4,19 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Breaking
+
+- Reset the supported Python import surfaces to the ADR-0054 aggregates:
+  `phospy` exports exactly 3 conveniences, `phospy.api` exports 66 ordinary
+  names, and `phospy.advanced` exports 124 specialist names. Removed the old
+  root conveniences, subfacades, table forwarding package, dynamic export
+  dispatch, semi-public routes, and all warning-based compatibility behavior.
+- Removed deprecated activity properties and constructor fallbacks, kinase
+  config/value aliases, technical-replicate and enrichment-reader aliases,
+  the differential shell, permissive motif strings, and deprecated pipeline
+  and activity arguments. Supported replacements retain their prior scientific
+  behavior and versioned persistence formats.
+
 ## [1.7.6] - 2026-09-26
 
 ### Changed

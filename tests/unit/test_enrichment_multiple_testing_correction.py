@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.science.enrichment import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
-    MULTIPLE_TESTING_CORRECTION_NONE,
+from phospy.enrichment.contracts.collections import (
     EnrichmentSet,
     EnrichmentSetCollection,
 )
-from phospy.science.enrichment.ora import OraConfig
-from phospy.science.enrichment.ora import run as run_ora
-from phospy.science.statistics.multiple_testing import (
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    MULTIPLE_TESTING_CORRECTION_NONE,
+)
+from phospy.enrichment.ora import OraConfig
+from phospy.enrichment.ora import run as run_ora
+from phospy.statistics.multiple_testing import (
     run as run_multiple_testing_correction,
 )
 

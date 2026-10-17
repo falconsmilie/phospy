@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "policy": "ADR-0053 and ADR-0054 permanent architecture policy",
+  "forwarding_and_safety_modules": {
+    "src/phospy/_api_inventory.py": "Authoritative aggregate inventory data; explicitly free of compatibility routes.",
+    "src/phospy/api/builders.py": "Permanent internal aggregate-facade composition; exact owner identities only; unsupported as an external route.",
+    "src/phospy/differential/aggregation/experimental.py": "Permanent ADR-0041 fail-closed scientific safety seam; no executable compatibility behavior."
+  },
+  "lazy_loader_modules": {
+    "src/phospy/__init__.py": "Three-name supported root facade.",
+    "src/phospy/io/__init__.py": "IO adapter composition.",
+    "src/phospy/io/bundles/__init__.py": "IO bundle adapter composition.",
+    "src/phospy/io/readers/__init__.py": "IO reader adapter composition.",
+    "src/phospy/preprocessing/contracts/plan.py": "Cycle-free owner-internal plan/interpreter composition."
+  },
+  "legacy_behavior_modules": {
+    "versioned_schema_and_payload_compatibility": [
+      "src/phospy/datasets/construction/input_resolution.py",
+      "src/phospy/datasets/trusted_assertions.py",
+      "src/phospy/enrichment/contracts/collections.py",
+      "src/phospy/evidence/__init__.py",
+      "src/phospy/evidence/dataset_resolution/__init__.py",
+      "src/phospy/evidence/dataset_resolution/models.py",
+      "src/phospy/evidence/serialization/historical_peptide.py",
+      "src/phospy/io/bundles/_kinase/manifest.py",
+      "src/phospy/io/bundles/_kinase/reconstruction.py",
+      "src/phospy/io/bundles/_kinase/snapshots.py",
+      "src/phospy/io/bundles/_shared/processing_state.py",
+      "src/phospy/io/bundles/_signalome/config.py",
+      "src/phospy/io/bundles/_signalome/diagnostics.py",
+      "src/phospy/io/bundles/_signalome/manifest.py",
+      "src/phospy/io/bundles/_signalome/reconstruction.py",
+      "src/phospy/io/bundles/_signalome/snapshots.py",
+      "src/phospy/io/bundles/_signalome/tables.py",
+      "src/phospy/preprocessing/provenance/serialization.py",
+      "src/phospy/preprocessing/results/quantitative_evidence.py",
+      "src/phospy/provenance/serialization/_payload.py",
+      "src/phospy/provenance/serialization/environment.py",
+      "src/phospy/provenance/serialization/tables.py",
+      "src/phospy/quantitative/models.py",
+      "src/phospy/quantitative/policy.py",
+      "src/phospy/quantitative/scale_state.py",
+      "src/phospy/quantitative/serialization.py"
+    ],
+    "scientific_policy_identifiers": [
+      "src/phospy/differential/moderation/empirical_bayes.py",
+      "src/phospy/kinase/activity/execution.py",
+      "src/phospy/kinase/activity/membership.py",
+      "src/phospy/kinase/activity/methods/ssgsea_substrate_enrichment.py",
+      "src/phospy/kinase/activity/models.py",
+      "src/phospy/kinase/activity/result_validation.py",
+      "src/phospy/kinase/activity/results.py",
+      "src/phospy/kinase/prediction/results.py",
+      "src/phospy/kinase/scoring/config.py",
+      "src/phospy/phosphosites/display_identity.py",
+      "src/phospy/preprocessing/control_sites/contracts.py",
+      "src/phospy/preprocessing/control_sites/discovery_contracts.py",
+      "src/phospy/preprocessing/control_sites/discovery_provenance.py",
+      "src/phospy/preprocessing/control_sites/discovery_results.py",
+      "src/phospy/preprocessing/sequence/reference.py",
+      "src/phospy/provenance/environment.py"
+    ],
+    "signalome_versioned_input_and_diagnostic_aliases": [
+      "src/phospy/signalome/assignments.py",
+      "src/phospy/signalome/caveats.py",
+      "src/phospy/signalome/clustering/models.py",
+      "src/phospy/signalome/clustering/protein_modules.py",
+      "src/phospy/signalome/constants.py",
+      "src/phospy/signalome/contracts.py",
+      "src/phospy/signalome/interpreter.py",
+      "src/phospy/signalome/models.py",
+      "src/phospy/signalome/network.py",
+      "src/phospy/signalome/protein_resolution.py",
+      "src/phospy/signalome/provenance.py",
+      "src/phospy/signalome/requests.py",
+      "src/phospy/signalome/row_attrition.py",
+      "src/phospy/signalome/validator.py"
+    ]
+  },
+  "retired_route_literals": {
+    "src/phospy/datasets/construction/provenance.py": [
+      "phospy.science.datasets.builders.transformation_state.DatasetTransformationStateResolver.run"
+    ],
+    "src/phospy/datasets/construction/state_assembly.py": [
+      "phospy.science.datasets.preprocessing.state_builder"
+    ],
+    "src/phospy/datasets/construction/transformation_state.py": [
+      "phospy.science.datasets.builders.executor.input_intensity_scale"
+    ],
+    "src/phospy/kinase/references/projection_contracts.py": [
+      "phospy.workflows.kinase.reference_projector.v1"
+    ],
+    "src/phospy/kinase/site_sequence_support.py": [
+      "phospy.workflows.kinase.site_sequence_support_builder.v1"
+    ],
+    "src/phospy/preprocessing/control_sites/discovery_contracts.py": [
+      "phospy.science.transformations.transformers.identity.IdentityTransformer"
+    ],
+    "src/phospy/preprocessing/stages/sequence.py": [
+      "phospy.science.sequences",
+      "phospy.science.sequences.resolver.v1"
+    ],
+    "src/phospy/quantitative/_authority.py": [
+      "phospy.science.batch_correction.sps_discovery",
+      "phospy.science.datasets.builders.transformation_resolver",
+      "phospy.science.datasets.preprocessing.state_builder",
+      "phospy.science.transformations.transformers.identity"
+    ],
+    "src/phospy/quantitative/policy.py": [
+      "phospy.science.batch_correction.sps_discovery",
+      "phospy.science.datasets.preprocessing.state_builder",
+      "phospy.science.transformations.transformers.identity"
+    ],
+    "src/phospy/quantitative/quantitative_contracts.py": [
+      "phospy.science.transformations.quantitative_contracts"
+    ],
+    "src/phospy/quantitative/scale_values.py": [
+      "phospy.science.transformations.transformers.log2"
+    ],
+    "src/phospy/quantitative/transformers/identity.py": [
+      "phospy.science.transformations.transformers.identity.IdentityTransformer"
+    ],
+    "src/phospy/quantitative/transformers/log2.py": [
+      "phospy.science.transformations.transformers.log2",
+      "phospy.science.transformations.transformers.log2.Log2Transformer"
+    ]
+  },
+  "tests": {
+    "facade_and_removed_routes": "tests/architecture/test_api_boundaries.py and tests/architecture/test_removed_compatibility_routes.py",
+    "versioned_payloads": "tests/unit and tests/integration bundle, provenance, quantitative, enrichment, and evidence round-trip tests",
+    "signalome_aliases": "tests/unit and tests/integration Signalome validation, bundle, diagnostics, and reconstruction tests"
+  }
+}

@@ -7,14 +7,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.science.differential.executor import (
+from phospy.differential.execution.model_executor import (
     DuplicateCorrelationDifferentialAnalysisExecutor,
     DuplicateCorrelationDifferentialFit,
 )
-from phospy.science.differential.models import (
+from phospy.differential.models.design import (
     ContrastMatrix,
     DesignMatrix,
     DifferentialAnalysisRequest,
+)
+from phospy.differential.moderation.config import (
     EmpiricalBayesConfig,
 )
 from tests.support.duplicate_correlation_parity_scopes import (

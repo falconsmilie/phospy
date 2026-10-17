@@ -9,14 +9,14 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.stages.missing_data import (
+from phospy.preprocessing.stages.missing_data import (
     GroupAwareMissingnessRouter,
     GroupAwareRoutingOutcome,
     GroupMissingnessClassification,
     GroupMissingnessRoute,
     GroupRoutingAssumption,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.models import (
+from phospy.preprocessing.stages.missing_data.models import (
     GroupRoutingFactsByRow,
 )
 

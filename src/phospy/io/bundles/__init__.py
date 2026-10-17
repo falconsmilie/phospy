@@ -8,7 +8,6 @@ __all__ = [
     "KinaseWorkflowConfigSnapshot",
     "LoadedKinaseWorkflowBundle",
     "LoadedSignalomeWorkflowBundle",
-    "ReferenceSourceTableReader",
     "SIGNALOME_BUNDLE_MANIFEST_VERSION",
     "SignalomeWorkflowConfigSnapshot",
     "load_kinase_workflow_bundle",
@@ -19,10 +18,6 @@ __all__ = [
 
 
 def __getattr__(name: str) -> object:
-    if name == "ReferenceSourceTableReader":
-        from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
-
-        return ReferenceSourceTableReader
     if name in {
         "KINASE_BUNDLE_MANIFEST_VERSION",
         "KinaseWorkflowConfigSnapshot",

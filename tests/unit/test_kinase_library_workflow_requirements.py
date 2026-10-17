@@ -5,7 +5,6 @@ import inspect
 import pandas as pd
 import pytest
 
-from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -16,40 +15,42 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs.kinase import (
-    KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
-    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors import (
+    ContractValidationError,
+    WorkflowBoundaryError,
+    WorkflowValidationError,
 )
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import KinaseLibraryResourceProvenance
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.motif_scoring import (
-    KinaseLibraryMotifScorer,
-    score_kinase_library_motifs,
-)
-from phospy.science.prediction.motif_scoring.models import AMINO_ACIDS
-from phospy.science.references.kinase_library import (
+from phospy.kinase.contracts import ValidatedKinaseWorkflowRequest
+from phospy.kinase.executor import KinaseWorkflowExecutor
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.public import KinaseWorkflow
+from phospy.kinase.references.models import (
     KinaseLibraryMatrix,
     KinaseLibraryResidueClass,
     KinaseLibraryResource,
 )
-from phospy.science.references.models import SequenceWindowDefinition
-from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
-from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.kinase_library_scoring import (
+from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
+from phospy.kinase.scoring.config import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+)
+from phospy.kinase.scoring.execution import KinaseScoringRunner
+from phospy.kinase.scoring.kinase_library import (
     KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
     KinaseLibraryWorkflowScorer,
 )
-from phospy.workflows.kinase.public import KinaseWorkflow
-from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
-from phospy.workflows.kinase.site_sequence_support import (
+from phospy.kinase.scoring.motif import (
+    KinaseLibraryMotifScorer,
+    score_kinase_library_motifs,
+)
+from phospy.kinase.scoring.motif.models import AMINO_ACIDS
+from phospy.kinase.site_sequence_support import (
     KinaseSiteSequenceSupportResult,
 )
+from phospy.provenance.hashing import fingerprint_table
+from phospy.references.models import SequenceWindowDefinition
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -102,34 +103,12 @@ def test_kinase_library_workflow_scoring_succeeds_with_all_required_inputs() -> 
     assert scores.columns.astype(str).tolist() == ["KLIB_ST"]
 
 
-def test_kinase_library_motif_alias_warns_and_records_contextual_mode() -> None:
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match=KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
-    ):
-        request = _request(
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+def test_removed_kinase_library_motif_value_alias_is_rejected() -> None:
+    with pytest.raises(ContractValidationError, match="scoring_mode must be one of"):
+        _request(
+            scoring_mode="kinase_library_motif",
             kinase_library_resource=_kinase_library_resource(),
         )
-
-    assert (
-        request.scoring_config.scoring_mode
-        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
-    )
-
-    result = KinaseWorkflow().run(request)
-
-    assert (
-        result.scoring_result.scoring_mode
-        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
-    )
-    assert result.scoring_result.kinase_library_motif_scores is not None
-    assert result.provenance is not None
-    scoring_config = result.provenance.workflow_parameters["scoring_config"]
-    assert (
-        scoring_config["scoring_mode"]
-        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
-    )
 
 
 def test_kinase_library_workflow_mode_requires_local_resource() -> None:

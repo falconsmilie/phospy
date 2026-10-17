@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import AnalysisReadyDatasetBuilder
 from phospy.advanced import (
     DatasetProteinAwarePreparationConfig,
     DifferentialAnalysisConfig,
@@ -16,6 +16,7 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

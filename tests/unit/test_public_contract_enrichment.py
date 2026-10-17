@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import fields
+from dataclasses import MISSING, fields
+from os import PathLike
+from pathlib import Path
 from typing import get_args, get_origin, get_type_hints
 
 import numpy as np
@@ -11,10 +13,9 @@ import pytest
 import phospy
 import phospy.advanced as advanced_api
 import phospy.api as public_api
-import phospy.api.requests as request_models
-import phospy.api.results as result_models
-import phospy.api.workflows as workflow_models
-import phospy.workflows as native_workflows
+import phospy.api as request_models
+import phospy.api as result_models
+import phospy.api as workflow_models
 from phospy.advanced import (
     EnrichmentIdentifierKind,
     EnrichmentOutsideBackgroundPolicy,
@@ -32,7 +33,7 @@ from phospy.api import (
     PtmSetCollection,
     WorkflowValidationError,
 )
-from phospy.contracts.configs import (
+from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     ENRICHMENT_METHOD_OVER_REPRESENTATION,
@@ -54,6 +55,16 @@ class _DuplicateKeyMapping(Mapping[object, object]):
         if key == "duplicate":
             return "value"
         raise KeyError(key)
+
+
+class _ObservablePathLike(PathLike[str]):
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.fspath_calls = 0
+
+    def __fspath__(self) -> str:
+        self.fspath_calls += 1
+        return str(self.path)
 
 
 _ENRICHMENT_JSON_MAPPING_FIELDS = (
@@ -111,6 +122,62 @@ def test_enrichment_request_constructs_from_input_table() -> None:
     assert request.input_table is table
     assert request.selected_identifiers is None
     assert request.set_collection.collection_kind == "ptm_set"
+
+
+@pytest.mark.parametrize("path_kind", ("str", "path", "pathlike"))
+def test_enrichment_path_like_input_table_is_passive_and_rejected_without_reading(
+    path_kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "must-not-be-read.csv"
+    observed_path_like = _ObservablePathLike(candidate)
+    input_table: str | Path | PathLike[str]
+    if path_kind == "str":
+        input_table = str(candidate)
+    elif path_kind == "path":
+        input_table = candidate
+    else:
+        input_table = observed_path_like
+
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        input_table=input_table,
+        background_universe=("AKT1", "MAPK1"),
+    )
+    request_state = tuple(
+        getattr(request, request_field.name) for request_field in fields(request)
+    )
+    read_attempts: list[str] = []
+
+    def fail_path_read(*args: object, **kwargs: object) -> None:
+        _ = args, kwargs
+        read_attempts.append("attempted")
+        raise AssertionError(
+            "the Enrichment workflow must not acquire input_table paths"
+        )
+
+    monkeypatch.setattr("builtins.open", fail_path_read)
+    monkeypatch.setattr(Path, "open", fail_path_read)
+    monkeypatch.setattr(pd, "read_csv", fail_path_read)
+    monkeypatch.setattr(pd, "read_table", fail_path_read)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        EnrichmentWorkflow().run(request)
+
+    assert str(exc_info.value) == (
+        "enrichment workflow request input_table must be a pandas DataFrame"
+    )
+    assert request.input_table is input_table
+    assert (
+        tuple(getattr(request, request_field.name) for request_field in fields(request))
+        == request_state
+    )
+    assert observed_path_like.fspath_calls == 0
+    assert read_attempts == []
+    assert not candidate.exists()
 
 
 def test_enrichment_config_defaults_are_explicit() -> None:
@@ -351,6 +418,13 @@ def test_enrichment_public_contract_remains_typed_and_narrow() -> None:
     assert request_hints["identifier_kind"] == EnrichmentIdentifierKind
     assert request_hints["set_collection"] == EnrichmentSetCollection
     assert get_origin(request_hints["background_universe"]) is Sequence
+    assert get_args(request_hints["input_table"]) == (
+        pd.DataFrame,
+        str,
+        Path,
+        PathLike[str],
+        type(None),
+    )
     assert result_hints["identifier_kind"] == EnrichmentIdentifierKind
     assert result_hints["set_collection"] == EnrichmentSetCollection
     assert get_args(result_hints["records"]) == (EnrichmentResultRecord, Ellipsis)
@@ -365,10 +439,22 @@ def test_enrichment_public_contract_remains_typed_and_narrow() -> None:
         == EnrichmentOutsideBackgroundPolicy
     )
 
-    request_field_names = {field.name for field in fields(EnrichmentWorkflowRequest)}
-    assert {"identifier_kind", "set_collection", "background_universe"} <= (
-        request_field_names
+    request_fields = fields(EnrichmentWorkflowRequest)
+    request_field_names = tuple(field.name for field in request_fields)
+    assert request_field_names == (
+        "identifier_column",
+        "identifier_kind",
+        "set_collection",
+        "background_universe",
+        "config",
+        "input_table",
+        "selected_identifiers",
+        "selected_identifier_provenance",
+        "background_identifier_provenance",
     )
+    assert all(field.default is MISSING for field in request_fields[:4])
+    assert request_fields[4].default_factory is EnrichmentConfig
+    assert all(field.default is None for field in request_fields[5:])
     assert "background_policy" not in request_field_names
     assert "analysis_level" not in request_field_names
 
@@ -384,6 +470,4 @@ def test_enrichment_public_imports_include_native_workflow() -> None:
     assert "EnrichmentWorkflowResult" not in phospy.__all__
     assert "EnrichmentWorkflow" not in phospy.__all__
     assert "EnrichmentWorkflow" in workflow_models.__all__
-    assert "EnrichmentWorkflow" in native_workflows.__all__
     assert public_api.EnrichmentWorkflow is workflow_models.EnrichmentWorkflow
-    assert public_api.EnrichmentWorkflow is native_workflows.EnrichmentWorkflow

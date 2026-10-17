@@ -9,45 +9,30 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from phospy import (
-    AnalysisReadyPhosphoDataset,
     SignalomeWorkflow,
 )
-from phospy.advanced import SignalomeConfig
-from phospy.advanced.configs import (
+from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
     SignalomeValidationConfig,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
     SignalomeWorkflowResult,
 )
-from phospy.contracts.configs import (
-    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
-    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
-    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
-    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
-    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
-    SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
-    SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
-    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
-)
+from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors import (
     ContractValidationError,
-    SignalomeScaleError,
     WorkflowBoundaryError,
 )
 from phospy.errors.workflows import WorkflowStageError
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.signalomes.clustering import (
+from phospy.signalome.clustering import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
@@ -60,16 +45,20 @@ from phospy.science.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
 )
-from phospy.science.signalomes.constants import (
+from phospy.signalome.config import (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
+    SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+)
+from phospy.signalome.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
-    SITE_CLUSTER_COLUMN,
-)
-from phospy.science.signalomes.models import (
-    KinaseNetwork,
-    SignalomeAssignments,
-    SignalomeModules,
-)
-from phospy.workflows.signalome.constants import (
     SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM,
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
     SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM,
@@ -80,13 +69,20 @@ from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
     SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
+    SITE_CLUSTER_COLUMN,
 )
-from phospy.workflows.signalome.contracts import (
+from phospy.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
-from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.errors import SignalomeScaleError
+from phospy.signalome.executor import SignalomeWorkflowExecutor
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.models import (
+    KinaseNetwork,
+    SignalomeAssignments,
+    SignalomeModules,
+)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -2298,7 +2294,7 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    from phospy.science.signalomes.clustering.backends import (
+    from phospy.signalome.clustering.backends import (
         exact_python as exact_tree_backend_module,
     )
 
@@ -2786,7 +2782,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
 def test_boundary_error_reports_expanded_signalome_failure_seam(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.workflows.signalome.executor as executor_module
+    import phospy.signalome.executor as executor_module
 
     dataset = _dataset(site_ids=["P1;S1;", "P2;S2;", "P3;S3;"])
     prediction_matrix = _matrix(
@@ -2838,7 +2834,7 @@ def test_boundary_error_reports_expanded_signalome_failure_seam(
 def test_boundary_error_reports_context_table_site_membership_failure_seam(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.workflows.signalome.executor as executor_module
+    import phospy.signalome.executor as executor_module
 
     interpreted = _interpreted_request_for_context_failure()
 
@@ -2864,7 +2860,7 @@ def test_boundary_error_reports_context_table_site_membership_failure_seam(
 def test_boundary_error_reports_context_table_protein_context_failure_seam(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.workflows.signalome.executor as executor_module
+    import phospy.signalome.executor as executor_module
 
     interpreted = _interpreted_request_for_context_failure()
 
@@ -3096,11 +3092,11 @@ def test_network_threshold_changes_edge_sparsity_without_changing_substrate_supp
 def test_executor_internal_seam_invokes_signalome_domain_services(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.workflows.signalome.executor as executor_module
-    from phospy.science.signalomes.clustering.models import (
+    import phospy.signalome.executor as executor_module
+    from phospy.signalome.clustering.models import (
         SignalomeClusteringEngineResult,
     )
-    from phospy.science.signalomes.models import (
+    from phospy.signalome.models import (
         SignalomeModuleSelectionDiagnostics,
         SignalomeNetworkCorrelationDiagnostics,
     )

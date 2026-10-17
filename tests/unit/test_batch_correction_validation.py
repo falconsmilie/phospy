@@ -3,10 +3,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.errors import PhosPyInputError
-from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.validation.datasets.batch_correction_design import (
+from phospy.preprocessing.batch_correction.validation.design import (
     BatchCorrectionAdequacyValidator,
     BatchDesignMetadataValidator,
     BatchStructureValidator,
@@ -16,6 +15,7 @@ from phospy.validation.datasets.batch_correction_design import (
     ReplicateStructureValidator,
     SampleMetadataAlignmentValidator,
 )
+from phospy.preprocessing.contracts import PreprocessingPlan
 
 
 def test_batch_validation_accepts_valid_removable_batch_effect_design() -> None:

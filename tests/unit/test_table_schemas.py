@@ -5,34 +5,38 @@ import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
+from phospy.datasets.schemas import (
+    PhosphoIntensityMatrix,
+    SampleMetadataTable,
+    SiteMetadataTable,
+    TotalProteinMatrix,
+)
 from phospy.errors.validation import (
     DatasetValidationError,
     PhosPyValidationError,
     ReferenceValidationError,
     WorkflowValidationError,
 )
-from phospy.science.references.models import Organism, ReferenceBundle
-from phospy.science.sites.site_keys import (
+from phospy.kinase.activity.tables import ActivityMatrix, ActivityTargetTable
+from phospy.kinase.prediction.tables import KinasePredictionMatrix
+from phospy.kinase.result_boundary import (
+    KinaseScoreMatrix,
+)
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     decode_site_key,
     encode_site_key,
 )
-from phospy.science.tables.activity import ActivityMatrix, ActivityTargetTable
-from phospy.science.tables.datasets import (
-    PhosphoIntensityMatrix,
-    SampleMetadataTable,
-    SiteMetadataTable,
-    TotalProteinMatrix,
-)
-from phospy.science.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
-from phospy.science.tables.references import (
+from phospy.references.models import ReferenceBundle
+from phospy.references.tables import (
     KinaseSubstrateReference,
     SiteSequenceReference,
 )
-from phospy.science.tables.signalome import (
+from phospy.signalome.tables import (
     SignalomeProteinSiteContext,
     SignalomeSiteContext,
 )
+from phospy.taxonomy import Organism
 
 _PROPERTY_SETTINGS = settings(
     max_examples=30,

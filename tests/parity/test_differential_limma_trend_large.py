@@ -22,7 +22,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

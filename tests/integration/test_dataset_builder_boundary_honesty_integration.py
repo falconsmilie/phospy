@@ -13,13 +13,15 @@ from phospy.api import (
     Organism,
     PhosPyInputError,
 )
-from phospy.api.requests import (
+from phospy.errors.references import UnsupportedOrganismError
+from phospy.errors.validation import DatasetValidationError
+from phospy.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
-from phospy.contracts.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
-from phospy.errors.references import UnsupportedOrganismError
-from phospy.errors.validation import DatasetValidationError
+from phospy.preprocessing.contracts.configuration import (
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
+)
 from tests.support.site_keys import site_key_from_display_id
 
 pytestmark = pytest.mark.integration

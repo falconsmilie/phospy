@@ -13,6 +13,18 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
 )
+from phospy.datasets.construction import transformation_state
+from phospy.datasets.construction.contracts import (
+    InterpretedDatasetBuildRequest,
+    PreprocessedDatasetBuildTables,
+)
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.construction.intensity_scale import (
+    DatasetIntensityScaleResolver,
+)
+from phospy.datasets.construction.preprocessing import (
+    build_dataset_processing_state,
+)
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
@@ -21,37 +33,20 @@ from phospy.errors.transformations import (
     TransformerExecutionError,
 )
 from phospy.errors.validation import TransformationValidationError
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
-    intensity_scale_state_to_payload,
-)
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
 )
-from phospy.science.datasets.builders import transformation_state
-from phospy.science.datasets.builders.contracts import (
-    InterpretedDatasetBuildRequest,
-    PreprocessedDatasetBuildTables,
+from phospy.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
 )
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.builders.preprocessing import (
-    build_dataset_processing_state,
-)
-from phospy.science.datasets.builders.transformation_resolver import (
-    DatasetIntensityScaleResolver,
-)
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     PreprocessingPlan,
     PreprocessingStageExecution,
 )
-from phospy.science.references.models import Organism
-from phospy.science.sites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
-)
-from phospy.science.transformations.contracts import TransformationResult
-from phospy.science.transformations.models import (
+from phospy.quantitative.contracts import TransformationResult
+from phospy.quantitative.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentSource,
     IntensityScaleEvidenceLevel,
@@ -62,7 +57,12 @@ from phospy.science.transformations.models import (
     QuantitativeMeaningEvidenceMode,
     establish_intensity_scale_state,
 )
-from phospy.science.transformations.transformers import IdentityTransformer
+from phospy.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+    intensity_scale_state_to_payload,
+)
+from phospy.quantitative.transformers import IdentityTransformer
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -402,6 +402,23 @@ def test_fake_authority_object_is_rejected_even_with_supported_source() -> None:
         )
 
 
+def test_user_created_matching_authority_token_is_rejected() -> None:
+    from phospy.quantitative._authority import _EstablishmentAuthority
+
+    fabricated = _EstablishmentAuthority(
+        source="phospy.science.datasets.builders.transformation_resolver"
+    )
+    with pytest.raises(
+        InvalidTransformationStateError,
+        match="can be established only through supported PhosPy",
+    ):
+        establish_intensity_scale_state(
+            IntensityScaleState.raw(has_total_matrix=False),
+            established_via="phospy.science.datasets.builders.transformation_resolver",
+            _authority=fabricated,
+        )
+
+
 def test_dataset_boundary_distinguishes_declared_from_supported_state() -> None:
     declared = IntensityScaleState.raw(has_total_matrix=False)
     supported = supported_linear_intensity_scale_state(has_total_matrix=False)
@@ -415,6 +432,8 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
 
     result = IdentityTransformer().run(phospho=phospho, total=total)
 
+    assert result.phospho is phospho
+    assert result.total is total
     pdt.assert_frame_equal(result.phospho, phospho)
     pdt.assert_frame_equal(result.total, total)
     assert not result.state.is_established
@@ -511,6 +530,10 @@ def test_capability_preserving_transformer_preserves_declared_state() -> None:
     assert (
         resolved.intensity_scale_state.establishment_mode
         is IntensityScaleEstablishmentMode.DECLARED
+    )
+    assert resolved.intensity_scale_state.established_via == (
+        f"{CapabilityPreservingTransformer.__module__}."
+        f"{CapabilityPreservingTransformer.__qualname__}"
     )
 
 
@@ -1113,6 +1136,10 @@ def test_bundle_reconstruction_lane_establishes_state() -> None:
     )
     assert meaning_provenance.diagnostic_caveat_codes == (
         "quantitative_meaning_legacy_unverified",
+    )
+    assert (
+        meaning_provenance.producer_id
+        == "phospy.io.bundles._shared.intensity_scale_state"
     )
 
 

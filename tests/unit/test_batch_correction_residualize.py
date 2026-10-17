@@ -5,8 +5,10 @@ import pandas as pd
 import pandas.testing as pdt
 
 from phospy.advanced import DatasetBatchCorrectionConfig
-from phospy.science.datasets.preprocessing.batch_correction import (
+from phospy.preprocessing.batch_correction.contracts.results import (
     BatchCorrectionResult,
+)
+from phospy.preprocessing.batch_correction.execution.linear import (
     LinearResidualizeBatchCorrectionEngine,
 )
 

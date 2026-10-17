@@ -9,7 +9,7 @@ This directory contains rewrite-native benchmark scripts that track active code 
   - Targets `phospy.workflows.kinase.executor` via `KinaseWorkflow.run`.
 - `measure_signalome_prediction_hot_paths.py`
   - Measures signalome module-table, expanded-signalome, prediction-output, and adaptive-prediction hot paths.
-  - Targets `phospy.science.signalomes.science.build_signalome_module_table`, `phospy.science.signalomes.science.build_expanded_signalome_table`, `phospy.workflows.kinase.science.build_prediction_outputs`, and `phospy.science.prediction.execution.run_adaptive_ensemble_prediction`.
+  - Targets `phospy.signalome.science.build_signalome_module_table`, `phospy.signalome.science.build_expanded_signalome_table`, `phospy.kinase.prediction.outputs.build_prediction_outputs`, and `phospy.kinase.prediction.execution.run_adaptive_ensemble_prediction`.
 - `measure_preprocessing_performance_contracts.py`
   - Measures preprocessing contract hot paths: row-median imputation, deterministic KNN imputation, median centering, and quantile normalisation.
   - Targets `phospy.science.datasets.preprocessing.stages.missing_data` and `phospy.science.datasets.preprocessing.stages.normalisation`.
@@ -27,7 +27,7 @@ This directory contains rewrite-native benchmark scripts that track active code 
   - Targets `AnalysisReadyDatasetBuilder.run` and `DifferentialAnalysisWorkflow.run`.
 - `measure_signalome_clustering_contracts.py`
   - Measures exact clustering below the exact-tree guardrail, guard failure above `max_exact_tree_sites`, and candidate-scoring policy behavior (`full` vs `sampled`).
-  - Targets `phospy.science.signalomes.clustering.run_signalome_clustering_engine` and scale-guard policy thresholds in `phospy.science.signalomes.clustering`.
+  - Targets `phospy.signalome.clustering.run_signalome_clustering_engine` and scale-guard policy thresholds in `phospy.signalome.clustering`.
 - `measure_sps_discovery_performance.py`
   - Measures the complete validated SPS discovery workflow at a moderate 3-reference, 10,000-site x 24-sample scale and separately times the stability calculation.
   - Provides an opt-in `--scale stress` path for 3 references with 50,000 sites x 48 samples; the stress path is not part of pytest, CI, or release checks.

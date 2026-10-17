@@ -3,41 +3,39 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
-)
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.errors import WorkflowValidationError
 from phospy.errors.transformations import InvalidTransformationStateError
-from phospy.science.references.models import ReferenceBundle
-from phospy.science.transformations._authority import (
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.quantitative._authority import (
     bundle_quantitative_meaning_restoration_authority,
 )
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
     QuantitativeMeaningEvidenceMode,
     QuantitativeMeaningTransitionProvenance,
 )
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.references.models import ReferenceBundle
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

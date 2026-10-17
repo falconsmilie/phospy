@@ -4,7 +4,7 @@ import ast
 import re
 from pathlib import Path
 
-from phospy.science.evidence.dataset_resolution import (
+from phospy.evidence.dataset_resolution import (
     SUPPORTED_DATASET_MULTI_SITE_POLICIES,
 )
 
@@ -20,15 +20,16 @@ KINASE_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "kinase.md"
 SIGNALOME_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "signalome.md"
 
 README_IMPORT_SNIPPET = """from phospy import AnalysisReadyDatasetBuilder
-from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
+from phospy import KinaseWorkflow, SignalomeWorkflow
+from phospy.api import DifferentialAnalysisWorkflow
 """
 
 API_GUIDE_IMPORT_SNIPPET = """from phospy import (
     AnalysisReadyDatasetBuilder,
-    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
+from phospy.api import DifferentialAnalysisWorkflow
 """
 
 API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
@@ -310,11 +311,16 @@ def test_readme_differential_import_example_matches_supported_route() -> None:
         "phospy",
         (
             "AnalysisReadyDatasetBuilder",
-            "DifferentialAnalysisWorkflow",
             "KinaseWorkflow",
             "SignalomeWorkflow",
         ),
         context="README public import contract",
+    )
+    _assert_python_imports(
+        source,
+        "phospy.api",
+        ("DifferentialAnalysisWorkflow",),
+        context="README ordinary differential import contract",
     )
     _assert_python_imports_absent(
         source,
@@ -464,11 +470,16 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
         "phospy",
         (
             "AnalysisReadyDatasetBuilder",
-            "DifferentialAnalysisWorkflow",
             "KinaseWorkflow",
             "SignalomeWorkflow",
         ),
         context="API guide top-level import contract",
+    )
+    _assert_python_imports(
+        source,
+        "phospy.api",
+        ("DifferentialAnalysisWorkflow",),
+        context="API guide ordinary differential import contract",
     )
     _assert_python_imports(
         source,
@@ -514,7 +525,7 @@ def test_docs_do_not_import_withdrawn_peptide_to_site_aggregation_route() -> Non
 
     _assert_python_imports_absent(
         source,
-        "phospy.science.differential.aggregation",
+        "phospy.differential.aggregation",
         WITHDRAWN_AGGREGATION_PUBLIC_IMPORT_NAMES,
         context="withdrawn peptide-to-site aggregation public route",
     )
@@ -544,8 +555,8 @@ def test_docs_do_not_import_legacy_peptide_to_site_aggregation_strategies() -> N
     for module_name in (
         "phospy",
         "phospy.api",
-        "phospy.science.differential",
-        "phospy.science.differential.aggregation",
+        "phospy.differential",
+        "phospy.differential.aggregation",
     ):
         _assert_python_imports_absent(
             source,
@@ -599,6 +610,6 @@ def test_public_kinase_docs_prefer_activity_matrix() -> None:
     )
     _assert_statement_contains_all(
         kinase_source,
-        ("activity_scores", "weighted_activity", "not preferred"),
-        context="kinase activity compatibility alias guidance",
+        ("activity_scores", "weighted_activity", "removed"),
+        context="kinase activity removed alias guidance",
     )

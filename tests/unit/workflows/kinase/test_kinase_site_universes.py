@@ -3,45 +3,48 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     Organism,
     ReferenceBundle,
 )
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.activities.membership import (
-    ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
-    ActivityMembershipSelection,
-)
-from phospy.science.activities.method_contracts import (
+from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
+from phospy.kinase.activity.contracts import (
     ACTIVITY_SITE_UNIVERSE_KSEA_BACKGROUND,
     ACTIVITY_SITE_UNIVERSE_PREDICTED_MEMBERSHIP,
     ACTIVITY_SITE_UNIVERSE_REFERENCE_SUPPORTED_MEMBERSHIP,
     ACTIVITY_SITE_UNIVERSE_SSGSEA_EFFECT_RANKING,
     kinase_activity_method_universe_contract,
 )
-from phospy.science.activities.methods import SsgseaSubstrateEnrichmentActivityMethod
-from phospy.science.activities.methods.ksea_zscore import (
-    KSEA_STATUS_COMPUTED,
-    KseaZScoreActivityMethod,
-)
-from phospy.science.activities.models import (
+from phospy.kinase.activity.inputs import (
     KinaseActivityInputs,
     PredMatOverlapSummary,
 )
-from phospy.science.activities.semantics import ActivityInputMatrix
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.models import KinasePredictionResult
-from phospy.workflows._row_attrition import make_row_attrition_record
-from phospy.workflows.kinase.contracts import (
-    ResolvedKinaseActivityExecutionConfig,
+from phospy.kinase.activity.membership import (
+    ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
+    ActivityMembershipSelection,
+)
+from phospy.kinase.activity.methods.ksea_zscore import (
+    KSEA_STATUS_COMPUTED,
+    KseaZScoreActivityMethod,
+)
+from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
+    SsgseaSubstrateEnrichmentActivityMethod,
+)
+from phospy.kinase.activity.runner import KinaseActivityRunner
+from phospy.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseSiteUniverses,
     ResolvedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
-from phospy.workflows.kinase.reference_projection import (
+from phospy.kinase.executor import KinaseWorkflowExecutor
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.references.projection_contracts import (
     KinaseReferenceProjectionSummary,
 )
+from phospy.provenance.row_attrition import make_row_attrition_record
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -248,12 +251,12 @@ def test_ksea_fixed_membership_is_stable_when_scoring_sequence_support_changes()
         )
     )
 
-    full_sequence_result = KinaseWorkflowExecutor()._run_activity_stage(
+    full_sequence_result = KinaseActivityRunner().run(
         request=full_sequence_request,
         config=full_sequence_request.execution_config,
         prediction_result=fixed_prediction,
     )
-    missing_sequence_result = KinaseWorkflowExecutor()._run_activity_stage(
+    missing_sequence_result = KinaseActivityRunner().run(
         request=missing_sequence_request,
         config=missing_sequence_request.execution_config,
         prediction_result=fixed_prediction,

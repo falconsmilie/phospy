@@ -5,6 +5,10 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.io.importers.fragpipe_validation import (
+    FRAGPIPE_FLAG_POLICY_ERROR,
+    FRAGPIPE_FLAG_POLICY_REMOVE,
+)
 from phospy.io.readers._table_parsing import (
     raise_for_forbidden_flags,
     resolve_flag_series,
@@ -17,10 +21,6 @@ from phospy.io.readers.fragpipe.constants import (
     _FRAGPIPE_DECOY_OUTPUT_COLUMN,
 )
 from phospy.io.readers.fragpipe.models import _ResolvedFragPipeColumns
-from phospy.validation.datasets.fragpipe import (
-    FRAGPIPE_FLAG_POLICY_ERROR,
-    FRAGPIPE_FLAG_POLICY_REMOVE,
-)
 
 
 def _apply_flag_policies(

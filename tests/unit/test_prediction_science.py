@@ -3,21 +3,19 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.science.prediction.candidates import build_candidate_substrate_list
-from phospy.science.prediction.scoring import (
-    DOWNSTREAM_SCORE_SOURCE_PROFILE,
-    DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
+from phospy.kinase.prediction.candidates import build_candidate_substrate_list
+from phospy.kinase.result_boundary import DownstreamScoreSource
+from phospy.kinase.scoring.rank_fusion import MotifProfileRankFusionPolicy
+from phospy.kinase.scoring.selection import (
     KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
     KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
     KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP,
     KINASE_SCORE_SOURCE_SUMMARY_COLUMNS,
     KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE,
-    MotifProfileRankFusionPolicy,
     build_kinase_score_source_diagnostics,
-    fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def test_fuse_profile_and_motif_scores_by_rank_weight_falls_back_when_motif_column_is_all_nan() -> (
@@ -35,7 +33,7 @@ def test_fuse_profile_and_motif_scores_by_rank_weight_falls_back_when_motif_colu
     motif_sizes = pd.Series({"K1": 12.0, "K2": 14.0})
 
     rank_weighted_fusion_scores, _score_fusion_weights = (
-        fuse_profile_and_motif_scores_by_rank_weight(
+        MotifProfileRankFusionPolicy().fuse(
             motif_scores=motif_scores,
             profile_scores=profile_scores,
             motif_sizes=motif_sizes,
@@ -57,7 +55,7 @@ def test_fuse_profile_and_motif_scores_by_rank_weight_preserves_profile_cell_whe
     motif_sizes = pd.Series({"K1": 10.0})
 
     rank_weighted_fusion_scores, _score_fusion_weights = (
-        fuse_profile_and_motif_scores_by_rank_weight(
+        MotifProfileRankFusionPolicy().fuse(
             motif_scores=motif_scores,
             profile_scores=profile_scores,
             motif_sizes=motif_sizes,
@@ -98,7 +96,7 @@ def test_select_downstream_score_matrix_prefers_rank_weighted_fusion_scores() ->
     )
 
     assert selected is rank_weighted_fusion_scores
-    assert source == DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION
+    assert source is DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES
 
 
 def test_select_downstream_score_matrix_falls_back_to_profile_scores() -> None:
@@ -110,7 +108,7 @@ def test_select_downstream_score_matrix_falls_back_to_profile_scores() -> None:
     )
 
     assert selected is profile_scores
-    assert source == DOWNSTREAM_SCORE_SOURCE_PROFILE
+    assert source is DownstreamScoreSource.PROFILE_SCORES
 
 
 def test_fuse_profile_and_motif_scores_by_rank_weight_can_skip_weight_table() -> None:
@@ -119,14 +117,13 @@ def test_fuse_profile_and_motif_scores_by_rank_weight_can_skip_weight_table() ->
     profile_sizes = pd.Series({"K1": 4.0})
     motif_sizes = pd.Series({"K1": 4.0})
 
-    rank_weighted_fusion_scores, score_fusion_weights = (
-        fuse_profile_and_motif_scores_by_rank_weight(
-            motif_scores=motif_scores,
-            profile_scores=profile_scores,
-            motif_sizes=motif_sizes,
-            profile_sizes=profile_sizes,
-            emit_weights=False,
-        )
+    rank_weighted_fusion_scores, score_fusion_weights = MotifProfileRankFusionPolicy(
+        emit_weights=False
+    ).fuse(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        motif_sizes=motif_sizes,
+        profile_sizes=profile_sizes,
     )
 
     assert score_fusion_weights is None
@@ -139,7 +136,7 @@ def test_fuse_profile_and_motif_scores_policy_metadata_and_default_behavior() ->
     profile_sizes = pd.Series({"K1": 12.0})
     motif_sizes = pd.Series({"K1": 8.0})
 
-    wrapper_scores, wrapper_weights = fuse_profile_and_motif_scores_by_rank_weight(
+    wrapper_scores, wrapper_weights = MotifProfileRankFusionPolicy().fuse(
         motif_scores=motif_scores,
         profile_scores=profile_scores,
         motif_sizes=motif_sizes,

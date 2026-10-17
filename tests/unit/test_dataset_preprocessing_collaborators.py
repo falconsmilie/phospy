@@ -4,23 +4,25 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced.configs import DatasetMissingDataConfig
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.preprocessing import (
+from phospy.advanced import (
+    DatasetMissingDataConfig,
+)
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.datasets.construction.intensity_scale import (
+    DatasetIntensityScaleResolver,
+)
+from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.science.datasets.builders.transformation_resolver import (
-    DatasetIntensityScaleResolver,
+from phospy.datasets.construction.state_assembly import (
+    DatasetProcessingStateBuilder,
 )
-from phospy.science.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
-from phospy.science.datasets.preprocessing.diagnostics_normalization import (
-    _StageDiagnosticsDefaults,
-    _StageDiagnosticsNormalizer,
-)
-from phospy.science.datasets.preprocessing.models import (
+from phospy.errors.build import DatasetBuildError
+from phospy.errors.input import PhosPyInputError
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -29,23 +31,25 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.pipeline import (
+from phospy.preprocessing.execution.diagnostics_normalization import (
+    _StageDiagnosticsDefaults,
+    _StageDiagnosticsNormalizer,
+)
+from phospy.preprocessing.execution.pipeline import (
     PreprocessingPipeline,
     _resolve_state_table,
 )
-from phospy.science.datasets.preprocessing.provenance_adapter import (
+from phospy.preprocessing.provenance.composition import (
     PreprocessingProvenanceAdapter,
 )
-from phospy.science.datasets.preprocessing.state_builder import (
-    DatasetProcessingStateBuilder,
-)
-from phospy.science.transformations.models import (
+from phospy.preprocessing.results.diagnostics import ProcessingTraceDiagnostics
+from phospy.quantitative.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
-from phospy.science.transformations.transformers import IdentityTransformer
+from phospy.quantitative.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )

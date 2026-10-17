@@ -8,16 +8,18 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.datasets.construction.preprocessing import DatasetPreprocessor
+from phospy.preprocessing.contracts import PreprocessingPlan
 from tests.support.parity_reporting import (
     format_fraction,
     format_shape,

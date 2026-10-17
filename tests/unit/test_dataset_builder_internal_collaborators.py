@@ -7,40 +7,58 @@ import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest
-from phospy.api.requests import (
-    DATASET_MULTI_SITE_POLICY_REJECT,
-    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-)
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.contracts import (
+from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
-from phospy.science.datasets.builders.interpreter import (
-    DatasetBuildRequestInterpreter,
-)
-from phospy.science.datasets.builders.interpreter_collaborators import (
+from phospy.datasets.construction.input_resolution import (
     DatasetBuildSourceResolver,
 )
-from phospy.science.datasets.builders.normalizer import NormalizedDatasetInputs
-from phospy.science.datasets.builders.provenance_assembler import (
+from phospy.datasets.construction.interpreter import (
+    DatasetBuildRequestInterpreter,
+)
+from phospy.datasets.construction.normalization import NormalizedDatasetInputs
+from phospy.datasets.construction.provenance import (
     DatasetRunProvenanceAssembler,
 )
-from phospy.science.datasets.builders.sequence_derivation import (
+from phospy.datasets.construction.sequence_derivation import (
     SiteSequenceDerivationReport,
 )
-from phospy.science.datasets.builders.site_identity_derivation import (
+from phospy.datasets.construction.site_identity import (
     DatasetSiteIdentityDeriver,
 )
-from phospy.science.datasets.builders.site_sequence_boundary import (
+from phospy.datasets.construction.site_sequence_validation import (
     AnalysisReadySiteSequenceValidator,
 )
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.evidence.dataset_resolution import (
+from phospy.errors.input import PhosPyInputError
+from phospy.evidence.dataset_resolution import (
     PeptideEvidenceResolutionSummary,
 )
-from phospy.science.references.models import Organism
-from phospy.science.sites.site_keys import decode_site_key
+from phospy.evidence.dataset_resolution.models import (
+    DATASET_MULTI_SITE_POLICY_REJECT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+)
+from phospy.phosphosites.site_keys import decode_site_key
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.taxonomy import Organism
+
+
+class _InjectedFailure(RuntimeError):
+    pass
+
+
+class _RaisingResolverCollaborator:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def run(self, *args: object, **kwargs: object) -> object:
+        self.calls += 1
+        raise _InjectedFailure("selected injected source resolver collaborator")
+
+
+class _FalseValuedResolverCollaborator(_RaisingResolverCollaborator):
+    def __bool__(self) -> bool:
+        return False
 
 
 def _phospho() -> pd.DataFrame:
@@ -80,6 +98,105 @@ def _peptide_evidence() -> pd.DataFrame:
             }
         ]
     )
+
+
+def _site_level_request() -> DatasetBuildRequest:
+    return DatasetBuildRequest(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.HUMAN,
+        input_intensity_scale="linear",
+    )
+
+
+def _peptide_evidence_request() -> DatasetBuildRequest:
+    return DatasetBuildRequest(
+        site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+        peptide_evidence=_peptide_evidence(),
+        peptide_evidence_sample_intensity_columns=("sample_a",),
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
+        organism=Organism.HUMAN,
+        input_intensity_scale="linear",
+    )
+
+
+def _source_resolver_with_collaborator(
+    collaborator_name: str,
+    collaborator: object,
+) -> DatasetBuildSourceResolver:
+    if collaborator_name == "reader":
+        return DatasetBuildSourceResolver(reader=collaborator)  # type: ignore[arg-type]
+    if collaborator_name == "normalizer":
+        return DatasetBuildSourceResolver(normalizer=collaborator)  # type: ignore[arg-type]
+    if collaborator_name == "peptide_evidence_resolver":
+        return DatasetBuildSourceResolver(  # type: ignore[arg-type]
+            peptide_evidence_resolver=collaborator
+        )
+    if collaborator_name == "site_identity_deriver":
+        return DatasetBuildSourceResolver(  # type: ignore[arg-type]
+            site_identity_deriver=collaborator
+        )
+    raise AssertionError(f"unsupported test collaborator: {collaborator_name}")
+
+
+@pytest.mark.parametrize(
+    "collaborator_name",
+    (
+        "reader",
+        "normalizer",
+        "peptide_evidence_resolver",
+        "site_identity_deriver",
+    ),
+)
+def test_source_resolver_replaces_false_valued_collaborators_with_defaults(
+    collaborator_name: str,
+) -> None:
+    collaborator = _FalseValuedResolverCollaborator()
+    resolver = _source_resolver_with_collaborator(collaborator_name, collaborator)
+    request = (
+        _peptide_evidence_request()
+        if collaborator_name == "peptide_evidence_resolver"
+        else _site_level_request()
+    )
+
+    resolved = resolver.run(request)
+
+    assert collaborator.calls == 0
+    assert resolved.phospho.shape == (1, 1)
+    assert resolved.site_metadata.loc[:, "display_id"].tolist() == [
+        "AKT1;S473;"
+        if collaborator_name == "peptide_evidence_resolver"
+        else "MAPK14;Y182;"
+    ]
+
+
+@pytest.mark.parametrize(
+    "collaborator_name",
+    (
+        "reader",
+        "normalizer",
+        "peptide_evidence_resolver",
+        "site_identity_deriver",
+    ),
+)
+def test_source_resolver_propagates_truthy_injected_collaborator_exceptions(
+    collaborator_name: str,
+) -> None:
+    collaborator = _RaisingResolverCollaborator()
+    resolver = _source_resolver_with_collaborator(collaborator_name, collaborator)
+    request = (
+        _peptide_evidence_request()
+        if collaborator_name == "peptide_evidence_resolver"
+        else _site_level_request()
+    )
+
+    with pytest.raises(
+        _InjectedFailure,
+        match="selected injected source resolver collaborator",
+    ):
+        resolver.run(request)
+
+    assert collaborator.calls == 1
 
 
 def test_interpreted_request_uses_typed_audit_report_contracts() -> None:

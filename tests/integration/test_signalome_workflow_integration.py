@@ -13,7 +13,6 @@ from pandas.api.types import (
     is_string_dtype,
 )
 
-import phospy.workflows.signalome.interpreter as signalome_interpreter
 from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
@@ -24,20 +23,22 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    KinaseScoringResult,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     ReferencePreset,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinaseScoringResult
-from phospy.contracts.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
-from phospy.science.signalomes.constants import (
+from phospy.signalome.config import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+from phospy.signalome.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
-)
-from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
+)
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.score_matrix_selection import (
+    SignalomeScoreMatrixSelector,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -587,9 +588,9 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
     )
 
 
-def test_signalome_network_uses_rank_weighted_fusion_downstream_scores_when_available(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_signalome_network_uses_rank_weighted_fusion_downstream_scores_when_available() -> (
+    None
+):
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -615,12 +616,14 @@ def test_signalome_network_uses_rank_weighted_fusion_downstream_scores_when_avai
         _ = rank_weighted_fusion_scores
         return profile_scores, "profile_scores"
 
-    monkeypatch.setattr(
-        signalome_interpreter,
-        "select_downstream_score_matrix",
-        _force_profile_lane,
+    profile_lane = SignalomeWorkflow._with_components(
+        interpreter=SignalomeWorkflowInterpreter(
+            score_matrix_selector=SignalomeScoreMatrixSelector(
+                select_matrix=_force_profile_lane
+            )
+        )
     )
-    profile_lane = SignalomeWorkflow().run(request)
+    profile_lane = profile_lane.run(request)
 
     assert not rank_weighted_fusion_lane.kinase_network.edges.equals(
         profile_lane.kinase_network.edges

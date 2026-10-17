@@ -83,13 +83,13 @@ Neutral consequences:
 ## Implementation Notes
 
 The typed provenance contract lives in
-`src/phospy/contracts/enrichment_identifier_sets.py`.
-Workflow validation lives in `src/phospy/validation/workflows/enrichment.py`.
+`src/phospy/enrichment/contracts/identifier_sets.py`.
+Workflow validation lives in `src/phospy/enrichment/validation.py`.
 Result run provenance serializes the nested identifier-set provenance through
-`src/phospy/workflows/enrichment/provenance.py`.
+`src/phospy/enrichment/provenance.py`.
 
 The publishing config preset lives in
-`src/phospy/contracts/configs/enrichment.py` and reuses the existing set-size
+`src/phospy/enrichment/contracts/config.py` and reuses the existing set-size
 filtering diagnostics and provenance path.
 
 ## Related Records

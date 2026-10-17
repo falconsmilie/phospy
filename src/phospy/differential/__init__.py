@@ -1,0 +1,1 @@
+"""Differential capability implementation owner."""

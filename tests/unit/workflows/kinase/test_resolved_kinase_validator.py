@@ -16,18 +16,18 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.kinase.contracts import (
+from phospy.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.reference_projection import (
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.references.projection import (
     KinaseReferenceProjectionSummary,
 )
-from phospy.workflows.kinase.resolved_validator import (
+from phospy.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
     ResolvedKinaseInputs,
 )

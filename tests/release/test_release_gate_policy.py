@@ -5,10 +5,10 @@ import re
 import shlex
 import textwrap
 import tomllib
-from collections.abc import Iterable, Mapping
+from collections.abc import Hashable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 import pytest
 
@@ -25,6 +25,8 @@ CONTRIBUTOR_RELEASE_GUIDANCE_DOCS = (
 ALLOWED_RELEASE_RELATED_MAKE_COMMANDS = frozenset(
     {
         "make release-check",
+        "make architecture-release-check",
+        "make architecture-release-source-check",
         "make test-release-gates",
         "make benchmark-release-scale",
         "make fixtures-release-validation-regression",
@@ -32,15 +34,19 @@ ALLOWED_RELEASE_RELATED_MAKE_COMMANDS = frozenset(
     }
 )
 RELEASE_CHECK_DEPENDENCIES = (
+    "repository-hygiene-check",
     "lint",
     "type-check",
+    "architecture-inventory-check",
     "test-unit",
     "test-contract",
     "test-parity",
     "test-performance",
     "validate-reference-bundles",
     "test-release-gates",
+    "docs-build",
     "build",
+    "verify-distribution-git-blobs",
     "verify-installed-distributions",
 )
 PROHIBITED_RELEASE_SCALE_ROWS = 50_000
@@ -132,6 +138,7 @@ PYTHON_SOURCE_EXCLUDED_PARTS = frozenset(
         "site",
     }
 )
+PYTHON_SOURCE_EXCLUDED_PREFIXES = (".venv",)
 
 
 def _read(relative_path: str | Path) -> str:
@@ -722,11 +729,19 @@ def _iter_all_python_sources(root: Path) -> tuple[Path, ...]:
             relative = path.relative_to(root)
         except ValueError:
             continue
-        if any(part in PYTHON_SOURCE_EXCLUDED_PARTS for part in relative.parts):
+        if _python_source_path_is_excluded(relative):
             continue
         if path.is_file():
             paths.append(path.resolve())
     return tuple(sorted(paths))
+
+
+def _python_source_path_is_excluded(relative: Path) -> bool:
+    return any(
+        part in PYTHON_SOURCE_EXCLUDED_PARTS
+        or any(part.startswith(prefix) for prefix in PYTHON_SOURCE_EXCLUDED_PREFIXES)
+        for part in relative.parts
+    )
 
 
 def _build_python_module_index(root: Path) -> dict[str, Path]:
@@ -815,7 +830,7 @@ def _is_auditable_local_import(path: Path, root: Path) -> bool:
         relative = path.resolve().relative_to(root.resolve())
     except ValueError:
         return False
-    if any(part in PYTHON_SOURCE_EXCLUDED_PARTS for part in relative.parts):
+    if _python_source_path_is_excluded(relative):
         return False
     if not relative.parts:
         return False
@@ -842,10 +857,7 @@ def _iter_required_test_python_sources(
                 for path in source_root.rglob("*.py")
                 if path.is_file()
                 and path.relative_to(root) not in STATIC_RELEASE_SCALE_POLICY_EXCLUSIONS
-                and not any(
-                    part in PYTHON_SOURCE_EXCLUDED_PARTS
-                    for part in path.relative_to(root).parts
-                )
+                and not _python_source_path_is_excluded(path.relative_to(root))
             )
     return tuple(sorted(paths))
 
@@ -1238,7 +1250,7 @@ def _sequence_has_prohibited_shape(values: Iterable[object]) -> bool:
     )
 
 
-def _mapping_has_prohibited_shape(value: Mapping[object, object]) -> bool:
+def _mapping_has_prohibited_shape(value: Mapping[Any, object]) -> bool:
     normalized = {str(key): item for key, item in value.items()}
     row_value = _first_dimension_value(normalized, ROW_DIMENSION_KEYS)
     sample_value = _first_dimension_value(normalized, SAMPLE_DIMENSION_KEYS)
@@ -1282,7 +1294,7 @@ def _length_value(value: object) -> int | None:
     return None
 
 
-def _is_int_sequence(value: object) -> bool:
+def _is_int_sequence(value: object) -> TypeGuard[tuple[int, int] | list[int]]:
     return (
         isinstance(value, tuple | list)
         and len(value) == 2
@@ -1307,7 +1319,7 @@ def _literal_int(node: ast.AST | None) -> int | None:
     return None
 
 
-def _is_plain_int(value: object) -> bool:
+def _is_plain_int(value: object) -> TypeGuard[int]:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
@@ -1336,7 +1348,7 @@ def _resolve_value(
     if isinstance(node, ast.Subscript):
         owner = _resolve_value(node.value, context)
         key = _resolve_subscript_key(node.slice, context)
-        if isinstance(owner, Mapping) and key in owner:
+        if isinstance(owner, Mapping) and isinstance(key, Hashable) and key in owner:
             return owner[key]
         return _UNKNOWN
     if isinstance(node, ast.BinOp):
@@ -1684,17 +1696,18 @@ def test_readme_documents_beta_status_without_release_manual() -> None:
     assert "staged-byte" not in normalized
 
 
-def test_api_guide_documents_beta_compatibility_tiers() -> None:
+def test_api_guide_documents_beta_supported_aggregates() -> None:
     text = _read("docs/api/guide.md")
     normalized = _normalized_markdown("docs/api/guide.md")
 
-    assert "beta compatibility expectations" in normalized
+    assert "three exact aggregate surfaces" in normalized
     assert "phospy is currently beta software" in normalized
     assert "`phospy.api` is the stable user-facing route" in text
     assert "`phospy.advanced` is a supported advanced route" in text
     assert "internal modules" in normalized
     assert "unsupported import targets" in normalized
-    assert "adr_0031_public_api_stability_tiers.md" in text
+    assert "adr_0054_public_api_reset_and_compatibility_removal.md" in text
+    assert "no supported forwarding submodules" in normalized
 
 
 def test_maintained_docs_do_not_recommend_conflicting_release_commands() -> None:
@@ -2263,6 +2276,12 @@ def test_installed_distribution_verifier_is_standalone_release_tooling() -> None
     assert "_exercise_duplicate_correlation_differential_contract" in source
     assert "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION" in source
     assert "KinaseWorkflow" in source
+    assert "ReferenceBundleBuilder" in source
+    assert "ReferenceBundleBuildRequest" in source
+    assert "_exercise_reference_bundle_builder" in source
+    assert "_verify_references_evidence_import_orders" in source
+    assert "probe_results" in source
+    assert "installation_method" in source
     assert "ticket_1_posthoc_peptide_to_site_boundary" in source
     assert "withdrawn_asserted" in source
 

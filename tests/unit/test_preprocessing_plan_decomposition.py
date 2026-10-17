@@ -8,10 +8,17 @@ import pandas as pd
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.configs.dataset import DatasetPreprocessingConfig
-from phospy.science.configs.preprocessing import (
+from phospy.preparation_records.policies import (
+    MissingDataPolicy,
+    NormalisationPolicy,
+    SiteSequenceConflictPolicy,
+    SiteSequenceResolutionMode,
+    TotalProteinCorrectionPolicy,
+)
+from phospy.preprocessing.batch_correction.contracts.missingness import (
     CorrectionMissingnessPolicy,
-    DatasetTotalProteinCorrectionIdentityConfig,
+)
+from phospy.preprocessing.batch_correction.contracts.request import (
     InternalBatchCorrectionControlSiteMode,
     InternalBatchCorrectionControlSiteSource,
     InternalBatchCorrectionImputationPolicy,
@@ -20,24 +27,20 @@ from phospy.science.configs.preprocessing import (
     InternalBatchCorrectionRequest,
     InternalBatchCorrectionStageOrder,
 )
-from phospy.science.datasets.preprocessing.imputation_scale_policy import (
-    resolve_imputation_scale_policy,
-)
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.plan_assembly import (
-    PreprocessingPlanAssembler,
+from phospy.preprocessing.contracts.configuration import (
+    DatasetTotalProteinCorrectionIdentityConfig,
 )
-from phospy.science.datasets.preprocessing.plan_constants import (
-    PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
-    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
+from phospy.preprocessing.contracts.configuration.dataset import (
+    DatasetPreprocessingConfig,
 )
-from phospy.science.datasets.preprocessing.plan_interpreter import (
-    PreprocessingPlanInterpreter,
+from phospy.preprocessing.contracts.imputation_scale import (
+    resolve_imputation_scale_policy,
 )
-from phospy.science.datasets.preprocessing.plan_resolved import (
+from phospy.preprocessing.contracts.plan_resolution import (
     ResolvedBatchCorrectionPlanFields,
     ResolvedCoreTransformPlanFields,
     ResolvedGroupCoveragePlanFields,
@@ -50,35 +53,40 @@ from phospy.science.datasets.preprocessing.plan_resolved import (
     ResolvedStageOrderPlanFields,
     ResolvedTotalProteinCorrectionPlanFields,
 )
-from phospy.science.datasets.preprocessing.plan_rules import (
+from phospy.preprocessing.contracts.policies import (
+    ComparisonBuildingPolicy,
+    ImputationInputScale,
+    IntensityTransformPolicy,
+    LocalisationEligibilityMode,
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixMissingDataPolicy,
+    SiteMatrixPolicy,
+)
+from phospy.preprocessing.contracts.stage_keys import (
+    PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
+)
+from phospy.preprocessing.planning.assembly import (
+    PreprocessingPlanAssembler,
+)
+from phospy.preprocessing.planning.boundary import (
+    PreprocessingPlanInterpreter,
+)
+from phospy.preprocessing.planning.ordering import (
+    PreprocessingStageOrderResolution,
+)
+from phospy.preprocessing.planning.rules import (
     PreprocessingBatchCorrectionPlanRuleFamily,
     PreprocessingCorePlanPolicyRuleFamily,
     PreprocessingRuvReadinessPlanRuleFamily,
     PreprocessingSiteMatrixComparisonPlanRuleFamily,
     PreprocessingSiteSequencePlanRuleFamily,
 )
-from phospy.science.datasets.preprocessing.plan_stage_order import (
-    PreprocessingStageOrderResolution,
-)
-from phospy.science.datasets.preprocessing.policy_models import (
-    ComparisonBuildingPolicy,
-    ImputationInputScale,
-    IntensityTransformPolicy,
-    LocalisationEligibilityMode,
-    MissingDataPolicy,
-    NormalisationPolicy,
-    SiteMatrixDuplicateSitePolicy,
-    SiteMatrixMissingDataPolicy,
-    SiteMatrixPolicy,
-    SiteSequenceConflictPolicy,
-    SiteSequenceResolutionMode,
-    TotalProteinCorrectionPolicy,
-)
-from phospy.science.datasets.preprocessing.stages.comparisons import ComparisonsStage
-from phospy.science.datasets.preprocessing.total_protein_identity import (
+from phospy.preprocessing.protein_aware.identity import (
     DEFAULT_TOTAL_PROTEIN_CORRECTION_IDENTITY_POLICY,
     TotalProteinCorrectionIdentityResolver,
 )
+from phospy.preprocessing.stages.comparisons import ComparisonsStage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -396,7 +404,7 @@ def test_resolved_preprocessing_plan_fields_are_typed_sections() -> None:
 
 
 def test_plan_model_no_longer_contains_dynamic_resolution_path() -> None:
-    source = _source("src/phospy/science/datasets/preprocessing/plan.py")
+    source = _source("src/phospy/preprocessing/contracts/plan.py")
 
     assert "_set_resolved_plan_fields" not in source
     assert "_resolve_total_correction_identity_policy" not in source
@@ -408,7 +416,7 @@ def test_plan_model_no_longer_contains_dynamic_resolution_path() -> None:
 
 
 def test_plan_assembler_does_not_use_dynamic_field_copying() -> None:
-    source = _source("src/phospy/science/datasets/preprocessing/plan_assembly.py")
+    source = _source("src/phospy/preprocessing/planning/assembly.py")
 
     assert "fields(" not in source
     assert "setattr" not in source
@@ -417,7 +425,7 @@ def test_plan_assembler_does_not_use_dynamic_field_copying() -> None:
 
 
 def test_interpreter_run_coordinates_typed_resolution_and_assembly() -> None:
-    source = _source("src/phospy/science/datasets/preprocessing/plan_interpreter.py")
+    source = _source("src/phospy/preprocessing/planning/boundary.py")
     tree = ast.parse(source)
     run_node = next(
         node
@@ -435,9 +443,7 @@ def test_interpreter_run_coordinates_typed_resolution_and_assembly() -> None:
 
 
 def test_plan_config_resolution_no_longer_owns_total_identity_mode_errors() -> None:
-    source = _source(
-        "src/phospy/science/datasets/preprocessing/plan_config_resolution.py"
-    )
+    source = _source("src/phospy/preprocessing/planning/configuration.py")
 
     assert "reject_unknown_total_correction_identity_mode" not in source
     assert "identity contains an unsupported mode" not in source

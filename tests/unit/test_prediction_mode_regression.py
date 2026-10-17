@@ -4,7 +4,6 @@ import pandas as pd
 import pytest
 
 from phospy import (
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
 from phospy.advanced import (
@@ -13,16 +12,17 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import (
+from phospy.kinase.prediction.config import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.provenance.serialization import from_payload, to_payload
+from phospy.run_lineage.serialization import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

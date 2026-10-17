@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def test_stable_config_imports_remain_from_api_configs() -> None:
-    from phospy.api.configs import (
+    from phospy.api import (
         DatasetLocalisationConfig,
         DatasetPreprocessingConfig,
         EnrichmentConfig,
@@ -14,7 +14,7 @@ def test_stable_config_imports_remain_from_api_configs() -> None:
 
 
 def test_advanced_config_imports_have_advanced_owner() -> None:
-    from phospy.advanced.configs import (
+    from phospy.advanced import (
         DatasetBatchCorrectionConfig,
         DatasetGroupCoverageFilterConfig,
         DatasetIntensityTransformConfig,
@@ -40,24 +40,25 @@ def test_advanced_config_imports_have_advanced_owner() -> None:
 
 
 def test_config_all_exports_public_api() -> None:
-    import phospy.api.configs as configs
+    import phospy.api as public_api
 
-    assert set(configs.__all__) == {
+    assert {
         "DatasetLocalisationConfig",
         "DatasetPreprocessingConfig",
         "EnrichmentConfig",
-    }
-    assert "DatasetPreprocessingConfig" in configs.__all__
-    assert "EnrichmentConfig" in configs.__all__
+    } <= set(public_api.__all__)
+    assert not hasattr(public_api, "configs")
 
 
 def test_config_refactor_does_not_create_import_cycles() -> None:
     import phospy
-    import phospy.api.configs
-    from phospy import AnalysisReadyPhosphoDataset
-    from phospy.api.configs import DatasetPreprocessingConfig
+    import phospy.api
+    from phospy.api import (
+        AnalysisReadyPhosphoDataset,
+        DatasetPreprocessingConfig,
+    )
 
     assert phospy is not None
-    assert phospy.api.configs is not None
+    assert "__getattr__" not in vars(phospy.api)
     assert AnalysisReadyPhosphoDataset is not None
     assert DatasetPreprocessingConfig is not None

@@ -1,0 +1,577 @@
+"""Internal interpreter for kinase workflow requests."""
+
+from __future__ import annotations
+
+from typing import NoReturn
+
+import pandas as pd
+
+from phospy.activities.contracts import (
+    MethodQuantitativeInputContract,
+    ResolvedMethodQuantitativeInputContract,
+)
+from phospy.activities.validation import (
+    MethodQuantitativeInputValidator,
+)
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.pandas_typing import (
+    dataframe_column,
+    dataframe_reindex,
+    index_as_strings,
+    series_as_strings,
+)
+from phospy.kinase.activity.config import resolve_kinase_activity_execution_config
+from phospy.kinase.activity.contracts import (
+    kinase_activity_method_quantitative_input_contract,
+)
+from phospy.kinase.contracts import (
+    ResolvedKinaseExecutionConfig,
+    ResolvedKinaseSiteUniverses,
+    ResolvedKinaseWorkflowRequest,
+    ValidatedKinaseWorkflowRequest,
+)
+from phospy.kinase.prediction.policies import resolve_prediction_sampling_policy
+from phospy.kinase.references.models import KinaseLibraryResource
+from phospy.kinase.references.projection import KinaseReferenceProjector
+from phospy.kinase.requests import KinaseWorkflowRequest
+from phospy.kinase.resolved_validator import (
+    ResolvedKinaseEligibilityValidator,
+    ResolvedKinaseInputs,
+)
+from phospy.kinase.scoring.config import KinaseScoringConfig
+from phospy.kinase.scoring.contracts import (
+    kinase_scoring_method_quantitative_input_contract,
+    kinase_scoring_mode_input_contract,
+)
+from phospy.kinase.site_sequence_policy import (
+    resolve_site_sequence_conflict_policy,
+)
+from phospy.kinase.site_sequence_support import (
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
+    KinaseSiteSequenceSupportBuilder,
+)
+from phospy.provenance.row_attrition import make_row_attrition_record
+from phospy.references.compatibility import ReferenceCompatibilityValidator
+from phospy.references.config import ReferenceContextCompatibilityPolicy
+from phospy.references.context_compatibility import (
+    validate_reference_context_compatibility,
+)
+from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.references.resolution import (
+    BundledReferenceProvider,
+    ReferenceResolver,
+    ReferenceResolverContract,
+)
+
+
+class KinaseWorkflowInterpreter:
+    """Resolve workflow request defaults and references for execution."""
+
+    def __init__(
+        self,
+        *,
+        reference_resolver: ReferenceResolverContract | None = None,
+        reference_projector: KinaseReferenceProjector | None = None,
+        site_sequence_support_builder: KinaseSiteSequenceSupportBuilder | None = None,
+        resolved_validator: ResolvedKinaseEligibilityValidator | None = None,
+    ) -> None:
+        self._reference_resolver = reference_resolver or ReferenceResolver(
+            provider=BundledReferenceProvider(),
+            compatibility_validator=ReferenceCompatibilityValidator(),
+        )
+        self._reference_projector = reference_projector or KinaseReferenceProjector()
+        self._site_sequence_support_builder = (
+            site_sequence_support_builder or KinaseSiteSequenceSupportBuilder()
+        )
+        self._resolved_validator = (
+            resolved_validator or ResolvedKinaseEligibilityValidator()
+        )
+
+    def run(
+        self, validated: ValidatedKinaseWorkflowRequest
+    ) -> ResolvedKinaseWorkflowRequest:
+        request = validated.request
+        scoring_config = self._require_scoring_config(request)
+        dataset_view = validated.dataset_view
+        dataset_phospho = dataset_view.phospho
+        dataset_site_metadata = dataset_view.site_metadata
+        site_identity_map = self._build_site_identity_map(
+            dataset=dataset_phospho,
+            site_metadata=dataset_site_metadata,
+        )
+        site_sequence_conflict_policy = resolve_site_sequence_conflict_policy(
+            request.site_sequence_conflict_policy,
+            field_name="site_sequence_conflict_policy",
+            error_type=WorkflowBoundaryError,
+        )
+        references = self._reference_resolver.run(
+            request.references,
+            dataset_organism=request.dataset.organism,
+        )
+        validate_reference_context_compatibility(
+            request.dataset.reference_context,
+            None
+            if references.provenance is None
+            else references.provenance.reference_context,
+            operation="kinase workflow resolved dataset/reference bundle",
+            allow_unknown=(
+                scoring_config.reference_context_compatibility_policy
+                is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+            error_type=WorkflowBoundaryError,
+        )
+        kinase_library_resource = self._resolve_kinase_library_resource(
+            request=request,
+            scoring_config=scoring_config,
+        )
+        projection_result = self._reference_projector.run(
+            reference_kinase_substrate_map=references.kinase_substrate_map,
+            site_identity_map=site_identity_map,
+            ambiguity_policy=request.reference_display_ambiguity_policy,
+        )
+        kinase_substrate_map = projection_result.kinase_substrate_map
+        reference_projection_summary = projection_result.projection_summary
+        display_reference_matching = (
+            projection_result.display_reference_matching_payload()
+        )
+        merge_result = self._site_sequence_support_builder.run(
+            dataset=dataset_phospho,
+            site_metadata=dataset_site_metadata,
+            reference_site_sequences=references.site_sequences,
+            conflict_policy=site_sequence_conflict_policy,
+        )
+        if (
+            merge_result.dataset_reference_conflict_count > 0
+            and site_sequence_conflict_policy
+            == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR
+        ):
+            self._raise_boundary_error(
+                seam="kinase.interpreter.site_sequence_conflict",
+                next_action=(
+                    "fix dataset site_sequence values for conflicting sites or use "
+                    "site_sequence_conflict_policy='prefer_reference' or "
+                    "'prefer_dataset' on KinaseWorkflowRequest"
+                ),
+                conflict_policy=site_sequence_conflict_policy,
+                dataset_reference_conflict_count=int(
+                    merge_result.dataset_reference_conflict_count
+                ),
+                conflict_diagnostics=[
+                    item.to_payload() for item in merge_result.conflicts
+                ],
+            )
+        site_sequences = merge_result.site_sequences
+        scoring_site_index = self._resolve_scoring_site_index(
+            dataset=dataset_phospho,
+            site_sequences=site_sequences,
+        )
+        row_attrition_records = tuple(
+            record
+            for record in (
+                make_row_attrition_record(
+                    workflow="kinase",
+                    stage="kinase_sequence_context",
+                    reason="sites_missing_valid_centered_sequence",
+                    input_site_ids=dataset_phospho.index,
+                    output_site_ids=scoring_site_index,
+                ),
+            )
+            if record is not None
+        )
+        activity_phospho_matrix = dataset_view.phospho
+        execution_config = self._resolve_execution_config(
+            request,
+            scoring_config=scoring_config,
+            dataset_view=dataset_view,
+        )
+        site_universes = self._resolve_site_universes(
+            measured_site_index=activity_phospho_matrix.index,
+            scoring_site_index=scoring_site_index,
+            kinase_substrate_map=kinase_substrate_map,
+        )
+        resolved_inputs = ResolvedKinaseInputs(
+            dataset=request.dataset,
+            dataset_phospho=dataset_phospho,
+            references=references,
+            kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+            site_identity_map=site_identity_map,
+            scoring_site_index=scoring_site_index,
+            activity_phospho_matrix=activity_phospho_matrix,
+            execution_config=execution_config,
+            reference_projection_summary=reference_projection_summary,
+            kinase_library_resource=kinase_library_resource,
+            site_universes=site_universes,
+        )
+        self._resolved_validator.run(resolved_inputs)
+        site_sequences = dataframe_reindex(site_sequences, scoring_site_index)
+        return ResolvedKinaseWorkflowRequest(
+            dataset=request.dataset,
+            dataset_view=dataset_view,
+            references=references,
+            kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+            site_identity_map=site_identity_map,
+            scoring_site_index=scoring_site_index,
+            activity_phospho_matrix=activity_phospho_matrix,
+            execution_config=execution_config,
+            site_universes=site_universes,
+            kinase_library_resource=kinase_library_resource,
+            reference_projection_summary=reference_projection_summary,
+            attrition_metrics=resolved_inputs.attrition_metrics,
+            attrition_policy_violations=(resolved_inputs.attrition_policy_violations),
+            row_attrition_records=row_attrition_records,
+            site_sequence_merge_diagnostics={
+                **merge_result.diagnostics_payload(),
+                "reference_sequence_count": int(references.site_sequences.shape[0]),
+                "execution_sequence_count": int(site_sequences.shape[0]),
+                "reference_substrate_map_count": int(
+                    references.kinase_substrate_map.shape[0]
+                ),
+                "execution_substrate_map_count": int(kinase_substrate_map.shape[0]),
+                "display_reference_matching": display_reference_matching,
+            },
+            reference_resolution_details=self._build_reference_resolution_details(
+                request=request,
+                references=references,
+            ),
+        )
+
+    @staticmethod
+    def _build_site_identity_map(
+        *,
+        dataset: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+    ) -> pd.DataFrame:
+        missing = [
+            column
+            for column in ("site_key", "display_id")
+            if column not in site_metadata.columns
+        ]
+        if missing:
+            joined = ", ".join(missing)
+            raise WorkflowBoundaryError(
+                seam="kinase.interpreter.site_identity_map",
+                next_action=(
+                    "ensure the analysis-ready dataset metadata includes site_key "
+                    "and display_id"
+                ),
+                details={"missing_columns": missing},
+                message_prefix=(
+                    "kinase workflow boundary validation failed: missing required "
+                    f"site identity columns: {joined}"
+                ),
+            )
+        aligned_metadata = dataframe_reindex(site_metadata, dataset.index)
+        site_key_values = series_as_strings(
+            dataframe_column(aligned_metadata, "site_key"),
+            fill_missing="",
+            strip=True,
+        )
+        display_id_values = series_as_strings(
+            dataframe_column(aligned_metadata, "display_id"),
+            fill_missing="",
+            strip=True,
+        )
+        site_keys = index_as_strings(dataset.index)
+        if site_key_values != site_keys:
+            raise WorkflowBoundaryError(
+                seam="kinase.interpreter.site_identity_map",
+                next_action=(
+                    "ensure dataset.site_metadata.site_key exactly matches "
+                    "dataset.phospho.index"
+                ),
+                details={"dataset_site_count": int(dataset.index.size)},
+                message_prefix="kinase workflow boundary validation failed",
+            )
+        empty_display_id_count = sum(
+            1 for display_id in display_id_values if display_id == ""
+        )
+        if empty_display_id_count:
+            raise WorkflowBoundaryError(
+                seam="kinase.interpreter.site_identity_map",
+                next_action=(
+                    "ensure dataset.site_metadata.display_id is present for every "
+                    "scoring site"
+                ),
+                details={"empty_display_id_count": empty_display_id_count},
+                message_prefix="kinase workflow boundary validation failed",
+            )
+        return pd.DataFrame(
+            {"site_key": site_keys, "display_id": display_id_values},
+            index=pd.Index(site_keys, name="site_key"),
+        )
+
+    @staticmethod
+    def _resolve_execution_config(
+        request: KinaseWorkflowRequest,
+        *,
+        scoring_config: KinaseScoringConfig,
+        dataset_view: DatasetInternalView,
+    ) -> ResolvedKinaseExecutionConfig:
+        prediction_sampling_policy = resolve_prediction_sampling_policy(
+            request.prediction_config.adaptive_policy
+        )
+        scoring_method_input_contract = _resolve_dataset_method_input_contract(
+            dataset=request.dataset,
+            contract=kinase_scoring_method_quantitative_input_contract(
+                scoring_config.scoring_mode,
+                allow_mixed_total_protein_quantitative_meaning=(
+                    scoring_config.allow_mixed_total_protein_quantitative_meaning
+                ),
+            ),
+            context="kinase workflow request dataset",
+            dataset_view=dataset_view,
+        )
+        activity_method_input_contract = (
+            None
+            if request.activity_config is None or not request.activity_config.enabled
+            else _resolve_dataset_method_input_contract(
+                dataset=request.dataset,
+                contract=kinase_activity_method_quantitative_input_contract(
+                    request.activity_config.method
+                ),
+                context="kinase activity request dataset",
+                dataset_view=dataset_view,
+            )
+        )
+        activity = resolve_kinase_activity_execution_config(
+            request.activity_config,
+            method_input_contract=activity_method_input_contract,
+        )
+        return ResolvedKinaseExecutionConfig(
+            scoring_min_substrates=int(scoring_config.min_substrates),
+            scoring_mode=scoring_config.scoring_mode,
+            include_diagnostic_scoring_tables=bool(
+                scoring_config.include_diagnostic_scoring_tables
+            ),
+            include_substrate_contributions=bool(
+                scoring_config.include_substrate_contributions
+            ),
+            profile_missing_value_strategy=scoring_config.profile_missing_value_strategy,
+            profile_self_inclusion_policy=(
+                scoring_config.profile_self_inclusion_policy
+            ),
+            prediction_top_k=int(request.prediction_config.top_k),
+            prediction_deterministic_max_selected_kinases=int(
+                request.prediction_config.deterministic_max_selected_kinases
+            ),
+            prediction_adaptive_ensemble_runs=int(
+                request.prediction_config.adaptive_ensemble_runs
+            ),
+            prediction_mode=request.prediction_config.mode,
+            prediction_adaptive_policy=request.prediction_config.adaptive_policy,
+            prediction_sampling_policy=prediction_sampling_policy,
+            prediction_n_iterations=int(request.prediction_config.n_iterations),
+            prediction_random_state=(
+                None
+                if request.prediction_config.random_state is None
+                else int(request.prediction_config.random_state)
+            ),
+            attrition_policy=scoring_config.attrition_policy,
+            activity=activity,
+            requested_reliability_profile=(
+                scoring_config.requested_reliability_profile
+            ),
+            effective_reliability_profile=(
+                scoring_config.effective_reliability_profile
+            ),
+            localisation_requirement=scoring_config.localisation_requirement,
+            reference_context_compatibility_policy=(
+                scoring_config.reference_context_compatibility_policy
+            ),
+            scoring_method_input_contract=scoring_method_input_contract,
+        )
+
+    @staticmethod
+    def _build_reference_resolution_details(
+        *,
+        request: KinaseWorkflowRequest,
+        references: ReferenceBundle,
+    ) -> dict[str, object]:
+        reference_input = request.references
+        reference_input_kind = "reference_bundle"
+        reference_input_value = "explicit_bundle"
+        if isinstance(reference_input, ReferencePreset):
+            reference_input_kind = "reference_preset"
+            reference_input_value = reference_input.value
+        provenance = references.provenance
+        return {
+            "reference_input_kind": reference_input_kind,
+            "reference_input_value": reference_input_value,
+            "dataset_organism": (
+                None
+                if request.dataset.organism is None
+                else request.dataset.organism.value
+            ),
+            "resolved_reference_organism": references.organism.value,
+            "resolved_reference_source_type": (
+                "unknown" if provenance is None else provenance.source_type
+            ),
+            "resolved_reference_bundle_id": (
+                None if provenance is None else provenance.bundle_id
+            ),
+            "resolved_reference_source_name": (
+                None if provenance is None else provenance.source_name
+            ),
+            "resolved_reference_source_version": (
+                None if provenance is None else provenance.source_version
+            ),
+        }
+
+    def _resolve_kinase_library_resource(
+        self,
+        *,
+        request: KinaseWorkflowRequest,
+        scoring_config: KinaseScoringConfig,
+    ) -> KinaseLibraryResource | None:
+        scoring_mode = scoring_config.scoring_mode
+        mode_contract = kinase_scoring_mode_input_contract(scoring_mode)
+        if not mode_contract.requires_kinase_library_resource:
+            return None
+        resource = request.kinase_library_resource
+        if not isinstance(resource, KinaseLibraryResource):
+            self._raise_boundary_error(
+                seam="kinase.interpreter.kinase_library_resource_type",
+                next_action=(
+                    "provide a KinaseLibraryResource via "
+                    "KinaseWorkflowRequest.kinase_library_resource"
+                ),
+                scoring_mode=scoring_mode,
+                observed_type=type(resource).__name__,
+            )
+        dataset_organism = request.dataset.organism
+        if dataset_organism is not None and dataset_organism.value not in {
+            str(value).lower() for value in resource.organisms
+        }:
+            self._raise_boundary_error(
+                seam="kinase.interpreter.kinase_library_resource_organism",
+                next_action=(
+                    "provide a Kinase Library resource whose organisms include "
+                    "the analysis-ready dataset organism"
+                ),
+                scoring_mode=scoring_mode,
+                dataset_organism=dataset_organism.value,
+                resource_organisms=tuple(resource.organisms),
+            )
+        if not resource.sequence_window.central_residue_required:
+            self._raise_boundary_error(
+                seam="kinase.interpreter.kinase_library_resource_window",
+                next_action=(
+                    "provide a Kinase Library resource with a central "
+                    "phospho-residue window"
+                ),
+                scoring_mode=scoring_mode,
+                sequence_window=resource.sequence_window.to_payload(),
+            )
+        return resource
+
+    @staticmethod
+    def _require_scoring_config(
+        request: KinaseWorkflowRequest,
+    ) -> KinaseScoringConfig:
+        scoring_config = request.scoring_config
+        if isinstance(scoring_config, KinaseScoringConfig):
+            return scoring_config
+        raise WorkflowBoundaryError(
+            seam="kinase.interpreter.scoring_config",
+            next_action=(
+                "provide scoring_config=KinaseScoringConfig.exploratory(), "
+                "KinaseScoringConfig.production(...), or "
+                "KinaseScoringConfig(..., reliability_profile='custom')"
+            ),
+            details={"observed_type": type(scoring_config).__name__},
+            message_prefix="kinase workflow boundary validation failed",
+        )
+
+    @staticmethod
+    def _resolve_scoring_site_index(
+        *,
+        dataset: pd.DataFrame,
+        site_sequences: pd.DataFrame,
+    ) -> pd.Index:
+        sequence_sites = set(site_sequences.index)
+        scoring_sites = [
+            site_id for site_id in dataset.index if site_id in sequence_sites
+        ]
+        return pd.Index(scoring_sites, name=dataset.index.name)
+
+    @staticmethod
+    def _resolve_site_universes(
+        *,
+        measured_site_index: pd.Index,
+        scoring_site_index: pd.Index,
+        kinase_substrate_map: pd.DataFrame,
+    ) -> ResolvedKinaseSiteUniverses:
+        reference_supported = _reference_membership_site_index(
+            measured_site_index=measured_site_index,
+            kinase_substrate_map=kinase_substrate_map,
+        )
+        return ResolvedKinaseSiteUniverses(
+            measured_quantitative_sites=measured_site_index.copy(),
+            sequence_supported_scoring_sites=scoring_site_index.copy(),
+            reference_supported_membership_sites=reference_supported,
+            predicted_membership_sites=scoring_site_index.copy(),
+            ksea_background_sites=measured_site_index.copy(),
+            ssgsea_effect_ranking_sites=measured_site_index.copy(),
+        )
+
+    @staticmethod
+    def _raise_boundary_error(
+        *,
+        seam: str,
+        next_action: str,
+        **details: object,
+    ) -> NoReturn:
+        raise WorkflowBoundaryError(
+            seam=seam,
+            next_action=next_action,
+            details=details,
+            message_prefix="kinase workflow boundary validation failed",
+        )
+
+
+def _resolve_dataset_method_input_contract(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    contract: MethodQuantitativeInputContract,
+    context: str,
+    dataset_view: DatasetInternalView,
+) -> ResolvedMethodQuantitativeInputContract:
+    try:
+        return MethodQuantitativeInputValidator().run(
+            intensity_scale_state=dataset.intensity_scale_state,
+            has_total_matrix=dataset_view.total is not None,
+            contract=contract,
+            context=context,
+        )
+    except WorkflowValidationError as exc:
+        raise WorkflowBoundaryError(
+            seam="kinase.interpreter.method_quantitative_input_contract",
+            next_action=(
+                "provide an analysis-ready dataset whose intensity scale and "
+                "quantitative meaning satisfy the selected kinase scoring or "
+                "activity method contract"
+            ),
+            details={"contract_error": str(exc)},
+            message_prefix="kinase workflow boundary validation failed",
+        ) from exc
+
+
+def _reference_membership_site_index(
+    *,
+    measured_site_index: pd.Index,
+    kinase_substrate_map: pd.DataFrame,
+) -> pd.Index:
+    if "substrate_site" not in kinase_substrate_map.columns:
+        return pd.Index([], name=measured_site_index.name, dtype="object")
+    substrate_sites = set(kinase_substrate_map.loc[:, "substrate_site"].astype(str))
+    ordered_sites = [
+        str(site_id)
+        for site_id in measured_site_index.astype(str).tolist()
+        if str(site_id) in substrate_sites
+    ]
+    return pd.Index(ordered_sites, name=measured_site_index.name)

@@ -22,44 +22,44 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.provenance.hashing import (
-    fingerprint_optional_table_strict,
-    fingerprint_table_strict,
-)
-from phospy.provenance.models import (
-    EnvironmentProvenance,
-    ReferenceProvenance,
-    RunProvenance,
-)
-from phospy.provenance.reference_context import ReferenceContext
-from phospy.provenance.serialization.tables import table_fingerprint_to_payload
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
-    ProteinAwarePreparationEligibility,
-    ProteinAwareSampleAlignmentDiagnostics,
-    ProteinAwareTransformationStateDiagnostics,
-)
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
-    ProteinAwareSiteEligibility,
 )
-from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
-from phospy.science.differential.models import (
-    ContrastMatrix,
-    DesignMatrix,
-    DifferentialAnalysisResult,
+from phospy.differential.caveats import (
+    DIFFERENTIAL_PROTEIN_AWARE_CONDITIONAL_EFFECT_CAVEAT_CODE,
+    DIFFERENTIAL_PROTEIN_AWARE_EXPERIMENTAL_CAVEAT_CODE,
+    DIFFERENTIAL_PROTEIN_AWARE_NO_FALLBACK_CAVEAT_CODE,
+    DIFFERENTIAL_PROTEIN_AWARE_NO_PREPROCESSING_CAVEAT_CODE,
+    DIFFERENTIAL_PROTEIN_AWARE_UNSUPPORTED_SCOPE_CAVEAT_CODE,
+)
+from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     ProteinAwareDifferentialDiagnostics,
     QuantificationDepthTrendDiagnostics,
 )
-from phospy.science.differential.models.protein_aware import (
+from phospy.differential.models.design import (
+    ContrastMatrix,
+    DesignMatrix,
+)
+from phospy.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
     ProteinAwareDifferentialComputationResult,
 )
-from phospy.science.differential.models.provenance import (
+from phospy.differential.planning.interpreter import DifferentialAnalysisInterpreter
+from phospy.differential.planning.models import (
+    DifferentialFeatureEligibilityInputs,
+    InterpretedDifferentialAnalysisRequest,
+    ProteinAwareDifferentialResolvedInputs,
+)
+from phospy.differential.planning.protein_aware_inputs import (
+    ProteinAwareDifferentialInputResolver,
+)
+from phospy.differential.provenance.assembly import (
+    build_protein_aware_policy_provenance,
+)
+from phospy.differential.provenance.models import (
     DIFFERENTIAL_PROTEIN_AWARE_CLAIM_STATUS_EXPERIMENTAL,
     DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_SCOPE,
     DIFFERENTIAL_PROTEIN_AWARE_CONDITION_NUMBER_SUMMARY_STATISTIC,
@@ -75,7 +75,11 @@ from phospy.science.differential.models.provenance import (
     DifferentialPolicyProvenance,
     DifferentialProteinAwarePolicyProvenance,
 )
-from phospy.science.differential.models.tables import (
+from phospy.differential.result_assembly import DifferentialResultAssembler
+from phospy.differential.results import (
+    DifferentialAnalysisResult,
+)
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_ZERO_VARIANCE,
@@ -89,27 +93,25 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
 )
-from phospy.workflows.differential.caveats import (
-    DIFFERENTIAL_PROTEIN_AWARE_CONDITIONAL_EFFECT_CAVEAT_CODE,
-    DIFFERENTIAL_PROTEIN_AWARE_EXPERIMENTAL_CAVEAT_CODE,
-    DIFFERENTIAL_PROTEIN_AWARE_NO_FALLBACK_CAVEAT_CODE,
-    DIFFERENTIAL_PROTEIN_AWARE_NO_PREPROCESSING_CAVEAT_CODE,
-    DIFFERENTIAL_PROTEIN_AWARE_UNSUPPORTED_SCOPE_CAVEAT_CODE,
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.errors.input import PhosPyInputError
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
+    ProteinAwareTransformationStateDiagnostics,
+    ProteinMappingStatus,
 )
-from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
-from phospy.workflows.differential.models import (
-    DifferentialFeatureEligibilityInputs,
-    InterpretedDifferentialAnalysisRequest,
-    ProteinAwareDifferentialResolvedInputs,
+from phospy.provenance.hashing import (
+    fingerprint_optional_table_strict,
+    fingerprint_table_strict,
 )
-from phospy.workflows.differential.protein_aware_inputs import (
-    ProteinAwareDifferentialInputResolver,
-)
-from phospy.workflows.differential.provenance import (
-    build_protein_aware_policy_provenance,
-)
-from phospy.workflows.differential.result_assembly import DifferentialResultAssembler
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from phospy.provenance.models import EnvironmentProvenance
+from phospy.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.references.provenance.context import ReferenceContext
+from phospy.references.provenance.models import ReferenceProvenance
+from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

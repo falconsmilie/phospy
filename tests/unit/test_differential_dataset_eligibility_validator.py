@@ -3,19 +3,21 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
-from phospy.api import Organism
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    Organism,
+)
+from phospy.differential.validation.dataset import (
+    DifferentialDatasetEligibilityValidator,
+)
 from phospy.errors import WorkflowValidationError
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
-)
-from phospy.validation.workflows.differential import (
-    DifferentialDatasetEligibilityValidator,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

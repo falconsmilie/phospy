@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
+from phospy.activities.semantics import ActivityInputMatrix
+from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SSGSEA_STATUS_COMPUTED,
     SsgseaSubstrateEnrichmentActivityMethod,
 )
-from phospy.science.activities.semantics import ActivityInputMatrix
 from tests.support.performance_contracts import (
     SSGSEA_ACTIVITY_CONTRACT_N_KINASES,
     SSGSEA_ACTIVITY_CONTRACT_N_PROFILES,

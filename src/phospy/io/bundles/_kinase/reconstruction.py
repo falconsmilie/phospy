@@ -10,23 +10,18 @@ from typing import NoReturn, TypeGuard, cast
 
 import pandas as pd
 
-from phospy.contracts.kinase_reference_projection import (
-    KinaseReferenceProjectionSummary,
+from phospy.activities.semantics import (
+    ActivityInputSemantics,
+    ActivityProfileAxis,
+    ActivityProfileMetadata,
+    ActivityQuantitativeSemantics,
 )
-from phospy.contracts.result_caveats import result_caveats_from_payloads
-from phospy.contracts.results import (
-    KinaseWorkflowAttritionProvenance,
-    KinaseWorkflowCaveat,
-    KinaseWorkflowResult,
-    ResultCaveat,
-)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
-)
 from phospy.io.bundles._shared.organisms import (
     parse_optional_organism,
     parse_required_organism,
@@ -46,26 +41,34 @@ from phospy.io.bundles._shared.tables import (
 from phospy.io.bundles._shared.trusted_dataset_assertions import (
     build_bundle_reconstruction_assertions,
 )
-from phospy.provenance.models import RunProvenance
-from phospy.provenance.serialization import from_payload as provenance_from_payload
-from phospy.science.activities.membership import ActivityMembershipSelection
-from phospy.science.activities.models import (
+from phospy.kinase.activity.membership import ActivityMembershipSelection
+from phospy.kinase.activity.models import (
     KSEA_ZSCORE_ACTIVITY_METHOD,
     ActivityMethodMetadata,
     ActivityMethodSummary,
-    KinaseActivityResult,
 )
-from phospy.science.activities.semantics import (
-    ActivityInputSemantics,
-    ActivityProfileAxis,
-    ActivityProfileMetadata,
-    ActivityQuantitativeSemantics,
+from phospy.kinase.activity.results import KinaseActivityResult
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.references.projection_contracts import (
+    KinaseReferenceProjectionSummary,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.processing_state import DatasetProcessingState
-from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.science.references.models import Organism, ReferenceBundle
-from phospy.science.transformations.models import IntensityScaleState
+from phospy.kinase.results import (
+    KinaseWorkflowAttritionProvenance,
+    KinaseWorkflowCaveat,
+    KinaseWorkflowResult,
+)
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.provenance.result_caveats import ResultCaveat, result_caveats_from_payloads
+from phospy.quantitative.models import IntensityScaleState
+from phospy.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+)
+from phospy.references.models import ReferenceBundle
+from phospy.run_lineage.models import (
+    RunProvenance,
+)
+from phospy.run_lineage.serialization import from_payload as provenance_from_payload
+from phospy.taxonomy.organisms import Organism
 
 _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
     "Legacy kinase bundle schemas are no longer supported. Regenerate the bundle "

@@ -6,22 +6,24 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.contracts.configs import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
+from phospy.datasets.construction.preprocessing import DatasetPreprocessor
+from phospy.errors.input import PhosPyInputError
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.preprocessing.contracts.configuration import (
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.references.models import Organism
+from phospy.taxonomy import Organism
 
 
 def _phospho() -> pd.DataFrame:
@@ -534,7 +536,9 @@ def test_total_correction_provenance_records_identity_policy() -> None:
             ),
         ),
     )
-    from phospy.api.requests import DatasetBuildRequest
+    from phospy.api import (
+        DatasetBuildRequest,
+    )
 
     interpreted = DatasetBuildRequestInterpreter().run(
         DatasetBuildRequest(

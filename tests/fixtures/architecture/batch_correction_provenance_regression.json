@@ -1,0 +1,104 @@
+{
+  "schema": "phospy-batch-correction-provenance-regression-v1",
+  "capture_harness": "tools/architecture/capture_batch_correction_regression.py",
+  "runtime": {
+    "python": "3.11.15",
+    "numpy": "2.2.6",
+    "pandas": "2.2.3",
+    "scipy": "1.15.2",
+    "scikit-learn": "1.6.1"
+  },
+  "cases_sha256": "8426feab0e287fad266ed7a09746e5edf5dc2f7687752539c8604de6bfe24326",
+  "direct_payload_ordered_fields": [
+    "schema_version",
+    "requested_method",
+    "resolved_parameters",
+    "preprocessing_stage_order",
+    "control_site_source",
+    "selected_site_key_rows",
+    "batch_metadata",
+    "replicate_metadata",
+    "design_metadata",
+    "missing_value_policy",
+    "observation_masks",
+    "input_matrix_fingerprint",
+    "output_matrix_fingerprint",
+    "diagnostics",
+    "warnings",
+    "rejected_entities",
+    "phospy_version",
+    "python_version",
+    "dependency_versions"
+  ],
+  "direct_payload_omitted_optional_fields": [
+    "imputation_policy"
+  ],
+  "direct_payloads": {
+    "sps_ruv_style": {
+      "byte_length": 43639,
+      "sha256": "f739ebbee21713691184d07bcb34f8ec99cf60f7af9825f8eb61010c607c7301",
+      "schema_version": 1,
+      "requested_method": "sps_ruv_style",
+      "control_source_type": "caller_supplied",
+      "phospy_version": "1.7.6",
+      "python_version": "controlled-regression-runtime",
+      "input_exact_hash": "815f67d1e9b8623e80674e13cbcb45b25341fe127573c8a1d99da0951e4cc081",
+      "input_tolerance_hash": "b99fa4310c60101523d41b919d00868c3e81967586c36c6bf7ec5de71982c479",
+      "output_exact_hash": "9f6cf8196a6e81f097b0bd793b1a82e45bd73f143019195db7c30c3d9d9d310c",
+      "output_tolerance_hash": "996f531d587292f0e79b060c9343ffa21c055f01da1e9569df471b0b4ef881dc"
+    },
+    "sps_ruv_style_permuted": {
+      "byte_length": 43625,
+      "sha256": "3881ef1376c1d23e7b1342a6eeb31f6d0bec84e74d6346fd544211eac451b5ae",
+      "schema_version": 1,
+      "requested_method": "sps_ruv_style",
+      "control_source_type": "caller_supplied",
+      "phospy_version": "1.7.6",
+      "python_version": "controlled-regression-runtime",
+      "input_exact_hash": "691615507bdf9f30d456d523dd8a95071e8013e02902d27a78fd65d21011873f",
+      "input_tolerance_hash": "94a1316ddfaa2c27b818bab16db7c87ab62b882de20fc9f082868b0c1910fc3d",
+      "output_exact_hash": "567abba56ab824962401a56aeb4a86676aa34156c926ee70ef55cf167bb4a79d",
+      "output_tolerance_hash": "352d743c25fe53ebe2bc3836be87b777e1cc1a9de723910e0eef494772835039"
+    },
+    "ruv_iii_style": {
+      "byte_length": 63303,
+      "sha256": "02f3d24229105c495eb341bd01569ddb390c8016e60f8a61cb5277960e75fff6",
+      "schema_version": 1,
+      "requested_method": "ruv_iii_style",
+      "control_source_type": "caller_supplied",
+      "phospy_version": "1.7.6",
+      "python_version": "controlled-regression-runtime",
+      "input_exact_hash": "b4852c6df96c3961b4a04d508201b8b5733d4965ef40d99fc5b19acf2e31bf71",
+      "input_tolerance_hash": "56cb699979cb2406983296a785583554d0951bfb9b2b59c5973ac08a66a6916b",
+      "output_exact_hash": "921bc5a5c5cc186ba201cf94d825fc40196fc1c6a782e8600b3b86276e29cf17",
+      "output_tolerance_hash": "3d9ec9a2e34b7cfab129c015470ac860ac5ca8384c473496f5b7e59d93aa2614"
+    }
+  },
+  "nested_run_provenance": {
+    "byte_length": 47618,
+    "sha256": "0238b483aea3b5d3afd30ffe5f0df8b9b5284bf578e5c2f21b526a01bcf16574",
+    "ordered_fields": [
+      "environment",
+      "input_tables",
+      "preprocessing_stages",
+      "reference",
+      "reference_context",
+      "workflow_name",
+      "workflow_parameters",
+      "random_state",
+      "random_seed_policy",
+      "output_tables",
+      "scientific_policies"
+    ],
+    "workflow_name": "batch_correction_regression",
+    "environment_package_name": "phospy",
+    "environment_package_version": "1.7.6",
+    "stage": "batch_correction",
+    "operation": "sps_ruv_style",
+    "nested_requested_method": "sps_ruv_style",
+    "input_exact_hash": "815f67d1e9b8623e80674e13cbcb45b25341fe127573c8a1d99da0951e4cc081",
+    "output_exact_hash": "9f6cf8196a6e81f097b0bd793b1a82e45bd73f143019195db7c30c3d9d9d310c",
+    "stage_input_hash": "815f67d1e9b8623e80674e13cbcb45b25341fe127573c8a1d99da0951e4cc081",
+    "stage_output_hash": "9f6cf8196a6e81f097b0bd793b1a82e45bd73f143019195db7c30c3d9d9d310c"
+  }
+}

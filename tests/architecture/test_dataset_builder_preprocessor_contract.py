@@ -6,7 +6,7 @@ from pathlib import Path
 import phospy.api as public_api
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-BUILDER_ROOT = PROJECT_ROOT / "src" / "phospy" / "science" / "datasets" / "builders"
+BUILDER_ROOT = PROJECT_ROOT / "src" / "phospy" / "datasets" / "construction"
 EXECUTOR = BUILDER_ROOT / "executor.py"
 
 _PREPROCESSOR_RUN_KEYWORDS = {

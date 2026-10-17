@@ -111,7 +111,13 @@ RAW_PUBLIC_BANS: tuple[PhraseRule, ...] = (
 
 
 def _public_doc_paths() -> tuple[Path, ...]:
-    return (README, *sorted(DOCS_ROOT.rglob("*.md")))
+    local_refactor_docs = DOCS_ROOT / "refactor"
+    docs = [
+        path
+        for path in DOCS_ROOT.rglob("*.md")
+        if not path.is_relative_to(local_refactor_docs)
+    ]
+    return (README, *sorted(docs))
 
 
 def _public_python_paths() -> tuple[Path, ...]:

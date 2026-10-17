@@ -1,0 +1,439 @@
+"""Internal interpreter for signalome workflow requests."""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.pandas_typing import (
+    dataframe_column,
+    dataframe_copy,
+    dataframe_loc,
+    dataframe_reindex,
+    index_as_strings,
+    index_snapshot,
+    series_as_strings,
+)
+from phospy.provenance.row_attrition import make_row_attrition_record
+from phospy.signalome.alignment_diagnostics import (
+    SignalomeAlignmentDiagnosticsBuilder,
+)
+from phospy.signalome.boundary_errors import (
+    raise_signalome_boundary_error,
+)
+from phospy.signalome.clustering.policies import (
+    resolve_candidate_scoring_policy_definition,
+)
+from phospy.signalome.config import (
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
+)
+from phospy.signalome.constants import (
+    SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
+)
+from phospy.signalome.contracts import (
+    ResolvedSignalomeExecutionConfig,
+    ResolvedSignalomeWorkflowRequest,
+    ValidatedSignalomeWorkflowRequest,
+)
+from phospy.signalome.matrix_alignment import SignalomeMatrixAligner
+from phospy.signalome.protein_resolution import SignalomeProteinResolver
+from phospy.signalome.requests import SignalomeWorkflowRequest
+from phospy.signalome.scientific_policies import (
+    resolve_score_preconditioning_policy,
+)
+from phospy.signalome.score_matrix_selection import (
+    SignalomeScoreMatrixSelector,
+)
+from phospy.signalome.score_preconditioning import (
+    SignalomeScorePreconditioner,
+)
+from phospy.signalome.validator import (
+    _unchecked_signalome_workflow_request_boundary,  # pyright: ignore[reportPrivateUsage] - Interpreter keeps a legacy internal test seam while ordinary workflow runs receive the validator-produced boundary.
+)
+
+_SITE_KEY_COLUMN = "site_key"
+
+
+class SignalomeWorkflowInterpreter:
+    """Resolve a validated signalome request into execution-ready inputs."""
+
+    def __init__(
+        self,
+        *,
+        score_matrix_selector: SignalomeScoreMatrixSelector | None = None,
+        matrix_aligner: SignalomeMatrixAligner | None = None,
+        score_preconditioner: SignalomeScorePreconditioner | None = None,
+        protein_resolver: SignalomeProteinResolver | None = None,
+        alignment_diagnostics_builder: (
+            SignalomeAlignmentDiagnosticsBuilder | None
+        ) = None,
+    ) -> None:
+        self._score_matrix_selector = (
+            score_matrix_selector or SignalomeScoreMatrixSelector()
+        )
+        self._matrix_aligner = matrix_aligner or SignalomeMatrixAligner()
+        self._score_preconditioner = (
+            score_preconditioner or SignalomeScorePreconditioner()
+        )
+        self._protein_resolver = protein_resolver or SignalomeProteinResolver()
+        self._alignment_diagnostics_builder = (
+            alignment_diagnostics_builder or SignalomeAlignmentDiagnosticsBuilder()
+        )
+
+    def run(
+        self, request: SignalomeWorkflowRequest | ValidatedSignalomeWorkflowRequest
+    ) -> ResolvedSignalomeWorkflowRequest:
+        if not isinstance(request, ValidatedSignalomeWorkflowRequest):
+            request = _unchecked_signalome_workflow_request_boundary(request)
+        public_request = request.request
+        dataset_view = request.dataset_view
+        dataset = public_request.kinase_result.dataset
+        dataset_phospho = dataset_view.phospho
+        dataset_site_metadata = dataset_view.site_metadata
+        dataset_sites = pd.Index(
+            index_as_strings(dataset_phospho.index),
+            name=dataset_phospho.index.name,
+        )
+        prediction_result = public_request.kinase_result.prediction_result
+        prediction_matrix_input = (
+            prediction_result.pred_mat
+            if request.prediction_matrix is None
+            else request.prediction_matrix
+        )
+        score_selection = self._score_matrix_selector.run(
+            public_request.kinase_result.scoring_result,
+            authoritative_score_matrix=request.authoritative_score_matrix,
+        )
+        aligned_matrices = self._matrix_aligner.run(
+            dataset_sites=dataset_sites,
+            prediction_matrix=prediction_matrix_input,
+            downstream_score_matrix=score_selection.downstream_score_matrix,
+            downstream_score_source=score_selection.downstream_score_source,
+        )
+        execution_config = self._resolve_execution_config(public_request)
+        preconditioning_result = self._score_preconditioner.run(
+            score_matrix=aligned_matrices.aligned_downstream_score_matrix,
+            policy=execution_config.score_preconditioning_policy,
+        )
+        if preconditioning_result.downstream_score_matrix.empty:
+            raise_signalome_boundary_error(
+                seam=SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
+                next_action=(
+                    "ensure upstream downstream scores retain at least one "
+                    "interpretable site after score preconditioning"
+                ),
+                aligned_score_sites=int(
+                    aligned_matrices.aligned_downstream_score_matrix.shape[0]
+                ),
+                aligned_score_kinases=int(
+                    aligned_matrices.aligned_downstream_score_matrix.shape[1]
+                ),
+                dropped_all_missing_row_count=(
+                    preconditioning_result.diagnostics.dropped_all_missing_row_count
+                ),
+                retained_row_count=preconditioning_result.diagnostics.retained_row_count,
+                score_preconditioning_policy=execution_config.score_preconditioning_policy,
+            )
+        retained_site_index = preconditioning_result.downstream_score_matrix.index
+        retained_prediction_matrix = dataframe_loc(
+            aligned_matrices.aligned_prediction_matrix,
+            rows=retained_site_index,
+        )
+        (
+            aligned_site_key_index,
+            retained_site_key_index,
+        ) = _resolve_site_key_indexes(
+            site_metadata=dataset_site_metadata,
+            aligned_site_index=aligned_matrices.aligned_site_index,
+            retained_site_index=retained_site_index,
+        )
+        row_attrition_records = tuple(
+            record
+            for record in (
+                make_row_attrition_record(
+                    workflow="signalome",
+                    stage="signalome_site_alignment",
+                    reason="not_shared_across_dataset_prediction_and_downstream_scores",
+                    input_site_ids=dataset_sites,
+                    output_site_ids=aligned_site_key_index,
+                ),
+                make_row_attrition_record(
+                    workflow="signalome",
+                    stage="signalome_score_preconditioning",
+                    reason="sites_removed_by_score_preconditioning",
+                    input_site_ids=aligned_site_key_index,
+                    output_site_ids=retained_site_key_index,
+                ),
+            )
+            if record is not None
+        )
+        prediction_output_index = pd.Index(
+            index_as_strings(retained_site_key_index),
+            name=(
+                prediction_matrix_input.index.name
+                if prediction_matrix_input.index.name is not None
+                else retained_site_key_index.name
+            ),
+        )
+        downstream_output_index = pd.Index(
+            index_as_strings(retained_site_key_index),
+            name=(
+                score_selection.downstream_score_matrix.index.name
+                if score_selection.downstream_score_matrix.index.name is not None
+                else retained_site_key_index.name
+            ),
+        )
+        retained_prediction_matrix = dataframe_copy(
+            retained_prediction_matrix, deep=False
+        )
+        retained_prediction_matrix.index = prediction_output_index
+        downstream_score_matrix = dataframe_copy(
+            preconditioning_result.downstream_score_matrix, deep=False
+        )
+        downstream_score_matrix.index = downstream_output_index
+        site_to_protein_group_id = self._protein_resolver.run(
+            site_metadata=dataset_site_metadata,
+            site_index=retained_site_index,
+            removed_by_score_preconditioning_count=int(
+                aligned_matrices.aligned_site_index.size - retained_site_index.size
+            ),
+        )
+        site_to_protein_group_id.index = index_snapshot(retained_site_key_index)
+        dataset_sites_for_diagnostics = _map_site_index_to_site_keys(
+            site_metadata=dataset_site_metadata,
+            site_index=aligned_matrices.dataset_site_index,
+        )
+        prediction_sites_for_diagnostics = _map_site_index_to_site_keys(
+            site_metadata=dataset_site_metadata,
+            site_index=aligned_matrices.resolved_prediction_matrix.index,
+            allow_unmapped=True,
+        )
+        score_sites_for_diagnostics = _map_site_index_to_site_keys(
+            site_metadata=dataset_site_metadata,
+            site_index=aligned_matrices.resolved_downstream_score_matrix.index,
+            allow_unmapped=True,
+        )
+        shared_sites_for_diagnostics = _map_site_index_to_site_keys(
+            site_metadata=dataset_site_metadata,
+            site_index=aligned_matrices.aligned_site_index,
+        )
+        retained_sites_for_diagnostics = _map_site_index_to_site_keys(
+            site_metadata=dataset_site_metadata,
+            site_index=retained_site_index,
+        )
+        alignment_diagnostics = self._alignment_diagnostics_builder.run(
+            dataset_sites=dataset_sites_for_diagnostics,
+            prediction_sites=prediction_sites_for_diagnostics,
+            score_sites=score_sites_for_diagnostics,
+            shared_sites=shared_sites_for_diagnostics,
+            retained_sites=retained_sites_for_diagnostics,
+            prediction_kinases=aligned_matrices.resolved_prediction_matrix.columns,
+            score_kinases=aligned_matrices.resolved_downstream_score_matrix.columns,
+            shared_kinases=aligned_matrices.aligned_kinase_index,
+            interpreted_protein_sites=aligned_site_key_index,
+            retained_protein_sites=retained_site_key_index,
+        )
+        return ResolvedSignalomeWorkflowRequest(
+            dataset=dataset,
+            dataset_view=dataset_view,
+            kinase_result=public_request.kinase_result,
+            execution_config=execution_config,
+            downstream_score_matrix=downstream_score_matrix,
+            downstream_score_source=score_selection.downstream_score_source,
+            prediction_matrix=retained_prediction_matrix,
+            site_to_protein_group_id=site_to_protein_group_id,
+            score_preconditioning_diagnostics=preconditioning_result.diagnostics,
+            alignment_diagnostics=alignment_diagnostics,
+            downstream_score_selection_policy=(
+                score_selection.downstream_score_selection_policy
+            ),
+            row_attrition_records=row_attrition_records,
+        )
+
+    @staticmethod
+    def _resolve_execution_config(
+        request: SignalomeWorkflowRequest,
+    ) -> ResolvedSignalomeExecutionConfig:
+        return ResolvedSignalomeExecutionConfig(
+            substrate_support_cutoff=float(
+                request.config.scientific.substrate_support_cutoff
+            ),
+            network_correlation_threshold=float(
+                request.config.output.network_correlation_threshold
+            ),
+            network_policy=request.config.output.network_policy,
+            network_min_paired_finite_observations_requested=(
+                None
+                if request.config.output.network_min_paired_finite_observations is None
+                else int(request.config.output.network_min_paired_finite_observations)
+            ),
+            network_min_paired_finite_observations=(
+                SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+                if (
+                    request.config.output.network_min_paired_finite_observations is None
+                )
+                else int(request.config.output.network_min_paired_finite_observations)
+            ),
+            assignment_policy=request.config.scientific.assignment_policy,
+            score_preconditioning_policy=(
+                request.config.validation.score_preconditioning_policy
+            ),
+            allow_mixed_total_protein_quantitative_meaning=bool(
+                request.config.validation.allow_mixed_total_protein_quantitative_meaning
+            ),
+            module_selection_primary_threshold=float(
+                request.config.clustering.module_selection_primary_correlation_threshold
+            ),
+            module_selection_fallback_threshold=float(
+                request.config.clustering.module_selection_fallback_correlation_threshold
+            ),
+            module_selection_max_clusters=int(
+                request.config.clustering.module_selection_max_clusters
+            ),
+            candidate_scoring_policy=request.config.clustering.candidate_scoring_policy,
+            max_exact_tree_sites=int(request.config.performance.max_exact_tree_sites),
+            max_full_candidate_scoring_sites=int(
+                request.config.performance.max_full_candidate_scoring_sites
+            ),
+            requested_module_count=(
+                None
+                if request.config.clustering.module_count is None
+                else int(request.config.clustering.module_count)
+            ),
+            mode=str(request.config.mode),
+            clustering_engine=str(request.config.clustering.clustering_engine),
+            candidate_scoring_policy_definition=(
+                resolve_candidate_scoring_policy_definition(
+                    candidate_scoring_policy=(
+                        request.config.clustering.candidate_scoring_policy
+                    )
+                )
+            ),
+            score_preconditioning_policy_definition=(
+                resolve_score_preconditioning_policy(
+                    policy=str(request.config.validation.score_preconditioning_policy)
+                )
+            ),
+            localisation_requirement=request.config.validation.localisation_requirement,
+            reference_context_compatibility_policy=(
+                request.config.validation.reference_context_compatibility_policy
+            ),
+        )
+
+
+def _resolve_site_key_indexes(
+    *,
+    site_metadata: pd.DataFrame,
+    aligned_site_index: pd.Index,
+    retained_site_index: pd.Index,
+) -> tuple[pd.Index, pd.Index]:
+    if _SITE_KEY_COLUMN not in site_metadata.columns:
+        raise WorkflowBoundaryError(
+            "signalome interpreter requires dataset.site_metadata.site_key"
+        )
+    aligned_metadata = dataframe_reindex(site_metadata, aligned_site_index)
+    aligned_site_key_values = series_as_strings(
+        dataframe_column(aligned_metadata, _SITE_KEY_COLUMN),
+        fill_missing="",
+        strip=True,
+    )
+    if any(site_key == "" for site_key in aligned_site_key_values):
+        raise WorkflowBoundaryError(
+            "signalome interpreter cannot resolve site_key for aligned sites from "
+            "dataset.site_metadata.site_key"
+        )
+    if len(frozenset(aligned_site_key_values)) != len(aligned_site_key_values):
+        raise WorkflowBoundaryError(
+            "signalome interpreter requires unique site_key values across aligned sites"
+        )
+    if aligned_site_key_values != index_as_strings(aligned_site_index):
+        raise WorkflowBoundaryError(
+            "signalome interpreter requires dataset.site_metadata.site_key to "
+            "match aligned site indexes"
+        )
+    aligned_site_key_index = pd.Index(
+        aligned_site_key_values,
+        name=_resolved_index_name_for_site_keys(
+            resolved_site_keys=aligned_site_key_values,
+            source_site_index=aligned_site_index,
+        ),
+    )
+    retained_site_values = set(retained_site_index)
+    retained_site_key_values = [
+        site_key
+        for site_value, site_key in zip(
+            aligned_site_index,
+            aligned_site_key_values,
+            strict=True,
+        )
+        if site_value in retained_site_values
+    ]
+    retained_site_key_index = pd.Index(
+        retained_site_key_values,
+        name=_resolved_index_name_for_site_keys(
+            resolved_site_keys=retained_site_key_values,
+            source_site_index=retained_site_index,
+        ),
+    )
+    return aligned_site_key_index, retained_site_key_index
+
+
+def _map_site_index_to_site_keys(
+    *,
+    site_metadata: pd.DataFrame,
+    site_index: pd.Index,
+    allow_unmapped: bool = False,
+) -> pd.Index:
+    source_index = pd.Index(index_as_strings(site_index), name=site_index.name)
+    if _SITE_KEY_COLUMN not in site_metadata.columns:
+        raise WorkflowBoundaryError(
+            "signalome interpreter requires dataset.site_metadata.site_key"
+        )
+    metadata = dataframe_copy(site_metadata, deep=False)
+    metadata.index = pd.Index(
+        index_as_strings(metadata.index), name=metadata.index.name
+    )
+    site_keys = series_as_strings(
+        dataframe_column(metadata, _SITE_KEY_COLUMN),
+        fill_missing="",
+        strip=True,
+    )
+    mapping = dict(zip(index_as_strings(metadata.index), site_keys, strict=False))
+    mapped: list[str] = []
+    for value in index_as_strings(source_index):
+        resolved = mapping.get(value, "")
+        if resolved == "":
+            if allow_unmapped:
+                mapped.append(value)
+                continue
+            raise WorkflowBoundaryError(
+                "signalome interpreter cannot resolve site_key for diagnostic site "
+                f"index value {value!r}"
+            )
+        mapped.append(resolved)
+    return pd.Index(
+        mapped,
+        name=_resolved_index_name_for_site_keys(
+            resolved_site_keys=mapped,
+            source_site_index=source_index,
+        ),
+    )
+
+
+def _resolved_index_name_for_site_keys(
+    *,
+    resolved_site_keys: list[str],
+    source_site_index: pd.Index,
+) -> str:
+    source_values = index_as_strings(source_site_index)
+    if len(resolved_site_keys) == len(source_values) and all(
+        resolved == source
+        for resolved, source in zip(resolved_site_keys, source_values, strict=True)
+    ):
+        source_name = source_site_index.name
+        if source_name is not None:
+            return str(source_name)
+    return _SITE_KEY_COLUMN
+
+
+__all__ = ["SignalomeWorkflowInterpreter"]

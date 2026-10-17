@@ -128,11 +128,13 @@ replicates, and thresholds for real analyses.
 
 </details>
 
-The main dataset and workflow entry points are available from `phospy`:
+The three curated conveniences are available from `phospy`; all other ordinary
+contracts and workflows come from `phospy.api`:
 
 ```python
 from phospy import AnalysisReadyDatasetBuilder
-from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
+from phospy import KinaseWorkflow, SignalomeWorkflow
+from phospy.api import DifferentialAnalysisWorkflow
 ```
 
 Enrichment is available from `phospy.api`:

@@ -50,7 +50,7 @@ TWINE ?= $(PYTHON) -m twine
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format type-check pre-commit test tests-all test-unit test-contract test-parity test-performance test-release-gates docs-build validate-reference-bundles release-check benchmark-release-scale benchmark-sps test-seams build clean \
-	verify-installed-distributions \
+	verify-installed-distributions verify-distribution-git-blobs repository-hygiene-check architecture-inventory-check architecture-release-source-check architecture-release-check \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-duplicate-correlation-limma fixtures-deqms-depth fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all \
@@ -72,6 +72,11 @@ help:
 	@printf '%s\n' '  make docs-build                    Build documentation with strict link/error checks'
 	@printf '%s\n' '  make validate-reference-bundles    Validate checked-in reference bundle manifests and files'
 	@printf '%s\n' '  make verify-installed-distributions Install and execute the built wheel and sdist outside the checkout'
+	@printf '%s\n' '  make verify-distribution-git-blobs Compare packaged production files with committed Git blobs'
+	@printf '%s\n' '  make repository-hygiene-check       Reject tracked migration archives and generated artifacts'
+	@printf '%s\n' '  make architecture-inventory-check   Verify the generated architecture inventory'
+	@printf '%s\n' '  make architecture-release-source-check Run all source, architecture, scientific, and documentation gates'
+	@printf '%s\n' '  make architecture-release-check     Run source gates plus distribution and installed-consumer checks'
 	@printf '%s\n' '  make release-check                 Run maintainer release check'
 	@printf '%s\n' '  make test                          Run unit, contract, and parity tests'
 	@printf '%s\n' '  make tests-all                     Alias for all-tests'
@@ -154,7 +159,17 @@ validate-reference-bundles: check-tools
 docs-build: check-tools
 	$(MKDOCS) build --strict
 
-release-check: lint type-check test-unit test-contract test-parity test-performance validate-reference-bundles test-release-gates build verify-installed-distributions
+release-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance validate-reference-bundles test-release-gates docs-build build verify-distribution-git-blobs verify-installed-distributions
+
+repository-hygiene-check: check-tools
+	$(PYTHON) scripts/check_repository_hygiene.py --repo-root .
+
+architecture-inventory-check: check-tools
+	$(PYTHON) tools/architecture/generate_architecture_inventory.py --repo-root . --check
+
+architecture-release-source-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance validate-reference-bundles test-release-gates docs-build
+
+architecture-release-check: architecture-release-source-check build verify-distribution-git-blobs verify-installed-distributions
 
 benchmark-release-scale: check-tools
 	$(PYTHON) benchmarks/measure_release_scale_builder_differential.py
@@ -211,6 +226,7 @@ test-seams: check-tools
 fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-duplicate-correlation-limma fixtures-deqms-depth
 
 build: check-tools
+	$(RM_RF) build
 	$(RM_RF) dist
 	$(BUILD)
 	@shopt -s nullglob; wheels=(dist/*.whl); sdists=(dist/*.tar.gz); \
@@ -221,6 +237,9 @@ build: check-tools
 
 verify-installed-distributions: check-tools build
 	$(PYTHON) scripts/verify_installed_distributions.py --dist-dir dist --repo-root . --constraint constraints/ci.txt
+
+verify-distribution-git-blobs: check-tools build
+	$(PYTHON) scripts/verify_distribution_git_blobs.py --repo-root . --revision HEAD dist/*
 
 clean:
 	$(RM_RF) .pytest_cache .ruff_cache build dist .eggs

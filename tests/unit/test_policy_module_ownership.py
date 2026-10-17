@@ -4,49 +4,37 @@ import importlib
 
 import pytest
 
+from phospy.differential.policies import TechnicalReplicatePolicy
 from phospy.errors.input import PhosPyInputError
+from phospy.kinase.policies import ThresholdMode
+from phospy.kinase.result_boundary import DownstreamScoreSource
+from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
 from phospy.policies import PolicyEnum
-from phospy.science.datasets.preprocessing.policy_models import (
+from phospy.preparation_records.policies import (
     MissingDataPolicy,
-    SiteMatrixPolicy,
     TotalProteinCorrectionPolicy,
 )
-from phospy.science.differential.policy_models import TechnicalReplicatePolicy
-from phospy.science.scoring.policy_models import (
-    DownstreamScoreSource,
-    ProfileSelfInclusionPolicy,
-    ThresholdMode,
+from phospy.preprocessing.contracts.policies import (
+    SiteMatrixPolicy,
 )
 
 
-def test_preprocessing_policies_are_owned_by_preprocessing_module() -> None:
+def test_preparation_record_policies_have_direct_owner_identity() -> None:
+    assert MissingDataPolicy.__module__ == "phospy.preparation_records.policies"
+    assert SiteMatrixPolicy.__module__ == "phospy.preprocessing.contracts.policies"
     assert (
-        MissingDataPolicy.__module__
-        == "phospy.science.datasets.preprocessing.policy_models"
-    )
-    assert (
-        SiteMatrixPolicy.__module__
-        == "phospy.science.datasets.preprocessing.policy_models"
-    )
-    assert (
-        TotalProteinCorrectionPolicy.__module__
-        == "phospy.science.datasets.preprocessing.policy_models"
+        TotalProteinCorrectionPolicy.__module__ == "phospy.preparation_records.policies"
     )
 
 
 def test_differential_policy_is_owned_by_differential_module() -> None:
-    assert (
-        TechnicalReplicatePolicy.__module__
-        == "phospy.science.differential.policy_models"
-    )
+    assert TechnicalReplicatePolicy.__module__ == "phospy.differential.policies"
 
 
-def test_scoring_policies_are_owned_by_scoring_module() -> None:
-    assert ThresholdMode.__module__ == "phospy.science.scoring.policy_models"
-    assert DownstreamScoreSource.__module__ == "phospy.science.scoring.policy_models"
-    assert (
-        ProfileSelfInclusionPolicy.__module__ == "phospy.science.scoring.policy_models"
-    )
+def test_scoring_policies_have_their_direct_owner_identity() -> None:
+    assert ThresholdMode.__module__ == "phospy.kinase.policies"
+    assert DownstreamScoreSource.__module__ == "phospy.kinase.result_boundary"
+    assert ProfileSelfInclusionPolicy.__module__ == "phospy.kinase.scoring.policies"
 
 
 def test_policy_base_is_owned_by_policies_infrastructure_module() -> None:

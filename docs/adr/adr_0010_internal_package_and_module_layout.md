@@ -171,7 +171,7 @@ The enforced package rules are:
 
 The current top-level orientation is:
 
-- `api -> contracts, errors, io, science, validation, workflows`
+- `api -> contracts, errors, io, preprocessing, science, validation, workflows`
 - `contracts -> errors, frames, policies, provenance, science`
 - `io -> contracts, errors, provenance, science, validation`
 - `science -> errors, frames, policies, provenance`
@@ -218,48 +218,48 @@ allowed.
 
 ## Affected Modules
 
-- `src/phospy/workflows/kinase/validator.py`
-- `src/phospy/workflows/kinase/interpreter.py`
-- `src/phospy/workflows/kinase/executor.py`
-- `src/phospy/workflows/kinase/provenance.py`
-- `src/phospy/workflows/signalome/validator.py`
-- `src/phospy/workflows/signalome/interpreter.py`
-- `src/phospy/workflows/signalome/executor.py`
-- `src/phospy/workflows/signalome/provenance.py`
+- `src/phospy/kinase/validator.py`
+- `src/phospy/kinase/interpreter.py`
+- `src/phospy/kinase/executor.py`
+- `src/phospy/kinase/provenance.py`
+- `src/phospy/signalome/validator.py`
+- `src/phospy/signalome/interpreter.py`
+- `src/phospy/signalome/executor.py`
+- `src/phospy/signalome/provenance.py`
 - `src/phospy/io/bundles/_signalome/{config,diagnostics,tables}.py`
-- `src/phospy/validation/references/compatibility.py`
-- `src/phospy/science/references/models.py`
-- `src/phospy/science/references/manifest.py`
-- `src/phospy/science/references/manifest_common.py`
-- `src/phospy/science/references/manifest_files.py`
-- `src/phospy/science/references/manifest_model.py`
-- `src/phospy/science/references/manifest_policy.py`
-- `src/phospy/science/references/redistribution.py`
-- `src/phospy/science/transformations/policy.py`
-- `src/phospy/science/transformations/provenance.py`
-- `src/phospy/science/transformations/scale_state.py`
-- `src/phospy/science/transformations/scale_values.py`
-- `src/phospy/science/activities/method_models.py`
-- `src/phospy/science/activities/inputs.py`
-- `src/phospy/science/activities/diagnostics.py`
-- `src/phospy/science/activities/results.py`
-- `src/phospy/science/activities/result_validation.py`
-- `src/phospy/science/datasets/preprocessing/batch_correction.py`
-- `src/phospy/science/datasets/preprocessing/batch_correction_models.py`
-- `src/phospy/science/datasets/preprocessing/batch_correction_engine.py`
-- `src/phospy/science/datasets/preprocessing/batch_correction_provenance.py`
-- `src/phospy/science/datasets/preprocessing/batch_correction_provenance_payloads.py`
-- `src/phospy/science/datasets/preprocessing/batch_correction_provenance_validation.py`
-- `src/phospy/science/references/kinase_library.py`
-- `src/phospy/science/references/kinase_library_models.py`
-- `src/phospy/science/references/kinase_library_loading.py`
-- `src/phospy/science/references/validation/kinase_library.py`
-- `src/phospy/science/datasets/preprocessing/protein_aware_models.py`
-- `src/phospy/science/datasets/preprocessing/stages/protein_aware_preparation.py`
-- `src/phospy/science/evidence/dataset_resolution/models.py`
-- `src/phospy/science/evidence/dataset_resolution/policies.py`
+- `src/phospy/references/compatibility.py`
+- `src/phospy/references/models.py`
+- `src/phospy/references/manifest.py`
+- `src/phospy/references/manifest_common.py`
+- `src/phospy/references/manifest_files.py`
+- `src/phospy/references/manifest_model.py`
+- `src/phospy/references/manifest_policy.py`
+- `src/phospy/references/redistribution.py`
+- `src/phospy/quantitative/policy.py`
+- `src/phospy/quantitative/provenance.py`
+- `src/phospy/quantitative/scale_state.py`
+- `src/phospy/quantitative/scale_values.py`
+- `src/phospy/kinase/activity/models.py`
+- `src/phospy/kinase/activity/inputs.py`
+- `src/phospy/kinase/activity/diagnostics.py`
+- `src/phospy/kinase/activity/results.py`
+- `src/phospy/kinase/activity/result_validation.py`
+- `src/phospy/preprocessing/batch_correction/contracts/configuration.py`
+- `src/phospy/preprocessing/batch_correction/contracts/missingness.py`
+- `src/phospy/preprocessing/batch_correction/execution/linear.py`
+- `src/phospy/preprocessing/batch_correction/execution/stage.py`
+- `src/phospy/preprocessing/batch_correction/provenance/assembly.py`
+- `src/phospy/preprocessing/batch_correction/provenance/validation.py`
+- `src/phospy/kinase/references/projection.py`
+- `src/phospy/kinase/references/models.py`
+- `src/phospy/kinase/references/loading.py`
+- `src/phospy/kinase/references/validation.py`
+- `src/phospy/datasets/protein_aware.py`
+- `src/phospy/preprocessing/stages/protein_aware.py`
+- `src/phospy/evidence/dataset_resolution/models.py`
+- `src/phospy/evidence/dataset_resolution/policies.py`
 - `src/phospy/io/readers/dataset_inputs.py`
-- `src/phospy/workflows/batch_correction/preprocessing_adapter.py`
+- `src/phospy/preprocessing/batch_correction/adapters/preprocessing.py`
 - `tests/architecture/test_package_dependency_dag.py`
 
 ## Scope Boundaries

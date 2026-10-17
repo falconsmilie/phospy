@@ -6,15 +6,17 @@ import pandas as pd
 import pytest
 
 from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction.provenance.validation import (
+    validate_applied_native_sps_ruv_correction_provenance,
+)
 from phospy.provenance import (
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
-    batch_correction_provenance_from_payload,
-    batch_correction_provenance_to_payload,
     fingerprint_matrix,
 )
-from phospy.validation.datasets.batch_correction_provenance import (
-    validate_applied_native_sps_ruv_correction_provenance,
+from phospy.provenance.serialization.batch_correction import (
+    batch_correction_provenance_from_payload,
+    batch_correction_provenance_to_payload,
 )
 
 _COMPLETE_EXTERNAL_DEPENDENCY_VERSIONS = {

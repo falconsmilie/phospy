@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 
 from phospy import (
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
@@ -16,19 +15,18 @@ from phospy.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
     SignalomeConfig,
+    SignalomeOutputConfig,
 )
-from phospy.advanced.configs import SignalomeOutputConfig
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.science.signalomes.science import (
-    build_kinase_network,
-    build_module_assignments,
-)
-from phospy.workflows.kinase.science import build_kinase_profiles
+from phospy.kinase.scoring.profile import build_kinase_profiles
+from phospy.signalome.assignments import build_module_assignments
+from phospy.signalome.network import build_kinase_network
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

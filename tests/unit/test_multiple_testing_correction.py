@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from phospy.science.statistics.multiple_testing import (
+from phospy.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,
     MULTIPLE_TESTING_CORRECTION_BONFERRONI,
@@ -157,3 +157,70 @@ def test_multiple_testing_correction_rejects_storey_q_values() -> None:
         match="multiple-testing correction method must be one of",
     ):
         adjust_p_values((0.1, 0.2), method="storey")
+
+
+@pytest.mark.parametrize(
+    ("method", "expected_finite"),
+    [
+        (MULTIPLE_TESTING_CORRECTION_NONE, (0.05, 0.01, 0.01, 0.2, 0.05)),
+        (
+            MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+            (0.0625, 0.025, 0.025, 0.2, 0.0625),
+        ),
+        (
+            MULTIPLE_TESTING_CORRECTION_BONFERRONI,
+            (0.25, 0.05, 0.05, 1.0, 0.25),
+        ),
+        (
+            MULTIPLE_TESTING_CORRECTION_HOLM,
+            (0.15, 0.05, 0.05, 0.2, 0.15),
+        ),
+        (
+            MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,
+            (
+                0.14270833333333333,
+                0.05708333333333333,
+                0.05708333333333333,
+                0.45666666666666667,
+                0.14270833333333333,
+            ),
+        ),
+    ],
+)
+def test_multiple_testing_ties_and_interleaved_missing_values_are_exact(
+    method: MultipleTestingCorrection,
+    expected_finite: tuple[float, ...],
+) -> None:
+    adjusted = adjust_p_values(
+        (0.05, None, 0.01, np.nan, 0.01, np.inf, 0.2, -np.inf, 0.05),
+        method=method,
+    )
+
+    assert adjusted.dtype == np.dtype(np.float64)
+    assert adjusted.shape == (9,)
+    assert np.isnan(adjusted.take((1, 3, 5, 7))).all()
+    np.testing.assert_allclose(adjusted.take((0, 2, 4, 6, 8)), expected_finite)
+
+
+@pytest.mark.parametrize("method", SUPPORTED_MULTIPLE_TESTING_CORRECTIONS)
+@pytest.mark.parametrize("value", (0.0, 1.0))
+def test_multiple_testing_singleton_boundaries(
+    method: MultipleTestingCorrection,
+    value: float,
+) -> None:
+    adjusted = adjust_p_values((value,), method=method)
+
+    assert adjusted.dtype == np.dtype(np.float64)
+    assert adjusted.shape == (1,)
+    assert adjusted.tolist() == [value]
+
+
+def test_multiple_testing_rejects_non_vector_and_out_of_range_inputs_exactly() -> None:
+    with pytest.raises(ValueError) as two_dimensional:
+        adjust_p_values(np.array([[0.1, 0.2]]), method="none")
+    assert str(two_dimensional.value) == "p_values must be one-dimensional"
+
+    for values in ((-0.01,), (1.01,)):
+        with pytest.raises(ValueError) as out_of_range:
+            adjust_p_values(values, method="none")
+        assert str(out_of_range.value) == "p_values must be within [0.0, 1.0]"

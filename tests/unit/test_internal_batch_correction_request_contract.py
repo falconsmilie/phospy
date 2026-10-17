@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHODS
-from phospy.contracts.configs.preprocessing import (
+from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction.contracts import (
     InternalBatchCorrectionControlSiteMode,
     InternalBatchCorrectionControlSiteSource,
     InternalBatchCorrectionImputationPolicy,
@@ -14,7 +14,9 @@ from phospy.contracts.configs.preprocessing import (
     InternalBatchCorrectionRequest,
     InternalBatchCorrectionStageOrder,
 )
-from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction.contracts.configuration import (
+    DATASET_BATCH_CORRECTION_METHODS,
+)
 
 
 def test_internal_batch_correction_request_accepts_typed_enum_values() -> None:

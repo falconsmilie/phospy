@@ -13,8 +13,18 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
 )
-from phospy._deprecations import PhosPyDeprecationWarning
+from phospy.activities.contracts import (
+    ResolvedMethodQuantitativeInputContract,
+)
+from phospy.activities.semantics import (
+    ActivityAggregationMetadata,
+    ActivityAggregationRecord,
+    ActivityInputMatrix,
+    ActivityProfileAxis,
+    ActivityQuantitativeSemantics,
+)
 from phospy.advanced import (
+    DatasetBatchCorrectionConfig,
     DatasetIntensityTransformConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
@@ -30,13 +40,6 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import (
-    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
-    KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
-    KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
-    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
-)
-from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
@@ -44,9 +47,16 @@ from phospy.io.bundles.kinase import (
     load_kinase_workflow_bundle,
     save_kinase_workflow_bundle,
 )
-from phospy.provenance.hashing import fingerprint_table_normalized_axes
-from phospy.provenance.models import RunProvenance
-from phospy.science.activities.membership import (
+from phospy.kinase.activity.config import (
+    KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+    KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+)
+from phospy.kinase.activity.contracts import (
+    kinase_activity_method_quantitative_input_contract,
+)
+from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.kinase.activity.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_FIXED_EXTERNAL_REFERENCE,
     KSEA_MEMBERSHIP_ELIGIBLE_REASON,
     KSEA_MEMBERSHIP_INDEPENDENCE_POLICY_FIXED_EXTERNAL_REFERENCE,
@@ -57,29 +67,24 @@ from phospy.science.activities.membership import (
     fingerprint_ksea_tested_quantitative_matrix,
     selected_substrate_universe_from_prediction_matrix,
 )
-from phospy.science.activities.method_contracts import (
-    kinase_activity_method_quantitative_input_contract,
-)
-from phospy.science.activities.methods import (
-    KseaZScoreActivityMethod,
-    SimplifiedWeightedSubstrateActivityMethod,
+from phospy.kinase.activity.methods.ksea_zscore import KseaZScoreActivityMethod
+from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SsgseaSubstrateEnrichmentActivityMethod,
 )
-from phospy.science.activities.models import (
-    KinaseActivityInputs,
-    KinaseActivityResult,
-    PredMatOverlapSummary,
+from phospy.kinase.activity.methods.weighted_substrate_activity import (
+    SimplifiedWeightedSubstrateActivityMethod,
 )
-from phospy.science.activities.semantics import (
-    ActivityAggregationMetadata,
-    ActivityAggregationRecord,
-    ActivityInputMatrix,
-    ActivityProfileAxis,
-    ActivityQuantitativeSemantics,
+from phospy.kinase.activity.results import KinaseActivityResult
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.preprocessing.contracts.configuration import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
-from phospy.science.quantitative_method_contracts import (
-    ResolvedMethodQuantitativeInputContract,
+from phospy.provenance.hashing import fingerprint_table_normalized_axes
+from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.provenance.serialization.batch_correction import (
+    batch_correction_provenance_to_payload,
 )
+from phospy.run_lineage.models import RunProvenance
 from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = pytest.mark.integration
@@ -257,26 +262,42 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     assert loaded.result.dataset.trusted_construction_assertions.all_required_assertions_present
     _assert_kinase_result_equal(loaded.result, result)
     assert loaded.result.activity_result is not None
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="KinaseActivityResult.activity_scores.*activity_matrix",
-    ):
-        # phospy-deprecation-compat: activities.result.activity_scores
-        activity_scores = loaded.result.activity_result.activity_scores
-    pd.testing.assert_frame_equal(
-        activity_scores,
-        loaded.result.activity_result.activity_matrix,
+
+
+def test_kinase_bundle_round_trip_preserves_batch_correction_provenance(
+    tmp_path: Path,
+) -> None:
+    request = _build_correction_bearing_request()
+    result = KinaseWorkflow().run(request)
+    expected = _batch_correction_record(result.provenance)
+    bundle_root = tmp_path / "kinase_bundle_batch_correction"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
     )
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="KinaseActivityResult.weighted_activity.*activity_matrix",
-    ):
-        # phospy-deprecation-compat: activities.result.weighted_activity
-        weighted_activity = loaded.result.activity_result.weighted_activity
-    pd.testing.assert_frame_equal(
-        weighted_activity,
-        loaded.result.activity_result.activity_matrix,
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    actual = _batch_correction_record(loaded.result.provenance)
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    stored_stage = next(
+        stage
+        for stage in manifest["provenance"]["preprocessing_stages"]
+        if stage["stage"] == "batch_correction"
     )
+
+    assert actual.__class__ is BatchCorrectionProvenance
+    assert actual.__class__ is expected.__class__
+    assert batch_correction_provenance_to_payload(actual) == (
+        batch_correction_provenance_to_payload(expected)
+    )
+    assert stored_stage["batch_correction_provenance"] == (
+        batch_correction_provenance_to_payload(expected)
+    )
+    assert actual.requested_method == "linear_residualize_batch"
+    assert actual.input_matrix_fingerprint.name == "batch_correction.native.input"
+    assert actual.output_matrix_fingerprint is not None
+    assert "batch_correction" not in manifest["dataset"]["metadata"]["processing_state"]
 
 
 def test_kinase_bundle_round_trip_preserves_reference_projection_summary(
@@ -789,20 +810,6 @@ def test_kinase_bundle_round_trip_preserves_exact_activity_semantics(
         activity_config=_activity_config_for_method(method),
     )
     bundle_root = tmp_path / f"kinase_bundle_{case['name']}"
-    if activity_result.statistics_table is not None:
-        with pytest.warns(
-            PhosPyDeprecationWarning,
-            match="does not establish a biological condition contract",
-        ):
-            legacy_statistics = (
-                # phospy-deprecation-compat: activities.result.legacy_condition_statistics_table
-                activity_result.legacy_condition_statistics_table_dataframe()
-            )
-        assert legacy_statistics is not None
-        assert legacy_statistics["condition"].tolist() == (
-            legacy_statistics["profile_id"].tolist()
-        )
-
     save_kinase_workflow_bundle(
         result,
         bundle_root,
@@ -2609,6 +2616,55 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
             else None
         ),
     )
+
+
+def _build_correction_bearing_request() -> KinaseWorkflowRequest:
+    request = _build_request(activity=False)
+    source = request.dataset
+    first = source.phospho.iloc[:, 0]
+    second = source.phospho.iloc[:, 1]
+    phospho = pd.DataFrame(
+        {
+            "sample_1": first,
+            "sample_2": second,
+            "sample_3": first + 0.2,
+            "sample_4": second + 0.2,
+        },
+        index=source.phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {
+            "group": ("a", "b", "a", "b"),
+            "batch": ("run_1", "run_1", "run_2", "run_2"),
+            "condition": ("a", "b", "a", "b"),
+        },
+        index=phospho.columns.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=source.site_metadata,
+            sample_metadata=sample_metadata,
+            organism=source.organism,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=DatasetBatchCorrectionConfig(
+                    method="linear_residualize_batch"
+                )
+            ),
+        )
+    )
+    return replace(request, dataset=dataset)
+
+
+def _batch_correction_record(provenance: RunProvenance) -> BatchCorrectionProvenance:
+    records = tuple(
+        stage.batch_correction_provenance
+        for stage in provenance.preprocessing_stages
+        if stage.batch_correction_provenance is not None
+    )
+    assert len(records) == 1
+    return records[0]
 
 
 def _references_with_unmatched_projection(

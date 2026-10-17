@@ -21,7 +21,7 @@ fallback semantics in ways that are difficult for users to audit.
 
 `missing_data.policy="impute_knn"` remains a custom deterministic preprocessing
 implementation owned by
-`src/phospy/science/datasets/preprocessing/stages/missing_data/knn.py`.
+`src/phospy/preprocessing/stages/missing_data/knn.py`.
 
 The implementation must document and preserve these semantics:
 

@@ -7,11 +7,10 @@ import pytest
 def test_duplicate_correlation_scientific_contracts_are_not_public_exports() -> None:
     import phospy
     import phospy.advanced as advanced_api
+    import phospy.api as api_configs
     import phospy.api as public_api
-    import phospy.api.configs as api_configs
-    import phospy.contracts.configs as contract_configs
-    import phospy.contracts.results as contract_results
-    import phospy.science.differential.models as differential_models
+    import phospy.differential.models as differential_models
+    import phospy.differential.policies as differential_policies
 
     duplicate_correlation_symbols = {
         "DUPLICATE_CORRELATION_METHOD_REML_FISHER_TRIMMED_MEAN",
@@ -29,15 +28,16 @@ def test_duplicate_correlation_scientific_contracts_are_not_public_exports() -> 
         public_api,
         advanced_api,
         api_configs,
-        contract_configs,
-        contract_results,
         differential_models,
     )
 
-    assert contract_configs.PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION == (
+    assert differential_policies.PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION == (
         "duplicate_correlation"
     )
-    assert "duplicate_correlation" in contract_configs.SUPPORTED_PAIRED_DESIGN_POLICIES
+    assert (
+        "duplicate_correlation"
+        in differential_policies.SUPPORTED_PAIRED_DESIGN_POLICIES
+    )
     for module in public_modules:
         exported_names = set(getattr(module, "__all__", ()))
         assert duplicate_correlation_symbols.isdisjoint(exported_names)
@@ -50,15 +50,15 @@ def test_duplicate_correlation_scientific_contracts_are_not_public_exports() -> 
 def test_duplicate_correlation_execution_design_cannot_mix_fixed_block_columns() -> (
     None
 ):
-    from phospy.contracts.configs import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
-    from phospy.errors import WorkflowBoundaryError
-    from phospy.science.differential.linear_model import decompose_differential_design
-    from phospy.science.differential.models import ContrastMatrix, DesignMatrix
-    from phospy.workflows.differential.models import (
+    from phospy.differential.execution.linear_model import decompose_differential_design
+    from phospy.differential.models.design import ContrastMatrix, DesignMatrix
+    from phospy.differential.planning.models import (
         DifferentialBlockColumnMetadata,
         DifferentialConditionContrastVector,
         DifferentialExecutionDesignInputs,
     )
+    from phospy.differential.policies import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+    from phospy.errors import WorkflowBoundaryError
 
     sample_order = ("A_1", "B_1", "A_2", "B_2")
     design_frame = pd.DataFrame(

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
-from phospy.science.references.kinase_library_loading import (
+from phospy.kinase.references.loading import (
     KinaseLibraryResourceLoader as _KinaseLibraryResourceLoader,
 )
-from phospy.science.references.kinase_library_models import (
+from phospy.kinase.references.models import (
     KinaseLibraryPath,
     KinaseLibraryResource,
     KinaseLibraryResourceLoadRequest,
 )
+from phospy.references.acquisition import ReferenceSourceTableReader
 
 
 class KinaseLibraryResourceLoader(_KinaseLibraryResourceLoader):

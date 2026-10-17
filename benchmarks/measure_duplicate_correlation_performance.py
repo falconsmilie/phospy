@@ -27,10 +27,10 @@ if str(ROOT) not in sys.path:
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from phospy.science.differential.compound_symmetry_gls import (
+from phospy.differential.execution.compound_symmetry_gls import (
     fit_duplicate_correlation_gls,
 )
-from phospy.science.differential.duplicate_correlation import (
+from phospy.differential.execution.duplicate_correlation import (
     estimate_duplicate_correlation_reml_consensus,
 )
 

@@ -5,13 +5,13 @@ from typing import cast
 import pandas as pd
 import pytest
 
-from phospy.contracts.configs import (
+from phospy.kinase.scoring.config import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
     KinaseSiteSequenceConflictPolicy,
 )
-from phospy.workflows.kinase.site_sequence_support import (
+from phospy.kinase.site_sequence_support import (
     KinaseSiteSequenceConflictError,
     KinaseSiteSequenceSupportBuilder,
 )

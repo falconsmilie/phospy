@@ -304,9 +304,8 @@ does not establish biological absence.
 
 When activity is enabled, `activity_result.activity_matrix` is the primary
 activity matrix for user code.
-<!-- phospy-deprecation-compat: activities.result.activity_scores activities.result.weighted_activity -->
-`activity_scores` and `weighted_activity` are compatibility aliases and are not
-preferred.
+The former `activity_scores` and `weighted_activity` aliases were removed by
+ADR-0054. Use `activity_matrix` exclusively.
 
 | Attribute | Availability | Meaning |
 | --- | --- | --- |

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import importlib
+
 import pytest
 
 import phospy
 import phospy.api as public_api
-import phospy.validation.datasets as dataset_validation
 
 DATASET_VALIDATOR_EXPORT_NAMES = frozenset(
     {
@@ -69,27 +70,19 @@ def test_phospy_api_all_contains_no_validator_implementations() -> None:
     assert dataset_validation_exports == []
 
 
-def test_dataset_validation_package_does_not_advertise_public_exports() -> None:
-    wildcard_namespace: dict[str, object] = {}
-
-    exec("from phospy.validation.datasets import *", wildcard_namespace)
-
-    assert dataset_validation.__all__ == []
-    assert DATASET_VALIDATOR_EXPORT_NAMES.isdisjoint(wildcard_namespace)
-    assert all(
-        not name.endswith("Validator")
-        for name in wildcard_namespace
-        if not name.startswith("__")
-    )
+def test_retired_dataset_validation_package_is_absent() -> None:
+    with pytest.raises(ModuleNotFoundError) as exc_info:
+        importlib.import_module("phospy.validation.datasets")
+    assert exc_info.value.name == "phospy.validation.datasets"
 
 
-def test_internal_dataset_validation_submodule_imports_still_work() -> None:
-    from phospy.validation.datasets import site_metadata
-    from phospy.validation.datasets.analysis_ready import (
+def test_internal_validation_and_evidence_owner_imports_still_work() -> None:
+    from phospy.datasets.validation.model_boundary import (
         AnalysisReadyDatasetModelBoundaryValidator,
     )
+    from phospy.evidence import site_metadata
 
-    assert site_metadata.__name__ == "phospy.validation.datasets.site_metadata"
+    assert site_metadata.__name__ == "phospy.evidence.site_metadata"
     assert AnalysisReadyDatasetModelBoundaryValidator.__name__ == (
         "AnalysisReadyDatasetModelBoundaryValidator"
     )

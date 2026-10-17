@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from phospy.io.readers.fragpipe.constants import _DEFAULT_INTENSITY_PREFIXES
-from phospy.science.differential.models import QuantificationDepthKind
-from phospy.validation.datasets.fragpipe import (
+from phospy.evidence.quantification_depth import QuantificationDepthKind
+from phospy.io.importers.fragpipe_validation import (
     FRAGPIPE_FLAG_POLICY_REMOVE,
     FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE,
 )
+from phospy.io.readers.fragpipe.constants import _DEFAULT_INTENSITY_PREFIXES
 
 
 @dataclass(frozen=True, slots=True)

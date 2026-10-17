@@ -22,12 +22,14 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.differential.models import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
+from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
+from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

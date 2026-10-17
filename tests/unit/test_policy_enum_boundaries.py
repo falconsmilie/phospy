@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -19,33 +19,35 @@ from phospy.advanced.configs import (
     ReferenceContextCompatibilityPolicy,
     SignalomeValidationConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ContractValidationError
-from phospy.science.activities.threshold_membership import (
+from phospy.kinase.activity.threshold_membership import (
     threshold_membership_mask_array,
 )
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.datasets.preprocessing.policy_models import (
-    ComparisonBuildingPolicy,
-    IntensityTransformPolicy,
+from phospy.kinase.policies import ThresholdMode
+from phospy.kinase.prediction.candidates import build_candidate_substrate_list
+from phospy.kinase.result_boundary import DownstreamScoreSource
+from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
+from phospy.kinase.scoring.selection import select_downstream_score_matrix
+from phospy.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,
-    SiteMatrixDuplicateSitePolicy,
-    SiteMatrixPolicy,
     SiteSequenceConflictPolicy,
     SiteSequenceResolutionMode,
     TotalProteinCorrectionPolicy,
 )
-from phospy.science.datasets.preprocessing.stage_registry import (
-    resolve_builder_provenance_stage_order,
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.preprocessing.contracts.policies import (
+    ComparisonBuildingPolicy,
+    IntensityTransformPolicy,
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixPolicy,
 )
-from phospy.science.prediction.candidates import build_candidate_substrate_list
-from phospy.science.prediction.scoring import select_downstream_score_matrix
-from phospy.science.scoring.policy_models import (
-    DownstreamScoreSource,
-    ProfileSelfInclusionPolicy,
-    ThresholdMode,
+from phospy.preprocessing.planning.registry import (
+    resolve_builder_provenance_stage_order,
 )
 
 
@@ -217,12 +219,12 @@ def test_stage_registry_serializes_selected_policy_values_as_stable_strings() ->
 
 def test_selected_internal_policy_branches_do_not_compare_raw_string_literals() -> None:
     targets = (
-        "src/phospy/science/datasets/preprocessing/stages/intensity_transform.py",
-        "src/phospy/science/datasets/preprocessing/stages/normalisation.py",
-        "src/phospy/science/datasets/preprocessing/stages/comparisons.py",
-        "src/phospy/science/datasets/preprocessing/stages/site_matrix.py",
-        "src/phospy/science/datasets/preprocessing/stages/site_sequence_resolution.py",
-        "src/phospy/science/datasets/preprocessing/stages/missing_data/minprob.py",
+        "src/phospy/preprocessing/stages/intensity.py",
+        "src/phospy/preprocessing/stages/normalisation.py",
+        "src/phospy/preprocessing/stages/comparisons.py",
+        "src/phospy/preprocessing/stages/site_matrix.py",
+        "src/phospy/preprocessing/stages/sequence.py",
+        "src/phospy/preprocessing/stages/missing_data/minprob.py",
     )
     forbidden_tokens = (
         '== "identity"',

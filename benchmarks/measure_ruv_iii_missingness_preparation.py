@@ -29,17 +29,19 @@ for _path in (ROOT, SRC):
     if str(_path) not in sys.path:
         sys.path.insert(0, str(_path))
 
-from phospy.science.batch_correction.ruv_iii import (
+from phospy.preprocessing.batch_correction.contracts.missingness import (
+    TemporaryImputationMethod,
+)
+from phospy.preprocessing.batch_correction.execution.ruv_iii import (
     RuvIIIKernel,
     RuvIIIReplicateStructure,
 )
-from phospy.science.batch_correction.ruv_iii_executor import (
+from phospy.preprocessing.batch_correction.execution.ruv_iii_executor import (
     _materialize_observation_mask,
     _prepare_matrix,
     _temporary_row_median_completion,
     _validate_actual_vs_governed_missingness,
 )
-from phospy.science.configs.preprocessing import TemporaryImputationMethod
 
 TierName = Literal["small", "representative", "stress"]
 CaseName = Literal["complete", "actual_missing", "upstream_imputed", "mixed"]
@@ -476,9 +478,9 @@ def _git_output(*arguments: str) -> bytes | None:
 
 def _source_provenance() -> dict[str, object]:
     relative_sources = (
-        "src/phospy/science/batch_correction/_missingness_preparation.py",
-        "src/phospy/science/batch_correction/executor.py",
-        "src/phospy/science/batch_correction/ruv_iii_executor.py",
+        "src/phospy/preprocessing/batch_correction/execution/missingness.py",
+        "src/phospy/preprocessing/batch_correction/execution/ruv_iii.py",
+        "src/phospy/preprocessing/batch_correction/execution/ruv_iii_executor.py",
     )
     source_hashes = {
         relative_path: _sha256((ROOT / relative_path).read_bytes())

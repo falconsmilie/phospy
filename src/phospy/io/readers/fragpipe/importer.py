@@ -3,9 +3,15 @@
 
 from __future__ import annotations
 
-from phospy.contracts.requests import PhosphositeImportRequest
-from phospy.contracts.results import PhosphositeImportResult
 from phospy.errors.input import PhosPyInputError
+from phospy.io.importers.contracts import (
+    PhosphositeImportRequest,
+    PhosphositeImportResult,
+)
+from phospy.io.importers.fragpipe_validation import (
+    validate_fragpipe_flag_policy,
+    validate_ptmprophet_position_reference,
+)
 from phospy.io.readers.fragpipe.columns import _resolve_fragpipe_columns
 from phospy.io.readers.fragpipe.constants import (
     _ADAPTED_GENE_SYMBOL_COLUMN,
@@ -29,10 +35,6 @@ from phospy.io.readers.fragpipe.raw import (
 )
 from phospy.io.readers.fragpipe.reporting import _augment_mapped_result
 from phospy.io.readers.importers import MappedPhosphositeTableImporter
-from phospy.validation.datasets.fragpipe import (
-    validate_fragpipe_flag_policy,
-    validate_ptmprophet_position_reference,
-)
 
 
 class FragPipePTMProphetImporter:

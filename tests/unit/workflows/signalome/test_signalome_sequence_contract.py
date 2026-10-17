@@ -5,18 +5,16 @@ import pytest
 
 from phospy.advanced import ReferenceContextCompatibilityPolicy
 from phospy.api import (
+    KinasePredictionResult,
+    KinaseScoringResult,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
-)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowValidationError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

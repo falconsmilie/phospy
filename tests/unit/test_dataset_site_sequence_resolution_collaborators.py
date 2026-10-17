@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.science.datasets.preprocessing.policy_models import (
+from phospy.preparation_records.policies import (
     SiteSequenceConflictPolicy,
 )
-from phospy.science.datasets.preprocessing.site_sequence import (
+from phospy.preprocessing.sequence import (
     SiteSequenceConflictResolver,
     SiteSequenceMetadataUpdater,
 )

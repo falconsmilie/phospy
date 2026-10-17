@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "policy": "Permanent package-condensation classifications",
+  "classifications": [
+    {
+      "classification_id": "dataset-builder-path-reader",
+      "source_path": "src/phospy/datasets/builder.py",
+      "source_module": "phospy.datasets.builder",
+      "target_module": "phospy.io.readers.dataset_inputs",
+      "symbol": "DatasetPathTableReader"
+    },
+    {
+      "classification_id": "dataset-input-source-validation",
+      "source_path": "src/phospy/datasets/construction/input_resolution.py",
+      "source_module": "phospy.datasets.construction.input_resolution",
+      "target_module": "phospy.validation.common.input_sources",
+      "symbol": "validate_dataframe_or_path"
+    },
+    {
+      "classification_id": "dataset-request-source-validation",
+      "source_path": "src/phospy/datasets/validation/inputs.py",
+      "source_module": "phospy.datasets.validation.inputs",
+      "target_module": "phospy.validation.common.input_sources",
+      "symbol": "validate_dataframe_or_path"
+    }
+  ]
+}

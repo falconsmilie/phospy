@@ -6,30 +6,29 @@ from dataclasses import dataclass, field
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.internal_frame_store as internal_frame_store_module
-import phospy.validation.workflows.differential as differential_validation_module
-import phospy.validation.workflows.differential_design_rules as design_rules_module
-import phospy.validation.workflows.quantitative as quantitative_module
-import phospy.workflows.differential.replicates as replicates_module
-import phospy.workflows.differential.validator as validator_module
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.validation.workflows.differential import (
-    DifferentialDatasetEligibilityValidator,
-    ExperimentalDesignContractValidator,
-)
-from phospy.workflows.differential.models import (
+import phospy.datasets._internal.frame_store as internal_frame_store_module
+import phospy.differential.planning.replicates as replicates_module
+import phospy.differential.validation.dataset as differential_validation_module
+import phospy.differential.validation.design as design_rules_module
+import phospy.differential.validation.workflow as validator_module
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.planning.models import (
     DifferentialDatasetEligibilityValidatorContract,
     DifferentialDesignValidatorContract,
     DifferentialTechnicalReplicatePlannerContract,
 )
-from phospy.workflows.differential.reliability import (
-    resolved_minimum_condition_replicates,
-)
-from phospy.workflows.differential.replicates import (
+from phospy.differential.planning.replicates import (
     TechnicalReplicateAggregationPlanner,
 )
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from phospy.differential.validation.dataset import (
+    DifferentialDatasetEligibilityValidator,
+    ExperimentalDesignContractValidator,
+)
+from phospy.differential.validation.reliability import (
+    resolved_minimum_condition_replicates,
+)
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from tests.support.workflow_identity_coherence import (
     build_duplicate_display_differential_request,
 )
@@ -91,7 +90,6 @@ def instrument_differential_dataset_view(
         validator_module,
         differential_validation_module,
         design_rules_module,
-        quantitative_module,
         replicates_module,
     ):
         monkeypatch.setattr(

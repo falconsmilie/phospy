@@ -3,19 +3,24 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
 import pytest
 
+import phospy.datasets._internal.frame_store as internal_frame_store_module
 import phospy.io.bundles._signalome.reconstruction as reconstruction_module
-import phospy.science.datasets.internal_frame_store as internal_frame_store_module
-import phospy.science.signalomes._result_validation as result_validation_module
-import phospy.workflows.signalome.result_assembly as result_assembly_module
-import phospy.workflows.signalome.validator as validator_module
+import phospy.signalome.clustering.backends.exact_python as exact_tree_backend_module
+import phospy.signalome.clustering.backends.scipy_hierarchical as scipy_tree_backend_module
+import phospy.signalome.clustering.orchestration as clustering_orchestration_module
+import phospy.signalome.clustering.tree_building as tree_building_module
+import phospy.signalome.result_assembly as result_assembly_module
+import phospy.signalome.result_validation as result_validation_module
+import phospy.signalome.validator as validator_module
 from phospy import KinaseWorkflow
 from phospy.advanced import (
     KinasePredictionConfig,
@@ -23,37 +28,48 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinasePredictionResult, KinaseScoringResult
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.signalome import (
     SignalomeWorkflowConfigSnapshot,
     load_signalome_workflow_bundle,
     save_signalome_workflow_bundle,
 )
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.signalomes.constants import DISPLAY_ID_COLUMN
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,
 )
-from phospy.workflows.signalome.context_tables import SignalomeContextTableBuilder
-from phospy.workflows.signalome.contracts import (
+from phospy.signalome.clustering.backends.scipy_hierarchical import (
+    ScipyHierarchicalTreeEngine,
+)
+from phospy.signalome.clustering.orchestration import ClusterTreeBuilder
+from phospy.signalome.clustering.scoring import ScorePreconditioner
+from phospy.signalome.config import (
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    SignalomeClusteringEngine,
+)
+from phospy.signalome.constants import DISPLAY_ID_COLUMN
+from phospy.signalome.context_tables import SignalomeContextTableBuilder
+from phospy.signalome.contracts import (
     ResolvedSignalomeWorkflowRequest,
     ValidatedSignalomeWorkflowRequest,
 )
-from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
-from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
-from phospy.workflows.signalome.protein_resolution import SignalomeProteinResolver
-from phospy.workflows.signalome.public import SignalomeWorkflow
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.signalome.executor import SignalomeWorkflowExecutor
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.module_tables import SignalomeModuleTableBuilder
+from phospy.signalome.protein_resolution import SignalomeProteinResolver
+from phospy.signalome.public import SignalomeWorkflow
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -308,6 +324,217 @@ def _request(
             module_count=2,
         ),
     )
+
+
+def _module_one_request(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    clustering_engine: SignalomeClusteringEngine,
+) -> SignalomeWorkflowRequest:
+    return SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(dataset),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            network_correlation_threshold=0.3,
+            network_min_paired_finite_observations=3,
+            module_count=1,
+            clustering_engine=clustering_engine,
+        ),
+    )
+
+
+class _TreeSentinelReached(RuntimeError):
+    pass
+
+
+def _prove_module_one_tree_sentinel_targets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = np.asarray([[0.0, 1.0], [1.0, 0.0]], dtype=float)
+
+    def prove(
+        *,
+        target: object,
+        attribute: str,
+        token: str,
+        driver: Callable[[], object],
+    ) -> None:
+        calls = 0
+
+        def sentinel(*args: object, **kwargs: object) -> object:
+            nonlocal calls
+            calls += 1
+            raise _TreeSentinelReached(token)
+
+        with monkeypatch.context() as local_patch:
+            local_patch.setattr(target, attribute, sentinel)
+            with pytest.raises(_TreeSentinelReached, match=token):
+                driver()
+        assert calls == 1
+
+    prove(
+        target=clustering_orchestration_module,
+        attribute="fit_cluster_labels",
+        token="orchestration-fit",
+        driver=lambda: ClusterTreeBuilder(
+            preconditioner=ScorePreconditioner()
+        ).final_labels(
+            scoring_values=values,
+            module_count=2,
+            cached_labels=None,
+            tree_engine="exact",
+            candidate_scoring_policy="full",
+            max_exact_tree_sites=100,
+            cluster_tree_operations=None,
+        ),
+    )
+    prove(
+        target=tree_building_module,
+        attribute="build_exact_cluster_tree_with_guard",
+        token="tree-building-guard",
+        driver=lambda: tree_building_module.fit_cluster_labels(values, 2),
+    )
+    prove(
+        target=tree_building_module.ExactWardClusterTreeBuilder,
+        attribute="build_cluster_tree",
+        token="default-tree-operations",
+        driver=lambda: tree_building_module.build_exact_cluster_tree_with_guard(
+            clustering_values=values,
+            n_sites=2,
+            tree_engine="exact",
+            candidate_scoring_policy="full",
+            max_exact_tree_sites=100,
+        ),
+    )
+    prove(
+        target=exact_tree_backend_module,
+        attribute="build_cluster_tree",
+        token="exact-backend",
+        driver=lambda: (
+            tree_building_module.ExactWardClusterTreeBuilder().build_cluster_tree(
+                values
+            )
+        ),
+    )
+    prove(
+        target=scipy_tree_backend_module,
+        attribute="build_cluster_tree",
+        token="scipy-backend",
+        driver=lambda: ScipyHierarchicalTreeEngine().build_tree(values),
+    )
+    prove(
+        target=scipy_tree_backend_module,
+        attribute="pdist",
+        token="scipy-pdist",
+        driver=lambda: scipy_tree_backend_module.build_cluster_tree(values),
+    )
+
+    calls = 0
+
+    def linkage_sentinel(*args: object, **kwargs: object) -> object:
+        nonlocal calls
+        calls += 1
+        raise _TreeSentinelReached("scipy-linkage")
+
+    with monkeypatch.context() as local_patch:
+        local_patch.setattr(
+            scipy_tree_backend_module,
+            "pdist",
+            lambda *args, **kwargs: np.asarray([1.0], dtype=float),
+        )
+        local_patch.setattr(
+            scipy_tree_backend_module,
+            "linkage",
+            linkage_sentinel,
+        )
+        with pytest.raises(_TreeSentinelReached, match="scipy-linkage"):
+            scipy_tree_backend_module.build_cluster_tree(values)
+    assert calls == 1
+
+
+@pytest.mark.parametrize(
+    "clustering_engine",
+    [
+        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    ],
+)
+@pytest.mark.parametrize("snapshot_state", ["cold", "warm"])
+def test_module_count_one_never_builds_a_tree_for_cold_or_warm_dataset_snapshots(
+    monkeypatch: pytest.MonkeyPatch,
+    clustering_engine: SignalomeClusteringEngine,
+    snapshot_state: str,
+) -> None:
+    _prove_module_one_tree_sentinel_targets(monkeypatch)
+
+    calls = Counter[str]()
+
+    def fail_on_call(name: str):
+        def sentinel(*args: object, **kwargs: object) -> object:
+            calls.update((name,))
+            raise AssertionError(f"module_count=1 reached tree target: {name}")
+
+        return sentinel
+
+    monkeypatch.setattr(
+        clustering_orchestration_module,
+        "fit_cluster_labels",
+        fail_on_call("orchestration.fit_cluster_labels"),
+    )
+    monkeypatch.setattr(
+        tree_building_module,
+        "build_exact_cluster_tree_with_guard",
+        fail_on_call("tree_building.build_exact_cluster_tree_with_guard"),
+    )
+    monkeypatch.setattr(
+        tree_building_module.ExactWardClusterTreeBuilder,
+        "build_cluster_tree",
+        fail_on_call("ExactWardClusterTreeBuilder.build_cluster_tree"),
+    )
+    monkeypatch.setattr(
+        exact_tree_backend_module,
+        "build_cluster_tree",
+        fail_on_call("exact_python.build_cluster_tree"),
+    )
+    monkeypatch.setattr(
+        scipy_tree_backend_module,
+        "build_cluster_tree",
+        fail_on_call("scipy_hierarchical.build_cluster_tree"),
+    )
+    monkeypatch.setattr(
+        scipy_tree_backend_module,
+        "pdist",
+        fail_on_call("scipy_hierarchical.pdist"),
+    )
+    monkeypatch.setattr(
+        scipy_tree_backend_module,
+        "linkage",
+        fail_on_call("scipy_hierarchical.linkage"),
+    )
+
+    dataset = _dataset()
+    if snapshot_state == "warm":
+        view = DatasetInternalView(dataset)
+        _ = view.phospho
+        _ = view.site_metadata
+        _ = view.sample_metadata
+    request = _module_one_request(
+        dataset=dataset,
+        clustering_engine=clustering_engine,
+    )
+    result = SignalomeWorkflow().run(request)
+
+    assert calls == Counter()
+    assert result.module_selection_diagnostics.selected_module_count == 1
+    assert set(result.module_assignments.table["module_id"].astype(int)) == {1}
+    assert result.provenance is not None
+    scale_guard = cast(
+        dict[str, object],
+        result.provenance.workflow_parameters["scale_guard"],
+    )
+    assert scale_guard["clustering_engine"] == clustering_engine
+    assert scale_guard["exact_cluster_tree_built"] is False
+    assert scale_guard["candidate_scoring_evaluated"] is False
 
 
 def _provenanced_request() -> SignalomeWorkflowRequest:
@@ -688,19 +915,21 @@ def test_standalone_bundle_reconstruction_validates_identity_with_isolated_snaps
         encoding="utf-8",
     )
 
-    views: list[DatasetInternalView] = []
-    original_view_class = DatasetInternalView
+    site_metadata_accesses: list[AnalysisReadyPhosphoDataset] = []
+    original_site_metadata = AnalysisReadyPhosphoDataset.site_metadata
 
-    class _CountingDatasetInternalView(original_view_class):
-        def __init__(self, dataset: AnalysisReadyPhosphoDataset) -> None:
-            views.append(self)
-            super().__init__(dataset)
+    def _counting_site_metadata(
+        dataset: AnalysisReadyPhosphoDataset,
+    ) -> pd.DataFrame:
+        site_metadata_accesses.append(dataset)
+        return original_site_metadata.__get__(dataset)
 
     monkeypatch.setattr(
-        reconstruction_module,
-        "DatasetInternalView",
-        _CountingDatasetInternalView,
+        AnalysisReadyPhosphoDataset,
+        "site_metadata",
+        property(_counting_site_metadata),
     )
+    assert not hasattr(reconstruction_module, "DatasetInternalView")
 
     with pytest.raises(
         PhosPyInputError,
@@ -711,4 +940,4 @@ def test_standalone_bundle_reconstruction_validates_identity_with_isolated_snaps
     ):
         load_signalome_workflow_bundle(bundle_root)
 
-    assert len(views) == 1
+    assert site_metadata_accesses

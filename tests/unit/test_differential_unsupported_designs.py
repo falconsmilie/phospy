@@ -15,16 +15,16 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import (
+from phospy.differential.models.design import (
+    DifferentialAnalysisRequest as CoreDiffRequest,
+)
+from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
 )
 from phospy.errors import (
     PhosPyInputError,
     WorkflowValidationError,
-)
-from phospy.science.differential.models import (
-    DifferentialAnalysisRequest as CoreDiffRequest,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

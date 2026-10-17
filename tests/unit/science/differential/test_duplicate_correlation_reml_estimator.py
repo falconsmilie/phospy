@@ -8,13 +8,12 @@ import numpy.typing as npt
 import pandas as pd
 import pytest
 
-import phospy.science.differential.duplicate_correlation as duplicate_correlation_module
-from phospy.errors import PhosPyInputError
-from phospy.science.differential.duplicate_correlation import (
+import phospy.differential.execution.duplicate_correlation as duplicate_correlation_module
+from phospy.differential.execution.duplicate_correlation import (
     _fisher_trimmed_mean_consensus,
     estimate_duplicate_correlation_reml_consensus,
 )
-from phospy.science.differential.models.duplicate_correlation import (
+from phospy.differential.models.duplicate_correlation import (
     DUPLICATE_CORRELATION_METHOD_REML_FISHER_TRIMMED_MEAN,
     DUPLICATE_CORRELATION_TRIM_FRACTION,
     DuplicateCorrelationBoundary,
@@ -24,6 +23,7 @@ from phospy.science.differential.models.duplicate_correlation import (
     DuplicateCorrelationFeatureStatus,
     DuplicateCorrelationReasonCount,
 )
+from phospy.errors import PhosPyInputError
 from tests.support.duplicate_correlation_parity_scopes import (
     ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS,
     FULL_PIPELINE_FIXTURE_IDS,

@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors import PhosPyInputError
-from phospy.science.evidence import (
+from phospy.evidence import (
     MULTI_SITE_POLICY_ERROR,
     MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
     MULTI_SITE_POLICY_FIRST_SITE_COMPATIBILITY,
@@ -14,7 +14,7 @@ from phospy.science.evidence import (
     MultiSiteHandlingConfig,
     PeptideEvidenceTable,
 )
-from phospy.science.evidence.multi_site import parse_phospho_site_tokens
+from phospy.evidence.multi_site import parse_phospho_site_tokens
 
 
 def _base_frame() -> pd.DataFrame:

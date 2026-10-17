@@ -4,13 +4,12 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
-from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     DifferentialAnalysisConfig,
     TechnicalReplicatePolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     Contrast,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
@@ -18,38 +17,35 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import (
-    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
-)
-from phospy.errors import WorkflowValidationError
-from phospy.provenance.derived_quantitative import (
+from phospy.datasets.derived_quantitative import (
+    DerivedAnalysisReadyPhosphoDataset,
     DerivedQuantitativeDataProvenance,
 )
-from phospy.provenance.hashing import fingerprint_table
-from phospy.science.configs.differential import PairedDesignPolicy
-from phospy.science.datasets.derived_quantitative import (
-    DerivedAnalysisReadyPhosphoDataset,
-)
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.differential.executor import (
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.differential.execution.model_executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
-from phospy.science.differential.models import (
+from phospy.differential.execution.workflow import DifferentialAnalysisExecutor
+from phospy.differential.models.design import (
     DifferentialAnalysisRequest as ComputationRequest,
 )
-from phospy.validation.workflows.differential import (
+from phospy.differential.planning.interpreter import DifferentialAnalysisInterpreter
+from phospy.differential.planning.replicates import (
+    TechnicalReplicateAggregationPlanner,
+    TechnicalReplicateAggregator,
+)
+from phospy.differential.policies import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+    PairedDesignPolicy,
+)
+from phospy.differential.validation.dataset import (
     ExperimentalDesignContractValidator,
     ValidatedExperimentalDesignContract,
 )
-from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
-from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
-from phospy.workflows.differential.replicates import (
-    TechnicalReplicateAggregationPlanner,
-    TechnicalReplicateAggregator,
-    TechnicalReplicateResolver,
-)
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.errors import WorkflowValidationError
+from phospy.provenance.hashing import fingerprint_table
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -785,43 +781,6 @@ def test_interpreter_consumes_derived_dataset_after_aggregation() -> None:
     ).run(validated)
 
     assert DerivedAnalysisReadyPhosphoDataset in seen_dataset_types
-
-
-def test_technical_replicate_resolver_warns_and_preserves_wrapper_behaviour() -> None:
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="TechnicalReplicateResolver is deprecated",
-    ) as construction_warnings:
-        # phospy-deprecation-compat: workflows.differential.TechnicalReplicateResolver
-        resolver = TechnicalReplicateResolver()
-    assert "TechnicalReplicateAggregationPlanner" in str(
-        construction_warnings[0].message
-    )
-    assert "TechnicalReplicateAggregator" in str(construction_warnings[0].message)
-
-    dataset = _dataset_with_technical_replicates()
-    design = _repeated_design()
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="TechnicalReplicateResolver is deprecated",
-    ) as run_warnings:
-        resolved = resolver.run(
-            dataset=dataset,
-            design=design,
-            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
-        )
-
-    assert "TechnicalReplicateAggregationPlanner" in str(run_warnings[0].message)
-    assert "TechnicalReplicateAggregator" in str(run_warnings[0].message)
-    assert resolved.dataset.phospho.columns.tolist() == ["A1", "A2", "B1", "B2"]
-    assert [record.sample_id for record in resolved.design.samples] == [
-        "A1",
-        "A2",
-        "B1",
-        "B2",
-    ]
-    assert resolved.workflow_provenance is not None
-    assert resolved.workflow_provenance["aggregation_method"] == "mean"
 
 
 def test_provenance_records_technical_replicate_lineage() -> None:

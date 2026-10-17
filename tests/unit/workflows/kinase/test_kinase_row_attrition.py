@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.science.prediction.models import KinaseScoringResult
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.row_attrition import (
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.row_attrition import (
     build_kinase_row_attrition_provenance,
 )
+from phospy.kinase.scoring.results import KinaseScoringResult
 from tests.unit.workflows.kinase.test_kinase_attrition_policy import (
     _request,
     _strict_scored_fraction_policy,

@@ -4,12 +4,15 @@ from collections.abc import Iterable
 
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

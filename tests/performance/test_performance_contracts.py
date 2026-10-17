@@ -18,47 +18,47 @@ from phospy.advanced import (
 )
 from phospy.api import (
     DatasetBuildRequest,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult
-from phospy.errors.workflows import SignalomeScaleError
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
 from phospy.io.bundles.signalome import save_signalome_workflow_bundle
-from phospy.provenance.hashing import hash_table_tolerance
-from phospy.science.datasets.preprocessing.models import (
-    PreprocessingPlan,
-    PreprocessingState,
-)
-from phospy.science.datasets.preprocessing.stages.missing_data import (
-    stage as missing_data_stage_module,
-)
-from phospy.science.datasets.preprocessing.stages.missing_data.group_aware_routing import (
-    route_group_aware_missingness,
-)
-from phospy.science.datasets.preprocessing.stages.missing_data.knn import (
-    run_knn_policy,
-)
-from phospy.science.datasets.preprocessing.stages.missing_data.models import (
-    GroupAwareRoutingOutcome,
-    GroupRoutingFact,
-    GroupRoutingFactsByRow,
-)
-from phospy.science.datasets.preprocessing.stages.missing_data.stage import (
-    MissingDataStage,
-)
-from phospy.science.datasets.preprocessing.stages.normalisation import (
-    NormalisationStage,
-)
-from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
-from phospy.science.prediction.motif_scoring import (
+from phospy.kinase.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.kinase.scoring.motif import (
     DEFAULT_MOTIF_FLANK_SIZE,
     build_motif_library,
     score_phosphosite_motifs,
 )
-from phospy.science.signalomes.clustering import (
+from phospy.preprocessing.contracts import (
+    PreprocessingPlan,
+    PreprocessingState,
+)
+from phospy.preprocessing.stages.missing_data import (
+    stage as missing_data_stage_module,
+)
+from phospy.preprocessing.stages.missing_data.group_aware_routing import (
+    route_group_aware_missingness,
+)
+from phospy.preprocessing.stages.missing_data.knn import (
+    run_knn_policy,
+)
+from phospy.preprocessing.stages.missing_data.models import (
+    GroupAwareRoutingOutcome,
+    GroupRoutingFact,
+    GroupRoutingFactsByRow,
+)
+from phospy.preprocessing.stages.missing_data.stage import (
+    MissingDataStage,
+)
+from phospy.preprocessing.stages.normalisation import (
+    NormalisationStage,
+)
+from phospy.provenance.hashing import hash_table_tolerance
+from phospy.signalome.clustering import (
     MAX_FULL_CORRELATION_SITE_COUNT,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
@@ -69,7 +69,8 @@ from phospy.science.signalomes.clustering import (
     run_signalome_clustering_engine,
     select_module_count_with_diagnostics,
 )
-from phospy.science.signalomes.models import (
+from phospy.signalome.errors import SignalomeScaleError
+from phospy.signalome.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
 )
 from tests.support.performance_contracts import (
@@ -139,14 +140,13 @@ APPROXIMATION_REASON_TOKEN = "Used sampled within-cluster correlation estimates"
 def _patch_cluster_tree_build_for_contract_scoring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phospy.science.signalomes.clustering import exact_python as exact_clustering
-    from phospy.science.signalomes.clustering.backends import (
+    from phospy.signalome.clustering.backends import (
         exact_python as exact_tree_backend,
     )
 
     def _stub_build_cluster_tree(scoring_values: np.ndarray) -> object:
         n_sites = int(np.asarray(scoring_values, dtype=float).shape[0])
-        return exact_clustering._WardClusterTree(n_sites=n_sites, merges=())
+        return exact_tree_backend.ExactWardClusterTree(n_sites=n_sites, merges=())
 
     def _stub_build_cluster_labels_from_tree(
         *,

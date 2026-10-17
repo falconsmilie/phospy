@@ -5,9 +5,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     BatchCovariate,
     Contrast,
     DifferentialAnalysisRequest,
@@ -16,16 +16,16 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import (
+from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
-from phospy.errors import WorkflowValidationError
-from phospy.science.differential.models import (
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
 )
-from phospy.science.transformations.models import (
+from phospy.errors import WorkflowValidationError
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )

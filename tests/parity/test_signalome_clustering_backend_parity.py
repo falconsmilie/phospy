@@ -4,13 +4,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.science.signalomes.clustering import (
+from phospy.signalome.clustering import (
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
     run_signalome_clustering_engine,
 )
-from phospy.science.signalomes.clustering import exact_python as legacy_exact
+from phospy.signalome.clustering.orchestration import (
+    cluster_sites_with_diagnostics as cluster_sites_via_orchestration,
+)
 
 pytestmark = pytest.mark.parity
 
@@ -43,9 +45,9 @@ def _fixture_site_to_protein(site_index: pd.Index) -> pd.Series:
     )
 
 
-def test_backend_facade_matches_legacy_exact_python_outputs() -> None:
+def test_backend_facade_matches_orchestration_outputs() -> None:
     scoring_matrix = _fixture_scoring_matrix()
-    legacy = legacy_exact.cluster_sites_with_diagnostics(
+    orchestrated = cluster_sites_via_orchestration(
         scoring_matrix=scoring_matrix,
         requested_module_count=None,
         max_clusters=4,
@@ -56,25 +58,32 @@ def test_backend_facade_matches_legacy_exact_python_outputs() -> None:
         max_clusters=4,
     )
 
-    pd.testing.assert_series_equal(facade.site_clusters, legacy.site_clusters)
-    assert facade.module_selection_diagnostics == legacy.module_selection_diagnostics
-    assert facade.candidate_scoring_mode == legacy.candidate_scoring_mode
-    assert facade.candidate_scoring_evaluated == legacy.candidate_scoring_evaluated
-    assert facade.candidate_scoring_skip_reason == legacy.candidate_scoring_skip_reason
-    assert facade.exact_cluster_tree_built == legacy.exact_cluster_tree_built
+    pd.testing.assert_series_equal(facade.site_clusters, orchestrated.site_clusters)
+    assert (
+        facade.module_selection_diagnostics == orchestrated.module_selection_diagnostics
+    )
+    assert facade.candidate_scoring_mode == orchestrated.candidate_scoring_mode
+    assert (
+        facade.candidate_scoring_evaluated == orchestrated.candidate_scoring_evaluated
+    )
+    assert (
+        facade.candidate_scoring_skip_reason
+        == orchestrated.candidate_scoring_skip_reason
+    )
+    assert facade.exact_cluster_tree_built == orchestrated.exact_cluster_tree_built
 
 
-def test_backend_protocol_matches_legacy_clustering_and_module_derivation() -> None:
+def test_backend_protocol_matches_orchestration_and_module_derivation() -> None:
     scoring_matrix = _fixture_scoring_matrix()
     site_to_protein = _fixture_site_to_protein(scoring_matrix.index)
 
-    legacy = legacy_exact.cluster_sites_with_diagnostics(
+    orchestrated = cluster_sites_via_orchestration(
         scoring_matrix=scoring_matrix,
         requested_module_count=None,
         max_clusters=4,
     )
-    legacy_modules = derive_protein_modules(
-        site_clusters=legacy.site_clusters,
+    orchestrated_modules = derive_protein_modules(
+        site_clusters=orchestrated.site_clusters,
         site_to_protein_group_id=site_to_protein,
     )
 
@@ -86,9 +95,12 @@ def test_backend_protocol_matches_legacy_clustering_and_module_derivation() -> N
         clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     )
 
-    pd.testing.assert_series_equal(backend.site_clusters, legacy.site_clusters)
-    pd.testing.assert_series_equal(backend.protein_modules, legacy_modules)
-    assert backend.module_selection_diagnostics == legacy.module_selection_diagnostics
+    pd.testing.assert_series_equal(backend.site_clusters, orchestrated.site_clusters)
+    pd.testing.assert_series_equal(backend.protein_modules, orchestrated_modules)
+    assert (
+        backend.module_selection_diagnostics
+        == orchestrated.module_selection_diagnostics
+    )
     assert backend.selected_module_count == int(
-        legacy.module_selection_diagnostics.selected_module_count
+        orchestrated.module_selection_diagnostics.selected_module_count
     )

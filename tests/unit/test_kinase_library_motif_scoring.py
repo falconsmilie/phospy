@@ -3,8 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.science.prediction.motif_scoring import (
+from phospy.kinase.scoring.motif import (
     KINASE_LIBRARY_MATRIX_STATUS_FILTERED_RESIDUE_CLASS,
     KINASE_LIBRARY_SITE_STATUS_MISSING_SEQUENCE,
     KINASE_LIBRARY_SITE_STATUS_UNSUPPORTED_SEQUENCE_LENGTH,
@@ -14,7 +13,8 @@ from phospy.science.prediction.motif_scoring import (
     KinaseLibraryMotifMatrix,
     score_kinase_library_motifs,
 )
-from phospy.science.prediction.policies import KinaseLibraryMotifScoringPolicy
+from phospy.kinase.scoring.policies import KinaseLibraryMotifScoringPolicy
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def test_kinase_library_motif_scoring_calculates_exact_raw_scores() -> None:
@@ -174,7 +174,7 @@ def test_kinase_library_motif_scoring_output_order_is_deterministic() -> None:
 
 
 def test_kinase_library_motif_scoring_accepts_reference_matrix_model() -> None:
-    from phospy.science.references import KinaseLibraryMatrix
+    from phospy.kinase.references.models import KinaseLibraryMatrix
 
     reference_matrix = KinaseLibraryMatrix(
         kinase="K_REF",

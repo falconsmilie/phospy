@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -106,31 +107,32 @@ def _load_existing_manual_values() -> dict[str, dict[str, str]]:
 def _write_csv(inventory: list[TestFileInventory]) -> None:
     existing_manual_values = _load_existing_manual_values()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    with CSV_OUTPUT.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle, lineterminator="\n")
-        header = [
-            "path",
-            "test_area",
-            "line_count",
-            "test_function_count",
-            "uses_pytest_mark",
-            "uses_parametrization",
-            *MANUAL_COLUMNS,
-        ]
-        writer.writerow(header)
-        for entry in inventory:
-            manual_values = existing_manual_values.get(entry.path, {})
-            writer.writerow(
-                [
-                    entry.path,
-                    entry.test_area,
-                    entry.line_count,
-                    entry.test_function_count,
-                    str(entry.uses_pytest_mark).lower(),
-                    str(entry.uses_parametrization).lower(),
-                    *(manual_values.get(column, "") for column in MANUAL_COLUMNS),
-                ]
-            )
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer, lineterminator="\n")
+    header = [
+        "path",
+        "test_area",
+        "line_count",
+        "test_function_count",
+        "uses_pytest_mark",
+        "uses_parametrization",
+        *MANUAL_COLUMNS,
+    ]
+    writer.writerow(header)
+    for entry in inventory:
+        manual_values = existing_manual_values.get(entry.path, {})
+        writer.writerow(
+            [
+                entry.path,
+                entry.test_area,
+                entry.line_count,
+                entry.test_function_count,
+                str(entry.uses_pytest_mark).lower(),
+                str(entry.uses_parametrization).lower(),
+                *(manual_values.get(column, "") for column in MANUAL_COLUMNS),
+            ]
+        )
+    CSV_OUTPUT.write_bytes(buffer.getvalue().encode("utf-8"))
 
 
 def _render_markdown(inventory: list[TestFileInventory]) -> str:
@@ -188,7 +190,7 @@ def _render_markdown(inventory: list[TestFileInventory]) -> str:
 
 def _write_markdown(inventory: list[TestFileInventory]) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    MARKDOWN_OUTPUT.write_text(_render_markdown(inventory), encoding="utf-8")
+    MARKDOWN_OUTPUT.write_bytes(_render_markdown(inventory).encode("utf-8"))
 
 
 def main() -> None:

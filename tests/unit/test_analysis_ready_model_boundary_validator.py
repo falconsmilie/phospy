@@ -6,26 +6,28 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.construction.validation as dataset_construction_validation
+import phospy.datasets._construction.validation as dataset_construction_validation
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.processing_state import DatasetProcessingState
+from phospy.datasets.trusted_assertions import (
+    TrustedDatasetConstructionAssertions,
+)
+from phospy.datasets.validation.model_boundary import (
+    AnalysisReadyDatasetModelBoundaryValidator,
+)
 from phospy.errors.validation import (
     DatasetValidationError,
     TransformationValidationError,
 )
-from phospy.provenance.models import TrustedDatasetConstructionAssertions
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.processing_state import DatasetProcessingState
-from phospy.science.references.models import Organism
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.validation.datasets.analysis_ready import (
-    AnalysisReadyDatasetModelBoundaryValidator,
-)
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     complete_trusted_dataset_construction_assertions_for_tests,
     trusted_analysis_ready_dataset_from_tables,

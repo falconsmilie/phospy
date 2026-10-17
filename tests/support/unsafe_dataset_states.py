@@ -13,8 +13,10 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
-from phospy import AnalysisReadyPhosphoDataset
-from phospy.science.transformations.models import (
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+)
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )

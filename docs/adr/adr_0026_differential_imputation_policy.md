@@ -106,18 +106,18 @@ residual degrees of freedom.
 ## Implementation Notes
 
 - Public config:
-  `src/phospy/contracts/configs/differential.py`
+  `src/phospy/differential/config.py`
 - Eligibility validation:
-  `src/phospy/validation/workflows/differential.py`
+  `src/phospy/differential/validation/dataset.py`
 - Imputation metadata alignment and status assignment:
-  `src/phospy/workflows/differential/interpreter.py`
+  `src/phospy/differential/planning/interpreter.py`
 - Tested-row statistical execution and public result reattachment:
-  `src/phospy/workflows/differential/executor.py`
+  `src/phospy/differential/execution/workflow.py`
 - Result/provenance/table models:
-  `src/phospy/science/differential/models/results.py`,
-  `src/phospy/science/differential/models/provenance.py`, and
-  `src/phospy/science/differential/models/tables.py`
+  `src/phospy/differential/results.py`,
+  `src/phospy/differential/provenance/models.py`, and
+  `src/phospy/differential/tables.py`
 - Provenance construction:
-  `src/phospy/workflows/differential/provenance.py`
+  `src/phospy/differential/provenance/assembly.py`
 - Tests:
   `tests/unit/test_differential_imputation_policy.py`

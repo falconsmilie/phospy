@@ -6,28 +6,31 @@ from typing import cast
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, KinaseWorkflow
+from phospy import (
+    KinaseWorkflow,
+)
 from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
 )
+from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.workflows.kinase.contracts import (
+from phospy.kinase.contracts import (
     KinaseWorkflowExecutorContract,
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
-from phospy.workflows.kinase.site_sequence_support import (
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.scoring.execution import KinaseScoringRunner
+from phospy.kinase.site_sequence_support import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KinaseSiteSequenceSupportBuilder,

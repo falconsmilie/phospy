@@ -116,33 +116,12 @@ into clean source/release archives. Build source archives from tracked source
 state instead, excluding generated bundle directories, `site/`, `build/`,
 `dist/`, cache directories, and prior archive files.
 
-## Reloadable Bundle Services
+## Reloadable Bundle Format
 
-Public bundle services live in:
-
-```python
-from phospy.io.bundles.kinase import load_kinase_workflow_bundle
-from phospy.io.bundles.kinase import save_kinase_workflow_bundle
-from phospy.io.bundles.signalome import load_signalome_workflow_bundle
-from phospy.io.bundles.signalome import save_signalome_workflow_bundle
-```
-
-Bundle writers require a config snapshot:
-
-```python
-from pathlib import Path
-
-from phospy.io.bundles.kinase import KinaseWorkflowConfigSnapshot
-from phospy.io.bundles.kinase import save_kinase_workflow_bundle
-
-snapshot = KinaseWorkflowConfigSnapshot.from_request(request)
-written = save_kinase_workflow_bundle(
-    result,
-    Path("bundle-out"),
-    config_snapshot=snapshot,
-    output_format="csv",
-)
-```
+Kinase and signalome owners maintain reloadable bundle codecs for durable-state
+and release verification. Those codecs and their config-snapshot types are
+owner-internal implementation surfaces, not supported user import routes. The
+supported aggregate output API is the `publish_*` family shown above.
 
 A saved bundle contains:
 
@@ -250,5 +229,5 @@ current PhosPy version before loading them.
 | --- | --- |
 | Write workflow output tables from Python | `publish_*` helpers |
 | Write result tables from Python | `publish_*` helpers |
-| Save and reload a result object | bundle services |
-| Keep config snapshot beside outputs | bundle services |
+| Exercise durable-state round trips during release verification | maintained internal bundle verifier |
+| Keep a supported user-facing output directory | `publish_*` helpers |

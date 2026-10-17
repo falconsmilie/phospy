@@ -1,8 +1,19 @@
-"""API stability inventory used by public facade modules."""
+"""Authoritative aggregate export inventories from ADR-0054.
+
+The inventories define only the three supported aggregate namespaces. They
+are intentionally free of compatibility routes, stability tiers, and runtime
+deprecation metadata.
+"""
 
 from __future__ import annotations
 
-STABLE_PUBLIC_API = (
+ROOT_PUBLIC_API = (
+    "AnalysisReadyDatasetBuilder",
+    "KinaseWorkflow",
+    "SignalomeWorkflow",
+)
+
+ORDINARY_PUBLIC_API = (
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
     "ReferenceBundleBuilder",
@@ -19,8 +30,6 @@ STABLE_PUBLIC_API = (
     "ExperimentalDesign",
     "SampleDesignRecord",
     "Contrast",
-    "DesignMatrix",
-    "ContrastMatrix",
     "DifferentialAnalysisRequest",
     "EnrichmentDerivedQuantitativeSetProvenance",
     "EnrichmentDerivedSetMissingValueRule",
@@ -73,7 +82,15 @@ STABLE_PUBLIC_API = (
     "SignalomeScaleError",
 )
 
-ADVANCED_CONFIG_API = (
+ADVANCED_PUBLIC_API = (
+    "ControlSiteAnnotation",
+    "ControlSiteSet",
+    "ControlSiteSourceMetadata",
+    "ControlSiteStatus",
+    "SpsDiscoveryRequest",
+    "SpsDiscoveryWorkflow",
+    "SpsDiscoveryValidationError",
+    "SpsReferenceDataset",
     "CorrectionMaskPolicy",
     "CorrectionMissingnessPolicy",
     "ObservationMask",
@@ -163,101 +180,16 @@ ADVANCED_CONFIG_API = (
     "SignalomeScientificConfig",
     "SignalomeScorePreconditioningPolicy",
     "SignalomeValidationConfig",
-)
-
-_ADVANCED_CONFIG_API_WITH_STABILITY_JUSTIFICATION = (
-    "CorrectionMaskPolicy",
-    "CorrectionMissingnessPolicy",
-    "ObservationMask",
-    "OriginallyMissingCellTracking",
-    "TemporaryImputationMethod",
-    "TemporaryImputationPolicy",
-    "DatasetBatchCorrectionConfig",
-    "DatasetBatchCorrectionMethod",
-    "DatasetPreprocessingBatchCorrectionConfig",
-    "SpsRuvBatchCorrectionConfig",
-    "SpsRuvBatchCorrectionMethod",
-    "SpsDiscoveryConfig",
-    "DatasetComparisonBuildingConfig",
-    "DatasetComparisonBuildingPolicy",
-    "DatasetComparisonPair",
-    "DatasetGroupCoverageFilterConfig",
-    "DatasetIntensityTransformConfig",
-    "DatasetIntensityTransformPolicy",
-    "DatasetLocalisationMode",
-    "DatasetMissingDataConfig",
-    "DatasetMissingDataInputScale",
-    "DatasetMissingDataKnnNoOverlapPolicy",
-    "DatasetMissingDataPolicy",
-    "DatasetNormalisationConfig",
-    "DatasetNormalisationPolicy",
-    "DatasetProteinAwarePreparationConfig",
-    "DatasetProteinAwarePreparationMappingPolicy",
-    "DatasetProteinAwarePreparationPolicy",
-    "DatasetRuvReadinessConfig",
-    "DatasetSiteMatrixConfig",
-    "DatasetSiteMatrixDuplicateSitePolicy",
-    "DatasetSiteMatrixMissingDataPolicy",
-    "DatasetSiteMatrixPolicy",
-    "DatasetSiteSequenceConflictPolicy",
-    "DatasetSiteSequenceResolutionConfig",
-    "DatasetSiteSequenceResolutionMode",
-    "DatasetTotalProteinCorrectionConfig",
-    "DatasetTotalProteinCorrectionDuplicatePolicy",
-    "DatasetTotalProteinCorrectionIdentityConfig",
-    "DatasetTotalProteinCorrectionIdentityMatchingPolicy",
-    "DatasetTotalProteinCorrectionIdentityMode",
-    "DatasetTotalProteinCorrectionPolicy",
-    "DatasetTotalProteinCorrectionUnmatchedPolicy",
-    "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
-    "DifferentialAnalysisConfig",
-    "DifferentialImputedValuePolicy",
-    "DifferentialProteinAwareModelConfig",
-    "DifferentialReliabilityProfile",
-    "EmpiricalBayesConfig",
-    "MultipleTestingConfig",
-    "MultipleTestingCorrection",
-    "MultipleTestingMethod",
-    "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
-    "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
-    "PAIRED_DESIGN_POLICY_REJECT",
-    "PairedDesignPolicy",
-    "EnrichmentIdentifierKind",
-    "EnrichmentMethod",
-    "EnrichmentOutsideBackgroundPolicy",
-    "KinaseActivityConfig",
-    "KinaseActivityMethod",
-    "KinaseActivityPValueMethod",
-    "KinaseActivitySsgseaRankingDirection",
-    "KinaseAdaptivePolicy",
-    "KinaseAttritionPolicy",
-    "KinaseAttritionViolationMode",
-    "KinasePredictionConfig",
-    "KinasePredictionMode",
-    "KinaseProfileMissingValueStrategy",
-    "KinaseReferenceDisplayAmbiguityPolicy",
-    "KinaseReliabilityProfile",
-    "KinaseScoringConfig",
-    "KinaseScoringMode",
-    "KinaseSiteSequenceConflictPolicy",
-    "LocalisationPolicy",
-    "LocalisationRequirement",
-    "ProfileSelfInclusionPolicy",
-    "ReferenceContextCompatibilityPolicy",
-    "SignalomeAssignmentPolicy",
-    "SignalomeCandidateScoringPolicy",
-    "SignalomeClusteringConfig",
-    "SignalomeConfig",
-    "SignalomeKinaseNetworkPolicy",
-    "SignalomeMode",
-    "SignalomeOutputConfig",
-    "SignalomePerformanceConfig",
-    "SignalomeScientificConfig",
-    "SignalomeScorePreconditioningPolicy",
-    "SignalomeValidationConfig",
-)
-
-ADVANCED_RESULT_API = (
+    "TechnicalReplicatePolicy",
+    "KinaseLibraryResource",
+    "KinaseLibraryResourceLoadRequest",
+    "KinaseLibraryResourceLoader",
+    "load_kinase_library_resource",
+    "filter_differential_results",
+    "rank_differential_results",
+    "publish_dataset",
+    "publish_kinase_workflow",
+    "publish_signalome_workflow",
     "DifferentialModelDiagnostics",
     "QuantificationDepthTrendDiagnostics",
     "KinaseEligibilityReport",
@@ -277,342 +209,4 @@ ADVANCED_RESULT_API = (
     "SpsSiteStabilityRecord",
 )
 
-_ADVANCED_PUBLISHER_API = (
-    "publish_dataset",
-    "publish_kinase_workflow",
-    "publish_signalome_workflow",
-)
-
-ADVANCED_PUBLIC_API = (
-    "ControlSiteAnnotation",
-    "ControlSiteSet",
-    "ControlSiteSourceMetadata",
-    "ControlSiteStatus",
-    "SpsDiscoveryRequest",
-    "SpsDiscoveryWorkflow",
-    "SpsDiscoveryValidationError",
-    "SpsReferenceDataset",
-    *ADVANCED_CONFIG_API,
-    "TechnicalReplicatePolicy",
-    "KinaseLibraryResource",
-    "KinaseLibraryResourceLoadRequest",
-    "KinaseLibraryResourceLoader",
-    "load_kinase_library_resource",
-    "filter_differential_results",
-    "rank_differential_results",
-    *_ADVANCED_PUBLISHER_API,
-    *ADVANCED_RESULT_API,
-)
-
-STABLE_PUBLIC_API_BASELINE_COUNT = 68
-ADVANCED_PUBLIC_API_BASELINE_COUNT = 124
-
-API_COMPATIBILITY_INTRODUCED_VERSION = "1.6.0"
-API_COMPATIBILITY_PLANNED_REMOVAL_VERSION = "2.0.0"
-
-COMPATIBILITY_CONFIG_MODULES = (
-    "phospy.api.configs",
-    "phospy.api.configs.common",
-    "phospy.api.configs.dataset",
-    "phospy.api.configs.differential",
-    "phospy.api.configs.enrichment",
-    "phospy.api.configs.kinase",
-    "phospy.api.configs.localisation",
-    "phospy.api.configs.prediction",
-    "phospy.api.configs.references",
-    "phospy.api.configs.signalome",
-    "phospy.api.configs.preprocessing",
-    "phospy.api.configs.preprocessing.batch_correction",
-    "phospy.api.configs.preprocessing.comparisons",
-    "phospy.api.configs.preprocessing.coverage_filter",
-    "phospy.api.configs.preprocessing.intensity_transform",
-    "phospy.api.configs.preprocessing.localisation",
-    "phospy.api.configs.preprocessing.missing_data",
-    "phospy.api.configs.preprocessing.normalisation",
-    "phospy.api.configs.preprocessing.site_matrix",
-    "phospy.api.configs.preprocessing.site_sequence",
-    "phospy.api.configs.preprocessing.total_protein",
-)
-
-REQUEST_COMPATIBILITY_ADVANCED_API = ("SignalomeConfig",)
-
-CONFIG_COMPATIBILITY_ADVANCED_ROUTE_OVERRIDES = {
-    "EmpiricalBayesConfig": (
-        "phospy.api.configs",
-        "phospy.api.configs.differential",
-    ),
-}
-
-ADVANCED_API_COMPATIBILITY_EXCLUDED_NAMES = (
-    "DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1",
-    "DifferentialProteinAwareModelConfig",
-)
-
-_ADVANCED_CONTROL_SITE_API = (
-    "ControlSiteAnnotation",
-    "ControlSiteSet",
-    "ControlSiteSourceMetadata",
-    "ControlSiteStatus",
-)
-
-_ADVANCED_SPS_DISCOVERY_INPUT_API = (
-    "SpsDiscoveryRequest",
-    "SpsDiscoveryWorkflow",
-    "SpsDiscoveryValidationError",
-    "SpsReferenceDataset",
-)
-
-_ADVANCED_KINASE_LIBRARY_API = (
-    "KinaseLibraryResource",
-    "KinaseLibraryResourceLoadRequest",
-    "KinaseLibraryResourceLoader",
-    "load_kinase_library_resource",
-)
-
-_ADVANCED_DIFFERENTIAL_TABLE_API = (
-    "filter_differential_results",
-    "rank_differential_results",
-)
-
-_ADVANCED_TECHNICAL_REPLICATE_API = ("TechnicalReplicatePolicy",)
-
-ADVANCED_API_STABILITY_JUSTIFICATIONS = {
-    **{
-        name: (
-            "Advanced control-site data model for native SPS/RUV-style "
-            "preprocessing configuration and diagnostics."
-        )
-        for name in _ADVANCED_CONTROL_SITE_API
-    },
-    **{
-        name: (
-            "Advanced SPS discovery input and structured-validation contract "
-            "for caller-owned reference phosphoproteomics datasets."
-        )
-        for name in _ADVANCED_SPS_DISCOVERY_INPUT_API
-    },
-    **{
-        name: (
-            "Advanced configuration or policy type required for explicit "
-            "non-default workflow behavior outside the stable facade."
-        )
-        for name in _ADVANCED_CONFIG_API_WITH_STABILITY_JUSTIFICATION
-    },
-    **{
-        name: (
-            "Advanced technical-replicate policy needed for explicit "
-            "differential-design handling."
-        )
-        for name in _ADVANCED_TECHNICAL_REPLICATE_API
-    },
-    **{
-        name: (
-            "Advanced local Kinase Library-style resource route; callers must "
-            "opt in with explicit reference ownership."
-        )
-        for name in _ADVANCED_KINASE_LIBRARY_API
-    },
-    **{
-        name: (
-            "Advanced differential-result table inspection helper that does "
-            "not change scientific results."
-        )
-        for name in _ADVANCED_DIFFERENTIAL_TABLE_API
-    },
-    **{
-        name: (
-            "Advanced filesystem table publisher for inspection and "
-            "interoperability outputs; callers must choose destination and "
-            "overwrite policy explicitly."
-        )
-        for name in _ADVANCED_PUBLISHER_API
-    },
-    **{
-        name: (
-            "Advanced diagnostic result model for users who need typed "
-            "inspection beyond primary stable result containers."
-        )
-        for name in ADVANCED_RESULT_API
-    },
-}
-
-INTERNAL_EXPERIMENTAL_API = (
-    "ActivityMethodDiagnostics",
-    "BatchCorrectionDiagnostics",
-    "BatchCorrectionPolicy",
-    "BatchCorrectionReport",
-    "ComparisonState",
-    "DatasetBuildError",
-    "DatasetPreprocessingReport",
-    "DatasetProcessingState",
-    "DatasetValidationError",
-    "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
-    "DifferentialContrastDefinition",
-    "DifferentialDesignMatrixSummary",
-    "DifferentialEmpiricalBayesProvenance",
-    "DifferentialFixedEffectCovariateProvenance",
-    "DifferentialMissingValuePolicyProvenance",
-    "DifferentialPolicyProvenance",
-    "DifferentialReplicatePolicyProvenance",
-    "DifferentialStatisticalTestingProvenance",
-    "DifferentialTechnicalReplicateGroup",
-    "DifferentialUnsupportedDesignPolicyProvenance",
-    "ENRICHMENT_IDENTIFIER_KIND_DISPLAY_ID",
-    "ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL",
-    "ENRICHMENT_IDENTIFIER_KIND_PHOSPHOSITE",
-    "ENRICHMENT_IDENTIFIER_KIND_PROTEIN_ID",
-    "ENRICHMENT_IDENTIFIER_KIND_SITE_KEY",
-    "ENRICHMENT_METHOD_OVER_REPRESENTATION",
-    "GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
-    "IMPUTED_VALUE_POLICY_REJECT",
-    "IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES",
-    "IMPORTER_QUALITY_STATUS_NOT_APPLICABLE",
-    "IMPORTER_QUALITY_STATUS_NOT_REPORTED",
-    "IMPORTER_QUALITY_STATUS_REPORTED",
-    "ImporterDetectedIntensityColumn",
-    "ImporterDuplicateKeySummary",
-    "ImporterFlaggedRowSummary",
-    "ImporterLocalisationConfidenceSummary",
-    "ImporterMissingIntensitySummary",
-    "ImporterQualityCount",
-    "ImporterQualityReport",
-    "ImporterQualityStatus",
-    "ImputationObservationMetadata",
-    "IntensityScaleState",
-    "InvalidTransformationStateError",
-    "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS",
-    "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR",
-    "KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF",
-    "KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF",
-    "KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED",
-    "KINASE_SCORING_MODES",
-    "KinaseLibraryMatrix",
-    "KinaseLibraryResidueClass",
-    "KseaZScoreActivityDiagnostics",
-    "MatrixIntensityScaleState",
-    "MissingDataState",
-    "MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG",
-    "MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI",
-    "MULTIPLE_TESTING_CORRECTION_BONFERRONI",
-    "MULTIPLE_TESTING_CORRECTION_HOLM",
-    "MULTIPLE_TESTING_CORRECTION_NONE",
-    "MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG",
-    "MULTIPLE_TESTING_METHOD_BENJAMINI_YEKUTIELI",
-    "MULTIPLE_TESTING_METHOD_BONFERRONI",
-    "MULTIPLE_TESTING_METHOD_HOLM",
-    "MULTIPLE_TESTING_METHOD_NONE",
-    "NormalisationState",
-    "PhosPyBuildError",
-    "PhosPyTransformationError",
-    "ProteinAwareMappingDiagnostics",
-    "ProteinAwarePreparationReport",
-    "ProteinAwarePreparationResult",
-    "ProteinAwareSiteEligibility",
-    "PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
-    "QuantitativeMeaning",
-    "ReferenceBundleMissingValueCount",
-    "ReferenceBundleSourceFileValidationReport",
-    "ReferenceBundleTableValidationReport",
-    "ReferenceBundleValidationReport",
-    "ReferenceIdentifierNormalisationValidationError",
-    "ReferenceValidationError",
-    "RuvReadinessState",
-    "SignalomeClusteringEngine",
-    "SiteMatrixState",
-    "SiteSequenceResolutionRowDiagnostic",
-    "SiteSequenceResolutionState",
-    "SsgseaSubstrateEnrichmentActivityDiagnostics",
-    "SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES",
-    "SUPPORTED_ENRICHMENT_IDENTIFIER_KINDS",
-    "SUPPORTED_ENRICHMENT_METHODS",
-    "SUPPORTED_MULTIPLE_TESTING_CORRECTIONS",
-    "SUPPORTED_MULTIPLE_TESTING_METHODS",
-    "SUPPORTED_PAIRED_DESIGN_POLICIES",
-    "TotalProteinCorrectionDiagnostics",
-    "TotalProteinCorrectionDiagnosticsV1",
-    "TotalProteinCorrectionState",
-    "TransformationStateEstablishmentError",
-    "TransformationValidationError",
-    "TransformerExecutionError",
-    "UnsupportedOrganismError",
-    "WeightedSubstrateActivityDiagnostics",
-    "WorkflowStageError",
-)
-
-STABLE_CONFIG_API = (
-    "DatasetLocalisationConfig",
-    "DatasetPreprocessingConfig",
-    "EnrichmentConfig",
-)
-
-STABLE_REQUEST_API = (
-    "BatchCovariate",
-    "Contrast",
-    "ContrastMatrix",
-    "CategoricalCovariate",
-    "ContinuousCovariate",
-    "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
-    "DATASET_MULTI_SITE_POLICY_REJECT",
-    "DATASET_MULTI_SITE_POLICY_SPLIT",
-    "DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE",
-    "DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED",
-    "DesignMatrix",
-    "DatasetBuildRequest",
-    "DifferentialAnalysisRequest",
-    "EnrichmentDerivedQuantitativeSetProvenance",
-    "EnrichmentDerivedSetMissingValueRule",
-    "EnrichmentDerivedSetSourceResultKind",
-    "EnrichmentDerivedSetThresholdDirection",
-    "EnrichmentDerivedSetValueMeaning",
-    "EnrichmentDerivedSetValueScale",
-    "EnrichmentIdentifierSetProvenance",
-    "EnrichmentIdentifierSetSourceType",
-    "EnrichmentSet",
-    "EnrichmentSetCollection",
-    "EnrichmentWorkflowRequest",
-    "InputIntensityScaleEvidence",
-    "ExperimentalDesign",
-    "FixedEffectCovariate",
-    "GeneSetCollection",
-    "KinaseWorkflowRequest",
-    "PhosphositeImporter",
-    "PhosphositeImportRequest",
-    "PtmSetCollection",
-    "SampleDesignRecord",
-    "SignalomeWorkflowRequest",
-    "all_pairwise_contrasts",
-    "contrasts_vs_control",
-)
-
-STABLE_RESULT_API = (
-    "DifferentialAnalysisResult",
-    "EnrichmentResultRecord",
-    "EnrichmentWorkflowResult",
-    "KinaseActivityResult",
-    "KinasePredictionResult",
-    "KinaseScoringResult",
-    "KinaseWorkflowResult",
-    "PhosphositeImportResult",
-    "ResultCaveat",
-    "SignalomeWorkflowResult",
-)
-
-__all__ = [
-    "ADVANCED_API_COMPATIBILITY_EXCLUDED_NAMES",
-    "ADVANCED_API_STABILITY_JUSTIFICATIONS",
-    "ADVANCED_CONFIG_API",
-    "ADVANCED_PUBLIC_API_BASELINE_COUNT",
-    "ADVANCED_PUBLIC_API",
-    "ADVANCED_RESULT_API",
-    "API_COMPATIBILITY_INTRODUCED_VERSION",
-    "API_COMPATIBILITY_PLANNED_REMOVAL_VERSION",
-    "COMPATIBILITY_CONFIG_MODULES",
-    "CONFIG_COMPATIBILITY_ADVANCED_ROUTE_OVERRIDES",
-    "INTERNAL_EXPERIMENTAL_API",
-    "REQUEST_COMPATIBILITY_ADVANCED_API",
-    "STABLE_CONFIG_API",
-    "STABLE_PUBLIC_API_BASELINE_COUNT",
-    "STABLE_PUBLIC_API",
-    "STABLE_REQUEST_API",
-    "STABLE_RESULT_API",
-]
+__all__ = ["ROOT_PUBLIC_API", "ORDINARY_PUBLIC_API", "ADVANCED_PUBLIC_API"]

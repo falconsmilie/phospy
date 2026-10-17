@@ -6,21 +6,21 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.contracts.configs import (
+from phospy.errors import WorkflowStageError
+from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
 )
-from phospy.errors import WorkflowStageError
-from phospy.science.signalomes.constants import (
+from phospy.signalome.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
 )
-from phospy.science.signalomes.science import (
-    build_expanded_signalome_table,
+from phospy.signalome.expanded import build_expanded_signalome_table
+from phospy.signalome.modules import build_signalome_module_table
+from phospy.signalome.network import (
     build_kinase_network,
     build_kinase_network_with_diagnostics,
-    build_signalome_module_table,
 )
 
 

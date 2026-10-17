@@ -9,14 +9,22 @@ import pandas as pd
 import pytest
 
 import phospy.io as phospy_io
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
 )
-from phospy.api import AnalysisReadyDatasetBuilder
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.api.requests import DatasetBuildRequest
-from phospy.api.results import KinasePredictionResult
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    KinasePredictionResult,
+)
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.trusted_assertions import (
+    TrustedDatasetConstructionAssertions,
+    TrustedDatasetConstructionEvidence,
+)
 from phospy.errors import (
     DatasetValidationError,
     PhosPyInputError,
@@ -28,17 +36,12 @@ from phospy.errors import (
     UnsupportedInputFormatError,
     UnsupportedOrganismError,
 )
-from phospy.provenance import (
-    TrustedDatasetConstructionAssertions,
-    TrustedDatasetConstructionEvidence,
-)
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     MatrixIntensityScaleState,
 )
+from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.references.resolution import ReferenceResolver
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -54,20 +57,20 @@ _SITE_INDEX = pd.Index([_SITE_KEY], name="site_key")
 _DISPLAY_ID = "MAPK14;Y182;"
 _AKT1_T308_KEY = protein_site_key(protein_identifier="AKT1", site="T308")
 _REFERENCE_IDENTIFIER_GUARD_TARGETS = (
-    "src/phospy/workflows/kinase/contracts.py",
-    "src/phospy/workflows/kinase/scoring_runner.py",
-    "src/phospy/workflows/kinase/prediction_runner.py",
-    "src/phospy/workflows/kinase/activity_runner.py",
-    "src/phospy/science/prediction/scoring.py",
-    "src/phospy/science/activities/scoring.py",
+    "src/phospy/kinase/contracts.py",
+    "src/phospy/kinase/scoring/execution.py",
+    "src/phospy/kinase/prediction/runner.py",
+    "src/phospy/kinase/activity/runner.py",
+    "src/phospy/kinase/scoring/selection.py",
+    "src/phospy/kinase/activity/execution.py",
 )
 _FORBIDDEN_IDENTIFIER_CLEANUP = re.compile(r"\.(?:upper|lower|strip)\(")
 _REFERENCE_IDENTIFIER_COLUMN_HINT = re.compile(
     r"['\"](?:kinase|substrate_site)['\"]",
     re.IGNORECASE,
 )
-_REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/science/references/identifiers.py"
-_PRODUCTION_REFERENCE_TABLES = "src/phospy/science/tables/references.py"
+_REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/references/identifiers.py"
+_PRODUCTION_REFERENCE_TABLES = "src/phospy/references/tables.py"
 _FORBIDDEN_PROTEIN_ACCESSION_BOUNDARY_LEAK_TARGETS = (
     "src/phospy/science/sequences",
     "src/phospy/science/scoring",

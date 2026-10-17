@@ -8,15 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors import DatasetProcessingStateError, DatasetValidationError
-from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_json_payload
-from phospy.provenance.immutability import FrozenJsonMapping
-from phospy.science.datasets.preprocessing.policy_models import (
-    MissingDataPolicy,
-    TotalProteinCorrectionPolicy,
-)
-from phospy.science.datasets.processing_state import (
+from phospy.datasets.processing_state import (
     JsonValue,
     MissingDataDiagnostics,
     MissingDataDiagnosticsV1,
@@ -28,8 +20,16 @@ from phospy.science.datasets.processing_state import (
     TotalProteinCorrectionDiagnosticsV1,
     TotalProteinCorrectionState,
 )
-from phospy.science.references.models import Organism
-from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.errors import DatasetProcessingStateError, DatasetValidationError
+from phospy.errors.input import PhosPyInputError
+from phospy.preparation_records.policies import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
+from phospy.provenance.hashing import hash_json_payload
+from phospy.provenance.immutability import FrozenJsonMapping
+from phospy.quantitative.models import QuantitativeMeaning
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

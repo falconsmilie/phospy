@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pandas.testing as pdt
 
+from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     EnrichmentConfig,
@@ -14,24 +15,22 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
-from phospy.contracts.results import (
+from phospy.enrichment.contracts.results import (
+    EnrichmentResultRecord,
     EnrichmentWorkflowResult,
-    PhosphositeImportResult,
-    SignalomeWorkflowResult,
 )
-from phospy.science.activities.models import (
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
+from phospy.io.importers.contracts import PhosphositeImportResult
+from phospy.kinase.activity.models import (
     ActivityMethodMetadata,
     ActivityMethodSummary,
-    KinaseActivityResult,
 )
-from phospy.science.activities.semantics import ActivityInputMatrix
-from phospy.science.enrichment.models import EnrichmentResultRecord
-from phospy.science.prediction.models import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-)
-from phospy.science.signalomes.constants import (
+from phospy.kinase.activity.results import KinaseActivityResult
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.signalome.constants import (
     CORRELATION_COLUMN,
     DISPLAY_ID_COLUMN,
     GENE_SYMBOL_COLUMN,
@@ -56,11 +55,12 @@ from phospy.science.signalomes.constants import (
     TOP_KINASE_WEIGHTS_COLUMN,
     TOP_SCORE_COLUMN,
 )
-from phospy.science.signalomes.models import (
+from phospy.signalome.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
 )
+from phospy.signalome.results import SignalomeWorkflowResult
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -104,12 +104,11 @@ ENRICHMENT_RESULT_COLUMNS = [
     "enrichment_ratio",
 ]
 RESULT_MODEL_SOURCE_FILES = (
-    Path("src/phospy/science/activities/models.py"),
-    Path("src/phospy/science/enrichment/models.py"),
-    Path("src/phospy/contracts/results/base.py"),
-    Path("src/phospy/contracts/results/enrichment.py"),
-    Path("src/phospy/contracts/results/kinase.py"),
-    Path("src/phospy/contracts/results/signalome.py"),
+    Path("src/phospy/kinase/activity/results.py"),
+    Path("src/phospy/enrichment/contracts/results.py"),
+    Path("src/phospy/io/importers/contracts.py"),
+    Path("src/phospy/kinase/results.py"),
+    Path("src/phospy/signalome/results.py"),
 )
 FORBIDDEN_RESULT_MODEL_PATTERNS = (
     ".plot(",

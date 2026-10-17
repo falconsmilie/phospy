@@ -7,7 +7,22 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.contracts.configs.preprocessing import (
+from phospy.errors import PhosPyInputError
+from phospy.preparation_records.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
+from phospy.preprocessing.batch_correction import (
+    REPLICATE_METADATA_ROLE,
+    BatchCorrectionDiagnosticRequirements,
+    BatchCorrectionWorkflow,
+    BatchCorrectionWorkflowRequest,
+    EligibleControlSiteRow,
+    ReplicateStructure,
+    ResolvedBatchCorrectionPlan,
+)
+from phospy.preprocessing.batch_correction.contracts import (
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionControlSiteMode,
     InternalBatchCorrectionControlSiteSource,
@@ -19,36 +34,23 @@ from phospy.contracts.configs.preprocessing import (
     ObservationMask,
     OriginallyMissingCellTracking,
 )
-from phospy.errors import PhosPyInputError
-from phospy.provenance import fingerprint_matrix
-from phospy.provenance.models import BatchCorrectionProvenance
-from phospy.science.datasets.preprocessing.batch_correction import (
-    BatchCorrectionDiagnostics,
-    BatchCorrectionPolicy,
-    BatchCorrectionReport,
+from phospy.preprocessing.batch_correction.contracts.output import (
+    CorrectedPreprocessingOutput,
 )
-from phospy.science.datasets.preprocessing.control_sites import (
+from phospy.preprocessing.batch_correction.provenance.assembly import (
+    BatchCorrectionProvenanceRecorder,
+)
+from phospy.preprocessing.batch_correction.validation.design import (
+    ResolvedBatchDesignMetadata,
+)
+from phospy.preprocessing.control_sites.contracts import (
     ControlSiteAnnotation,
     ControlSiteMapping,
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.science.datasets.preprocessing.correction_output import (
-    CorrectedPreprocessingOutput,
-)
-from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
-from phospy.workflows.batch_correction import (
-    REPLICATE_METADATA_ROLE,
-    BatchCorrectionDiagnosticRequirements,
-    BatchCorrectionWorkflow,
-    BatchCorrectionWorkflowRequest,
-    EligibleControlSiteRow,
-    ReplicateStructure,
-    ResolvedBatchCorrectionPlan,
-)
-from phospy.workflows.batch_correction.provenance import (
-    BatchCorrectionProvenanceRecorder,
-)
+from phospy.provenance import fingerprint_matrix
+from phospy.provenance.models import BatchCorrectionProvenance
 
 
 def test_batch_correction_workflow_orders_validators_before_interpreter_and_executor() -> (

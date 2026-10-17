@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from phospy.errors.transformations import InvalidTransformationStateError
-from phospy.science.transformations import (
+from phospy.quantitative import (
     IntensityScaleEvidenceLevel,
     IntensityTransformationEvent,
     MatrixIntensityScaleState,

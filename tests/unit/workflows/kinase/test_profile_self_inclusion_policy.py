@@ -5,8 +5,8 @@ from collections.abc import Mapping
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.advanced import KinasePredictionConfig
-from phospy.advanced.configs import (
+from phospy.advanced import (
+    KinasePredictionConfig,
     KinaseScoringConfig,
     ProfileSelfInclusionPolicy,
     ReferenceContextCompatibilityPolicy,
@@ -18,24 +18,24 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.tables.kinase import (
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.kinase.caveats import (
+    KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE,
+    KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
+)
+from phospy.kinase.contracts import ValidatedKinaseWorkflowRequest
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.scoring.execution import KinaseScoringRunner
+from phospy.kinase.scoring.profile import (
+    build_kinase_profiles,
+    score_profile_correlations,
+)
+from phospy.kinase.scoring.tables import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
 )
-from phospy.workflows.kinase.caveats import (
-    KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE,
-    KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
-)
-from phospy.workflows.kinase.contracts import ValidatedKinaseWorkflowRequest
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.science import (
-    build_kinase_profiles,
-    score_profile_correlations,
-)
-from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

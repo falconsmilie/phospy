@@ -181,9 +181,8 @@ def _rewrite_inventory_notes(candidates: list[FileFindings]) -> None:
 def main() -> None:
     total_files_scanned, candidates = _scan_all_tests()
     DOCS_TESTING_DIR.mkdir(parents=True, exist_ok=True)
-    REPORT_OUTPUT.write_text(
-        _render_report(total_files_scanned, candidates),
-        encoding="utf-8",
+    REPORT_OUTPUT.write_bytes(
+        _render_report(total_files_scanned, candidates).encode("utf-8")
     )
     _rewrite_inventory_notes(candidates)
 

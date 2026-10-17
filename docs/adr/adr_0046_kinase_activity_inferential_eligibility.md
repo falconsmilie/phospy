@@ -182,11 +182,11 @@ Neutral consequences:
 ## Implementation Notes
 
 The typed membership contract lives in
-`src/phospy/science/activities/membership.py`. The KSEA method gates p/q
-emission in `src/phospy/science/activities/methods/ksea_zscore.py`.
+`src/phospy/kinase/activity/membership.py`. The KSEA method gates p/q
+emission in `src/phospy/kinase/activity/methods/ksea_zscore.py`.
 
 Kinase workflow code constructs membership provenance in
-`src/phospy/workflows/kinase/membership.py` from the resolved score source,
+`src/phospy/kinase/activity/membership_selection.py` from the resolved score source,
 prediction threshold/top-k policy, reference fingerprints, the quantitative
 matrix actually consumed by selection when applicable, the exact
 `request.ksea_background_phospho_matrix` tested by KSEA, and selected

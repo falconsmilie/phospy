@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import (
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     DifferentialAnalysisConfig,
@@ -18,57 +17,61 @@ from phospy.advanced import (
     TechnicalReplicatePolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     ContinuousCovariate,
     Contrast,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisResult,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     FixedEffectCovariate,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.results import DifferentialAnalysisResult
-from phospy.contracts.configs import (
-    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
-)
-from phospy.errors import (
-    PhosPyInputError,
-    WorkflowBoundaryError,
-    WorkflowValidationError,
-)
-from phospy.provenance.hashing import fingerprint_optional_table_strict
-from phospy.provenance.serialization.tables import table_fingerprint_to_payload
-from phospy.science.configs.differential import (
-    DifferentialImputedValuePolicy,
-    PairedDesignPolicy,
-)
-from phospy.science.datasets.internal_view import (
+from phospy.datasets.internal_view import (
     DatasetInternalView,
     ProteinAwarePreparationInternalView,
 )
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
-    PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
-    PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,
-    ProteinAwarePreparationEligibility,
-    ProteinAwareSampleAlignmentDiagnostics,
-    ProteinAwareTransformationStateDiagnostics,
-)
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
-    ProteinAwareSiteEligibility,
 )
-from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
-from phospy.science.differential.executor import (
+from phospy.differential.execution.linear_model import decompose_differential_design
+from phospy.differential.execution.model_executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
-from phospy.science.differential.internal_view import (
+from phospy.differential.execution.workflow import DifferentialAnalysisExecutor
+from phospy.differential.internal_view import (
     DifferentialComputationResultInternalView,
 )
-from phospy.science.differential.linear_model import decompose_differential_design
-from phospy.science.differential.models import EmpiricalBayesConfig
-from phospy.science.differential.models.tables import (
+from phospy.differential.moderation.config import EmpiricalBayesConfig
+from phospy.differential.planning.interpreter import (
+    DifferentialAnalysisInterpreter,
+    _resolve_execution_config,
+)
+from phospy.differential.planning.models import (
+    InterpretedDifferentialAnalysisRequest,
+    ProteinAwareDifferentialResolvedInputs,
+    ResolvedDifferentialExecutionConfig,
+    ValidatedDifferentialAnalysisRequest,
+)
+from phospy.differential.planning.protein_aware_inputs import (
+    ProteinAwareDifferentialInputResolver,
+)
+from phospy.differential.planning.replicates import (
+    TechnicalReplicateAggregationGroup,
+    TechnicalReplicateAggregationPlan,
+)
+from phospy.differential.policies import (
+    DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
+    DifferentialImputedValuePolicy,
+    PairedDesignPolicy,
+)
+from phospy.differential.provenance.assembly import (
+    build_differential_policy_provenance,
+)
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_COVARIATE_NON_FINITE,
@@ -84,35 +87,32 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
 )
-from phospy.science.transformations.models import (
+from phospy.differential.validation.dataset import (
+    ValidatedExperimentalDesignContract,
+)
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.errors import (
+    PhosPyInputError,
+    WorkflowBoundaryError,
+    WorkflowValidationError,
+)
+from phospy.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
+    ProteinAwareTransformationStateDiagnostics,
+    ProteinMappingStatus,
+)
+from phospy.preprocessing.protein_aware.alignment import (
+    PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
+    PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,
+)
+from phospy.provenance.hashing import fingerprint_optional_table_strict
+from phospy.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.validation.workflows.differential import (
-    ValidatedExperimentalDesignContract,
-)
-from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
-from phospy.workflows.differential.interpreter import (
-    DifferentialAnalysisInterpreter,
-    _resolve_execution_config,
-)
-from phospy.workflows.differential.models import (
-    InterpretedDifferentialAnalysisRequest,
-    ProteinAwareDifferentialResolvedInputs,
-    ResolvedDifferentialExecutionConfig,
-    ValidatedDifferentialAnalysisRequest,
-)
-from phospy.workflows.differential.protein_aware_inputs import (
-    ProteinAwareDifferentialInputResolver,
-)
-from phospy.workflows.differential.provenance import (
-    build_differential_policy_provenance,
-)
-from phospy.workflows.differential.replicates import (
-    TechnicalReplicateAggregationGroup,
-    TechnicalReplicateAggregationPlan,
-)
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

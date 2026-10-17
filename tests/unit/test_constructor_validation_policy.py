@@ -11,10 +11,12 @@ from phospy.api import (
     EnrichmentWorkflow,
     EnrichmentWorkflowRequest,
     GeneSetCollection,
+    ResultCaveat,
     WorkflowValidationError,
 )
-from phospy.api.results import ResultCaveat
-from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
 
 
 def test_contract_value_object_constructor_failures_use_contract_error() -> None:

@@ -22,11 +22,11 @@ from phospy.api import (
     ReferenceBundle,
     ReferencePreset,
 )
-from phospy.workflows.kinase.contracts import (
+from phospy.kinase.contracts import (
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.parity_reporting import (
     format_bool,
     format_shape,

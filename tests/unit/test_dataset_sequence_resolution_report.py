@@ -5,15 +5,17 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
 )
-from phospy.api.builders import AnalysisReadyDatasetBuilder
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.api.requests import DatasetBuildRequest
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+)
 from phospy.errors.input import PhosPyInputError
-from phospy.science.references.models import Organism
+from phospy.taxonomy import Organism
 
 
 def _phospho(index: pd.Index | None = None) -> pd.DataFrame:

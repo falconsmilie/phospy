@@ -1,32 +1,44 @@
 from __future__ import annotations
 
+from hashlib import sha256
+
 import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.signalomes.clustering as clustering_module
-from phospy.errors import SignalomeModuleCountValidationError
+import phospy.signalome.clustering as clustering_module
+import phospy.signalome.clustering.orchestration as clustering_orchestration
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.science.signalomes.clustering import (
+from phospy.signalome.clustering import (
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE,
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
     select_module_count_with_diagnostics,
 )
-from phospy.science.signalomes.clustering import exact_python as exact_clustering
-from phospy.science.signalomes.clustering.candidate_scoring import (
+from phospy.signalome.clustering.candidate_scoring import (
     _CandidateClusterScoreResult,
     compute_candidate_cluster_scores,
     summarize_profile_degeneracy,
 )
-from phospy.science.signalomes.clustering.scientific_policies import (
+from phospy.signalome.clustering.candidate_selection import (
+    _ModuleSelectionComputation,
+    build_module_selection_result,
+)
+from phospy.signalome.clustering.scientific_policies import (
     build_signalome_module_candidate_score_policy,
 )
-from phospy.science.signalomes.clustering.tree_building import (
+from phospy.signalome.clustering.stability import (
+    SIGNALOME_MODULE_SELECTION_STABILITY_METHOD,
+    SIGNALOME_MODULE_SELECTION_STABILITY_VERSION,
+    evaluate_module_selection_stability,
+)
+from phospy.signalome.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
     prepare_signalome_clustering_matrix,
     summarize_clustering_missing_value_diagnostics,
 )
+from phospy.signalome.errors import SignalomeModuleCountValidationError
+from phospy.signalome.models import SignalomeClusterCandidateScore
 
 
 def test_module_count_selection_accepts_explicit_request_equal_to_site_count() -> None:
@@ -357,6 +369,165 @@ def test_module_selection_stability_report_tracks_threshold_sensitivity() -> Non
         0.15,
     }
     assert sensitivity.disagrees_with_selected_count is True
+
+
+def test_module_selection_stability_matches_independent_seed_draw_golden() -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 1.1, 1.2],
+            [1.1, 1.0, 1.2],
+            [-1.0, -1.1, -1.2],
+            [-1.1, -1.0, -1.2],
+        ],
+        dtype=np.float64,
+    )
+    profile_degeneracy = summarize_profile_degeneracy(scoring_values)
+    candidate_scores = {
+        2: SignalomeClusterCandidateScore(
+            min_median_correlation=0.45,
+            mean_median_correlation=0.7,
+        ),
+        3: SignalomeClusterCandidateScore(
+            min_median_correlation=0.12,
+            mean_median_correlation=0.9,
+        ),
+    }
+
+    def selection(
+        selected_count: int,
+        labels: np.ndarray | None,
+    ) -> _ModuleSelectionComputation:
+        return build_module_selection_result(
+            strategy="correlation_thresholds",
+            selected_module_count=selected_count,
+            requested_module_count=None,
+            threshold_used=0.45,
+            max_clusters_evaluated=3,
+            candidate_scores=candidate_scores,
+            reason="independent stability golden",
+            profile_degeneracy=profile_degeneracy,
+            excluded_from_correlation_count=0,
+            candidate_labels={} if labels is None else {selected_count: labels},
+        )
+
+    base_labels = np.asarray([0, 0, 1, 1], dtype=int)
+    perturbation_selections = iter(
+        (
+            selection(2, np.asarray([0, 0, 1, 1], dtype=int)),
+            selection(2, np.asarray([0, 1, 1, 1], dtype=int)),
+            selection(1, None),
+        )
+    )
+    observed_perturbations: list[np.ndarray] = []
+
+    def select_core(values: np.ndarray) -> _ModuleSelectionComputation:
+        observed_perturbations.append(np.asarray(values, dtype=float).copy())
+        return next(perturbation_selections)
+
+    report = evaluate_module_selection_stability(
+        scoring_values=scoring_values,
+        base_selection=selection(2, base_labels),
+        profile_degeneracy=profile_degeneracy,
+        primary_threshold=0.45,
+        fallback_threshold=0.1,
+        max_clusters=3,
+        perturbation_count=3,
+        random_seed=None,
+        max_stability_sites=100,
+        select_core=select_core,
+    )
+
+    little_endian_values = np.ascontiguousarray(scoring_values, dtype="<f8")
+    seed_material = b"".join(
+        (
+            SIGNALOME_MODULE_SELECTION_STABILITY_METHOD.encode("utf-8"),
+            SIGNALOME_MODULE_SELECTION_STABILITY_VERSION.encode("utf-8"),
+            str(little_endian_values.shape).encode("utf-8"),
+            little_endian_values.view(np.uint8).tobytes(),
+        )
+    )
+    digest = sha256(seed_material).digest()
+    assert digest.hex() == (
+        "5e268cbdd45ca729c3ac7680685476fd4036a5f91d2f1e8a861161d4e5348355"
+    )
+    expected_seed = int.from_bytes(digest[:8], byteorder="little") % (2**32)
+    assert expected_seed == 3180078686
+    assert (
+        report.seed_policy
+        == "deterministic_seed_from_scoring_values_and_method_version"
+    )
+    assert report.random_seed == expected_seed
+
+    expected_scales = 0.01 * np.std(scoring_values, axis=0)[np.newaxis, :]
+    np.testing.assert_allclose(
+        expected_scales,
+        np.asarray([[0.01051189802081432, 0.01051189802081432, 0.012]]),
+    )
+    independent_generator = np.random.default_rng(expected_seed)
+    expected_perturbations = [
+        scoring_values
+        + independent_generator.normal(
+            loc=0.0,
+            scale=expected_scales,
+            size=scoring_values.shape,
+        )
+        for _ in range(3)
+    ]
+    assert expected_perturbations[0].reshape(-1).tolist() == pytest.approx(
+        [
+            1.003662415915483,
+            1.0963239219233847,
+            1.1905134076017634,
+            1.118251315294541,
+            0.9917184073824847,
+            1.2226817049847083,
+            -0.9891849387393041,
+            -1.1075059057437118,
+            -1.206002926957184,
+            -1.115255861644157,
+            -0.983408357860645,
+            -1.2051777922404627,
+        ]
+    )
+    assert len(observed_perturbations) == 3
+    for observed, expected in zip(
+        observed_perturbations,
+        expected_perturbations,
+        strict=True,
+    ):
+        assert observed == pytest.approx(expected)
+
+    assert report.selected_count_frequency == {2: 2, 1: 1}
+    assert report.assignment_similarity.minimum == pytest.approx(1.0 / 3.0)
+    assert report.assignment_similarity.median == pytest.approx(0.5)
+    assert report.assignment_similarity.mean == pytest.approx(11.0 / 18.0)
+    assert report.assignment_similarity.maximum == pytest.approx(1.0)
+    sensitivity = report.threshold_sensitivity
+    assert sensitivity.selected_count_frequency == {2: 7, 3: 2}
+    assert [record.selected_module_count for record in sensitivity.records] == [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        2,
+    ]
+    assert [record.threshold_used for record in sensitivity.records] == [
+        0.4,
+        0.4,
+        0.4,
+        0.45,
+        0.45,
+        0.45,
+        0.05,
+        0.1,
+        0.15,
+    ]
+    assert sensitivity.disagrees_with_selected_count is True
+    assert report.status == "unstable"
 
 
 def test_cluster_sites_matches_two_pass_partition_for_selected_module_count() -> None:
@@ -705,7 +876,7 @@ def test_cluster_sites_rejects_all_missing_dimensions_before_backend() -> None:
             return {}
 
     with pytest.raises(ValueError, match="retained no kinase/dimension columns"):
-        exact_clustering.cluster_sites_with_diagnostics(
+        clustering_orchestration.cluster_sites_with_diagnostics(
             scoring_matrix=scoring_matrix,
             requested_module_count=2,
             cluster_tree_operations=_FailIfInvokedTreeOperations(),  # type: ignore[arg-type]
@@ -745,7 +916,7 @@ def test_cluster_sites_uses_imputed_values_for_final_tree_input() -> None:
                     labels[count] = np.zeros(3, dtype=int)
             return labels
 
-    exact_clustering.cluster_sites_with_diagnostics(
+    clustering_orchestration.cluster_sites_with_diagnostics(
         scoring_matrix=scoring_matrix,
         requested_module_count=2,
         cluster_tree_operations=_CaptureTreeOperations(),  # type: ignore[arg-type]

@@ -1,52 +1,37 @@
-# pyright: reportUnsupportedDunderAll=false
 # ruff: noqa: F401
-"""Stable public facade for the supported PhosPy API.
-
-Stable public API:
-``phospy.api`` is intentionally smaller than the implementation package tree.
-It owns the stable user-facing contract: builders, workflow requests, workflow
-classes, primary result objects, reference bundle entrypoints, enums needed by
-default examples, and common exception types.
-
-Advanced supported API:
-Advanced supported objects live under ``phospy.advanced``. Historical advanced
-imports from this module remain temporarily available through a compatibility
-adapter that emits ``PhosPyDeprecationWarning`` with the replacement import.
-
-Internal / experimental API:
-Internal and experimental objects remain unsupported and are not exported from
-this facade.
-"""
+"""The ordinary supported PhosPy API defined by ADR-0054."""
 
 from __future__ import annotations
 
-from phospy._api_inventory import (
-    ADVANCED_PUBLIC_API as _ADVANCED_SUPPORTED_API,
+from phospy._api_inventory import ORDINARY_PUBLIC_API as _ORDINARY_PUBLIC_API
+from phospy.api.builders import ReferenceBundleBuilder
+from phospy.datasets.builder import AnalysisReadyDatasetBuilder
+from phospy.datasets.contracts import DatasetBuildRequest
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.contracts import DifferentialAnalysisRequest
+from phospy.differential.design.contrast_helpers import (
+    all_pairwise_contrasts,
+    contrasts_vs_control,
 )
-from phospy._api_inventory import (
-    INTERNAL_EXPERIMENTAL_API as _INTERNAL_EXPERIMENTAL_API,
-)
-from phospy._api_inventory import (
-    STABLE_PUBLIC_API as _STABLE_PUBLIC_API,
-)
-from phospy.api._compat import deprecated_advanced_export
-from phospy.api.builders import AnalysisReadyDatasetBuilder, ReferenceBundleBuilder
-from phospy.api.configs import (
-    DatasetLocalisationConfig,
-    DatasetPreprocessingConfig,
-    EnrichmentConfig,
-)
-from phospy.api.datasets import AnalysisReadyPhosphoDataset
-from phospy.api.enums import Organism, ReferencePreset
-from phospy.api.requests import (
+from phospy.differential.design.models import (
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
-    ContrastMatrix,
-    DatasetBuildRequest,
-    DesignMatrix,
-    DifferentialAnalysisRequest,
+    ExperimentalDesign,
+    FixedEffectCovariate,
+    SampleDesignRecord,
+)
+from phospy.differential.public import DifferentialAnalysisWorkflow
+from phospy.differential.results import DifferentialAnalysisResult
+from phospy.enrichment.contracts.collections import (
+    EnrichmentSet,
+    EnrichmentSetCollection,
+    GeneSetCollection,
+    PtmSetCollection,
+)
+from phospy.enrichment.contracts.config import EnrichmentConfig
+from phospy.enrichment.contracts.identifier_sets import (
     EnrichmentDerivedQuantitativeSetProvenance,
     EnrichmentDerivedSetMissingValueRule,
     EnrichmentDerivedSetSourceResultKind,
@@ -55,40 +40,13 @@ from phospy.api.requests import (
     EnrichmentDerivedSetValueScale,
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
-    EnrichmentSet,
-    EnrichmentSetCollection,
-    EnrichmentWorkflowRequest,
-    ExperimentalDesign,
-    FixedEffectCovariate,
-    GeneSetCollection,
-    InputIntensityScaleEvidence,
-    KinaseWorkflowRequest,
-    PhosphositeImporter,
-    PhosphositeImportRequest,
-    PtmSetCollection,
-    SampleDesignRecord,
-    SignalomeWorkflowRequest,
-    all_pairwise_contrasts,
-    contrasts_vs_control,
 )
-from phospy.api.results import (
-    DifferentialAnalysisResult,
+from phospy.enrichment.contracts.requests import EnrichmentWorkflowRequest
+from phospy.enrichment.contracts.results import (
     EnrichmentResultRecord,
     EnrichmentWorkflowResult,
-    KinaseActivityResult,
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
-    PhosphositeImportResult,
-    ResultCaveat,
-    SignalomeWorkflowResult,
 )
-from phospy.api.workflows import (
-    DifferentialAnalysisWorkflow,
-    EnrichmentWorkflow,
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
+from phospy.enrichment.workflow import EnrichmentWorkflow
 from phospy.errors import (
     ContractValidationError,
     PhosPyError,
@@ -98,21 +56,37 @@ from phospy.errors import (
     PhosPyWorkflowError,
     ReferenceCompatibilityError,
     ReferenceResolutionError,
-    SignalomeScaleError,
     UnsupportedInputFormatError,
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
-from phospy.science.references.models import (
+from phospy.io.importers.contracts import (
+    PhosphositeImporter,
+    PhosphositeImportRequest,
+    PhosphositeImportResult,
+)
+from phospy.kinase.activity.results import KinaseActivityResult
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.public import KinaseWorkflow
+from phospy.kinase.requests import KinaseWorkflowRequest
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.preprocessing.contracts.configuration import DatasetLocalisationConfig
+from phospy.preprocessing.contracts.configuration.dataset import (
+    DatasetPreprocessingConfig,
+)
+from phospy.provenance.result_caveats import ResultCaveat
+from phospy.quantitative.evidence import InputIntensityScaleEvidence
+from phospy.quantitative.models import IntensityScaleKind
+from phospy.references.models import (
     ReferenceBundle,
     ReferenceBundleBuildRequest,
+    ReferencePreset,
 )
-from phospy.science.transformations.models import IntensityScaleKind
+from phospy.signalome.errors import SignalomeScaleError
+from phospy.signalome.public import SignalomeWorkflow
+from phospy.signalome.requests import SignalomeWorkflowRequest
+from phospy.signalome.results import SignalomeWorkflowResult
+from phospy.taxonomy.organisms import Organism
 
-__all__ = _STABLE_PUBLIC_API
-
-
-def __getattr__(name: str) -> object:
-    if name in _ADVANCED_SUPPORTED_API:
-        return deprecated_advanced_export(name, old_module=__name__)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+__all__ = _ORDINARY_PUBLIC_API  # pyright: ignore[reportUnsupportedDunderAll] - ADR-0054 keeps the ordered export inventory in one reviewed source.

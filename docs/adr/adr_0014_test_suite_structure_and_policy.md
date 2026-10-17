@@ -238,7 +238,7 @@ adverse scientific cases.
   minimum-dependency lane)
 - `constraints/minimum.txt`
 - `mkdocs.yml`
-- `src/phospy/science/signalomes/clustering/scale_guards.py`
+- `src/phospy/signalome/clustering/scale_guards.py`
 - `pyproject.toml`
 
 ## Scope Boundaries

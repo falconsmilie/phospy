@@ -14,37 +14,37 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.provenance.immutability import thaw_json_mapping
-from phospy.science.datasets.builders.preprocessing import (
-    build_dataset_processing_state,
-)
-from phospy.science.datasets.builders.transformation_resolver import (
+from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.differential.models import (
+from phospy.datasets.construction.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.caveats import (
+    DIFFERENTIAL_DECLARED_SCALE_OVERRIDE_CAVEAT_CODE,
+    DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
+    DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE,
+)
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
 )
-from phospy.science.transformations.models import (
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.provenance.immutability import thaw_json_mapping
+from phospy.quantitative.evidence import (
+    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
+)
+from phospy.quantitative.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.science.transformations.transformers import (
+from phospy.quantitative.transformers import (
     IdentityTransformer,
     Log2Transformer,
-)
-from phospy.workflows.differential.caveats import (
-    DIFFERENTIAL_DECLARED_SCALE_OVERRIDE_CAVEAT_CODE,
-    DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
-    DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
-    DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE,
-)
-from phospy.workflows.intensity_scale_evidence import (
-    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

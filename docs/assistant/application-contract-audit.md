@@ -342,8 +342,8 @@ Owning source files and methods:
 #### Behavioural assessment
 
 An external application can discover public workflows by inspecting documented
-public exports (`phospy.__all__`, `phospy.api.workflows.__all__`, and
-`phospy.api.__all__`) and docs. The stable identifiers are the public class and
+public exports (`phospy.__all__`, `phospy.api.__all__`, and
+`phospy.advanced.__all__`) and docs. The stable identifiers are the public class and
 request/result names. There is no dynamic workflow registry or enum, but none is
 necessary for the assistant's first increment because the supported workflow set
 is small and explicitly documented.

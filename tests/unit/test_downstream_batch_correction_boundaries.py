@@ -9,7 +9,6 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.advanced import (
     DifferentialAnalysisConfig,
     KinaseActivityConfig,
@@ -18,39 +17,42 @@ from phospy.advanced import (
     SignalomeConfig,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     BatchCovariate,
     Contrast,
     DifferentialAnalysisRequest,
     EnrichmentConfig,
     EnrichmentWorkflowRequest,
+    ExperimentalDesign,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     PtmSetCollection,
     ReferenceBundle,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.api.requests import ExperimentalDesign
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
+from phospy.datasets.processing_state import (
+    DatasetPreprocessingReport,
+    RuvReadinessState,
 )
+from phospy.differential.planning.interpreter import DifferentialAnalysisInterpreter
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.errors import PhosPyInputError
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.batch_correction import (
+from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
+)
+from phospy.preprocessing.batch_correction import BatchCorrectionWorkflow
+from phospy.preprocessing.batch_correction.execution.linear import (
     LinearResidualizeBatchCorrectionEngine,
 )
-from phospy.science.datasets.processing_state import RuvReadinessState
-from phospy.validation.datasets.preprocessing import (
+from phospy.preprocessing.validation.configuration import (
     reject_external_corrected_output_after_downstream_preprocessing,
 )
-from phospy.workflows.batch_correction import BatchCorrectionWorkflow
-from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -64,9 +66,9 @@ from tests.support.site_keys import protein_site_key_index, site_key_context_col
 
 _DOWNSTREAM_WORKFLOW_DIRS = (
     Path("src/phospy/workflows/differential"),
-    Path("src/phospy/workflows/kinase"),
-    Path("src/phospy/workflows/enrichment"),
-    Path("src/phospy/workflows/signalome"),
+    Path("src/phospy/kinase"),
+    Path("src/phospy/enrichment"),
+    Path("src/phospy/signalome"),
 )
 _FORBIDDEN_CORRECTION_SURFACE_TOKENS = (
     "batch_correction",
@@ -413,15 +415,14 @@ def test_downstream_workflows_do_not_import_batch_correction_executors() -> None
                     module = node.module or ""
                     imported_names = {alias.name for alias in node.names}
                     if module in {
-                        "phospy.workflows.batch_correction",
-                        "phospy.workflows.batch_correction.workflow",
-                        "phospy.science.batch_correction",
-                        "phospy.science.batch_correction.executor",
+                        "phospy.preprocessing.batch_correction",
+                        "phospy.preprocessing.batch_correction.workflow",
+                        "phospy.preprocessing.batch_correction.execution",
+                        "phospy.preprocessing.batch_correction.execution.sps_ruv",
                     }:
                         forbidden_imports.append(f"{path}:{module}")
                     if (
-                        module
-                        == "phospy.science.datasets.preprocessing.batch_correction"
+                        module == "phospy.preparation_records.batch_correction"
                         and imported_names
                         & {
                             "BatchCorrectionEngine",
@@ -432,8 +433,8 @@ def test_downstream_workflows_do_not_import_batch_correction_executors() -> None
                 if isinstance(node, ast.Import):
                     for alias in node.names:
                         if alias.name in {
-                            "phospy.workflows.batch_correction",
-                            "phospy.science.batch_correction",
+                            "phospy.preprocessing.batch_correction",
+                            "phospy.preprocessing.batch_correction.execution",
                         }:
                             forbidden_imports.append(f"{path}:{alias.name}")
 

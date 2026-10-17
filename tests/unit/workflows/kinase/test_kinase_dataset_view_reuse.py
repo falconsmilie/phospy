@@ -9,31 +9,31 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.datasets.internal_frame_store as internal_frame_store_module
-import phospy.validation.workflows.method_quantitative as method_quantitative_module
-import phospy.workflows.kinase.interpreter as interpreter_module
-import phospy.workflows.kinase.validator as validator_module
+import phospy.datasets._internal.frame_store as internal_frame_store_module
+import phospy.kinase.interpreter as interpreter_module
+import phospy.kinase.validator as validator_module
 from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
 )
-from phospy.api.results import KinasePredictionResult, KinaseScoringResult
-from phospy.contracts.results import KinaseWorkflowResult
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.kinase.contracts import (
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.kinase.contracts import (
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.kinase.validator import KinaseWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -132,11 +132,6 @@ def instrument_dataset_view(
 
     monkeypatch.setattr(
         validator_module,
-        "DatasetInternalView",
-        _CountingDatasetInternalView,
-    )
-    monkeypatch.setattr(
-        method_quantitative_module,
         "DatasetInternalView",
         _CountingDatasetInternalView,
     )

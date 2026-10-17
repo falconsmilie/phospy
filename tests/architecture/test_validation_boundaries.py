@@ -11,48 +11,54 @@ import pytest
 import phospy
 import phospy.advanced as advanced_api
 import phospy.api as public_api
-import phospy.api.requests as public_request_api
-import phospy.api.workflows as public_workflow_api
-import phospy.validation.identity_contracts as identity_contracts
-from phospy.errors.validation import DatasetValidationError
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.preprocessing.quantitative_scale_policy import (
-    AdditivePreprocessingScaleGuard,
+import phospy.phosphosites.contracts as identity_contracts
+from phospy.activities.validation import (
+    MethodQuantitativeInputValidator,
 )
-from phospy.science.references.models import Organism
-from phospy.tables.datasets import SiteMetadataTable
-from phospy.validation.identity_contracts import (
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.schemas import (
+    SiteMetadataTable,
+)
+from phospy.differential.validation.dataset import (
+    DifferentialDatasetEligibilityValidator,
+)
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.enrichment.validation import EnrichmentWorkflowValidator
+from phospy.errors.validation import DatasetValidationError
+from phospy.kinase.resolved_validator import (
+    ResolvedKinaseEligibilityValidator,
+)
+from phospy.kinase.scoring.contracts import (
+    KinaseScoringModeInputContract,
+)
+from phospy.kinase.sequence_contracts import (
+    kinase_sequence_context_contract,
+)
+from phospy.kinase.validator import (
+    KinaseWorkflowValidator,
+    kinase_profile_scoring_workflow_input_contract,
+)
+from phospy.phosphosites.contracts import (
     ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,
     ANALYSIS_READY_IDENTITY_COLUMNS,
     SITE_SEQUENCE_COLUMN,
     SequenceContextRequirement,
-    validate_reference_context_compatibility,
 )
-from phospy.validation.workflows.differential import (
-    DifferentialDatasetEligibilityValidator,
+from phospy.preprocessing.validation.quantitative_evidence import (
+    AdditivePreprocessingScaleGuard,
 )
-from phospy.validation.workflows.method_quantitative import (
-    MethodQuantitativeInputValidator,
-)
-from phospy.validation.workflows.quantitative import (
+from phospy.quantitative.validation import (
     WorkflowQuantitativeInputContract,
     WorkflowQuantitativeInputValidator,
-    kinase_profile_scoring_workflow_input_contract,
+)
+from phospy.references.context_compatibility import (
+    validate_reference_context_compatibility,
+)
+from phospy.signalome.validator import (
+    SignalomeWorkflowValidator,
     signalome_workflow_input_contract,
 )
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
-from phospy.workflows.enrichment.validator import EnrichmentWorkflowValidator
-from phospy.workflows.kinase.resolved_validator import (
-    ResolvedKinaseEligibilityValidator,
-)
-from phospy.workflows.kinase.scoring_mode_contracts import (
-    KinaseScoringModeInputContract,
-)
-from phospy.workflows.kinase.sequence_contracts import (
-    kinase_sequence_context_contract,
-)
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
-from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -67,30 +73,44 @@ SRC_ROOT = PROJECT_ROOT / "src"
 PACKAGE_ROOT = SRC_ROOT / "phospy"
 API_ROOT = SRC_ROOT / "phospy" / "api"
 CONTRACTS_ROOT = SRC_ROOT / "phospy" / "contracts"
+ENRICHMENT_ROOT = SRC_ROOT / "phospy" / "enrichment"
 DOCS_ROOT = PROJECT_ROOT / "docs"
-WORKFLOWS_ROOT = SRC_ROOT / "phospy" / "workflows"
-DATASET_VALIDATION_ROOT = SRC_ROOT / "phospy" / "validation" / "datasets"
-REQUEST_CONTRACTS_PATH = CONTRACTS_ROOT / "requests.py"
-DATASET_BUILD_CONTRACTS_PATH = CONTRACTS_ROOT / "dataset_build.py"
-API_REQUESTS_PATH = API_ROOT / "requests.py"
-REQUEST_DTO_CONTRACT_PATHS = (REQUEST_CONTRACTS_PATH, DATASET_BUILD_CONTRACTS_PATH)
-DATASET_VALIDATION_PREFIX = "phospy.validation.datasets"
+WORKFLOW_CAPABILITY_ROOTS = tuple(
+    SRC_ROOT / "phospy" / name
+    for name in ("differential", "enrichment", "kinase", "signalome")
+)
+DATASET_VALIDATION_ROOT = SRC_ROOT / "phospy" / "datasets" / "validation"
+IO_IMPORTER_CONTRACTS_PATH = SRC_ROOT / "phospy" / "io" / "importers" / "contracts.py"
+ENRICHMENT_REQUEST_CONTRACTS_PATH = ENRICHMENT_ROOT / "contracts" / "requests.py"
+DATASET_BUILD_CONTRACTS_PATH = SRC_ROOT / "phospy" / "datasets" / "contracts.py"
+DIFFERENTIAL_REQUEST_CONTRACTS_PATH = (
+    SRC_ROOT / "phospy" / "differential" / "contracts.py"
+)
+KINASE_REQUEST_CONTRACTS_PATH = SRC_ROOT / "phospy" / "kinase" / "requests.py"
+SIGNALOME_REQUEST_CONTRACTS_PATH = SRC_ROOT / "phospy" / "signalome" / "requests.py"
+REQUEST_DTO_CONTRACT_PATHS = (
+    IO_IMPORTER_CONTRACTS_PATH,
+    ENRICHMENT_REQUEST_CONTRACTS_PATH,
+    DATASET_BUILD_CONTRACTS_PATH,
+    DIFFERENTIAL_REQUEST_CONTRACTS_PATH,
+    KINASE_REQUEST_CONTRACTS_PATH,
+    SIGNALOME_REQUEST_CONTRACTS_PATH,
+)
+DATASET_VALIDATION_PREFIX = "phospy.datasets.validation"
 VALIDATION_PREFIX = "phospy.validation"
 PRIVATE_IMPLEMENTATION_CLASS_SUFFIXES = ("Validator", "Interpreter", "Executor")
 IDENTITY_CONTRACT_CLASS_DEFINITION_OWNERS = {
     "PhosphositeIdentityContract": (
-        SRC_ROOT / "phospy" / "science" / "sites" / "identity_rules" / "contracts.py"
+        SRC_ROOT / "phospy" / "phosphosites" / "contracts.py"
     ),
     "SequenceContextContract": (
-        SRC_ROOT / "phospy" / "science" / "sites" / "sequence_context.py"
+        SRC_ROOT / "phospy" / "phosphosites" / "sequence_context.py"
     ),
 }
 
 PUBLIC_BOUNDARY_MODULES = (
     ("phospy", phospy),
     ("phospy.api", public_api),
-    ("phospy.api.requests", public_request_api),
-    ("phospy.api.workflows", public_workflow_api),
 )
 
 DATASET_VALIDATOR_EXPORT_NAMES = frozenset(
@@ -436,8 +456,11 @@ def test_public_boundaries_do_not_export_validators_interpreters_or_executors() 
 
 
 def test_workflow_implementation_classes_are_not_public_boundary_imports() -> None:
-    private_implementation_names = _defined_private_implementation_class_names(
-        WORKFLOWS_ROOT
+    private_implementation_names = set().union(
+        *(
+            _defined_private_implementation_class_names(root)
+            for root in WORKFLOW_CAPABILITY_ROOTS
+        )
     )
 
     assert private_implementation_names
@@ -546,7 +569,7 @@ def test_additive_preprocessing_scale_policy_is_private_builder_owned() -> None:
 
     assert (
         AdditivePreprocessingScaleGuard.__module__
-        == "phospy.science.datasets.preprocessing.quantitative_scale_policy"
+        == "phospy.preprocessing.validation.quantitative_evidence"
     )
     assert not hasattr(public_api, "AdditivePreprocessingScaleGuard")
     assert "_validate_additive_preprocessing_scale_policy(" in executor_source
@@ -562,89 +585,76 @@ def test_additive_preprocessing_scale_policy_is_private_builder_owned() -> None:
 def test_signalome_result_identity_validation_is_science_owned_and_workflow_composed() -> (
     None
 ):
-    from phospy.science.signalomes import _result_validation
-    from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
+    from phospy.signalome import result_validation
+    from phospy.signalome.result_assembly import SignalomeResultAssembler
 
     assembler_source = inspect.getsource(SignalomeResultAssembler.run)
     validation_source = inspect.getsource(
-        _result_validation.validate_signalome_result_site_level_identity
+        result_validation.validate_signalome_result_site_level_identity
     )
 
     assert (
-        _result_validation.validate_signalome_result_site_level_identity.__module__
-        == "phospy.science.signalomes._result_validation"
+        result_validation.validate_signalome_result_site_level_identity.__module__
+        == "phospy.signalome.result_validation"
     )
     assert "validate_signalome_result_site_level_identity(" in assembler_source
     assert "phospy.workflows" not in validation_source
 
 
-def test_quantitative_validators_are_validation_owned() -> None:
-    validation_owned_symbols = (
-        MethodQuantitativeInputValidator,
-        WorkflowQuantitativeInputContract,
-        WorkflowQuantitativeInputValidator,
-        kinase_profile_scoring_workflow_input_contract,
-        signalome_workflow_input_contract,
+def test_quantitative_validators_follow_domain_ownership() -> None:
+    assert MethodQuantitativeInputValidator.__module__ == (
+        "phospy.activities.validation"
     )
-    validation_root = (SRC_ROOT / "phospy" / "validation").resolve()
-
-    for symbol in validation_owned_symbols:
-        assert _validation_owned_symbol_module_name(symbol).startswith(
-            f"{VALIDATION_PREFIX}."
-        )
-        assert validation_root in _validation_owned_symbol_path(symbol).parents
-
-
-def test_phosphosite_identity_contracts_are_science_owned_and_validation_reexported() -> (
-    None
-):
-    import phospy.science.sites.identity_contracts as science_identity_contracts
-    from phospy.science.sites.identity_rules import (
-        contracts,
-        dataset_identity,
-        reference_context,
-        result_identity,
+    assert WorkflowQuantitativeInputContract.__module__ == (
+        "phospy.quantitative.validation"
+    )
+    assert WorkflowQuantitativeInputValidator.__module__ == (
+        "phospy.quantitative.validation"
+    )
+    assert kinase_profile_scoring_workflow_input_contract.__module__ == (
+        "phospy.kinase.validator"
+    )
+    assert signalome_workflow_input_contract.__module__ == (
+        "phospy.signalome.validator"
     )
 
-    assert (
-        identity_contracts.validate_reference_context_compatibility
-        is science_identity_contracts.validate_reference_context_compatibility
-    )
-    assert (
-        identity_contracts.validate_reference_context_compatibility
-        is reference_context.validate_reference_context_compatibility
-    )
+
+def test_phosphosite_identity_contracts_have_direct_owner_leaves() -> None:
+    from phospy.phosphosites import contracts, dataset_identity, result_identity
+
     assert (
         validate_reference_context_compatibility.__module__
-        == "phospy.science.sites.identity_rules.reference_context"
+        == "phospy.references.context_compatibility"
     )
     assert (
-        science_identity_contracts.PhosphositeIdentityContract
+        identity_contracts.PhosphositeIdentityContract
         is contracts.PhosphositeIdentityContract
     )
     assert (
-        science_identity_contracts.enforce_site_key_column
-        is dataset_identity.enforce_site_key_column
+        dataset_identity.enforce_site_key_column.__module__
+        == "phospy.phosphosites.dataset_identity"
     )
     assert (
-        science_identity_contracts.enforce_result_identity_metadata_coherence
-        is result_identity.enforce_result_identity_metadata_coherence
+        result_identity.enforce_result_identity_metadata_coherence.__module__
+        == "phospy.phosphosites.result_identity"
     )
+    for name in (
+        "REFERENCE_CONTEXT_IDENTITY_FIELDS",
+        "REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE",
+        "ReferenceContextCompatibilityWarning",
+        "validate_reference_context_compatibility",
+    ):
+        assert not hasattr(identity_contracts, name)
 
 
-def test_phosphosite_identity_contract_facade_contains_no_hidden_implementation() -> (
-    None
-):
-    facade_path = SRC_ROOT / "phospy" / "science" / "sites" / "identity_contracts.py"
-    tree = ast.parse(facade_path.read_text(encoding="utf-8"), filename=str(facade_path))
-
-    implementation_nodes = [
-        node
-        for node in tree.body
-        if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
-    ]
-
-    assert implementation_nodes == []
+def test_former_phosphosite_identity_forwarding_routes_are_absent() -> None:
+    for relative_path in (
+        "science/sites/identity_columns.py",
+        "science/sites/identity_contracts.py",
+        "validation/identity_contracts.py",
+        "validation/datasets/protein_scoped_site_identity.py",
+    ):
+        assert not (SRC_ROOT / "phospy" / relative_path).exists()
 
 
 def test_identity_validators_are_not_exposed_from_advanced_api() -> None:
@@ -684,7 +694,7 @@ def test_reference_context_policy_is_not_exported_from_private_validation_api() 
 def test_request_dto_modules_do_not_import_validation_domains() -> None:
     offenders = sorted(
         f"{path.relative_to(PROJECT_ROOT)} imports {module}"
-        for path in (*REQUEST_DTO_CONTRACT_PATHS, API_REQUESTS_PATH)
+        for path in REQUEST_DTO_CONTRACT_PATHS
         for module in _imported_modules(path)
         if module == VALIDATION_PREFIX or module.startswith(f"{VALIDATION_PREFIX}.")
     )
@@ -719,7 +729,7 @@ def test_public_constructors_do_not_raise_workflow_boundary_exceptions() -> None
 def test_request_dto_modules_do_not_call_dataset_or_workflow_validators() -> None:
     offenders = sorted(
         f"{path.relative_to(PROJECT_ROOT)} calls {call_name}"
-        for path in (*REQUEST_DTO_CONTRACT_PATHS, API_REQUESTS_PATH)
+        for path in REQUEST_DTO_CONTRACT_PATHS
         for call_name in _called_function_names(path)
         if call_name.endswith("Validator")
         or call_name.startswith(("enforce_", "validate_"))
@@ -768,8 +778,8 @@ def test_kinase_scoring_mode_input_requirements_are_contract_owned() -> None:
 def test_kinase_scoring_mode_input_contract_remains_internal() -> None:
     assert not hasattr(public_api, "KinaseScoringModeInputContract")
     assert not hasattr(phospy, "KinaseScoringModeInputContract")
-    assert KinaseScoringModeInputContract.__module__.startswith(
-        "phospy.workflows.kinase."
+    assert (
+        KinaseScoringModeInputContract.__module__ == "phospy.kinase.scoring.contracts"
     )
 
 

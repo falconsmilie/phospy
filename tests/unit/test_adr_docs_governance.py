@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
-from phospy.science.evidence.dataset_resolution import (
+from phospy.evidence.dataset_resolution import (
     SUPPORTED_DATASET_MULTI_SITE_POLICIES,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
 ADR_ROOT = ROOT / "docs" / "adr"
 ADR_INDEX = ADR_ROOT / "index.md"
+REFACTOR_ROOT = ROOT / "docs" / "refactor"
+TRACKED_REFACTOR_ROOT = REFACTOR_ROOT / "architecture"
 ADR_0034 = (
     ADR_ROOT / "adr_0034_quantitative_state_motif_semantics_and_reference_context.md"
 )
@@ -26,6 +29,12 @@ _INDEX_ROW_PATTERN = re.compile(
 )
 _RELATIVE_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 _SOURCE_REF_PATTERN = re.compile(r"src/phospy/[A-Za-z0-9_./-]+")
+_REMOVED_RESULT_CAVEAT_ROUTE = "phospy.contracts.result_caveats"
+_LABELLED_HISTORICAL_RESULT_CAVEAT_ROUTE = re.compile(
+    rf"^\*\*Historical note:\*\* "
+    rf"`{re.escape(_REMOVED_RESULT_CAVEAT_ROUTE)}` was removed and is not a "
+    rf"supported import\.$"
+)
 
 _ALLOWED_STATUSES = {"Accepted", "Superseded", "Amended", "Deprecated", "Draft"}
 _FUTURE_SOURCE_REFS_BY_ADR: dict[str, frozenset[str]] = {
@@ -38,13 +47,88 @@ _FUTURE_SOURCE_REFS_BY_ADR: dict[str, frozenset[str]] = {
     ),
 }
 
+_RETIRED_SOURCE_REFS_BY_ADR: dict[str, frozenset[str]] = {
+    "adr_0001_public_api_contract.md": frozenset(
+        {
+            "src/phospy/api/configs/__init__.py",
+            "src/phospy/api/configs/common.py",
+            "src/phospy/api/configs/dataset.py",
+            "src/phospy/api/configs/kinase.py",
+            "src/phospy/api/configs/prediction.py",
+            "src/phospy/api/configs/signalome.py",
+        }
+    ),
+    "adr_0016_dataframe_and_series_ownership_at_public_boundaries.md": frozenset(
+        {"src/phospy/api/results.py"}
+    ),
+    "adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md": frozenset(
+        {"src/phospy/api/configs/prediction.py"}
+    ),
+    "adr_0019_experimental_design_and_contrast_contract.md": frozenset(
+        {"src/phospy/api/requests.py", "src/phospy/api/configs/differential.py"}
+    ),
+    "adr_0007_validation_domain_architecture.md": frozenset(
+        {"src/phospy/validation/datasets/group_coverage_filter.py"}
+    ),
+}
+
 
 def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _tracked_paths() -> frozenset[str]:
+    completed = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "--",
+            "src/phospy",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    return frozenset(
+        relative
+        for item in completed.stdout.split(b"\0")
+        if item
+        if (relative := item.decode("utf-8"))
+        if (ROOT / relative).is_file()
+    )
+
+
+def _tracked_source_reference_exists(raw: str, tracked_paths: frozenset[str]) -> bool:
+    if raw.endswith("/"):
+        return any(path.startswith(raw) for path in tracked_paths)
+    return raw in tracked_paths
+
+
 def _adr_files() -> tuple[Path, ...]:
     return tuple(sorted(ADR_ROOT.glob("adr_*.md")))
+
+
+def _maintained_markdown_files() -> tuple[Path, ...]:
+    docs = (
+        path
+        for path in (ROOT / "docs").rglob("*.md")
+        if not path.is_relative_to(REFACTOR_ROOT)
+        or path.is_relative_to(TRACKED_REFACTOR_ROOT)
+    )
+    return (ROOT / "README.md",) + tuple(sorted(docs))
+
+
+def _removed_result_caveat_route_violations(text: str) -> tuple[str, ...]:
+    return tuple(
+        line
+        for line in text.splitlines()
+        if _REMOVED_RESULT_CAVEAT_ROUTE in line
+        if _LABELLED_HISTORICAL_RESULT_CAVEAT_ROUTE.fullmatch(line) is None
+    )
 
 
 def _parse_adr_control(path: Path) -> tuple[str, str]:
@@ -132,21 +216,77 @@ def test_adr_markdown_links_are_not_broken() -> None:
 
 
 def test_adr_source_file_references_exist() -> None:
+    tracked_paths = _tracked_paths()
     for path in _adr_files():
         text = _read_text(path)
         for match in _SOURCE_REF_PATTERN.finditer(text):
             raw = match.group(0).rstrip(".,)")
-            resolved = (ROOT / raw).resolve()
             if raw in _FUTURE_SOURCE_REFS_BY_ADR.get(path.name, frozenset()):
-                assert not resolved.exists(), (
+                assert not _tracked_source_reference_exists(raw, tracked_paths), (
                     "future-facing ADR path allowlist should not hide an "
                     f"existing path: {raw}"
                 )
                 continue
-            assert resolved.exists(), (
-                f"stale source path in {path.as_posix()}: "
-                f"{raw} -> {resolved.as_posix()}"
+            if raw in _RETIRED_SOURCE_REFS_BY_ADR.get(path.name, frozenset()):
+                assert not _tracked_source_reference_exists(raw, tracked_paths), (
+                    "retired historical ADR path allowlist should not hide an existing "
+                    f"path: {raw}"
+                )
+                continue
+            assert _tracked_source_reference_exists(raw, tracked_paths), (
+                f"stale source path in {path.as_posix()}: {raw} has no tracked owner"
             )
+
+
+def test_ignored_directory_cannot_mask_a_stale_source_reference(
+    tmp_path: Path,
+) -> None:
+    stale = "src/phospy/science/batch_correction/"
+    ignored_cache = tmp_path / stale / "__pycache__"
+    ignored_cache.mkdir(parents=True)
+
+    assert (tmp_path / stale).exists()
+    assert not _tracked_source_reference_exists(stale, frozenset())
+
+
+def test_maintained_docs_do_not_recommend_removed_result_caveat_route() -> None:
+    offenders = [
+        path.relative_to(ROOT).as_posix()
+        for path in _maintained_markdown_files()
+        if _removed_result_caveat_route_violations(_read_text(path))
+    ]
+
+    assert offenders == []
+
+
+def test_labelled_historical_result_caveat_route_is_permitted() -> None:
+    text = (
+        "**Historical note:** `phospy.contracts.result_caveats` was removed and "
+        "is not a supported import."
+    )
+
+    assert _removed_result_caveat_route_violations(text) == ()
+
+
+def test_result_caveat_route_recommendation_is_rejected_locally() -> None:
+    text = """Historical context for this page.
+
+Use `phospy.contracts.result_caveats` when constructing caveats.
+"""
+
+    assert _removed_result_caveat_route_violations(text) == (
+        "Use `phospy.contracts.result_caveats` when constructing caveats.",
+    )
+
+
+def test_result_caveat_route_import_example_is_rejected() -> None:
+    text = """```python
+from phospy.contracts.result_caveats import ResultCaveat
+```"""
+
+    assert _removed_result_caveat_route_violations(text) == (
+        "from phospy.contracts.result_caveats import ResultCaveat",
+    )
 
 
 def test_adr_0012_is_not_active_governance() -> None:

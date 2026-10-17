@@ -12,13 +12,13 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
-from phospy.contracts.results import (
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
-from phospy.provenance.serialization import from_payload, to_payload
-from phospy.science.datasets.models import DatasetPreprocessingReport
+from phospy.run_lineage.serialization import from_payload, to_payload
 
 
 def _batch_correction_policy(method: str = "none") -> BatchCorrectionPolicy:

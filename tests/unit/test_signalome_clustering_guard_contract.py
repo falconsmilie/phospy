@@ -4,9 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.signalomes.clustering as clustering_module
-from phospy.errors.workflows import SignalomeScaleError
-from phospy.science.signalomes.clustering import (
+import phospy.signalome.clustering as clustering_module
+from phospy.signalome.clustering import (
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     cluster_sites,
@@ -14,6 +13,7 @@ from phospy.science.signalomes.clustering import (
     fit_cluster_labels,
     select_module_count_with_diagnostics,
 )
+from phospy.signalome.errors import SignalomeScaleError
 
 
 def _over_limit_scoring_values() -> np.ndarray:

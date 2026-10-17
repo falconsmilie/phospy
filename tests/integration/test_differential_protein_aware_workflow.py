@@ -8,8 +8,6 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
-    DifferentialAnalysisWorkflow,
 )
 from phospy.advanced import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
@@ -20,30 +18,36 @@ from phospy.advanced import (
     TechnicalReplicatePolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     ContinuousCovariate,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisResult,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.results import DifferentialAnalysisResult
-from phospy.errors import WorkflowBoundaryError
-from phospy.science.differential.models import (
+from phospy.differential.moderation.config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    EmpiricalBayesConfig,
+)
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_REASON_PROTEIN_MODEL_RESIDUAL_VARIANCE_NON_POSITIVE,
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
-    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+)
+from phospy.errors import WorkflowBoundaryError
+from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
-    EmpiricalBayesConfig,
 )
-from phospy.science.statistics.multiple_testing import (
+from phospy.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     adjust_p_values,
 )

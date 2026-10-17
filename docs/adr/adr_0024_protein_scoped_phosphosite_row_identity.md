@@ -23,9 +23,9 @@ evidence supplied by the caller, not proof of biological correctness.
 
 Update note (2026-07-29, concrete identity owner): reusable phosphosite row
 identity contracts are concretely owned by
-`phospy.science.sites.identity_contracts`. Workflow-specific site-sequence
+`phospy.phosphosites.contracts`. Workflow-specific site-sequence
 context semantics are concretely owned by
-`phospy.science.sites.sequence_context`. Validation-package identity routes are
+`phospy.phosphosites.sequence_context`. Validation-package identity routes are
 compatibility/composition routes and must not define independent contract
 classes.
 

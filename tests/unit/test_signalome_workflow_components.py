@@ -1,61 +1,65 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
+from phospy import SignalomeWorkflow
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
     SignalomeWorkflowResult,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.provenance.serialization import from_payload, to_payload
-from phospy.science.signalomes.clustering import (
-    ClusterSitesResult,
-)
-from phospy.science.signalomes.clustering.models import SignalomeClusteringEngineResult
-from phospy.science.signalomes.constants import DISPLAY_ID_COLUMN, SITE_CLUSTER_COLUMN
-from phospy.science.signalomes.context import (
-    build_protein_site_context_table,
-    build_site_membership_table,
-)
-from phospy.science.signalomes.models import (
-    SignalomeModuleSelectionDiagnostics,
-)
-from phospy.science.signalomes.science import (
-    build_expanded_signalome_table,
-    build_kinase_network_with_diagnostics,
-    build_module_assignments,
-    build_signalome_module_table,
-    select_kinase_substrates,
-)
-from phospy.workflows.intensity_scale_evidence import (
+from phospy.quantitative.evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
 )
-from phospy.workflows.signalome.caveats import (
+from phospy.run_lineage.serialization import from_payload, to_payload
+from phospy.signalome.assignments import (
+    build_module_assignments,
+    select_kinase_substrates,
+)
+from phospy.signalome.caveats import (
     SIGNALOME_DESCRIPTIVE_NETWORK_ASSOCIATION_CAVEAT_CODE,
     SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
     SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE,
 )
-from phospy.workflows.signalome.clustering_runner import SignalomeClusteringRunner
-from phospy.workflows.signalome.component_models import SignalomeContextTableBuildResult
-from phospy.workflows.signalome.constants import SIGNALOME_EXECUTOR_RESULT_ASSEMBLY_SEAM
-from phospy.workflows.signalome.context_tables import SignalomeContextTableBuilder
-from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
-from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
-from phospy.workflows.signalome.network_builder import SignalomeNetworkBuilder
-from phospy.workflows.signalome.provenance import SignalomeProvenanceBuilder
-from phospy.workflows.signalome.result_assembly import (
+from phospy.signalome.clustering import (
+    ClusterSitesResult,
+)
+from phospy.signalome.clustering.models import SignalomeClusteringEngineResult
+from phospy.signalome.clustering_runner import SignalomeClusteringRunner
+from phospy.signalome.component_models import SignalomeContextTableBuildResult
+from phospy.signalome.constants import (
+    DISPLAY_ID_COLUMN,
+    SIGNALOME_EXECUTOR_RESULT_ASSEMBLY_SEAM,
+    SITE_CLUSTER_COLUMN,
+)
+from phospy.signalome.context import (
+    build_protein_site_context_table,
+    build_site_membership_table,
+)
+from phospy.signalome.context_tables import SignalomeContextTableBuilder
+from phospy.signalome.executor import SignalomeWorkflowExecutor
+from phospy.signalome.expanded import build_expanded_signalome_table
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.models import (
+    SignalomeModuleSelectionDiagnostics,
+)
+from phospy.signalome.module_tables import SignalomeModuleTableBuilder
+from phospy.signalome.modules import build_signalome_module_table
+from phospy.signalome.network import build_kinase_network_with_diagnostics
+from phospy.signalome.network_builder import SignalomeNetworkBuilder
+from phospy.signalome.provenance import SignalomeProvenanceBuilder
+from phospy.signalome.result_assembly import (
     SignalomeExpandedSignalomeBuilder,
     SignalomeResultAssembler,
 )
@@ -225,6 +229,51 @@ def _caveat_by_code(result: SignalomeWorkflowResult, code: str):
     matches = [caveat for caveat in result.caveats if caveat.code == code]
     assert len(matches) == 1
     return matches[0]
+
+
+@pytest.mark.parametrize(
+    ("failing_stage", "expected_calls"),
+    [
+        ("validator", ["validator"]),
+        ("interpreter", ["validator", "interpreter"]),
+        ("executor", ["validator", "interpreter", "executor"]),
+    ],
+)
+def test_public_signalome_workflow_propagates_injected_stage_exceptions_unchanged(
+    failing_stage: str,
+    expected_calls: list[str],
+) -> None:
+    calls: list[str] = []
+    injected = RuntimeError(f"injected {failing_stage} failure")
+
+    def observe(stage: str, output: object) -> object:
+        calls.append(stage)
+        if failing_stage == stage:
+            raise injected
+        return output
+
+    class Validator:
+        def run(self, request: object) -> object:
+            return observe("validator", "validated")
+
+    class Interpreter:
+        def run(self, request: object) -> object:
+            return observe("interpreter", "interpreted")
+
+    class Executor:
+        def run(self, request: object) -> object:
+            return observe("executor", "result")
+
+    workflow = SignalomeWorkflow._with_components(
+        validator=cast(Any, Validator()),
+        interpreter=cast(Any, Interpreter()),
+        executor=cast(Any, Executor()),
+    )
+    with pytest.raises(RuntimeError) as exc_info:
+        workflow.run(cast(Any, object()))
+
+    assert exc_info.value is injected
+    assert calls == expected_calls
 
 
 def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:

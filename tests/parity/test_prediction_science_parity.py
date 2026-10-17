@@ -5,13 +5,13 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.science.prediction.candidates import build_candidate_substrate_list
-from phospy.science.prediction.motif_scoring import (
+from phospy.kinase.prediction.candidates import build_candidate_substrate_list
+from phospy.kinase.scoring.motif import (
     SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     score_phosphosite_motifs,
 )
-from phospy.science.prediction.scoring import (
-    fuse_profile_and_motif_scores_by_rank_weight,
+from phospy.kinase.scoring.rank_fusion import (
+    MotifProfileRankFusionPolicy,
 )
 from tests.support.parity_reporting import (
     format_percent,
@@ -162,14 +162,13 @@ def test_motif_scoring_matches_fragile_support_reference_points(
 def test_rank_weighted_fusion_scoring_matches_fragile_support_reference_tables(
     request: pytest.FixtureRequest,
 ) -> None:
-    rank_weighted_fusion_scores, score_fusion_weights = (
-        fuse_profile_and_motif_scores_by_rank_weight(
-            motif_scores=load_fragile_support_motif_scores(),
-            profile_scores=load_fragile_support_profile_scores(),
-            motif_sizes=load_fragile_support_motif_sizes(),
-            profile_sizes=load_fragile_support_profile_sizes(),
-            allow_profile_only_fallback=False,
-        )
+    rank_weighted_fusion_scores, score_fusion_weights = MotifProfileRankFusionPolicy(
+        allow_profile_only_fallback=False
+    ).fuse(
+        motif_scores=load_fragile_support_motif_scores(),
+        profile_scores=load_fragile_support_profile_scores(),
+        motif_sizes=load_fragile_support_motif_sizes(),
+        profile_sizes=load_fragile_support_profile_sizes(),
     )
     expected_scores = load_fragile_support_rank_weighted_fusion_scores()
     expected_weights = load_fragile_support_score_fusion_weights()

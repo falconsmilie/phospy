@@ -9,13 +9,13 @@ from phospy.api import (
     PhosphositeImportRequest,
     PhosphositeImportResult,
 )
-from phospy.contracts.results import (
+from phospy.errors import PhosPyInputError
+from phospy.evidence import DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
 )
-from phospy.errors import PhosPyInputError
 from phospy.io.readers import MappedPhosphositeTableImporter
-from phospy.science.evidence import DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
 
 
 def _source_table() -> pd.DataFrame:

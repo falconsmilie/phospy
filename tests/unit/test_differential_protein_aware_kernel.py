@@ -7,19 +7,20 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.science.differential.protein_covariate_adjusted as kernel_module
-from phospy.errors import PhosPyInputError
-from phospy.science.differential.empirical_bayes import fit_empirical_bayes
-from phospy.science.differential.models import (
-    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
-    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
-    EmpiricalBayesConfig,
+import phospy.differential.execution.protein_covariate_adjusted as kernel_module
+from phospy.differential.execution.protein_covariate_adjusted import (
+    PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
+    ProteinCovariateAdjustedDifferentialKernel,
 )
-from phospy.science.differential.models.protein_aware import (
+from phospy.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationRequest,
 )
-from phospy.science.differential.models.tables import (
+from phospy.differential.moderation.config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    EmpiricalBayesConfig,
+)
+from phospy.differential.moderation.empirical_bayes import fit_empirical_bayes
+from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_ILL_CONDITIONED,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_NON_POSITIVE_RESIDUAL_DOF,
     DIFFERENTIAL_RESULT_REASON_PROTEIN_AUGMENTED_DESIGN_RANK_DEFICIENT,
@@ -35,11 +36,12 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
-from phospy.science.differential.protein_covariate_adjusted import (
-    PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
-    ProteinCovariateAdjustedDifferentialKernel,
+from phospy.errors import PhosPyInputError
+from phospy.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
 )
-from phospy.science.statistics.multiple_testing import (
+from phospy.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BONFERRONI,
     adjust_p_values,
 )

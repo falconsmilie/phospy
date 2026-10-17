@@ -6,75 +6,84 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
-from phospy.advanced.configs import (
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
-from phospy.advanced.results import (
+from phospy.advanced import (
     KinaseEligibilityReport,
+    KinaseScoringConfig,
     KinaseWorkflowPreprocessingAttritionSummary,
     KinaseWorkflowScoringAttritionSummary,
     KinaseWorkflowSiteAttritionSummary,
+    ReferenceContextCompatibilityPolicy,
 )
-from phospy.api import KinaseWorkflow, Organism, ReferenceBundle, ReferencePreset
-from phospy.api.requests import KinaseWorkflowRequest
-from phospy.contracts.configs import (
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferenceBundle,
+    ReferencePreset,
+)
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
-    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
-    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
-    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
-    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    ResolvedKinaseActivityExecutionConfig,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.activities.membership import (
+from phospy.kinase.activity.membership import (
     ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
     ACTIVITY_MEMBERSHIP_SOURCE_PROFILE_DERIVED,
     ACTIVITY_MEMBERSHIP_SOURCE_SEQUENCE_ONLY_MOTIF,
     fingerprint_ksea_tested_quantitative_matrix,
 )
-from phospy.science.activities.methods import SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE
-from phospy.science.activities.scientific_policies import (
+from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
+    SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,
+)
+from phospy.kinase.activity.policies import (
     SSGSEA_PERMUTATION_RNG_SEED_POLICY,
     SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
 )
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.science.sites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
-)
-from phospy.science.transformations.models import QuantitativeMeaning
-from phospy.tables.kinase import KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
-from phospy.validation.workflows.activity import KinaseActivityInputValidator
-from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
-from phospy.workflows.kinase.component_models import KinaseScoringRunResult
-from phospy.workflows.kinase.contracts import (
-    ResolvedKinaseActivityExecutionConfig,
+from phospy.kinase.activity.runner import KinaseActivityRunner
+from phospy.kinase.activity.validation import KinaseActivityInputValidator
+from phospy.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
-from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
-from phospy.workflows.kinase.reference_projection import (
-    KinaseReferenceProjectionSummary,
-    KinaseReferenceProjector,
+from phospy.kinase.executor import KinaseWorkflowExecutor
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.prediction.config import (
+    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
 )
-from phospy.workflows.kinase.resolved_validator import (
+from phospy.kinase.prediction.outputs import build_prediction_outputs
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.prediction.runner import KinasePredictionRunner
+from phospy.kinase.provenance import KinaseProvenanceBuilder
+from phospy.kinase.references.projection import KinaseReferenceProjector
+from phospy.kinase.references.projection_contracts import (
+    KinaseReferenceProjectionSummary,
+)
+from phospy.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
 )
-from phospy.workflows.kinase.result_assembly import KinaseResultAssembler
-from phospy.workflows.kinase.science import (
-    build_kinase_profiles,
-    build_prediction_outputs,
+from phospy.kinase.result_assembly import KinaseResultAssembler
+from phospy.kinase.scoring.config import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
 )
-from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from phospy.kinase.scoring.execution import KinaseScoringRunner
+from phospy.kinase.scoring.profile import build_kinase_profiles
+from phospy.kinase.scoring.results import KinaseScoringResult, KinaseScoringRunResult
+from phospy.kinase.scoring.tables import (
+    KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
+)
+from phospy.kinase.validator import KinaseWorkflowValidator
+from phospy.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
+from phospy.quantitative.models import QuantitativeMeaning
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -451,7 +460,7 @@ def test_kinase_stage_components_expose_run() -> None:
 def test_kinase_validator_preserves_reference_preset_until_interpretation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phospy.science.references.resolution import ReferenceResolver
+    from phospy.references.resolution import ReferenceResolver
 
     def fail_if_called(*args: object, **kwargs: object) -> object:
         raise AssertionError("reference resolution must not run during validation")
@@ -505,10 +514,11 @@ def test_kinase_interpreter_resolves_and_projects_references_for_execution() -> 
 def test_kinase_executor_consumes_resolved_request_without_reference_discovery() -> (
     None
 ):
-    resolved = _resolved_request()
+    resolved = _resolved_request(config=_config(include_substrate_contributions=True))
     events: list[str] = []
     expected_eligibility_report = object()
     expected_scoring_result = object()
+    expected_substrate_contributions = object()
     expected_prediction_result = object()
     expected_activity_result = object()
     expected_site_attrition_summary = object()
@@ -518,6 +528,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
     class _ScoringExecution:
         def __init__(self, scoring_result: object) -> None:
             self.scoring_result = scoring_result
+            self.substrate_contributions = expected_substrate_contributions
 
     expected_scoring_execution = _ScoringExecution(expected_scoring_result)
 
@@ -539,7 +550,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             events.append("scoring")
             assert request is resolved
             assert config is resolved.execution_config
-            assert collect_substrate_contributions is False
+            assert collect_substrate_contributions is True
             return expected_scoring_execution
 
     class _PredictionRunner:
@@ -605,7 +616,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             assert scoring_result is expected_scoring_result
             assert prediction_result is expected_prediction_result
             assert activity_result is expected_activity_result
-            assert substrate_contributions is None
+            assert substrate_contributions is expected_substrate_contributions
             return expected_provenance
 
     class _ResultAssembler:
@@ -629,7 +640,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             assert site_attrition_summary is expected_site_attrition_summary
             assert activity_result is expected_activity_result
             assert provenance is expected_provenance
-            assert substrate_contributions is None
+            assert substrate_contributions is expected_substrate_contributions
             return expected_result
 
     result = KinaseWorkflowExecutor(
@@ -652,36 +663,6 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
         "assembly",
     ]
     assert result is expected_result
-
-
-def test_kinase_executor_scoring_stage_threads_contribution_collection_flag() -> None:
-    resolved = _resolved_request(config=_config(include_substrate_contributions=True))
-    expected_scoring_execution = object()
-    observed_collection_flag: bool | None = None
-
-    class _ScoringRunner:
-        def run(
-            self,
-            *,
-            request: object,
-            config: object,
-            collect_substrate_contributions: bool,
-        ) -> object:
-            nonlocal observed_collection_flag
-            assert request is resolved
-            assert config is resolved.execution_config
-            observed_collection_flag = collect_substrate_contributions
-            return expected_scoring_execution
-
-    result = KinaseWorkflowExecutor(
-        scoring_runner=_ScoringRunner(),  # type: ignore[arg-type]
-    )._run_scoring_stage(
-        request=resolved,
-        config=resolved.execution_config,
-    )
-
-    assert result is expected_scoring_execution
-    assert observed_collection_flag is True
 
 
 def test_direct_unnormalised_kinase_ids_are_rejected_by_execution_contract() -> None:

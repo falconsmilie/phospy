@@ -15,7 +15,7 @@ def _candidate_interpreters(repo_root: Path) -> list[str]:
     if override:
         candidates.append(override)
 
-    venv_dirs = [".venv-ci", ".venv", "venv"]
+    venv_dirs = [".venv3-11", ".venv-ci", ".venv", "venv"]
     windows_rel = Path("Scripts") / "python.exe"
     unix_rel = Path("bin") / "python"
     for name in venv_dirs:

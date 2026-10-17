@@ -3,14 +3,14 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import DatasetValidationError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.models import Organism
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     decode_site_key,
     encode_site_key,
 )
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     complete_trusted_dataset_construction_assertions_for_tests,
     trusted_analysis_ready_dataset_from_tables,

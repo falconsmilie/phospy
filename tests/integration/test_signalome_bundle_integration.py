@@ -8,20 +8,25 @@ import pandas as pd
 import pytest
 
 from phospy import (
+    AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
 from phospy.advanced import (
+    DatasetBatchCorrectionConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
+    Organism,
     ReferencePreset,
     SignalomeWorkflowRequest,
+    SignalomeWorkflowResult,
 )
-from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors import (
     ContractValidationError,
     PhosPyInputError,
@@ -33,8 +38,13 @@ from phospy.io.bundles.signalome import (
     load_signalome_workflow_bundle,
     save_signalome_workflow_bundle,
 )
-from phospy.provenance.serialization import to_payload as provenance_to_payload
-from phospy.science.signalomes.clustering import (
+from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.provenance.serialization.batch_correction import (
+    batch_correction_provenance_to_payload,
+)
+from phospy.run_lineage.models import RunProvenance
+from phospy.run_lineage.serialization import to_payload as provenance_to_payload
+from phospy.signalome.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
@@ -162,6 +172,60 @@ def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     )
     assert loaded.result.kinase_result.caveats == result.kinase_result.caveats
     _assert_signalome_result_equal(loaded.result, result)
+
+
+def test_signalome_bundle_round_trip_preserves_batch_correction_provenance(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result(batch_correction=True)
+    assert result.provenance is not None
+    assert result.kinase_result.provenance is not None
+    expected_top_level = _batch_correction_record(result.provenance)
+    expected_kinase = _batch_correction_record(result.kinase_result.provenance)
+    bundle_root = tmp_path / "signalome_bundle_batch_correction"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_signalome_workflow_bundle(bundle_root)
+    assert loaded.result.provenance is not None
+    assert loaded.result.kinase_result.provenance is not None
+    actual_top_level = _batch_correction_record(loaded.result.provenance)
+    actual_kinase = _batch_correction_record(loaded.result.kinase_result.provenance)
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    stored_stage = next(
+        stage
+        for stage in manifest["provenance"]["preprocessing_stages"]
+        if stage["stage"] == "batch_correction"
+    )
+    upstream = manifest["provenance"]["workflow_parameters"][
+        "upstream_kinase_provenance"
+    ]
+    stored_upstream_stage = next(
+        stage
+        for stage in upstream["preprocessing_stages"]
+        if stage["stage"] == "batch_correction"
+    )
+
+    assert actual_top_level.__class__ is BatchCorrectionProvenance
+    assert actual_kinase.__class__ is BatchCorrectionProvenance
+    assert batch_correction_provenance_to_payload(actual_top_level) == (
+        batch_correction_provenance_to_payload(expected_top_level)
+    )
+    assert batch_correction_provenance_to_payload(actual_kinase) == (
+        batch_correction_provenance_to_payload(expected_kinase)
+    )
+    assert stored_stage["batch_correction_provenance"] == (
+        batch_correction_provenance_to_payload(expected_top_level)
+    )
+    assert stored_upstream_stage["batch_correction_provenance"] == (
+        batch_correction_provenance_to_payload(expected_kinase)
+    )
+    assert actual_top_level.requested_method == "linear_residualize_batch"
+    assert actual_kinase.requested_method == "linear_residualize_batch"
+    assert "batch_correction" not in manifest["dataset"]["metadata"]["processing_state"]
 
 
 def test_signalome_bundle_overwrite_uses_shared_transaction_recovery(
@@ -799,8 +863,10 @@ def test_signalome_bundle_rejects_invalid_public_output_table_schema(
         load_signalome_workflow_bundle(bundle_root)
 
 
-def _build_signalome_request_and_result():
+def _build_signalome_request_and_result(*, batch_correction: bool = False):
     dataset = build_rat_l6_dataset(n_sites=260)
+    if batch_correction:
+        dataset = _with_linear_batch_correction(dataset)
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=dataset,
@@ -826,6 +892,43 @@ def _build_signalome_request_and_result():
     )
     result = SignalomeWorkflow().run(request)
     return request, result
+
+
+def _with_linear_batch_correction(dataset):
+    sample_ids = tuple(str(value) for value in dataset.phospho.columns)
+    sample_metadata = pd.DataFrame(
+        {
+            "batch": tuple(value.rsplit("exp", maxsplit=1)[-1] for value in sample_ids),
+            "condition": tuple(
+                value.split("_exp", maxsplit=1)[0] for value in sample_ids
+            ),
+        },
+        index=dataset.phospho.columns.copy(),
+    )
+    return AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=dataset.phospho,
+            site_metadata=dataset.site_metadata,
+            sample_metadata=sample_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=DatasetBatchCorrectionConfig(
+                    method="linear_residualize_batch"
+                )
+            ),
+        )
+    )
+
+
+def _batch_correction_record(provenance: RunProvenance) -> BatchCorrectionProvenance:
+    records = tuple(
+        stage.batch_correction_provenance
+        for stage in provenance.preprocessing_stages
+        if stage.batch_correction_provenance is not None
+    )
+    assert len(records) == 1
+    return records[0]
 
 
 def _assert_signalome_result_equal(left, right) -> None:

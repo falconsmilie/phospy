@@ -5,57 +5,60 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, SignalomeWorkflow
-from phospy.advanced.configs import ReferenceContextCompatibilityPolicy
-from phospy.api import (
-    Organism,
-    SignalomeWorkflowRequest,
+from phospy import (
+    SignalomeWorkflow,
 )
-from phospy.api.results import (
+from phospy.activities.semantics import ActivityInputMatrix
+from phospy.advanced import (
+    ReferenceContextCompatibilityPolicy,
+)
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
+    Organism,
+    SignalomeWorkflowRequest,
 )
-from phospy.contracts.configs import (
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
-    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
-    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+from phospy.kinase.activity.execution import compute_activity_from_inputs
+from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.kinase.prediction.outputs import rank_kinases_for_prediction
+from phospy.kinase.scoring.profile import (
+    build_kinase_profiles,
+    score_profile_correlations,
 )
-from phospy.provenance.hashing import hash_table_tolerance
-from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
-from phospy.science.activities.scoring import compute_activity_from_inputs
-from phospy.science.activities.semantics import ActivityInputMatrix
-from phospy.science.datasets.preprocessing.models import (
+from phospy.kinase.scoring.rank_fusion import MotifProfileRankFusionPolicy
+from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.stages.normalisation import (
+from phospy.preprocessing.contracts.configuration import (
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+)
+from phospy.preprocessing.stages.normalisation import (
     NormalisationStage,
 )
-from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
+from phospy.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
 )
-from phospy.science.prediction.scoring import (
-    fuse_profile_and_motif_scores_by_rank_weight,
-)
-from phospy.science.references.models import ReferenceBundle
-from phospy.science.signalomes.assignments import build_module_assignments
-from phospy.science.signalomes.clustering.candidate_scoring import (
+from phospy.provenance.hashing import hash_table_tolerance
+from phospy.references.models import ReferenceBundle
+from phospy.signalome.assignments import build_module_assignments
+from phospy.signalome.clustering.candidate_scoring import (
     compute_candidate_cluster_scores,
     summarize_profile_degeneracy,
 )
-from phospy.science.signalomes.clustering.policies import (
+from phospy.signalome.clustering.policies import (
     SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
     SIGNALOME_TREE_ENGINE_EXACT,
 )
-from phospy.science.signalomes.clustering.tree_building import (
+from phospy.signalome.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
 )
-from phospy.workflows.kinase.science import (
-    build_kinase_profiles,
-    rank_kinases_for_prediction,
-    score_profile_correlations,
+from phospy.signalome.config import (
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -519,7 +522,7 @@ def test_motif_profile_fusion_has_predictable_missing_motif_behavior() -> None:
     motif_sizes = pd.Series({"K1": 10.0})
     profile_sizes = pd.Series({"K1": 10.0})
 
-    fused, weights = fuse_profile_and_motif_scores_by_rank_weight(
+    fused, weights = MotifProfileRankFusionPolicy().fuse(
         motif_scores=motif_scores,
         profile_scores=profile_scores,
         motif_sizes=motif_sizes,

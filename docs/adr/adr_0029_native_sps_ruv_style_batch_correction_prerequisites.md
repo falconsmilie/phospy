@@ -241,12 +241,9 @@ Implementation support requires focused tests before claiming support:
 Current ownership areas are:
 
 ```text
-src/phospy/contracts/configs/
-src/phospy/science/datasets/preprocessing/
-src/phospy/provenance/
-src/phospy/science/batch_correction/
-src/phospy/workflows/batch_correction/
-src/phospy/validation/workflows/batch_correction/
+src/phospy/preprocessing/batch_correction/
+src/phospy/provenance/models/batch_correction.py
+src/phospy/provenance/serialization/batch_correction.py
 tests/
 ```
 

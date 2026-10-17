@@ -4,7 +4,10 @@ import pandas as pd
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+from phospy.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+)
+from phospy.preprocessing.protein_aware.alignment import (
     PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
     PROTEIN_AWARE_REASON_INCOMPATIBLE_TRANSFORMATION_STATE,
     PROTEIN_AWARE_REASON_MATCHED_PROTEIN_AVAILABLE,
@@ -12,13 +15,12 @@ from phospy.science.datasets.preprocessing.protein_aware_alignment import (
     PROTEIN_AWARE_REASON_SAMPLE_MISMATCH,
     ProteinAwareAlignmentConfig,
     ProteinAwareAlignmentEligibilityResolver,
-    ProteinAwarePreparationEligibility,
 )
-from phospy.science.datasets.preprocessing.protein_mapping import (
+from phospy.preprocessing.protein_aware.mapping import (
     ProteinMappingConfig,
     ProteinMappingResolver,
 )
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )

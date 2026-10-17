@@ -7,14 +7,11 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-import phospy.science.differential.executor as differential_executor_module
-from phospy.errors import PhosPyInputError
-from phospy.science.differential.empirical_bayes import (
-    EmpiricalBayesFit,
-    fit_empirical_bayes,
+import phospy.differential.execution.model_executor as differential_executor_module
+from phospy.differential.diagnostics import (
+    EmpiricalBayesPriorDiagnostics,
 )
-from phospy.science.differential.executor import DifferentialAnalysisExecutor
-from phospy.science.differential.linear_model import (
+from phospy.differential.execution.linear_model import (
     DIFFERENTIAL_LINEAR_MODEL_DECOMPOSITION_METHOD,
     DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
     DIFFERENTIAL_LINEAR_MODEL_SOLVER,
@@ -22,16 +19,25 @@ from phospy.science.differential.linear_model import (
     DifferentialDesignDecompositionError,
     decompose_differential_design,
 )
-from phospy.science.differential.models import (
-    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+from phospy.differential.execution.model_executor import DifferentialAnalysisExecutor
+from phospy.differential.models.design import (
     ContrastMatrix,
     DesignMatrix,
     DifferentialAnalysisRequest,
-    DifferentialAnalysisResult,
-    EmpiricalBayesConfig,
-    EmpiricalBayesPriorDiagnostics,
 )
+from phospy.differential.moderation.config import (
+    EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
+    EmpiricalBayesConfig,
+)
+from phospy.differential.moderation.empirical_bayes import (
+    EmpiricalBayesFit,
+    fit_empirical_bayes,
+)
+from phospy.differential.results import (
+    DifferentialAnalysisResult,
+)
+from phospy.errors import PhosPyInputError
+from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _FEATURE_INDEX = pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id")
@@ -1373,7 +1379,7 @@ def test_executor_rejects_invalid_moderated_degrees_of_freedom(
         )
 
     monkeypatch.setattr(
-        "phospy.science.differential.executor.fit_empirical_bayes", _bad_fit
+        "phospy.differential.execution.model_executor.fit_empirical_bayes", _bad_fit
     )
     matrix = pd.DataFrame(
         {
@@ -1412,7 +1418,7 @@ def test_executor_rejects_unstable_standard_errors(
         )
 
     monkeypatch.setattr(
-        "phospy.science.differential.executor.fit_empirical_bayes",
+        "phospy.differential.execution.model_executor.fit_empirical_bayes",
         _zero_variance_fit,
     )
     matrix = pd.DataFrame(
@@ -1452,11 +1458,11 @@ def test_differential_rejects_or_documents_non_finite_p_values_before_correction
         )
 
     monkeypatch.setattr(
-        "phospy.science.differential.executor.stats.t",
+        "phospy.differential.execution.model_executor.stats.t",
         _NonFiniteTDistribution(),
     )
     monkeypatch.setattr(
-        "phospy.science.differential.executor.adjust_p_values",
+        "phospy.differential.execution.model_executor.adjust_p_values",
         _unexpected_correction_call,
     )
     matrix = pd.DataFrame(

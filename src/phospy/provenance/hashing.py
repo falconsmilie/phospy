@@ -16,7 +16,10 @@ import pandas as pd
 
 from phospy.errors.provenance import ProvenanceFingerprintError
 from phospy.provenance.immutability import thaw_json_value
-from phospy.provenance.models import JsonValue, TableFingerprint
+from phospy.provenance.models import (
+    JsonValue,
+    TableFingerprint,
+)
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
 DEFAULT_STABLE_JSON_HASH_ALGORITHM = "sha256-stable-json-v1"

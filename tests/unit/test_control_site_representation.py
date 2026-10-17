@@ -5,7 +5,7 @@ import json
 from phospy.advanced import (
     ControlSiteSourceMetadata as AdvancedControlSiteSourceMetadata,
 )
-from phospy.science.datasets.preprocessing.control_sites import (
+from phospy.preprocessing.control_sites.contracts import (
     CONTROL_SITE_REASON_CONTROL_ANNOTATION_NOT_IN_SITE_ROWS,
     CONTROL_SITE_REASON_DUPLICATE_CONTROL_ANNOTATION,
     CONTROL_SITE_REASON_INVALID_WEIGHT,

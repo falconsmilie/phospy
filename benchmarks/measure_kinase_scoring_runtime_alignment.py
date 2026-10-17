@@ -71,7 +71,7 @@ def _run_once(
     include_diagnostic_scoring_tables: bool,
     emulate_unfiltered_motif_lane: bool,
 ) -> tuple[float, float]:
-    import phospy.workflows.kinase.executor as kinase_executor
+    import phospy.kinase.executor as kinase_executor
     from phospy import (
         KinasePredictionConfig,
         KinaseScoringConfig,
@@ -79,7 +79,7 @@ def _run_once(
         KinaseWorkflowRequest,
         ReferenceBundle,
     )
-    from phospy.science.references.resolution import BundledReferenceProvider
+    from phospy.references.resolution import BundledReferenceProvider
     from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
     dataset = build_rat_l6_dataset(n_sites=260)

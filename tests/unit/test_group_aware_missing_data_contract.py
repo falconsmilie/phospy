@@ -9,39 +9,43 @@ import phospy
 import phospy.advanced as advanced_api
 import phospy.api as stable_api
 from phospy._api_inventory import ADVANCED_PUBLIC_API
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.errors.input import PhosPyInputError
-from phospy.provenance.models import DeterminismKind
-from phospy.science.datasets.builders.contracts import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
-from phospy.science.datasets.builders.provenance_assembler import (
+from phospy.datasets.construction.provenance import (
     DatasetRunProvenanceAssembler,
 )
-from phospy.science.datasets.preprocessing.models import (
+from phospy.errors.input import PhosPyInputError
+from phospy.preparation_records.policies import MissingDataPolicy
+from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.plan_interpreter import (
+from phospy.preprocessing.contracts.policies import (
+    ImputationInputScale,
+)
+from phospy.preprocessing.planning.boundary import (
     PreprocessingPlanInterpreter,
 )
-from phospy.science.datasets.preprocessing.policy_models import (
-    ImputationInputScale,
-    MissingDataPolicy,
+from phospy.preprocessing.provenance.models import (
+    DeterminismKind,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data import (
+from phospy.preprocessing.stages.missing_data import (
     stage as missing_data_stage_module,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.stage import (
+from phospy.preprocessing.stages.missing_data.stage import (
     MISSING_DATA_STAGE_CONTRACT,
     MissingDataStage,
 )
-from phospy.science.transformations.models import IntensityScaleKind
+from phospy.quantitative.models import IntensityScaleKind
 
 
 def _valid_group_aware_kwargs() -> dict[str, Any]:

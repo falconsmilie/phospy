@@ -7,19 +7,25 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors.validation import DatasetValidationError
-from phospy.science.datasets.models import (
+from phospy.datasets._construction.validation import (
+    analysis_ready_matrix_missing_value_count,
+)
+from phospy.datasets.imputation_metadata import ImputationObservationMetadata
+from phospy.datasets.models import (
     AnalysisReadyPhosphoDataset,
-    ImputationObservationMetadata,
-    _analysis_ready_matrix_missing_value_count,
+)
+from phospy.datasets.processing_state import (
     _require_boolean_observation_mask,
 )
-from phospy.science.references.models import Organism
-from phospy.tables.datasets import SiteMetadataTable
-from phospy.validation.datasets.site_metadata import (
+from phospy.datasets.schemas import (
+    SiteMetadataTable,
+)
+from phospy.errors.validation import DatasetValidationError
+from phospy.evidence.site_metadata import (
     assess_localisation_probability_column,
 )
-from phospy.validation.identity_contracts import enforce_site_key_matches_metadata
+from phospy.phosphosites.dataset_identity import enforce_site_key_matches_metadata
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -120,16 +126,16 @@ def test_analysis_ready_missing_value_scan_scales_for_numeric_matrix(
     phospho, _site_metadata = medium_dataset_tables
     object_phospho = phospho.astype(object)
 
-    assert _analysis_ready_matrix_missing_value_count(phospho) == 0
-    assert _analysis_ready_matrix_missing_value_count(object_phospho) == 0
+    assert analysis_ready_matrix_missing_value_count(phospho) == 0
+    assert analysis_ready_matrix_missing_value_count(object_phospho) == 0
 
     numeric_runtime_seconds = median_runtime_seconds(
-        lambda: _analysis_ready_matrix_missing_value_count(phospho),
+        lambda: analysis_ready_matrix_missing_value_count(phospho),
         repeats=5,
         warmup=True,
     )
     object_runtime_seconds = median_runtime_seconds(
-        lambda: _analysis_ready_matrix_missing_value_count(object_phospho),
+        lambda: analysis_ready_matrix_missing_value_count(object_phospho),
         repeats=3,
         warmup=True,
     )

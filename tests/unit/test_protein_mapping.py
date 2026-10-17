@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.science.datasets.preprocessing.protein_mapping import (
+from phospy.preparation_records.protein_aware import ProteinMappingStatus
+from phospy.preprocessing.protein_aware.mapping import (
     ProteinMappingConfig,
     ProteinMappingResolver,
-    ProteinMappingStatus,
 )
 
 

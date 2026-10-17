@@ -5,10 +5,10 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
-from phospy.science.configs.preprocessing.missing_data import (
+from phospy.differential.public import DifferentialAnalysisWorkflow
+from phospy.preprocessing.contracts.configuration.missing_data import (
     DatasetMissingDataConfig,
 )
-from phospy.workflows.differential.public import DifferentialAnalysisWorkflow
 
 _ROOT = Path(__file__).resolve().parents[2]
 _DOCS = _ROOT / "docs"

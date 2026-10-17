@@ -4,19 +4,19 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.contracts.configs import (
+from phospy.errors.input import PhosPyInputError
+from phospy.phosphosites.site_keys import ProteinScopedPhosphositeKey, encode_site_key
+from phospy.preprocessing.contracts import DuplicateSiteResolutionResult
+from phospy.preprocessing.contracts.configuration import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.models import DuplicateSiteResolutionResult
-from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
+from phospy.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
 )
-from phospy.science.sites.site_keys import ProteinScopedPhosphositeKey, encode_site_key
 from tests.support.site_keys import protein_site_key
 
 _MAPK14_KEY = protein_site_key(protein_identifier="PROT_A", site="Y182")

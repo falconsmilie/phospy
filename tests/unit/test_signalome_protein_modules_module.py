@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.science.signalomes.clustering.protein_modules import derive_protein_modules
+from phospy.signalome.clustering.protein_modules import derive_protein_modules
 
 
 def test_derive_protein_modules_groups_by_site_membership_patterns() -> None:

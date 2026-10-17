@@ -4,20 +4,25 @@ import pandas as pd
 import pandas.testing as pdt
 
 from phospy.advanced import DatasetProteinAwarePreparationConfig
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+from phospy.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+)
+from phospy.preprocessing.protein_aware.alignment import (
     PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
     PROTEIN_AWARE_REASON_INCOMPATIBLE_TRANSFORMATION_STATE,
     PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,
     PROTEIN_AWARE_REASON_SAMPLE_MISMATCH,
-    ProteinAwarePreparationEligibility,
 )
-from phospy.science.datasets.preprocessing.protein_aware_preparation import (
-    ProteinAwarePreparationStage,
-)
-from phospy.science.datasets.preprocessing.protein_mapping import (
+from phospy.preprocessing.protein_aware.mapping import (
     ProteinMappingConfig,
 )
-from phospy.science.transformations.models import (
+from phospy.preprocessing.results.protein_aware import (
+    ProteinAwarePreparationStageOutput,
+)
+from phospy.preprocessing.stages.protein_aware import (
+    ProteinAwarePreparationStage,
+)
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
@@ -50,6 +55,17 @@ def _mapping_config() -> ProteinMappingConfig:
     return ProteinMappingConfig(protein_identifier_columns=("protein_id",))
 
 
+def _site_keys(
+    output: ProteinAwarePreparationStageOutput,
+    eligibility: ProteinAwarePreparationEligibility,
+) -> tuple[str, ...]:
+    return tuple(
+        row.site_key
+        for row in output.site_eligibility
+        if row.eligibility is eligibility
+    )
+
+
 def test_protein_aware_preparation_exact_one_site_to_one_protein() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [1.0], "sample_b": [2.0]},
@@ -75,19 +91,26 @@ def test_protein_aware_preparation_exact_one_site_to_one_protein() -> None:
     )
 
     assert result is not None
-    assert result.report.eligible_site_keys == ("MAPK14;Y182;",)
-    assert result.report.fallback_site_keys == ()
-    assert result.report.excluded_site_keys == ()
-    assert result.report.policy_parameters["preparation_mode"] == (
+    assert _site_keys(
+        result,
+        ProteinAwarePreparationEligibility.ELIGIBLE_FOR_PROTEIN_AWARE_PREPARATION,
+    ) == ("MAPK14;Y182;",)
+    assert (
+        _site_keys(result, ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY)
+        == ()
+    )
+    assert (
+        _site_keys(result, ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION)
+        == ()
+    )
+    assert result.policy_parameters["preparation_mode"] == (
         "aligned_model_input_preparation_only"
     )
-    assert result.report.policy_parameters["modifies_phospho_matrix"] is False
-    assert result.report.policy_parameters["performs_total_protein_subtraction"] is (
-        False
-    )
-    assert result.report.policy_parameters["performs_normalisation"] is False
-    assert result.report.policy_parameters["performs_differential_modelling"] is False
-    assert result.report.policy_parameters["claims_msstatsptm_equivalence"] is False
+    assert result.policy_parameters["modifies_phospho_matrix"] is False
+    assert result.policy_parameters["performs_total_protein_subtraction"] is (False)
+    assert result.policy_parameters["performs_normalisation"] is False
+    assert result.policy_parameters["performs_differential_modelling"] is False
+    assert result.policy_parameters["claims_msstatsptm_equivalence"] is False
     assert result.matched_pairs.to_dict(orient="records") == [
         {
             "site_key": "MAPK14;Y182;",
@@ -127,11 +150,19 @@ def test_protein_aware_preparation_missing_total_row_fallback() -> None:
     )
 
     assert result is not None
-    assert result.report.eligible_site_keys == ("MAPK14;Y182;",)
-    assert result.report.fallback_site_keys == ("AKT1;T308;",)
-    assert result.report.excluded_site_keys == ()
+    assert _site_keys(
+        result,
+        ProteinAwarePreparationEligibility.ELIGIBLE_FOR_PROTEIN_AWARE_PREPARATION,
+    ) == ("MAPK14;Y182;",)
+    assert _site_keys(
+        result, ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY
+    ) == ("AKT1;T308;",)
+    assert (
+        _site_keys(result, ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION)
+        == ()
+    )
     assert result.protein_covariate_matrix.index.tolist() == ["P53778"]
-    missing = result.missing_protein_abundance_diagnostics
+    missing = result.mapping_diagnostics.missing_protein_abundance
     assert missing.to_dict(orient="records") == [
         {
             "site_key": "AKT1;T308;",
@@ -170,12 +201,23 @@ def test_protein_aware_preparation_ambiguous_mapping_is_excluded() -> None:
     )
 
     assert result is not None
-    assert result.report.eligible_site_keys == ()
-    assert result.report.fallback_site_keys == ()
-    assert result.report.excluded_site_keys == ("MAPK14;Y182;",)
+    assert (
+        _site_keys(
+            result,
+            ProteinAwarePreparationEligibility.ELIGIBLE_FOR_PROTEIN_AWARE_PREPARATION,
+        )
+        == ()
+    )
+    assert (
+        _site_keys(result, ProteinAwarePreparationEligibility.FALLBACK_TO_PHOSPHO_ONLY)
+        == ()
+    )
+    assert _site_keys(
+        result, ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION
+    ) == ("MAPK14;Y182;",)
     assert result.matched_pairs.empty
     assert result.protein_covariate_matrix.empty
-    ambiguous = result.ambiguous_mapping_diagnostics
+    ambiguous = result.mapping_diagnostics.ambiguous_mapping
     assert ambiguous.loc[0, "candidate_protein_identifiers"] == (
         "P53778",
         "Q16539",
@@ -209,16 +251,22 @@ def test_protein_aware_preparation_sample_mismatch_is_diagnostic_exclusion() -> 
     )
 
     assert result is not None
-    assert result.report.eligible_site_keys == ()
-    assert result.report.excluded_site_keys == ("MAPK14;Y182;",)
-    assert result.sample_alignment_diagnostics.missing_total_protein_samples == (
-        "sample_b",
+    assert (
+        _site_keys(
+            result,
+            ProteinAwarePreparationEligibility.ELIGIBLE_FOR_PROTEIN_AWARE_PREPARATION,
+        )
+        == ()
     )
-    table = result.site_eligibility_table
-    assert table.loc[0, "eligibility"] == (
-        ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION.value
+    assert _site_keys(
+        result, ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION
+    ) == ("MAPK14;Y182;",)
+    assert result.sample_alignment.missing_total_protein_samples == ("sample_b",)
+    row = result.site_eligibility[0]
+    assert (
+        row.eligibility is ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION
     )
-    assert PROTEIN_AWARE_REASON_SAMPLE_MISMATCH in table.loc[0, "reasons"]
+    assert PROTEIN_AWARE_REASON_SAMPLE_MISMATCH in row.reasons
     assert result.protein_covariate_matrix.columns.tolist() == [
         "sample_a",
         "sample_b",
@@ -253,14 +301,19 @@ def test_protein_aware_preparation_transformation_mismatch_is_diagnostic_exclusi
     )
 
     assert result is not None
-    assert result.report.eligible_site_keys == ()
-    assert result.report.excluded_site_keys == ("MAPK14;Y182;",)
-    assert result.report.transformation_state is not None
-    assert result.report.transformation_state.compatible is False
-    table = result.site_eligibility_table
     assert (
-        PROTEIN_AWARE_REASON_INCOMPATIBLE_TRANSFORMATION_STATE
-        in table.loc[0, "reasons"]
+        _site_keys(
+            result,
+            ProteinAwarePreparationEligibility.ELIGIBLE_FOR_PROTEIN_AWARE_PREPARATION,
+        )
+        == ()
     )
+    assert _site_keys(
+        result, ProteinAwarePreparationEligibility.EXCLUDED_FROM_PREPARATION
+    ) == ("MAPK14;Y182;",)
+    assert result.transformation_state is not None
+    assert result.transformation_state.compatible is False
+    row = result.site_eligibility[0]
+    assert PROTEIN_AWARE_REASON_INCOMPATIBLE_TRANSFORMATION_STATE in row.reasons
     assert result.protein_covariate_matrix.empty
     pdt.assert_frame_equal(phospho, original)

@@ -5,12 +5,12 @@ import pandas as pd
 import pytest
 
 from phospy.errors import PhosPyValidationError
-from phospy.science.signalomes.models import (
+from phospy.signalome.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
 )
-from phospy.science.tables.signalome import SignalomeAssignmentsTable
+from phospy.signalome.tables import SignalomeAssignmentsTable
 from tests.support.site_keys import (
     protein_site_key_index,
     site_key_index_from_display_ids,

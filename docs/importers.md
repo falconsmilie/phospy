@@ -9,13 +9,11 @@ and needs consistent column mapping before the strict dataset builder runs.
 
 ## Current Support Summary
 
-Current public phosphosite importer support is:
-
-- `MappedPhosphositeTableImporter` for caller-supplied explicit column mapping
-- `MaxQuantPhosphositeImporter` for MaxQuant-style `Phospho (STY)Sites.txt`
-  exports
-- `FragPipePTMProphetImporter` for FragPipe/Philosopher peptide or site tables
-  with PTMProphet localisation probabilities
+The supported public importer surface is the `PhosphositeImporter` protocol and
+its `PhosphositeImportRequest` and `PhosphositeImportResult` contracts, exported
+from `phospy.api`. Concrete table readers belong to the IO owner and are not
+supported import routes. Integrations may implement the protocol while keeping
+dataset construction behind the public builder.
 
 Spectronaut and DIA-NN phosphosite importers are not currently implemented as
 dedicated semantic importers. A caller may still use
@@ -103,46 +101,11 @@ Common warnings mean:
 
 ## MaxQuant Phosphosite Importer
 
-Use `MaxQuantPhosphositeImporter` for MaxQuant-style
-`Phospho (STY)Sites.txt` exports. The importer detects common MaxQuant column
-names, but every scientific field can be overridden with
-`MaxQuantColumnMapping`; do not rely on identical export headers across
-MaxQuant versions or processing templates.
-
-```python
-from phospy.api import Organism
-from phospy.io.readers import (
-    MaxQuantColumnMapping,
-    MaxQuantPhosphositeImporter,
-    MaxQuantPhosphositeImportRequest,
-)
-
-import_result = MaxQuantPhosphositeImporter().run(
-    MaxQuantPhosphositeImportRequest(
-        source="Phospho (STY)Sites.txt",
-        column_mapping=MaxQuantColumnMapping(
-            protein_accession="Leading proteins",
-            gene_symbol="Gene names",
-            amino_acid="Amino acid",
-            site_position="Positions within proteins",
-            localisation_confidence="Localization prob",
-            peptide_sequence="Sequence",
-            modified_peptide_sequence="Modified sequence",
-            quantification_depth="Depth",
-            quantification_depth_kind="psm_count",
-            intensity_columns={
-                "Intensity Control": "control",
-                "Intensity Stim": "stim",
-            },
-            potential_contaminant="Potential contaminant",
-            reverse="Reverse",
-        ),
-        contaminant_policy="remove",
-        reverse_policy="remove",
-        localisation_confidence_scale="probability",
-    )
-)
-```
+The IO implementation can recognise MaxQuant-style `Phospho (STY)Sites.txt`
+exports. MaxQuant column mappings and concrete reader classes are IO-owned
+implementation details; they are intentionally absent from the supported
+aggregate API. An integration that adapts MaxQuant data must expose the public
+`PhosphositeImporter` contract rather than depend on those owner-internal names.
 
 The localisation output column is `localisation_confidence`. It is numeric and
 normalised to a probability in `[0.0, 1.0]` by the shared importer helpers.
@@ -192,43 +155,10 @@ request = import_result.to_dataset_build_request(
 
 ## FragPipe/PTMProphet Importer
 
-Use `FragPipePTMProphetImporter` for FragPipe/Philosopher peptide or site
-tables that include PTMProphet localisation probabilities. The importer parses
-protein accessions, modified peptide strings, PTMProphet site probabilities,
-protein positions, intensity columns, and contaminant/decoy flags before
-delegating to the common PhosPy importer result contract.
-
-```python
-from phospy.io.readers import (
-    FragPipeColumnMapping,
-    FragPipePTMProphetImporter,
-    FragPipePTMProphetImportRequest,
-)
-
-import_result = FragPipePTMProphetImporter().run(
-    FragPipePTMProphetImportRequest(
-        source="combined_peptide.tsv",
-        column_mapping=FragPipeColumnMapping(
-            protein_accession="Protein",
-            gene_symbol="Gene",
-            peptide_sequence="Peptide",
-            modified_peptide_sequence="Modified Peptide",
-            protein_start="Protein Start",
-            ptmprophet_probabilities="PTMProphet Probability",
-            quantification_depth="Depth",
-            quantification_depth_kind="psm_count",
-            intensity_columns={
-                "Intensity Control": "control",
-                "Intensity Stim": "stim",
-            },
-            contaminant="Contaminant",
-            decoy="Decoy",
-        ),
-        contaminant_policy="remove",
-        decoy_policy="remove",
-    )
-)
-```
+The IO implementation also recognises FragPipe/Philosopher peptide or site
+tables with PTMProphet localisation probabilities. Its concrete mappings and
+reader classes remain owner-internal. Integrations should translate those
+tables through an implementation of the public `PhosphositeImporter` protocol.
 
 By default, PTMProphet positions such as `S4(0.95)` are interpreted as
 peptide-relative positions and translated with `protein_start`. If your table
@@ -275,8 +205,7 @@ candidates, and still relies on dataset-builder validation.
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import Organism, PhosphositeImportRequest
-from phospy.io.readers import MappedPhosphositeTableImporter
+from phospy.api import Organism, PhosphositeImporter, PhosphositeImportRequest
 
 source = pd.DataFrame(
     {
@@ -293,28 +222,29 @@ source = pd.DataFrame(
     }
 )
 
-import_result = MappedPhosphositeTableImporter().run(
-    PhosphositeImportRequest(
-        source=source,
-        sample_intensity_columns={
-            "intensity_a": "sample_a",
-            "intensity_b": "sample_b",
-        },
-        gene_symbol_column="gene",
-        site_column="site",
-        protein_id_column="protein",
-        site_sequence_column="sequence_window",
-        localisation_confidence_column="localisation_percent",
-        localisation_confidence_scale="percent",
+def build_dataset(importer: PhosphositeImporter):
+    import_result = importer.run(
+        PhosphositeImportRequest(
+            source=source,
+            sample_intensity_columns={
+                "intensity_a": "sample_a",
+                "intensity_b": "sample_b",
+            },
+            gene_symbol_column="gene",
+            site_column="site",
+            protein_id_column="protein",
+            site_sequence_column="sequence_window",
+            localisation_confidence_column="localisation_percent",
+            localisation_confidence_scale="percent",
+        )
     )
-)
 
-dataset = AnalysisReadyDatasetBuilder().run(
-    import_result.to_dataset_build_request(
-        organism=Organism.RAT,
-        input_intensity_scale="linear",
+    return AnalysisReadyDatasetBuilder().run(
+        import_result.to_dataset_build_request(
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+        )
     )
-)
 ```
 
 `import_result.phospho_matrix_candidate` and

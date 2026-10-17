@@ -7,7 +7,12 @@ from typing import cast
 import pandas as pd
 import pytest
 
-from phospy.contracts.configs.preprocessing import (
+from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction import (
+    BatchCorrectionWorkflow,
+    BatchCorrectionWorkflowRequest,
+)
+from phospy.preprocessing.batch_correction.contracts import (
     CorrectionMaskPolicy,
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionControlSiteMode,
@@ -22,18 +27,13 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.errors import PhosPyInputError
-from phospy.science.datasets.preprocessing.control_sites import (
-    ControlSiteSet,
-    ControlSiteSourceMetadata,
-)
-from phospy.workflows.batch_correction import (
-    BatchCorrectionWorkflow,
-    BatchCorrectionWorkflowRequest,
-)
-from phospy.workflows.batch_correction.contracts import (
+from phospy.preprocessing.batch_correction.contracts.workflow import (
     BatchCorrectionExecutorContract,
     BatchCorrectionInterpreterContract,
+)
+from phospy.preprocessing.control_sites.contracts import (
+    ControlSiteSet,
+    ControlSiteSourceMetadata,
 )
 
 

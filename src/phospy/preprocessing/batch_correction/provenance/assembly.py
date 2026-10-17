@@ -1,0 +1,766 @@
+"""Provenance assembly for the batch-correction workflow."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import Protocol, cast, runtime_checkable
+
+import pandas as pd
+
+from phospy.preprocessing.batch_correction.contracts.request import (
+    SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
+)
+from phospy.preprocessing.batch_correction.contracts.workflow import (
+    BatchCorrectionExecutorResultContract,
+    BatchCorrectionWorkflowRequest,
+)
+from phospy.preprocessing.batch_correction.environment import (
+    collect_batch_correction_environment_provenance,
+)
+from phospy.preprocessing.batch_correction.planning import (
+    REPLICATE_METADATA_ROLE,
+    REPLICATE_METADATA_ROLE_DESCRIPTION,
+    RUV_III_REPLICATE_METADATA_ROLE,
+    RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION,
+    ResolvedBatchCorrectionPlan,
+)
+from phospy.preprocessing.batch_correction.provenance._payloads import (
+    _control_site_source_payload as _native_control_site_source_payload,
+)
+from phospy.preprocessing.batch_correction.provenance._payloads import (
+    _diagnostics_payload,
+    _extract_plan_unwanted_factors,
+    _getattr_or,
+    _imputation_payload,
+    _is_sps_ruv_style_label,
+    _metadata_payload,
+    _missingness_payload,
+    _object_sequence,
+    _replicate_metadata_payload,
+    _resolve_selected_site_key_rows,
+)
+from phospy.preprocessing.batch_correction.provenance._payloads import (
+    _json_mapping as _native_json_mapping,
+)
+from phospy.preprocessing.batch_correction.validation.design import (
+    ResolvedBatchDesignMetadata,
+)
+from phospy.preprocessing.control_sites.contracts import (
+    ControlSiteEligibility,
+    ControlSiteMapping,
+)
+from phospy.provenance import fingerprint_matrix
+from phospy.provenance.models import (
+    JsonValue,
+    TableFingerprint,
+)
+from phospy.provenance.models.batch_correction import (
+    BatchCorrectionProvenance,
+    BatchCorrectionRejectedEntity,
+)
+
+_UPSTREAM_OBSERVATION_MASK_NAME = "batch_correction.workflow.upstream_observation_mask"
+_EXECUTOR_OUTPUT_OBSERVATION_MASK_NAME = (
+    "batch_correction.workflow.executor_output_observation_mask"
+)
+_FINAL_COMBINED_OBSERVATION_MASK_NAME = (
+    "batch_correction.workflow.final_combined_observation_mask"
+)
+_OUTPUT_OBSERVATION_MASK_NAME = "batch_correction.workflow.output_observation_mask"
+_STRICT_CONTROL_SOURCE_TYPE_MARKERS = frozenset({"packaged", "reference", "external"})
+
+
+@runtime_checkable
+class _PayloadProvider(Protocol):
+    def to_payload(self) -> Mapping[str, object]: ...
+
+
+class BatchCorrectionProvenanceRecorder:
+    """Assemble typed workflow provenance from validated collaborators."""
+
+    def run(
+        self,
+        *,
+        request: BatchCorrectionWorkflowRequest,
+        dataset_metadata: ResolvedBatchDesignMetadata,
+        control_site_mapping: ControlSiteMapping,
+        missingness_policy: object,
+        plan: ResolvedBatchCorrectionPlan,
+        executor_result: BatchCorrectionExecutorResultContract,
+        **_: object,
+    ) -> BatchCorrectionProvenance:
+        executor_output_mask = _executor_output_observation_mask(executor_result)
+        final_output_mask = executor_result.output_observation_mask
+        if request.upstream_observation_mask is not None:
+            observation_masks = (
+                fingerprint_matrix(
+                    request.upstream_observation_mask.astype("int8"),
+                    name=_UPSTREAM_OBSERVATION_MASK_NAME,
+                ),
+                fingerprint_matrix(
+                    executor_output_mask.astype("int8"),
+                    name=_EXECUTOR_OUTPUT_OBSERVATION_MASK_NAME,
+                ),
+                fingerprint_matrix(
+                    final_output_mask.astype("int8"),
+                    name=_FINAL_COMBINED_OBSERVATION_MASK_NAME,
+                ),
+            )
+        else:
+            observation_masks = (
+                fingerprint_matrix(
+                    final_output_mask.astype("int8"),
+                    name=_OUTPUT_OBSERVATION_MASK_NAME,
+                ),
+            )
+        environment = collect_batch_correction_environment_provenance()
+        resolved_parameters: dict[str, object] = {
+            "config": _config_payload(request),
+            "interpreter_plan": plan.to_payload(),
+            "interpreter_seed_data": dict(plan.provenance_seed_data),
+            "executor": dict(executor_result.provenance_payload),
+        }
+        observation_mask_lineage = _observation_mask_lineage(
+            upstream_mask=request.upstream_observation_mask,
+            executor_output_mask=executor_output_mask,
+            final_output_mask=final_output_mask,
+        )
+        if observation_mask_lineage is not None:
+            resolved_parameters["observation_mask_lineage"] = observation_mask_lineage
+        return BatchCorrectionProvenance(
+            requested_method=request.config.method.value,
+            resolved_parameters=_json_mapping(resolved_parameters),
+            preprocessing_stage_order=tuple(plan.stage_order),
+            control_site_source=_control_site_source_payload(
+                request=request,
+                plan=plan,
+                control_site_mapping=control_site_mapping,
+            ),
+            selected_site_key_rows=tuple(
+                row.site_key for row in plan.eligible_control_site_rows
+            ),
+            batch_metadata=_json_mapping(
+                {
+                    "sample_order": list(dataset_metadata.sample_order),
+                    "batch_by_sample": dict(dataset_metadata.batch_by_sample),
+                    "condition_by_sample": dict(dataset_metadata.condition_by_sample),
+                }
+            ),
+            replicate_metadata=_replicate_metadata(
+                dataset_metadata,
+                ruv_iii_semantics_enabled=(
+                    request.config.method.value == "ruv_iii_style"
+                ),
+            ),
+            design_metadata=_json_mapping(
+                {
+                    "condition_columns": list(request.config.condition_columns),
+                    "resolved_design_matrix": _frame_payload(
+                        plan.resolved_design_matrix
+                    ),
+                    "batch_terms": list(plan.batch_terms),
+                    "condition_terms_to_preserve": (
+                        list(plan.condition_terms_to_preserve)
+                    ),
+                }
+            ),
+            missing_value_policy=_json_mapping(_payload(missingness_policy)),
+            observation_masks=observation_masks,
+            input_matrix_fingerprint=fingerprint_matrix(
+                request.phospho,
+                name="batch_correction.workflow.input",
+            ),
+            output_matrix_fingerprint=fingerprint_matrix(
+                executor_result.corrected_matrix,
+                name="batch_correction.workflow.corrected",
+            ),
+            diagnostics=_json_mapping(
+                {
+                    "interpreter_diagnostic_requirements": (
+                        plan.diagnostic_requirements.to_payload()
+                    ),
+                    "replicate_structure": (
+                        None
+                        if plan.replicate_structure.structure_diagnostics is None
+                        else plan.replicate_structure.structure_diagnostics.to_payload()
+                    ),
+                    "executor": executor_result.diagnostics.to_payload(),
+                }
+            ),
+            warnings=tuple(str(warning) for warning in executor_result.warnings),
+            rejected_entities=(
+                *_control_site_rejected_entities(control_site_mapping),
+                *_rejected_entities(executor_result),
+            ),
+            phospy_version=environment.package_version,
+            python_version=environment.python_version,
+            dependency_versions=environment.dependency_versions,
+        )
+
+
+def _config_payload(request: BatchCorrectionWorkflowRequest) -> dict[str, object]:
+    config = request.config
+    ruv_iii = config.method.value == "ruv_iii_style"
+    return {
+        "method": config.method.value,
+        "batch_column": config.batch_column,
+        "condition_columns": list(config.condition_columns),
+        "replicate_column": config.replicate_column,
+        "replicate_metadata_role": (
+            RUV_III_REPLICATE_METADATA_ROLE if ruv_iii else REPLICATE_METADATA_ROLE
+        ),
+        "replicate_metadata_role_description": (
+            RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION
+            if ruv_iii
+            else REPLICATE_METADATA_ROLE_DESCRIPTION
+        ),
+        "replicate_metadata_used_for_numerical_factor_estimation": ruv_iii,
+        "replicate_metadata_enables_ruv_iii_semantics": ruv_iii,
+        "control_site_source": config.control_site_source.value,
+        "control_site_mode": config.control_site_mode.value,
+        "missing_value_policy": config.missing_value_policy.value,
+        "imputation_policy": config.imputation_policy.value,
+        "n_unwanted_factors": config.n_unwanted_factors,
+        "requested_stage_order": config.stage_order.value,
+        "stage_order": config.stage_order.value,
+        "diagnostics_enabled": config.diagnostics_enabled,
+    }
+
+
+def _executor_output_observation_mask(
+    executor_result: BatchCorrectionExecutorResultContract,
+) -> pd.DataFrame:
+    output_mask = getattr(executor_result, "executor_output_observation_mask", None)
+    if isinstance(output_mask, pd.DataFrame):
+        return output_mask
+    return executor_result.output_observation_mask
+
+
+def _observation_mask_lineage(
+    *,
+    upstream_mask: pd.DataFrame | None,
+    executor_output_mask: pd.DataFrame,
+    final_output_mask: pd.DataFrame,
+) -> Mapping[str, object] | None:
+    if upstream_mask is None:
+        return None
+    return {
+        "upstream_observation_mask_fingerprint": fingerprint_matrix(
+            upstream_mask.astype("int8"),
+            name=_UPSTREAM_OBSERVATION_MASK_NAME,
+        ),
+        "executor_output_observation_mask_fingerprint": fingerprint_matrix(
+            executor_output_mask.astype("int8"),
+            name=_EXECUTOR_OUTPUT_OBSERVATION_MASK_NAME,
+        ),
+        "final_combined_observation_mask_fingerprint": fingerprint_matrix(
+            final_output_mask.astype("int8"),
+            name=_FINAL_COMBINED_OBSERVATION_MASK_NAME,
+        ),
+        "combination_rule": (
+            "final_combined_observation_mask = "
+            "upstream_observation_mask & executor_output_observation_mask"
+        ),
+        "final_observation_mask_source": "combined_upstream_and_executor_masks",
+    }
+
+
+def _control_site_source_payload(
+    *,
+    request: BatchCorrectionWorkflowRequest,
+    plan: ResolvedBatchCorrectionPlan,
+    control_site_mapping: ControlSiteMapping,
+) -> Mapping[str, JsonValue]:
+    selected = tuple(plan.eligible_control_site_rows)
+    selected_site_keys = tuple(row.site_key for row in selected)
+    selected_metadata_rows = _selected_control_metadata_rows(
+        control_site_mapping,
+        selected_site_keys=selected_site_keys,
+    )
+    source_type = request.config.control_site_source.value
+    payload: dict[str, object] = {
+        "source": source_type,
+        "source_type": source_type,
+        "mode": request.config.control_site_mode.value,
+        "selected_control_count": len(selected),
+        "control_site_set_source_type": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "source_type",
+        ),
+        "organism": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "organism",
+        ),
+        "identifier_namespace": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "identifier_namespace",
+        ),
+        "source_name": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "source_name",
+        ),
+        "source_version": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "source_version",
+        ),
+        "license": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "license",
+        ),
+        "redistribution": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "redistribution",
+        ),
+    }
+    if _has_strict_control_source_type(payload):
+        payload["selection_method"] = _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "selection_method",
+        )
+    discovery_identity = _common_non_empty_metadata_value(
+        selected_metadata_rows,
+        "sps_discovery_identity",
+    )
+    if discovery_identity is not None:
+        payload["sps_discovery_identity"] = discovery_identity
+    missing_reason = _common_metadata_missing_reasons(selected_metadata_rows)
+    if missing_reason:
+        payload["metadata_missing_reason"] = missing_reason
+    missing_reason_by_site_key = _metadata_missing_reasons_by_site_key(
+        selected_metadata_rows,
+        aggregate_reasons=missing_reason,
+    )
+    if missing_reason_by_site_key:
+        payload["metadata_missing_reason_by_site_key"] = missing_reason_by_site_key
+    if (
+        source_type == "caller_supplied"
+        and payload.get("source_version") is None
+        and "source_version" in missing_reason
+    ):
+        payload["source_version_unavailable_reason"] = missing_reason["source_version"]
+    return _json_mapping(payload)
+
+
+def _selected_control_metadata_rows(
+    control_site_mapping: ControlSiteMapping,
+    *,
+    selected_site_keys: Sequence[str],
+) -> tuple[ControlSiteEligibility, ...]:
+    rows_by_site_key = {
+        str(row.site_key): row
+        for row in control_site_mapping.row_eligibility
+        if row.site_key is not None and row.is_control
+    }
+    rows = tuple(
+        row
+        for site_key in selected_site_keys
+        if (row := rows_by_site_key.get(str(site_key))) is not None
+    )
+    if len(rows) == len(tuple(selected_site_keys)):
+        return rows
+    return tuple(row for row in control_site_mapping.row_eligibility if row.is_control)
+
+
+def _common_non_empty_metadata_value(
+    rows: Sequence[ControlSiteEligibility],
+    field_name: str,
+) -> str | None:
+    values = tuple(
+        str(value).strip()
+        for row in rows
+        if (value := getattr(row, field_name, None)) is not None and str(value).strip()
+    )
+    if not values:
+        return None
+    unique = tuple(dict.fromkeys(values))
+    if len(unique) == 1:
+        return unique[0]
+    return None
+
+
+def _common_metadata_missing_reasons(
+    rows: Sequence[ControlSiteEligibility],
+) -> dict[str, str]:
+    reasons_by_field: dict[str, set[str]] = {}
+    for row in rows:
+        row_reasons = getattr(row, "metadata_missing_reason", {})
+        if not isinstance(row_reasons, Mapping):
+            continue
+        for field_name, reason in row_reasons.items():
+            reason_text = str(reason).strip()
+            if not reason_text:
+                continue
+            reasons_by_field.setdefault(str(field_name), set()).add(reason_text)
+    return {
+        field_name: next(iter(reasons))
+        for field_name, reasons in reasons_by_field.items()
+        if len(reasons) == 1
+    }
+
+
+def _metadata_missing_reasons_by_site_key(
+    rows: Sequence[ControlSiteEligibility],
+    *,
+    aggregate_reasons: Mapping[str, str],
+) -> dict[str, dict[str, str]]:
+    reasons_by_site_key: dict[str, dict[str, str]] = {}
+    for row in rows:
+        site_key = getattr(row, "site_key", None)
+        if site_key is None:
+            continue
+        row_reasons = getattr(row, "metadata_missing_reason", {})
+        if not isinstance(row_reasons, Mapping):
+            continue
+        reasons: dict[str, str] = {}
+        for field_name, reason in row_reasons.items():
+            field_text = str(field_name).strip()
+            reason_text = str(reason).strip()
+            if not field_text or not reason_text:
+                continue
+            if aggregate_reasons.get(field_text) == reason_text:
+                continue
+            reasons[field_text] = reason_text
+        if reasons:
+            reasons_by_site_key[str(site_key)] = reasons
+    return reasons_by_site_key
+
+
+def _has_strict_control_source_type(source: Mapping[str, object]) -> bool:
+    for key in (
+        "source_type",
+        "source",
+        "control_site_set_source_type",
+        "source_name",
+    ):
+        value = source.get(key)
+        if value is None:
+            continue
+        text = str(value).strip().lower()
+        if not text:
+            continue
+        tokens = frozenset(text.replace("-", "_").split("_"))
+        if tokens & _STRICT_CONTROL_SOURCE_TYPE_MARKERS:
+            return True
+    return False
+
+
+def _replicate_metadata(
+    dataset_metadata: ResolvedBatchDesignMetadata,
+    *,
+    ruv_iii_semantics_enabled: bool = False,
+) -> Mapping[str, JsonValue] | None:
+    if dataset_metadata.replicate_by_sample is None:
+        return None
+    return _json_mapping(
+        {
+            "role": (
+                RUV_III_REPLICATE_METADATA_ROLE
+                if ruv_iii_semantics_enabled
+                else REPLICATE_METADATA_ROLE
+            ),
+            "role_description": (
+                RUV_III_REPLICATE_METADATA_ROLE_DESCRIPTION
+                if ruv_iii_semantics_enabled
+                else REPLICATE_METADATA_ROLE_DESCRIPTION
+            ),
+            "used_for_numerical_factor_estimation": ruv_iii_semantics_enabled,
+            "ruv_iii_semantics_enabled": ruv_iii_semantics_enabled,
+            "replicate_by_sample": dict(dataset_metadata.replicate_by_sample),
+            "replicate_labels": list(dataset_metadata.replicate_labels or ()),
+            "structure_diagnostics": (
+                None
+                if dataset_metadata.replicate_structure_diagnostics is None
+                else dataset_metadata.replicate_structure_diagnostics.to_payload()
+            ),
+        }
+    )
+
+
+def _rejected_entities(
+    executor_result: BatchCorrectionExecutorResultContract,
+) -> tuple[BatchCorrectionRejectedEntity, ...]:
+    entities: list[BatchCorrectionRejectedEntity] = []
+    for row in executor_result.rejected_rows:
+        entities.append(
+            BatchCorrectionRejectedEntity(
+                entity_type="row",
+                identifier=str(row),
+                reason="executor_rejected_row",
+            )
+        )
+    for feature_id, sample_id in executor_result.rejected_cells:
+        entities.append(
+            BatchCorrectionRejectedEntity(
+                entity_type="cell",
+                identifier=f"{feature_id}|{sample_id}",
+                reason="executor_rejected_cell",
+                details={"feature_id": feature_id, "sample_id": sample_id},
+            )
+        )
+    for row in executor_result.withheld_rows:
+        entities.append(
+            BatchCorrectionRejectedEntity(
+                entity_type="row",
+                identifier=str(row),
+                reason="executor_withheld_row",
+            )
+        )
+    for feature_id, sample_id in executor_result.withheld_cells:
+        entities.append(
+            BatchCorrectionRejectedEntity(
+                entity_type="cell",
+                identifier=f"{feature_id}|{sample_id}",
+                reason="executor_withheld_cell",
+                details={"feature_id": feature_id, "sample_id": sample_id},
+            )
+        )
+    return tuple(entities)
+
+
+def _control_site_rejected_entities(
+    control_site_mapping: ControlSiteMapping,
+) -> tuple[BatchCorrectionRejectedEntity, ...]:
+    entities: list[BatchCorrectionRejectedEntity] = []
+    for scope, rows in (
+        ("row_eligibility", control_site_mapping.row_eligibility),
+        ("unmapped_annotations", control_site_mapping.unmapped_annotations),
+    ):
+        for row in rows:
+            if row.is_control or not _is_reportable_control_rejection(row):
+                continue
+            identifier = row.site_key or "<missing site_key>"
+            entities.append(
+                BatchCorrectionRejectedEntity(
+                    entity_type="site",
+                    identifier=str(identifier),
+                    reason=_control_rejection_reason(row),
+                    details={
+                        "scope": scope,
+                        "control_status": row.control_status.value,
+                        "valid": row.valid,
+                        "reasons": list(row.reasons),
+                        "row_position": row.row_position,
+                        "annotation_indices": list(row.annotation_indices),
+                        "exclusion_reason": row.exclusion_reason,
+                    },
+                )
+            )
+    return tuple(entities)
+
+
+def _is_reportable_control_rejection(row: ControlSiteEligibility) -> bool:
+    annotation_count = row.annotation_count
+    return bool(
+        getattr(row, "reasons", ())
+        or row.control_status.value in {"excluded", "invalid", "unknown"}
+        or annotation_count > 0
+    )
+
+
+def _control_rejection_reason(row: ControlSiteEligibility) -> str:
+    reasons = tuple(str(reason) for reason in row.reasons)
+    if reasons:
+        return reasons[0]
+    status = row.control_status.value
+    if status == "excluded":
+        exclusion_reason = row.exclusion_reason
+        if exclusion_reason:
+            return str(exclusion_reason)
+        return "excluded_control_site"
+    if status == "non_control":
+        return "not_marked_as_control"
+    if status == "unknown":
+        return "unknown_control_status"
+    if status == "invalid":
+        return "invalid_control_site_annotation"
+    return "not_eligible_control_site"
+
+
+def _frame_payload(frame: pd.DataFrame) -> dict[str, object]:
+    return {
+        "index": [str(value) for value in frame.index.tolist()],
+        "columns": [str(value) for value in frame.columns.tolist()],
+        "data": [
+            [float(value) for value in row]
+            for row in frame.to_numpy(dtype="float64").tolist()
+        ],
+    }
+
+
+def _payload(value: object) -> Mapping[str, object]:
+    if isinstance(value, _PayloadProvider):
+        payload = value.to_payload()
+        if isinstance(payload, Mapping):
+            return payload
+    if isinstance(value, Mapping):
+        return value
+    return {"value": repr(value)}
+
+
+def _json_mapping(value: Mapping[str, object]) -> Mapping[str, JsonValue]:
+    return cast(Mapping[str, JsonValue], _json_value(value))
+
+
+def _json_value(value: object) -> JsonValue:
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    if isinstance(value, TableFingerprint):
+        return _json_value(
+            {
+                "name": value.name,
+                "rows": value.rows,
+                "columns": value.columns,
+                "index_name": value.index_name,
+                "column_names": list(value.column_names),
+                "dtypes": list(value.dtypes),
+                "exact_hash_algorithm": value.exact_hash_algorithm,
+                "exact_hash_value": value.exact_hash_value,
+                "tolerance_hash_algorithm": value.tolerance_hash_algorithm,
+                "tolerance_hash_value": value.tolerance_hash_value,
+                "index_structure": value.index_structure,
+                "column_index_structure": value.column_index_structure,
+            }
+        )
+    if isinstance(value, Mapping):
+        return {str(key): _json_value(item) for key, item in value.items()}
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+        return [_json_value(item) for item in value]
+    if isinstance(value, _PayloadProvider):
+        return _json_value(value.to_payload())
+    return str(value)
+
+
+def build_native_batch_correction_provenance(
+    *,
+    input_matrix: pd.DataFrame,
+    output_matrix: pd.DataFrame,
+    plan: object,
+    report: object,
+    metadata: object | None,
+    diagnostics: Mapping[str, object] | object,
+    warnings: Sequence[object] = (),
+    observation_mask: pd.DataFrame | None = None,
+    corrected_cell_status: pd.DataFrame | None = None,
+    control_site_source: Mapping[str, object] | None = None,
+    selected_site_key_rows: Sequence[object] | None = None,
+    source: str,
+) -> BatchCorrectionProvenance:
+    """Build typed provenance for native preprocessing batch correction."""
+
+    environment = collect_batch_correction_environment_provenance()
+    method = str(
+        _getattr_or(report, "method", _getattr_or(plan, "batch_correction_method", ""))
+    ).strip()
+    stage_order = tuple(
+        str(stage).strip()
+        for stage in _object_sequence(
+            _getattr_or(
+                plan,
+                "stage_order",
+                SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
+            )
+        )
+    )
+    selected_rows = _resolve_selected_site_key_rows(
+        explicit=selected_site_key_rows,
+        plan=plan,
+    )
+    observation_masks = ()
+    if observation_mask is None:
+        method = str(
+            _getattr_or(
+                report, "method", _getattr_or(plan, "batch_correction_method", "")
+            )
+        ).strip()
+        if method and not _is_sps_ruv_style_label(method):
+            observation_mask = input_matrix.notna()
+    if observation_mask is not None:
+        observation_masks = (
+            fingerprint_matrix(
+                observation_mask.astype("int8"),
+                name="batch_correction.native.observation_mask",
+            ),
+        )
+    if corrected_cell_status is not None:
+        observation_masks = (
+            *observation_masks,
+            fingerprint_matrix(
+                corrected_cell_status.astype("string"),
+                name="batch_correction.native.corrected_cell_status",
+            ),
+        )
+    control_source = (
+        _native_json_mapping(control_site_source)
+        if control_site_source is not None
+        else _native_control_site_source_payload(plan)
+    )
+    batch_metadata = _metadata_payload(metadata, plan=plan)
+    diagnostics_payload = _diagnostics_payload(diagnostics)
+    return BatchCorrectionProvenance(
+        requested_method=method,
+        resolved_parameters=_native_json_mapping(
+            {
+                "source": source,
+                "batch_column": _getattr_or(
+                    plan, "batch_correction_batch_column", None
+                ),
+                "condition_column": _getattr_or(
+                    plan,
+                    "batch_correction_condition_column",
+                    None,
+                ),
+                "condition_columns": list(
+                    _object_sequence(
+                        _getattr_or(plan, "batch_correction_condition_columns", ())
+                    )
+                ),
+                "replicate_column": _getattr_or(
+                    plan,
+                    "batch_correction_replicate_column",
+                    None,
+                ),
+                "n_unwanted_factors": _extract_plan_unwanted_factors(plan),
+            }
+        ),
+        preprocessing_stage_order=stage_order,
+        control_site_source=control_source,
+        selected_site_key_rows=selected_rows,
+        batch_metadata=batch_metadata,
+        replicate_metadata=_replicate_metadata_payload(plan),
+        design_metadata=_native_json_mapping(
+            {
+                "condition_column": _getattr_or(
+                    plan,
+                    "batch_correction_condition_column",
+                    None,
+                ),
+                "condition_columns": list(
+                    _object_sequence(
+                        _getattr_or(plan, "batch_correction_condition_columns", ())
+                    )
+                ),
+            }
+        ),
+        missing_value_policy=_missingness_payload(plan),
+        imputation_policy=_imputation_payload(plan),
+        observation_masks=observation_masks,
+        input_matrix_fingerprint=fingerprint_matrix(
+            input_matrix,
+            name="batch_correction.native.input",
+        ),
+        output_matrix_fingerprint=fingerprint_matrix(
+            output_matrix,
+            name="batch_correction.native.corrected",
+        ),
+        diagnostics=diagnostics_payload,
+        warnings=tuple(str(warning) for warning in warnings),
+        phospy_version=environment.package_version,
+        python_version=environment.python_version,
+        dependency_versions=environment.dependency_versions,
+    )
+
+
+__all__ = [
+    "BatchCorrectionProvenanceRecorder",
+    "build_native_batch_correction_provenance",
+]

@@ -6,7 +6,7 @@ import pytest
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowStageError
 from phospy.provenance import RowAttritionRecord, RowAttritionReport
-from phospy.workflows._row_attrition import (
+from phospy.provenance.row_attrition import (
     make_row_attrition_record,
     reconcile_row_attrition_report,
 )

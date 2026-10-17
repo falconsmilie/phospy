@@ -85,18 +85,18 @@ preserve this caveat.
 ## Implementation Notes
 
 - Public config contract:
-  `src/phospy/contracts/configs/differential.py`.
+  `src/phospy/differential/config.py`.
 - Reliability-profile resolution:
-  `src/phospy/workflows/differential/reliability.py`.
+  `src/phospy/differential/validation/reliability.py`.
 - Biological-replicate counting:
-  `src/phospy/validation/workflows/differential_design_rules.py`.
+  `src/phospy/differential/validation/design.py`.
 - Workflow validation composition:
-  `src/phospy/workflows/differential/validator.py`.
+  `src/phospy/differential/validation/workflow.py`.
 - Policy provenance:
-  `src/phospy/workflows/differential/provenance.py` and
-  `src/phospy/science/differential/models/provenance.py`.
+  `src/phospy/differential/provenance/assembly.py` and
+  `src/phospy/differential/provenance/models.py`.
 - Structured caveat construction:
-  `src/phospy/workflows/differential/caveats.py`.
+  `src/phospy/differential/caveats.py`.
 - Ownership audit:
   `docs/validation-ownership.md`.
 

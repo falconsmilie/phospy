@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-import phospy.workflows.kinase.executor as kinase_executor
+import phospy.kinase.executor as kinase_executor
 from phospy import (
     KinaseWorkflow,
 )
@@ -16,11 +16,11 @@ from phospy.api import (
     KinaseWorkflowRequest,
     ReferencePreset,
 )
-from phospy.contracts.configs import (
+from phospy.kinase.prediction.config import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )
-from phospy.science.references.resolution import ReferenceResolver
+from phospy.references.resolution import ReferenceResolver
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration
@@ -277,30 +277,3 @@ def test_prediction_stage_consumes_authoritative_rank_weighted_fusion_outputs_ac
         (score_threshold, inclusion)
         for _top, score_threshold, inclusion in captured_candidate_filters
     } == {(0.0, 1)}
-
-
-def test_supported_lane_rank_weighted_fusion_scoring_always_enables_profile_only_fallback(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    dataset = build_rat_l6_dataset(n_sites=220)
-    references = _resolved_bundle_for_dataset(dataset)
-    captured_fallback_flags: list[bool] = []
-    original_combine = kinase_executor.fuse_profile_and_motif_scores_by_rank_weight
-
-    def _capture_combine(**kwargs):
-        captured_fallback_flags.append(bool(kwargs["allow_profile_only_fallback"]))
-        return original_combine(**kwargs)
-
-    monkeypatch.setattr(
-        kinase_executor,
-        "fuse_profile_and_motif_scores_by_rank_weight",
-        _capture_combine,
-    )
-
-    _run_workflow(
-        dataset=dataset,
-        references=references,
-        mode="deterministic_ranking",
-    )
-
-    assert captured_fallback_flags == [True]

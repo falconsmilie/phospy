@@ -4,13 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.errors import PhosPyInputError
 from phospy.io.readers.enrichment_sets import (
-    load_enrichment_sets_csv,
-    load_enrichment_sets_gmt,
-    load_enrichment_sets_table,
-    load_enrichment_sets_tsv,
     read_enrichment_sets_csv,
     read_enrichment_sets_gmt,
     read_enrichment_sets_table,
@@ -100,53 +95,78 @@ def test_reader_enrichment_empty_set_handling(tmp_path: Path) -> None:
         read_enrichment_sets_gmt(path, identifier_kind="gene_symbol")
 
 
-@pytest.mark.parametrize(
-    ("alias", "reader", "fixture_name", "kwargs", "replacement_name"),
-    [
-        (
-            load_enrichment_sets_gmt,
-            read_enrichment_sets_gmt,
-            "gene_sets.gmt",
-            {"identifier_kind": "gene_symbol"},
-            "read_enrichment_sets_gmt",
-        ),
-        (
-            load_enrichment_sets_table,
-            read_enrichment_sets_table,
-            "gene_sets.csv",
-            {},
-            "read_enrichment_sets_table",
-        ),
-        (
-            load_enrichment_sets_csv,
-            read_enrichment_sets_csv,
-            "gene_sets.csv",
-            {},
-            "read_enrichment_sets_csv",
-        ),
-        (
-            load_enrichment_sets_tsv,
-            read_enrichment_sets_tsv,
-            "ptm_sets.tsv",
-            {"identifier_kind": "site_key"},
-            "read_enrichment_sets_tsv",
-        ),
-    ],
-)
-def test_reader_enrichment_load_aliases_warn_and_forward(
-    alias,
-    reader,
-    fixture_name: str,
-    kwargs: dict[str, str],
-    replacement_name: str,
+def test_reader_enrichment_malformed_gmt_error_is_exact(tmp_path: Path) -> None:
+    path = tmp_path / "malformed.gmt"
+    path.write_text("ONLY_A_SET_ID\n", encoding="utf-8")
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        read_enrichment_sets_gmt(path, identifier_kind="gene_symbol")
+
+    assert str(exc_info.value) == (
+        f"failed to parse GMT enrichment set file '{path}': line 1 must contain "
+        "set_id and description columns"
+    )
+
+
+def test_reader_enrichment_malformed_csv_error_is_exact(tmp_path: Path) -> None:
+    path = tmp_path / "malformed.csv"
+    path.write_text("set_id,name\nA,Alpha\n", encoding="utf-8")
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        read_enrichment_sets_csv(path, identifier_kind="gene_symbol")
+
+    assert str(exc_info.value) == (
+        f"enrichment set table '{path}' is missing required columns: identifier"
+    )
+
+
+def test_reader_enrichment_malformed_tsv_error_is_exact(tmp_path: Path) -> None:
+    path = tmp_path / "malformed.tsv"
+    path.write_text(
+        "set_id\tname\tidentifier\tidentifier_kind\nMOTIF_A\tMotif A\t\tsite_key\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        read_enrichment_sets_tsv(path)
+
+    assert str(exc_info.value) == (
+        f"enrichment set table '{path}' row 2 column 'identifier' must be non-empty"
+    )
+
+
+def test_reader_enrichment_csv_and_tsv_preserve_metadata_precedence(
+    tmp_path: Path,
 ) -> None:
-    path = _fixture_path(fixture_name)
-    expected = reader(path, **kwargs)
+    csv_path = tmp_path / "metadata.csv"
+    csv_path.write_text(
+        "set_id,name,identifier,identifier_kind,source_name,source_version\n"
+        "A,Alpha,AKT1,gene_symbol,file_source,file-v1\n",
+        encoding="utf-8",
+    )
+    tsv_path = tmp_path / "metadata.tsv"
+    tsv_path.write_text(
+        "set_id\tname\tidentifier\tidentifier_kind\tsource_name\tsource_version\n"
+        "M\tMotif\trat|P1|S1\tsite_key\t\t\n",
+        encoding="utf-8",
+    )
 
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match=rf"{alias.__name__}.*{replacement_name}",
-    ):
-        observed = alias(path, **kwargs)
+    csv_collection = read_enrichment_sets_csv(
+        csv_path,
+        source_name="caller_source",
+        source_version="caller-v1",
+    )
+    tsv_collection = read_enrichment_sets_tsv(
+        tsv_path,
+        source_name="caller_source",
+        source_version="caller-v1",
+    )
 
-    assert observed == expected
+    assert csv_collection.source_name == "caller_source"
+    assert csv_collection.source_version == "caller-v1"
+    assert csv_collection.set_by_id["A"].source_name == "file_source"
+    assert csv_collection.set_by_id["A"].source_version == "file-v1"
+    assert tsv_collection.source_name == "caller_source"
+    assert tsv_collection.source_version == "caller-v1"
+    assert tsv_collection.set_by_id["M"].source_name == "caller_source"
+    assert tsv_collection.set_by_id["M"].source_version == "caller-v1"

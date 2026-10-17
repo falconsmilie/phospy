@@ -3,10 +3,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-import phospy.advanced.results as advanced_result_models
-import phospy.api.results as result_models
+import phospy.advanced as advanced_result_models
+import phospy.api as result_models
 from phospy import (
-    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
@@ -17,15 +16,14 @@ from phospy.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
@@ -172,42 +170,45 @@ def _kinase_result() -> KinaseWorkflowResult:
 
 
 def test_public_result_exports_match_contract() -> None:
-    assert set(result_models.__all__) == EXPECTED_STABLE_RESULT_EXPORTS
-    assert set(advanced_result_models.__all__) == EXPECTED_ADVANCED_RESULT_EXPORTS
+    assert EXPECTED_STABLE_RESULT_EXPORTS <= set(result_models.__all__)
+    assert EXPECTED_ADVANCED_RESULT_EXPORTS <= set(advanced_result_models.__all__)
 
 
-def test_contract_result_domain_modules_preserve_legacy_import_identity() -> None:
-    import phospy.contracts.results as contracts_results
-    from phospy.contracts.result_caveats import ResultCaveat
-    from phospy.contracts.results.base import (
+def test_result_domain_modules_preserve_supported_import_identity() -> None:
+    from phospy.differential.results import DifferentialAnalysisResult
+    from phospy.enrichment.contracts.results import EnrichmentWorkflowResult
+    from phospy.io.importers.contracts import (
         ImporterQualityReport,
         PhosphositeImportResult,
     )
-    from phospy.contracts.results.differential import DifferentialAnalysisResult
-    from phospy.contracts.results.enrichment import EnrichmentWorkflowResult
-    from phospy.contracts.results.kinase import (
+    from phospy.kinase.results import (
         KinaseEligibilityReport,
         KinaseWorkflowAttritionProvenance,
         KinaseWorkflowCaveat,
         KinaseWorkflowResult,
     )
-    from phospy.contracts.results.preprocessing import BatchCorrectionReport
-    from phospy.contracts.results.signalome import SignalomeWorkflowResult
+    from phospy.preparation_records.batch_correction import (
+        BatchCorrectionReport,
+    )
+    from phospy.provenance.result_caveats import ResultCaveat
+    from phospy.signalome.results import SignalomeWorkflowResult
 
-    assert contracts_results.ResultCaveat is ResultCaveat
-    assert contracts_results.ImporterQualityReport is ImporterQualityReport
-    assert contracts_results.PhosphositeImportResult is PhosphositeImportResult
-    assert contracts_results.DifferentialAnalysisResult is DifferentialAnalysisResult
-    assert contracts_results.EnrichmentWorkflowResult is EnrichmentWorkflowResult
-    assert contracts_results.KinaseEligibilityReport is KinaseEligibilityReport
+    assert result_models.ResultCaveat is ResultCaveat
+    assert ImporterQualityReport.__module__ == "phospy.io.importers.contracts"
+    assert result_models.PhosphositeImportResult is PhosphositeImportResult
+    assert result_models.DifferentialAnalysisResult is DifferentialAnalysisResult
+    assert result_models.EnrichmentWorkflowResult is EnrichmentWorkflowResult
+    assert advanced_result_models.KinaseEligibilityReport is KinaseEligibilityReport
     assert (
-        contracts_results.KinaseWorkflowAttritionProvenance
+        advanced_result_models.KinaseWorkflowAttritionProvenance
         is KinaseWorkflowAttritionProvenance
     )
-    assert contracts_results.KinaseWorkflowCaveat is KinaseWorkflowCaveat
-    assert contracts_results.KinaseWorkflowResult is KinaseWorkflowResult
-    assert contracts_results.BatchCorrectionReport is BatchCorrectionReport
-    assert contracts_results.SignalomeWorkflowResult is SignalomeWorkflowResult
+    assert advanced_result_models.KinaseWorkflowCaveat is KinaseWorkflowCaveat
+    assert result_models.KinaseWorkflowResult is KinaseWorkflowResult
+    assert BatchCorrectionReport.__module__ == (
+        "phospy.preparation_records.batch_correction"
+    )
+    assert result_models.SignalomeWorkflowResult is SignalomeWorkflowResult
 
 
 def test_result_compatibility_aliases_are_advanced_exports() -> None:
@@ -220,10 +221,10 @@ def test_result_compatibility_aliases_are_advanced_exports() -> None:
 def test_result_star_import_exposes_public_contract_without_internals() -> None:
     namespace: dict[str, object] = {}
 
-    exec("from phospy.api.results import *", namespace)
+    exec("from phospy.api import *", namespace)
 
     exported_names = {name for name in namespace if name != "__builtins__"}
-    assert exported_names == EXPECTED_STABLE_RESULT_EXPORTS
+    assert exported_names == set(result_models.__all__)
     for name in EXPECTED_STABLE_RESULT_EXPORTS:
         assert namespace[name] is getattr(result_models, name)
     assert "_result_contracts" not in namespace

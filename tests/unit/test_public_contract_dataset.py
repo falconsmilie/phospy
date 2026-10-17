@@ -16,15 +16,18 @@ import phospy.io as phospy_io
 from phospy import (
     AnalysisReadyDatasetBuilder,
 )
-from phospy.advanced import DatasetSiteMatrixConfig
-from phospy.advanced.configs import DatasetMissingDataConfig
+from phospy.advanced import (
+    DatasetMissingDataConfig,
+    DatasetSiteMatrixConfig,
+)
 from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
     PhosPyInputError,
 )
-from phospy.contracts.configs import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.preprocessing.contracts.configuration import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
@@ -33,7 +36,6 @@ from phospy.contracts.configs import (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -90,7 +92,6 @@ def test_public_dataset_ingestion_story_is_builder_only() -> None:
     dataset_exports = {name for name in dataset_exports if not name.endswith("Error")}
     assert dataset_exports == {
         "AnalysisReadyDatasetBuilder",
-        "AnalysisReadyPhosphoDataset",
     }
     assert not hasattr(phospy, "build_dataset_from_files")
     assert not hasattr(phospy_io, "build_dataset_from_files")

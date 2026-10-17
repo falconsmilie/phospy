@@ -12,6 +12,14 @@ import pytest
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.provenance import ProvenanceFingerprintError
+from phospy.preprocessing.provenance.models import (
+    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
+    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    DeterminismKind,
+    PreprocessingStageProvenance,
+    ReproducibilityCaveat,
+)
 from phospy.provenance.hashing import (
     _index_structure,
     _normalize_value,
@@ -23,16 +31,10 @@ from phospy.provenance.hashing import (
 )
 from phospy.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
-    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
-    PREPROCESSING_STAGE_DETERMINISM_PURE,
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
-    DeterminismKind,
     EnvironmentProvenance,
-    PreprocessingStageProvenance,
-    ReproducibilityCaveat,
-    RunProvenance,
 )
-from phospy.provenance.serialization import from_payload, to_payload
+from phospy.run_lineage.models import RunProvenance
+from phospy.run_lineage.serialization import from_payload, to_payload
 
 
 def _base_table() -> pd.DataFrame:

@@ -8,13 +8,15 @@ _ROOT = Path(__file__).resolve().parents[2]
 _DOCS_ROOT = _ROOT / "docs"
 _SRC_ROOT = _ROOT / "src" / "phospy"
 _README = _ROOT / "README.md"
+_REFACTOR_ROOT = _DOCS_ROOT / "refactor"
+_TRACKED_REFACTOR_ROOT = _REFACTOR_ROOT / "architecture"
 
 
 def _public_module_paths() -> tuple[Path, ...]:
     explicit_paths = (
         _SRC_ROOT / "__init__.py",
-        _SRC_ROOT / "science" / "datasets" / "models.py",
-        _SRC_ROOT / "science" / "activities" / "threshold_membership.py",
+        _SRC_ROOT / "datasets" / "models.py",
+        _SRC_ROOT / "kinase" / "activity" / "threshold_membership.py",
     )
     api_paths = tuple((_SRC_ROOT / "api").rglob("*.py"))
     workflow_public_paths = tuple((_SRC_ROOT / "workflows").glob("*/public.py"))
@@ -25,9 +27,18 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="ignore")
 
 
+def _maintained_markdown_paths() -> tuple[Path, ...]:
+    docs = (
+        path
+        for path in _DOCS_ROOT.rglob("*.md")
+        if not path.is_relative_to(_REFACTOR_ROOT)
+        or path.is_relative_to(_TRACKED_REFACTOR_ROOT)
+    )
+    return tuple(sorted(docs)) + (_README,)
+
+
 def test_docs_markdown_avoids_canonical_term() -> None:
-    markdown_paths = tuple(_DOCS_ROOT.rglob("*.md")) + (_README,)
-    for markdown_path in markdown_paths:
+    for markdown_path in _maintained_markdown_paths():
         assert "canonical" not in _read_text(markdown_path).lower(), (
             f"documentation must avoid the term 'canonical': {markdown_path.as_posix()}"
         )

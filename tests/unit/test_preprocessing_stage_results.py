@@ -5,55 +5,54 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.contracts import (
+from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.builders.preprocessing import (
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.science.datasets.preprocessing.event_validation import (
-    _TransformationEventSequenceValidator,
-)
-from phospy.science.datasets.preprocessing.models import (
+from phospy.errors.build import DatasetBuildError
+from phospy.errors.input import PhosPyInputError
+from phospy.preparation_records.report_schema import PreprocessingRowAuditRow
+from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingReportRow,
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
-from phospy.science.datasets.preprocessing.stage_registry import (
-    PreprocessingStageMetadata,
+from phospy.preprocessing.contracts.stage import (
+    PreprocessingStageContract,
 )
-from phospy.science.datasets.preprocessing.stages.comparisons import ComparisonsStage
-from phospy.science.datasets.preprocessing.stages.group_coverage_filter import (
+from phospy.preprocessing.execution.pipeline import PreprocessingPipeline
+from phospy.preprocessing.stages.comparisons import ComparisonsStage
+from phospy.preprocessing.stages.group_coverage import (
     GroupCoverageFilterStage,
 )
-from phospy.science.datasets.preprocessing.stages.intensity_transform import (
+from phospy.preprocessing.stages.intensity import (
     IntensityTransformStage,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data import MissingDataStage
-from phospy.science.datasets.preprocessing.stages.normalisation import (
+from phospy.preprocessing.stages.missing_data import MissingDataStage
+from phospy.preprocessing.stages.normalisation import (
     NormalisationStage,
 )
-from phospy.science.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
-from phospy.science.datasets.preprocessing.stages.total_protein_correction import (
+from phospy.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.preprocessing.stages.total_protein import (
     TotalProteinCorrectionStage,
 )
-from phospy.science.datasets.processing_state import MissingDataDiagnosticsV1
-from phospy.science.transformations.models import (
+from phospy.preprocessing.validation.quantitative_transition import (
+    _TransformationEventSequenceValidator,
+)
+from phospy.quantitative.models import (
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityTransformationEvent,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
-from phospy.science.transformations.quantitative_contracts import (
+from phospy.quantitative.quantitative_contracts import (
     preserve_quantitative_contract,
 )
 from tests.support.dataset_preprocessor_fakes import (
@@ -149,8 +148,8 @@ def _total(columns: pd.Index) -> pd.DataFrame:
     )
 
 
-def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
-    return PreprocessingStageMetadata(
+def _custom_stage_metadata(stage_key: str) -> PreprocessingStageContract:
+    return PreprocessingStageContract(
         stage_key=stage_key,
         display_label=stage_key,
         provenance_stage=stage_key,
@@ -300,23 +299,23 @@ def test_missing_data_stage_forbid_policy_rejects_single_missing_value() -> None
         MissingDataStage().run(state)
 
     diagnostics = exc_info.value.diagnostics
-    assert isinstance(diagnostics, MissingDataDiagnosticsV1)
-    assert diagnostics.missing_data_policy == "forbid"
-    assert diagnostics.imputation_method_id == "forbid"
-    assert diagnostics.input_missing_cell_count == 1
-    assert diagnostics.output_missing_cell_count == 1
-    assert diagnostics.imputed_cell_count == 0
-    assert diagnostics.affected_row_ids == ("row_a",)
-    assert diagnostics.affected_column_ids == ("sample_a",)
-    assert diagnostics.dropped_row_ids == ()
-    assert diagnostics.random_seed is None
-    assert diagnostics.method_parameters == {}
-    assert diagnostics.matrix_scale_requirement is None
-    assert diagnostics.stage_order == ("missing_data",)
-    assert isinstance(diagnostics.missingness_mask_hash, str)
-    assert diagnostics.missingness_mask_hash
-    assert diagnostics.left_censored_assumption is False
-    assert diagnostics.rows_not_imputable == ("row_a",)
+    assert isinstance(diagnostics, Mapping)
+    assert diagnostics["missing_data_policy"] == "forbid"
+    assert diagnostics["imputation_method_id"] == "forbid"
+    assert diagnostics["input_missing_cell_count"] == 1
+    assert diagnostics["output_missing_cell_count"] == 1
+    assert diagnostics["imputed_cell_count"] == 0
+    assert diagnostics["affected_row_ids"] == ["row_a"]
+    assert diagnostics["affected_column_ids"] == ["sample_a"]
+    assert diagnostics["dropped_row_ids"] == []
+    assert diagnostics["random_seed"] is None
+    assert diagnostics["method_parameters"] == {}
+    assert diagnostics["matrix_scale_requirement"] is None
+    assert diagnostics["stage_order"] == ["missing_data"]
+    assert isinstance(diagnostics["missingness_mask_hash"], str)
+    assert diagnostics["missingness_mask_hash"]
+    assert diagnostics["left_censored_assumption"] is False
+    assert diagnostics["rows_not_imputable"] == ["row_a"]
 
     message = str(exc_info.value)
     assert "stage 'missing_data'" in message

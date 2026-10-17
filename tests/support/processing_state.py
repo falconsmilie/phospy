@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from phospy.science.datasets.processing_state import (
+from phospy.datasets.processing_state import (
     DatasetProcessingState,
     MissingDataDiagnosticsV1,
 )

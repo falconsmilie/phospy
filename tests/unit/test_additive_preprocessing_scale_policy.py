@@ -14,26 +14,26 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.datasets.construction.contracts import InterpretedDatasetBuildRequest
+from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.errors import PhosPyInputError
-from phospy.science.configs.preprocessing.correction_missingness import (
-    CorrectionMissingnessPolicy,
-)
-from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
-from phospy.science.datasets.builders.executor import DatasetBuildExecutor
-from phospy.science.datasets.preprocessing.batch_correction import (
+from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
-from phospy.science.datasets.preprocessing.control_sites import (
+from phospy.preprocessing.batch_correction.contracts.missingness import (
+    CorrectionMissingnessPolicy,
+)
+from phospy.preprocessing.batch_correction.contracts.output import (
+    CorrectedPreprocessingOutput,
+)
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.science.datasets.preprocessing.correction_output import (
-    CorrectedPreprocessingOutput,
-)
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.transformations.models import IntensityScaleKind
+from phospy.quantitative.models import IntensityScaleKind
 from tests.support.dataset_preprocessor_fakes import (
     ConformingDatasetPreprocessorFake,
 )

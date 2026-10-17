@@ -6,19 +6,19 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from phospy.contracts.configs import (
-    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
-    SignalomeConfig,
-)
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_mapping
 from phospy.io.bundles._signalome.config import (
     signalome_config_from_payload,
 )
 from phospy.io.bundles._signalome.primitives import _parse_optional_int
+from phospy.signalome.config import (
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
+    SignalomeConfig,
+)
 
 if TYPE_CHECKING:
-    from phospy.contracts.requests import SignalomeWorkflowRequest
+    from phospy.signalome.requests import SignalomeWorkflowRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +46,7 @@ class SignalomeWorkflowConfigSnapshot:
     ) -> SignalomeWorkflowConfigSnapshot:
         """Create a config snapshot from a workflow request."""
 
-        from phospy.contracts.requests import SignalomeWorkflowRequest
+        from phospy.signalome.requests import SignalomeWorkflowRequest
 
         if not isinstance(request, SignalomeWorkflowRequest):
             raise PhosPyInputError(

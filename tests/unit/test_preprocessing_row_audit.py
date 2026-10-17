@@ -5,16 +5,18 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.datasets.construction.preprocessing import DatasetPreprocessor
+from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.errors.validation import DatasetValidationError
-from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.datasets.preprocessing.report_schema import ROW_AUDIT_COLUMNS
+from phospy.preparation_records.report_schema import ROW_AUDIT_COLUMNS
+from phospy.preprocessing.contracts import PreprocessingPlan
 from tests.support.site_keys import site_key_index_from_display_ids
 
 

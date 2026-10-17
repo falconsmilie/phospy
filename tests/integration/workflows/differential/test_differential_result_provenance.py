@@ -4,35 +4,36 @@ import json
 
 import pandas as pd
 
-from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
 from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     BatchCovariate,
     Contrast,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.science.datasets.builders.preprocessing import (
-    build_dataset_processing_state,
-)
-from phospy.science.datasets.builders.transformation_resolver import (
+from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.batch_correction import (
+from phospy.datasets.construction.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.transformations.models import (
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.quantitative.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.science.transformations.transformers import IdentityTransformer
+from phospy.quantitative.transformers import IdentityTransformer
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

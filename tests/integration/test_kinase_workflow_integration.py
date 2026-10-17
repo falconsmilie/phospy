@@ -10,12 +10,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.workflows.kinase.executor as kinase_executor
+import phospy.kinase.executor as kinase_executor
 from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
 )
-from phospy._deprecations import PhosPyDeprecationWarning
 from phospy.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -29,16 +28,16 @@ from phospy.api import (
     ReferenceBundle,
     ReferencePreset,
 )
-from phospy.contracts.configs import (
+from phospy.errors import DatasetValidationError, WorkflowBoundaryError
+from phospy.io.publishers.workflows import publish_kinase_workflow
+from phospy.kinase.activity.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
+from phospy.kinase.caveats import (
+    KINASE_ACTIVITY_ADAPTIVE_MEMBERSHIP_CAVEAT_CODE,
+)
+from phospy.kinase.scoring.config import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
-)
-from phospy.errors import DatasetValidationError, WorkflowBoundaryError
-from phospy.io.publishers.workflows import publish_kinase_workflow
-from phospy.science.activities.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
-from phospy.workflows.kinase.caveats import (
-    KINASE_ACTIVITY_ADAPTIVE_MEMBERSHIP_CAVEAT_CODE,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -414,26 +413,6 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     assert (finite_values >= 0.0).all()
     assert result.activity_result is not None
     assert not result.activity_result.activity_matrix.empty
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="KinaseActivityResult.activity_scores.*activity_matrix",
-    ):
-        # phospy-deprecation-compat: activities.result.activity_scores
-        activity_scores = result.activity_result.activity_scores
-    pd.testing.assert_frame_equal(
-        activity_scores,
-        result.activity_result.activity_matrix,
-    )
-    with pytest.warns(
-        PhosPyDeprecationWarning,
-        match="KinaseActivityResult.weighted_activity.*activity_matrix",
-    ):
-        # phospy-deprecation-compat: activities.result.weighted_activity
-        weighted_activity = result.activity_result.weighted_activity
-    pd.testing.assert_frame_equal(
-        weighted_activity,
-        result.activity_result.activity_matrix,
-    )
     assert not result.activity_result.thresholded_substrate_mean_activity.empty
     assert not result.activity_result.thresholded_substrate_counts.empty
     assert not result.activity_result.target_counts.empty

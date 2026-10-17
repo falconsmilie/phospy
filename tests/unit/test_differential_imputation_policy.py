@@ -13,26 +13,26 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.contracts.configs import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
-from phospy.contracts.result_caveats import result_caveats_from_payloads
-from phospy.errors import WorkflowValidationError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.differential.models import (
-    DIFFERENTIAL_RESULT_STATUS_TESTED,
-    DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
-    DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
-)
-from phospy.science.statistics.multiple_testing import adjust_p_values
-from phospy.workflows.differential.caveats import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.caveats import (
     DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
 )
-from phospy.workflows.differential.imputation_inference import (
+from phospy.differential.planning.imputation import (
     DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_NO_TESTED_IMPUTED_VALUES,
     DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_RETAINED_IMPUTED_VALUES,
     DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_FULLY_OBSERVED,
     DIFFERENTIAL_ROW_INFERENCE_STATUS_TESTED_RETAINED_IMPUTED_VALUES,
     DIFFERENTIAL_ROW_INFERENCE_STATUS_WITHHELD_NOT_TESTED,
 )
+from phospy.differential.policies import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+from phospy.differential.tables import (
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
+)
+from phospy.errors import WorkflowValidationError
+from phospy.provenance.result_caveats import result_caveats_from_payloads
+from phospy.statistics.multiple_testing import adjust_p_values
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

@@ -454,6 +454,7 @@ def _public_docs_paths() -> tuple[Path, ...]:
         path
         for path in DOCS_ROOT.rglob("*.md")
         if not _is_under(path, DOCS_ROOT / "testing")
+        and not _is_under(path, DOCS_ROOT / "refactor")
     ]
     return (README, *sorted(docs))
 
@@ -461,19 +462,19 @@ def _public_docs_paths() -> tuple[Path, ...]:
 def _api_doc_paths() -> tuple[Path, ...]:
     return (
         SRC_ROOT
-        / "contracts"
-        / "configs"
         / "preprocessing"
-        / "correction_missingness.py",
-        SRC_ROOT / "contracts" / "configs" / "preprocessing" / "control_sites.py",
-        SRC_ROOT / "contracts" / "configs" / "preprocessing" / "batch_correction.py",
+        / "batch_correction"
+        / "contracts"
+        / "missingness.py",
+        SRC_ROOT / "preprocessing" / "control_sites" / "contracts.py",
         SRC_ROOT
-        / "contracts"
-        / "configs"
         / "preprocessing"
-        / "internal_batch_correction.py",
-        SRC_ROOT / "validation" / "configs" / "preprocessing.py",
-        SRC_ROOT / "workflows" / "batch_correction" / "interpreter.py",
+        / "batch_correction"
+        / "contracts"
+        / "configuration.py",
+        SRC_ROOT / "preprocessing" / "batch_correction" / "contracts" / "request.py",
+        SRC_ROOT / "preprocessing" / "validation" / "configuration_fields.py",
+        SRC_ROOT / "preprocessing" / "batch_correction" / "planning.py",
     )
 
 
@@ -544,7 +545,9 @@ def _iter_api_doc_blocks(path: Path) -> tuple[ClaimBlock, ...]:
     tree = ast.parse(source, filename=str(path))
     blocks: list[ClaimBlock] = []
 
-    def append_docstring(node: ast.AST) -> None:
+    def append_docstring(
+        node: ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
         docstring = ast.get_docstring(node)
         if not docstring:
             return

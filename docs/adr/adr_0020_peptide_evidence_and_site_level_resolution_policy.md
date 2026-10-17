@@ -31,7 +31,7 @@ one of:
 - `exclude_from_sequence_scoring`
 - `split`
 
-Policy mapping reuses the existing `phospy.science.evidence` models and multi-site
+Policy mapping reuses the existing `phospy.evidence` models and multi-site
 resolution logic (`PeptideEvidenceTable`, `MultiSiteHandlingConfig`,
 `SiteEvidenceMapping`) instead of introducing parallel ambiguity models.
 
@@ -97,7 +97,7 @@ site-resolution semantics. They are not post-hoc differential statistic
 meta-analysis semantics.
 
 Peptide-to-site aggregation is a typed, run-specific quantitative policy owned
-by `phospy.science.evidence.dataset_resolution`. The dataset builder may
+by `phospy.evidence.dataset_resolution`. The dataset builder may
 orchestrate this policy and record its payload, but it must not duplicate or
 infer the peptide aggregation science. Downstream workflows consume the
 resulting site-level matrix and provenance.
@@ -413,7 +413,7 @@ The dataset report/provenance includes:
 
 This ADR explicitly keeps ownership boundaries as:
 
-- evidence resolution: `phospy.science.evidence` + dataset preprocessing/builder
+- evidence resolution: `phospy.evidence` + dataset preprocessing/builder
 - dataset model: no peptide collapse
 - kinase workflow: no peptide ambiguity resolution
 - signalome workflow: no peptide ambiguity resolution

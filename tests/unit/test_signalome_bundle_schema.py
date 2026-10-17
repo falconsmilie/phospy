@@ -3,19 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import SignalomeConfig
-from phospy.advanced.configs import (
+from phospy.advanced import (
     LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
     SignalomeOutputConfig,
     SignalomeScientificConfig,
     SignalomeValidationConfig,
-)
-from phospy.contracts.configs import (
-    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
-    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
-    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
-    SIGNALOME_MODE_PRODUCTION,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._signalome.diagnostics import (
@@ -35,8 +29,14 @@ from phospy.io.bundles._signalome.diagnostics import (
 from phospy.io.bundles._signalome.tables import normalize_module_assignments_table
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.provenance.models import TableFingerprint
-from phospy.science.signalomes.clustering import select_module_count_with_diagnostics
-from phospy.science.signalomes.models import (
+from phospy.signalome.clustering import select_module_count_with_diagnostics
+from phospy.signalome.config import (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SIGNALOME_MODE_EXPLORATORY_COMPATIBILITY,
+    SIGNALOME_MODE_PRODUCTION,
+)
+from phospy.signalome.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,

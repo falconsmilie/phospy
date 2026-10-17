@@ -5,13 +5,19 @@ import json
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
-from phospy.science.differential.models import (
-    DifferentialAnalysisRequest,
-    DifferentialContrastDefinition,
+from phospy.differential.diagnostics import (
     DifferentialModelDiagnostics,
 )
-from phospy.science.differential.validator import DifferentialAnalysisRequestValidator
+from phospy.differential.models.design import (
+    DifferentialAnalysisRequest,
+)
+from phospy.differential.provenance.models import (
+    DifferentialContrastDefinition,
+)
+from phospy.differential.validation.computation import (
+    DifferentialAnalysisRequestValidator,
+)
+from phospy.errors import PhosPyInputError
 
 
 def test_differential_model_diagnostics_payload_records_required_fields() -> None:

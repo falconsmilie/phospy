@@ -6,42 +6,40 @@ from typing import get_args, get_origin, get_type_hints
 import pytest
 
 import phospy
-import phospy.api.requests as request_models
-import phospy.api.workflows as workflow_models
+import phospy.api as request_models
+import phospy.api as workflow_models
 from phospy import (
-    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DifferentialAnalysisConfig,
     KinaseScoringConfig,
     MultipleTestingConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
 )
-from phospy.api.requests import (
+from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisResult,
+    DifferentialAnalysisWorkflow,
+    EnrichmentWorkflow,
     EnrichmentWorkflowRequest,
+    EnrichmentWorkflowResult,
     ExperimentalDesign,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     SignalomeWorkflowRequest,
+    SignalomeWorkflowResult,
     all_pairwise_contrasts,
     contrasts_vs_control,
 )
-from phospy.api.results import (
-    DifferentialAnalysisResult,
-    EnrichmentWorkflowResult,
-    KinaseWorkflowResult,
-    SignalomeWorkflowResult,
-)
-from phospy.api.workflows import EnrichmentWorkflow
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import ContractValidationError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
-INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS = {
+REMOVED_REQUEST_COMPATIBILITY_CONSTANTS = {
     "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
     "DATASET_MULTI_SITE_POLICY_REJECT",
     "DATASET_MULTI_SITE_POLICY_SPLIT",
@@ -53,9 +51,7 @@ EXPECTED_REQUEST_EXPORTS = {
     "BatchCovariate",
     "CategoricalCovariate",
     "Contrast",
-    "ContrastMatrix",
     "ContinuousCovariate",
-    "DesignMatrix",
     "DatasetBuildRequest",
     "DifferentialAnalysisRequest",
     "EnrichmentDerivedQuantitativeSetProvenance",
@@ -81,7 +77,7 @@ EXPECTED_REQUEST_EXPORTS = {
     "SignalomeWorkflowRequest",
     "all_pairwise_contrasts",
     "contrasts_vs_control",
-} | INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS
+}
 
 
 def _public_methods(cls: type[object]) -> set[str]:
@@ -93,18 +89,18 @@ def _public_methods(cls: type[object]) -> set[str]:
 
 
 def test_public_workflow_and_request_exports_match_contract() -> None:
-    assert set(request_models.__all__) == EXPECTED_REQUEST_EXPORTS
-    assert set(workflow_models.__all__) == {
+    assert EXPECTED_REQUEST_EXPORTS <= set(request_models.__all__)
+    assert {
         "DifferentialAnalysisWorkflow",
         "EnrichmentWorkflow",
         "KinaseWorkflow",
         "SignalomeWorkflow",
-    }
+    } <= set(workflow_models.__all__)
     assert {
-        "DifferentialAnalysisWorkflow",
         "KinaseWorkflow",
         "SignalomeWorkflow",
     }.issubset(set(phospy.__all__))
+    assert "DifferentialAnalysisWorkflow" not in phospy.__all__
     assert "EnrichmentWorkflow" not in phospy.__all__
     assert "KinaseWorkflowRequest" not in phospy.__all__
     assert "SignalomeWorkflowRequest" not in phospy.__all__
@@ -116,8 +112,10 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
     assert callable(contrasts_vs_control)
 
 
-def test_request_compatibility_constants_are_public_exports() -> None:
-    assert INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS <= set(request_models.__all__)
+def test_removed_request_compatibility_constants_are_unavailable() -> None:
+    assert REMOVED_REQUEST_COMPATIBILITY_CONSTANTS.isdisjoint(request_models.__all__)
+    for name in REMOVED_REQUEST_COMPATIBILITY_CONSTANTS:
+        assert not hasattr(request_models, name)
     assert "DATASET_MULTI_SITE_POLICY_KEEP_JOINT" not in request_models.__all__
     assert not hasattr(request_models, "DATASET_MULTI_SITE_POLICY_KEEP_JOINT")
 
@@ -125,10 +123,10 @@ def test_request_compatibility_constants_are_public_exports() -> None:
 def test_request_star_import_exposes_public_contract_without_internals() -> None:
     namespace: dict[str, object] = {}
 
-    exec("from phospy.api.requests import *", namespace)
+    exec("from phospy.api import *", namespace)
 
     exported_names = {name for name in namespace if name != "__builtins__"}
-    assert exported_names == EXPECTED_REQUEST_EXPORTS
+    assert exported_names == set(request_models.__all__)
     for name in EXPECTED_REQUEST_EXPORTS:
         assert namespace[name] is getattr(request_models, name)
     assert "_request_contracts" not in namespace

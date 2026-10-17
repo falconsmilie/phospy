@@ -7,41 +7,42 @@ import pandas as pd
 import pytest
 from scipy import stats
 
-import phospy.science.differential as differential_public
-import phospy.science.differential.aggregation as aggregation_public
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+import phospy.differential as differential_public
+import phospy.differential.aggregation as aggregation_public
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
 from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
 )
-from phospy.api.requests import (
-    DATASET_MULTI_SITE_POLICY_REJECT,
-    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-)
-from phospy.errors import PhosPyInputError
-from phospy.science.differential.aggregation import (
-    PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SAMPLE_INTENSITY,
-    PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS,
-)
-from phospy.science.differential.aggregation.experimental import (
+from phospy.differential.aggregation.experimental import (
     EXPERIMENTAL_INTERNAL_API,
     EXPERIMENTAL_INTERNAL_REASON,
     WITHDRAWN_POSTHOC_PEPTIDE_TO_SITE_AGGREGATION_MESSAGE,
     PeptideToSiteAggregator,
 )
-from phospy.science.differential.aggregation.models import (
+from phospy.differential.aggregation.models import (
     PEPTIDE_DIFFERENTIAL_STATISTIC_DISTRIBUTION_MODERATED_T,
+    PEPTIDE_TO_SITE_AGGREGATION_LEVEL_SAMPLE_INTENSITY,
+    PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS,
     PEPTIDE_TO_SITE_DEPENDENCE_POLICY_INDEPENDENT_SOURCES,
     PEPTIDE_TO_SITE_MAPPING_POLICY_EXCLUDE_FROM_STATISTICAL_MODEL,
     PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
     PEPTIDE_TO_SITE_MAPPING_POLICY_SPLIT_EQUAL_WEIGHT,
     PeptideDifferentialEstimateTable,
+)
+from phospy.errors import PhosPyInputError
+from phospy.evidence.dataset_resolution.models import (
+    DATASET_MULTI_SITE_POLICY_REJECT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -111,8 +112,12 @@ def _estimate_frame(*, mapping_policy: str) -> pd.DataFrame:
 
 
 def test_posthoc_route_is_absent_from_supported_science_facades() -> None:
-    assert WITHDRAWN_PRODUCTION_EXPORTS.isdisjoint(aggregation_public.__all__)
-    assert WITHDRAWN_PRODUCTION_EXPORTS.isdisjoint(differential_public.__all__)
+    assert WITHDRAWN_PRODUCTION_EXPORTS.isdisjoint(
+        getattr(aggregation_public, "__all__", ())
+    )
+    assert WITHDRAWN_PRODUCTION_EXPORTS.isdisjoint(
+        getattr(differential_public, "__all__", ())
+    )
     assert not hasattr(aggregation_public, "PeptideToSiteAggregator")
     assert not hasattr(differential_public, "PeptideToSiteAggregator")
     assert PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS == (
@@ -225,9 +230,9 @@ def test_uncertainty_handling_stays_out_of_validators_interpreters_and_assembler
     None
 ):
     forbidden_files = (
-        ROOT / "src" / "phospy" / "validation" / "workflows" / "differential.py",
-        ROOT / "src" / "phospy" / "workflows" / "differential" / "interpreter.py",
-        ROOT / "src" / "phospy" / "workflows" / "differential" / "result_assembly.py",
+        ROOT / "src" / "phospy" / "differential" / "validation" / "dataset.py",
+        ROOT / "src" / "phospy" / "differential" / "planning" / "interpreter.py",
+        ROOT / "src" / "phospy" / "differential" / "result_assembly.py",
     )
     forbidden_fragments = (
         "PeptideDifferentialEstimateTable",
@@ -243,13 +248,7 @@ def test_uncertainty_handling_stays_out_of_validators_interpreters_and_assembler
             assert fragment not in source
 
     executor_source = (
-        ROOT
-        / "src"
-        / "phospy"
-        / "science"
-        / "differential"
-        / "aggregation"
-        / "executor.py"
+        ROOT / "src" / "phospy" / "differential" / "aggregation" / "executor.py"
     ).read_text(encoding="utf-8")
     assert "signed_z_from_t_statistic" in executor_source
     assert "adjust_p_values" in executor_source

@@ -4,8 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from phospy._deprecations import PhosPyDeprecationWarning
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -28,8 +27,28 @@ from phospy.advanced.configs import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.contracts.configs import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.errors import ContractValidationError, PhosPyInputError
+from phospy.evidence.config import (
+    LOCALISATION_POLICY_REQUIRE_THRESHOLD,
+    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+)
+from phospy.kinase.activity.config import (
+    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+)
+from phospy.kinase.prediction.config import (
+    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+)
+from phospy.kinase.scoring.config import (
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+    KINASE_RELIABILITY_PROFILE_CUSTOM,
+    KINASE_RELIABILITY_PROFILE_EXPLORATORY,
+    KINASE_RELIABILITY_PROFILE_PRODUCTION,
+)
+from phospy.preprocessing.contracts.configuration import (
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
@@ -40,16 +59,11 @@ from phospy.contracts.configs import (
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
-    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
-    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
-    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
-    KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
-    KINASE_RELIABILITY_PROFILE_CUSTOM,
-    KINASE_RELIABILITY_PROFILE_EXPLORATORY,
-    KINASE_RELIABILITY_PROFILE_PRODUCTION,
-    LOCALISATION_POLICY_REQUIRE_THRESHOLD,
-    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+)
+from phospy.references.config import (
     REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
+)
+from phospy.signalome.config import (
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
@@ -62,7 +76,6 @@ from phospy.contracts.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
-from phospy.errors import ContractValidationError, PhosPyInputError
 
 
 @pytest.mark.parametrize(
@@ -532,13 +545,8 @@ def test_kinase_scoring_exploratory_matches_historical_default() -> None:
     )
 
 
-def test_kinase_scoring_default_is_deprecated_exploratory_alias() -> None:
-    with pytest.warns(PhosPyDeprecationWarning, match="exploratory"):
-        # phospy-deprecation-compat: contracts.kinase.KinaseScoringConfig.default
-        default = KinaseScoringConfig.default()
-
-    assert default == KinaseScoringConfig.exploratory()
-    assert default.reliability_profile is KINASE_RELIABILITY_PROFILE_EXPLORATORY
+def test_removed_kinase_scoring_default_classmethod_is_absent() -> None:
+    assert not hasattr(KinaseScoringConfig, "default")
 
 
 def test_kinase_production_requires_explicit_attrition_thresholds() -> None:

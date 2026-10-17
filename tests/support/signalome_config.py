@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
     SignalomeAssignmentPolicy,
@@ -15,7 +15,7 @@ from phospy.advanced.configs import (
     SignalomeScorePreconditioningPolicy,
     SignalomeValidationConfig,
 )
-from phospy.contracts.configs import (
+from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.errors import SignalomeModuleCountValidationError
-from phospy.science.signalomes.clustering import (
+from phospy.signalome.clustering import (
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION,
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
@@ -14,10 +14,15 @@ from phospy.science.signalomes.clustering import (
     resolve_clustering_engine,
     run_signalome_clustering_engine,
 )
-from phospy.science.signalomes.clustering import exact_python as exact_clustering
-from phospy.science.signalomes.clustering import scipy_hierarchical as scipy_clustering
-from phospy.science.signalomes.clustering.models import SignalomeClusteringEngineResult
-from phospy.science.signalomes.models import SignalomeModuleSelectionDiagnostics
+from phospy.signalome.clustering import exact_python as exact_clustering
+from phospy.signalome.clustering import scipy_hierarchical as scipy_clustering
+from phospy.signalome.clustering.backends import exact_python as exact_tree_backend
+from phospy.signalome.clustering.backends import (
+    scipy_hierarchical as scipy_tree_backend,
+)
+from phospy.signalome.clustering.models import SignalomeClusteringEngineResult
+from phospy.signalome.errors import SignalomeModuleCountValidationError
+from phospy.signalome.models import SignalomeModuleSelectionDiagnostics
 
 
 def _small_scoring_matrix() -> pd.DataFrame:
@@ -171,6 +176,65 @@ def test_scipy_backend_matches_exact_backend_for_small_deterministic_fixture() -
 
 
 @pytest.mark.parametrize(
+    "values",
+    [
+        np.zeros((0, 2), dtype=float),
+        np.asarray([[1.0, 2.0]], dtype=float),
+    ],
+    ids=["zero-sites", "one-site"],
+)
+def test_tree_backends_preserve_zero_and_one_site_boundaries_without_distances(
+    monkeypatch: pytest.MonkeyPatch,
+    values: np.ndarray,
+) -> None:
+    def fail(*args: object, **kwargs: object) -> object:
+        raise AssertionError("zero/one-site backend attempted distance or linkage work")
+
+    monkeypatch.setattr(scipy_tree_backend, "pdist", fail)
+    monkeypatch.setattr(scipy_tree_backend, "linkage", fail)
+
+    exact_tree = exact_tree_backend.build_cluster_tree(values)
+    scipy_tree = scipy_tree_backend.build_cluster_tree(values)
+
+    assert exact_tree.n_sites == values.shape[0]
+    assert exact_tree.merges == ()
+    assert scipy_tree.n_sites == values.shape[0]
+    assert scipy_tree.linkage_matrix.shape == (0, 4)
+    if values.shape[0] == 1:
+        assert exact_tree_backend.build_cluster_labels_from_tree(
+            cluster_tree=exact_tree,
+            cluster_counts=[1],
+        )[1].tolist() == [0]
+        assert scipy_tree_backend.build_cluster_labels_from_tree(
+            cluster_tree=scipy_tree,
+            cluster_counts=[1],
+        )[1].tolist() == [0]
+
+
+def test_exact_and_scipy_tree_backends_preserve_equal_distance_tie_order() -> None:
+    values = np.asarray(
+        [[0.0, 0.0], [0.0, 2.0], [2.0, 0.0], [2.0, 2.0]],
+        dtype=float,
+    )
+
+    exact_tree = exact_tree_backend.build_cluster_tree(values)
+    scipy_tree = scipy_tree_backend.build_cluster_tree(values)
+
+    assert exact_tree.merges[:2] == ((0, 1), (2, 3))
+    assert scipy_tree.linkage_matrix[:2, :2].astype(int).tolist() == [[0, 1], [2, 3]]
+    exact_labels = exact_tree_backend.build_cluster_labels_from_tree(
+        cluster_tree=exact_tree,
+        cluster_counts=[2],
+    )[2]
+    scipy_labels = scipy_tree_backend.build_cluster_labels_from_tree(
+        cluster_tree=scipy_tree,
+        cluster_counts=[2],
+    )[2]
+    assert exact_labels.tolist() == [0, 0, 1, 1]
+    assert scipy_labels.tolist() == [0, 0, 1, 1]
+
+
+@pytest.mark.parametrize(
     "backend_name",
     [
         SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
@@ -249,9 +313,7 @@ def test_scipy_backend_run_does_not_call_exact_orchestration(
         )
 
     monkeypatch.setattr(
-        exact_clustering,
-        "cluster_sites_with_diagnostics",
-        _should_not_run,
+        exact_clustering.ExactPythonClusteringBackend, "run", _should_not_run
     )
 
     run_signalome_clustering_engine(

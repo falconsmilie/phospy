@@ -4,13 +4,14 @@ import pandas as pd
 
 from phospy.provenance.models import (
     EnvironmentProvenance,
-    RunProvenance,
     TableFingerprint,
 )
-from phospy.provenance.serialization import from_payload, to_payload
-from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.science.references.resources import bundled_reference_name_for_organism
+from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.references.resolution import ReferenceResolver
+from phospy.references.resources import bundled_reference_name_for_organism
+from phospy.run_lineage.models import RunProvenance
+from phospy.run_lineage.serialization import from_payload, to_payload
+from phospy.taxonomy import Organism
 
 
 def test_explicit_reference_bundle_defaults_to_explicit_provenance() -> None:

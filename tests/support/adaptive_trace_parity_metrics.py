@@ -6,16 +6,16 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from phospy.science.prediction.candidates import build_candidate_substrate_list
-from phospy.science.prediction.policies import (
+from phospy.kinase.prediction.candidates import build_candidate_substrate_list
+from phospy.kinase.prediction.policies import (
     resolve_prediction_sampling_policy,
 )
-from phospy.science.prediction.sampling_runtime import (
+from phospy.kinase.prediction.sampling_runtime import (
     PredictionSamplingRandomSource,
     normalize_probabilities,
     transform_resampling_probabilities,
 )
-from phospy.science.prediction.svm import (
+from phospy.kinase.prediction.svm import (
     aligned_binary_decision_vector,
     make_svm,
     require_sklearn,

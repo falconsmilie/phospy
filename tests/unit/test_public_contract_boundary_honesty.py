@@ -4,10 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
-from phospy.api import Organism
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    Organism,
+)
 from phospy.errors import DatasetValidationError
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )

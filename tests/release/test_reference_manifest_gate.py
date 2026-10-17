@@ -9,9 +9,9 @@ from typing import Any
 
 import pytest
 
-from phospy.science.references.errors import ReferenceManifestError
-from phospy.science.references.manifest import RedistributionEvidenceType
-from phospy.science.references.validation import validate_bundled_reference_manifests
+from phospy.references.errors import ReferenceManifestError
+from phospy.references.manifest import RedistributionEvidenceType
+from phospy.references.validation import validate_bundled_reference_manifests
 
 pytestmark = pytest.mark.release_gate
 
@@ -378,6 +378,7 @@ def test_release_gate_rejects_missing_repository_notice_file(tmp_path: Path) -> 
         message
     )
     assert "repository notice file does not exist" in message
+    assert "UNIT-NOTICE.md" in message
 
 
 def test_release_gate_rejects_missing_bundle_attribution_file(tmp_path: Path) -> None:
@@ -1021,7 +1022,7 @@ def _write_manifest_bundle(
     rat_policy: bool = False,
 ) -> Path:
     if not omit_notice_file:
-        (tmp_path / "NOTICE.md").write_text("Unit notice\n", encoding="utf-8")
+        (tmp_path / "UNIT-NOTICE.md").write_text("Unit notice\n", encoding="utf-8")
     reference_id = "l6_native" if rat_policy else "unit_reference"
     bundle_root = tmp_path / "reference_bundles" / "rat" / reference_id
     bundle_root.mkdir(parents=True)
@@ -1174,7 +1175,7 @@ def _valid_evidence_payload(
             "applies_to_future_bundles": False,
         },
         "attribution": {
-            "repository_notice_path": "NOTICE.md",
+            "repository_notice_path": "UNIT-NOTICE.md",
             "bundle_attribution_path": "ATTRIBUTION.md",
         },
         "independent_database_permission_claimed": False,

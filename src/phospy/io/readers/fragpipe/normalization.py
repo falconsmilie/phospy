@@ -8,6 +8,11 @@ import math
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.evidence.modified_peptides import parse_modified_peptide_sequence
+from phospy.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
+)
 from phospy.io.readers._table_parsing import (
     build_row_ids,
     build_unique_feature_ids,
@@ -41,11 +46,6 @@ from phospy.io.readers.fragpipe.conversion import (
     _resolve_site_call,
 )
 from phospy.io.readers.fragpipe.models import _ResolvedFragPipeColumns
-from phospy.science.differential.quantification_depth import (
-    QUANTIFICATION_DEPTH_COLUMN,
-    QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
-)
-from phospy.science.evidence.modified_peptides import parse_modified_peptide_sequence
 
 
 def _adapt_fragpipe_source(

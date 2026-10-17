@@ -5,44 +5,42 @@ import importlib
 import pandas as pd
 import pytest
 
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
-)
-from phospy.science.activities.scientific_policies import (
+from phospy.kinase.activity.policies import (
     build_ksea_zscore_activity_policy,
     build_simplified_weighted_substrate_activity_policy,
     build_ssgsea_substrate_enrichment_activity_policy,
 )
-from phospy.science.datasets.preprocessing.scientific_policies import (
+from phospy.kinase.prediction.candidates import build_candidate_substrate_list
+from phospy.kinase.prediction.policies import (
+    CandidateSubstrateSelectionPolicy,
+    resolve_prediction_sampling_policy,
+)
+from phospy.kinase.scoring.policies import (
+    PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+    KinaseLibraryMotifScoringPolicy,
+    KinaseProfileScoringPolicy,
+)
+from phospy.kinase.scoring.rank_fusion import MotifProfileRankFusionPolicy
+from phospy.kinase.scoring.selection import resolve_downstream_score_matrix
+from phospy.preprocessing.provenance.policies import (
     DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY,
     PreprocessingStageOrderPolicy,
     build_duplicate_site_resolution_policy,
 )
-from phospy.science.prediction.candidates import build_candidate_substrate_list
-from phospy.science.prediction.policies import (
-    KinaseLibraryMotifScoringPolicy,
-    resolve_prediction_sampling_policy,
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
 )
-from phospy.science.prediction.scientific_policies import (
-    PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
-    CandidateSubstrateSelectionPolicy,
-    KinaseProfileScoringPolicy,
-)
-from phospy.science.prediction.scoring import (
-    MotifProfileRankFusionPolicy,
-    resolve_downstream_score_matrix,
-)
-from phospy.science.signalomes.clustering import derive_protein_modules
-from phospy.science.signalomes.clustering.policies import (
+from phospy.signalome.clustering import derive_protein_modules
+from phospy.signalome.clustering.policies import (
     resolve_candidate_scoring_policy_definition,
 )
-from phospy.science.signalomes.clustering.scientific_policies import (
+from phospy.signalome.clustering.scientific_policies import (
     PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
     SignalomeMissingValueClusteringPolicy,
     build_signalome_module_candidate_score_policy,
 )
-from phospy.workflows.signalome.scientific_policies import (
+from phospy.signalome.scientific_policies import (
     ScorePreconditioningPolicy,
     resolve_score_preconditioning_policy,
 )
@@ -106,61 +104,56 @@ def test_scientific_policy_model_ownership_is_explicit() -> None:
 
 
 def test_prediction_scientific_policy_ownership_is_explicit() -> None:
-    assert (
-        KinaseProfileScoringPolicy.__module__
-        == "phospy.science.prediction.scientific_policies"
-    )
+    assert KinaseProfileScoringPolicy.__module__ == "phospy.kinase.scoring.policies"
     assert (
         CandidateSubstrateSelectionPolicy.__module__
-        == "phospy.science.prediction.scientific_policies"
+        == "phospy.kinase.prediction.policies"
     )
     assert (
-        KinaseLibraryMotifScoringPolicy.__module__
-        == "phospy.science.prediction.policies"
+        KinaseLibraryMotifScoringPolicy.__module__ == "phospy.kinase.scoring.policies"
     )
 
 
 def test_activity_scientific_policy_ownership_is_explicit() -> None:
     assert (
         build_ksea_zscore_activity_policy.__module__
-        == "phospy.science.activities.scientific_policies"
+        == "phospy.kinase.activity.policies"
     )
     assert (
         build_simplified_weighted_substrate_activity_policy.__module__
-        == "phospy.science.activities.scientific_policies"
+        == "phospy.kinase.activity.policies"
     )
 
 
 def test_preprocessing_scientific_policy_ownership_is_explicit() -> None:
     assert (
         PreprocessingStageOrderPolicy.__module__
-        == "phospy.science.datasets.preprocessing.scientific_policies"
+        == "phospy.preprocessing.provenance.policies"
     )
     assert (
         build_duplicate_site_resolution_policy.__module__
-        == "phospy.science.datasets.preprocessing.scientific_policies"
+        == "phospy.preprocessing.provenance.policies"
     )
 
 
 def test_signalome_workflow_scientific_policy_ownership_is_explicit() -> None:
     assert (
-        ScorePreconditioningPolicy.__module__
-        == "phospy.workflows.signalome.scientific_policies"
+        ScorePreconditioningPolicy.__module__ == "phospy.signalome.scientific_policies"
     )
     assert (
         resolve_score_preconditioning_policy.__module__
-        == "phospy.workflows.signalome.scientific_policies"
+        == "phospy.signalome.scientific_policies"
     )
 
 
 def test_signalome_clustering_scientific_policy_ownership_is_explicit() -> None:
     assert (
         SignalomeMissingValueClusteringPolicy.__module__
-        == "phospy.science.signalomes.clustering.scientific_policies"
+        == "phospy.signalome.clustering.scientific_policies"
     )
     assert (
         build_signalome_module_candidate_score_policy.__module__
-        == "phospy.science.signalomes.clustering.scientific_policies"
+        == "phospy.signalome.clustering.scientific_policies"
     )
 
 

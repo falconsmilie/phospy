@@ -7,7 +7,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api import PhosPyInputError
-from phospy.science.evidence.dataset_resolution import (
+from phospy.evidence.dataset_resolution import (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
     DATASET_PEPTIDE_ALLOCATION_DOMAIN_DECLARED_SCALE_UNIT_MAPPING_PASSTHROUGH,
@@ -32,30 +32,30 @@ from phospy.science.evidence.dataset_resolution import (
     build_multi_site_handling_config_for_dataset_policy,
     normalise_peptide_evidence_resolution_summary_payload,
 )
-from phospy.science.evidence.dataset_resolution.allocation import (
+from phospy.evidence.dataset_resolution.allocation import (
     AllocatedEvidence,
     SiteSignalSummary,
     allocate_peptide_signals_to_resolved_sites,
     summarise_allocated_site_signals,
 )
-from phospy.science.evidence.dataset_resolution.mapping import (
+from phospy.evidence.dataset_resolution.mapping import (
     JoinedMappingRows,
     ResolvedMappingFractions,
     join_peptide_rows_to_site_mapping,
     resolve_and_validate_mapping_fractions,
 )
-from phospy.science.evidence.dataset_resolution.models import (
+from phospy.evidence.dataset_resolution.models import (
     MAPPING_FRACTION_COLUMN,
     PeptideEvidenceResolutionInputMetrics,
 )
-from phospy.science.evidence.dataset_resolution.policies import (
+from phospy.evidence.dataset_resolution.policies import (
     build_peptide_to_site_aggregation_policy,
 )
-from phospy.science.evidence.dataset_resolution.site_metadata import (
+from phospy.evidence.dataset_resolution.site_metadata import (
     SiteMetadataResolution,
     aggregate_site_metadata_and_localisation,
 )
-from phospy.science.evidence.dataset_resolution.site_sequence import (
+from phospy.evidence.dataset_resolution.site_sequence import (
     SITE_SEQUENCE_SOURCE_MISSING,
     SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
     SITE_SEQUENCE_SOURCE_PROVIDED,
@@ -63,10 +63,10 @@ from phospy.science.evidence.dataset_resolution.site_sequence import (
     derive_site_sequence_from_peptide_context,
     resolve_site_sequence_for_resolved_site,
 )
-from phospy.science.evidence.dataset_resolution.summary import (
+from phospy.evidence.dataset_resolution.summary import (
     build_resolution_summary,
 )
-from phospy.science.transformations.models import IntensityScaleKind
+from phospy.quantitative.models import IntensityScaleKind
 
 
 def _evidence_frame() -> pd.DataFrame:
@@ -808,7 +808,7 @@ def test_resolver_outputs_are_isolated_from_input_frame_mutation() -> None:
             }
         ]
     )
-    from phospy.science.evidence import PeptideEvidenceTable
+    from phospy.evidence import PeptideEvidenceTable
 
     evidence = PeptideEvidenceTable(
         frame=evidence_frame,

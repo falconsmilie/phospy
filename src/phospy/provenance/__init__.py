@@ -1,18 +1,7 @@
-"""Machine-readable run provenance services."""
+"""Generic provenance primitives and table fingerprint services."""
 
-from phospy.provenance.derived_quantitative import (
-    DERIVED_QUANTITATIVE_DATA_FINGERPRINT_ALGORITHM,
-    DERIVED_QUANTITATIVE_DATA_PROVENANCE_SCHEMA_VERSION_V1,
-    TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE,
-    TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION,
-    DerivedQuantitativeDataProvenance,
-    DerivedSampleMapping,
-    build_derived_quantitative_run_provenance,
-)
 from phospy.provenance.environment import (
-    BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES,
     DEFAULT_ENVIRONMENT_DEPENDENCIES,
-    collect_batch_correction_environment_provenance,
     collect_environment_provenance,
 )
 from phospy.provenance.hashing import (
@@ -29,38 +18,21 @@ from phospy.provenance.hashing import (
     hash_table_tolerance,
 )
 from phospy.provenance.models import (
-    TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1,
-    TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2,
-    TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3,
-    TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4,
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
-    DeterminismKind,
     EnvironmentProvenance,
-    KinaseLibraryResourceProvenance,
-    PreprocessingStageProvenance,
-    ReferenceProvenance,
-    ReproducibilityCaveat,
     RowAttritionRecord,
     RowAttritionReport,
-    RunProvenance,
     TableFingerprint,
-    TrustedDatasetConstructionAssertions,
-    TrustedDatasetConstructionEvidence,
 )
-from phospy.provenance.references import fingerprint_local_reference_source_file
 from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyParameter,
     ScientificPolicyRecord,
 )
-from phospy.provenance.serialization import (
-    batch_correction_provenance_from_payload,
-    batch_correction_provenance_to_payload,
-    from_payload,
+from phospy.provenance.serialization.tables import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
-    to_payload,
 )
 
 __all__ = [
@@ -68,50 +40,24 @@ __all__ = [
     "DEFAULT_EXACT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
-    "BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES",
     "BatchCorrectionProvenance",
     "BatchCorrectionRejectedEntity",
-    "DERIVED_QUANTITATIVE_DATA_FINGERPRINT_ALGORITHM",
-    "DERIVED_QUANTITATIVE_DATA_PROVENANCE_SCHEMA_VERSION_V1",
-    "DeterminismKind",
-    "DerivedQuantitativeDataProvenance",
-    "DerivedSampleMapping",
     "EnvironmentProvenance",
-    "KinaseLibraryResourceProvenance",
-    "PreprocessingStageProvenance",
-    "ReferenceProvenance",
-    "ReproducibilityCaveat",
     "RowAttritionRecord",
     "RowAttritionReport",
-    "RunProvenance",
     "ScientificPolicyId",
     "ScientificPolicyParameter",
     "ScientificPolicyRecord",
-    "TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE",
-    "TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION",
-    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
-    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2",
-    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3",
-    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V4",
     "TableFingerprint",
-    "TrustedDatasetConstructionAssertions",
-    "TrustedDatasetConstructionEvidence",
-    "batch_correction_provenance_from_payload",
-    "batch_correction_provenance_to_payload",
-    "build_derived_quantitative_run_provenance",
-    "collect_batch_correction_environment_provenance",
     "collect_environment_provenance",
     "fingerprint_matrix",
     "fingerprint_optional_matrix",
     "fingerprint_optional_table",
     "fingerprint_optional_table_strict",
-    "fingerprint_local_reference_source_file",
     "fingerprint_table",
     "fingerprint_table_strict",
-    "from_payload",
     "hash_table_exact",
     "hash_table_tolerance",
     "table_fingerprint_from_payload",
     "table_fingerprint_to_payload",
-    "to_payload",
 ]

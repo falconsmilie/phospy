@@ -16,6 +16,7 @@ from phospy.advanced import (
     SpsDiscoveryRequest,
     SpsDiscoveryResult,
     SpsDiscoveryValidationError,
+    SpsDiscoveryValidationResult,
     SpsDiscoveryWorkflow,
     SpsReferenceDataset,
     SpsReferenceDatasetProvenance,
@@ -25,16 +26,27 @@ from phospy.advanced import (
 )
 from phospy.api import Organism
 from phospy.errors.input import PhosPyInputError
+from phospy.phosphosites.site_keys import decode_site_key
+from phospy.preprocessing.control_sites import workflow as sps_workflow_module
+from phospy.preprocessing.control_sites.discovery_execution import (
+    SpsDiscoveryExecutor,
+)
+from phospy.preprocessing.control_sites.discovery_planning import (
+    SpsDiscoveryPlan,
+    SpsDiscoveryRequestInterpreter,
+)
+from phospy.preprocessing.control_sites.discovery_validation import (
+    SpsDiscoveryRequestValidator,
+)
+from phospy.preprocessing.control_sites.validation import (
+    ControlSiteEligibilityValidator,
+)
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.models import JsonValue
-from phospy.science.sites.site_keys import decode_site_key
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
-)
-from phospy.validation.workflows.batch_correction import (
-    ControlSiteEligibilityValidator,
 )
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -134,6 +146,154 @@ def test_valid_multi_dataset_discovery_configuration() -> None:
     assert request.reference_datasets[0].intensities.index.name == "site_key"
     assert request.reference_datasets[0].sample_conditions != (
         request.reference_datasets[1].sample_conditions
+    )
+
+
+def test_request_interpreter_builds_immutable_execution_plan() -> None:
+    keys = _site_keys("P1", "P2")
+    request = SpsDiscoveryRequest(
+        reference_datasets=(
+            _reference("study_a", keys),
+            _reference("study_b", keys),
+        ),
+        config=SpsDiscoveryConfig(top_n=1),
+    )
+
+    SpsDiscoveryWorkflow().require_valid(request)
+    plan = SpsDiscoveryRequestInterpreter().run(request)
+
+    assert isinstance(plan, SpsDiscoveryPlan)
+    assert plan.reference_datasets == tuple(request.reference_datasets)
+    assert plan.config is request.config
+
+
+def test_workflow_composes_validator_interpreter_and_executor_in_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keys = _site_keys("P1", "P2")
+    request = SpsDiscoveryRequest(
+        reference_datasets=(
+            _reference("study_a", keys),
+            _reference("study_b", keys),
+        ),
+        config=SpsDiscoveryConfig(top_n=1),
+    )
+    events: list[str] = []
+    produced_plans: list[SpsDiscoveryPlan] = []
+    received_plans: list[SpsDiscoveryPlan] = []
+
+    class RecordingValidator(SpsDiscoveryRequestValidator):
+        def run(
+            self,
+            *,
+            reference_datasets: object,
+            config: object,
+        ) -> SpsDiscoveryValidationResult:
+            events.append("validate")
+            return super().run(
+                reference_datasets=reference_datasets,
+                config=config,
+            )
+
+    class RecordingInterpreter(SpsDiscoveryRequestInterpreter):
+        def run(self, candidate: SpsDiscoveryRequest) -> SpsDiscoveryPlan:
+            events.append("interpret")
+            plan = super().run(candidate)
+            produced_plans.append(plan)
+            return plan
+
+    class RecordingExecutor(SpsDiscoveryExecutor):
+        def run(self, plan: SpsDiscoveryPlan) -> SpsDiscoveryResult:
+            events.append("execute")
+            received_plans.append(plan)
+            return super().run(plan)
+
+    monkeypatch.setattr(
+        sps_workflow_module, "SpsDiscoveryRequestValidator", RecordingValidator
+    )
+    monkeypatch.setattr(
+        sps_workflow_module, "SpsDiscoveryRequestInterpreter", RecordingInterpreter
+    )
+    monkeypatch.setattr(sps_workflow_module, "SpsDiscoveryExecutor", RecordingExecutor)
+
+    result = SpsDiscoveryWorkflow().run(request)
+
+    assert events == ["validate", "interpret", "execute"]
+    assert len(produced_plans) == 1
+    assert received_plans == produced_plans
+    assert received_plans[0] is produced_plans[0]
+    assert result.selected_site_keys == (str(keys[0]),)
+
+
+def test_discovery_executor_accepts_only_an_interpreted_plan() -> None:
+    keys = _site_keys("P1", "P2")
+    request = SpsDiscoveryRequest(
+        reference_datasets=(
+            _reference("study_a", keys),
+            _reference("study_b", keys),
+        ),
+        config=SpsDiscoveryConfig(top_n=1),
+    )
+    workflow = SpsDiscoveryWorkflow()
+    workflow.require_valid(request)
+    plan = SpsDiscoveryRequestInterpreter().run(request)
+    executor = SpsDiscoveryExecutor()
+
+    result = executor.run(plan)
+
+    assert result.selected_site_keys == (str(keys[0]),)
+    with pytest.raises(TypeError, match="plan must be an SpsDiscoveryPlan"):
+        executor.run(cast(SpsDiscoveryPlan, request))
+
+
+def test_sps_assertion_preserves_historical_declared_scale_provenance() -> None:
+    reference = _reference("study", _site_keys("P1", "P2"))
+    state = reference.intensity_scale_state
+    provenance = state.establishment_provenance
+
+    assert state.established_via == (
+        "phospy.science.transformations.transformers.identity.IdentityTransformer"
+    )
+    assert state.establishment_authority_source == (
+        "phospy.science.datasets.builders.transformation_resolver"
+    )
+    assert provenance is not None
+    assert provenance.mode.value == "declared"
+    assert provenance.evidence_level.value == "declared_by_user"
+    assert provenance.transformer_name is None
+    assert provenance.input_declaration_source == "test fixture log2 preparation"
+    assert provenance.trace_id is None
+    assert provenance.diagnostic_warnings == ()
+
+
+def test_sps_assertion_preserves_complete_suspicious_warning_sequence() -> None:
+    reference = SpsReferenceDataset.from_condition_relative_log2(
+        dataset_id="suspicious",
+        intensities=pd.DataFrame(
+            {"control": [1000.0, 2000.0], "treated": [1000.0, 2000.0]},
+            index=_site_keys("P1", "P2"),
+        ),
+        condition_by_sample={"control": "control", "treated": "treated"},
+        log2_scale_established_by="declared suspicious scale",
+        baseline_centering_established_by="declared baseline",
+    )
+    provenance = reference.intensity_scale_state.establishment_provenance
+
+    assert provenance is not None
+    assert provenance.diagnostic_warnings == (
+        "phospho: declared log2 scale is suspicious; median=1500.000, "
+        "min=1000.000, fraction_ge_25=1.000",
+        "phospho: declared log2 scale has very large positive values; "
+        "max=2000.000, fraction_ge_35=1.000",
+        "phospho: declared log2 scale has highly suspicious range; "
+        "min=1000.000, max=2000.000, range=1000.000",
+        "phospho: declared log2 scale strongly resembles raw linear intensities; "
+        "median=1500.000, integer_like_fraction=1.000",
+        "The suspicious declared input intensity scale was accepted for dataset "
+        "construction only. Downstream workflows may independently validate this "
+        "declaration and may require their own explicit override. Differential "
+        "analysis requires DifferentialAnalysisConfig."
+        "allow_suspicious_declared_input_scale=True.",
     )
 
 
@@ -481,7 +641,7 @@ def test_quantitative_rejection_occurs_before_ranking(
         raise AssertionError("ranking must not begin for incompatible input")
 
     monkeypatch.setattr(
-        "phospy.workflows.batch_correction.sps_discovery.SpsDiscoveryExecutor.run",
+        "phospy.preprocessing.control_sites.discovery_execution.SpsDiscoveryExecutor.run",
         fail_if_ranked,
     )
     with pytest.raises(SpsDiscoveryValidationError) as caught:
@@ -1240,6 +1400,92 @@ def test_baseline_v1_discovery_payload_with_legacy_identity_is_migrated() -> Non
         for record in restored.to_payload()["site_ranking"]  # type: ignore[union-attr]
         for statistic in record["dataset_statistics"]
     )
+
+    payload["discovery_identity"] = "sha256-stable-json-v1:" + "0" * 64
+    with pytest.raises(PhosPyInputError, match="canonical discovery evidence"):
+        SpsDiscoveryResult.from_payload(payload)
+
+
+def test_v1_restoration_preserves_score_first_order_across_evidence_counts() -> None:
+    keys = _site_keys("P1", "P2")
+    current = SpsDiscoveryWorkflow().run(
+        SpsDiscoveryRequest(
+            reference_datasets=(
+                _reference("study_a", keys),
+                _reference("study_b", keys),
+                _reference("study_c", keys[1:]),
+            ),
+            config=SpsDiscoveryConfig(
+                top_n=2,
+                minimum_reference_datasets=3,
+                minimum_datasets_per_site=2,
+                minimum_shared_sites=2,
+            ),
+        )
+    )
+    score_first = tuple(
+        replace(record, consensus_rank=position)
+        for position, record in enumerate(
+            sorted(
+                current.site_ranking,
+                key=lambda record: (
+                    -record.consensus_stability_score,
+                    record.site_key,
+                ),
+            ),
+            start=1,
+        )
+    )
+    legacy = SpsDiscoveryResult(
+        selected_site_keys=tuple(record.site_key for record in score_first),
+        site_ranking=score_first,
+        provenance=replace(current.provenance, algorithm_version="1.0.0"),
+    )
+    payload = legacy.to_payload()
+    payload["identity_schema"] = "phospy-sps-discovery-result-v1"
+    for record in payload["site_ranking"]:  # type: ignore[union-attr]
+        for statistic in record["dataset_statistics"]:
+            statistic.pop("rank_quantile")
+    historical_identity_payload = {
+        key: value for key, value in payload.items() if key != "discovery_identity"
+    }
+    historical_identity = (
+        "sha256-stable-json-v1:"
+        f"{hash_json_payload(cast(JsonValue, historical_identity_payload))}"
+    )
+    payload["discovery_identity"] = historical_identity
+
+    restored = SpsDiscoveryResult.from_payload(payload)
+
+    assert tuple(
+        record.contributing_dataset_count for record in restored.site_ranking
+    ) == (2, 3)
+    assert (
+        restored.site_ranking[0].consensus_stability_score
+        > restored.site_ranking[1].consensus_stability_score
+    )
+    assert restored.provenance.algorithm_version == "1.0.0"
+    assert restored.provenance.cross_count_ordering_policy == (
+        "consensus_stability_descending_ignoring_contribution_count"
+    )
+    assert payload["discovery_identity"] == historical_identity
+    controls = restored.control_site_set
+    assert tuple(annotation.site_key for annotation in controls.annotations) == (
+        restored.selected_site_keys
+    )
+    assert controls.source_metadata.source_version == "1.0.0"
+    assert (
+        controls.source_metadata.sps_discovery_identity == restored.discovery_identity
+    )
+
+    current_policy_payload = restored.to_payload()
+    current_policy_payload.pop("discovery_identity")
+    current_policy_payload["provenance"]["algorithm_version"] = "2.0.0"  # type: ignore[index]
+    current_policy_payload["provenance"]["cross_count_ordering_policy"] = (  # type: ignore[index]
+        "contributing_dataset_count_descending_then_consensus_stability_descending"
+    )
+    with pytest.raises(PhosPyInputError, match="counts must be non-increasing"):
+        SpsDiscoveryResult.from_payload(current_policy_payload)
 
     payload["discovery_identity"] = "sha256-stable-json-v1:" + "0" * 64
     with pytest.raises(PhosPyInputError, match="canonical discovery evidence"):

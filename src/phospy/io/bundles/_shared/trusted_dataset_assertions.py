@@ -6,15 +6,19 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from phospy.provenance.models import (
-    JsonValue,
-    RunProvenance,
+from phospy.datasets.processing_state import DatasetProcessingState
+from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
-from phospy.science.datasets.processing_state import DatasetProcessingState
-from phospy.science.transformations.models import IntensityScaleState
-from phospy.science.transformations.state_coherence import observe_numeric_domain
+from phospy.provenance.models import (
+    JsonValue,
+)
+from phospy.quantitative.assertions import numeric_domain_assertion_payload
+from phospy.quantitative.models import IntensityScaleState
+from phospy.run_lineage.models import (
+    RunProvenance,
+)
 
 
 def build_bundle_reconstruction_assertions(
@@ -92,7 +96,10 @@ def build_bundle_reconstruction_assertions(
         numeric_semantic_domain=TrustedDatasetConstructionEvidence.evidence(
             source=f"{bundle_kind} bundle dataset phospho matrix",
             policy="analysis_ready_numeric_semantic_domain_preserved",
-            details=_numeric_domain_details(phospho),
+            details=numeric_domain_assertion_payload(
+                phospho,
+                table_name="dataset.phospho",
+            ),
         ),
         asserted_by="phospy.io.bundles",
         assertion_source=f"{bundle_kind} bundle reconstruction",
@@ -169,20 +176,6 @@ def _reference_context_assertion(
         ),
         policy="bundle_reconstruction_reference_context_unavailable",
     )
-
-
-def _numeric_domain_details(phospho: pd.DataFrame) -> Mapping[str, JsonValue]:
-    observation = observe_numeric_domain(phospho, table_name="dataset.phospho")
-    return {
-        "table": observation.table_name,
-        "observed_numeric_domain": observation.observed_domain.value,
-        "value_count": observation.value_count,
-        "negative_count": observation.negative_count,
-        "zero_count": observation.zero_count,
-        "positive_count": observation.positive_count,
-        "min": observation.minimum,
-        "max": observation.maximum,
-    }
 
 
 def _enum_value(value: object) -> str | None:

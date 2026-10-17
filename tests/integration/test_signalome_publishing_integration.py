@@ -18,8 +18,8 @@ from phospy.api import (
     KinaseWorkflowRequest,
     ReferencePreset,
     SignalomeWorkflowRequest,
+    SignalomeWorkflowResult,
 )
-from phospy.api.results import SignalomeWorkflowResult
 from phospy.io.publishers.workflows import publish_signalome_workflow
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config

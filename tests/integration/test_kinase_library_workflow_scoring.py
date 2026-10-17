@@ -13,25 +13,25 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.contracts.configs import (
-    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
-    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
-)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import KinaseLibraryResourceProvenance
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.prediction.motif_scoring.models import AMINO_ACIDS
-from phospy.science.references.kinase_library import (
+from phospy.kinase.public import KinaseWorkflow
+from phospy.kinase.references.models import (
     KinaseLibraryMatrix,
     KinaseLibraryResidueClass,
     KinaseLibraryResource,
 )
-from phospy.science.references.models import SequenceWindowDefinition
-from phospy.workflows.kinase.kinase_library_scoring import (
+from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
+from phospy.kinase.scoring.config import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+)
+from phospy.kinase.scoring.kinase_library import (
     KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
 )
-from phospy.workflows.kinase.public import KinaseWorkflow
+from phospy.kinase.scoring.motif.models import AMINO_ACIDS
+from phospy.provenance.hashing import fingerprint_table
+from phospy.references.models import SequenceWindowDefinition
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

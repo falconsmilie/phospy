@@ -2,10 +2,10 @@
 """Benchmark signalome/prediction science hot paths against historical baselines.
 
 Targets:
-- `phospy.science.signalomes.science.build_signalome_module_table`
-- `phospy.science.signalomes.science.build_expanded_signalome_table`
-- `phospy.workflows.kinase.science.build_prediction_outputs`
-- `phospy.science.prediction.execution.run_adaptive_ensemble_prediction`
+- `phospy.signalome.science.build_signalome_module_table`
+- `phospy.signalome.science.build_expanded_signalome_table`
+- `phospy.kinase.prediction.outputs.build_prediction_outputs`
+- `phospy.kinase.prediction.execution.run_adaptive_ensemble_prediction`
 """
 
 from __future__ import annotations
@@ -498,12 +498,10 @@ def _build_adaptive_prediction_inputs(
 
 def main() -> None:
     from phospy.advanced import KinasePredictionConfig
-    from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
-    from phospy.science.signalomes.science import (
-        build_expanded_signalome_table,
-        build_signalome_module_table,
-    )
-    from phospy.workflows.kinase.science import build_prediction_outputs
+    from phospy.kinase.prediction.execution import run_adaptive_ensemble_prediction
+    from phospy.kinase.prediction.outputs import build_prediction_outputs
+    from phospy.signalome.expanded import build_expanded_signalome_table
+    from phospy.signalome.modules import build_signalome_module_table
 
     module_assignments, kinase_substrates, kinase_order = _build_signalome_inputs()
     signalome_modules, kinase_network_edges = _build_expanded_inputs(

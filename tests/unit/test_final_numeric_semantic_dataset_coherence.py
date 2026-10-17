@@ -6,37 +6,42 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+)
 from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DatasetNormalisationConfig,
 )
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
+)
+from phospy.datasets.construction.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.datasets.trusted_assertions import (
+    TrustedDatasetConstructionEvidence,
 )
 from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.errors.validation import (
     DatasetValidationError,
     TransformationValidationError,
 )
-from phospy.provenance import from_payload, to_payload
-from phospy.provenance.models import TrustedDatasetConstructionEvidence
-from phospy.science.datasets.builders.preprocessing import (
-    build_dataset_processing_state,
-)
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.transformations.models import (
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.quantitative.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
-from phospy.science.transformations.state_coherence import (
+from phospy.quantitative.state_coherence import (
     ObservedNumericDomain,
     require_quantitative_numeric_domain_coherence,
 )
+from phospy.run_lineage import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     complete_trusted_dataset_construction_assertions_for_tests,
     trusted_analysis_ready_dataset_from_tables,

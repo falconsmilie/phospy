@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
+from phospy.signalome.results import SignalomeWorkflowResult
 
 
 @dataclass(frozen=True, slots=True)

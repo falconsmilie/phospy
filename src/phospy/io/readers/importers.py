@@ -9,8 +9,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.requests import PhosphositeImportRequest
-from phospy.contracts.results import (
+from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.evidence.localisation import (
+    LOCALISATION_CONFIDENCE_OUTPUT_COLUMN,
+    normalise_localisation_confidence_series,
+)
+from phospy.evidence.multi_site import parse_phospho_site_tokens
+from phospy.frames.table_formats import (
+    supported_table_input_formats,
+    table_format_from_path,
+)
+from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
     ImporterDetectedIntensityColumn,
@@ -20,27 +29,18 @@ from phospy.contracts.results import (
     ImporterMissingIntensitySummary,
     ImporterQualityCount,
     ImporterQualityReport,
+    PhosphositeImportRequest,
     PhosphositeImportResult,
 )
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.io.readers.tables import (
-    supported_table_input_formats,
-    table_format_from_path,
-)
-from phospy.science.evidence.localisation import (
-    LOCALISATION_CONFIDENCE_OUTPUT_COLUMN,
-    normalise_localisation_confidence_series,
-)
-from phospy.science.evidence.multi_site import parse_phospho_site_tokens
-from phospy.science.sites.identifiers import canonicalize_site_components
-from phospy.validation.common.dataframes import require_dataframe
-from phospy.validation.datasets.importers import (
+from phospy.io.importers.validation import (
     PhosphositeImportRequestValidator,
     normalise_sample_column_mapping,
     peptide_evidence_requested,
     require_import_source_columns,
     required_import_source_columns,
 )
+from phospy.phosphosites.identifiers import canonicalize_site_components
+from phospy.validation.common.dataframes import require_dataframe
 
 _CSV = "csv"
 _TSV = "tsv"

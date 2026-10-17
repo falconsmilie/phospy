@@ -1,25 +1,31 @@
 from __future__ import annotations
 
+import hashlib
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import KinasePredictionConfig
+from phospy.advanced import (
+    KinasePredictionConfig,
+)
 from phospy.errors import (
     ContractValidationError,
     WorkflowStageError,
 )
-from phospy.science.prediction import sampling_core
-from phospy.science.prediction.execution import (
+from phospy.kinase.prediction import sampling_core
+from phospy.kinase.prediction.execution import (
     AdaptiveEnsemblePredictionExecutionConfig,
     run_adaptive_ensemble_prediction,
 )
-from phospy.science.prediction.policies import (
+from phospy.kinase.prediction.policies import (
     resolve_prediction_sampling_policy,
 )
-from phospy.science.prediction.sampling_core import run_adaptive_sampling_ensemble
-from phospy.science.prediction.sampling_runtime import (
+from phospy.kinase.prediction.sampling_core import run_adaptive_sampling_ensemble
+from phospy.kinase.prediction.sampling_runtime import (
     PredictionSamplingRandomSource,
+    _derive_prediction_stream_seed,
+    make_prediction_random_generators,
     transform_resampling_probabilities,
 )
 
@@ -77,6 +83,46 @@ def test_prediction_sampling_random_source_global_parity_tracks_call_order() -> 
     b_second = source_b.generators_for_kinase(kinase="KINASE_A")
 
     assert int(a_first[0].integers(0, 1000)) != int(b_second[0].integers(0, 1000))
+
+
+def test_stable_stream_seed_uses_the_fixed_blake2b_material_and_conversion() -> None:
+    material = b"17:KINASE_A:negative_sampling"
+    expected = int.from_bytes(
+        hashlib.blake2b(material, digest_size=16).digest(), "little"
+    )
+
+    assert (
+        _derive_prediction_stream_seed(
+            random_state=17,
+            kinase="KINASE_A",
+            stream_name="negative_sampling",
+        )
+        == expected
+    )
+
+
+def test_global_parity_source_draws_negative_then_resampling_seed_exactly_once() -> (
+    None
+):
+    class RecordingGenerator:
+        def __init__(self) -> None:
+            self.calls: list[tuple[int, int]] = []
+            self.values = iter((101, 202))
+
+        def integers(self, low: int, high: int) -> int:
+            self.calls.append((low, high))
+            return next(self.values)
+
+    source = RecordingGenerator()
+    negative_rng, resampling_rng = make_prediction_random_generators(source)  # type: ignore[arg-type]
+
+    assert source.calls == [(0, (2**31) - 1), (0, (2**31) - 1)]
+    assert int(negative_rng.integers(0, 10_000)) == int(
+        np.random.default_rng(101).integers(0, 10_000)
+    )
+    assert int(resampling_rng.integers(0, 10_000)) == int(
+        np.random.default_rng(202).integers(0, 10_000)
+    )
 
 
 def test_transform_resampling_probabilities_flattens_stable_policy() -> None:
@@ -222,7 +268,7 @@ def test_run_adaptive_ensemble_prediction_averages_per_ensemble_scores(
         return np.asarray([0.4, 0.6, 0.8], dtype=float)
 
     monkeypatch.setattr(
-        "phospy.science.prediction.execution.run_adaptive_sampling_ensemble",
+        "phospy.kinase.prediction.execution.run_adaptive_sampling_ensemble",
         fake_sampling,
     )
     observed = run_adaptive_ensemble_prediction(
@@ -290,6 +336,60 @@ def test_adaptive_prediction_is_deterministic_for_same_seed() -> None:
     )
 
     pd.testing.assert_frame_equal(first, second)
+
+
+@pytest.mark.parametrize("adaptive_policy", ["stable", "r_parity"])
+def test_trace_observation_preserves_ordinary_adaptive_execution(
+    monkeypatch: pytest.MonkeyPatch,
+    adaptive_policy: str,
+) -> None:
+    score_matrix = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.88, 0.22, 0.18, 0.11],
+            "K2": [0.12, 0.2, 0.28, 0.8, 0.86, 0.93],
+        },
+        index=["S1", "S2", "S3", "S4", "S5", "S6"],
+    )
+    candidate_substrates = {
+        "K1": ["S1", "S2", "S3"],
+        "K2": ["S4", "S5", "S6"],
+    }
+    prediction_config = AdaptiveEnsemblePredictionExecutionConfig(
+        adaptive_ensemble_runs=2,
+        adaptive_policy=adaptive_policy,
+        n_iterations=2,
+    )
+    ordinary = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=prediction_config,
+        random_state=17,
+    )
+    observed_calls: list[tuple[int, int, int]] = []
+
+    def observe_sampling(**kwargs: object) -> np.ndarray:
+        train_values = kwargs["train_values"]
+        test_values = kwargs["test_values"]
+        assert isinstance(train_values, np.ndarray)
+        assert isinstance(test_values, np.ndarray)
+        observed_calls.append(
+            (train_values.shape[0], test_values.shape[0], int(kwargs["n_iterations"]))
+        )
+        return run_adaptive_sampling_ensemble(**kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(
+        "phospy.kinase.prediction.execution.run_adaptive_sampling_ensemble",
+        observe_sampling,
+    )
+    traced = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=prediction_config,
+        random_state=17,
+    )
+
+    assert observed_calls == [(6, 6, 2)] * 4
+    pd.testing.assert_frame_equal(traced, ordinary)
 
 
 def test_adaptive_prediction_outputs_can_differ_for_different_seeds() -> None:

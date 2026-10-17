@@ -19,34 +19,40 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.errors import DatasetValidationError, PhosPyInputError
-from phospy.science.differential.executor import (
-    DifferentialAnalysisExecutor as DifferentialComputationExecutor,
-)
-from phospy.science.differential.internal_view import (
-    DifferentialComputationResultInternalView,
-)
-from phospy.science.differential.linear_model import decompose_differential_design
-from phospy.science.differential.models import (
-    DifferentialAnalysisRequest as DifferentialComputationRequest,
-)
-from phospy.science.differential.models import (
-    DifferentialAnalysisResult,
-    DifferentialComputationResult,
-    DifferentialEmpiricalBayesProvenance,
+from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
     QuantificationDepthTrendDiagnostics,
 )
-from phospy.science.sites.site_keys import (
+from phospy.differential.execution.linear_model import decompose_differential_design
+from phospy.differential.execution.model_executor import (
+    DifferentialAnalysisExecutor as DifferentialComputationExecutor,
+)
+from phospy.differential.execution.workflow import (
+    DifferentialAnalysisExecutor as DifferentialWorkflowExecutor,
+)
+from phospy.differential.internal_view import (
+    DifferentialComputationResultInternalView,
+)
+from phospy.differential.models.design import (
+    DifferentialAnalysisRequest as DifferentialComputationRequest,
+)
+from phospy.differential.models.fit import (
+    DifferentialComputationResult,
+)
+from phospy.differential.planning.interpreter import DifferentialAnalysisInterpreter
+from phospy.differential.provenance.models import (
+    DifferentialEmpiricalBayesProvenance,
+)
+from phospy.differential.results import (
+    DifferentialAnalysisResult,
+)
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.errors import DatasetValidationError, PhosPyInputError
+from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
-from phospy.workflows.differential.executor import (
-    DifferentialAnalysisExecutor as DifferentialWorkflowExecutor,
-)
-from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
-from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -81,61 +87,21 @@ IDENTITY_COLUMNS = [
 STATISTIC_COLUMNS = ["logFC", "t", "P.Value", "adj.P.Val"]
 
 
-def test_differential_model_domain_modules_preserve_legacy_import_identity() -> None:
-    import phospy.science.differential.models as differential_models
-    from phospy.science.differential.models.design import (
-        ContrastMatrix,
-        DesignMatrix,
-        DifferentialAnalysisRequest,
-    )
-    from phospy.science.differential.models.diagnostics import (
-        DifferentialModelDiagnostics,
-        EmpiricalBayesPriorDiagnostics,
-        MeanVarianceTrendDiagnostics,
-        QuantificationDepthTrendDiagnostics,
-    )
-    from phospy.science.differential.models.empirical_bayes_config import (
-        EmpiricalBayesConfig,
-    )
-    from phospy.science.differential.models.fit import DifferentialComputationResult
-    from phospy.science.differential.models.provenance import (
-        DifferentialPolicyProvenance,
-    )
-    from phospy.science.differential.models.results import DifferentialAnalysisResult
-    from phospy.science.differential.models.tables import (
-        DIFFERENTIAL_RESULT_STATUS_TESTED,
-    )
+def test_differential_model_initializer_is_narrow() -> None:
+    import phospy.differential.models as differential_models
 
-    assert differential_models.ContrastMatrix is ContrastMatrix
-    assert differential_models.DesignMatrix is DesignMatrix
     assert (
-        differential_models.DifferentialAnalysisRequest is DifferentialAnalysisRequest
-    )
-    assert differential_models.EmpiricalBayesConfig is EmpiricalBayesConfig
-    assert (
-        differential_models.EmpiricalBayesPriorDiagnostics
-        is EmpiricalBayesPriorDiagnostics
-    )
-    assert (
-        differential_models.MeanVarianceTrendDiagnostics is MeanVarianceTrendDiagnostics
-    )
-    assert (
-        differential_models.QuantificationDepthTrendDiagnostics
-        is QuantificationDepthTrendDiagnostics
-    )
-    assert (
-        differential_models.DifferentialModelDiagnostics is DifferentialModelDiagnostics
-    )
-    assert differential_models.DifferentialComputationResult is (
-        DifferentialComputationResult
-    )
-    assert differential_models.DifferentialAnalysisResult is DifferentialAnalysisResult
-    assert differential_models.DifferentialPolicyProvenance is (
-        DifferentialPolicyProvenance
-    )
-    assert (
-        differential_models.DIFFERENTIAL_RESULT_STATUS_TESTED
-        == DIFFERENTIAL_RESULT_STATUS_TESTED
+        vars(differential_models)
+        .keys()
+        .isdisjoint(
+            {
+                "ContrastMatrix",
+                "DesignMatrix",
+                "DifferentialAnalysisRequest",
+                "DifferentialAnalysisResult",
+                "EmpiricalBayesConfig",
+            }
+        )
     )
 
 

@@ -2,7 +2,7 @@
 """Benchmark repeated workflow reuse of dataset-owned immutable snapshots.
 
 Targets:
-- `phospy.workflows.differential.DifferentialAnalysisWorkflow.run`
+- `phospy.differential.DifferentialAnalysisWorkflow.run`
 - `phospy.workflows.kinase.KinaseWorkflow.run`
 
 This is an explicitly invoked local benchmark. It records machine-specific
@@ -426,7 +426,7 @@ def _kinase_request(dataset: Any, config: BenchmarkConfig):
 
 @contextmanager
 def _instrument_copy_accounting() -> Iterator[_InstrumentationCounts]:
-    import phospy.science.datasets.internal_frame_store as internal_frame_store_module
+    import phospy.datasets._internal.frame_store as internal_frame_store_module
 
     counts = _InstrumentationCounts(
         full_frame_deep_copies=Counter(),
@@ -591,7 +591,8 @@ def _build_setup(
 
 
 def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResult:
-    from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow
+    from phospy import KinaseWorkflow
+    from phospy.api import DifferentialAnalysisWorkflow
 
     resolved_config = config or default_config()
     with _instrument_copy_accounting() as counts:

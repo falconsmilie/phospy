@@ -4,11 +4,10 @@ PhosPy uses a small public Python API. Start with the workflow guides for
 end-to-end examples; use this page when you need to confirm where a public class
 should be imported from.
 
-## Stability Tiers During Beta
+## Supported Aggregates During Beta
 
 PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
-during beta, but compatibility expectations follow the governed stability tier
-for the import route you use:
+during beta. ADR-0054 defines three exact aggregate surfaces:
 
 `phospy.api` is the stable user-facing route for ordinary workflow code.
 `phospy.advanced` is a supported advanced route for documented specialist
@@ -19,7 +18,7 @@ Non-default specialist policy objects, including
 `PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION`, are supported from
 `phospy.advanced`; they are intentionally outside the stable aggregate
 `phospy.api` export set during beta.
-The beta compatibility expectations are:
+The supported import expectations are:
 
 | Stability tier | Supported import route | Compatibility expectation |
 | --- | --- | --- |
@@ -27,9 +26,9 @@ The beta compatibility expectations are:
 | Advanced supported API | Use `phospy.advanced` when a guide asks for specialized configuration, diagnostic models, reference helpers, or publishing helpers. | These APIs are supported and documented, but may evolve more readily. Release notes or migration guidance accompany material changes where project policy requires it. |
 | Internal / experimental API | Do not use direct imports from implementation modules as public contracts. | Python allowing an import does not make it public. Internal modules may change without compatibility treatment, and private validators must not be used as external APIs. |
 
-[ADR-0031](../adr/adr_0031_public_api_stability_tiers.md) governs the policy
-behind these tiers. This guide points to supported facades and workflow pages
-instead of listing every exported symbol.
+[ADR-0054](../adr/adr_0054_public_api_reset_and_compatibility_removal.md)
+supersedes ADR-0031's compatibility routes. There are no supported forwarding
+submodules or runtime deprecation aliases.
 
 ## Workflow Map
 
@@ -52,23 +51,19 @@ page:
 
 ## Import From `phospy`
 
-Use the package root only for curated convenience aliases to stable facade
-names, such as the dataset builder and selected workflow entry points:
+Use the package root only for the three curated conveniences:
 
 ```python
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
-    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
 ```
 
-These imports are conveniences for stable public API objects. Do not infer that
-every symbol visible from the package root is stable. For request, result,
-configuration, reference, enum, and exception contracts, prefer the explicit
-`phospy.api` imports below.
+`phospy.__all__` contains exactly these three names. Request, result,
+configuration, reference, enum, exception, dataset, enrichment, and
+differential contracts use the explicit `phospy.api` aggregate below.
 
 ## Import From `phospy.api`
 
@@ -285,7 +280,8 @@ The example below shows the request-and-run pattern for differential analysis.
 The [quickstart](../quickstart.md) provides complete input tables.
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import DifferentialAnalysisWorkflow
 from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     Contrast,
@@ -375,5 +371,6 @@ boundary.
 ## API Scope
 
 PhosPy's API is Python-native; it does not provide HTTP endpoints, REST routes,
-or a hosted service. Detailed implementation boundaries and compatibility
-policy are documented in [ADR-0031](../adr/adr_0031_public_api_stability_tiers.md).
+or a hosted service. The exact aggregate boundaries and removal policy are
+documented in
+[ADR-0054](../adr/adr_0054_public_api_reset_and_compatibility_removal.md).

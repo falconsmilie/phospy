@@ -124,7 +124,8 @@ covariate.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import DifferentialAnalysisWorkflow
 from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DifferentialAnalysisConfig,
@@ -237,7 +238,8 @@ exact DEqMS-compatible numerical equivalence.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import DifferentialAnalysisWorkflow
 from phospy.advanced import (
     DatasetIntensityTransformConfig,
     DifferentialAnalysisConfig,
@@ -382,7 +384,8 @@ that sidecar unless `DifferentialAnalysisConfig.protein_aware_model` is set.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import DifferentialAnalysisWorkflow
 from phospy.advanced import (
     DatasetProteinAwarePreparationConfig,
     DifferentialAnalysisConfig,
@@ -764,7 +767,7 @@ Adjustment is performed separately for each contrast.
 ## Run the Workflow
 
 ```python
-from phospy import DifferentialAnalysisWorkflow
+from phospy.api import DifferentialAnalysisWorkflow
 from phospy.api import DifferentialAnalysisRequest
 
 result = DifferentialAnalysisWorkflow().run(

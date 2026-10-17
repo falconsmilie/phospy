@@ -3,7 +3,10 @@ from __future__ import annotations
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.policy_models import IntensityTransformPolicy
+from phospy.preprocessing.contracts.policies import IntensityTransformPolicy
+from phospy.preprocessing.validation.configuration import (
+    validate_preprocessing_section_type,
+)
 from phospy.validation.common.config_values import (
     coerce_policy_enum,
     require_supported_literal,
@@ -13,9 +16,6 @@ from phospy.validation.common.numbers import (
     require_optional_real_between,
 )
 from phospy.validation.common.paths import require_local_filesystem_path
-from phospy.validation.configs.preprocessing import (
-    validate_preprocessing_section_type,
-)
 
 
 def test_require_supported_literal_reports_sorted_supported_values() -> None:

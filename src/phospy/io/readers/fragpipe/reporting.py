@@ -7,7 +7,9 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.contracts.results import (
+from phospy.errors.input import PhosPyInputError
+from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_COLUMN
+from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
     ImporterFlaggedRowSummary,
@@ -15,7 +17,7 @@ from phospy.contracts.results import (
     ImporterQualityReport,
     PhosphositeImportResult,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.io.importers.fragpipe_validation import FRAGPIPE_FLAG_POLICY_FLAG
 from phospy.io.readers.fragpipe.columns import _resolved_columns_payload
 from phospy.io.readers.fragpipe.constants import (
     _ADAPTED_AMBIGUOUS_COLUMN,
@@ -28,8 +30,6 @@ from phospy.io.readers.fragpipe.constants import (
     _FRAGPIPE_DECOY_OUTPUT_COLUMN,
 )
 from phospy.io.readers.fragpipe.models import _ResolvedFragPipeColumns
-from phospy.science.differential.quantification_depth import QUANTIFICATION_DEPTH_COLUMN
-from phospy.validation.datasets.fragpipe import FRAGPIPE_FLAG_POLICY_FLAG
 
 
 def _augment_mapped_result(

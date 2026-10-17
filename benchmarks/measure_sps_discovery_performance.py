@@ -17,7 +17,7 @@ for _path in (ROOT, SRC):
     if str(_path) not in sys.path:
         sys.path.insert(0, str(_path))
 
-from phospy.science.batch_correction.sps_discovery import (
+from phospy.preprocessing.control_sites.discovery_execution import (
     _reference_stability_evidence,
 )
 from tests.support.performance_contracts import SPS_DISCOVERY_RUNTIME_SECONDS_MAX

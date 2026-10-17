@@ -4,17 +4,20 @@ from typing import cast
 
 import pytest
 
+from phospy.datasets.construction.state_assembly import (
+    DatasetProcessingStateBuilder,
+)
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
-    intensity_scale_state_to_payload,
+from phospy.preparation_records.policies import (
+    MissingDataPolicy,
+    NormalisationPolicy,
+    TotalProteinCorrectionPolicy,
 )
-from phospy.provenance.models import TableFingerprint
-from phospy.science.configs.preprocessing import (
+from phospy.preprocessing.batch_correction.contracts.configuration import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
 )
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
@@ -22,28 +25,23 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.policy_models import (
+from phospy.preprocessing.contracts.policies import (
     IntensityTransformPolicy,
-    MissingDataPolicy,
-    NormalisationPolicy,
-    TotalProteinCorrectionPolicy,
 )
-from phospy.science.datasets.preprocessing.quantitative_evidence import (
-    QuantitativeOperationEvidence,
-    TotalProteinRowMappingEvidence,
-)
-from phospy.science.datasets.preprocessing.stage_registry import (
+from phospy.preprocessing.execution.pipeline import PreprocessingPipeline
+from phospy.preprocessing.planning.registry import (
     get_preprocessing_stage_metadata,
     list_registered_preprocessing_stages,
 )
-from phospy.science.datasets.preprocessing.state_builder import (
-    DatasetProcessingStateBuilder,
+from phospy.preprocessing.results.quantitative_evidence import (
+    QuantitativeOperationEvidence,
+    TotalProteinRowMappingEvidence,
 )
-from phospy.science.transformations._authority import (
+from phospy.provenance.models import TableFingerprint
+from phospy.quantitative._authority import (
     dataset_resolver_establishment_authority,
 )
-from phospy.science.transformations.models import (
+from phospy.quantitative.models import (
     QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
     IntensityScaleEstablishmentMode,
     IntensityScaleEvidenceLevel,
@@ -53,7 +51,7 @@ from phospy.science.transformations.models import (
     QuantitativeMeaning,
     establish_intensity_scale_state,
 )
-from phospy.science.transformations.quantitative_contracts import (
+from phospy.quantitative.quantitative_contracts import (
     ALL_INTENSITY_SCALE_KINDS,
     ALL_QUANTITATIVE_MEANINGS,
     NegativeDomainPolicy,
@@ -64,6 +62,10 @@ from phospy.science.transformations.quantitative_contracts import (
     QuantitativeScaleTransitionKind,
     QuantitativeTransitionEvidence,
     preserve_quantitative_contract,
+)
+from phospy.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+    intensity_scale_state_to_payload,
 )
 
 
@@ -238,15 +240,13 @@ def test_total_protein_contract_transition_matrix_uses_typed_evidence() -> None:
             QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE
         ),
     )
-    assert "quantitative_meaning_mixed_total_protein_correction" in (
-        contract.caveat_codes(
-            target=mixed.meaning,
-            evidence=QuantitativeTransitionEvidence(
-                total_protein_corrected_row_count=1,
-                total_protein_uncorrected_row_count=1,
-            ),
-        )
-    )
+    assert contract.caveat_codes(
+        target=mixed.meaning,
+        evidence=QuantitativeTransitionEvidence(
+            total_protein_corrected_row_count=1,
+            total_protein_uncorrected_row_count=1,
+        ),
+    ) == ("quantitative_meaning_mixed_total_protein_correction",)
 
 
 def test_pipeline_rejects_unsupported_transition_before_numerical_execution() -> None:

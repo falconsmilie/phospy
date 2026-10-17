@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phospy.science.differential.models import DifferentialAnalysisResult
+from phospy.differential.results import DifferentialAnalysisResult
 
 
 def test_enrichment_workflow_does_not_extend_differential_result_model() -> None:

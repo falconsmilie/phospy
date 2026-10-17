@@ -5,21 +5,19 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
 )
-from phospy.api.builders import AnalysisReadyDatasetBuilder
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.api.requests import DatasetBuildRequest
-from phospy.errors.build import DatasetBuildError
-from phospy.science.datasets.models import DatasetPreprocessingReport
-from phospy.science.datasets.preprocessing.models import PreprocessingReportRow
-from phospy.science.datasets.preprocessing.report_rows import (
-    validate_preprocessing_report_row,
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
 )
-from phospy.science.datasets.preprocessing.report_schema import (
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.errors.build import DatasetBuildError
+from phospy.preparation_records.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
     DUPLICATE_SITE_RESOLUTION_COLUMNS,
@@ -38,7 +36,11 @@ from phospy.science.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     dataframe_from_row_count_rows,
 )
-from phospy.science.references.models import Organism
+from phospy.preprocessing.contracts import PreprocessingReportRow
+from phospy.preprocessing.results.report_rows import (
+    validate_preprocessing_report_row,
+)
+from phospy.taxonomy import Organism
 
 
 def test_row_count_rows_convert_to_dataframe_with_schema_order() -> None:

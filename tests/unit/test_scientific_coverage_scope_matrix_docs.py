@@ -3,8 +3,8 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from phospy.science.references import validation as reference_manifest_validation
-from phospy.science.references.manifest import RedistributionStatus
+from phospy.references import validation as reference_manifest_validation
+from phospy.references.manifest import RedistributionStatus
 
 ROOT = Path(__file__).resolve().parents[2]
 README_DOC = ROOT / "README.md"
@@ -503,19 +503,30 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
     docs_text = (_read(MAINTENANCE_DOC) + "\n" + _read(CONTRIBUTING_DOC)).lower()
 
     expected_include_paths = (
+        "src/phospy/activities",
         "src/phospy/api",
-        "src/phospy/contracts",
+        "src/phospy/datasets",
+        "src/phospy/differential",
+        "src/phospy/enrichment",
+        "src/phospy/evidence",
         "src/phospy/errors",
         "src/phospy/frames",
         "src/phospy/io",
+        "src/phospy/kinase",
+        "src/phospy/phosphosites",
+        "src/phospy/preparation_records",
+        "src/phospy/preprocessing",
         "src/phospy/policies",
         "src/phospy/provenance",
-        "src/phospy/science",
-        "src/phospy/tables",
+        "src/phospy/quantitative",
+        "src/phospy/references",
+        "src/phospy/run_lineage",
+        "src/phospy/signalome",
+        "src/phospy/statistics",
+        "src/phospy/taxonomy",
         "src/phospy/validation",
-        "src/phospy/workflows",
     )
-    strict_dataset_model = "src/phospy/science/datasets/models.py"
+    strict_dataset_model = "src/phospy/datasets/models.py"
 
     assert include_paths == expected_include_paths
     assert strict_dataset_model in strict_paths

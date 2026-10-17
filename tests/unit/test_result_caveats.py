@@ -18,29 +18,32 @@ from phospy.api import (
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EnrichmentConfig,
+    EnrichmentWorkflowResult,
     ExperimentalDesign,
     KinaseWorkflow,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    ResultCaveat,
     SampleDesignRecord,
 )
-from phospy.api.results import (
-    EnrichmentWorkflowResult,
-    KinaseWorkflowResult,
-    ResultCaveat,
-)
-from phospy.contracts.configs import ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
-from phospy.errors import ContractValidationError
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.enrichment.models import GeneSetCollection
-from phospy.workflows.differential.caveats import (
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.caveats import (
     DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
 )
-from phospy.workflows.kinase.caveats import (
+from phospy.enrichment.contracts.collections import GeneSetCollection
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
+from phospy.errors import ContractValidationError
+from phospy.kinase.caveats import (
     KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
+)
+from phospy.kinase.result_boundary import (
     KINASE_SCORING_LIMITATION_CAVEAT_CODE,
 )
+from phospy.provenance.result_caveats import deduplicate_caveats
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -282,6 +285,45 @@ def test_result_caveat_contains_code_severity_message_and_details() -> None:
         },
     }
     assert asdict(caveat) == caveat.to_payload()
+
+
+def test_caveat_deduplication_preserves_first_occurrence_order_and_details() -> None:
+    first = ResultCaveat(
+        code="shared_code",
+        severity="warning",
+        message="Keep the first caveat.",
+        details={"count": 2, "labels": ["a", "b"]},
+    )
+    between = ResultCaveat(
+        code="between",
+        severity="info",
+        message="Keep caveats between duplicates in place.",
+        details={"count": 2},
+    )
+    duplicate = ResultCaveat(
+        code="shared_code",
+        severity="error",
+        message="Drop a later caveat with the same code and details.",
+        details={"count": 2, "labels": ["a", "b"]},
+    )
+    different_details = ResultCaveat(
+        code="shared_code",
+        severity="warning",
+        message="Keep the same code when details differ.",
+        details={"count": 3, "labels": ["a", "b"]},
+    )
+
+    observed = deduplicate_caveats((first, between, duplicate, different_details))
+
+    assert observed == (first, between, different_details)
+    assert observed[0] is first
+    assert observed[1] is between
+    assert observed[2] is different_details
+    assert [caveat.to_payload() for caveat in observed] == [
+        first.to_payload(),
+        between.to_payload(),
+        different_details.to_payload(),
+    ]
 
 
 def test_differential_result_caveat_is_info_for_complete_trusted_assertions() -> None:

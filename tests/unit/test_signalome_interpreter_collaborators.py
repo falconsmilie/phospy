@@ -4,29 +4,31 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
+from phospy import SignalomeWorkflow
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinasePredictionResult, KinaseScoringResult
-from phospy.contracts.configs import (
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.signalome.alignment_diagnostics import (
+    SignalomeAlignmentDiagnosticsBuilder,
+)
+from phospy.signalome.config import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.workflows.signalome.alignment_diagnostics import (
-    SignalomeAlignmentDiagnosticsBuilder,
-)
-from phospy.workflows.signalome.constants import (
+from phospy.signalome.constants import (
     SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
 )
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
-from phospy.workflows.signalome.matrix_alignment import SignalomeMatrixAligner
-from phospy.workflows.signalome.protein_resolution import SignalomeProteinResolver
-from phospy.workflows.signalome.score_preconditioning import (
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.matrix_alignment import SignalomeMatrixAligner
+from phospy.signalome.protein_resolution import SignalomeProteinResolver
+from phospy.signalome.score_preconditioning import (
     SignalomeScorePreconditioner,
 )
 from tests.support.analysis_ready_dataset_factories import (
@@ -403,3 +405,166 @@ def test_interpreter_run_preserves_expected_interpreted_output_for_valid_fixture
         interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 1
     )
     assert interpreted.score_preconditioning_diagnostics.retained_row_count == 2
+
+
+def test_interpreter_exports_each_kinase_matrix_once_and_isolates_later_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = _dataset(
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        protein_ids=["PROT1", "PROT2", "PROT3"],
+    )
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1], [0.2, 0.8], [0.3, 0.7]],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    profile_scores = _matrix(
+        values=[[0.4, 0.6], [0.5, 0.5], [0.6, 0.4]],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    rank_weighted_scores = _matrix(
+        values=[[0.8, 0.2], [0.3, 0.7], [0.4, 0.6]],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    request = _request(
+        dataset=dataset,
+        prediction_matrix=prediction_matrix,
+        profile_scores=profile_scores,
+        rank_weighted_scores=rank_weighted_scores,
+    )
+    prediction_getter = KinasePredictionResult.pred_mat.fget
+    score_getter = KinaseScoringResult.authoritative_scores.fget
+    assert prediction_getter is not None
+    assert score_getter is not None
+    calls = {"prediction": 0, "score": 0}
+
+    def _counted_prediction_getter(
+        result: KinasePredictionResult,
+    ) -> pd.DataFrame:
+        calls["prediction"] += 1
+        return prediction_getter(result)
+
+    def _counted_score_getter(result: KinaseScoringResult) -> pd.DataFrame:
+        calls["score"] += 1
+        return score_getter(result)
+
+    monkeypatch.setattr(
+        KinasePredictionResult,
+        "pred_mat",
+        property(_counted_prediction_getter),
+    )
+    monkeypatch.setattr(
+        KinaseScoringResult,
+        "authoritative_scores",
+        property(_counted_score_getter),
+    )
+
+    first = SignalomeWorkflowInterpreter().run(request)
+    assert calls == {"prediction": 1, "score": 1}
+    first.prediction_matrix.iloc[0, 0] = -1.0
+    first.downstream_score_matrix.iloc[0, 0] = -1.0
+
+    second = SignalomeWorkflowInterpreter().run(request)
+    assert calls == {"prediction": 2, "score": 2}
+    assert second.prediction_matrix.iloc[0, 0] == pytest.approx(0.9)
+    assert second.downstream_score_matrix.iloc[0, 0] == pytest.approx(0.8)
+    pdt.assert_frame_equal(
+        request.kinase_result.prediction_result.pred_mat,
+        prediction_matrix,
+    )
+    pdt.assert_frame_equal(
+        request.kinase_result.scoring_result.authoritative_scores,
+        rank_weighted_scores,
+    )
+
+
+def test_public_workflow_exports_each_kinase_matrix_once_and_isolates_later_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = _dataset(
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        protein_ids=["PROT1", "PROT2", "PROT3"],
+    )
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1], [0.2, 0.8], [0.3, 0.7]],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    profile_scores = _matrix(
+        values=[[0.4, 0.6], [0.5, 0.5], [0.6, 0.4]],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    rank_weighted_scores = _matrix(
+        values=[[0.8, 0.2], [0.3, 0.7], [0.4, 0.6]],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    request = _request(
+        dataset=dataset,
+        prediction_matrix=prediction_matrix,
+        profile_scores=profile_scores,
+        rank_weighted_scores=rank_weighted_scores,
+    )
+    prediction_getter = KinasePredictionResult.pred_mat.fget
+    score_getter = KinaseScoringResult.authoritative_scores.fget
+    assert prediction_getter is not None
+    assert score_getter is not None
+    calls = {"prediction": 0, "score": 0}
+    exports: dict[str, list[pd.DataFrame]] = {"prediction": [], "score": []}
+
+    def _counted_prediction_getter(
+        result: KinasePredictionResult,
+    ) -> pd.DataFrame:
+        calls["prediction"] += 1
+        exported = prediction_getter(result)
+        exports["prediction"].append(exported)
+        return exported
+
+    def _counted_score_getter(result: KinaseScoringResult) -> pd.DataFrame:
+        calls["score"] += 1
+        exported = score_getter(result)
+        exports["score"].append(exported)
+        return exported
+
+    monkeypatch.setattr(
+        KinasePredictionResult,
+        "pred_mat",
+        property(_counted_prediction_getter),
+    )
+    monkeypatch.setattr(
+        KinaseScoringResult,
+        "authoritative_scores",
+        property(_counted_score_getter),
+    )
+
+    first = SignalomeWorkflow().run(request)
+    assert calls == {"prediction": 1, "score": 1}
+
+    first_prediction_export = exports["prediction"][0]
+    first_score_export = exports["score"][0]
+    second_prediction_export = request.kinase_result.prediction_result.pred_mat
+    second_score_export = request.kinase_result.scoring_result.authoritative_scores
+    assert calls == {"prediction": 2, "score": 2}
+    assert second_prediction_export is not first_prediction_export
+    assert second_score_export is not first_score_export
+
+    first_prediction_export.iloc[:, :] = -1.0
+    first_score_export.iloc[:, :] = -1.0
+    pdt.assert_frame_equal(second_prediction_export, prediction_matrix)
+    pdt.assert_frame_equal(second_score_export, rank_weighted_scores)
+
+    second = SignalomeWorkflow().run(request)
+    assert calls == {"prediction": 3, "score": 3}
+    assert first.scientifically_equals(second)
+    pdt.assert_frame_equal(
+        request.kinase_result.prediction_result.pred_mat,
+        prediction_matrix,
+    )
+    pdt.assert_frame_equal(
+        request.kinase_result.scoring_result.authoritative_scores,
+        rank_weighted_scores,
+    )

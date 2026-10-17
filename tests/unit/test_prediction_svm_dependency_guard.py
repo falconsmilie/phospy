@@ -7,9 +7,9 @@ from typing import Any
 import numpy as np
 import pytest
 
-from phospy.science.prediction.policies import resolve_prediction_sampling_policy
-from phospy.science.prediction.sampling_core import run_adaptive_sampling_ensemble
-from phospy.science.prediction.svm import (
+from phospy.kinase.prediction.policies import resolve_prediction_sampling_policy
+from phospy.kinase.prediction.sampling_core import run_adaptive_sampling_ensemble
+from phospy.kinase.prediction.svm import (
     aligned_binary_decision_vector,
     require_sklearn,
 )

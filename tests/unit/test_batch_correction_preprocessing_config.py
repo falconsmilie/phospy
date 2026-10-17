@@ -9,29 +9,31 @@ from phospy.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
-    ObservationMask,
-    OriginallyMissingCellTracking,
-    SpsRuvBatchCorrectionConfig,
-    TemporaryImputationMethod,
-    TemporaryImputationPolicy,
-)
-from phospy.advanced.configs import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetTotalProteinCorrectionConfig,
+    ObservationMask,
+    OriginallyMissingCellTracking,
+    SpsRuvBatchCorrectionConfig,
     SpsRuvBatchCorrectionMethod,
+    TemporaryImputationMethod,
+    TemporaryImputationPolicy,
 )
-from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.contracts.configs import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.errors import PhosPyInputError
+from phospy.preprocessing.batch_correction.contracts.configuration import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
     SPS_RUV_BATCH_CORRECTION_METHODS,
     validate_native_executable_temporary_imputation_method,
 )
-from phospy.errors import PhosPyInputError
-from phospy.science.configs.preprocessing import InternalBatchCorrectionMethod
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.batch_correction.contracts.request import (
+    InternalBatchCorrectionMethod,
+)
+from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
@@ -39,7 +41,7 @@ from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
 )
-from phospy.science.datasets.preprocessing.stage_registry import (
+from phospy.preprocessing.planning.registry import (
     list_registered_preprocessing_stages,
 )
 
@@ -129,9 +131,7 @@ def test_native_temporary_imputation_validator_docstring_distinguishes_methods()
     )
     normalized = " ".join(docstring.lower().split())
 
-    assert "recognized public native sps/ruv temporary-imputation labels" in (
-        normalized
-    )
+    assert "public temporary-completion labels used by native correction" in normalized
     assert "policy/mechanics labels" in normalized
     assert "`sps_ruv_style` rejects them" in normalized
     assert "`ruv_iii_style` can complete them internally" in normalized

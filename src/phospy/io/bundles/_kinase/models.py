@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.contracts.results import KinaseWorkflowResult
 from phospy.io.bundles._kinase.snapshots import KinaseWorkflowConfigSnapshot
+from phospy.kinase.results import KinaseWorkflowResult
 
 
 @dataclass(frozen=True, slots=True)

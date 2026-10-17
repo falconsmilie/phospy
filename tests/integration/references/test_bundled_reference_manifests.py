@@ -6,17 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from phospy.science.references import resources as reference_resources
-from phospy.science.references.errors import ReferenceManifestError
-from phospy.science.references.manifest import RedistributionEvidenceType
-from phospy.science.references.models import (
-    Organism,
+from phospy.references import resources as reference_resources
+from phospy.references.errors import ReferenceManifestError
+from phospy.references.manifest import RedistributionEvidenceType
+from phospy.references.models import (
     RedistributionStatus,
     ReferencePreset,
 )
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.science.references.resources import load_bundled_reference_manifest
-from phospy.science.references.validation import validate_bundled_reference_manifests
+from phospy.references.resolution import ReferenceResolver
+from phospy.references.resources import load_bundled_reference_manifest
+from phospy.references.validation import validate_bundled_reference_manifests
+from phospy.taxonomy import Organism
 
 pytestmark = pytest.mark.integration
 

@@ -11,11 +11,13 @@ from typing import get_type_hints
 import pytest
 
 import phospy.advanced as advanced_api
-import phospy.advanced.configs as advanced_configs
-import phospy.api.requests as request_api
-from phospy.api.requests import SignalomeWorkflowRequest
-from phospy.contracts.configs import SignalomeConfig as ContractSignalomeConfig
-from phospy.contracts.results.kinase import KinaseWorkflowResult
+import phospy.advanced as advanced_configs
+import phospy.api as request_api
+from phospy.api import (
+    SignalomeWorkflowRequest,
+)
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.signalome.config import SignalomeConfig as ContractSignalomeConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -53,8 +55,8 @@ def test_signalome_request_type_hints_do_not_depend_on_advanced_import_order() -
         [
             "import sys",
             "from typing import get_type_hints",
-            "from phospy.api.requests import SignalomeWorkflowRequest",
-            "from phospy.contracts.configs import SignalomeConfig",
+            "from phospy.api import SignalomeWorkflowRequest",
+            "from phospy.signalome.config import SignalomeConfig",
             "assert 'phospy.advanced.configs' not in sys.modules",
             "assert SignalomeWorkflowRequest.__annotations__['config'] == 'SignalomeConfig'",
             "assert get_type_hints(SignalomeWorkflowRequest)['config'] is SignalomeConfig",
@@ -81,7 +83,7 @@ def test_signalome_request_type_hints_do_not_depend_on_advanced_import_order() -
     assert completed.returncode == 0, completed.stderr
 
 
-def test_signalome_config_reexports_preserve_one_class_identity() -> None:
+def test_signalome_config_advanced_reexport_preserves_owner_identity() -> None:
     assert advanced_api.SignalomeConfig is ContractSignalomeConfig
     assert advanced_configs.SignalomeConfig is ContractSignalomeConfig
 
@@ -132,9 +134,9 @@ def test_pyright_accepts_signalome_request_construction_with_advanced_reexport(
                 "",
                 "from typing import assert_type",
                 "",
-                "from phospy.advanced.configs import SignalomeConfig",
-                "from phospy.api.requests import SignalomeWorkflowRequest",
-                "from phospy.contracts.results.kinase import KinaseWorkflowResult",
+                "from phospy.advanced import SignalomeConfig",
+                "from phospy.api import SignalomeWorkflowRequest",
+                "from phospy.kinase.results import KinaseWorkflowResult",
                 "",
                 "def build(result: KinaseWorkflowResult) -> SignalomeWorkflowRequest:",
                 "    explicit = SignalomeWorkflowRequest(",

@@ -5,7 +5,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import DifferentialAnalysisWorkflow
 from phospy.advanced import (
     DatasetBatchCorrectionConfig,
     DatasetIntensityTransformConfig,
@@ -16,6 +15,7 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

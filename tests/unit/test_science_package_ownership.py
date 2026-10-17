@@ -5,25 +5,25 @@ import importlib
 import pytest
 
 
-def test_science_package_exists() -> None:
-    import phospy.science  # noqa: F401
+def test_science_package_is_retired() -> None:
+    with pytest.raises(ModuleNotFoundError) as captured:
+        importlib.import_module("phospy.science")
+
+    assert captured.value.name == "phospy.science"
 
 
 @pytest.mark.parametrize(
     "module_name",
     [
-        "phospy.science.activities",
-        "phospy.science.datasets",
-        "phospy.science.design",
-        "phospy.science.differential",
-        "phospy.science.evidence",
-        "phospy.science.prediction",
-        "phospy.science.references",
-        "phospy.science.scoring",
-        "phospy.science.sequences",
-        "phospy.science.signalomes",
-        "phospy.science.sites",
-        "phospy.science.transformations",
+        "phospy.activities",
+        "phospy.kinase.activity",
+        "phospy.differential.design",
+        "phospy.differential",
+        "phospy.evidence",
+        "phospy.kinase.prediction",
+        "phospy.references",
+        "phospy.kinase.scoring",
+        "phospy.signalome",
     ],
 )
 def test_moved_science_packages_import_from_new_paths(module_name: str) -> None:
@@ -33,13 +33,8 @@ def test_moved_science_packages_import_from_new_paths(module_name: str) -> None:
 @pytest.mark.parametrize(
     "module_name",
     [
-        "phospy.activities",
-        "phospy.datasets",
         "phospy.design",
-        "phospy.differential",
-        "phospy.evidence",
         "phospy.prediction",
-        "phospy.references",
         "phospy.scoring",
         "phospy.sequences",
         "phospy.signalomes",
@@ -50,6 +45,19 @@ def test_moved_science_packages_import_from_new_paths(module_name: str) -> None:
 def test_old_root_science_packages_are_removed(module_name: str) -> None:
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module(module_name)
+
+
+def test_phosphosites_owner_package_is_importable() -> None:
+    import phospy.phosphosites  # noqa: F401
+
+
+def test_datasets_owner_package_is_importable() -> None:
+    import phospy.datasets  # noqa: F401
+
+
+def test_quantitative_and_statistics_owner_packages_are_importable() -> None:
+    import phospy.quantitative  # noqa: F401
+    import phospy.statistics  # noqa: F401
 
 
 def test_public_api_contract_remains_stable() -> None:
@@ -79,10 +87,12 @@ def test_public_api_contract_remains_stable() -> None:
 def test_root_convenience_contract_remains_stable() -> None:
     from phospy import (
         AnalysisReadyDatasetBuilder,
-        AnalysisReadyPhosphoDataset,
-        DifferentialAnalysisWorkflow,
         KinaseWorkflow,
         SignalomeWorkflow,
+    )
+    from phospy.api import (
+        AnalysisReadyPhosphoDataset,
+        DifferentialAnalysisWorkflow,
     )
 
     assert AnalysisReadyDatasetBuilder is not None
@@ -98,25 +108,17 @@ def test_representative_moved_object_ownership() -> None:
         AnalysisReadyPhosphoDataset,
         ReferenceBundle,
     )
-    from phospy.science.scoring.policy_models import ThresholdMode
-    from phospy.science.sites.identifiers import canonicalize_site_identifier
-    from phospy.science.transformations.models import IntensityScaleState
-    from phospy.science.transformations.scale_state import (
+    from phospy.kinase.policies import ThresholdMode
+    from phospy.phosphosites.identifiers import canonicalize_site_identifier
+    from phospy.quantitative.models import IntensityScaleState
+    from phospy.quantitative.scale_state import (
         IntensityScaleState as OwnedIntensityScaleState,
     )
 
-    assert (
-        AnalysisReadyPhosphoDataset.__module__
-        == "phospy.science.datasets.construction.analysis_ready"
-    )
-    assert ReferenceBundle.__module__ == "phospy.science.references.models"
-    assert (
-        TechnicalReplicatePolicy.__module__
-        == "phospy.science.differential.policy_models"
-    )
-    assert ThresholdMode.__module__ == "phospy.science.scoring.policy_models"
-    assert canonicalize_site_identifier.__module__ == "phospy.science.sites.identifiers"
-    assert (
-        IntensityScaleState.__module__ == "phospy.science.transformations.scale_state"
-    )
+    assert AnalysisReadyPhosphoDataset.__module__ == "phospy.datasets.models"
+    assert ReferenceBundle.__module__ == "phospy.references.models"
+    assert TechnicalReplicatePolicy.__module__ == "phospy.differential.policies"
+    assert ThresholdMode.__module__ == "phospy.kinase.policies"
+    assert canonicalize_site_identifier.__module__ == "phospy.phosphosites.identifiers"
+    assert IntensityScaleState.__module__ == "phospy.quantitative.scale_state"
     assert IntensityScaleState is OwnedIntensityScaleState

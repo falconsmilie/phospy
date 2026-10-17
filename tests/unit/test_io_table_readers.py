@@ -7,8 +7,10 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
-from phospy.api import AnalysisReadyDatasetBuilder
-from phospy.api.requests import DatasetBuildRequest
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+)
 from phospy.errors import PhosPyInputError
 from phospy.io.readers.tables import (
     read_contrast_matrix,
@@ -17,7 +19,7 @@ from phospy.io.readers.tables import (
     read_sample_metadata,
     read_site_metadata,
 )
-from phospy.science.references.models import Organism
+from phospy.taxonomy import Organism
 from tests.support.site_keys import protein_site_key
 
 

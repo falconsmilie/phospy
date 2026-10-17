@@ -3,19 +3,20 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.contracts.results import (
-    ProteinAwareMappingDiagnostics,
+from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
-    ProteinAwareSiteEligibility,
 )
-from phospy.provenance.models import EnvironmentProvenance, RunProvenance
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+from phospy.preparation_records.protein_aware import (
+    ProteinAwareMappingDiagnostics,
     ProteinAwarePreparationEligibility,
     ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
     ProteinAwareTransformationStateDiagnostics,
+    ProteinMappingStatus,
 )
-from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
+from phospy.provenance.models import EnvironmentProvenance
+from phospy.run_lineage import RunProvenance
 
 
 def _sample_alignment() -> ProteinAwareSampleAlignmentDiagnostics:

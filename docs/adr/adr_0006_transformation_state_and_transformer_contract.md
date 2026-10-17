@@ -208,37 +208,35 @@ compatibility behavior where historical names appear in non-contract internals.
 ## Implementation Notes
 
 - Dataset boundary enforcement is in
-  `src/phospy/science/datasets/models.py` and
-  `src/phospy/validation/transformations/state.py`.
+  `src/phospy/datasets/models.py` and
+  `src/phospy/quantitative/validation.py`.
 - Intensity-scale and quantitative-meaning policy enums are defined in
-  `src/phospy/science/transformations/policy.py`; immutable matrix/event value
-  models are defined in `src/phospy/science/transformations/scale_values.py`;
+  `src/phospy/quantitative/policy.py`; immutable matrix/event value models are
+  defined in `src/phospy/quantitative/scale_values.py`;
   establishment and quantitative-meaning state transitions are defined in
-  `src/phospy/science/transformations/scale_state.py`. The historical
-  `src/phospy/science/transformations/models.py` route is identity-preserving
-  only.
+  `src/phospy/quantitative/scale_state.py`.
 - Quantitative-meaning transition authority and provenance are defined in
-  `src/phospy/science/transformations/_authority.py` and
-  `src/phospy/science/transformations/provenance.py`. Public DTOs may request a
+  `src/phospy/quantitative/_authority.py` and
+  `src/phospy/quantitative/provenance.py`. Public DTOs may request a
   declaration, but they do not mint transition authority.
 - Operation-level quantitative contracts are defined in
-  `src/phospy/science/transformations/quantitative_contracts.py`, declared by
+  `src/phospy/quantitative/quantitative_contracts.py`, declared by
   stage-owned contracts under
-  `src/phospy/science/datasets/preprocessing/stages/`, validated by the
+  `src/phospy/preprocessing/stages/`, validated by the
   preprocessing stage registry, pre-folded by the preprocessing pipeline and
   dataset-build executor before numerical execution, and folded into processing
   state by
-  `src/phospy/science/datasets/preprocessing/state_builder.py`.
+  `src/phospy/datasets/construction/state_assembly.py`.
 - Numeric intensity transformations (including default preprocessing log2) must
   execute through transformer implementations in
-  `src/phospy/science/transformations/transformers/`; preprocessing stages
+  `src/phospy/quantitative/transformers/`; preprocessing stages
   orchestrate and report but do not own transformation science.
 - Final numeric-semantic coherence is implemented in
-  `src/phospy/science/transformations/state_coherence.py` and composed by the
+  `src/phospy/quantitative/state_coherence.py` and composed by the
   private dataset construction boundary. This validator checks observed
   numeric sign domain against established `IntensityScaleState.quantity`.
 - Additive preprocessing scale eligibility is privately enforced by
-  `src/phospy/science/datasets/preprocessing/quantitative_scale_policy.py` and
+  `src/phospy/preprocessing/validation/quantitative_evidence.py` and
   composed by the dataset builder before preprocessing execution. Workflow
   validators do not reimplement this rule.
 - Intensity-scale preservation is expressed as transformer capability metadata
@@ -246,7 +244,7 @@ compatibility behavior where historical names appear in non-contract internals.
   `requires_established_input_state`); resolvers consume these capabilities and
   must not branch on concrete transformer classes.
 - Bundle metadata and reconstruction use explicit `intensity_scale_state` keys
-  under `src/phospy/io/bundles/_shared/intensity_scale_state.py`.
+  through `src/phospy/quantitative/serialization.py`.
 - Workflow validators consume established boundary state; they do not establish
   intensity scale or repair missing quantitative-meaning lineage.
 

@@ -9,105 +9,109 @@ import numpy as np
 import pandas as pd
 
 import phospy.api as public_api
-import phospy.api.results as public_results
-import phospy.contracts.results as contract_results
-from phospy.contracts.configs import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    EnrichmentConfig,
+import phospy.api as public_results
+from phospy.datasets.protein_aware import ProteinAwarePreparationReport
+from phospy.differential.diagnostics import (
+    EmpiricalBayesPriorDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
-from phospy.contracts.results import (
-    EnrichmentWorkflowResult,
+from phospy.differential.results import (
+    DifferentialAnalysisResult,
+)
+from phospy.enrichment.contracts.collections import GeneSetCollection
+from phospy.enrichment.contracts.config import EnrichmentConfig
+from phospy.enrichment.contracts.results import EnrichmentWorkflowResult
+from phospy.enrichment.contracts.vocabulary import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+)
+from phospy.io.importers.contracts import (
     ImporterMissingIntensitySummary,
     ImporterQualityReport,
-    KinaseWorkflowAttritionProvenance,
     PhosphositeImportResult,
-    ResultCaveat,
+)
+from phospy.kinase.results import KinaseWorkflowAttritionProvenance
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
+    ProteinMappingStatus,
 )
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.immutability import FrozenJsonMapping
 from phospy.provenance.models import JsonValue
-from phospy.science.datasets.preprocessing.protein_aware_alignment import (
-    ProteinAwarePreparationEligibility,
-    ProteinAwareSampleAlignmentDiagnostics,
-)
-from phospy.science.datasets.preprocessing.protein_aware_models import (
-    ProteinAwarePreparationReport,
-    ProteinAwareSiteEligibility,
-)
-from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
-from phospy.science.differential.models import (
-    DifferentialAnalysisResult,
-    EmpiricalBayesPriorDiagnostics,
-    QuantificationDepthTrendDiagnostics,
-)
-from phospy.science.enrichment.models import GeneSetCollection
-from phospy.science.prediction.models import KinaseScoringResult
+from phospy.provenance.result_caveats import ResultCaveat
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _IMMUTABLE_JSON_FIELDS = {
-    "phospy.contracts.results.base.ImporterMissingIntensitySummary."
+    "phospy.io.importers.contracts.ImporterMissingIntensitySummary."
     "missing_values_by_sample_id": (
         "typed importer count map; recursively frozen after count validation"
     ),
-    "phospy.contracts.results.base.ImporterMissingIntensitySummary."
+    "phospy.io.importers.contracts.ImporterMissingIntensitySummary."
     "missing_values_by_source_column": (
         "typed importer count map; recursively frozen after count validation"
     ),
-    "phospy.contracts.results.base.ImporterQualityReport.format_specific": (
+    "phospy.io.importers.contracts.ImporterQualityReport.format_specific": (
         "importer-owned JSON metadata; recursively frozen at construction"
     ),
-    "phospy.contracts.results.base.PhosphositeImportResult.diagnostics": (
+    "phospy.io.importers.contracts.PhosphositeImportResult.diagnostics": (
         "importer-owned JSON diagnostics; recursively frozen at construction"
     ),
-    "phospy.contracts.results.enrichment.EnrichmentWorkflowResult.diagnostics": (
+    "phospy.enrichment.contracts.results.EnrichmentWorkflowResult.diagnostics": (
         "contract-owned enrichment diagnostics; recursively frozen"
     ),
-    "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
+    "phospy.enrichment.contracts.results.EnrichmentWorkflowResult."
     "method_metadata": "contract-owned enrichment method metadata; recursively frozen",
-    "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
+    "phospy.enrichment.contracts.results.EnrichmentWorkflowResult."
     "background_summary": "contract-owned enrichment background summary; recursively frozen",
-    "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
+    "phospy.enrichment.contracts.results.EnrichmentWorkflowResult."
     "set_collection_summary": (
         "contract-owned enrichment set-collection summary; recursively frozen"
     ),
-    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance.metrics": (
+    "phospy.kinase.results.KinaseWorkflowAttritionProvenance.metrics": (
         "contract-owned kinase attrition metrics; recursively frozen"
     ),
-    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance.policy": (
+    "phospy.kinase.results.KinaseWorkflowAttritionProvenance.policy": (
         "contract-owned kinase attrition policy payload; recursively frozen"
     ),
-    "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
-    "policy_violations": (
+    "phospy.kinase.results.KinaseWorkflowAttritionProvenance.policy_violations": (
         "contract-owned kinase attrition policy violation payloads; recursively frozen"
     ),
-    "phospy.science.datasets.preprocessing.protein_aware_models."
-    "ProteinAwarePreparationReport.policy_parameters": (
-        "protein-aware preprocessing policy JSON; recursively frozen"
-    ),
-    "phospy.science.differential.models.results.DifferentialAnalysisResult."
-    "workflow_provenance": (
+    "phospy.differential.results.DifferentialAnalysisResult.workflow_provenance": (
         "differential workflow provenance; immutable JSON state at result boundary"
     ),
-    "phospy.science.prediction.models.KinaseScoringResult.score_scale_metadata": (
+    "phospy.kinase.scoring.results.KinaseScoringResult.score_scale_metadata": (
         "kinase score-scale evidence metadata; recursively frozen"
     ),
-    "phospy.science.result_caveats.ResultCaveat.details": (
+    "phospy.provenance.result_caveats.ResultCaveat.details": (
         "common result caveat JSON details; recursively frozen"
     ),
 }
 
 _REVIEWED_JSON_FIELD_ALLOWLIST = {
-    "phospy.contracts.results.base.PhosphositeImportResult._sample_column_mapping": (
+    "phospy.io.importers.contracts.PhosphositeImportRequest.sample_intensity_columns": (
+        "passive importer request input mapping; validated and copied by its owner"
+    ),
+    "phospy.differential.design.models.SampleDesignRecord.covariates": (
+        "passive experimental-design covariate values; normalized by design validation"
+    ),
+    "phospy.io.importers.contracts.PhosphositeImportResult._sample_column_mapping": (
         "private scalar str->str map; public sample_column_mapping returns a copy"
     ),
-    "phospy.science.differential.models.results.DifferentialAnalysisResult."
+    "phospy.differential.results.DifferentialAnalysisResult."
     "_contrast_tables": "private DataFrame mapping; DataFrame ownership is PHOSPY-REV-002",
 }
 
 
 def _exported_result_classes() -> tuple[type[object], ...]:
-    classes: set[type[object]] = set()
-    for module in (public_results, contract_results):
+    classes: set[type[object]] = {
+        ImporterMissingIntensitySummary,
+        ImporterQualityReport,
+        KinaseWorkflowAttritionProvenance,
+        PhosphositeImportResult,
+    }
+    for module in (public_results,):
         for name in getattr(module, "__all__", ()):
             value = getattr(module, name, None)
             if inspect.isclass(value):
@@ -310,44 +314,45 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
     )
 
     protected_values = {
-        "phospy.contracts.results.base.ImporterMissingIntensitySummary."
+        "phospy.io.importers.contracts.ImporterMissingIntensitySummary."
         "missing_values_by_sample_id": missing_summary.missing_values_by_sample_id,
-        "phospy.contracts.results.base.ImporterMissingIntensitySummary."
+        "phospy.io.importers.contracts.ImporterMissingIntensitySummary."
         "missing_values_by_source_column": (
             missing_summary.missing_values_by_source_column
         ),
-        "phospy.contracts.results.base.ImporterQualityReport.format_specific": (
+        "phospy.io.importers.contracts.ImporterQualityReport.format_specific": (
             quality_report.format_specific
         ),
-        "phospy.contracts.results.base.PhosphositeImportResult.diagnostics": (
+        "phospy.io.importers.contracts.PhosphositeImportResult.diagnostics": (
             import_result.diagnostics
         ),
-        "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
+        "phospy.enrichment.contracts.results.EnrichmentWorkflowResult."
         "diagnostics": enrichment_result.diagnostics,
-        "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
+        "phospy.enrichment.contracts.results.EnrichmentWorkflowResult."
         "method_metadata": enrichment_result.method_metadata,
-        "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
+        "phospy.enrichment.contracts.results.EnrichmentWorkflowResult."
         "background_summary": enrichment_result.background_summary,
-        "phospy.contracts.results.enrichment.EnrichmentWorkflowResult."
+        "phospy.enrichment.contracts.results.EnrichmentWorkflowResult."
         "set_collection_summary": enrichment_result.set_collection_summary,
-        "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
+        "phospy.kinase.results.KinaseWorkflowAttritionProvenance."
         "metrics": kinase_attrition.metrics,
-        "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
+        "phospy.kinase.results.KinaseWorkflowAttritionProvenance."
         "policy": kinase_attrition.policy,
-        "phospy.contracts.results.kinase.KinaseWorkflowAttritionProvenance."
+        "phospy.kinase.results.KinaseWorkflowAttritionProvenance."
         "policy_violations": kinase_attrition.policy_violations,
-        "phospy.science.datasets.preprocessing.protein_aware_models."
-        "ProteinAwarePreparationReport.policy_parameters": (
-            protein_aware_report.policy_parameters
-        ),
-        "phospy.science.differential.models.results.DifferentialAnalysisResult."
+        "phospy.differential.results.DifferentialAnalysisResult."
         "workflow_provenance": differential_result.workflow_provenance,
-        "phospy.science.prediction.models.KinaseScoringResult."
+        "phospy.kinase.scoring.results.KinaseScoringResult."
         "score_scale_metadata": kinase_scoring_result.score_scale_metadata,
-        "phospy.science.result_caveats.ResultCaveat.details": caveat.details,
+        "phospy.provenance.result_caveats.ResultCaveat.details": caveat.details,
     }
 
     assert set(protected_values) == set(_IMMUTABLE_JSON_FIELDS)
+    assert isinstance(protein_aware_report.policy_parameters, FrozenJsonMapping)
+    assert not isinstance(protein_aware_report.policy_parameters, dict)
+    assert protein_aware_report.policy_parameters["nested"] == FrozenJsonMapping(
+        {"items": (1,)}
+    )
     for field_id, value in protected_values.items():
         if field_id.endswith(".policy_violations"):
             assert isinstance(value, tuple), field_id
@@ -419,7 +424,7 @@ def test_differential_depth_trend_json_payload_is_export_owned() -> None:
 
 
 def test_no_result_api_exports_new_immutable_container() -> None:
-    for module in (public_api, public_results, contract_results):
+    for module in (public_api, public_results):
         assert "FrozenJsonMapping" not in getattr(module, "__all__", ())
 
 

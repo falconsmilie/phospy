@@ -5,31 +5,34 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced.configs import (
+from phospy.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
 )
-from phospy.api.requests import KinaseWorkflowRequest
+from phospy.api import (
+    KinaseWorkflowRequest,
+)
+from phospy.datasets.construction.input_resolution import DatasetInputReader
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     PhosPyInputError,
     PhosPyWorkflowError,
     ReferenceCompatibilityError,
     ReferenceResolutionError,
 )
-from phospy.science.datasets.builders.reader import DatasetInputReader
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.science.references.resolution import ReferenceResolver
-from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from phospy.workflows.kinase.reference_projection import (
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.references.projection import (
     KinaseReferenceProjectionSummary,
 )
-from phospy.workflows.kinase.resolved_validator import (
+from phospy.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
     ResolvedKinaseInputs,
 )
+from phospy.references.compatibility import ReferenceCompatibilityValidator
+from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.references.resolution import ReferenceResolver
+from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

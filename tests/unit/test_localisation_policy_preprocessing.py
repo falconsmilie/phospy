@@ -4,19 +4,19 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api.configs import (
+from phospy.api import (
+    DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
 )
-from phospy.api.requests import DatasetBuildRequest
-from phospy.contracts.configs import (
+from phospy.datasets.construction.preprocessing import DatasetPreprocessor
+from phospy.errors.input import PhosPyInputError
+from phospy.preprocessing.contracts import PreprocessingPlan
+from phospy.preprocessing.contracts.configuration import (
     DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
     DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.references.models import Organism
+from phospy.taxonomy import Organism
 
 
 def _phospho() -> pd.DataFrame:

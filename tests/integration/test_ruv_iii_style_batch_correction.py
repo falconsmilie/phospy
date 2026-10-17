@@ -29,30 +29,32 @@ from phospy.api import (
     Organism,
 )
 from phospy.errors import PhosPyInputError
-from phospy.provenance.serialization import (
-    batch_correction_provenance_from_payload,
-    batch_correction_provenance_to_payload,
-)
-from phospy.science.batch_correction import RuvIIIStyleExecutor
-from phospy.science.batch_correction import ruv_iii_executor as ruv_iii_executor_module
-from phospy.science.datasets.preprocessing.correction_output import (
-    CorrectedPreprocessingOutput,
-)
-from phospy.validation.workflows.batch_correction.control_site_workflow import (
-    BatchCorrectionWorkflowControlSiteValidator,
-)
-from phospy.validation.workflows.batch_correction.design import (
-    BatchCorrectionWorkflowDesignValidator,
-    BatchCorrectionWorkflowFactorFeasibilityValidator,
-)
-from phospy.validation.workflows.batch_correction.missingness import (
-    BatchCorrectionWorkflowMissingnessValidator,
-)
-from phospy.workflows.batch_correction import (
+from phospy.preprocessing.batch_correction import (
     BatchCorrectionPlanInterpreter,
     BatchCorrectionWorkflowRequest,
 )
-from phospy.workflows.batch_correction.interpreter import ResolvedBatchCorrectionPlan
+from phospy.preprocessing.batch_correction.contracts.output import (
+    CorrectedPreprocessingOutput,
+)
+from phospy.preprocessing.batch_correction.execution import RuvIIIStyleExecutor
+from phospy.preprocessing.batch_correction.execution import (
+    ruv_iii_executor as ruv_iii_executor_module,
+)
+from phospy.preprocessing.batch_correction.planning import ResolvedBatchCorrectionPlan
+from phospy.preprocessing.batch_correction.validation.feasibility import (
+    BatchCorrectionWorkflowDesignValidator,
+    BatchCorrectionWorkflowFactorFeasibilityValidator,
+)
+from phospy.preprocessing.batch_correction.validation.missingness import (
+    BatchCorrectionWorkflowMissingnessValidator,
+)
+from phospy.preprocessing.control_sites.validation import (
+    BatchCorrectionWorkflowControlSiteValidator,
+)
+from phospy.provenance.serialization.batch_correction import (
+    batch_correction_provenance_from_payload,
+    batch_correction_provenance_to_payload,
+)
 
 pytestmark = pytest.mark.integration
 

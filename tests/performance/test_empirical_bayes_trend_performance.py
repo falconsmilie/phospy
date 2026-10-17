@@ -5,7 +5,7 @@ from typing import cast
 import numpy as np
 import pytest
 
-from phospy.science.differential.empirical_bayes import (
+from phospy.differential.moderation.empirical_bayes import (
     EmpiricalBayesFit,
     fit_empirical_bayes,
 )

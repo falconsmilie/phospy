@@ -8,12 +8,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import Organism, ReferenceBundle
-from phospy.contracts.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowResult,
-    SignalomeWorkflowResult,
-)
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared import transactions
 from phospy.io.publishers import workflows as publishers
@@ -22,12 +17,15 @@ from phospy.io.publishers.workflows import (
     publish_kinase_workflow,
     publish_signalome_workflow,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.signalomes.models import (
+from phospy.kinase.prediction.results import KinasePredictionResult
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.kinase.scoring.results import KinaseScoringResult
+from phospy.signalome.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
 )
+from phospy.signalome.results import SignalomeWorkflowResult
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

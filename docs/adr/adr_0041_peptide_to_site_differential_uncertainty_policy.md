@@ -38,7 +38,7 @@ combination model requires a separate scientific design decision.
 
 The preferred and supported PhosPy-origin lane remains:
 
-1. `phospy.science.evidence` and dataset-building preprocessing resolve
+1. `phospy.evidence` and dataset-building preprocessing resolve
    peptide evidence into site-level sample-intensity rows using the
    ADR-0020 production policy
    `peptide_to_site_linear_abundance_fractional_allocation_arithmetic_mean_v1`.
@@ -118,7 +118,7 @@ Ownership boundaries are:
   science-owned and must not move into workflow orchestration, validation, or
   request DTOs;
 - peptide evidence sample-intensity resolution remains owned by
-  `phospy.science.evidence` and dataset preprocessing/builder logic;
+  `phospy.evidence` and dataset preprocessing/builder logic;
 - the core `DifferentialAnalysisWorkflow` remains independent of the withdrawn
   feature.
 

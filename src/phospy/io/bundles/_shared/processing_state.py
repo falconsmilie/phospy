@@ -5,22 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
-    intensity_scale_state_to_payload,
-)
-from phospy.io.bundles._shared.primitives import (
-    require_bool,
-    require_int,
-    require_mapping,
-    require_str,
-)
-from phospy.science.datasets.preprocessing.policy_models import (
-    MissingDataPolicy,
-    TotalProteinCorrectionPolicy,
-)
-from phospy.science.datasets.processing_state import (
+from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
     MissingDataDiagnostics,
@@ -34,7 +19,22 @@ from phospy.science.datasets.processing_state import (
     TotalProteinCorrectionState,
     default_ruv_readiness_state,
 )
-from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.errors.input import PhosPyInputError
+from phospy.io.bundles._shared.primitives import (
+    require_bool,
+    require_int,
+    require_mapping,
+    require_str,
+)
+from phospy.preparation_records.policies import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
+from phospy.quantitative.models import QuantitativeMeaning
+from phospy.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+    intensity_scale_state_to_payload,
+)
 
 
 @dataclass(frozen=True, slots=True)

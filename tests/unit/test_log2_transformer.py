@@ -7,21 +7,21 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingState,
 )
-from phospy.science.datasets.preprocessing.stages.intensity_transform import (
+from phospy.preprocessing.stages.intensity import (
     IntensityTransformStage,
 )
-from phospy.science.transformations.contracts import TransformationResult
-from phospy.science.transformations.models import (
+from phospy.quantitative.contracts import TransformationResult
+from phospy.quantitative.models import (
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
     IntensityTransformationEvent,
 )
-from phospy.science.transformations.transformers import Log2Transformer
+from phospy.quantitative.transformers import Log2Transformer
 
 
 def _phospho() -> pd.DataFrame:
@@ -58,6 +58,22 @@ def test_log2_transformer_transforms_expected_numeric_values() -> None:
 
     pdt.assert_frame_equal(transformed.phospho, expected)
     assert transformed.total is None
+
+
+def test_log2_transformer_preserves_labels_nan_and_frame_ownership() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": pd.Series([1, None], dtype="Int64").array},
+        index=pd.Index(["site_a", "site_b"], name="site_id"),
+    )
+
+    transformed = Log2Transformer(pseudocount=1.0).run(phospho=phospho)
+
+    assert transformed.phospho is not phospho
+    assert transformed.phospho.index.equals(phospho.index)
+    assert transformed.phospho.columns.equals(phospho.columns)
+    assert transformed.phospho.dtypes.tolist() == ["float64"]
+    assert transformed.phospho.iloc[0, 0] == 1.0
+    assert pd.isna(transformed.phospho.iloc[1, 0])
 
 
 @pytest.mark.parametrize(
@@ -101,6 +117,11 @@ def test_log2_transformer_returns_log2_intensity_scale_state() -> None:
     assert event.input_scale.kind is IntensityScaleKind.LINEAR
     assert event.output_scale.kind is IntensityScaleKind.LOG2
     assert event.pseudocount == 1.0
+    assert (
+        event.transformer_name
+        == "phospy.science.transformations.transformers.log2.Log2Transformer"
+    )
+    assert transformed.provenance["transformer_name"] == event.transformer_name
 
 
 def test_log2_transformer_exposes_scale_capabilities() -> None:

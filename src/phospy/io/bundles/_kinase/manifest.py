@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import NoReturn
 
-from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._kinase.constants import (
     KINASE_BUNDLE_KIND,
@@ -18,9 +17,6 @@ from phospy.io.bundles._shared.integrity import (
     require_optional_table_entry,
     require_table_entry,
 )
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_to_payload,
-)
 from phospy.io.bundles._shared.primitives import (
     require_bool,
     require_int,
@@ -30,7 +26,11 @@ from phospy.io.bundles._shared.primitives import (
 from phospy.io.bundles._shared.processing_state import (
     processing_state_to_payload,
 )
-from phospy.provenance.serialization import to_payload as provenance_to_payload
+from phospy.kinase.results import KinaseWorkflowResult
+from phospy.quantitative.serialization import (
+    intensity_scale_state_to_payload,
+)
+from phospy.run_lineage.serialization import to_payload as provenance_to_payload
 
 
 @dataclass(frozen=True, slots=True)

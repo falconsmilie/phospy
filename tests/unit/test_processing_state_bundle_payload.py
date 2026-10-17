@@ -4,19 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
-)
-from phospy.io.bundles._shared.processing_state import (
-    processing_state_from_payload,
-    processing_state_to_payload,
-)
-from phospy.science.datasets.preprocessing.policy_models import (
-    MissingDataPolicy,
-    TotalProteinCorrectionPolicy,
-)
-from phospy.science.datasets.processing_state import (
+from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
     MissingDataDiagnostics,
@@ -31,7 +19,19 @@ from phospy.science.datasets.processing_state import (
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
-from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.errors.input import PhosPyInputError
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_from_payload,
+    processing_state_to_payload,
+)
+from phospy.preparation_records.policies import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
+from phospy.quantitative.models import QuantitativeMeaning
+from phospy.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+)
 
 
 def _intensity_scale_state(*, quantity: str = "phospho_total_log_ratio"):
@@ -226,6 +226,7 @@ def test_processing_state_payload_round_trip_preserves_total_correction_fields()
     state = _processing_state_with_diagnostics(diagnostics)
 
     payload = processing_state_to_payload(state)
+    assert "batch_correction" not in payload
     diagnostics_payload = payload["total_protein_correction"]["diagnostics"]
     assert diagnostics_payload["diagnostics_schema_version"] == 1
     assert (
@@ -1476,6 +1477,63 @@ def test_processing_state_payload_without_ruv_readiness_uses_backward_compatible
     assert "not configured" in set(restored.ruv_readiness.reasons)
 
 
+def _expected_site_sequence_resolution_payload() -> dict[str, object]:
+    return {
+        "configured": True,
+        "mode": "replace_existing",
+        "flank_size": 7,
+        "fasta_source_path": "C:/data/proteome.fasta",
+        "fasta_source_label": "dataset.site_sequence_resolution",
+        "fasta_sha256": "abcdef123456",
+        "resolver_version": "phospy.science.sequences.resolver.v1",
+        "resolved_site_count": 11,
+        "unresolved_site_count": 3,
+        "unresolved_counts_by_reason": {
+            "missing_accession": 2,
+            "site_not_found": 1,
+        },
+        "filled_missing_count": 5,
+        "replaced_existing_count": 2,
+        "preserved_existing_count": 4,
+        "existing_sequence_conflict_count": 2,
+        "conflict_policy": "replace_existing",
+        "row_diagnostics": [
+            {
+                "row_index": 0,
+                "row_id": "MAPK14;S5;",
+                "site_id": "MAPK14;S5;",
+                "status": "resolved",
+                "existing_site_sequence": None,
+                "fasta_site_sequence": "AASAA",
+                "resolved_site_sequence": "AASAA",
+                "action": "fill_missing",
+                "reason": "missing site_sequence resolved from FASTA",
+                "conflict_policy": "replace_existing",
+                "resolver_version": "phospy.science.sequences.resolver.v1",
+                "fasta_source_path": "C:/data/proteome.fasta",
+                "fasta_sha256": "abcdef123456",
+            },
+            {
+                "row_index": 1,
+                "row_id": "GSK3B;T6;",
+                "site_id": "GSK3B;T6;",
+                "status": "existing_sequence_conflict",
+                "existing_site_sequence": "XXXXX",
+                "fasta_site_sequence": "CCTCC",
+                "resolved_site_sequence": "CCTCC",
+                "action": "replace_existing",
+                "reason": (
+                    "existing site_sequence conflicts with FASTA-derived sequence"
+                ),
+                "conflict_policy": "replace_existing",
+                "resolver_version": "phospy.science.sequences.resolver.v1",
+                "fasta_source_path": "C:/data/proteome.fasta",
+                "fasta_sha256": "abcdef123456",
+            },
+        ],
+    }
+
+
 def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_fields() -> (
     None
 ):
@@ -1548,6 +1606,26 @@ def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_
     )
 
     payload = processing_state_to_payload(state)
+    expected_resolution_payload = _expected_site_sequence_resolution_payload()
+    assert payload["site_sequence_resolution"] == expected_resolution_payload
+    assert tuple(expected_resolution_payload) == (
+        "configured",
+        "mode",
+        "flank_size",
+        "fasta_source_path",
+        "fasta_source_label",
+        "fasta_sha256",
+        "resolver_version",
+        "resolved_site_count",
+        "unresolved_site_count",
+        "unresolved_counts_by_reason",
+        "filled_missing_count",
+        "replaced_existing_count",
+        "preserved_existing_count",
+        "existing_sequence_conflict_count",
+        "conflict_policy",
+        "row_diagnostics",
+    )
     restored = processing_state_from_payload(payload)
     resolution = restored.site_sequence_resolution
     assert resolution.configured is True
@@ -1571,6 +1649,7 @@ def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_
     assert len(resolution.row_diagnostics) == 2
     assert resolution.row_diagnostics[1].action == "replace_existing"
     assert resolution.row_diagnostics[1].fasta_site_sequence == "CCTCC"
+    assert processing_state_to_payload(restored) == payload
 
 
 def test_processing_state_payload_without_site_sequence_resolution_uses_backward_compatible_default() -> (

@@ -79,15 +79,16 @@ def test_public_api_documents_builder_as_supported_construction_path() -> None:
 
 
 def test_exported_dataset_signature_has_no_private_validation_controls() -> None:
-    root_parameters = inspect.signature(phospy.AnalysisReadyPhosphoDataset).parameters
+    assert not hasattr(phospy, "AnalysisReadyPhosphoDataset")
     api_parameters = inspect.signature(
         public_api.AnalysisReadyPhosphoDataset
     ).parameters
+    owner_parameters = inspect.signature(AnalysisReadyPhosphoDataset).parameters
 
-    assert root_parameters == api_parameters
-    assert tuple(root_parameters) == ("args", "kwargs")
-    assert "_emit_direct_constructor_deprecation" not in root_parameters
-    assert "_enforce_trusted_table_fingerprints" not in root_parameters
+    assert api_parameters == owner_parameters
+    assert tuple(api_parameters) == ("args", "kwargs")
+    assert "_emit_direct_constructor_deprecation" not in api_parameters
+    assert "_enforce_trusted_table_fingerprints" not in api_parameters
 
 
 def test_public_api_marks_direct_dataset_construction_sealed() -> None:

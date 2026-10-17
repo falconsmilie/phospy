@@ -9,49 +9,49 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.science.configs.preprocessing import (
+from phospy.preprocessing.contracts import (
+    PreprocessingPlan,
+    PreprocessingState,
+)
+from phospy.preprocessing.contracts.configuration import (
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION,
 )
-from phospy.science.datasets.preprocessing.models import (
-    PreprocessingPlan,
-    PreprocessingState,
-)
-from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.provenance_adapter import (
+from phospy.preprocessing.execution.pipeline import PreprocessingPipeline
+from phospy.preprocessing.provenance.composition import (
     PreprocessingProvenanceAdapter,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data import (
+from phospy.preprocessing.stages.missing_data import (
     knn as knn_module,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data import (
+from phospy.preprocessing.stages.missing_data import (
     minprob as minprob_module,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.audit import (
+from phospy.preprocessing.stages.missing_data.audit import (
     build_knn_audit_records,
     build_minprob_audit_records,
     build_row_median_audit_records,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.diagnostics import (
+from phospy.preprocessing.stages.missing_data.diagnostics import (
     build_input_profile,
     build_missing_data_diagnostics,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.forbid import (
+from phospy.preprocessing.stages.missing_data.forbid import (
     fail_if_forbid_policy_has_missing_values,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.knn import (
+from phospy.preprocessing.stages.missing_data.knn import (
     impute_knn_targets,
     run_knn_policy,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.minprob import (
+from phospy.preprocessing.stages.missing_data.minprob import (
     impute_minprob_targets,
     run_minprob_policy,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.row_median import (
+from phospy.preprocessing.stages.missing_data.row_median import (
     run_row_median_policy,
 )
-from phospy.science.datasets.preprocessing.stages.missing_data.stage import (
+from phospy.preprocessing.stages.missing_data.stage import (
     MissingDataStage,
 )
 

@@ -3,34 +3,31 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import phospy.science.activities.diagnostics as activity_diagnostics
-import phospy.science.activities.inputs as activity_inputs
-import phospy.science.activities.method_models as activity_method_models
-import phospy.science.activities.models as activity_models
-import phospy.science.activities.results as activity_results
-import phospy.science.datasets.preprocessing.batch_correction as batch_correction
-import phospy.science.datasets.preprocessing.batch_correction_engine as batch_engine
-import phospy.science.datasets.preprocessing.batch_correction_models as batch_models
-import phospy.science.datasets.preprocessing.batch_correction_provenance as batch_provenance
-import phospy.science.datasets.preprocessing.batch_correction_provenance_validation as batch_provenance_validation
-import phospy.science.references.manifest as reference_manifest
-import phospy.science.references.manifest_files as reference_manifest_files
-import phospy.science.references.manifest_model as reference_manifest_model
-import phospy.science.references.manifest_policy as reference_manifest_policy
-import phospy.science.references.redistribution as reference_redistribution
-import phospy.science.transformations.models as transformation_models
-import phospy.science.transformations.policy as transformation_policy
-import phospy.science.transformations.provenance as transformation_provenance
-import phospy.science.transformations.scale_state as transformation_scale_state
-import phospy.science.transformations.scale_values as transformation_scale_values
-import phospy.validation.datasets.batch_correction_controls as validation_controls
-import phospy.validation.datasets.batch_correction_provenance as validation_provenance
+import phospy.kinase.activity.diagnostics as activity_diagnostics
+import phospy.kinase.activity.inputs as activity_inputs
+import phospy.kinase.activity.models as activity_method_models
+import phospy.kinase.activity.results as activity_results
+import phospy.preparation_records.batch_correction as batch_models
+import phospy.preprocessing.batch_correction.contracts.results as active_batch_results
+import phospy.preprocessing.batch_correction.execution.linear as batch_engine
+import phospy.provenance.models as provenance_models
+import phospy.provenance.models.batch_correction as batch_provenance_models
+import phospy.quantitative.models as transformation_models
+import phospy.quantitative.policy as transformation_policy
+import phospy.quantitative.provenance as transformation_provenance
+import phospy.quantitative.scale_state as transformation_scale_state
+import phospy.quantitative.scale_values as transformation_scale_values
+import phospy.references.manifest as reference_manifest
+import phospy.references.manifest_files as reference_manifest_files
+import phospy.references.manifest_model as reference_manifest_model
+import phospy.references.manifest_policy as reference_manifest_policy
+import phospy.references.redistribution as reference_redistribution
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
 
 
-def test_transformation_models_route_preserves_identity_with_split_owners() -> None:
+def test_quantitative_models_route_preserves_identity_with_owner_leaves() -> None:
     assert (
         transformation_models.IntensityScaleKind
         is transformation_policy.IntensityScaleKind
@@ -61,24 +58,19 @@ def test_transformation_models_route_preserves_identity_with_split_owners() -> N
     )
 
 
-def test_activity_models_route_preserves_identity_with_split_owners() -> None:
-    assert (
-        activity_models.ActivityMethodMetadata
-        is activity_method_models.ActivityMethodMetadata
+def test_activity_models_are_defined_by_their_concrete_owner_leaves() -> None:
+    assert activity_method_models.ActivityMethodMetadata.__module__ == (
+        activity_method_models.__name__
     )
-    assert (
-        activity_models.ActivityMethodSummary
-        is activity_method_models.ActivityMethodSummary
+    assert activity_method_models.ActivityMethodSummary.__module__ == (
+        activity_method_models.__name__
     )
-    assert activity_models.KinaseActivityInputs is activity_inputs.KinaseActivityInputs
-    assert (
-        activity_models.PredMatOverlapSummary is activity_inputs.PredMatOverlapSummary
+    assert activity_inputs.KinaseActivityInputs.__module__ == activity_inputs.__name__
+    assert activity_inputs.PredMatOverlapSummary.__module__ == activity_inputs.__name__
+    assert activity_diagnostics.ActivityMethodDiagnostics.__module__ == (
+        activity_diagnostics.__name__
     )
-    assert (
-        activity_models.ActivityMethodDiagnostics
-        is activity_diagnostics.ActivityMethodDiagnostics
-    )
-    assert activity_models.KinaseActivityResult is activity_results.KinaseActivityResult
+    assert activity_results.KinaseActivityResult.__module__ == activity_results.__name__
 
 
 def test_reference_manifest_route_preserves_identity_with_split_owners() -> None:
@@ -109,36 +101,27 @@ def test_reference_manifest_route_preserves_identity_with_split_owners() -> None
 
 
 def test_batch_correction_routes_preserve_identity_with_split_owners() -> None:
-    assert batch_correction.BatchCorrectionPolicy is batch_models.BatchCorrectionPolicy
-    assert (
-        batch_correction.BatchCorrectionDiagnostics
-        is batch_models.BatchCorrectionDiagnostics
-    )
-    assert batch_correction.BatchCorrectionReport is batch_models.BatchCorrectionReport
-    assert batch_correction.BatchCorrectionResult is batch_models.BatchCorrectionResult
-    assert (
-        batch_correction.LinearResidualizeBatchCorrectionEngine
-        is batch_engine.LinearResidualizeBatchCorrectionEngine
-    )
-    assert batch_correction.BatchCorrectionEngine is batch_engine.BatchCorrectionEngine
-    assert (
-        batch_provenance.validate_applied_native_sps_ruv_correction_provenance
-        is batch_provenance_validation.validate_applied_native_sps_ruv_correction_provenance
-        is validation_provenance.validate_applied_native_sps_ruv_correction_provenance
+    assert batch_models.BatchCorrectionPolicy.__module__ == batch_models.__name__
+    assert batch_models.BatchCorrectionDiagnostics.__module__ == batch_models.__name__
+    assert batch_models.BatchCorrectionReport.__module__ == batch_models.__name__
+    assert active_batch_results.BatchCorrectionResult.__module__ == (
+        active_batch_results.__name__
     )
     assert (
-        batch_provenance.normalize_applied_selected_site_key_rows
-        is batch_provenance_validation.normalize_applied_selected_site_key_rows
-        is validation_controls.normalize_applied_selected_site_key_rows
+        batch_engine.LinearResidualizeBatchCorrectionEngine.__module__
+        == batch_engine.__name__
+    )
+    assert not hasattr(batch_engine, "BatchCorrectionEngine")
+    assert (
+        provenance_models.BatchCorrectionProvenance
+        is batch_provenance_models.BatchCorrectionProvenance
     )
 
 
 def test_legacy_aggregate_routes_do_not_define_model_classes_or_helpers() -> None:
     for relative_path in (
-        "phospy/science/transformations/models.py",
-        "phospy/science/activities/models.py",
-        "phospy/science/references/manifest.py",
-        "phospy/science/datasets/preprocessing/batch_correction.py",
+        "phospy/quantitative/models.py",
+        "phospy/references/manifest.py",
     ):
         tree = ast.parse((SRC_ROOT / relative_path).read_text(encoding="utf-8"))
         definitions = [
@@ -151,36 +134,37 @@ def test_legacy_aggregate_routes_do_not_define_model_classes_or_helpers() -> Non
 
 def test_decomposed_scientific_model_classes_have_single_definition() -> None:
     expected_owner_by_class = {
-        "ActivityMethodDiagnostics": "phospy/science/activities/diagnostics.py",
-        "ActivityMethodMetadata": "phospy/science/activities/method_models.py",
-        "ActivityMethodSummary": "phospy/science/activities/method_models.py",
+        "ActivityMethodDiagnostics": "phospy/kinase/activity/diagnostics.py",
+        "ActivityMethodMetadata": "phospy/kinase/activity/models.py",
+        "ActivityMethodSummary": "phospy/kinase/activity/models.py",
         "BatchCorrectionDiagnostics": (
-            "phospy/science/datasets/preprocessing/batch_correction_models.py"
+            "phospy/preparation_records/batch_correction.py"
         ),
-        "BatchCorrectionPolicy": (
-            "phospy/science/datasets/preprocessing/batch_correction_models.py"
-        ),
-        "BatchCorrectionReport": (
-            "phospy/science/datasets/preprocessing/batch_correction_models.py"
-        ),
+        "BatchCorrectionPolicy": ("phospy/preparation_records/batch_correction.py"),
+        "BatchCorrectionReport": ("phospy/preparation_records/batch_correction.py"),
         "BatchCorrectionResult": (
-            "phospy/science/datasets/preprocessing/batch_correction_models.py"
+            "phospy/preprocessing/batch_correction/contracts/results.py"
         ),
-        "IntensityScaleState": "phospy/science/transformations/scale_state.py",
-        "IntensityTransformationEvent": (
-            "phospy/science/transformations/scale_values.py"
+        "BatchCorrectionProvenance": ("phospy/provenance/models/batch_correction.py"),
+        "BatchCorrectionRejectedEntity": (
+            "phospy/provenance/models/batch_correction.py"
         ),
-        "KinaseActivityInputs": "phospy/science/activities/inputs.py",
-        "KinaseActivityResult": "phospy/science/activities/results.py",
-        "MatrixIntensityScaleState": "phospy/science/transformations/scale_values.py",
-        "QuantitativeMeaningScaleRule": "phospy/science/transformations/policy.py",
+        "CorrectedPreprocessingOutput": (
+            "phospy/preprocessing/batch_correction/contracts/output.py"
+        ),
+        "IntensityScaleState": "phospy/quantitative/scale_state.py",
+        "IntensityTransformationEvent": ("phospy/quantitative/scale_values.py"),
+        "KinaseActivityInputs": "phospy/kinase/activity/inputs.py",
+        "KinaseActivityResult": "phospy/kinase/activity/results.py",
+        "MatrixIntensityScaleState": "phospy/quantitative/scale_values.py",
+        "QuantitativeMeaningScaleRule": "phospy/quantitative/policy.py",
         "QuantitativeMeaningTransitionProvenance": (
-            "phospy/science/transformations/provenance.py"
+            "phospy/quantitative/provenance.py"
         ),
-        "ReferenceFileManifest": "phospy/science/references/manifest_files.py",
-        "ReferenceManifest": "phospy/science/references/manifest_model.py",
-        "RedistributionEvidence": "phospy/science/references/redistribution.py",
-        "SequenceWindowDefinition": "phospy/science/references/manifest_files.py",
+        "ReferenceFileManifest": "phospy/references/manifest_files.py",
+        "ReferenceManifest": "phospy/references/manifest_model.py",
+        "RedistributionEvidence": "phospy/references/redistribution.py",
+        "SequenceWindowDefinition": "phospy/references/manifest_files.py",
     }
     observed: dict[str, list[str]] = {name: [] for name in expected_owner_by_class}
     for path in (SRC_ROOT / "phospy").rglob("*.py"):

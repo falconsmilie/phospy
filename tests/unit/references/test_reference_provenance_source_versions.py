@@ -9,18 +9,12 @@ import pytest
 
 from phospy.errors.references import ReferenceResolutionError
 from phospy.errors.validation import ReferenceValidationError
-from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
-from phospy.provenance.models import (
-    EnvironmentProvenance,
-    ReferenceProvenance,
-    RunProvenance,
-)
-from phospy.provenance.serialization import from_payload, to_payload
-from phospy.science.references import resolution as reference_resolution
-from phospy.science.references.builder import ReferenceBundleBuilder
-from phospy.science.references.errors import ReferenceManifestError
-from phospy.science.references.models import (
-    Organism,
+from phospy.provenance.models import EnvironmentProvenance
+from phospy.references import resolution as reference_resolution
+from phospy.references.acquisition import ReferenceSourceTableReader
+from phospy.references.builder import ReferenceBundleBuilder
+from phospy.references.errors import ReferenceManifestError
+from phospy.references.models import (
     RedistributionStatus,
     ReferenceBundleBuildRequest,
     ReferenceContext,
@@ -30,11 +24,15 @@ from phospy.science.references.models import (
     SequenceWindowDefinition,
     reference_context_from_provenance,
 )
-from phospy.science.references.resolution import (
+from phospy.references.provenance.models import ReferenceProvenance
+from phospy.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
 )
-from phospy.science.references.validation import load_reference_manifest
+from phospy.references.validation import load_reference_manifest
+from phospy.run_lineage.models import RunProvenance
+from phospy.run_lineage.serialization import from_payload, to_payload
+from phospy.taxonomy import Organism
 
 LOCAL_REFERENCE_VERSION = "local-snapshot-v1"
 UPSTREAM_SOURCE_VERSION = "upstream-source-v1"
@@ -107,7 +105,9 @@ def test_stock_builder_preserves_distinct_explicit_reference_and_source_versions
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+    bundle = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(
         _build_request(
             kinase_path,
             sequence_path,
@@ -134,7 +134,9 @@ def test_stock_builder_generates_deterministic_content_reference_version_when_om
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    first = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+    first = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(
         ReferenceBundleBuildRequest(
             organism=Organism.RAT,
             kinase_substrate_path=kinase_path,
@@ -148,7 +150,9 @@ def test_stock_builder_generates_deterministic_content_reference_version_when_om
             bundle_id="unit_local_snapshot",
         )
     )
-    second = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+    second = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(
         ReferenceBundleBuildRequest(
             organism=Organism.RAT,
             kinase_substrate_path=kinase_path,
@@ -176,9 +180,9 @@ def test_generated_reference_version_changes_when_kinase_source_bytes_change(
     tmp_path: Path,
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
-    first = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
-        _build_request(kinase_path, sequence_path, reference_version=None)
-    )
+    first = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(_build_request(kinase_path, sequence_path, reference_version=None))
 
     pd.DataFrame(
         {
@@ -188,9 +192,9 @@ def test_generated_reference_version_changes_when_kinase_source_bytes_change(
         }
     ).to_csv(kinase_path, index=False)
 
-    second = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
-        _build_request(kinase_path, sequence_path, reference_version=None)
-    )
+    second = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(_build_request(kinase_path, sequence_path, reference_version=None))
 
     assert first.manifest is not None
     assert second.manifest is not None
@@ -205,9 +209,9 @@ def test_generated_reference_version_changes_when_sequence_source_bytes_change(
     tmp_path: Path,
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
-    first = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
-        _build_request(kinase_path, sequence_path, reference_version=None)
-    )
+    first = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(_build_request(kinase_path, sequence_path, reference_version=None))
 
     pd.DataFrame(
         {
@@ -218,9 +222,9 @@ def test_generated_reference_version_changes_when_sequence_source_bytes_change(
         }
     ).to_csv(sequence_path, index=False)
 
-    second = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
-        _build_request(kinase_path, sequence_path, reference_version=None)
-    )
+    second = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(_build_request(kinase_path, sequence_path, reference_version=None))
 
     assert first.manifest is not None
     assert second.manifest is not None
@@ -236,7 +240,9 @@ def test_builder_provenance_and_context_use_upstream_source_version(
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+    bundle = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(
         _build_request(
             kinase_path,
             sequence_path,
@@ -262,7 +268,9 @@ def test_builder_serialization_preserves_local_and_upstream_versions(
     tmp_path: Path,
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
-    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+    bundle = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(
         _build_request(
             kinase_path,
             sequence_path,
@@ -289,7 +297,9 @@ def test_existing_request_without_reference_version_remains_valid(
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+    bundle = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(
         ReferenceBundleBuildRequest(
             organism=Organism.RAT,
             kinase_substrate_path=kinase_path,
@@ -343,9 +353,9 @@ def test_existing_optional_positional_arguments_are_not_reinterpreted(
     assert request.limitations == ("legacy positional limitation",)
     assert request.reference_version is None
 
-    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
-        request
-    )
+    bundle = ReferenceBundleBuilder._with_components(
+        source_reader=ReferenceSourceTableReader()
+    ).run(request)
 
     assert bundle.manifest is not None
     assert bundle.manifest.bundle_id == "positional_bundle"
@@ -357,7 +367,9 @@ def test_blank_reference_version_fails_build_request_validation(
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
     with pytest.raises(ReferenceResolutionError, match="reference_version"):
-        ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+        ReferenceBundleBuilder._with_components(
+            source_reader=ReferenceSourceTableReader()
+        ).run(
             _build_request(
                 kinase_path,
                 sequence_path,

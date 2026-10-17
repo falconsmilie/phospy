@@ -4,15 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.science.sites.identity import (
-    validate_identity_optional_columns,
-    validate_no_conflicting_identity_collisions,
-)
-from phospy.science.sites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
-)
-from phospy.validation.datasets.protein_scoped_site_identity import (
+from phospy.phosphosites.dataset_identity import (
     enforce_analysis_ready_site_key_index,
     enforce_display_id_column,
     enforce_site_key_column,
@@ -20,6 +12,14 @@ from phospy.validation.datasets.protein_scoped_site_identity import (
     enforce_site_key_index,
     enforce_site_key_matches_metadata,
     enforce_unique_site_key_identity,
+)
+from phospy.phosphosites.identity import (
+    validate_identity_optional_columns,
+    validate_no_conflicting_identity_collisions,
+)
+from phospy.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
 )
 
 

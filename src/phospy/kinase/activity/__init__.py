@@ -1,0 +1,1 @@
+"""Kinase activity owner package."""

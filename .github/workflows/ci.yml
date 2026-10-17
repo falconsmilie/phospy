@@ -19,6 +19,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Enforce repository hygiene policy
+        run: python scripts/check_repository_hygiene.py --repo-root .
       - name: Fail on tracked ignored/generated artefacts
         shell: bash
         run: |
@@ -363,7 +368,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[test]"
       - name: Run manifest-governed fixture integrity checks
-        run: python -m pytest -o addopts= tests/release/test_manifest_fixture_byte_reproducibility.py::test_manifest_governed_fixtures_use_canonical_lf_bytes_and_valid_hashes tests/release/test_manifest_fixture_byte_reproducibility.py::test_duplicate_correlation_limma_fixture_manifest_hashes_match_checked_in_files tests/science/test_evidence_resolution_regression_fixtures.py::test_evidence_resolution_fixture_manifest_hashes_match_files tests/science/test_kinase_sparse_support_regression_fixtures.py::test_kinase_sparse_support_fixture_manifest_hashes_match_files tests/science/test_signalome_safety_regression_fixtures.py::test_signalome_safety_fixture_manifest_hashes_match_files tests/parity/test_differential_limma_trend_large.py::test_large_limma_trend_fixture_manifest_hashes_match_checked_in_files
+        run: python -m pytest -o addopts= tests/release/test_manifest_fixture_byte_reproducibility.py::test_manifest_governed_fixtures_use_canonical_lf_bytes_and_valid_hashes tests/release/test_manifest_fixture_byte_reproducibility.py::test_duplicate_correlation_limma_fixture_manifest_hashes_match_checked_in_files tests/release/test_evidence_resolution_regression_fixtures.py::test_evidence_resolution_fixture_manifest_hashes_match_files tests/release/test_kinase_sparse_support_regression_fixtures.py::test_kinase_sparse_support_fixture_manifest_hashes_match_files tests/release/test_signalome_safety_regression_fixtures.py::test_signalome_safety_fixture_manifest_hashes_match_files tests/parity/test_differential_limma_trend_large.py::test_large_limma_trend_fixture_manifest_hashes_match_checked_in_files
 
   release-gates:
     needs: repo-hygiene
@@ -418,7 +423,7 @@ jobs:
       - name: Verify adaptive dependency contract
         run: |
           python -c "import importlib.metadata as md; requirements = md.requires('phospy') or []; assert any(req.lower().startswith('scikit-learn') for req in requirements), requirements"
-          python -c "from phospy.science.prediction.svm import require_sklearn; require_sklearn()"
+          python -c "from phospy.kinase.prediction.svm import require_sklearn; require_sklearn()"
       - name: Run adaptive-mode tests
         run: pytest tests/unit/test_prediction_adaptive_sampling.py tests/unit/test_prediction_mode_regression.py tests/unit/test_prediction_svm_dependency_guard.py
 
@@ -494,6 +499,63 @@ jobs:
       - name: Run informational parity diagnostics
         run: pytest tests/parity -m "parity_diagnostic" -s
 
+  architecture-release-source-runtime:
+    needs: repo-hygiene
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Install GNU Make on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install make --no-progress -y
+      - name: Install complete gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[dev,test,docs]"
+      - name: Record candidate and runtime identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/reports
+          {
+            git rev-parse HEAD
+            git rev-parse HEAD^{tree}
+            git rev-parse HEAD^
+            git log -1 --format=%s
+            python -c "import json, platform, sys; print(json.dumps({'os': platform.system(), 'release': platform.release(), 'architecture': platform.machine(), 'platform': platform.platform(), 'python': sys.version, 'executable': sys.executable}, sort_keys=True))"
+            python -c "import tomllib; print('pyright_python_version=' + tomllib.load(open('pyproject.toml','rb'))['tool']['pyright']['pythonVersion'])"
+            git hash-object constraints/ci.txt
+            python -m pip list --format=json
+          } > "build/reports/architecture-release-identities-${{ runner.os }}-py${{ matrix.python-version }}.txt"
+      - name: Run complete architecture release source and runtime gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          make architecture-release-source-check 2>&1 | tee "build/reports/architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}.log"
+      - name: Retain architecture release source lane
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}
+          path: build/reports/
+
   build-distributions:
     needs: repo-hygiene
     runs-on: ubuntu-latest
@@ -513,6 +575,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -c constraints/ci.txt build twine setuptools wheel
           make build
+          python scripts/verify_distribution_git_blobs.py --repo-root . --revision HEAD dist/*
+          git rev-parse HEAD
+          git rev-parse HEAD^{tree}
+          sha256sum dist/*
       - name: Store distribution artifacts
         uses: actions/upload-artifact@v5
         with:
@@ -521,10 +587,12 @@ jobs:
 
   installed-distribution-verification:
     needs: build-distributions
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v6
@@ -543,5 +611,22 @@ jobs:
           name: python-package-distributions
           path: dist/
       - name: Verify installed wheel and sdist outside checkout
+        shell: bash
         run: |
-          python scripts/verify_installed_distributions.py --dist-dir dist --repo-root "$GITHUB_WORKSPACE" --constraint constraints/ci.txt
+          set -euo pipefail
+          mkdir -p build/reports
+          {
+            git rev-parse HEAD
+            git rev-parse HEAD^{tree}
+            python -c "import json, platform, sys; print(json.dumps({'os': platform.system(), 'release': platform.release(), 'architecture': platform.machine(), 'platform': platform.platform(), 'python': sys.version, 'executable': sys.executable}, sort_keys=True))"
+            git hash-object constraints/ci.txt
+            python -m pip list --format=json
+            python -c "import hashlib, json, pathlib; print(json.dumps({p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(pathlib.Path('dist').iterdir())}, sort_keys=True))"
+          } > "build/reports/consumer-identities-${{ runner.os }}-py${{ matrix.python-version }}.txt"
+          python scripts/verify_installed_distributions.py --dist-dir dist --repo-root "$GITHUB_WORKSPACE" --constraint constraints/ci.txt 2>&1 | tee "build/reports/installed-consumers-${{ runner.os }}-py${{ matrix.python-version }}.json"
+      - name: Retain wheel and sdist consumer results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: installed-consumers-${{ runner.os }}-py${{ matrix.python-version }}
+          path: build/reports/

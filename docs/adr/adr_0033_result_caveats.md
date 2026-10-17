@@ -4,8 +4,9 @@
 
 - **ADR ID:** ADR-0033
 - **Title:** Result Caveats and Scientific Warning Ownership
-- **Status:** Accepted
+- **Status:** Amended
 - **Date:** 2026-07-06
+- **Amended:** 2026-09-28 by ADR-0053 and ADR-0054
 - **Decision Type:** Scientific Architecture and Result Contract
 
 ## Context
@@ -189,8 +190,14 @@ Neutral consequences:
 
 ## Implementation Guidance
 
-Use the shared `phospy.contracts.result_caveats.ResultCaveat` model for public
-workflow result caveats.
+ADR-0053 later assigned the shared implementation to generic Provenance, and
+ADR-0054 reset the supported public API to aggregate facades. External callers
+use `phospy.api.ResultCaveat`. Internal owner code uses
+`phospy.provenance.result_caveats.ResultCaveat`; that module is the single
+implementation owner and the public facade re-exports the same object identity.
+Historical Contracts-layer routes are removed and are not supported imports.
+
+**Historical note:** `phospy.contracts.result_caveats` was removed and is not a supported import.
 
 Keep workflow-specific caveat builders near workflow assembly code, for
 example:
@@ -198,7 +205,7 @@ example:
 - `phospy.workflows.differential.caveats`
 - `phospy.workflows.kinase.caveats`
 - `phospy.workflows.signalome.caveats`
-- `phospy.workflows.enrichment.caveats`
+- `phospy.enrichment.caveats`
 
 Result constructors should validate top-level caveats with the common caveat
 contract. They should not infer caveats from result tables, provenance, or logs.

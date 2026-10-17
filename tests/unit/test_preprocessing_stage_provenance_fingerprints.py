@@ -15,28 +15,31 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
-from phospy.provenance.hashing import fingerprint_optional_table, hash_table_tolerance
-from phospy.provenance.models import PreprocessingStageProvenance, TableFingerprint
-from phospy.science.datasets.preprocessing.diagnostics_normalization import (
-    _StageDiagnosticsDefaultsResolver,
-    _StageDiagnosticsNormalizer,
-)
-from phospy.science.datasets.preprocessing.fingerprints import (
-    _hash_stage_table_fingerprints,
-    _StageFingerprintService,
-)
-from phospy.science.datasets.preprocessing.models import (
+from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
     PreprocessingStateTableKey,
 )
-from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.science.datasets.preprocessing.stage_registry import (
-    PreprocessingStageMetadata,
+from phospy.preprocessing.contracts.stage import (
+    PreprocessingStageContract,
 )
-from phospy.science.datasets.preprocessing.trace_builder import _StageTraceBuilder
-from phospy.science.transformations.quantitative_contracts import (
+from phospy.preprocessing.execution.diagnostics_normalization import (
+    _StageDiagnosticsDefaultsResolver,
+    _StageDiagnosticsNormalizer,
+)
+from phospy.preprocessing.execution.fingerprints import (
+    _hash_stage_table_fingerprints,
+    _StageFingerprintService,
+)
+from phospy.preprocessing.execution.pipeline import PreprocessingPipeline
+from phospy.preprocessing.execution.trace_builder import _StageTraceBuilder
+from phospy.preprocessing.provenance.models import (
+    PreprocessingStageProvenance,
+)
+from phospy.provenance.hashing import fingerprint_optional_table, hash_table_tolerance
+from phospy.provenance.models import TableFingerprint
+from phospy.quantitative.quantitative_contracts import (
     preserve_quantitative_contract,
 )
 
@@ -189,7 +192,7 @@ def test_stage_trace_builder_reproduces_pipeline_trace_payload() -> None:
                 diagnostics={"diagnostics": {"policy": "fake"}},
             )
 
-    contract = PreprocessingStageMetadata(
+    contract = PreprocessingStageContract(
         stage_key="fake_stage",
         display_label="fake_stage",
         operation_name=lambda _plan: "fake_operation",

@@ -16,21 +16,15 @@ from phospy.advanced import (
 from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
 )
-from phospy.api.results import KinaseWorkflowResult
-from phospy.contracts.results import KinaseWorkflowAttritionProvenance
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.provenance.hashing import hash_json_payload
-from phospy.provenance.models import JsonValue
-from phospy.science.datasets.internal_view import DatasetInternalView
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.workflows.intensity_scale_evidence import (
-    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
-)
-from phospy.workflows.kinase.caveats import (
+from phospy.kinase.caveats import (
     KINASE_ATTRITION_POLICY_CAVEAT_CODE,
     KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE,
     KINASE_ATTRITION_ZERO_THRESHOLD_CAVEAT_CODE,
@@ -38,11 +32,17 @@ from phospy.workflows.kinase.caveats import (
     KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
     KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
 )
-from phospy.workflows.kinase.contracts import (
+from phospy.kinase.contracts import (
     ResolvedKinaseWorkflowRequest,
     ValidatedKinaseWorkflowRequest,
 )
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.kinase.results import KinaseWorkflowAttritionProvenance
+from phospy.provenance.hashing import hash_json_payload
+from phospy.provenance.models import JsonValue
+from phospy.quantitative.evidence import (
+    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
+)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

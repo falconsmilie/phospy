@@ -4,39 +4,37 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    AnalysisReadyPhosphoDataset,
+    KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
-    KinasePredictionResult,
-    KinaseScoringResult,
     SignalomeWorkflowResult,
 )
 from phospy.errors.workflows import WorkflowStageError
-from phospy.science.signalomes.clustering import (
-    cluster_sites_with_diagnostics,
-    derive_protein_modules,
-)
-from phospy.science.signalomes.context import (
-    build_protein_site_context_table,
-    build_site_membership_table,
-)
-from phospy.science.signalomes.science import (
-    build_module_assignments,
-    build_signalome_module_table,
-    select_kinase_substrates,
-)
-from phospy.science.sites.site_keys import (
+from phospy.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,
 )
-from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
-from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
-from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.assignments import (
+    build_module_assignments,
+    select_kinase_substrates,
+)
+from phospy.signalome.clustering import (
+    cluster_sites_with_diagnostics,
+    derive_protein_modules,
+)
+from phospy.signalome.context import (
+    build_protein_site_context_table,
+    build_site_membership_table,
+)
+from phospy.signalome.contracts import ResolvedSignalomeWorkflowRequest
+from phospy.signalome.executor import SignalomeWorkflowExecutor
+from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.signalome.modules import build_signalome_module_table
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
