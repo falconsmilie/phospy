@@ -56,6 +56,7 @@ _SOURCES = (
     "combined_profile_motif_scores",
 )
 _SUPPORTED_PYTHON_MINORS = frozenset({(3, 11), (3, 12)})
+_PLATFORM_SENSITIVE_EXACT_TABLE_HASH = "platform-sensitive-exact-table-hash"
 requires_supported_python = pytest.mark.skipif(
     sys.version_info[:2] not in _SUPPORTED_PYTHON_MINORS,
     reason=(
@@ -292,6 +293,26 @@ def _payload_digest(value: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _portable_output_table_fingerprints(
+    output_tables: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Retain stable provenance facts while qualifying backend-sensitive hashes."""
+
+    portable: list[dict[str, object]] = []
+    for table in output_tables:
+        exact_hash = table["exact_hash_value"]
+        tolerance_hash = table["tolerance_hash_value"]
+        assert table["exact_hash_algorithm"] == "sha256-stable-json-v1"
+        assert table["tolerance_hash_algorithm"] == "sha256-float-round-8dp-v1"
+        assert isinstance(exact_hash, str) and len(exact_hash) == 64
+        assert isinstance(tolerance_hash, str) and len(tolerance_hash) == 64
+
+        portable_table = dict(table)
+        portable_table["exact_hash_value"] = _PLATFORM_SENSITIVE_EXACT_TABLE_HASH
+        portable.append(portable_table)
+    return portable
+
+
 def _result_evidence(
     *,
     source: str,
@@ -352,7 +373,9 @@ def _result_evidence(
                 {
                     "count": len(output_tables),
                     "names": [table["name"] for table in output_tables],
-                    "sha256": _payload_digest(output_tables),
+                    "sha256": _payload_digest(
+                        _portable_output_table_fingerprints(output_tables)
+                    ),
                 }
             ),
         },
@@ -408,3 +431,26 @@ def test_all_four_authoritative_sources_match_signalome_regression_baseline() ->
     observed = build_four_source_evidence()
 
     assert observed == expected
+
+
+def test_output_table_fingerprint_digest_ignores_only_exact_backend_hashes() -> None:
+    fingerprint: dict[str, object] = {
+        "name": "outputs.signalome.example",
+        "rows": 2,
+        "columns": 1,
+        "exact_hash_algorithm": "sha256-stable-json-v1",
+        "exact_hash_value": "a" * 64,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "b" * 64,
+    }
+    different_exact_hash = {**fingerprint, "exact_hash_value": "c" * 64}
+    different_tolerance_hash = {**fingerprint, "tolerance_hash_value": "d" * 64}
+
+    baseline = _payload_digest(_portable_output_table_fingerprints([fingerprint]))
+
+    assert baseline == _payload_digest(
+        _portable_output_table_fingerprints([different_exact_hash])
+    )
+    assert baseline != _payload_digest(
+        _portable_output_table_fingerprints([different_tolerance_hash])
+    )
