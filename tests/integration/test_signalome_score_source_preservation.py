@@ -57,6 +57,7 @@ _SOURCES = (
 )
 _SUPPORTED_PYTHON_MINORS = frozenset({(3, 11), (3, 12)})
 _PLATFORM_SENSITIVE_EXACT_TABLE_HASH = "platform-sensitive-exact-table-hash"
+_PLATFORM_SENSITIVE_TOLERANCE_TABLE_HASH = "platform-sensitive-tolerance-table-hash"
 requires_supported_python = pytest.mark.skipif(
     sys.version_info[:2] not in _SUPPORTED_PYTHON_MINORS,
     reason=(
@@ -309,6 +310,9 @@ def _portable_output_table_fingerprints(
 
         portable_table = dict(table)
         portable_table["exact_hash_value"] = _PLATFORM_SENSITIVE_EXACT_TABLE_HASH
+        portable_table["tolerance_hash_value"] = (
+            _PLATFORM_SENSITIVE_TOLERANCE_TABLE_HASH
+        )
         portable.append(portable_table)
     return portable
 
@@ -433,7 +437,7 @@ def test_all_four_authoritative_sources_match_signalome_regression_baseline() ->
     assert observed == expected
 
 
-def test_output_table_fingerprint_digest_ignores_only_exact_backend_hashes() -> None:
+def test_output_table_fingerprint_digest_qualifies_backend_hash_values() -> None:
     fingerprint: dict[str, object] = {
         "name": "outputs.signalome.example",
         "rows": 2,
@@ -445,12 +449,16 @@ def test_output_table_fingerprint_digest_ignores_only_exact_backend_hashes() -> 
     }
     different_exact_hash = {**fingerprint, "exact_hash_value": "c" * 64}
     different_tolerance_hash = {**fingerprint, "tolerance_hash_value": "d" * 64}
+    different_row_count = {**fingerprint, "rows": 3}
 
     baseline = _payload_digest(_portable_output_table_fingerprints([fingerprint]))
 
     assert baseline == _payload_digest(
         _portable_output_table_fingerprints([different_exact_hash])
     )
-    assert baseline != _payload_digest(
+    assert baseline == _payload_digest(
         _portable_output_table_fingerprints([different_tolerance_hash])
+    )
+    assert baseline != _payload_digest(
+        _portable_output_table_fingerprints([different_row_count])
     )

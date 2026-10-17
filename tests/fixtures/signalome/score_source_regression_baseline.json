@@ -239,7 +239,7 @@
             "outputs.signalome.site_membership",
             "outputs.signalome.protein_site_context"
           ],
-          "sha256": "c50a9ea5a227ff63f30f9cbfe17d6617ae52a9578586e12889c935be9f1a2491"
+          "sha256": "b38a82b3aad426f3cc18708eb6e5d421b60b747138f3ca1aa9af91ad4aa960cf"
         },
         "row_attrition": {
           "final_rows": 11,
@@ -1112,7 +1112,7 @@
             "outputs.signalome.site_membership",
             "outputs.signalome.protein_site_context"
           ],
-          "sha256": "afc213878363a8030826a6a60a6e46b98ecc7d05fa46d0bcffd6ba76a6efc76c"
+          "sha256": "179133c56a65a617d5c1abc6c4a2b5757942e2712dcde311c7ffb9124f25851b"
         },
         "row_attrition": {
           "final_rows": 11,
@@ -1987,7 +1987,7 @@
             "outputs.signalome.site_membership",
             "outputs.signalome.protein_site_context"
           ],
-          "sha256": "87f3ddb21eea6b62a0117d8cead8ee27b2d2a5062c14db050a04ab29a7cff7e3"
+          "sha256": "a1b0b5fa18250805961ad1c57ba226fc375154962cb7f8732cbbd066ed467648"
         },
         "row_attrition": {
           "final_rows": 11,
@@ -2860,7 +2860,7 @@
             "outputs.signalome.site_membership",
             "outputs.signalome.protein_site_context"
           ],
-          "sha256": "0d347ea7c862aea8ff324bbf106cdf0536f9a658c689d9130e905695d6c3a2f2"
+          "sha256": "179133c56a65a617d5c1abc6c4a2b5757942e2712dcde311c7ffb9124f25851b"
         },
         "row_attrition": {
           "final_rows": 11,
