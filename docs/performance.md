@@ -61,6 +61,16 @@ runner contention to serve as a release gate.
 | Bundle writing | number/size of workflow output tables | O(total cells written) + serialization overhead | Representative signalome outputs from ~200-site workflows | None | File IO across many tables; manifest/config JSON serialization | None | IO/validation errors propagate |
 | Provenance hashing | table rows x columns; dtype/structure complexity | O(total cells) for value normalization + hashing | 5,000 x 12 numeric plus large metadata tables | None | Converts table cells to object normalization payloads before digest updates | None | Hashing/serialization errors propagate for unsupported payload values |
 
+The Wave 10 profile-correlation correction replaces the BLAS matrix
+multiplication used only for the numerator with a fixed sample-order sequence
+of element-wise NumPy operations. A local Windows 10.0.26200 measurement on
+2026-10-18 with Python 3.11.15 and NumPy 2.2.6 used 5,000 sites, 100 kinases, 12
+samples, and 21 repeats. The median numerator time increased from 0.0009939
+seconds to 0.0066118 seconds (6.65x); the largest absolute numerator difference
+was 5.33e-15. This isolated numerator benchmark records the portability cost and
+is not a workflow-runtime threshold. Run it with
+`python benchmarks/measure_profile_score_portability.py`.
+
 ## Signalome Guardrails
 
 Default signalome guardrails are configured through `SignalomeConfig.performance`:

@@ -160,8 +160,9 @@ def score_profile_correlations(
     left_scale = np.linalg.norm(left_centered, axis=1)
     right_scale = np.linalg.norm(right_centered, axis=1)
     denominator = np.outer(left_scale, right_scale)
+    numerator = _fixed_order_dot_products(left_centered, right_centered)
     with np.errstate(divide="ignore", invalid="ignore"):
-        correlation = left_centered @ right_centered.T / denominator
+        correlation = numerator / denominator
     correlation[denominator == 0.0] = np.nan
 
     scores = shift_correlation_to_unit_support(correlation)
@@ -170,6 +171,28 @@ def score_profile_correlations(
         index=phospho.index.copy(),
         columns=profile_matrix.index.copy(),
     )
+
+
+def _fixed_order_dot_products(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Return all row dot products in documented sample-column order.
+
+    Matrix multiplication delegates the reduction to the linked BLAS backend,
+    whose grouping and fused operations can differ.  Accumulating one sample
+    column at a time fixes the order from the first aligned sample to the last;
+    multiplication and addition are separate element-wise operations with no
+    hidden reduction.
+    """
+
+    products = np.zeros((left.shape[0], right.shape[0]), dtype=np.float64)
+    term = np.empty_like(products)
+    for sample_position in range(left.shape[1]):
+        np.multiply(
+            left[:, sample_position, np.newaxis],
+            right[np.newaxis, :, sample_position],
+            out=term,
+        )
+        np.add(products, term, out=products)
+    return products
 
 
 def score_profile_correlations_leave_one_out(

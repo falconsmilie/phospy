@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from tests.support.l6_prediction_parity_metrics import (
+    collect_l6_prediction_decision_evidence,
     collect_l6_prediction_parity_metrics,
 )
 from tests.support.l6_prediction_parity_thresholds import (
@@ -118,6 +119,7 @@ def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces
         max_abs_diff_ceiling=sensitivity_budget.max_abs_diff_ceiling,
         pearson_floor=PREDICTION_MATRIX_PEARSON_FLOOR,
         spearman_floor=PREDICTION_MATRIX_SPEARMAN_FLOOR,
+        decision_evidence=collect_l6_prediction_decision_evidence(),
     )
 
     assert parity.shared_site_count == parity.observed_shape[0], (
@@ -134,6 +136,21 @@ def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces
     )
     assert parity.mean_pearson_corr >= PREDICTION_MATRIX_PEARSON_FLOOR
     assert parity.mean_spearman_corr >= PREDICTION_MATRIX_SPEARMAN_FLOOR
+
+
+def test_l6_downstream_decisions_match_promoted_reference_exactly() -> None:
+    evidence = collect_l6_prediction_decision_evidence()
+
+    assert evidence["candidate_membership"]["exact"] is True
+    assert evidence["selected_site_order"]["exact"] is True
+    assert evidence["prediction_matrix_ranking"]["exact"] is True
+    assert evidence["threshold_0_5"]["crossing_count"] == 0
+    assert evidence["threshold_0_5"]["classifications_exact"] is True
+    critical = evidence["threshold_0_5"]["yang_s6k_gsk3a_s21"]
+    assert critical["observed_hex"] == critical["expected_hex"]
+    assert critical["observed_passes"] is True
+    assert critical["expected_passes"] is True
+    assert evidence["published_ranked_topk"]["exact"] is True
 
 
 def test_l6_prediction_matrix_ranking_parity_matches_promoted_reference_surfaces() -> (

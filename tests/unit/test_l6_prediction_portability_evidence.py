@@ -26,6 +26,8 @@ def _parity_metrics() -> TableParityMetrics:
         max_abs_diff=8.5e-4,
         mean_pearson_corr=0.9999998,
         mean_spearman_corr=0.9999997,
+        flattened_pearson_corr=0.9999996,
+        flattened_spearman_corr=0.9999995,
     )
 
 
@@ -44,6 +46,7 @@ def test_l6_portability_evidence_records_junit_properties_without_output_path(
         max_abs_diff_ceiling=3e-3,
         pearson_floor=0.999999,
         spearman_floor=0.999999,
+        decision_evidence={"candidate_membership": {"exact": True}},
     )
 
     assert written is None
@@ -73,6 +76,7 @@ def test_l6_portability_evidence_writes_structured_runtime_record(
         max_abs_diff_ceiling=3e-3,
         pearson_floor=0.999999,
         spearman_floor=0.999999,
+        decision_evidence={"candidate_membership": {"exact": True}},
     )
 
     assert written == evidence_path

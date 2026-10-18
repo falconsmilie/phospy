@@ -7,6 +7,9 @@ This directory contains rewrite-native benchmark scripts that track active code 
 - `measure_kinase_scoring_runtime_alignment.py`
   - Measures kinase workflow runtime and memory for filtered motif-lane execution versus unfiltered and diagnostic-table variants.
   - Targets `phospy.workflows.kinase.executor` via `KinaseWorkflow.run`.
+- `measure_profile_score_portability.py`
+  - Compares the fixed sample-order profile-correlation numerator with the former BLAS matrix-multiplication reduction at the maintained 5,000-site, 100-kinase, 12-sample scale.
+  - Reports the median runtime ratio and the maximum numerical difference without setting a portable performance threshold.
 - `measure_signalome_prediction_hot_paths.py`
   - Measures signalome module-table, expanded-signalome, prediction-output, and adaptive-prediction hot paths.
   - Targets `phospy.signalome.science.build_signalome_module_table`, `phospy.signalome.science.build_expanded_signalome_table`, `phospy.kinase.prediction.outputs.build_prediction_outputs`, and `phospy.kinase.prediction.execution.run_adaptive_ensemble_prediction`.

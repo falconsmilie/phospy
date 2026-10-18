@@ -122,6 +122,13 @@ def test_batch_correction_preserves_ordered_caveats() -> None:
     } == EXPECTED_WORKFLOW_CAVEATS
 
 
+def test_batch_correction_provenance_is_repeatable_within_environment() -> None:
+    first = build_comparison_payload()
+    second = build_comparison_payload()
+
+    assert first == second
+
+
 def test_batch_correction_provenance_bytes_match_pinned_regression() -> None:
     expected = json.loads(PROVENANCE_EXPECTATIONS_PATH.read_text(encoding="utf-8"))
     runtime_versions = {

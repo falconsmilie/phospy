@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -9,6 +10,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from tests.support.l6_prediction_portability_evidence import (
+    compare_l6_prediction_portability_evidence,
+)
 from tests.support.l6_prediction_sensitivity import (
     REFERENCE_CANDIDATES_PATH,
     REFERENCE_MATRIX_PATH,
@@ -165,3 +169,34 @@ def test_candidate_measurements_require_a_prederived_budget() -> None:
     assert source.index("derive_l6_prediction_sensitivity_budget()") < source.index(
         "collect_l6_prediction_parity_metrics()"
     )
+
+
+def test_fresh_process_comparison_uses_scientific_sections_only(
+    tmp_path: Path,
+) -> None:
+    scientific = {
+        "surface": {"name": "prediction_matrix"},
+        "measurements": {"mean_abs_diff": 0.0},
+        "correlation_metric_definitions": {
+            "per_kinase_mean": "mean of per-kinase correlations",
+            "flattened_global": "one flattened matrix correlation",
+        },
+        "acceptance_bounds": {"mean_abs_diff_ceiling": 1e-10},
+        "decision_contracts": {"threshold_0_5": {"crossing_count": 0}},
+    }
+    left = {**scientific, "runtime": {"python": {"executable": "process-1"}}}
+    right = {**scientific, "runtime": {"python": {"executable": "process-2"}}}
+    left_path = tmp_path / "left.json"
+    right_path = tmp_path / "right.json"
+    output_path = tmp_path / "comparison.json"
+    left_path.write_text(json.dumps(left), encoding="utf-8")
+    right_path.write_text(json.dumps(right), encoding="utf-8")
+
+    comparison = compare_l6_prediction_portability_evidence(
+        left_path=left_path,
+        right_path=right_path,
+        output_path=output_path,
+    )
+
+    assert comparison["exact_repeatability"] is True
+    assert comparison["differing_sections"] == []

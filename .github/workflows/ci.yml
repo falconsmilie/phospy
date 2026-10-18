@@ -183,8 +183,6 @@ jobs:
   exact-provenance-bytes:
     needs: repo-hygiene
     runs-on: windows-latest
-    env:
-      OPENBLAS_CORETYPE: SkylakeX
     steps:
       - uses: actions/checkout@v6
         with:
@@ -197,7 +195,38 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -c constraints/ci.txt -e ".[test]"
-      - name: Verify exact provenance regression environment
+      - name: Run portable provenance gates
+        run: |
+          New-Item -ItemType Directory -Path build/reports -Force | Out-Null
+          python -m pytest -o addopts= `
+            tests/release/test_batch_correction_regression.py::test_batch_correction_matches_regression_invariants `
+            tests/release/test_batch_correction_regression.py::test_batch_correction_matches_regression_frames `
+            tests/release/test_batch_correction_regression.py::test_matrix_missingness_and_persistence_contracts_are_complete `
+            tests/release/test_batch_correction_regression.py::test_batch_correction_provenance_is_repeatable_within_environment `
+            --junitxml build/reports/portable-provenance-windows-py3.11.15.xml
+      - name: Inspect CPU capability before any OpenBLAS override
+        id: provenance-preflight
+        shell: pwsh
+        run: |
+          if (Test-Path Env:OPENBLAS_CORETYPE) {
+            throw "OPENBLAS_CORETYPE must be unset during hardware preflight"
+          }
+          python tools/testing/provenance_capability.py `
+            --output build/reports/exact-provenance-capability-windows-py3.11.15.json
+          $record = Get-Content build/reports/exact-provenance-capability-windows-py3.11.15.json -Raw | ConvertFrom-Json
+          "eligible=$($record.eligible.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "disposition=$($record.disposition)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      - name: Record ineligible exact-byte disposition
+        if: steps.provenance-preflight.outputs.eligible != 'true'
+        shell: pwsh
+        run: |
+          $record = Get-Content build/reports/exact-provenance-capability-windows-py3.11.15.json -Raw | ConvertFrom-Json
+          Write-Output "Exact-byte fixture disposition: $($record.disposition)"
+          Write-Output "Missing features: $($record.missing_features -join ', ')"
+      - name: Verify controlled exact provenance regression environment
+        if: steps.provenance-preflight.outputs.eligible == 'true'
+        env:
+          OPENBLAS_CORETYPE: SkylakeX
         run: |
           $pythonRecord = @(conda list --json python | ConvertFrom-Json | Where-Object { $_.name -eq 'python' })
           if ($pythonRecord.Count -ne 1 -or $pythonRecord[0].build_string -ne 'hb00fc5c_1') {
@@ -205,15 +234,17 @@ jobs:
           }
           python -c "import importlib.metadata as md, numpy as np, platform, sys; from threadpoolctl import threadpool_info; expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'}; actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}}; openblas=[record for record in threadpool_info() if record.get('internal_api') == 'openblas']; assert platform.system() == 'Windows', platform.platform(); assert platform.machine() == 'AMD64', platform.machine(); assert 'packaged by Anaconda, Inc.' in sys.version, sys.version; assert actual == expected, (expected, actual); assert openblas and {record.get('architecture') for record in openblas} == {'SkylakeX'}, openblas; np.show_runtime()"
       - name: Run exact provenance-byte regression
+        if: steps.provenance-preflight.outputs.eligible == 'true'
+        env:
+          OPENBLAS_CORETYPE: SkylakeX
         run: |
-          New-Item -ItemType Directory -Path build/reports -Force | Out-Null
           python -m pytest -o addopts= tests/release/test_batch_correction_regression.py::test_batch_correction_provenance_bytes_match_pinned_regression --junitxml build/reports/exact-provenance-bytes-windows-py3.11.15.xml
-      - name: Retain exact provenance-byte JUnit evidence
+      - name: Retain provenance policy evidence
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: exact-provenance-bytes-windows-py3.11.15
-          path: build/reports/exact-provenance-bytes-windows-py3.11.15.xml
+          path: build/reports/
 
   benchmark-smoke:
     needs: repo-hygiene
@@ -591,16 +622,36 @@ jobs:
         run: |
           set -euo pipefail
           make architecture-release-source-check 2>&1 | tee "build/reports/architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}.log"
-      - name: Record L6 prediction numerical portability evidence
+      - name: Record L6 prediction fresh-process evidence 1
         shell: bash
         env:
           PHOSPY_L6_PREDICTION_LANE: architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}
-          PHOSPY_L6_PREDICTION_EVIDENCE_PATH: build/reports/l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.json
+          PHOSPY_L6_PREDICTION_EVIDENCE_PATH: build/reports/l6-prediction-portability-process-1-${{ runner.os }}-py${{ matrix.python-version }}.json
         run: |
           set -euo pipefail
           python -m pytest -o addopts= \
             tests/parity/test_l6_prediction_parity.py::test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces \
-            --junitxml "build/reports/l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.xml"
+            tests/parity/test_l6_prediction_parity.py::test_l6_downstream_decisions_match_promoted_reference_exactly \
+            --junitxml "build/reports/l6-prediction-portability-process-1-${{ runner.os }}-py${{ matrix.python-version }}.xml"
+      - name: Record L6 prediction fresh-process evidence 2
+        shell: bash
+        env:
+          PHOSPY_L6_PREDICTION_LANE: architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}
+          PHOSPY_L6_PREDICTION_EVIDENCE_PATH: build/reports/l6-prediction-portability-process-2-${{ runner.os }}-py${{ matrix.python-version }}.json
+        run: |
+          set -euo pipefail
+          python -m pytest -o addopts= \
+            tests/parity/test_l6_prediction_parity.py::test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces \
+            tests/parity/test_l6_prediction_parity.py::test_l6_downstream_decisions_match_promoted_reference_exactly \
+            --junitxml "build/reports/l6-prediction-portability-process-2-${{ runner.os }}-py${{ matrix.python-version }}.xml"
+      - name: Compare L6 fresh-process evidence exactly
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m tests.support.l6_prediction_portability_evidence compare \
+            --left "build/reports/l6-prediction-portability-process-1-${{ runner.os }}-py${{ matrix.python-version }}.json" \
+            --right "build/reports/l6-prediction-portability-process-2-${{ runner.os }}-py${{ matrix.python-version }}.json" \
+            --output "build/reports/l6-prediction-fresh-process-repeatability-${{ runner.os }}-py${{ matrix.python-version }}.json"
       - name: Retain architecture release source lane
         if: always()
         uses: actions/upload-artifact@v5
@@ -644,7 +695,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15-intel]
         python-version: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v6

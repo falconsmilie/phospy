@@ -2399,6 +2399,17 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "make test-release-gates" in release_gates
     assert "runs-on: windows-latest" in exact_provenance
     assert "OPENBLAS_CORETYPE: SkylakeX" in exact_provenance
+    assert exact_provenance.index(
+        "Inspect CPU capability before any OpenBLAS override"
+    ) < exact_provenance.index("OPENBLAS_CORETYPE: SkylakeX")
+    assert "tools/testing/provenance_capability.py" in exact_provenance
+    assert "steps.provenance-preflight.outputs.eligible == 'true'" in exact_provenance
+    assert "steps.provenance-preflight.outputs.eligible != 'true'" in exact_provenance
+    assert "portable-provenance-windows-py3.11.15.xml" in exact_provenance
+    assert (
+        "test_batch_correction_provenance_is_repeatable_within_environment"
+        in exact_provenance
+    )
     assert "conda-incubator/setup-miniconda@v4" in exact_provenance
     assert "activate-environment: exact-provenance" in exact_provenance
     assert "python-version: '3.11.15'" in exact_provenance
@@ -2435,15 +2446,25 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         in architecture_source
     )
     assert (
-        "l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.json"
+        "l6-prediction-portability-process-1-${{ runner.os }}-py"
+        "${{ matrix.python-version }}.json"
+    ) in architecture_source
+    assert (
+        "l6-prediction-portability-process-2-${{ runner.os }}-py"
+        "${{ matrix.python-version }}.json"
     ) in architecture_source
     assert (
         "test_l6_prediction_parity.py::"
         "test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces"
     ) in architecture_source
     assert (
-        "l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.xml"
+        "l6-prediction-fresh-process-repeatability-${{ runner.os }}-py"
+        "${{ matrix.python-version }}.json"
     ) in architecture_source
+    assert (
+        "test_l6_downstream_decisions_match_promoted_reference_exactly"
+        in architecture_source
+    )
     assert '-m "parity and activity_parity"' in activity_parity
     assert '-m "parity and not parity_diagnostic"' in hard_parity
     assert "continue-on-error: true" not in hard_parity
@@ -2454,6 +2475,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert _has_needs(installed, "build-distributions")
     assert "uses: actions/download-artifact@v6" in installed
     assert "python scripts/verify_installed_distributions.py" in installed
+    assert "os: [ubuntu-latest, windows-latest, macos-15-intel]" in installed
     assert "--dist-dir dist" in installed
     assert '--repo-root "$GITHUB_WORKSPACE"' in installed
     assert "--constraint constraints/ci.txt" in installed

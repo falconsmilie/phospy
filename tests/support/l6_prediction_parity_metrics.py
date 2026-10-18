@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any, Literal, cast
 
 import pandas as pd
 
@@ -62,7 +65,7 @@ def _canonicalise_kinase_column(
     return canonical
 
 
-def _with_dataset_display_index(frame: pd.DataFrame, result: object) -> pd.DataFrame:
+def _with_dataset_display_index(frame: pd.DataFrame, result: Any) -> pd.DataFrame:
     dataset = result.dataset
     site_metadata = dataset.site_metadata.reindex(frame.index)
     if "display_id" not in site_metadata.columns:
@@ -83,6 +86,8 @@ class TableParityMetrics:
     max_abs_diff: float
     mean_pearson_corr: float
     mean_spearman_corr: float
+    flattened_pearson_corr: float
+    flattened_spearman_corr: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,17 +166,17 @@ class PolicyDivergenceMetrics:
 
 def _stack_frame(frame: pd.DataFrame) -> pd.Series:
     try:
-        return frame.stack(future_stack=True)
+        return cast(pd.Series, frame.stack(future_stack=True))
     except TypeError:
         # pandas<2.1 compatibility path (no future_stack argument)
-        return frame.stack(dropna=False)
+        return cast(pd.Series, frame.stack(dropna=False))  # type: ignore[call-overload]
 
 
 def _safe_corr(
     left: pd.Series,
     right: pd.Series,
     *,
-    method: str,
+    method: Literal["pearson", "kendall", "spearman"],
 ) -> float | None:
     aligned = (
         pd.concat(
@@ -200,7 +205,7 @@ def _mean_column_correlation(
     observed: pd.DataFrame,
     expected: pd.DataFrame,
     *,
-    method: str,
+    method: Literal["pearson", "kendall", "spearman"],
 ) -> float:
     common_columns = observed.columns.intersection(expected.columns)
     common_index = observed.index.intersection(expected.index)
@@ -229,6 +234,12 @@ def _collect_table_parity_metrics(
     aligned_expected = expected.loc[shared_sites, shared_kinases].astype(float)
     absolute_delta = (aligned_observed - aligned_expected).abs()
     flattened = absolute_delta.to_numpy(dtype=float).ravel()
+    flattened_observed = pd.Series(
+        aligned_observed.to_numpy(dtype=float).ravel(), dtype=float
+    )
+    flattened_expected = pd.Series(
+        aligned_expected.to_numpy(dtype=float).ravel(), dtype=float
+    )
     return TableParityMetrics(
         observed_shape=(int(observed.shape[0]), int(observed.shape[1])),
         expected_shape=(int(expected.shape[0]), int(expected.shape[1])),
@@ -245,6 +256,12 @@ def _collect_table_parity_metrics(
             aligned_observed,
             aligned_expected,
             method="spearman",
+        ),
+        flattened_pearson_corr=(
+            _safe_corr(flattened_observed, flattened_expected, method="pearson") or 0.0
+        ),
+        flattened_spearman_corr=(
+            _safe_corr(flattened_observed, flattened_expected, method="spearman") or 0.0
         ),
     )
 
@@ -531,7 +548,7 @@ def _collect_policy_divergence_metrics(
 
 
 @lru_cache(maxsize=1)
-def _run_l6_workflow(adaptive_policy: str):
+def _run_l6_workflow(adaptive_policy: Literal["stable", "r_parity"]):
     dataset = build_rat_l6_dataset(n_sites=None)
     return KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -557,6 +574,101 @@ def _run_l6_workflow(adaptive_policy: str):
             activity_config=None,
         )
     )
+
+
+def _json_sha256(value: object) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+@lru_cache(maxsize=1)
+def collect_l6_prediction_decision_evidence() -> dict[str, Any]:
+    """Compare exact L6 decisions and published rows with maintained references."""
+
+    result = _run_l6_workflow("stable")
+    observed_matrix = _canonicalise_kinase_columns(
+        _with_dataset_display_index(result.prediction_result.pred_mat, result)
+    )
+    expected_matrix = _canonicalise_kinase_columns(
+        load_l6_prediction_reference_predmat()
+    )
+    substrate_list = result.prediction_result.substrate_list
+    if substrate_list is None:
+        raise AssertionError("expected published L6 ranked top-k rows")
+    observed_topk = _normalize_prediction_topk_frame(substrate_list)
+    expected_topk = _normalize_prediction_topk_frame(
+        load_l6_prediction_reference_top30()
+    )
+    observed_rows = [
+        [str(row.kinase), str(row.site_id), int(cast(Any, row.rank))]
+        for row in observed_topk.itertuples(index=False)
+    ]
+    expected_rows = [
+        [str(row.kinase), str(row.site_id), int(cast(Any, row.rank))]
+        for row in expected_topk.itertuples(index=False)
+    ]
+    observed_membership = sorted((row[0], row[1]) for row in observed_rows)
+    expected_membership = sorted((row[0], row[1]) for row in expected_rows)
+    observed_rankings = _rank_prediction_matrix_surface(
+        PredictionMatrixSurface(frame=observed_matrix)
+    ).ranked_by_kinase
+    expected_rankings = _rank_prediction_matrix_surface(
+        PredictionMatrixSurface(frame=expected_matrix)
+    ).ranked_by_kinase
+    threshold = 0.5
+    observed_threshold = observed_matrix > threshold
+    expected_threshold = expected_matrix > threshold
+    threshold_changes = int(
+        cast(Any, (observed_threshold != expected_threshold).to_numpy(dtype=bool).sum())
+    )
+    critical_site = "GSK3A;S21;"
+    critical_kinase = "YANG.S6K"
+    observed_critical = float(
+        cast(Any, observed_matrix.at[critical_site, critical_kinase])
+    )
+    expected_critical = float(
+        cast(Any, expected_matrix.at[critical_site, critical_kinase])
+    )
+    return {
+        "candidate_membership": {
+            "exact": observed_membership == expected_membership,
+            "observed_sha256": _json_sha256(observed_membership),
+            "expected_sha256": _json_sha256(expected_membership),
+        },
+        "selected_site_order": {
+            "exact": observed_rows == expected_rows,
+            "observed_sha256": _json_sha256(observed_rows),
+            "expected_sha256": _json_sha256(expected_rows),
+        },
+        "prediction_matrix_ranking": {
+            "exact": observed_rankings == expected_rankings,
+            "observed_sha256": _json_sha256(observed_rankings),
+            "expected_sha256": _json_sha256(expected_rankings),
+        },
+        "threshold_0_5": {
+            "operator": "greater_than",
+            "crossing_count": threshold_changes,
+            "classifications_exact": threshold_changes == 0,
+            "yang_s6k_gsk3a_s21": {
+                "observed_hex": observed_critical.hex(),
+                "expected_hex": expected_critical.hex(),
+                "observed_passes": observed_critical > threshold,
+                "expected_passes": expected_critical > threshold,
+            },
+        },
+        "published_ranked_topk": {
+            "exact": observed_topk.equals(expected_topk),
+            "observed_sha256": _json_sha256(observed_rows),
+            "expected_sha256": _json_sha256(expected_rows),
+            "row_count": len(observed_rows),
+        },
+    }
 
 
 @lru_cache(maxsize=1)

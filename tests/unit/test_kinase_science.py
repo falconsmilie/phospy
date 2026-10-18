@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -11,6 +14,7 @@ from phospy.kinase.scoring.config import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
 )
 from phospy.kinase.scoring.profile import (
+    _fixed_order_dot_products,
     build_kinase_profiles,
     score_profile_correlations,
     score_profile_correlations_leave_one_out_with_diagnostics,
@@ -278,6 +282,33 @@ def test_profile_correlation_scores_use_shifted_unit_transform() -> None:
     assert scores.at["SITE_NEG", "KINASE_NEG"] == pytest.approx(0.0)
 
 
+def test_profile_correlation_dot_products_follow_sample_column_order() -> None:
+    left_centered = np.asarray(
+        [
+            [1.0e16, -1.0e16, 1.0, 2.0],
+            [3.0, -2.0, 5.0, -6.0],
+        ],
+        dtype=float,
+    )
+    right_centered = np.asarray(
+        [
+            [1.0, 1.0, 1.0, 1.0],
+            [-4.0, 3.0, 2.0, -1.0],
+        ],
+        dtype=float,
+    )
+    expected = np.zeros((2, 2), dtype=float)
+    for sample_position in range(left_centered.shape[1]):
+        expected += np.multiply.outer(
+            left_centered[:, sample_position],
+            right_centered[:, sample_position],
+        )
+
+    observed = _fixed_order_dot_products(left_centered, right_centered)
+
+    np.testing.assert_array_equal(observed, expected)
+
+
 def test_profile_correlation_single_sample_returns_missing_support() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [1.0, 2.0]},
@@ -347,8 +378,8 @@ def test_profile_correlation_near_constant_profiles_remain_finite() -> None:
         profile_matrix=profile_matrix,
     )
 
-    match_score = float(scores.at["SITE_NEAR_CONST", "KINASE_MATCH"])
-    anti_score = float(scores.at["SITE_NEAR_CONST", "KINASE_ANTI"])
+    match_score = float(cast(Any, scores.at["SITE_NEAR_CONST", "KINASE_MATCH"]))
+    anti_score = float(cast(Any, scores.at["SITE_NEAR_CONST", "KINASE_ANTI"]))
     assert pd.notna(match_score)
     assert pd.notna(anti_score)
     assert 0.999 <= match_score <= 1.0
