@@ -1,0 +1,107 @@
+name: Wave 10 existing diagnostic evidence inspection
+
+on:
+  push:
+    branches:
+      - diagnostics/wave10-l6-portability
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/constraints/ci.txt
+  PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/constraints/ci.txt
+
+jobs:
+  inspect-existing-run:
+    if: github.event.head_commit.message == 'test: inspect existing Wave 10 diagnostic evidence'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned inspection environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Download existing run 39127639255 artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: wave10-*
+          path: build/wave10-existing-evidence
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '39127639255'
+      - name: Verify manifests and emit bounded public notices
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence=build/wave10-existing-evidence
+          summary=build/wave10-redacted-summary
+          mkdir -p "$summary/cross-lane-comparisons"
+
+          ubuntu="$evidence/wave10-l6-portability-ubuntu-x86_64-python312"
+          mac311="$evidence/wave10-l6-portability-macos15-intel-python311"
+          mac312="$evidence/wave10-l6-portability-macos15-intel-python312"
+          windows="$evidence/wave10-windows-hosted-hardware-preflight"
+
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect \
+            --root "$ubuntu" --label ubuntu-x86_64-python312 \
+            > "$summary/ubuntu-x86_64-python312.md"
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
+            --root "$ubuntu" --label ubuntu-x86_64-python312
+
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect \
+            --root "$mac311" --label macos15-intel-python311 \
+            > "$summary/macos15-intel-python311.md"
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
+            --root "$mac311" --label macos15-intel-python311
+
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect \
+            --root "$mac312" --label macos15-intel-python312 \
+            > "$summary/macos15-intel-python312.md"
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
+            --root "$mac312" --label macos15-intel-python312
+
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect \
+            --root "$windows" --label windows-hosted-hardware-preflight \
+            > "$summary/windows-hosted-hardware-preflight.md"
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
+            --root "$windows" --label windows-hosted-hardware-preflight
+
+          python -m tools.diagnostics.capture_wave10_l6_portability bounded-compare \
+            --left "$ubuntu/process-1" --right "$mac311/process-1" \
+            --output "$summary/cross-lane-comparisons/ubuntu312-vs-macos311.json" \
+            --label ubuntu312-vs-macos311
+          python -m tools.diagnostics.capture_wave10_l6_portability bounded-compare \
+            --left "$ubuntu/process-1" --right "$mac312/process-1" \
+            --output "$summary/cross-lane-comparisons/ubuntu312-vs-macos312.json" \
+            --label ubuntu312-vs-macos312
+          python -m tools.diagnostics.capture_wave10_l6_portability bounded-compare \
+            --left "$mac311/process-1" --right "$mac312/process-1" \
+            --output "$summary/cross-lane-comparisons/macos311-vs-macos312.json" \
+            --label macos311-vs-macos312
+
+          python -m tools.diagnostics.capture_wave10_l6_portability redacted-manifest \
+            --root "$summary"
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect \
+            --root "$summary" --label compact-redacted-summary \
+            >> "$GITHUB_STEP_SUMMARY"
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
+            --root "$summary" --label compact-redacted-summary
+      - name: Upload compact redacted summary
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: wave10-redacted-inspection-run-39127639255
+          path: build/wave10-redacted-summary
+          if-no-files-found: error
+          retention-days: 30

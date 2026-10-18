@@ -10,10 +10,13 @@ import pandas as pd
 from tools.diagnostics.capture_wave10_l6_portability import (
     _align_prediction_matrices,
     _checkpoint_differences,
+    _public_environment,
+    _ranking_differences,
     array_payload,
     matrix_metrics,
     verify_manifest,
     write_manifest,
+    write_redacted_manifest,
 )
 
 
@@ -88,3 +91,107 @@ def test_manifest_verification_rejects_changed_file(tmp_path: Path) -> None:
 
     with np.testing.assert_raises(AssertionError):
         verify_manifest(tmp_path)
+
+
+def test_public_environment_excludes_runner_and_private_paths() -> None:
+    environment = {
+        "source": {
+            "commit": "a" * 40,
+            "tree": "b" * 40,
+            "parents": ["c" * 40],
+            "branch": "diagnostics/wave10-l6-portability",
+            "github": {
+                "github_repository": "owner/repo",
+                "github_run_id": "123",
+                "runner_name": "private-runner-name",
+            },
+        },
+        "operating_system": {
+            "system": "Linux",
+            "release": "6",
+            "version": "version",
+            "platform": "Linux-6-x86_64",
+            "architecture": "x86_64",
+            "processor": "processor identifier",
+        },
+        "python": {
+            "version": "3.12.0",
+            "implementation": "CPython",
+            "full_version": "private build details",
+            "executable": "/private/path/python",
+        },
+        "dependencies": {"numpy": "2.0.0"},
+        "threadpools": [
+            {
+                "internal_api": "openblas",
+                "user_api": "blas",
+                "prefix": "libopenblas",
+                "version": "0.3.0",
+                "architecture": "Haswell",
+                "threading_layer": "pthreads",
+                "num_threads": 2,
+                "filepath": "/private/path/libopenblas.so",
+            }
+        ],
+        "numpy_runtime": {
+            "cpu_features": {"AVX": True, "AVX512_SKX": False, "SSE": True}
+        },
+    }
+
+    public = _public_environment(environment)
+    serialized = json.dumps(public, sort_keys=True)
+
+    assert "private" not in serialized
+    assert "runner_name" not in serialized
+    assert "filepath" not in serialized
+    assert "SSE" not in serialized
+    assert public["numpy_cpu_features"] == {
+        "AVX": True,
+        "AVX2": False,
+        "AVX512F": False,
+        "AVX512CD": False,
+        "AVX512_SKX": False,
+        "FMA3": False,
+    }
+
+
+def test_ranking_differences_reports_membership_and_order() -> None:
+    left = {
+        "candidate_tie_widths": ["0x0.0p+0"],
+        "by_kinase": {
+            "K": {
+                "top_1": ["a"],
+                "top_5": ["a", "b"],
+                "top_10": ["a", "b"],
+                "tie_groups": {},
+            }
+        },
+    }
+    right = {
+        "candidate_tie_widths": ["0x0.0p+0"],
+        "by_kinase": {
+            "K": {
+                "top_1": ["b"],
+                "top_5": ["b", "a"],
+                "top_10": ["b", "a"],
+                "tie_groups": {},
+            }
+        },
+    }
+
+    result = _ranking_differences(left, right)
+
+    assert result["top_order_or_membership_change_count"] == 3
+    changes = cast(list[dict[str, object]], result["top_order_or_membership_changes"])
+    assert changes[0]["membership_equal"] is False
+    assert changes[1]["membership_equal"] is True
+
+
+def test_redacted_manifest_uses_self_excluding_policy(tmp_path: Path) -> None:
+    (tmp_path / "summary.md").write_text("summary\n", encoding="utf-8", newline="\n")
+
+    write_redacted_manifest(tmp_path)
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest["manifest_policy"].startswith("self-excluding")
+    assert verify_manifest(tmp_path) == manifest["files"]

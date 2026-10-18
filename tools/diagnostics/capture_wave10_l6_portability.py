@@ -103,6 +103,59 @@ def _source_identity() -> dict[str, object]:
     }
 
 
+def _public_source(source: Mapping[str, object]) -> dict[str, object]:
+    github = cast(Mapping[str, object], source.get("github", {}))
+    return {key: source.get(key) for key in ("commit", "tree", "parents", "branch")} | {
+        "github": {
+            key: github.get(key)
+            for key in (
+                "github_repository",
+                "github_run_id",
+                "github_run_attempt",
+                "github_job",
+                "github_workflow",
+                "github_ref",
+            )
+        }
+    }
+
+
+def _public_environment(environment: Mapping[str, object]) -> dict[str, object]:
+    operating_system = cast(Mapping[str, object], environment["operating_system"])
+    python = cast(Mapping[str, object], environment["python"])
+    numpy_runtime = cast(Mapping[str, object], environment["numpy_runtime"])
+    cpu_features = cast(Mapping[str, object], numpy_runtime["cpu_features"])
+    threadpools = cast(list[Mapping[str, object]], environment["threadpools"])
+    return {
+        "source": _public_source(cast(Mapping[str, object], environment["source"])),
+        "operating_system": {
+            key: operating_system.get(key)
+            for key in ("system", "release", "version", "platform", "architecture")
+        },
+        "python": {key: python.get(key) for key in ("version", "implementation")},
+        "dependencies": environment["dependencies"],
+        "threadpools": [
+            {
+                key: pool.get(key)
+                for key in (
+                    "internal_api",
+                    "user_api",
+                    "prefix",
+                    "version",
+                    "architecture",
+                    "threading_layer",
+                    "num_threads",
+                )
+            }
+            for pool in threadpools
+        ],
+        "numpy_cpu_features": {
+            key: bool(cpu_features.get(key, False))
+            for key in ("AVX", "AVX2", "AVX512F", "AVX512CD", "AVX512_SKX", "FMA3")
+        },
+    }
+
+
 def _numpy_runtime() -> dict[str, object]:
     config: object
     try:
@@ -1150,6 +1203,71 @@ def _prefix_checkpoint_differences(
     }
 
 
+def _ranking_differences(
+    left: Mapping[str, object], right: Mapping[str, object]
+) -> dict[str, object]:
+    left_by_kinase = cast(Mapping[str, Mapping[str, object]], left["by_kinase"])
+    right_by_kinase = cast(Mapping[str, Mapping[str, object]], right["by_kinase"])
+    changes: list[dict[str, object]] = []
+    tie_changes: list[str] = []
+    for kinase in sorted(set(left_by_kinase) | set(right_by_kinase)):
+        left_ranking = left_by_kinase.get(kinase, {})
+        right_ranking = right_by_kinase.get(kinase, {})
+        for width in ("top_1", "top_5", "top_10"):
+            left_order = list(cast(Sequence[str], left_ranking.get(width, ())))
+            right_order = list(cast(Sequence[str], right_ranking.get(width, ())))
+            if left_order != right_order:
+                changes.append(
+                    {
+                        "kinase": kinase,
+                        "width": width,
+                        "left_order": left_order,
+                        "right_order": right_order,
+                        "membership_equal": set(left_order) == set(right_order),
+                    }
+                )
+        if left_ranking.get("tie_groups") != right_ranking.get("tie_groups"):
+            tie_changes.append(kinase)
+    return {
+        "candidate_tie_widths": left.get("candidate_tie_widths"),
+        "top_order_or_membership_change_count": len(changes),
+        "top_order_or_membership_changes": changes,
+        "tie_group_changed_kinases": tie_changes,
+    }
+
+
+def _downstream_comparison(
+    left_summary: Mapping[str, object], right_summary: Mapping[str, object]
+) -> dict[str, object]:
+    left_downstream = cast(Mapping[str, object], left_summary["downstream"])
+    right_downstream = cast(Mapping[str, object], right_summary["downstream"])
+    section_names = (
+        "candidate_inclusion_exclusion",
+        "kinase_assignment",
+        "selected_site_differences",
+        "mask_and_attrition",
+        "published_workflow_outputs",
+        "provenance_and_diagnostics",
+    )
+    return {
+        "sections": {
+            name: {
+                "equal": left_downstream[name] == right_downstream[name],
+                "left_sha256": _sha256_bytes(_json_bytes(left_downstream[name])),
+                "right_sha256": _sha256_bytes(_json_bytes(right_downstream[name])),
+            }
+            for name in section_names
+        },
+        "rankings": _ranking_differences(
+            cast(Mapping[str, object], left_summary["rankings"])["observed"],  # type: ignore[arg-type]
+            cast(Mapping[str, object], right_summary["rankings"])["observed"],  # type: ignore[arg-type]
+        ),
+        "threshold_crossings_equal": (
+            left_summary["threshold_crossings"] == right_summary["threshold_crossings"]
+        ),
+    }
+
+
 def compare(left: Path, right: Path, output: Path, label: str) -> None:
     left_summary = left / "summary.json"
     right_summary = right / "summary.json"
@@ -1213,6 +1331,14 @@ def compare(left: Path, right: Path, output: Path, label: str) -> None:
         "detailed_checkpoints": detailed_checkpoints,
         "first_numerical_divergence": first_divergence,
         "observed_matrix_comparison": matrix_comparison,
+        "downstream_comparison": (
+            _downstream_comparison(
+                cast(Mapping[str, object], left_summary_payload),
+                cast(Mapping[str, object], right_summary_payload),
+            )
+            if left_summary_payload is not None and right_summary_payload is not None
+            else None
+        ),
         "downstream_sha256": {
             "left": (
                 _sha256_bytes(
@@ -1258,6 +1384,33 @@ def write_manifest(root: Path) -> None:
             "schema": SCHEMA,
             "metadata": {"encoding": "UTF-8", "line_endings": "LF"},
             "source": _source_identity(),
+            "manifest_policy": "self-excluding; manifest.json is not listed or hashed",
+            "files": files,
+        },
+    )
+
+
+def write_redacted_manifest(root: Path) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    manifest_path = root / "manifest.json"
+    files: list[dict[str, object]] = []
+    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        if path.resolve() == manifest_path.resolve():
+            continue
+        content = path.read_bytes()
+        files.append(
+            {
+                "path": path.relative_to(root).as_posix(),
+                "size_bytes": len(content),
+                "sha256": _sha256_bytes(content),
+            }
+        )
+    _write_json(
+        manifest_path,
+        {
+            "schema": SCHEMA,
+            "metadata": {"encoding": "UTF-8", "line_endings": "LF"},
+            "source": _public_source(_source_identity()),
             "manifest_policy": "self-excluding; manifest.json is not listed or hashed",
             "files": files,
         },
@@ -1334,32 +1487,51 @@ def _decision_difference_counts(summary: Mapping[str, object]) -> dict[str, int]
     }
 
 
+def _changed_memberships(value: object) -> dict[str, object]:
+    memberships = cast(Mapping[str, Mapping[str, object]], value)
+    return {
+        kinase: dict(item)
+        for kinase, item in memberships.items()
+        if item["included_only_observed"]
+        or item["excluded_from_observed"]
+        or not item["ordering_equal"]
+    }
+
+
+def _promoted_reference_effects(summary: Mapping[str, object]) -> dict[str, object]:
+    downstream = cast(Mapping[str, object], summary["downstream"])
+    rankings = cast(Mapping[str, object], summary["rankings"])
+    assignment = cast(Mapping[str, object], downstream["kinase_assignment"])
+    return {
+        "rankings": _ranking_differences(
+            cast(Mapping[str, object], rankings["expected"]),
+            cast(Mapping[str, object], rankings["observed"]),
+        ),
+        "candidate_set_changes": _changed_memberships(
+            downstream["candidate_inclusion_exclusion"]
+        ),
+        "selected_site_changes": _changed_memberships(
+            downstream["selected_site_differences"]
+        ),
+        "kinase_assignment_changes": {
+            "selected_only_observed": assignment["selected_only_observed"],
+            "selected_only_expected": assignment["selected_only_expected"],
+        },
+        "threshold_crossings": summary["threshold_crossings"],
+    }
+
+
 def _environment_markdown(environment: Mapping[str, object]) -> str:
-    operating_system = cast(Mapping[str, object], environment["operating_system"])
-    python = cast(Mapping[str, object], environment["python"])
-    dependencies = cast(Mapping[str, object], environment["dependencies"])
-    threadpools = cast(list[Mapping[str, object]], environment["threadpools"])
-    blas = [
-        {
-            key: pool.get(key)
-            for key in (
-                "internal_api",
-                "user_api",
-                "prefix",
-                "version",
-                "architecture",
-                "threading_layer",
-                "num_threads",
-            )
-        }
-        for pool in threadpools
-    ]
+    public = _public_environment(environment)
+    operating_system = cast(Mapping[str, object], public["operating_system"])
+    python = cast(Mapping[str, object], public["python"])
     return (
         f"- OS: `{operating_system.get('platform')}`; architecture: "
         f"`{operating_system.get('architecture')}`\n"
-        f"- Python: `{python.get('full_version')}`\n"
-        f"- Dependencies: `{json.dumps(dependencies, sort_keys=True)}`\n"
-        f"- Threadpool/BLAS: `{json.dumps(blas, sort_keys=True)}`"
+        f"- Python: `{python.get('version')}` ({python.get('implementation')})\n"
+        f"- Dependencies: `{json.dumps(public['dependencies'], sort_keys=True)}`\n"
+        f"- Threadpool/BLAS: `{json.dumps(public['threadpools'], sort_keys=True)}`\n"
+        f"- CPU features: `{json.dumps(public['numpy_cpu_features'], sort_keys=True)}`"
     )
 
 
@@ -1424,7 +1596,6 @@ def inspection_markdown(root: Path, label: str) -> str:
                 "",
                 _environment_markdown(preflight),
                 "",
-                f"- Processor: `{json.dumps(preflight['windows_processor'], sort_keys=True)}`",
                 f"- SkylakeX capabilities: "
                 f"`{json.dumps(preflight['capabilities'], sort_keys=True)}`",
                 f"- Provenance-test disposition: "
@@ -1442,7 +1613,10 @@ def inspection_markdown(root: Path, label: str) -> str:
             metrics = cast(Mapping[str, object], observed_comparison["metrics"])
             largest = cast(
                 list[Mapping[str, object]],
-                metrics["largest_100_absolute_differences"],
+                metrics.get(
+                    "largest_100_absolute_differences",
+                    metrics.get("largest_10_absolute_differences", []),
+                ),
             )
             top_five = [
                 {
@@ -1471,6 +1645,8 @@ def inspection_markdown(root: Path, label: str) -> str:
                     f"`{json.dumps(top_five, sort_keys=True)}`",
                     f"- Downstream SHA-256: "
                     f"`{json.dumps(comparison['downstream_sha256'], sort_keys=True)}`",
+                    f"- Downstream scientific effects: "
+                    f"`{json.dumps(comparison.get('downstream_comparison'), sort_keys=True)}`",
                     "",
                 ]
             )
@@ -1487,6 +1663,191 @@ def inspection_markdown(root: Path, label: str) -> str:
         ]
     )
     return "\n".join(lines) + "\n"
+
+
+def _bounded_matrix_metrics(metrics: Mapping[str, object]) -> dict[str, object]:
+    largest = metrics.get(
+        "largest_100_absolute_differences",
+        metrics.get("largest_10_absolute_differences", []),
+    )
+    return {
+        key: value
+        for key, value in metrics.items()
+        if key
+        not in (
+            "largest_100_absolute_differences",
+            "largest_10_absolute_differences",
+        )
+    } | {"largest_10_absolute_differences": cast(list[object], largest)[:10]}
+
+
+def _bounded_first_divergence(value: object) -> object:
+    if not isinstance(value, dict):
+        return value
+    bounded = dict(value)
+    array_difference = bounded.get("first_array_difference")
+    if isinstance(array_difference, dict):
+        bounded_array = dict(array_difference)
+        largest = bounded_array.pop("largest_100_absolute_differences", None)
+        if isinstance(largest, list):
+            bounded_array["largest_10_absolute_differences"] = largest[:10]
+        bounded["first_array_difference"] = bounded_array
+    return bounded
+
+
+def _public_cross_comparison(comparison: Mapping[str, object]) -> dict[str, object]:
+    observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
+    detailed = cast(Mapping[str, object], comparison["detailed_checkpoints"])
+    return {
+        "schema": comparison["schema"],
+        "metadata": comparison["metadata"],
+        "label": comparison["label"],
+        "source": _public_source(cast(Mapping[str, object], comparison["source"])),
+        "complete": comparison["complete"],
+        "matrix_file_sha256": comparison["matrix_file_sha256"],
+        "numerical_prefix_checkpoints": comparison["numerical_prefix_checkpoints"],
+        "detailed_checkpoints": {
+            key: detailed.get(key)
+            for key in (
+                "comparable",
+                "left_count",
+                "right_count",
+                "difference_count",
+                "all_checkpoint_payloads_equal",
+            )
+        },
+        "first_numerical_divergence": _bounded_first_divergence(
+            comparison["first_numerical_divergence"]
+        ),
+        "observed_matrix_comparison": {
+            "metrics": _bounded_matrix_metrics(
+                cast(Mapping[str, object], observed["metrics"])
+            )
+        },
+        "downstream_comparison": comparison["downstream_comparison"],
+        "downstream_sha256": comparison["downstream_sha256"],
+    }
+
+
+def bounded_compare(left: Path, right: Path, output: Path, label: str) -> None:
+    compare(left, right, output, label)
+    _write_json(output, _public_cross_comparison(_load_json(output)))
+
+
+def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
+    files = verify_manifest(root)
+    annotations: list[dict[str, object]] = [
+        {
+            "kind": "artifact_manifest",
+            "label": label,
+            "verification": "passed",
+            "manifest_policy": "self-excluding",
+            "files": files,
+        }
+    ]
+    process_summaries = sorted(root.glob("process-*/summary.json"))
+    if process_summaries:
+        environment = _load_json(process_summaries[0].parent / "environment.json")
+        annotations.append(
+            {
+                "kind": "environment",
+                "label": label,
+                **_public_environment(environment),
+            }
+        )
+        for index, path in enumerate(process_summaries, start=1):
+            summary = _load_json(path)
+            metrics = cast(Mapping[str, object], summary["matrix_metrics"])
+            downstream = cast(Mapping[str, object], summary["downstream"])
+            annotations.append(
+                {
+                    "kind": "promoted_reference_comparison",
+                    "label": label,
+                    "fresh_process": index,
+                    "checkpoint_count": summary["checkpoint_count"],
+                    "matrix_metrics": _bounded_matrix_metrics(metrics),
+                    "decision_difference_counts": _decision_difference_counts(summary),
+                    "scientific_effects": _promoted_reference_effects(summary),
+                    "mask_and_attrition_sha256": _sha256_bytes(
+                        _json_bytes(downstream["mask_and_attrition"])
+                    ),
+                    "provenance_and_diagnostics_sha256": _sha256_bytes(
+                        _json_bytes(downstream["provenance_and_diagnostics"])
+                    ),
+                    "published_workflow_outputs_sha256": _sha256_bytes(
+                        _json_bytes(downstream["published_workflow_outputs"])
+                    ),
+                }
+            )
+        comparison = _load_json(root / "fresh-process-comparison.json")
+        observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
+        annotations.append(
+            {
+                "kind": "fresh_process_repeatability",
+                "label": label,
+                "first_numerical_divergence": _bounded_first_divergence(
+                    comparison["first_numerical_divergence"]
+                ),
+                "numerical_prefix_checkpoints": comparison[
+                    "numerical_prefix_checkpoints"
+                ],
+                "detailed_checkpoints": comparison["detailed_checkpoints"],
+                "matrix_metrics": _bounded_matrix_metrics(
+                    cast(Mapping[str, object], observed["metrics"])
+                ),
+                "downstream_sha256": comparison["downstream_sha256"],
+            }
+        )
+    preflight_path = root / "windows-hardware-preflight.json"
+    if preflight_path.exists():
+        preflight = _load_json(preflight_path)
+        annotations.append(
+            {
+                "kind": "windows_hardware_preflight",
+                "label": label,
+                **_public_environment(preflight),
+                "capabilities": preflight["capabilities"],
+                "provenance_test_disposition": preflight["provenance_test_disposition"],
+            }
+        )
+    for path in sorted((root / "cross-lane-comparisons").glob("*.json")):
+        comparison = _load_json(path)
+        observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
+        annotations.append(
+            {
+                "kind": "cross_lane_comparison",
+                "label": comparison["label"],
+                "first_numerical_divergence": _bounded_first_divergence(
+                    comparison["first_numerical_divergence"]
+                ),
+                "numerical_prefix_checkpoints": comparison[
+                    "numerical_prefix_checkpoints"
+                ],
+                "detailed_checkpoint_difference_count": cast(
+                    Mapping[str, object], comparison["detailed_checkpoints"]
+                )["difference_count"],
+                "matrix_metrics": _bounded_matrix_metrics(
+                    cast(Mapping[str, object], observed["metrics"])
+                ),
+                "downstream_comparison": comparison.get("downstream_comparison"),
+                "downstream_sha256": comparison["downstream_sha256"],
+            }
+        )
+    return annotations
+
+
+def emit_inspection_annotations(root: Path, label: str) -> None:
+    for record in inspection_annotations(root, label):
+        kind = str(record["kind"])
+        message = json.dumps(
+            record,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::notice title=Wave10 {label} {kind}::{escaped}")
 
 
 def windows_preflight(output: Path) -> None:
@@ -1541,11 +1902,21 @@ def _parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--right", type=Path, required=True)
     compare_parser.add_argument("--output", type=Path, required=True)
     compare_parser.add_argument("--label", required=True)
+    bounded_compare_parser = subparsers.add_parser("bounded-compare")
+    bounded_compare_parser.add_argument("--left", type=Path, required=True)
+    bounded_compare_parser.add_argument("--right", type=Path, required=True)
+    bounded_compare_parser.add_argument("--output", type=Path, required=True)
+    bounded_compare_parser.add_argument("--label", required=True)
     manifest_parser = subparsers.add_parser("manifest")
     manifest_parser.add_argument("--root", type=Path, required=True)
+    redacted_manifest_parser = subparsers.add_parser("redacted-manifest")
+    redacted_manifest_parser.add_argument("--root", type=Path, required=True)
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--root", type=Path, required=True)
     inspect_parser.add_argument("--label", required=True)
+    annotate_parser = subparsers.add_parser("annotate")
+    annotate_parser.add_argument("--root", type=Path, required=True)
+    annotate_parser.add_argument("--label", required=True)
     runtime_parser = subparsers.add_parser("runtime")
     runtime_parser.add_argument("--output", type=Path, required=True)
     preflight_parser = subparsers.add_parser("windows-preflight")
@@ -1559,10 +1930,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         capture(args.output, args.lane, args.process)
     elif args.command == "compare":
         compare(args.left, args.right, args.output, args.label)
+    elif args.command == "bounded-compare":
+        bounded_compare(args.left, args.right, args.output, args.label)
     elif args.command == "manifest":
         write_manifest(args.root)
+    elif args.command == "redacted-manifest":
+        write_redacted_manifest(args.root)
     elif args.command == "inspect":
         sys.stdout.write(inspection_markdown(args.root, args.label))
+    elif args.command == "annotate":
+        emit_inspection_annotations(args.root, args.label)
     elif args.command == "runtime":
         _write_json(args.output, runtime_identity())
     elif args.command == "windows-preflight":
