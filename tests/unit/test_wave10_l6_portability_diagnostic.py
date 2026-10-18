@@ -12,6 +12,7 @@ from tools.diagnostics.capture_wave10_l6_portability import (
     _checkpoint_differences,
     _public_environment,
     _ranking_differences,
+    _sequence_difference,
     array_payload,
     matrix_metrics,
     verify_manifest,
@@ -206,6 +207,22 @@ def test_ranking_differences_reports_membership_and_order() -> None:
     changes = cast(list[dict[str, object]], result["top_order_or_membership_changes"])
     assert changes[0]["membership_equal"] is False
     assert changes[1]["membership_equal"] is True
+
+
+def test_sequence_difference_supports_structured_assignments() -> None:
+    left = [{"kinase": "A", "score": 1.0}, {"kinase": "B", "score": 0.5}]
+    right = [{"kinase": "B", "score": 0.5}, {"kinase": "A", "score": 1.0}]
+
+    result = _sequence_difference(left, right)
+
+    assert result["ordering_equal"] is False
+    assert result["included_only_right"] == []
+    assert result["excluded_from_right"] == []
+    assert result["first_order_difference"] == {
+        "position": 0,
+        "left": left[0],
+        "right": right[0],
+    }
 
 
 def test_redacted_manifest_uses_self_excluding_policy(tmp_path: Path) -> None:

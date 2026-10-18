@@ -1255,6 +1255,56 @@ def _ranking_differences(
     }
 
 
+def _sequence_difference(
+    left: Sequence[object], right: Sequence[object]
+) -> dict[str, object]:
+    first_mismatch: dict[str, object] | None = None
+    for position, (left_id, right_id) in enumerate(zip(left, right, strict=False)):
+        if left_id != right_id:
+            first_mismatch = {
+                "position": position,
+                "left": left_id,
+                "right": right_id,
+            }
+            break
+    if first_mismatch is None and len(left) != len(right):
+        position = min(len(left), len(right))
+        first_mismatch = {
+            "position": position,
+            "left": list(left[position : position + 1]),
+            "right": list(right[position : position + 1]),
+        }
+    left_keys = {_json_bytes(item).decode("utf-8").strip(): item for item in left}
+    right_keys = {_json_bytes(item).decode("utf-8").strip(): item for item in right}
+    return {
+        "ordering_equal": list(left) == list(right),
+        "included_only_right": [
+            right_keys[key] for key in sorted(set(right_keys) - set(left_keys))
+        ],
+        "excluded_from_right": [
+            left_keys[key] for key in sorted(set(left_keys) - set(right_keys))
+        ],
+        "first_order_difference": first_mismatch,
+    }
+
+
+def _cross_membership_changes(left: object, right: object) -> dict[str, object]:
+    left_items = cast(Mapping[str, Mapping[str, object]], left)
+    right_items = cast(Mapping[str, Mapping[str, object]], right)
+    changes: dict[str, object] = {}
+    for kinase in sorted(set(left_items) | set(right_items)):
+        left_order = cast(
+            list[str], left_items.get(kinase, {}).get("observed_order", [])
+        )
+        right_order = cast(
+            list[str], right_items.get(kinase, {}).get("observed_order", [])
+        )
+        difference = _sequence_difference(left_order, right_order)
+        if not difference["ordering_equal"]:
+            changes[kinase] = difference
+    return changes
+
+
 def _downstream_comparison(
     left_summary: Mapping[str, object], right_summary: Mapping[str, object]
 ) -> dict[str, object]:
@@ -1268,6 +1318,16 @@ def _downstream_comparison(
         "published_workflow_outputs",
         "provenance_and_diagnostics",
     )
+    candidate_changes = _cross_membership_changes(
+        left_downstream["candidate_inclusion_exclusion"],
+        right_downstream["candidate_inclusion_exclusion"],
+    )
+    selected_site_changes = _cross_membership_changes(
+        left_downstream["selected_site_differences"],
+        right_downstream["selected_site_differences"],
+    )
+    left_assignment = cast(Mapping[str, object], left_downstream["kinase_assignment"])
+    right_assignment = cast(Mapping[str, object], right_downstream["kinase_assignment"])
     return {
         "sections": {
             name: {
@@ -1284,6 +1344,18 @@ def _downstream_comparison(
         "threshold_crossings_equal": (
             left_summary["threshold_crossings"] == right_summary["threshold_crossings"]
         ),
+        "scientific_effects": {
+            "candidate_changes": candidate_changes,
+            "selected_site_changes": selected_site_changes,
+            "kinase_ranking": _sequence_difference(
+                cast(list[object], left_assignment["ranking"]),
+                cast(list[object], right_assignment["ranking"]),
+            ),
+            "selected_kinases": _sequence_difference(
+                cast(list[str], left_assignment["selected"]),
+                cast(list[str], right_assignment["selected"]),
+            ),
+        },
     }
 
 
@@ -2026,6 +2098,15 @@ def inspection_annotations(
         )
         sections = cast(Mapping[str, object], downstream_comparison["sections"])
         rankings = cast(Mapping[str, object], downstream_comparison["rankings"])
+        scientific_effects = cast(
+            Mapping[str, object], downstream_comparison["scientific_effects"]
+        )
+        candidate_changes = cast(
+            Mapping[str, object], scientific_effects["candidate_changes"]
+        )
+        selected_site_changes = cast(
+            Mapping[str, object], scientific_effects["selected_site_changes"]
+        )
         metric_base = {"label": cross_label}
         effect_base = {
             "annotation_group": effect_group,
@@ -2049,6 +2130,10 @@ def inspection_annotations(
                     "top_order_or_membership_change_count"
                 ],
                 "tie_group_changed_kinases": rankings["tie_group_changed_kinases"],
+                "candidate_changed_kinase_count": len(candidate_changes),
+                "selected_site_changed_kinase_count": len(selected_site_changes),
+                "kinase_ranking": scientific_effects["kinase_ranking"],
+                "selected_kinases": scientific_effects["selected_kinases"],
             }
         )
         section_names = sorted(sections)
@@ -2072,6 +2157,20 @@ def inspection_annotations(
                     "changes": ranking_changes[offset : offset + 10],
                 }
             )
+        for kind, values in (
+            ("cross_lane_candidate_changes", candidate_changes),
+            ("cross_lane_selected_site_changes", selected_site_changes),
+        ):
+            names = sorted(values)
+            for offset in range(0, len(names), 6):
+                chunk = names[offset : offset + 6]
+                annotations.append(
+                    {
+                        **effect_base,
+                        "kind": kind,
+                        "kinases": {name: values[name] for name in chunk},
+                    }
+                )
         checkpoint_base = {
             "label": cross_label,
             "numerical_prefix_checkpoints": comparison["numerical_prefix_checkpoints"],
