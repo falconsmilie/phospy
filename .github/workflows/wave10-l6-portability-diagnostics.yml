@@ -1,6 +1,9 @@
 name: Wave 10 L6 portability diagnostics
 
 on:
+  push:
+    branches:
+      - diagnostics/wave10-l6-portability
   workflow_dispatch:
 
 permissions:
