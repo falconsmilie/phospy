@@ -1937,10 +1937,20 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
             )
         comparison = _load_json(root / "fresh-process-comparison.json")
         observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
+        detailed = cast(Mapping[str, object], comparison["detailed_checkpoints"])
         repeat_base = {
             "label": label,
             "numerical_prefix_checkpoints": comparison["numerical_prefix_checkpoints"],
-            "detailed_checkpoints": comparison["detailed_checkpoints"],
+            "detailed_checkpoints": {
+                key: detailed.get(key)
+                for key in (
+                    "comparable",
+                    "left_count",
+                    "right_count",
+                    "difference_count",
+                    "all_checkpoint_payloads_equal",
+                )
+            },
             "downstream_sha256": comparison["downstream_sha256"],
         }
         annotations.extend(
