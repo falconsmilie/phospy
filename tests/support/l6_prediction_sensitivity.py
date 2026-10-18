@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -203,9 +204,31 @@ def _surface_metrics(
     reference: pd.DataFrame,
     observed: pd.DataFrame,
 ) -> dict[str, float | bool]:
-    delta = (observed - reference).abs().to_numpy(dtype=float)
-    reference_values = reference.to_numpy(dtype=float).ravel()
-    observed_values = observed.to_numpy(dtype=float).ravel()
+    reference_values = [
+        float(value) for value in reference.to_numpy(dtype=float).ravel()
+    ]
+    observed_values = [float(value) for value in observed.to_numpy(dtype=float).ravel()]
+    delta = [
+        abs(observed_value - reference_value)
+        for reference_value, observed_value in zip(
+            reference_values, observed_values, strict=True
+        )
+    ]
+    reference_mean = math.fsum(reference_values) / len(reference_values)
+    observed_mean = math.fsum(observed_values) / len(observed_values)
+    covariance = math.fsum(
+        (reference_value - reference_mean) * (observed_value - observed_mean)
+        for reference_value, observed_value in zip(
+            reference_values, observed_values, strict=True
+        )
+    )
+    reference_variance = math.fsum(
+        (value - reference_mean) ** 2 for value in reference_values
+    )
+    observed_variance = math.fsum(
+        (value - observed_mean) ** 2 for value in observed_values
+    )
+    pearson_correlation = covariance / math.sqrt(reference_variance * observed_variance)
     return {
         "selected_sites_unchanged": True,
         "ranking_unchanged": _ranking_rows(observed) == _ranking_rows(reference),
@@ -215,11 +238,9 @@ def _surface_metrics(
                 np.isfinite(reference.to_numpy(dtype=float)),
             )
         ),
-        "mean_absolute_difference": float(delta.mean()),
-        "maximum_absolute_difference": float(delta.max()),
-        "pearson_correlation": float(
-            np.corrcoef(reference_values, observed_values)[0, 1]
-        ),
+        "mean_absolute_difference": math.fsum(delta) / len(delta),
+        "maximum_absolute_difference": max(delta),
+        "pearson_correlation": pearson_correlation,
     }
 
 

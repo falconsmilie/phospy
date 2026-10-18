@@ -257,7 +257,7 @@ tests/unit/test_kinase_workflow_components.py,unit,2120,47,true,true,public API 
 tests/unit/test_kinase_workflow_diagnostics.py,unit,952,16,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow diagnostics and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_kinase_workflow_lifecycle_edges.py,unit,171,4,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_l6_prediction_portability_evidence.py,unit,102,2,false,false,,,,,,
-tests/unit/test_l6_prediction_sensitivity.py,unit,135,4,false,false,,,,,,
+tests/unit/test_l6_prediction_sensitivity.py,unit,167,5,false,false,,,,,,
 tests/unit/test_localisation_policy_preprocessing.py,unit,187,6,true,true,,,,,,
 tests/unit/test_log2_transformer.py,unit,206,7,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_maintainer_scripts_smoke.py,unit,344,9,true,true,provenance/golden contract,keep,"Active maintainer scripts for parity fixtures, provenance goldens, and public workflow references must remain import-safe and path-stable without generation side effects on import.",codex-audit,TST-SCRIPTS-001,"Smoke coverage for protected release-maintainer scripts under scripts/active, scripts/support, and scripts/run_pyright.py."

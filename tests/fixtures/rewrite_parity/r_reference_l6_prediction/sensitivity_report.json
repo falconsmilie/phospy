@@ -21,7 +21,7 @@
       "finite_mask_unchanged": true,
       "maximum_absolute_difference": 7.591020162456275e-07,
       "mean_absolute_difference": 9.546651779483461e-11,
-      "pearson_correlation": 0.9999999999999998,
+      "pearson_correlation": 0.9999999999999993,
       "ranking_unchanged": true,
       "selected_sites_unchanged": true
     }

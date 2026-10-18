@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -63,6 +65,36 @@ def test_l6_sensitivity_budget_is_reference_only_deterministic_and_current(
         == hashlib.sha256(REFERENCE_MATRIX_PATH.read_bytes()).hexdigest()
     )
     assert "not inputs" in first["derivation_independence"]
+
+
+def test_l6_sensitivity_report_is_byte_stable_across_processes() -> None:
+    command = [
+        sys.executable,
+        "-c",
+        (
+            "import sys; "
+            "from tests.support.l6_prediction_sensitivity import "
+            "render_l6_prediction_sensitivity_report; "
+            "sys.stdout.buffer.write("
+            "render_l6_prediction_sensitivity_report().encode('utf-8'))"
+        ),
+    ]
+
+    first = subprocess.run(
+        command,
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    second = subprocess.run(
+        command,
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+    assert first == second
+    assert first.decode("utf-8") == REPORT.read_text(encoding="utf-8")
 
 
 def test_permitted_perturbation_retains_every_protected_decision() -> None:
