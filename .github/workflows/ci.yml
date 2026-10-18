@@ -182,7 +182,7 @@ jobs:
 
   exact-provenance-bytes:
     needs: repo-hygiene
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
         with:
@@ -203,19 +203,19 @@ jobs:
           python -c "import importlib.metadata as md, platform;
           expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'};
           actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}};
-          assert platform.system() == 'Linux', platform.platform();
+          assert platform.system() == 'Windows', platform.platform();
           assert actual == expected, (expected, actual)"
       - name: Run exact provenance-byte regression
         run: >-
           python -m pytest -o addopts=
           tests/release/test_batch_correction_regression.py::test_batch_correction_provenance_bytes_match_pinned_regression
-          --junitxml build/reports/exact-provenance-bytes-linux-py3.11.15.xml
+          --junitxml build/reports/exact-provenance-bytes-windows-py3.11.15.xml
       - name: Retain exact provenance-byte JUnit evidence
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: exact-provenance-bytes-linux-py3.11.15
-          path: build/reports/exact-provenance-bytes-linux-py3.11.15.xml
+          name: exact-provenance-bytes-windows-py3.11.15
+          path: build/reports/exact-provenance-bytes-windows-py3.11.15.xml
 
   benchmark-smoke:
     needs: repo-hygiene

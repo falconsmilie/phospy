@@ -2397,10 +2397,10 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         in fixture_integrity
     )
     assert "make test-release-gates" in release_gates
-    assert "runs-on: ubuntu-latest" in exact_provenance
+    assert "runs-on: windows-latest" in exact_provenance
     assert "python-version: '3.11.15'" in exact_provenance
     assert "constraints/ci.txt" in exact_provenance
-    assert "platform.system() == 'Linux'" in exact_provenance
+    assert "platform.system() == 'Windows'" in exact_provenance
     for name, version in (
         ("numpy", "2.2.6"),
         ("pandas", "2.2.3"),
@@ -2412,8 +2412,8 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         "test_batch_correction_regression.py::"
         "test_batch_correction_provenance_bytes_match_pinned_regression"
     ) in exact_provenance
-    assert "exact-provenance-bytes-linux-py3.11.15.xml" in exact_provenance
-    assert "name: exact-provenance-bytes-linux-py3.11.15" in exact_provenance
+    assert "exact-provenance-bytes-windows-py3.11.15.xml" in exact_provenance
+    assert "name: exact-provenance-bytes-windows-py3.11.15" in exact_provenance
     assert "runs-on: ${{ matrix.os }}" in architecture_source
     assert "os: [ubuntu-latest, windows-latest, macos-latest]" in architecture_source
     _assert_supported_python_matrix(architecture_source)
