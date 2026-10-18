@@ -1866,7 +1866,9 @@ def _metric_annotation_records(
     return records
 
 
-def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
+def inspection_annotations(
+    root: Path, label: str, groups: Sequence[str] = ()
+) -> list[dict[str, object]]:
     files = verify_manifest(root)
     annotations: list[dict[str, object]] = [
         {
@@ -1984,7 +1986,17 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
                 "provenance_test_disposition": preflight["provenance_test_disposition"],
             }
         )
-    for path in sorted((root / "cross-lane-comparisons").glob("*.json")):
+    include_cross = (
+        not groups
+        or any(group.startswith("cross:") for group in groups)
+        or any(group.startswith("cross-effects:") for group in groups)
+    )
+    cross_paths = (
+        sorted((root / "cross-lane-comparisons").glob("*.json"))
+        if include_cross
+        else []
+    )
+    for path in cross_paths:
         comparison = _load_json(path)
         observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
         cross_label = str(comparison["label"])
@@ -2070,7 +2082,7 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
 
 
 def emit_inspection_annotations(root: Path, label: str, groups: Sequence[str]) -> None:
-    for record in inspection_annotations(root, label):
+    for record in inspection_annotations(root, label, groups):
         if groups and record["annotation_group"] not in groups:
             continue
         kind = str(record["kind"])
