@@ -2335,6 +2335,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     lint = _workflow_job_block(workflow, "lint")
     clean_install = _workflow_job_block(workflow, "clean-constrained-install")
     minimum = _workflow_job_block(workflow, "minimum-dependency-suite")
+    exact_provenance = _workflow_job_block(workflow, "exact-provenance-bytes")
     benchmark = _workflow_job_block(workflow, "benchmark-smoke")
     testing_audit = _workflow_job_block(workflow, "testing-audit-freshness")
     default_suite = _workflow_job_block(workflow, "default-suite")
@@ -2347,6 +2348,9 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     fixture_integrity = _workflow_job_block(workflow, "fixture-integrity")
     release_gates = _workflow_job_block(workflow, "release-gates")
     adaptive = _workflow_job_block(workflow, "adaptive-mode-standard-install")
+    architecture_source = _workflow_job_block(
+        workflow, "architecture-release-source-runtime"
+    )
     build = _workflow_job_block(workflow, "build-distributions")
     installed = _workflow_job_block(workflow, "installed-distribution-verification")
 
@@ -2393,6 +2397,38 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         in fixture_integrity
     )
     assert "make test-release-gates" in release_gates
+    assert "runs-on: ubuntu-latest" in exact_provenance
+    assert "python-version: '3.11.15'" in exact_provenance
+    assert "constraints/ci.txt" in exact_provenance
+    assert "platform.system() == 'Linux'" in exact_provenance
+    for name, version in (
+        ("numpy", "2.2.6"),
+        ("pandas", "2.2.3"),
+        ("scipy", "1.15.2"),
+        ("scikit-learn", "1.6.1"),
+    ):
+        assert f"'{name}':'{version}'" in exact_provenance
+    assert (
+        "test_batch_correction_regression.py::"
+        "test_batch_correction_provenance_bytes_match_pinned_regression"
+    ) in exact_provenance
+    assert "exact-provenance-bytes-linux-py3.11.15.xml" in exact_provenance
+    assert "name: exact-provenance-bytes-linux-py3.11.15" in exact_provenance
+    assert "runs-on: ${{ matrix.os }}" in architecture_source
+    assert "os: [ubuntu-latest, windows-latest, macos-latest]" in architecture_source
+    _assert_supported_python_matrix(architecture_source)
+    assert "PHOSPY_L6_PREDICTION_LANE:" in architecture_source
+    assert "PHOSPY_L6_PREDICTION_EVIDENCE_PATH:" in architecture_source
+    assert (
+        "l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.json"
+    ) in architecture_source
+    assert (
+        "test_l6_prediction_parity.py::"
+        "test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces"
+    ) in architecture_source
+    assert (
+        "l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.xml"
+    ) in architecture_source
     assert '-m "parity and activity_parity"' in activity_parity
     assert '-m "parity and not parity_diagnostic"' in hard_parity
     assert "continue-on-error: true" not in hard_parity

@@ -180,6 +180,43 @@ jobs:
           name: minimum-dependency-suite-py3.11
           path: build/reports/
 
+  exact-provenance-bytes:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11.15'
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Install exact provenance regression environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Verify exact provenance regression environment
+        run: >-
+          python -c "import importlib.metadata as md, platform;
+          expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'};
+          actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}};
+          assert platform.system() == 'Linux', platform.platform();
+          assert actual == expected, (expected, actual)"
+      - name: Run exact provenance-byte regression
+        run: >-
+          python -m pytest -o addopts=
+          tests/release/test_batch_correction_regression.py::test_batch_correction_provenance_bytes_match_pinned_regression
+          --junitxml build/reports/exact-provenance-bytes-linux-py3.11.15.xml
+      - name: Retain exact provenance-byte JUnit evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: exact-provenance-bytes-linux-py3.11.15
+          path: build/reports/exact-provenance-bytes-linux-py3.11.15.xml
+
   benchmark-smoke:
     needs: repo-hygiene
     runs-on: ubuntu-latest
@@ -550,6 +587,16 @@ jobs:
         run: |
           set -euo pipefail
           make architecture-release-source-check 2>&1 | tee "build/reports/architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}.log"
+      - name: Record L6 prediction numerical portability evidence
+        shell: bash
+        env:
+          PHOSPY_L6_PREDICTION_LANE: architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}
+          PHOSPY_L6_PREDICTION_EVIDENCE_PATH: build/reports/l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.json
+        run: |
+          set -euo pipefail
+          python -m pytest -o addopts= \
+            tests/parity/test_l6_prediction_parity.py::test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces \
+            --junitxml "build/reports/l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.xml"
       - name: Retain architecture release source lane
         if: always()
         uses: actions/upload-artifact@v5

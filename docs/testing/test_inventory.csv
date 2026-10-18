@@ -88,7 +88,7 @@ tests/parity/test_differential_limma_parity.py,parity,337,6,true,false,,,,,,
 tests/parity/test_differential_limma_trend_large.py,parity,305,3,true,false,,,,,,
 tests/parity/test_duplicate_correlation_limma_full_parity.py,parity,437,5,true,true,,,,,,
 tests/parity/test_kinase_workflow_parity.py,parity,389,4,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for kinase workflow parity, making release drift against accepted references unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/parity/test_l6_prediction_parity.py,parity,505,8,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for l6 prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
+tests/parity/test_l6_prediction_parity.py,parity,518,8,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for l6 prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_phosr_sps_ruv_parity.py,parity,365,6,true,true,,,,,,
 tests/parity/test_prediction_science_parity.py,parity,252,3,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for prediction science parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_preprocessing_science_parity.py,parity,565,6,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for preprocessing science parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
@@ -120,7 +120,7 @@ tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1185,44,true,true,,,,,,
 tests/release/test_release_dependency_artifact_policy.py,release,429,14,true,false,,,,,,
-tests/release/test_release_gate_policy.py,release,2408,40,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
+tests/release/test_release_gate_policy.py,release,2444,40,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,216,7,true,false,,,,,,
 tests/release/test_scientific_validation_fixtures.py,release,677,10,true,true,,,,,,
@@ -255,6 +255,7 @@ tests/unit/test_kinase_substrate_contributions.py,unit,516,6,false,false,,,,,,
 tests/unit/test_kinase_workflow_components.py,unit,2120,47,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 30 hit(s); indicators: private_member_access
 tests/unit/test_kinase_workflow_diagnostics.py,unit,952,16,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow diagnostics and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_kinase_workflow_lifecycle_edges.py,unit,171,4,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_l6_prediction_portability_evidence.py,unit,102,2,false,false,,,,,,
 tests/unit/test_localisation_policy_preprocessing.py,unit,187,6,true,true,,,,,,
 tests/unit/test_log2_transformer.py,unit,206,7,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_maintainer_scripts_smoke.py,unit,344,9,true,true,provenance/golden contract,keep,"Active maintainer scripts for parity fixtures, provenance goldens, and public workflow references must remain import-safe and path-stable without generation side effects on import.",codex-audit,TST-SCRIPTS-001,"Smoke coverage for protected release-maintainer scripts under scripts/active, scripts/support, and scripts/run_pyright.py."

@@ -69,6 +69,39 @@ Current active parity coverage includes:
   `tests/parity/test_signalome_workflow_parity.py` and
   `tests/parity/test_signalome_clustering_backend_parity.py`
 
+### L6 prediction-matrix numerical portability
+
+The promoted L6 prediction matrix is a unit-interval support-score surface used
+for ranking; it is not a calibrated probability surface. Its portable absolute
+error contract therefore uses the full score range as the scientific scale. The
+mean absolute difference must remain at or below `5e-5`, which limits average
+drift to `0.005%` of that scale. The maximum absolute difference must remain at
+or below `3e-3`, so no individual score may move by more than `0.3%` of the full
+scale. Numerically, the SVC optimization used by this lane has a `1e-3` stopping
+tolerance before probability calibration and ensemble aggregation. The
+worst-cell bound stays within a few solver-resolution units, while the mean
+bound is twenty times smaller than one such unit and therefore prevents that
+allowance from becoming diffuse matrix-wide drift. These are fixed bounds from
+the score scale and configured numerical method, not multiples of measurements
+from a particular CI run.
+
+The absolute bounds do not stand alone. Mean Pearson and Spearman correlations
+must each remain at or above `0.999999`, while the existing candidate-set,
+per-kinase ranking, top-k overlap, class, mask, attrition, provenance, and
+diagnostic assertions remain release-blocking. The absolute checks limit score
+amplitude drift; Pearson protects the prediction-surface geometry; Spearman and
+the discrete ranking/overlap assertions protect the ordering that gives these
+support scores their scientific meaning. Together they reject both diffuse
+numeric movement and a small number of materially displaced cells without
+claiming that backend-identical floating-point bytes are scientific output.
+
+CI records the actual mean and maximum absolute differences in every Linux,
+Windows, and macOS source/runtime lane on Python 3.11 and 3.12. Each lane uploads
+structured JSON and JUnit evidence containing its test node, lane, source
+commit, platform, Python runtime, and NumPy, pandas, SciPy, and scikit-learn
+versions. Observed values are portability evidence only; they do not calibrate
+or relax the fixed acceptance bounds.
+
 ## Non-Parity Support and Scope Differences
 
 Some implemented PhosPy features are not PhosR parity claims. They are

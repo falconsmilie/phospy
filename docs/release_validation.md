@@ -26,6 +26,14 @@ make architecture-release-check
 acquisition and all six operating-system/Python combinations remain required in
 hosted CI even when a local environment cannot acquire dependencies.
 
+The exact batch-correction provenance-byte regression has a separate
+authoritative hosted lane. Its existing test predicate requires Python
+`3.11.15`, NumPy `2.2.6`, pandas `2.2.3`, SciPy `1.15.2`, and scikit-learn
+`1.6.1`; the predicate itself does not impose an operating-system condition.
+CI supplies those exact versions on Linux, checks the runtime before pytest,
+and uploads a JUnit report for the exact node so a skip cannot be mistaken for
+execution in the authoritative lane.
+
 Disposable local output belongs under `build/` or another ignored path.
 Verification logs and downloadable workflow artifacts are retained by GitHub
 Actions; they are not committed to the repository. The repository hygiene gate

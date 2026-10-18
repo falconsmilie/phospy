@@ -10,6 +10,9 @@ from tests.support.l6_prediction_parity_thresholds import (
     L6_PREDICTION_MATRIX_RANKING_GATES,
     L6_RANKED_TOPK_EXPORT_RANKING_GATES,
 )
+from tests.support.l6_prediction_portability_evidence import (
+    record_l6_prediction_portability_evidence,
+)
 from tests.support.parity_reporting import (
     format_fraction,
     format_percent,
@@ -29,7 +32,8 @@ WEIGHTS_MAE_CEILING = 1e-12
 WEIGHTS_MAX_ABS_DIFF_CEILING = 1e-11
 # Supported libsvm/runtime backends can perturb calibrated probabilities while
 # preserving the promoted reference ranking surface. Bound both aggregate and
-# worst-cell drift instead of requiring backend-identical floating-point output.
+# worst-cell drift against the unit score scale and the SVC solver's 1e-3
+# stopping-tolerance order instead of requiring backend-identical floats.
 PREDICTION_MATRIX_MAE_CEILING = 5e-5
 PREDICTION_MATRIX_MAX_ABS_DIFF_CEILING = 3e-3
 PREDICTION_MATRIX_PEARSON_FLOOR = 0.999999
@@ -102,11 +106,21 @@ def test_l6_scoring_tables_parity_matches_promoted_reference_surfaces() -> None:
     assert metrics.weights.max_abs_diff <= WEIGHTS_MAX_ABS_DIFF_CEILING
 
 
-def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces() -> (
-    None
-):
+def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces(
+    request: pytest.FixtureRequest,
+) -> None:
     metrics = collect_l6_prediction_parity_metrics()
     parity = metrics.prediction_matrix
+
+    record_l6_prediction_portability_evidence(
+        test_node_id=request.node.nodeid,
+        junit_properties=request.node.user_properties,
+        parity=parity,
+        mean_abs_diff_ceiling=PREDICTION_MATRIX_MAE_CEILING,
+        max_abs_diff_ceiling=PREDICTION_MATRIX_MAX_ABS_DIFF_CEILING,
+        pearson_floor=PREDICTION_MATRIX_PEARSON_FLOOR,
+        spearman_floor=PREDICTION_MATRIX_SPEARMAN_FLOOR,
+    )
 
     assert parity.shared_site_count == parity.observed_shape[0], (
         "prediction-matrix parity regressed on promoted-reference shared site coverage"
