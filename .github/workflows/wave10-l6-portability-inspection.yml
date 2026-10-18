@@ -56,26 +56,18 @@ jobs:
           python -m tools.diagnostics.capture_wave10_l6_portability inspect \
             --root "$ubuntu" --label ubuntu-x86_64-python312 \
             > "$summary/ubuntu-x86_64-python312.md"
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
-            --root "$ubuntu" --label ubuntu-x86_64-python312
 
           python -m tools.diagnostics.capture_wave10_l6_portability inspect \
             --root "$mac311" --label macos15-intel-python311 \
             > "$summary/macos15-intel-python311.md"
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
-            --root "$mac311" --label macos15-intel-python311
 
           python -m tools.diagnostics.capture_wave10_l6_portability inspect \
             --root "$mac312" --label macos15-intel-python312 \
             > "$summary/macos15-intel-python312.md"
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
-            --root "$mac312" --label macos15-intel-python312
 
           python -m tools.diagnostics.capture_wave10_l6_portability inspect \
             --root "$windows" --label windows-hosted-hardware-preflight \
             > "$summary/windows-hosted-hardware-preflight.md"
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
-            --root "$windows" --label windows-hosted-hardware-preflight
 
           python -m tools.diagnostics.capture_wave10_l6_portability bounded-compare \
             --left "$ubuntu/process-1" --right "$mac311/process-1" \
@@ -95,8 +87,101 @@ jobs:
           python -m tools.diagnostics.capture_wave10_l6_portability inspect \
             --root "$summary" --label compact-redacted-summary \
             >> "$GITHUB_STEP_SUMMARY"
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate \
-            --root "$summary" --label compact-redacted-summary
+      - name: Publish Ubuntu identity and repeatability notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
+          --label ubuntu-x86_64-python312 --group identity --group repeatability
+      - name: Publish Ubuntu process 1 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
+          --label ubuntu-x86_64-python312 --group process-1
+      - name: Publish Ubuntu process 1 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
+          --label ubuntu-x86_64-python312 --group process-1-effects
+      - name: Publish Ubuntu process 2 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
+          --label ubuntu-x86_64-python312 --group process-2
+      - name: Publish Ubuntu process 2 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
+          --label ubuntu-x86_64-python312 --group process-2-effects
+      - name: Publish macOS Python 3.11 identity and repeatability notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
+          --label macos15-intel-python311 --group identity --group repeatability
+      - name: Publish macOS Python 3.11 process 1 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
+          --label macos15-intel-python311 --group process-1
+      - name: Publish macOS Python 3.11 process 1 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
+          --label macos15-intel-python311 --group process-1-effects
+      - name: Publish macOS Python 3.11 process 2 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
+          --label macos15-intel-python311 --group process-2
+      - name: Publish macOS Python 3.11 process 2 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
+          --label macos15-intel-python311 --group process-2-effects
+      - name: Publish macOS Python 3.12 identity and repeatability notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
+          --label macos15-intel-python312 --group identity --group repeatability
+      - name: Publish macOS Python 3.12 process 1 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
+          --label macos15-intel-python312 --group process-1
+      - name: Publish macOS Python 3.12 process 1 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
+          --label macos15-intel-python312 --group process-1-effects
+      - name: Publish macOS Python 3.12 process 2 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
+          --label macos15-intel-python312 --group process-2
+      - name: Publish macOS Python 3.12 process 2 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
+          --label macos15-intel-python312 --group process-2-effects
+      - name: Publish Windows preflight notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-existing-evidence/wave10-windows-hosted-hardware-preflight
+          --label windows-hosted-hardware-preflight --group identity --group windows
+      - name: Publish Ubuntu versus macOS Python 3.11 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-redacted-summary --label compact-redacted-summary
+          --group identity --group cross:ubuntu312-vs-macos311
+      - name: Publish Ubuntu versus macOS Python 3.12 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-redacted-summary --label compact-redacted-summary
+          --group cross:ubuntu312-vs-macos312
+      - name: Publish macOS Python 3.11 versus 3.12 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-redacted-summary --label compact-redacted-summary
+          --group cross:macos311-vs-macos312
       - name: Upload compact redacted summary
         if: always()
         uses: actions/upload-artifact@v5

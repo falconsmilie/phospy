@@ -1489,13 +1489,40 @@ def _decision_difference_counts(summary: Mapping[str, object]) -> dict[str, int]
 
 def _changed_memberships(value: object) -> dict[str, object]:
     memberships = cast(Mapping[str, Mapping[str, object]], value)
-    return {
-        kinase: dict(item)
-        for kinase, item in memberships.items()
-        if item["included_only_observed"]
-        or item["excluded_from_observed"]
-        or not item["ordering_equal"]
-    }
+    changed: dict[str, object] = {}
+    for kinase, item in memberships.items():
+        if (
+            not item["included_only_observed"]
+            and not item["excluded_from_observed"]
+            and item["ordering_equal"]
+        ):
+            continue
+        observed = cast(list[str], item["observed_order"])
+        expected = cast(list[str], item["expected_order"])
+        first_mismatch: dict[str, object] | None = None
+        for position, (observed_id, expected_id) in enumerate(
+            zip(observed, expected, strict=False)
+        ):
+            if observed_id != expected_id:
+                first_mismatch = {
+                    "position": position,
+                    "observed": observed_id,
+                    "expected": expected_id,
+                }
+                break
+        if first_mismatch is None and len(observed) != len(expected):
+            first_mismatch = {
+                "position": min(len(observed), len(expected)),
+                "observed": observed[min(len(observed), len(expected)) :][:1],
+                "expected": expected[min(len(observed), len(expected)) :][:1],
+            }
+        changed[kinase] = {
+            "included_only_observed": item["included_only_observed"],
+            "excluded_from_observed": item["excluded_from_observed"],
+            "ordering_equal": item["ordering_equal"],
+            "first_order_difference": first_mismatch,
+        }
+    return changed
 
 
 def _promoted_reference_effects(summary: Mapping[str, object]) -> dict[str, object]:
@@ -1519,6 +1546,56 @@ def _promoted_reference_effects(summary: Mapping[str, object]) -> dict[str, obje
         },
         "threshold_crossings": summary["threshold_crossings"],
     }
+
+
+def _scientific_effect_annotation_records(
+    *, group: str, label: str, fresh_process: int, summary: Mapping[str, object]
+) -> list[dict[str, object]]:
+    effects = _promoted_reference_effects(summary)
+    rankings = cast(Mapping[str, object], effects["rankings"])
+    ranking_changes = cast(list[object], rankings["top_order_or_membership_changes"])
+    candidates = cast(Mapping[str, object], effects["candidate_set_changes"])
+    selected = cast(Mapping[str, object], effects["selected_site_changes"])
+    base: dict[str, object] = {
+        "annotation_group": group,
+        "label": label,
+        "fresh_process": fresh_process,
+    }
+    records: list[dict[str, object]] = [
+        {
+            **base,
+            "kind": "promoted_reference_scientific_effects",
+            "ranking_change_count": rankings["top_order_or_membership_change_count"],
+            "tie_group_changed_kinases": rankings["tie_group_changed_kinases"],
+            "candidate_set_changed_kinase_count": len(candidates),
+            "selected_site_changed_kinase_count": len(selected),
+            "kinase_assignment_changes": effects["kinase_assignment_changes"],
+            "threshold_crossings": effects["threshold_crossings"],
+        }
+    ]
+    for offset in range(0, len(ranking_changes), 10):
+        records.append(
+            {
+                **base,
+                "kind": "promoted_reference_ranking_changes",
+                "changes": ranking_changes[offset : offset + 10],
+            }
+        )
+    for kind, values in (
+        ("promoted_reference_candidate_changes", candidates),
+        ("promoted_reference_selected_site_changes", selected),
+    ):
+        names = sorted(values)
+        for offset in range(0, len(names), 6):
+            chunk = names[offset : offset + 6]
+            records.append(
+                {
+                    **base,
+                    "kind": kind,
+                    "kinases": {name: values[name] for name in chunk},
+                }
+            )
+    return records
 
 
 def _environment_markdown(environment: Mapping[str, object]) -> str:
@@ -1734,10 +1811,66 @@ def bounded_compare(left: Path, right: Path, output: Path, label: str) -> None:
     _write_json(output, _public_cross_comparison(_load_json(output)))
 
 
+def _metric_annotation_records(
+    *,
+    group: str,
+    kind_prefix: str,
+    base: Mapping[str, object],
+    metrics: Mapping[str, object],
+) -> list[dict[str, object]]:
+    per_kinase = cast(Mapping[str, object], metrics["per_kinase"])
+    names = sorted(per_kinase)
+    largest = cast(
+        list[object],
+        metrics.get(
+            "largest_100_absolute_differences",
+            metrics.get("largest_10_absolute_differences", []),
+        ),
+    )[:10]
+    core_metrics = {
+        key: value
+        for key, value in metrics.items()
+        if key
+        not in (
+            "per_kinase",
+            "largest_100_absolute_differences",
+            "largest_10_absolute_differences",
+        )
+    }
+    records: list[dict[str, object]] = [
+        {
+            "annotation_group": group,
+            "kind": f"{kind_prefix}_metrics",
+            **base,
+            "matrix_metrics": core_metrics,
+        }
+    ]
+    for offset in range(0, len(names), 6):
+        chunk_names = names[offset : offset + 6]
+        records.append(
+            {
+                "annotation_group": group,
+                "kind": f"{kind_prefix}_per_kinase_metrics",
+                **base,
+                "kinases": {name: per_kinase[name] for name in chunk_names},
+            }
+        )
+    records.append(
+        {
+            "annotation_group": group,
+            "kind": f"{kind_prefix}_largest_cells",
+            **base,
+            "largest_10_absolute_differences": largest,
+        }
+    )
+    return records
+
+
 def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
     files = verify_manifest(root)
     annotations: list[dict[str, object]] = [
         {
+            "annotation_group": "identity",
             "kind": "artifact_manifest",
             "label": label,
             "verification": "passed",
@@ -1750,6 +1883,7 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
         environment = _load_json(process_summaries[0].parent / "environment.json")
         annotations.append(
             {
+                "annotation_group": "identity",
                 "kind": "environment",
                 "label": label,
                 **_public_environment(environment),
@@ -1759,43 +1893,72 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
             summary = _load_json(path)
             metrics = cast(Mapping[str, object], summary["matrix_metrics"])
             downstream = cast(Mapping[str, object], summary["downstream"])
-            annotations.append(
-                {
-                    "kind": "promoted_reference_comparison",
-                    "label": label,
-                    "fresh_process": index,
-                    "checkpoint_count": summary["checkpoint_count"],
-                    "matrix_metrics": _bounded_matrix_metrics(metrics),
-                    "decision_difference_counts": _decision_difference_counts(summary),
-                    "scientific_effects": _promoted_reference_effects(summary),
-                    "mask_and_attrition_sha256": _sha256_bytes(
-                        _json_bytes(downstream["mask_and_attrition"])
-                    ),
-                    "provenance_and_diagnostics_sha256": _sha256_bytes(
-                        _json_bytes(downstream["provenance_and_diagnostics"])
-                    ),
-                    "published_workflow_outputs_sha256": _sha256_bytes(
-                        _json_bytes(downstream["published_workflow_outputs"])
-                    ),
-                }
+            group = f"process-{index}"
+            base = {
+                "label": label,
+                "fresh_process": index,
+                "checkpoint_count": summary["checkpoint_count"],
+                "matrix_sha256": {
+                    name.removesuffix("-prediction-matrix.json"): _load_json(
+                        path.parent / name
+                    )["matrix_sha256"]
+                    for name in (
+                        "expected-prediction-matrix.json",
+                        "observed-prediction-matrix.json",
+                        "difference-prediction-matrix.json",
+                    )
+                },
+                "decision_difference_counts": _decision_difference_counts(summary),
+                "mask_and_attrition_sha256": _sha256_bytes(
+                    _json_bytes(downstream["mask_and_attrition"])
+                ),
+                "provenance_and_diagnostics_sha256": _sha256_bytes(
+                    _json_bytes(downstream["provenance_and_diagnostics"])
+                ),
+                "published_workflow_outputs_sha256": _sha256_bytes(
+                    _json_bytes(downstream["published_workflow_outputs"])
+                ),
+            }
+            annotations.extend(
+                _metric_annotation_records(
+                    group=group,
+                    kind_prefix="promoted_reference",
+                    base=base,
+                    metrics=metrics,
+                )
+            )
+            annotations.extend(
+                _scientific_effect_annotation_records(
+                    group=f"{group}-effects",
+                    label=label,
+                    fresh_process=index,
+                    summary=summary,
+                )
             )
         comparison = _load_json(root / "fresh-process-comparison.json")
         observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
+        repeat_base = {
+            "label": label,
+            "numerical_prefix_checkpoints": comparison["numerical_prefix_checkpoints"],
+            "detailed_checkpoints": comparison["detailed_checkpoints"],
+            "downstream_sha256": comparison["downstream_sha256"],
+        }
+        annotations.extend(
+            _metric_annotation_records(
+                group="repeatability",
+                kind_prefix="fresh_process_repeatability",
+                base=repeat_base,
+                metrics=cast(Mapping[str, object], observed["metrics"]),
+            )
+        )
         annotations.append(
             {
-                "kind": "fresh_process_repeatability",
-                "label": label,
+                "annotation_group": "repeatability",
+                "kind": "fresh_process_repeatability_first_divergence",
+                **repeat_base,
                 "first_numerical_divergence": _bounded_first_divergence(
                     comparison["first_numerical_divergence"]
                 ),
-                "numerical_prefix_checkpoints": comparison[
-                    "numerical_prefix_checkpoints"
-                ],
-                "detailed_checkpoints": comparison["detailed_checkpoints"],
-                "matrix_metrics": _bounded_matrix_metrics(
-                    cast(Mapping[str, object], observed["metrics"])
-                ),
-                "downstream_sha256": comparison["downstream_sha256"],
             }
         )
     preflight_path = root / "windows-hardware-preflight.json"
@@ -1803,6 +1966,7 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
         preflight = _load_json(preflight_path)
         annotations.append(
             {
+                "annotation_group": "windows",
                 "kind": "windows_hardware_preflight",
                 "label": label,
                 **_public_environment(preflight),
@@ -1813,31 +1977,42 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
     for path in sorted((root / "cross-lane-comparisons").glob("*.json")):
         comparison = _load_json(path)
         observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
+        cross_label = str(comparison["label"])
+        group = f"cross:{cross_label}"
+        cross_base = {
+            "label": cross_label,
+            "numerical_prefix_checkpoints": comparison["numerical_prefix_checkpoints"],
+            "detailed_checkpoint_difference_count": cast(
+                Mapping[str, object], comparison["detailed_checkpoints"]
+            )["difference_count"],
+            "downstream_comparison": comparison.get("downstream_comparison"),
+            "downstream_sha256": comparison["downstream_sha256"],
+        }
+        annotations.extend(
+            _metric_annotation_records(
+                group=group,
+                kind_prefix="cross_lane",
+                base=cross_base,
+                metrics=cast(Mapping[str, object], observed["metrics"]),
+            )
+        )
         annotations.append(
             {
-                "kind": "cross_lane_comparison",
-                "label": comparison["label"],
+                "annotation_group": group,
+                "kind": "cross_lane_first_divergence",
+                **cross_base,
                 "first_numerical_divergence": _bounded_first_divergence(
                     comparison["first_numerical_divergence"]
                 ),
-                "numerical_prefix_checkpoints": comparison[
-                    "numerical_prefix_checkpoints"
-                ],
-                "detailed_checkpoint_difference_count": cast(
-                    Mapping[str, object], comparison["detailed_checkpoints"]
-                )["difference_count"],
-                "matrix_metrics": _bounded_matrix_metrics(
-                    cast(Mapping[str, object], observed["metrics"])
-                ),
-                "downstream_comparison": comparison.get("downstream_comparison"),
-                "downstream_sha256": comparison["downstream_sha256"],
             }
         )
     return annotations
 
 
-def emit_inspection_annotations(root: Path, label: str) -> None:
+def emit_inspection_annotations(root: Path, label: str, groups: Sequence[str]) -> None:
     for record in inspection_annotations(root, label):
+        if groups and record["annotation_group"] not in groups:
+            continue
         kind = str(record["kind"])
         message = json.dumps(
             record,
@@ -1846,6 +2021,10 @@ def emit_inspection_annotations(root: Path, label: str) -> None:
             sort_keys=True,
             separators=(",", ":"),
         )
+        if len(message) > 3900:
+            raise AssertionError(
+                f"annotation exceeds 3900 characters ({len(message)}): {kind}"
+            )
         escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
         print(f"::notice title=Wave10 {label} {kind}::{escaped}")
 
@@ -1917,6 +2096,7 @@ def _parser() -> argparse.ArgumentParser:
     annotate_parser = subparsers.add_parser("annotate")
     annotate_parser.add_argument("--root", type=Path, required=True)
     annotate_parser.add_argument("--label", required=True)
+    annotate_parser.add_argument("--group", action="append", default=[])
     runtime_parser = subparsers.add_parser("runtime")
     runtime_parser.add_argument("--output", type=Path, required=True)
     preflight_parser = subparsers.add_parser("windows-preflight")
@@ -1939,7 +2119,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "inspect":
         sys.stdout.write(inspection_markdown(args.root, args.label))
     elif args.command == "annotate":
-        emit_inspection_annotations(args.root, args.label)
+        emit_inspection_annotations(args.root, args.label, args.group)
     elif args.command == "runtime":
         _write_json(args.output, runtime_identity())
     elif args.command == "windows-preflight":
