@@ -2398,7 +2398,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     )
     assert "make test-release-gates" in release_gates
     assert "runs-on: windows-latest" in exact_provenance
-    assert "OPENBLAS_CORETYPE: SkylakeX" in exact_provenance
+    assert "OPENBLAS_CORETYPE: Haswell" in exact_provenance
     assert "conda-incubator/setup-miniconda@v4" in exact_provenance
     assert "activate-environment: exact-provenance" in exact_provenance
     assert "python-version: '3.11.15'" in exact_provenance

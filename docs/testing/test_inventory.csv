@@ -106,7 +106,7 @@ tests/performance/test_sps_discovery_performance.py,performance,51,1,true,false,
 tests/performance/test_ssgsea_activity_performance.py,performance,123,2,true,false,,,,,,
 tests/performance/test_workflow_scale_contracts.py,performance,264,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,110,2,true,false,,,,,,
-tests/release/test_batch_correction_regression.py,release,292,6,true,false,,,,,,
+tests/release/test_batch_correction_regression.py,release,310,6,true,false,,,,,,
 tests/release/test_control_site_regression.py,release,482,5,true,true,,,,,,
 tests/release/test_differential_adverse_design_contracts.py,release,371,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/release/test_distribution_git_blob_verifier.py,release,86,7,false,false,,,,,,

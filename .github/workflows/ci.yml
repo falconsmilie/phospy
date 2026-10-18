@@ -184,7 +184,7 @@ jobs:
     needs: repo-hygiene
     runs-on: windows-latest
     env:
-      OPENBLAS_CORETYPE: SkylakeX
+      OPENBLAS_CORETYPE: Haswell
     steps:
       - uses: actions/checkout@v6
         with:

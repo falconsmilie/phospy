@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import importlib.metadata
 import json
+import os
 import platform
+import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -121,10 +123,26 @@ def test_batch_correction_provenance_bytes_match_pinned_regression() -> None:
         "scipy": importlib.metadata.version("scipy"),
         "scikit-learn": importlib.metadata.version("scikit-learn"),
     }
-    if runtime_versions != expected["runtime"]:
+    compute_environment = {
+        "platform_system": platform.system(),
+        "platform_machine": platform.machine(),
+        "python_distribution": (
+            "Anaconda, Inc." if "packaged by Anaconda, Inc." in sys.version else None
+        ),
+        "openblas_coretype": os.environ.get("OPENBLAS_CORETYPE"),
+    }
+    if (
+        runtime_versions != expected["runtime"]
+        or compute_environment != expected["controlled_compute_environment"]
+    ):
         pytest.skip(
             "exact provenance bytes require the documented pinned "
-            f"lane: expected={expected['runtime']!r}, actual={runtime_versions!r}"
+            "lane: "
+            f"expected_runtime={expected['runtime']!r}, "
+            f"actual_runtime={runtime_versions!r}, "
+            "expected_compute_environment="
+            f"{expected['controlled_compute_environment']!r}, "
+            f"actual_compute_environment={compute_environment!r}"
         )
 
     payload = build_comparison_payload()
