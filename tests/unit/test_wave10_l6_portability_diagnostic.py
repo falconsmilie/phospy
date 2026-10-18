@@ -12,6 +12,7 @@ from tools.diagnostics.capture_wave10_l6_portability import (
     _checkpoint_differences,
     array_payload,
     matrix_metrics,
+    verify_manifest,
     write_manifest,
 )
 
@@ -76,3 +77,14 @@ def test_manifest_is_self_excluding(tmp_path: Path) -> None:
 
     assert manifest["manifest_policy"].startswith("self-excluding")
     assert [item["path"] for item in manifest["files"]] == ["evidence.json"]
+    assert verify_manifest(tmp_path) == manifest["files"]
+
+
+def test_manifest_verification_rejects_changed_file(tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text("{}\n", encoding="utf-8", newline="\n")
+    write_manifest(tmp_path)
+    evidence.write_text('{"changed":true}\n', encoding="utf-8", newline="\n")
+
+    with np.testing.assert_raises(AssertionError):
+        verify_manifest(tmp_path)

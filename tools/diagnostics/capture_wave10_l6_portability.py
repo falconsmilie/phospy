@@ -1264,6 +1264,231 @@ def write_manifest(root: Path) -> None:
     )
 
 
+def verify_manifest(root: Path) -> list[dict[str, object]]:
+    manifest_path = root / "manifest.json"
+    manifest = _load_json(manifest_path)
+    if manifest.get("manifest_policy") != (
+        "self-excluding; manifest.json is not listed or hashed"
+    ):
+        raise AssertionError(f"invalid manifest policy: {manifest_path}")
+    listed = {
+        cast(str, item["path"]): item
+        for item in cast(list[dict[str, object]], manifest["files"])
+    }
+    actual = {
+        path.relative_to(root).as_posix(): path
+        for path in root.rglob("*")
+        if path.is_file() and path.resolve() != manifest_path.resolve()
+    }
+    if set(listed) != set(actual):
+        raise AssertionError(
+            f"manifest membership mismatch: missing={sorted(set(actual) - set(listed))}, "
+            f"unexpected={sorted(set(listed) - set(actual))}"
+        )
+    for relative, path in actual.items():
+        content = path.read_bytes()
+        expected = listed[relative]
+        if len(content) != expected["size_bytes"]:
+            raise AssertionError(f"manifest size mismatch: {relative}")
+        if _sha256_bytes(content) != expected["sha256"]:
+            raise AssertionError(f"manifest SHA-256 mismatch: {relative}")
+    return [listed[key] for key in sorted(listed)]
+
+
+def _decision_difference_counts(summary: Mapping[str, object]) -> dict[str, int]:
+    downstream = cast(Mapping[str, object], summary["downstream"])
+    candidates = cast(
+        Mapping[str, Mapping[str, object]],
+        downstream["candidate_inclusion_exclusion"],
+    )
+    selected_sites = cast(
+        Mapping[str, Mapping[str, object]], downstream["selected_site_differences"]
+    )
+    assignment = cast(Mapping[str, object], downstream["kinase_assignment"])
+    thresholds = cast(Mapping[str, object], summary["threshold_crossings"])
+    crossings = cast(Mapping[str, list[object]], thresholds["crossings"])
+    return {
+        "candidate_inclusions": sum(
+            len(cast(list[object], item["included_only_observed"]))
+            for item in candidates.values()
+        ),
+        "candidate_exclusions": sum(
+            len(cast(list[object], item["excluded_from_observed"]))
+            for item in candidates.values()
+        ),
+        "selected_site_inclusions": sum(
+            len(cast(list[object], item["included_only_observed"]))
+            for item in selected_sites.values()
+        ),
+        "selected_site_exclusions": sum(
+            len(cast(list[object], item["excluded_from_observed"]))
+            for item in selected_sites.values()
+        ),
+        "selected_kinases_only_observed": len(
+            cast(list[object], assignment["selected_only_observed"])
+        ),
+        "selected_kinases_only_expected": len(
+            cast(list[object], assignment["selected_only_expected"])
+        ),
+        "threshold_crossings": sum(len(items) for items in crossings.values()),
+    }
+
+
+def _environment_markdown(environment: Mapping[str, object]) -> str:
+    operating_system = cast(Mapping[str, object], environment["operating_system"])
+    python = cast(Mapping[str, object], environment["python"])
+    dependencies = cast(Mapping[str, object], environment["dependencies"])
+    threadpools = cast(list[Mapping[str, object]], environment["threadpools"])
+    blas = [
+        {
+            key: pool.get(key)
+            for key in (
+                "internal_api",
+                "user_api",
+                "prefix",
+                "version",
+                "architecture",
+                "threading_layer",
+                "num_threads",
+            )
+        }
+        for pool in threadpools
+    ]
+    return (
+        f"- OS: `{operating_system.get('platform')}`; architecture: "
+        f"`{operating_system.get('architecture')}`\n"
+        f"- Python: `{python.get('full_version')}`\n"
+        f"- Dependencies: `{json.dumps(dependencies, sort_keys=True)}`\n"
+        f"- Threadpool/BLAS: `{json.dumps(blas, sort_keys=True)}`"
+    )
+
+
+def inspection_markdown(root: Path, label: str) -> str:
+    files = verify_manifest(root)
+    lines = [
+        f"## Wave 10 diagnostic inspection: {label}",
+        "",
+        "Manifest verification: **passed** (self-excluding, exact membership, "
+        "sizes, and SHA-256 hashes).",
+        "",
+    ]
+    process_summaries = sorted(root.glob("process-*/summary.json"))
+    if process_summaries:
+        summaries = [_load_json(path) for path in process_summaries]
+        environment = _load_json(process_summaries[0].parent / "environment.json")
+        lines.extend(["### Environment", "", _environment_markdown(environment)])
+        for index, summary in enumerate(summaries, start=1):
+            metrics = cast(Mapping[str, object], summary["matrix_metrics"])
+            counts = _decision_difference_counts(summary)
+            lines.extend(
+                [
+                    "",
+                    f"### Fresh process {index}",
+                    "",
+                    f"- Checkpoints: `{summary['checkpoint_count']}`",
+                    f"- Promoted-reference MAE: `{metrics['mae']}`",
+                    f"- Promoted-reference maximum absolute difference: "
+                    f"`{metrics['max_abs_difference']}`",
+                    f"- Pearson: `{metrics['pearson']}`; Spearman: "
+                    f"`{metrics['spearman']}`",
+                    f"- Decision-difference counts: "
+                    f"`{json.dumps(counts, sort_keys=True)}`",
+                ]
+            )
+        comparison_path = root / "fresh-process-comparison.json"
+        comparison = _load_json(comparison_path)
+        detailed = cast(Mapping[str, object], comparison["detailed_checkpoints"])
+        observed_comparison = cast(
+            Mapping[str, object], comparison["observed_matrix_comparison"]
+        )
+        repeat_metrics = cast(Mapping[str, object], observed_comparison["metrics"])
+        lines.extend(
+            [
+                "",
+                "### Fresh-process repeatability",
+                "",
+                f"- First numerical divergence: "
+                f"`{json.dumps(comparison['first_numerical_divergence'], sort_keys=True)}`",
+                f"- All detailed checkpoint payloads equal: "
+                f"`{detailed['all_checkpoint_payloads_equal']}`",
+                f"- Matrix MAE: `{repeat_metrics['mae']}`; maximum absolute "
+                f"difference: `{repeat_metrics['max_abs_difference']}`",
+            ]
+        )
+    preflight_path = root / "windows-hardware-preflight.json"
+    if preflight_path.exists():
+        preflight = _load_json(preflight_path)
+        lines.extend(
+            [
+                "### Windows hardware preflight",
+                "",
+                _environment_markdown(preflight),
+                "",
+                f"- Processor: `{json.dumps(preflight['windows_processor'], sort_keys=True)}`",
+                f"- SkylakeX capabilities: "
+                f"`{json.dumps(preflight['capabilities'], sort_keys=True)}`",
+                f"- Provenance-test disposition: "
+                f"`{preflight['provenance_test_disposition']}`",
+            ]
+        )
+    cross_paths = sorted((root / "cross-lane-comparisons").glob("*.json"))
+    if cross_paths:
+        lines.extend(["", "### Cross-lane comparisons", ""])
+        for path in cross_paths:
+            comparison = _load_json(path)
+            observed_comparison = cast(
+                Mapping[str, object], comparison["observed_matrix_comparison"]
+            )
+            metrics = cast(Mapping[str, object], observed_comparison["metrics"])
+            largest = cast(
+                list[Mapping[str, object]],
+                metrics["largest_100_absolute_differences"],
+            )
+            top_five = [
+                {
+                    key: item[key]
+                    for key in (
+                        "row_id",
+                        "kinase",
+                        "absolute_difference",
+                        "expected_hex",
+                        "observed_hex",
+                    )
+                }
+                for item in largest[:5]
+            ]
+            lines.extend(
+                [
+                    f"#### {comparison['label']}",
+                    "",
+                    f"- First numerical divergence: "
+                    f"`{json.dumps(comparison['first_numerical_divergence'], sort_keys=True)}`",
+                    f"- Matrix MAE: `{metrics['mae']}`; maximum absolute "
+                    f"difference: `{metrics['max_abs_difference']}`",
+                    f"- Pearson: `{metrics['pearson']}`; Spearman: "
+                    f"`{metrics['spearman']}`",
+                    f"- Five largest differing cells: "
+                    f"`{json.dumps(top_five, sort_keys=True)}`",
+                    f"- Downstream SHA-256: "
+                    f"`{json.dumps(comparison['downstream_sha256'], sort_keys=True)}`",
+                    "",
+                ]
+            )
+    lines.extend(
+        [
+            "### Artifact files",
+            "",
+            "| File | Size (bytes) | SHA-256 |",
+            "|---|---:|---|",
+            *[
+                f"| `{item['path']}` | {item['size_bytes']} | `{item['sha256']}` |"
+                for item in files
+            ],
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def windows_preflight(output: Path) -> None:
     identity = runtime_identity()
     try:
@@ -1318,6 +1543,9 @@ def _parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--label", required=True)
     manifest_parser = subparsers.add_parser("manifest")
     manifest_parser.add_argument("--root", type=Path, required=True)
+    inspect_parser = subparsers.add_parser("inspect")
+    inspect_parser.add_argument("--root", type=Path, required=True)
+    inspect_parser.add_argument("--label", required=True)
     runtime_parser = subparsers.add_parser("runtime")
     runtime_parser.add_argument("--output", type=Path, required=True)
     preflight_parser = subparsers.add_parser("windows-preflight")
@@ -1333,6 +1561,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         compare(args.left, args.right, args.output, args.label)
     elif args.command == "manifest":
         write_manifest(args.root)
+    elif args.command == "inspect":
+        sys.stdout.write(inspection_markdown(args.root, args.label))
     elif args.command == "runtime":
         _write_json(args.output, runtime_identity())
     elif args.command == "windows-preflight":

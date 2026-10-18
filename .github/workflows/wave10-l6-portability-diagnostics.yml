@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 env:
@@ -61,6 +62,14 @@ jobs:
         run: >-
           python -m tools.diagnostics.capture_wave10_l6_portability manifest
           --root build/wave10-diagnostics
+      - name: Inspect exact artifact contents
+        if: always()
+        shell: bash
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect
+          --root build/wave10-diagnostics
+          --label ubuntu-x86_64-python312
+          >> "$GITHUB_STEP_SUMMARY"
       - name: Upload complete diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v5
@@ -122,6 +131,14 @@ jobs:
         run: >-
           python -m tools.diagnostics.capture_wave10_l6_portability manifest
           --root build/wave10-diagnostics
+      - name: Inspect exact artifact contents
+        if: always()
+        shell: bash
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect
+          --root build/wave10-diagnostics
+          --label macos15-intel-python311
+          >> "$GITHUB_STEP_SUMMARY"
       - name: Upload complete diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v5
@@ -138,6 +155,9 @@ jobs:
 
   macos15-intel-python312:
     if: github.ref == 'refs/heads/diagnostics/wave10-l6-portability'
+    needs:
+      - ubuntu-x86_64-python312
+      - macos15-intel-python311
     runs-on: macos-15-intel
     timeout-minutes: 120
     steps:
@@ -178,11 +198,59 @@ jobs:
           --right build/wave10-diagnostics/process-2
           --output build/wave10-diagnostics/fresh-process-comparison.json
           --label macos15-intel-python312-fresh-process-repeatability
+      - name: Download Ubuntu evidence for cross-lane inspection
+        uses: actions/download-artifact@v5
+        with:
+          name: wave10-l6-portability-ubuntu-x86_64-python312
+          path: build/cross-lane-inputs/ubuntu-python312
+      - name: Download macOS Python 3.11 evidence for cross-lane inspection
+        uses: actions/download-artifact@v5
+        with:
+          name: wave10-l6-portability-macos15-intel-python311
+          path: build/cross-lane-inputs/macos-python311
+      - name: Verify downloaded artifact contents
+        shell: bash
+        run: |
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect \
+            --root build/cross-lane-inputs/ubuntu-python312 \
+            --label downloaded-ubuntu-x86_64-python312 \
+            >> "$GITHUB_STEP_SUMMARY"
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect \
+            --root build/cross-lane-inputs/macos-python311 \
+            --label downloaded-macos15-intel-python311 \
+            >> "$GITHUB_STEP_SUMMARY"
+      - name: Compare operating systems and Python versions
+        shell: bash
+        run: |
+          mkdir -p build/wave10-diagnostics/cross-lane-comparisons
+          python -m tools.diagnostics.capture_wave10_l6_portability compare \
+            --left build/cross-lane-inputs/ubuntu-python312/process-1 \
+            --right build/cross-lane-inputs/macos-python311/process-1 \
+            --output build/wave10-diagnostics/cross-lane-comparisons/ubuntu312-vs-macos311.json \
+            --label ubuntu-python312-vs-macos-python311
+          python -m tools.diagnostics.capture_wave10_l6_portability compare \
+            --left build/cross-lane-inputs/ubuntu-python312/process-1 \
+            --right build/wave10-diagnostics/process-1 \
+            --output build/wave10-diagnostics/cross-lane-comparisons/ubuntu312-vs-macos312.json \
+            --label ubuntu-python312-vs-macos-python312
+          python -m tools.diagnostics.capture_wave10_l6_portability compare \
+            --left build/cross-lane-inputs/macos-python311/process-1 \
+            --right build/wave10-diagnostics/process-1 \
+            --output build/wave10-diagnostics/cross-lane-comparisons/macos311-vs-macos312.json \
+            --label macos-python311-vs-macos-python312
       - name: Create self-excluding manifest
         if: always()
         run: >-
           python -m tools.diagnostics.capture_wave10_l6_portability manifest
           --root build/wave10-diagnostics
+      - name: Inspect exact artifact contents and cross-lane comparisons
+        if: always()
+        shell: bash
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect
+          --root build/wave10-diagnostics
+          --label macos15-intel-python312-with-cross-lane-comparisons
+          >> "$GITHUB_STEP_SUMMARY"
       - name: Upload complete diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v5
@@ -245,6 +313,14 @@ jobs:
         run: >-
           python -m tools.diagnostics.capture_wave10_l6_portability manifest
           --root build/wave10-diagnostics
+      - name: Inspect exact artifact contents
+        if: always()
+        shell: pwsh
+        run: |
+          python -m tools.diagnostics.capture_wave10_l6_portability inspect `
+            --root build/wave10-diagnostics `
+            --label windows-hosted-hardware-preflight `
+            | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
       - name: Upload complete diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v5
