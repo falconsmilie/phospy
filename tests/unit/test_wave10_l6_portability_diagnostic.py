@@ -134,7 +134,18 @@ def test_public_environment_excludes_runner_and_private_paths() -> None:
             }
         ],
         "numpy_runtime": {
-            "cpu_features": {"AVX": True, "AVX512_SKX": False, "SSE": True}
+            "cpu_features": {"AVX": True, "AVX512_SKX": False, "SSE": True},
+            "configuration": {
+                "Build Dependencies": {
+                    "blas": {
+                        "name": "accelerate",
+                        "found": True,
+                        "version": "unknown",
+                        "detection method": "system",
+                        "lib directory": "/private/path/lib",
+                    }
+                }
+            },
         },
     }
 
@@ -144,6 +155,7 @@ def test_public_environment_excludes_runner_and_private_paths() -> None:
     assert "private" not in serialized
     assert "runner_name" not in serialized
     assert "filepath" not in serialized
+    assert "lib directory" not in serialized
     assert "SSE" not in serialized
     assert public["numpy_cpu_features"] == {
         "AVX": True,
@@ -152,6 +164,15 @@ def test_public_environment_excludes_runner_and_private_paths() -> None:
         "AVX512CD": False,
         "AVX512_SKX": False,
         "FMA3": False,
+    }
+    assert public["numpy_blas_lapack"] == {
+        "blas": {
+            "name": "accelerate",
+            "found": True,
+            "version": "unknown",
+            "detection method": "system",
+            "openblas configuration": None,
+        }
     }
 
 

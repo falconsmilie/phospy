@@ -125,6 +125,11 @@ def _public_environment(environment: Mapping[str, object]) -> dict[str, object]:
     python = cast(Mapping[str, object], environment["python"])
     numpy_runtime = cast(Mapping[str, object], environment["numpy_runtime"])
     cpu_features = cast(Mapping[str, object], numpy_runtime["cpu_features"])
+    configuration = cast(Mapping[str, object], numpy_runtime.get("configuration", {}))
+    build_dependencies = cast(
+        Mapping[str, Mapping[str, object]],
+        configuration.get("Build Dependencies", {}),
+    )
     threadpools = cast(list[Mapping[str, object]], environment["threadpools"])
     return {
         "source": _public_source(cast(Mapping[str, object], environment["source"])),
@@ -149,6 +154,20 @@ def _public_environment(environment: Mapping[str, object]) -> dict[str, object]:
             }
             for pool in threadpools
         ],
+        "numpy_blas_lapack": {
+            name: {
+                key: dependency.get(key)
+                for key in (
+                    "name",
+                    "found",
+                    "version",
+                    "detection method",
+                    "openblas configuration",
+                )
+            }
+            for name, dependency in build_dependencies.items()
+            if name in ("blas", "lapack")
+        },
         "numpy_cpu_features": {
             key: bool(cpu_features.get(key, False))
             for key in ("AVX", "AVX2", "AVX512F", "AVX512CD", "AVX512_SKX", "FMA3")
