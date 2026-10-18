@@ -71,19 +71,26 @@ Current active parity coverage includes:
 
 ### L6 prediction-matrix numerical portability
 
-The promoted L6 prediction matrix is a unit-interval support-score surface used
-for ranking; it is not a calibrated probability surface. Its portable absolute
-error contract therefore uses the full score range as the scientific scale. The
-mean absolute difference must remain at or below `5e-5`, which limits average
-drift to `0.005%` of that scale. The maximum absolute difference must remain at
-or below `3e-3`, so no individual score may move by more than `0.3%` of the full
-scale. Numerically, the SVC optimization used by this lane has a `1e-3` stopping
-tolerance before probability calibration and ensemble aggregation. The
-worst-cell bound stays within a few solver-resolution units, while the mean
-bound is twenty times smaller than one such unit and therefore prevents that
-allowance from becoming diffuse matrix-wide drift. These are fixed bounds from
-the score scale and configured numerical method, not multiples of measurements
-from a particular CI run.
+The promoted L6 prediction matrix is a unit-interval relative-support surface
+used for per-kinase ranking and candidate selection. Its absolute error budget
+is derived from the fixed reference matrix and executable selection semantics,
+before any candidate runtime is evaluated. Selection uses descending stable
+ranking, `top_k=30`, a strict score threshold of `0.0`, and minimum inclusion of
+one site. Candidate membership is fixed by the upstream scoring surface; the
+prediction matrix orders those selected sites. Its narrowest adjacent selected-
+site boundary is the YANG.AMPK pair `ARFIP1;S39;`/`COBL;S34;`, whose reference
+scores differ by `3.036408067980112e-6`.
+
+The maintained sensitivity model lowers the higher-ranked boundary score and
+raises the next score symmetrically. It is the minimum-L1 and
+minimum-L-infinity additive perturbation that can change the selected-site
+ranking. The first-failure boundaries are `1.518204033990056e-6` maximum cell
+drift and `1.909330357781621e-10` mean absolute drift across the fixed 589 by 27
+surface. A conservative safety factor of one-half fixes the acceptance limits at
+`7.59102016995028e-7` maximum absolute difference and
+`9.546651788908105e-11` mean absolute difference. The factor and limits come
+solely from the reference decision margin; hosted platform measurements are not
+inputs.
 
 The absolute bounds do not stand alone. Mean Pearson and Spearman correlations
 must each remain at or above `0.999999`, while the existing candidate-set,
@@ -95,12 +102,23 @@ support scores their scientific meaning. Together they reject both diffuse
 numeric movement and a small number of materially displaced cells without
 claiming that backend-identical floating-point bytes are scientific output.
 
+The structured sensitivity report records reference hashes, decision margins,
+the perturbation rule, first-failure boundaries, safety factor, derived limits,
+and positive and negative controls. At the permitted perturbation, ranking,
+selected sites, candidate overlap, labels, masks, attrition, provenance, and
+diagnostic identities remain unchanged. Just beyond the first-failure boundary,
+the selected-site ranking changes while Pearson correlation remains above
+`0.999999`, demonstrating why correlation alone is insufficient.
+
 CI records the actual mean and maximum absolute differences in every Linux,
 Windows, and macOS source/runtime lane on Python 3.11 and 3.12. Each lane uploads
 structured JSON and JUnit evidence containing its test node, lane, source
 commit, platform, Python runtime, and NumPy, pandas, SciPy, and scikit-learn
 versions. Observed values are portability evidence only; they do not calibrate
 or relax the fixed acceptance bounds.
+The macOS source/runtime lanes use GitHub's native `macos-15-intel` runner to
+control CPU architecture without changing the scientific implementation or its
+fixed reference data.
 
 ## Non-Parity Support and Scope Differences
 

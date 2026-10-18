@@ -2398,7 +2398,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     )
     assert "make test-release-gates" in release_gates
     assert "runs-on: windows-latest" in exact_provenance
-    assert "OPENBLAS_CORETYPE: Haswell" in exact_provenance
+    assert "OPENBLAS_CORETYPE: SkylakeX" in exact_provenance
     assert "conda-incubator/setup-miniconda@v4" in exact_provenance
     assert "activate-environment: exact-provenance" in exact_provenance
     assert "python-version: '3.11.15'" in exact_provenance
@@ -2407,6 +2407,8 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "platform.machine() == 'AMD64'" in exact_provenance
     assert "packaged by Anaconda, Inc." in exact_provenance
     assert "hb00fc5c_1" in exact_provenance
+    assert "threadpool_info" in exact_provenance
+    assert "record.get('architecture')" in exact_provenance
     for name, version in (
         ("numpy", "2.2.6"),
         ("pandas", "2.2.3"),
@@ -2422,10 +2424,16 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "exact-provenance-bytes-windows-py3.11.15.xml" in exact_provenance
     assert "name: exact-provenance-bytes-windows-py3.11.15" in exact_provenance
     assert "runs-on: ${{ matrix.os }}" in architecture_source
-    assert "os: [ubuntu-latest, windows-latest, macos-latest]" in architecture_source
+    assert "os: [ubuntu-latest, windows-latest, macos-15-intel]" in architecture_source
     _assert_supported_python_matrix(architecture_source)
     assert "PHOSPY_L6_PREDICTION_LANE:" in architecture_source
     assert "PHOSPY_L6_PREDICTION_EVIDENCE_PATH:" in architecture_source
+    assert "Derive L6 reference-only sensitivity budget" in architecture_source
+    assert "python -m tests.support.l6_prediction_sensitivity" in architecture_source
+    assert (
+        "l6-prediction-sensitivity-${{ runner.os }}-py${{ matrix.python-version }}.json"
+        in architecture_source
+    )
     assert (
         "l6-prediction-portability-${{ runner.os }}-py${{ matrix.python-version }}.json"
     ) in architecture_source

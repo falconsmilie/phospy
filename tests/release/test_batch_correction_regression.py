@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import numpy as np
 import pytest
+from threadpoolctl import threadpool_info
 
 import tools.architecture.capture_batch_correction_regression as comparison
 from tools.architecture.capture_batch_correction_regression import (
@@ -22,6 +23,13 @@ pytestmark = [pytest.mark.release_gate, pytest.mark.reproducibility]
 EXPECTED_CASES_SHA256 = (
     "8426feab0e287fad266ed7a09746e5edf5dc2f7687752539c8604de6bfe24326"
 )
+EXPECTED_PROVENANCE_COMPUTE_ENVIRONMENT = {
+    "platform_system": "Windows",
+    "platform_machine": "AMD64",
+    "python_distribution": "Anaconda, Inc.",
+    "openblas_coretype_env": "SkylakeX",
+    "openblas_architectures": ("SkylakeX",),
+}
 NUMERICAL_RTOL = 1e-10
 NUMERICAL_ATOL = 1e-12
 NUMERICAL_EXPECTATIONS_PATH = (
@@ -123,17 +131,27 @@ def test_batch_correction_provenance_bytes_match_pinned_regression() -> None:
         "scipy": importlib.metadata.version("scipy"),
         "scikit-learn": importlib.metadata.version("scikit-learn"),
     }
+    openblas_architectures = tuple(
+        sorted(
+            {
+                str(record.get("architecture"))
+                for record in threadpool_info()
+                if record.get("internal_api") == "openblas"
+            }
+        )
+    )
     compute_environment = {
         "platform_system": platform.system(),
         "platform_machine": platform.machine(),
         "python_distribution": (
             "Anaconda, Inc." if "packaged by Anaconda, Inc." in sys.version else None
         ),
-        "openblas_coretype": os.environ.get("OPENBLAS_CORETYPE"),
+        "openblas_coretype_env": os.environ.get("OPENBLAS_CORETYPE"),
+        "openblas_architectures": openblas_architectures,
     }
     if (
         runtime_versions != expected["runtime"]
-        or compute_environment != expected["controlled_compute_environment"]
+        or compute_environment != EXPECTED_PROVENANCE_COMPUTE_ENVIRONMENT
     ):
         pytest.skip(
             "exact provenance bytes require the documented pinned "
@@ -141,7 +159,7 @@ def test_batch_correction_provenance_bytes_match_pinned_regression() -> None:
             f"expected_runtime={expected['runtime']!r}, "
             f"actual_runtime={runtime_versions!r}, "
             "expected_compute_environment="
-            f"{expected['controlled_compute_environment']!r}, "
+            f"{EXPECTED_PROVENANCE_COMPUTE_ENVIRONMENT!r}, "
             f"actual_compute_environment={compute_environment!r}"
         )
 

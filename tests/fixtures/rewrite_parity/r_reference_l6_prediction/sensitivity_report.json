@@ -1,0 +1,97 @@
+{
+  "algorithm_semantics": {
+    "minimum_inclusion": 1,
+    "prediction_score_rule": "rank the fixed upstream-selected candidate sites by descending prediction support",
+    "ranking": "descending score with stable mergesort ordering",
+    "score_threshold": 0.0,
+    "threshold_operator": "greater_than",
+    "top_k": 30
+  },
+  "controls": {
+    "first_failure_negative_control": {
+      "finite_mask_unchanged": true,
+      "maximum_absolute_difference": 1.5182040340455671e-06,
+      "mean_absolute_difference": 1.9093303578514333e-10,
+      "pearson_correlation": 0.9999999999999978,
+      "ranking_unchanged": false,
+      "selected_sites_unchanged": true
+    },
+    "negative_control_interpretation": "The first selected-site ranking failure still exceeds the Pearson floor, proving correlation alone cannot protect the decision contract.",
+    "permitted_boundary_directed_perturbation": {
+      "finite_mask_unchanged": true,
+      "maximum_absolute_difference": 7.591020162456275e-07,
+      "mean_absolute_difference": 9.546651779483461e-11,
+      "pearson_correlation": 0.9999999999999998,
+      "ranking_unchanged": true,
+      "selected_sites_unchanged": true
+    }
+  },
+  "decision_margins": {
+    "minimum_positive_adjacent_rank_gap": 9.916271987570058e-10,
+    "minimum_score_threshold_margin": 0.0002817942153051,
+    "narrowest_selected_site_ranking_boundary": {
+      "higher_ranked_site": "ARFIP1;S39;",
+      "higher_score": 0.9676800740701708,
+      "kinase": "YANG.AMPK",
+      "lower_ranked_site": "COBL;S34;",
+      "lower_score": 0.9676770376621028,
+      "score_gap": 3.036408067980112e-06
+    }
+  },
+  "derivation_independence": "Hosted Linux, Windows, and macOS observations are not inputs to this derivation. Candidate measurements are evaluated only after this reference-only budget has been constructed.",
+  "derived_limits": {
+    "maximum_absolute_difference": 7.59102016995028e-07,
+    "mean_absolute_difference": 9.546651788908105e-11,
+    "pearson_correlation_floor": 0.999999,
+    "spearman_correlation_floor": 0.999999
+  },
+  "first_decision_failure_boundaries": {
+    "failed_contract": "selected-site ranking identity",
+    "maximum_absolute_difference": 1.518204033990056e-06,
+    "mean_absolute_difference": 1.909330357781621e-10
+  },
+  "perturbation_model": {
+    "clipping": "none required inside the derived boundary",
+    "description": "Lower the higher-ranked score and raise the immediately lower-ranked score for the narrowest adjacent gap among fixed selected sites. This is the minimum-L1 and minimum-L-infinity additive perturbation that can change a ranked prediction-output decision.",
+    "name": "decision-directed symmetric boundary-pair perturbation"
+  },
+  "protected_decisions": {
+    "score_driven": [
+      "per-kinase ranking gates",
+      "selected top-30 sites fixed by the upstream scoring surface",
+      "candidate-set overlap"
+    ],
+    "structural": [
+      "class assignment",
+      "finite and missing-value masks",
+      "site and kinase attrition",
+      "provenance records",
+      "diagnostic records"
+    ],
+    "structural_rule": "The perturbation is applied to the completed reference prediction matrix; labels, shape, masks, upstream class assignments, attrition, provenance, and diagnostics are held identical."
+  },
+  "reference": {
+    "candidate_rows": {
+      "path": "tests/fixtures/rewrite_parity/r_reference_l6_prediction/native_candidate_substrates.csv",
+      "sha256": "077df04a2705493264eb6351d82eeac90320193a0bdf645cc93e578f363863e8"
+    },
+    "cell_count": 15903,
+    "prediction_matrix": {
+      "path": "tests/fixtures/rewrite_parity/r_reference_l6_prediction/predMat.csv",
+      "sha256": "04aeec9d0dd14dc7822e66dbed4805997ee807be490f6b59a0cd565ed7b24bc1"
+    },
+    "ranked_top_k": {
+      "path": "tests/fixtures/rewrite_parity/r_reference_l6_prediction/native_prediction_top30.csv",
+      "sha256": "0922a38a1443e91c6e195d4dac0d5698795c62821f7b263e6ea853e06fe67f7c"
+    },
+    "shape": [
+      589,
+      27
+    ]
+  },
+  "safety_factor": {
+    "rule": "one-half of each independently derived first-failure boundary",
+    "value": 0.5
+  },
+  "schema": "phospy-l6-prediction-sensitivity-v1"
+}

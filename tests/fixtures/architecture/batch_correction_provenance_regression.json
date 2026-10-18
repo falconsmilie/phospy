@@ -35,8 +35,8 @@
   ],
   "direct_payloads": {
     "sps_ruv_style": {
-      "byte_length": 43635,
-      "sha256": "1161def375feab939d560be2cd08530a86c9a037d63ca3458a7b3966dad2ce53",
+      "byte_length": 43639,
+      "sha256": "f739ebbee21713691184d07bcb34f8ec99cf60f7af9825f8eb61010c607c7301",
       "schema_version": 1,
       "requested_method": "sps_ruv_style",
       "control_source_type": "caller_supplied",
@@ -44,7 +44,7 @@
       "python_version": "controlled-regression-runtime",
       "input_exact_hash": "815f67d1e9b8623e80674e13cbcb45b25341fe127573c8a1d99da0951e4cc081",
       "input_tolerance_hash": "b99fa4310c60101523d41b919d00868c3e81967586c36c6bf7ec5de71982c479",
-      "output_exact_hash": "4aed9fb35fec11b542ee42d4acc4c29fe8b2e44cd2baca33f6bda6ceb6953595",
+      "output_exact_hash": "9f6cf8196a6e81f097b0bd793b1a82e45bd73f143019195db7c30c3d9d9d310c",
       "output_tolerance_hash": "996f531d587292f0e79b060c9343ffa21c055f01da1e9569df471b0b4ef881dc"
     },
     "sps_ruv_style_permuted": {
@@ -62,7 +62,7 @@
     },
     "ruv_iii_style": {
       "byte_length": 63303,
-      "sha256": "1a78c4f8ea59e2d87cf3e19c1a08e1cf72b10df4eaf5801de7ca0cf8829ac825",
+      "sha256": "02f3d24229105c495eb341bd01569ddb390c8016e60f8a61cb5277960e75fff6",
       "schema_version": 1,
       "requested_method": "ruv_iii_style",
       "control_source_type": "caller_supplied",
@@ -70,13 +70,13 @@
       "python_version": "controlled-regression-runtime",
       "input_exact_hash": "b4852c6df96c3961b4a04d508201b8b5733d4965ef40d99fc5b19acf2e31bf71",
       "input_tolerance_hash": "56cb699979cb2406983296a785583554d0951bfb9b2b59c5973ac08a66a6916b",
-      "output_exact_hash": "2f595c57c0db61c36bc7e92101c0cd801c06cdda6162c5b197c8f9fbc73f4efc",
+      "output_exact_hash": "921bc5a5c5cc186ba201cf94d825fc40196fc1c6a782e8600b3b86276e29cf17",
       "output_tolerance_hash": "3d9ec9a2e34b7cfab129c015470ac860ac5ca8384c473496f5b7e59d93aa2614"
     }
   },
   "nested_run_provenance": {
-    "byte_length": 47614,
-    "sha256": "7a298dc62b048c4ae0b34bd3f416808bcdf035b82d0e5130543e582633f7c517",
+    "byte_length": 47618,
+    "sha256": "0238b483aea3b5d3afd30ffe5f0df8b9b5284bf578e5c2f21b526a01bcf16574",
     "ordered_fields": [
       "environment",
       "input_tables",
@@ -97,14 +97,8 @@
     "operation": "sps_ruv_style",
     "nested_requested_method": "sps_ruv_style",
     "input_exact_hash": "815f67d1e9b8623e80674e13cbcb45b25341fe127573c8a1d99da0951e4cc081",
-    "output_exact_hash": "4aed9fb35fec11b542ee42d4acc4c29fe8b2e44cd2baca33f6bda6ceb6953595",
+    "output_exact_hash": "9f6cf8196a6e81f097b0bd793b1a82e45bd73f143019195db7c30c3d9d9d310c",
     "stage_input_hash": "815f67d1e9b8623e80674e13cbcb45b25341fe127573c8a1d99da0951e4cc081",
-    "stage_output_hash": "4aed9fb35fec11b542ee42d4acc4c29fe8b2e44cd2baca33f6bda6ceb6953595"
-  },
-  "controlled_compute_environment": {
-    "platform_system": "Windows",
-    "platform_machine": "AMD64",
-    "python_distribution": "Anaconda, Inc.",
-    "openblas_coretype": "Haswell"
+    "stage_output_hash": "9f6cf8196a6e81f097b0bd793b1a82e45bd73f143019195db7c30c3d9d9d310c"
   }
 }

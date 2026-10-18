@@ -13,6 +13,9 @@ from tests.support.l6_prediction_parity_thresholds import (
 from tests.support.l6_prediction_portability_evidence import (
     record_l6_prediction_portability_evidence,
 )
+from tests.support.l6_prediction_sensitivity import (
+    derive_l6_prediction_sensitivity_budget,
+)
 from tests.support.parity_reporting import (
     format_fraction,
     format_percent,
@@ -30,12 +33,6 @@ COMBINED_PEARSON_FLOOR = 0.999999
 COMBINED_SPEARMAN_FLOOR = 0.999999
 WEIGHTS_MAE_CEILING = 1e-12
 WEIGHTS_MAX_ABS_DIFF_CEILING = 1e-11
-# Supported libsvm/runtime backends can perturb calibrated probabilities while
-# preserving the promoted reference ranking surface. Bound both aggregate and
-# worst-cell drift against the unit score scale and the SVC solver's 1e-3
-# stopping-tolerance order instead of requiring backend-identical floats.
-PREDICTION_MATRIX_MAE_CEILING = 5e-5
-PREDICTION_MATRIX_MAX_ABS_DIFF_CEILING = 3e-3
 PREDICTION_MATRIX_PEARSON_FLOOR = 0.999999
 PREDICTION_MATRIX_SPEARMAN_FLOOR = 0.999999
 CANDIDATE_OVERLAP_PRECISION_FLOOR = 0.999999
@@ -109,6 +106,7 @@ def test_l6_scoring_tables_parity_matches_promoted_reference_surfaces() -> None:
 def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces(
     request: pytest.FixtureRequest,
 ) -> None:
+    sensitivity_budget = derive_l6_prediction_sensitivity_budget()
     metrics = collect_l6_prediction_parity_metrics()
     parity = metrics.prediction_matrix
 
@@ -116,8 +114,8 @@ def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces
         test_node_id=request.node.nodeid,
         junit_properties=request.node.user_properties,
         parity=parity,
-        mean_abs_diff_ceiling=PREDICTION_MATRIX_MAE_CEILING,
-        max_abs_diff_ceiling=PREDICTION_MATRIX_MAX_ABS_DIFF_CEILING,
+        mean_abs_diff_ceiling=sensitivity_budget.mean_abs_diff_ceiling,
+        max_abs_diff_ceiling=sensitivity_budget.max_abs_diff_ceiling,
         pearson_floor=PREDICTION_MATRIX_PEARSON_FLOOR,
         spearman_floor=PREDICTION_MATRIX_SPEARMAN_FLOOR,
     )
@@ -128,10 +126,10 @@ def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces
     assert parity.expected_shape[0] == parity.observed_shape[0]
     assert parity.shared_kinase_count == parity.observed_shape[1]
     assert parity.expected_shape[1] >= parity.observed_shape[1]
-    assert parity.mean_abs_diff <= PREDICTION_MATRIX_MAE_CEILING, (
+    assert parity.mean_abs_diff <= sensitivity_budget.mean_abs_diff_ceiling, (
         "prediction-matrix parity regressed on promoted-reference MAE"
     )
-    assert parity.max_abs_diff <= PREDICTION_MATRIX_MAX_ABS_DIFF_CEILING, (
+    assert parity.max_abs_diff <= sensitivity_budget.max_abs_diff_ceiling, (
         "prediction-matrix parity regressed on promoted-reference maximum drift"
     )
     assert parity.mean_pearson_corr >= PREDICTION_MATRIX_PEARSON_FLOOR

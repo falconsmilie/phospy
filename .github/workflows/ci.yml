@@ -184,7 +184,7 @@ jobs:
     needs: repo-hygiene
     runs-on: windows-latest
     env:
-      OPENBLAS_CORETYPE: Haswell
+      OPENBLAS_CORETYPE: SkylakeX
     steps:
       - uses: actions/checkout@v6
         with:
@@ -203,7 +203,7 @@ jobs:
           if ($pythonRecord.Count -ne 1 -or $pythonRecord[0].build_string -ne 'hb00fc5c_1') {
             throw "Expected Anaconda Python build hb00fc5c_1; actual=$($pythonRecord | ConvertTo-Json -Compress)"
           }
-          python -c "import importlib.metadata as md, numpy as np, platform, sys; expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'}; actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}}; assert platform.system() == 'Windows', platform.platform(); assert platform.machine() == 'AMD64', platform.machine(); assert 'packaged by Anaconda, Inc.' in sys.version, sys.version; assert actual == expected, (expected, actual); np.show_runtime()"
+          python -c "import importlib.metadata as md, numpy as np, platform, sys; from threadpoolctl import threadpool_info; expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'}; actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}}; openblas=[record for record in threadpool_info() if record.get('internal_api') == 'openblas']; assert platform.system() == 'Windows', platform.platform(); assert platform.machine() == 'AMD64', platform.machine(); assert 'packaged by Anaconda, Inc.' in sys.version, sys.version; assert actual == expected, (expected, actual); assert openblas and {record.get('architecture') for record in openblas} == {'SkylakeX'}, openblas; np.show_runtime()"
       - name: Run exact provenance-byte regression
         run: |
           New-Item -ItemType Directory -Path build/reports -Force | Out-Null
@@ -541,7 +541,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15-intel]
         python-version: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v6
@@ -580,6 +580,12 @@ jobs:
             git hash-object constraints/ci.txt
             python -m pip list --format=json
           } > "build/reports/architecture-release-identities-${{ runner.os }}-py${{ matrix.python-version }}.txt"
+      - name: Derive L6 reference-only sensitivity budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m tests.support.l6_prediction_sensitivity \
+            --output "build/reports/l6-prediction-sensitivity-${{ runner.os }}-py${{ matrix.python-version }}.json"
       - name: Run complete architecture release source and runtime gate
         shell: bash
         run: |
