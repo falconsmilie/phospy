@@ -1,0 +1,251 @@
+name: Wave 10 L6 portability diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/constraints/ci.txt
+  PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/constraints/ci.txt
+
+jobs:
+  ubuntu-x86_64-python312:
+    if: github.ref == 'refs/heads/diagnostics/wave10-l6-portability'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned diagnostic environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Capture fresh process 1
+        id: process1
+        continue-on-error: true
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability capture
+          --output build/wave10-diagnostics/process-1
+          --lane ubuntu-x86_64-python312
+          --process 1
+      - name: Capture fresh process 2
+        id: process2
+        continue-on-error: true
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability capture
+          --output build/wave10-diagnostics/process-2
+          --lane ubuntu-x86_64-python312
+          --process 2
+      - name: Compare fresh processes
+        if: always()
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability compare
+          --left build/wave10-diagnostics/process-1
+          --right build/wave10-diagnostics/process-2
+          --output build/wave10-diagnostics/fresh-process-comparison.json
+          --label ubuntu-x86_64-python312-fresh-process-repeatability
+      - name: Create self-excluding manifest
+        if: always()
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability manifest
+          --root build/wave10-diagnostics
+      - name: Upload complete diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: wave10-l6-portability-ubuntu-x86_64-python312
+          path: build/wave10-diagnostics/
+          if-no-files-found: error
+      - name: Assert both captures completed
+        if: always()
+        shell: bash
+        run: |
+          test -f build/wave10-diagnostics/process-1/summary.json
+          test -f build/wave10-diagnostics/process-2/summary.json
+
+  macos15-intel-python311:
+    if: github.ref == 'refs/heads/diagnostics/wave10-l6-portability'
+    runs-on: macos-15-intel
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned diagnostic environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Capture fresh process 1
+        id: process1
+        continue-on-error: true
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability capture
+          --output build/wave10-diagnostics/process-1
+          --lane macos15-intel-python311
+          --process 1
+      - name: Capture fresh process 2
+        id: process2
+        continue-on-error: true
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability capture
+          --output build/wave10-diagnostics/process-2
+          --lane macos15-intel-python311
+          --process 2
+      - name: Compare fresh processes
+        if: always()
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability compare
+          --left build/wave10-diagnostics/process-1
+          --right build/wave10-diagnostics/process-2
+          --output build/wave10-diagnostics/fresh-process-comparison.json
+          --label macos15-intel-python311-fresh-process-repeatability
+      - name: Create self-excluding manifest
+        if: always()
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability manifest
+          --root build/wave10-diagnostics
+      - name: Upload complete diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: wave10-l6-portability-macos15-intel-python311
+          path: build/wave10-diagnostics/
+          if-no-files-found: error
+      - name: Assert both captures completed
+        if: always()
+        shell: bash
+        run: |
+          test -f build/wave10-diagnostics/process-1/summary.json
+          test -f build/wave10-diagnostics/process-2/summary.json
+
+  macos15-intel-python312:
+    if: github.ref == 'refs/heads/diagnostics/wave10-l6-portability'
+    runs-on: macos-15-intel
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned diagnostic environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Capture fresh process 1
+        id: process1
+        continue-on-error: true
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability capture
+          --output build/wave10-diagnostics/process-1
+          --lane macos15-intel-python312
+          --process 1
+      - name: Capture fresh process 2
+        id: process2
+        continue-on-error: true
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability capture
+          --output build/wave10-diagnostics/process-2
+          --lane macos15-intel-python312
+          --process 2
+      - name: Compare fresh processes
+        if: always()
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability compare
+          --left build/wave10-diagnostics/process-1
+          --right build/wave10-diagnostics/process-2
+          --output build/wave10-diagnostics/fresh-process-comparison.json
+          --label macos15-intel-python312-fresh-process-repeatability
+      - name: Create self-excluding manifest
+        if: always()
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability manifest
+          --root build/wave10-diagnostics
+      - name: Upload complete diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: wave10-l6-portability-macos15-intel-python312
+          path: build/wave10-diagnostics/
+          if-no-files-found: error
+      - name: Assert both captures completed
+        if: always()
+        shell: bash
+        run: |
+          test -f build/wave10-diagnostics/process-1/summary.json
+          test -f build/wave10-diagnostics/process-2/summary.json
+
+  windows-hosted-hardware-preflight:
+    if: github.ref == 'refs/heads/diagnostics/wave10-l6-portability'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned diagnostic environment
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Record hardware preflight before any override
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/wave10-diagnostics | Out-Null
+          if (Test-Path Env:OPENBLAS_CORETYPE) {
+            throw "OPENBLAS_CORETYPE was unexpectedly set before hardware preflight"
+          }
+          python -m tools.diagnostics.capture_wave10_l6_portability windows-preflight `
+            --output build/wave10-diagnostics/windows-hardware-preflight.json
+      - name: Run supplemental exact-provenance test only on capable hardware
+        shell: pwsh
+        run: |
+          $preflight = Get-Content build/wave10-diagnostics/windows-hardware-preflight.json -Raw | ConvertFrom-Json
+          if (-not $preflight.capabilities.all_required) {
+            Write-Output "controlled_hardware_unavailable"
+            exit 0
+          }
+          $env:OPENBLAS_CORETYPE = "SkylakeX"
+          python -m tools.diagnostics.capture_wave10_l6_portability runtime `
+            --output build/wave10-diagnostics/windows-controlled-runtime.json
+          python -m pytest -o addopts= `
+            tests/release/test_batch_correction_regression.py::test_batch_correction_provenance_bytes_match_pinned_regression `
+            --junitxml build/wave10-diagnostics/windows-exact-provenance-junit.xml
+      - name: Create self-excluding manifest
+        if: always()
+        shell: pwsh
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability manifest
+          --root build/wave10-diagnostics
+      - name: Upload complete diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: wave10-windows-hosted-hardware-preflight
+          path: build/wave10-diagnostics/
+          if-no-files-found: error
