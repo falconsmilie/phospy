@@ -172,16 +172,31 @@ jobs:
           python -m tools.diagnostics.capture_wave10_l6_portability annotate
           --root build/wave10-redacted-summary --label compact-redacted-summary
           --group identity --group cross:ubuntu312-vs-macos311
+      - name: Publish Ubuntu versus macOS Python 3.11 effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-redacted-summary --label compact-redacted-summary
+          --group cross-effects:ubuntu312-vs-macos311
       - name: Publish Ubuntu versus macOS Python 3.12 notices
         run: >-
           python -m tools.diagnostics.capture_wave10_l6_portability annotate
           --root build/wave10-redacted-summary --label compact-redacted-summary
           --group cross:ubuntu312-vs-macos312
+      - name: Publish Ubuntu versus macOS Python 3.12 effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-redacted-summary --label compact-redacted-summary
+          --group cross-effects:ubuntu312-vs-macos312
       - name: Publish macOS Python 3.11 versus 3.12 notices
         run: >-
           python -m tools.diagnostics.capture_wave10_l6_portability annotate
           --root build/wave10-redacted-summary --label compact-redacted-summary
           --group cross:macos311-vs-macos312
+      - name: Publish macOS Python 3.11 versus 3.12 effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/wave10-redacted-summary --label compact-redacted-summary
+          --group cross-effects:macos311-vs-macos312
       - name: Upload compact redacted summary
         if: always()
         uses: actions/upload-artifact@v5

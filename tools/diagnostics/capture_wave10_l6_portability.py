@@ -1979,20 +1979,70 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
         observed = cast(Mapping[str, object], comparison["observed_matrix_comparison"])
         cross_label = str(comparison["label"])
         group = f"cross:{cross_label}"
-        cross_base = {
+        effect_group = f"cross-effects:{cross_label}"
+        downstream_comparison = cast(
+            Mapping[str, object], comparison["downstream_comparison"]
+        )
+        sections = cast(Mapping[str, object], downstream_comparison["sections"])
+        rankings = cast(Mapping[str, object], downstream_comparison["rankings"])
+        metric_base = {"label": cross_label}
+        effect_base = {
+            "annotation_group": effect_group,
+            "label": cross_label,
+        }
+        annotations.append(
+            {
+                **effect_base,
+                "kind": "cross_lane_downstream_effects",
+                "numerical_prefix_checkpoints": comparison[
+                    "numerical_prefix_checkpoints"
+                ],
+                "detailed_checkpoint_difference_count": cast(
+                    Mapping[str, object], comparison["detailed_checkpoints"]
+                )["difference_count"],
+                "downstream_sha256": comparison["downstream_sha256"],
+                "threshold_crossings_equal": downstream_comparison[
+                    "threshold_crossings_equal"
+                ],
+                "ranking_change_count": rankings[
+                    "top_order_or_membership_change_count"
+                ],
+                "tie_group_changed_kinases": rankings["tie_group_changed_kinases"],
+            }
+        )
+        section_names = sorted(sections)
+        for offset in range(0, len(section_names), 3):
+            chunk = section_names[offset : offset + 3]
+            annotations.append(
+                {
+                    **effect_base,
+                    "kind": "cross_lane_downstream_sections",
+                    "sections": {name: sections[name] for name in chunk},
+                }
+            )
+        ranking_changes = cast(
+            list[object], rankings["top_order_or_membership_changes"]
+        )
+        for offset in range(0, len(ranking_changes), 10):
+            annotations.append(
+                {
+                    **effect_base,
+                    "kind": "cross_lane_ranking_changes",
+                    "changes": ranking_changes[offset : offset + 10],
+                }
+            )
+        checkpoint_base = {
             "label": cross_label,
             "numerical_prefix_checkpoints": comparison["numerical_prefix_checkpoints"],
             "detailed_checkpoint_difference_count": cast(
                 Mapping[str, object], comparison["detailed_checkpoints"]
             )["difference_count"],
-            "downstream_comparison": comparison.get("downstream_comparison"),
-            "downstream_sha256": comparison["downstream_sha256"],
         }
         annotations.extend(
             _metric_annotation_records(
                 group=group,
                 kind_prefix="cross_lane",
-                base=cross_base,
+                base=metric_base,
                 metrics=cast(Mapping[str, object], observed["metrics"]),
             )
         )
@@ -2000,7 +2050,7 @@ def inspection_annotations(root: Path, label: str) -> list[dict[str, object]]:
             {
                 "annotation_group": group,
                 "kind": "cross_lane_first_divergence",
-                **cross_base,
+                **checkpoint_base,
                 "first_numerical_divergence": _bounded_first_divergence(
                     comparison["first_numerical_divergence"]
                 ),
