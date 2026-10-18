@@ -87,116 +87,6 @@ jobs:
           python -m tools.diagnostics.capture_wave10_l6_portability inspect \
             --root "$summary" --label compact-redacted-summary \
             >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish Ubuntu identity and repeatability notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
-          --label ubuntu-x86_64-python312 --group identity --group repeatability
-      - name: Publish Ubuntu process 1 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
-          --label ubuntu-x86_64-python312 --group process-1
-      - name: Publish Ubuntu process 1 scientific-effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
-          --label ubuntu-x86_64-python312 --group process-1-effects
-      - name: Publish Ubuntu process 2 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
-          --label ubuntu-x86_64-python312 --group process-2
-      - name: Publish Ubuntu process 2 scientific-effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-ubuntu-x86_64-python312
-          --label ubuntu-x86_64-python312 --group process-2-effects
-      - name: Publish macOS Python 3.11 identity and repeatability notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
-          --label macos15-intel-python311 --group identity --group repeatability
-      - name: Publish macOS Python 3.11 process 1 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
-          --label macos15-intel-python311 --group process-1
-      - name: Publish macOS Python 3.11 process 1 scientific-effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
-          --label macos15-intel-python311 --group process-1-effects
-      - name: Publish macOS Python 3.11 process 2 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
-          --label macos15-intel-python311 --group process-2
-      - name: Publish macOS Python 3.11 process 2 scientific-effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python311
-          --label macos15-intel-python311 --group process-2-effects
-      - name: Publish macOS Python 3.12 identity and repeatability notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
-          --label macos15-intel-python312 --group identity --group repeatability
-      - name: Publish macOS Python 3.12 process 1 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
-          --label macos15-intel-python312 --group process-1
-      - name: Publish macOS Python 3.12 process 1 scientific-effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
-          --label macos15-intel-python312 --group process-1-effects
-      - name: Publish macOS Python 3.12 process 2 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
-          --label macos15-intel-python312 --group process-2
-      - name: Publish macOS Python 3.12 process 2 scientific-effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-l6-portability-macos15-intel-python312
-          --label macos15-intel-python312 --group process-2-effects
-      - name: Publish Windows preflight notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-existing-evidence/wave10-windows-hosted-hardware-preflight
-          --label windows-hosted-hardware-preflight --group identity --group windows
-      - name: Publish Ubuntu versus macOS Python 3.11 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-redacted-summary --label compact-redacted-summary
-          --group identity --group cross:ubuntu312-vs-macos311
-      - name: Publish Ubuntu versus macOS Python 3.11 effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-redacted-summary --label compact-redacted-summary
-          --group cross-effects:ubuntu312-vs-macos311
-      - name: Publish Ubuntu versus macOS Python 3.12 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-redacted-summary --label compact-redacted-summary
-          --group cross:ubuntu312-vs-macos312
-      - name: Publish Ubuntu versus macOS Python 3.12 effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-redacted-summary --label compact-redacted-summary
-          --group cross-effects:ubuntu312-vs-macos312
-      - name: Publish macOS Python 3.11 versus 3.12 notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-redacted-summary --label compact-redacted-summary
-          --group cross:macos311-vs-macos312
-      - name: Publish macOS Python 3.11 versus 3.12 effect notices
-        run: >-
-          python -m tools.diagnostics.capture_wave10_l6_portability annotate
-          --root build/wave10-redacted-summary --label compact-redacted-summary
-          --group cross-effects:macos311-vs-macos312
       - name: Upload compact redacted summary
         if: always()
         uses: actions/upload-artifact@v5
@@ -205,3 +95,149 @@ jobs:
           path: build/wave10-redacted-summary
           if-no-files-found: error
           retention-days: 30
+
+  publish-l6-lane-notices:
+    needs: inspect-existing-run
+    if: "github.event.head_commit.message == 'test: inspect existing Wave 10 diagnostic evidence'"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: ubuntu-x86_64-python312
+            artifact: wave10-l6-portability-ubuntu-x86_64-python312
+          - label: macos15-intel-python311
+            artifact: wave10-l6-portability-macos15-intel-python311
+          - label: macos15-intel-python312
+            artifact: wave10-l6-portability-macos15-intel-python312
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned inspection environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Download existing lane artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact }}
+          path: build/lane-evidence
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '39127639255'
+      - name: Publish identity and repeatability notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/lane-evidence --label ${{ matrix.label }}
+          --group identity --group repeatability
+      - name: Publish process 1 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/lane-evidence --label ${{ matrix.label }} --group process-1
+      - name: Publish process 1 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/lane-evidence --label ${{ matrix.label }}
+          --group process-1-effects
+      - name: Publish process 2 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/lane-evidence --label ${{ matrix.label }} --group process-2
+      - name: Publish process 2 scientific-effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/lane-evidence --label ${{ matrix.label }}
+          --group process-2-effects
+
+  publish-windows-notices:
+    needs: inspect-existing-run
+    if: "github.event.head_commit.message == 'test: inspect existing Wave 10 diagnostic evidence'"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned inspection environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Download existing Windows artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: wave10-windows-hosted-hardware-preflight
+          path: build/windows-evidence
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '39127639255'
+      - name: Publish Windows preflight notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/windows-evidence --label windows-hosted-hardware-preflight
+          --group identity --group windows
+
+  publish-cross-lane-notices:
+    needs: inspect-existing-run
+    if: "github.event.head_commit.message == 'test: inspect existing Wave 10 diagnostic evidence'"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: constraints/ci.txt
+      - name: Install pinned inspection environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci.txt -e ".[test]"
+      - name: Download compact redacted summary
+        uses: actions/download-artifact@v5
+        with:
+          name: wave10-redacted-inspection-run-39127639255
+          path: build/redacted-summary
+      - name: Publish Ubuntu versus macOS Python 3.11 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/redacted-summary --label compact-redacted-summary
+          --group identity --group cross:ubuntu312-vs-macos311
+      - name: Publish Ubuntu versus macOS Python 3.11 effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/redacted-summary --label compact-redacted-summary
+          --group cross-effects:ubuntu312-vs-macos311
+      - name: Publish Ubuntu versus macOS Python 3.12 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/redacted-summary --label compact-redacted-summary
+          --group cross:ubuntu312-vs-macos312
+      - name: Publish Ubuntu versus macOS Python 3.12 effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/redacted-summary --label compact-redacted-summary
+          --group cross-effects:ubuntu312-vs-macos312
+      - name: Publish macOS Python 3.11 versus 3.12 notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/redacted-summary --label compact-redacted-summary
+          --group cross:macos311-vs-macos312
+      - name: Publish macOS Python 3.11 versus 3.12 effect notices
+        run: >-
+          python -m tools.diagnostics.capture_wave10_l6_portability annotate
+          --root build/redacted-summary --label compact-redacted-summary
+          --group cross-effects:macos311-vs-macos312
