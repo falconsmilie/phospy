@@ -671,14 +671,16 @@ class SpsDiscoveryProvenance:
 def reference_provenance(
     reference: SpsReferenceDataset,
     *,
+    intensity_fingerprint: TableFingerprint | None = None,
     sites_passing_required_data: int | None = None,
     sites_entering_consensus: int | None = None,
 ) -> SpsReferenceDatasetProvenance:
     intensities = reference.intensities
-    intensity_fingerprint = sps_reference_intensity_fingerprint(
-        dataset_id=reference.dataset_id,
-        intensities=intensities,
-    )
+    if intensity_fingerprint is None:
+        intensity_fingerprint = sps_reference_intensity_fingerprint(
+            dataset_id=reference.dataset_id,
+            intensities=intensities,
+        )
     quantitative_state = require_sps_quantitative_state(
         reference.intensity_scale_state,
         field_name=(

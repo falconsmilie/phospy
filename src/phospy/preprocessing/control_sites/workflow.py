@@ -33,10 +33,21 @@ class SpsDiscoveryWorkflow:
     def run(self, request: object) -> SpsDiscoveryResult:
         """Validate references and return their deterministic consensus ranking."""
 
-        self.require_valid(request)
         if not isinstance(request, SpsDiscoveryRequest):
+            self.require_valid(request)
             raise AssertionError("unreachable after structured request validation")
-        plan = SpsDiscoveryRequestInterpreter().run(request)
+        validator = SpsDiscoveryRequestValidator()
+        validation = validator.run(
+            reference_datasets=request.reference_datasets,
+            config=request.config,
+        )
+        if not validation.valid:
+            raise SpsDiscoveryValidationError(validation)
+        plan = SpsDiscoveryRequestInterpreter(
+            intensity_fingerprints_by_dataset=(
+                validator.intensity_fingerprints_by_dataset
+            ),
+        ).run(request)
         return SpsDiscoveryExecutor().run(plan)
 
     def validate(self, request: object) -> SpsDiscoveryValidationResult:
@@ -98,7 +109,8 @@ class SpsDiscoveryWorkflow:
                     potential_overlap_site_count=0,
                 )
             ) from exc
-        validation = SpsDiscoveryRequestValidator().run(
+        validator = SpsDiscoveryRequestValidator()
+        validation = validator.run(
             reference_datasets=references,
             config=request.config,
         )
@@ -109,7 +121,15 @@ class SpsDiscoveryWorkflow:
         )
         return SpsDiscoveryProvenance(
             source_datasets=tuple(
-                reference_provenance(reference) for reference in ordered_references
+                reference_provenance(
+                    reference,
+                    intensity_fingerprint=(
+                        validator.intensity_fingerprints_by_dataset.get(
+                            reference.dataset_id
+                        )
+                    ),
+                )
+                for reference in ordered_references
             ),
             config=request.config,
             requested_control_count=request.config.top_n,

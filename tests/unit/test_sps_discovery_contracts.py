@@ -27,7 +27,12 @@ from phospy.advanced import (
 from phospy.api import Organism
 from phospy.errors.input import PhosPyInputError
 from phospy.phosphosites.site_keys import decode_site_key
-from phospy.preprocessing.control_sites import workflow as sps_workflow_module
+from phospy.preprocessing.control_sites import (
+    discovery_provenance as sps_provenance_module,
+)
+from phospy.preprocessing.control_sites import (
+    workflow as sps_workflow_module,
+)
 from phospy.preprocessing.control_sites.discovery_execution import (
     SpsDiscoveryExecutor,
 )
@@ -1089,6 +1094,33 @@ def test_accessor_mutation_cannot_change_validated_provenance() -> None:
     )
 
     assert provenance.source_datasets[0].intensity_fingerprint.index_name == "site_key"
+
+
+def test_workflow_reuses_validated_fingerprints_without_changing_complete_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keys = _site_keys("P1", "P2", "P3")
+    request = SpsDiscoveryRequest(
+        reference_datasets=(
+            _reference("study_a", keys),
+            _reference("study_b", keys),
+        ),
+        config=SpsDiscoveryConfig(top_n=2),
+    )
+    baseline = SpsDiscoveryExecutor().run(SpsDiscoveryRequestInterpreter().run(request))
+
+    def fail_if_fingerprint_recomputed(*args: object, **kwargs: object) -> None:
+        raise AssertionError("validated matrix fingerprint must be reused")
+
+    monkeypatch.setattr(
+        sps_provenance_module,
+        "sps_reference_intensity_fingerprint",
+        fail_if_fingerprint_recomputed,
+    )
+    optimized = SpsDiscoveryWorkflow().run(request)
+
+    assert optimized == baseline
+    assert optimized.to_payload() == baseline.to_payload()
 
 
 def test_invalid_reference_cannot_produce_source_provenance() -> None:

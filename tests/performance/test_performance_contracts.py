@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -1355,7 +1355,9 @@ def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:
 
 
 @pytest.mark.wall_clock_performance
-def test_adaptive_prediction_hot_path_performance_contract_with_fixed_seed() -> None:
+def test_adaptive_prediction_hot_path_performance_contract_with_fixed_seed(
+    record_property: Callable[[str, object], None],
+) -> None:
     prediction_score_matrix, candidate_substrates = (
         _build_adaptive_prediction_hot_path_inputs(
             n_sites=ADAPTIVE_PREDICTION_CONTRACT_N_SITES,
@@ -1387,6 +1389,19 @@ def test_adaptive_prediction_hot_path_performance_contract_with_fixed_seed() -> 
         candidate_substrates=candidate_substrates,
         prediction_config=prediction_config,
         random_state=93103,
+    )
+    record_property(
+        "adaptive_prediction_runtime_seconds",
+        f"{runtime_seconds:.6f}",
+    )
+    record_property(
+        "adaptive_prediction_runtime_threshold_seconds",
+        f"{ADAPTIVE_PREDICTION_RUNTIME_SECONDS_MAX:.6f}",
+    )
+    record_property("adaptive_prediction_peak_mib", f"{peak_mib:.6f}")
+    record_property(
+        "adaptive_prediction_peak_threshold_mib",
+        f"{ADAPTIVE_PREDICTION_PEAK_MIB_MAX:.6f}",
     )
 
     pd.testing.assert_frame_equal(adaptive_scores, repeated_scores, check_dtype=False)

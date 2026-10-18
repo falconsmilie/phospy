@@ -177,6 +177,9 @@ class SpsDiscoveryExecutor:
             source_datasets=tuple(
                 reference_provenance(
                     reference,
+                    intensity_fingerprint=plan.intensity_fingerprints_by_dataset.get(
+                        reference.dataset_id
+                    ),
                     sites_passing_required_data=len(
                         evidence_by_id[reference.dataset_id].scores_by_site
                     ),

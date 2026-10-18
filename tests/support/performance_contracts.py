@@ -621,14 +621,22 @@ def measure_runtime_and_peak_mib(
 ) -> tuple[object, float, float]:
     if warmup:
         func()
+    result, elapsed = measure_wall_clock(func, warmup=False)
+    peak_mib = measure_peak_mib(func)
+    return result, elapsed, peak_mib
+
+
+def measure_peak_mib(func: Callable[[], object]) -> float:
+    """Measure peak traced allocation in an execution separate from timing."""
+
     tracemalloc.start()
-    started = time.perf_counter()
-    result = func()
-    elapsed = time.perf_counter() - started
-    _current_bytes, peak_bytes = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    try:
+        func()
+        _current_bytes, peak_bytes = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
     peak_mib = float(peak_bytes) / (1024.0 * 1024.0)
-    return result, float(elapsed), peak_mib
+    return peak_mib
 
 
 def median_runtime_and_peak_mib(
@@ -775,6 +783,7 @@ __all__ = [
     "median_runtime_seconds",
     "measure_wall_clock",
     "measure_runtime_and_peak_mib",
+    "measure_peak_mib",
     "with_missing_fraction",
     "WORKFLOW_MEDIUM_CONTRACT_MISSING_FRACTION",
     "WORKFLOW_MEDIUM_CONTRACT_N_CONDITIONS",

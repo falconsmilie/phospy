@@ -26,6 +26,7 @@ from phospy.preprocessing.control_sites.discovery_contracts import (
     sps_reference_intensity_fingerprint,
     sps_scale_evidence_matches_matrix,
 )
+from phospy.provenance.models import TableFingerprint
 from phospy.quantitative.models import (
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
@@ -43,12 +44,22 @@ _SPS_QUANTITATIVE_REQUIREMENT = (
 class SpsDiscoveryRequestValidator:
     """Aggregate reference failures without exposing a public validator API."""
 
+    def __init__(self) -> None:
+        self._intensity_fingerprints_by_dataset: dict[str, TableFingerprint] = {}
+
+    @property
+    def intensity_fingerprints_by_dataset(self) -> Mapping[str, TableFingerprint]:
+        """Return fingerprints computed while validating the current request."""
+
+        return dict(self._intensity_fingerprints_by_dataset)
+
     def run(
         self,
         *,
         reference_datasets: object,
         config: object,
     ) -> SpsDiscoveryValidationResult:
+        self._intensity_fingerprints_by_dataset = {}
         issues: list[SpsDiscoveryValidationIssue] = []
         if not isinstance(config, SpsDiscoveryConfig):
             return SpsDiscoveryValidationResult(
@@ -639,6 +650,7 @@ class SpsDiscoveryRequestValidator:
                 dataset_id=dataset_id,
                 intensities=intensities,
             )
+            self._intensity_fingerprints_by_dataset[dataset_id] = intensity_fingerprint
             if establishment is not None and not sps_scale_evidence_matches_matrix(
                 establishment,
                 intensity_fingerprint=intensity_fingerprint,
