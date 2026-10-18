@@ -31,10 +31,12 @@ authoritative hosted lane. Its existing test predicate requires Python
 `3.11.15`, NumPy `2.2.6`, pandas `2.2.3`, SciPy `1.15.2`, and scikit-learn
 `1.6.1`; the predicate itself does not impose an operating-system condition.
 The pinned bytes were produced on Windows, and hosted execution with the exact
-runtime on Linux does not reproduce them. CI therefore supplies those exact
-versions on Windows, checks the platform and runtime before pytest, and uploads
-a JUnit report for the exact node so a skip cannot be mistaken for execution in
-the authoritative lane.
+runtime on Linux does not reproduce them. The passing capture environment uses
+the Anaconda Windows x64 Python build `3.11.15-hb00fc5c_1` and NumPy's OpenBLAS
+`SkylakeX` computation target. CI recreates that environment with Miniconda,
+checks the platform, interpreter build, and dependency versions before pytest,
+and uploads a JUnit report for the exact node so a skip cannot be mistaken for
+execution in the authoritative lane.
 
 Disposable local output belongs under `build/` or another ignored path.
 Verification logs and downloadable workflow artifacts are retained by GitHub

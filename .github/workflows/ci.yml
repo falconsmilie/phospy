@@ -183,28 +183,27 @@ jobs:
   exact-provenance-bytes:
     needs: repo-hygiene
     runs-on: windows-latest
+    env:
+      OPENBLAS_CORETYPE: SkylakeX
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: conda-incubator/setup-miniconda@v4
         with:
+          activate-environment: exact-provenance
           python-version: '3.11.15'
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            constraints/ci.txt
       - name: Install exact provenance regression environment
         run: |
           python -m pip install --upgrade pip
           python -m pip install -c constraints/ci.txt -e ".[test]"
       - name: Verify exact provenance regression environment
-        run: >-
-          python -c "import importlib.metadata as md, platform;
-          expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'};
-          actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}};
-          assert platform.system() == 'Windows', platform.platform();
-          assert actual == expected, (expected, actual)"
+        run: |
+          $pythonRecord = @(conda list --json python | ConvertFrom-Json | Where-Object { $_.name -eq 'python' })
+          if ($pythonRecord.Count -ne 1 -or $pythonRecord[0].build_string -ne 'hb00fc5c_1') {
+            throw "Expected Anaconda Python build hb00fc5c_1; actual=$($pythonRecord | ConvertTo-Json -Compress)"
+          }
+          python -c "import importlib.metadata as md, numpy as np, platform, sys; expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'}; actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}}; assert platform.system() == 'Windows', platform.platform(); assert platform.machine() == 'AMD64', platform.machine(); assert 'packaged by Anaconda, Inc.' in sys.version, sys.version; assert actual == expected, (expected, actual); np.show_runtime()"
       - name: Run exact provenance-byte regression
         run: >-
           python -m pytest -o addopts=

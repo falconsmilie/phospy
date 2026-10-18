@@ -2398,9 +2398,15 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     )
     assert "make test-release-gates" in release_gates
     assert "runs-on: windows-latest" in exact_provenance
+    assert "OPENBLAS_CORETYPE: SkylakeX" in exact_provenance
+    assert "conda-incubator/setup-miniconda@v4" in exact_provenance
+    assert "activate-environment: exact-provenance" in exact_provenance
     assert "python-version: '3.11.15'" in exact_provenance
     assert "constraints/ci.txt" in exact_provenance
     assert "platform.system() == 'Windows'" in exact_provenance
+    assert "platform.machine() == 'AMD64'" in exact_provenance
+    assert "packaged by Anaconda, Inc." in exact_provenance
+    assert "hb00fc5c_1" in exact_provenance
     for name, version in (
         ("numpy", "2.2.6"),
         ("pandas", "2.2.3"),
