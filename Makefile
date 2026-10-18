@@ -45,11 +45,13 @@ DEQMS_DEPTH_TIMESTAMP ?= 2026-09-09T00:00:00Z
 ACTIVE_SCRIPTS_DIR ?= scripts/active
 PYTEST_DURATION_ARGS ?= --durations=25 --durations-min=0.01
 PYTEST_REPORT_DIR ?= build/reports
+PERFORMANCE_MARKER_EXPR ?= performance or release_gate
+PERFORMANCE_REPORT_NAME ?= performance
 TWINE ?= $(PYTHON) -m twine
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format type-check pre-commit test tests-all test-unit test-contract test-parity test-performance test-release-gates docs-build validate-reference-bundles release-check benchmark-release-scale benchmark-sps test-seams build clean \
+	install install-dev lint format type-check pre-commit test tests-all test-unit test-contract test-parity test-performance test-performance-source-runtime test-performance-isolated test-release-gates docs-build validate-reference-bundles release-check benchmark-release-scale benchmark-sps test-seams build clean \
 	verify-installed-distributions verify-distribution-git-blobs repository-hygiene-check architecture-inventory-check architecture-release-source-check architecture-release-check \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-release-validation-regression fixtures-large-differential-limma-trend fixtures-duplicate-correlation-limma fixtures-deqms-depth fixtures-all \
@@ -68,6 +70,8 @@ help:
 	@printf '%s\n' '  make test-contract                 Run external-consumer public API contract tests'
 	@printf '%s\n' '  make test-parity                   Run the parity pytest suite'
 	@printf '%s\n' '  make test-performance              Run the performance contract suite'
+	@printf '%s\n' '  make test-performance-source-runtime Run non-wall-clock performance checks in the broad source lane'
+	@printf '%s\n' '  make test-performance-isolated     Run absolute wall-clock performance contracts in isolation'
 	@printf '%s\n' '  make test-release-gates            Run release/golden/reproducibility gates'
 	@printf '%s\n' '  make docs-build                    Build documentation with strict link/error checks'
 	@printf '%s\n' '  make validate-reference-bundles    Validate checked-in reference bundle manifests and files'
@@ -145,7 +149,13 @@ test-parity: check-tools
 
 test-performance: check-tools
 	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
-	$(PYTEST) -o junit_family=legacy $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" --junitxml "$(PYTEST_REPORT_DIR)/performance.xml"
+	$(PYTEST) -o junit_family=legacy $(PYTEST_DURATION_ARGS) tests/performance -m "$(PERFORMANCE_MARKER_EXPR)" --junitxml "$(PYTEST_REPORT_DIR)/$(PERFORMANCE_REPORT_NAME).xml"
+
+test-performance-source-runtime: check-tools
+	$(MAKE) test-performance PERFORMANCE_MARKER_EXPR='(performance or release_gate) and not wall_clock_performance' PERFORMANCE_REPORT_NAME=performance-source-runtime
+
+test-performance-isolated: check-tools
+	$(MAKE) test-performance PERFORMANCE_MARKER_EXPR=wall_clock_performance PERFORMANCE_REPORT_NAME=performance-isolated
 
 test-release-gates: check-tools
 	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
@@ -167,7 +177,7 @@ repository-hygiene-check: check-tools
 architecture-inventory-check: check-tools
 	$(PYTHON) tools/architecture/generate_architecture_inventory.py --repo-root . --check
 
-architecture-release-source-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance validate-reference-bundles test-release-gates docs-build
+architecture-release-source-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance-source-runtime validate-reference-bundles test-release-gates docs-build
 
 architecture-release-check: architecture-release-source-check build verify-distribution-git-blobs verify-installed-distributions
 

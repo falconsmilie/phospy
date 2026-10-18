@@ -12,6 +12,11 @@ from typing import Any, TypeGuard
 
 import pytest
 
+from tools.testing.release_selector_coverage import (
+    CollectionTarget,
+    collect_pytest_nodes,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.release_gate
@@ -48,6 +53,41 @@ RELEASE_CHECK_DEPENDENCIES = (
     "build",
     "verify-distribution-git-blobs",
     "verify-installed-distributions",
+)
+ABSOLUTE_WALL_CLOCK_PERFORMANCE_BASE_NODEIDS = frozenset(
+    {
+        "tests/performance/test_dataset_validation_performance.py::test_medium_dataset_construction_completes_under_generous_threshold",
+        "tests/performance/test_dataset_validation_performance.py::test_bounded_site_metadata_validation_completes_under_generous_threshold",
+        "tests/performance/test_dataset_validation_performance.py::test_bounded_site_key_metadata_alignment_completes_under_generous_threshold",
+        "tests/performance/test_dataset_validation_performance.py::test_bounded_observation_mask_validation_completes_under_generous_threshold",
+        "tests/performance/test_empirical_bayes_trend_performance.py::test_empirical_bayes_trend_smoothing_performance_realistic_feature_counts",
+        "tests/performance/test_empirical_bayes_trend_performance.py::test_empirical_bayes_trend_smoothing_performance_improves_large_matrix",
+        "tests/performance/test_importer_performance.py::test_maxquant_importer_medium_fixture_completes_under_generous_threshold",
+        "tests/performance/test_performance_contracts.py::test_signalome_full_vs_approximate_correlation_performance_contract",
+        "tests/performance/test_performance_contracts.py::test_signalome_backend_contracts_compare_exact_and_scipy_equivalent_small_fixture",
+        "tests/performance/test_performance_contracts.py::test_signalome_backend_contracts_medium_fixture_activates_sampled_candidate_scoring",
+        "tests/performance/test_performance_contracts.py::test_signalome_candidate_scoring_contract_full_vs_sampled_policy",
+        "tests/performance/test_performance_contracts.py::test_signalome_exact_tree_guard_contract_near_threshold_fixture",
+        "tests/performance/test_performance_contracts.py::test_signalome_full_correlation_guard_contract_fixture",
+        "tests/performance/test_performance_contracts.py::test_signalome_candidate_scoring_skip_contract_for_explicit_module_count",
+        "tests/performance/test_performance_contracts.py::test_signalome_workflow_performance_contract_reports_scale_guard_diagnostics",
+        "tests/performance/test_performance_contracts.py::test_signalome_workflow_performance_contract_covers_all_missing_row_preconditioning",
+        "tests/performance/test_performance_contracts.py::test_quantile_normalisation_performance_contract",
+        "tests/performance/test_performance_contracts.py::test_knn_imputation_sparse_and_moderate_benchmarks_and_peak_memory_regression",
+        "tests/performance/test_performance_contracts.py::test_group_aware_routing_practical_performance_regression",
+        "tests/performance/test_performance_contracts.py::test_motif_scoring_contract_scales_with_eligible_overlap",
+        "tests/performance/test_performance_contracts.py::test_adaptive_prediction_hot_path_performance_contract_with_fixed_seed",
+        "tests/performance/test_performance_contracts.py::test_large_reference_map_contract_keeps_filtered_scoring_bounded",
+        "tests/performance/test_performance_contracts.py::test_bundle_publishing_performance_contract_with_representative_tables",
+        "tests/performance/test_performance_contracts.py::test_provenance_hashing_performance_contract_large_dataframes",
+        "tests/performance/test_signalome_clustering_benchmark.py::test_cluster_tree_builder_medium_input_benchmark",
+        "tests/performance/test_sps_discovery_performance.py::test_sps_discovery_moderate_scale_production_path",
+        "tests/performance/test_ssgsea_activity_performance.py::test_ssgsea_seeded_permutation_performance_contract_is_bounded",
+        "tests/performance/test_ssgsea_activity_performance.py::test_ssgsea_null_calculation_memory_allocation_sanity",
+        "tests/performance/test_workflow_scale_contracts.py::test_dataset_builder_performance_contract_for_smoke_and_medium_scales",
+        "tests/performance/test_workflow_scale_contracts.py::test_differential_workflow_performance_contract_for_smoke_and_medium_scales",
+        "tests/performance/test_workflow_validation_performance.py::test_bounded_kinase_sequence_validation_completes_under_generous_threshold",
+    }
 )
 PROHIBITED_RELEASE_SCALE_ROWS = 50_000
 PROHIBITED_RELEASE_SCALE_SAMPLES = 48
@@ -1738,6 +1778,7 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         "integration",
         "parity",
         "performance",
+        "wall_clock_performance",
         "contract",
         "slow",
         "release_gate",
@@ -1766,8 +1807,40 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         '$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s'
         in _make_target_body("test-parity")
     )
-    assert 'tests/performance -m "performance or release_gate"' in _make_target_body(
-        "test-performance"
+    performance = _make_target_body("test-performance")
+    assert re.search(
+        r"(?m)^PERFORMANCE_MARKER_EXPR \?= performance or release_gate$",
+        makefile,
+    )
+    assert re.search(r"(?m)^PERFORMANCE_REPORT_NAME \?= performance$", makefile)
+    assert 'tests/performance -m "$(PERFORMANCE_MARKER_EXPR)"' in performance
+    assert "$(PYTEST_REPORT_DIR)/$(PERFORMANCE_REPORT_NAME).xml" in performance
+    source_runtime_performance = _make_target_body("test-performance-source-runtime")
+    assert "$(MAKE) test-performance" in source_runtime_performance
+    assert (
+        "PERFORMANCE_MARKER_EXPR='(performance or release_gate) and not "
+        "wall_clock_performance'"
+    ) in source_runtime_performance
+    assert (
+        "PERFORMANCE_REPORT_NAME=performance-source-runtime"
+        in source_runtime_performance
+    )
+    isolated_performance = _make_target_body("test-performance-isolated")
+    assert "$(MAKE) test-performance" in isolated_performance
+    assert "PERFORMANCE_MARKER_EXPR=wall_clock_performance" in isolated_performance
+    assert "PERFORMANCE_REPORT_NAME=performance-isolated" in isolated_performance
+    assert _make_target_dependencies("architecture-release-source-check") == (
+        "repository-hygiene-check",
+        "lint",
+        "type-check",
+        "architecture-inventory-check",
+        "test-unit",
+        "test-contract",
+        "test-parity",
+        "test-performance-source-runtime",
+        "validate-reference-bundles",
+        "test-release-gates",
+        "docs-build",
     )
     release_gates = _make_target_body("test-release-gates")
     assert '$(MKDIR_P) "$(PYTEST_REPORT_DIR)"' in release_gates
@@ -1784,6 +1857,56 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         "$(PYTHON) scripts/verify_installed_distributions.py --dist-dir dist "
         "--repo-root . --constraint constraints/ci.txt"
     ) in _make_target_body("verify-installed-distributions")
+
+
+def test_source_runtime_and_isolated_performance_selectors_partition_nodes_exactly() -> (
+    None
+):
+    full_nodes = collect_pytest_nodes(
+        ROOT,
+        CollectionTarget(
+            name="complete performance suite",
+            paths=("tests/performance",),
+            marker_expression="performance or release_gate",
+        ),
+    )
+    source_runtime_nodes = collect_pytest_nodes(
+        ROOT,
+        CollectionTarget(
+            name="source/runtime non-wall-clock performance selection",
+            paths=("tests/performance",),
+            marker_expression=(
+                "(performance or release_gate) and not wall_clock_performance"
+            ),
+        ),
+    )
+    isolated_nodes = collect_pytest_nodes(
+        ROOT,
+        CollectionTarget(
+            name="isolated wall-clock performance selection",
+            paths=("tests/performance",),
+            marker_expression="wall_clock_performance",
+        ),
+    )
+
+    full_nodeids = [node.nodeid for node in full_nodes]
+    source_runtime_nodeids = [node.nodeid for node in source_runtime_nodes]
+    isolated_nodeids = [node.nodeid for node in isolated_nodes]
+    full_set = set(full_nodeids)
+    source_runtime_set = set(source_runtime_nodeids)
+    isolated_set = set(isolated_nodeids)
+
+    assert len(full_nodeids) == len(full_set) == 54
+    assert len(source_runtime_nodeids) == len(source_runtime_set) == 15
+    assert len(isolated_nodeids) == len(isolated_set) == 39
+    assert source_runtime_set.isdisjoint(isolated_set)
+    assert source_runtime_set | isolated_set == full_set
+    assert isolated_set == full_set - source_runtime_set
+    assert all("wall_clock_performance" in node.markers for node in isolated_nodes)
+    isolated_base_nodeids = {
+        nodeid.split("[", maxsplit=1)[0] for nodeid in isolated_nodeids
+    }
+    assert isolated_base_nodeids == ABSOLUTE_WALL_CLOCK_PERFORMANCE_BASE_NODEIDS
 
 
 def test_release_scale_benchmark_is_local_optional_and_outside_pytest() -> None:
@@ -2379,7 +2502,18 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert 'pip install -e ".[docs]"' not in workflow
     assert "make docs-build" not in workflow
     assert "timeout-minutes: 90" in performance
-    assert "make test-performance" in performance
+    assert "runs-on: ${{ matrix.os }}" in performance
+    assert "os: [ubuntu-latest, windows-latest, macos-15-intel]" in performance
+    assert "choco install make --no-progress -y" in performance
+    assert 'python -m pip install -c constraints/ci.txt -e ".[dev,test,docs]"' in (
+        performance
+    )
+    assert "make test-performance-isolated" in performance
+    assert "make test-performance\n" not in performance
+    assert (
+        "performance-contracts-${{ runner.os }}-py${{ matrix.python-version }}"
+        in performance
+    )
     assert "make validate-reference-bundles" in reference_bundles
     assert "runs-on: ${{ matrix.os }}" in fixture_integrity
     assert "os: [ubuntu-latest, windows-latest]" in fixture_integrity
@@ -2437,6 +2571,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "runs-on: ${{ matrix.os }}" in architecture_source
     assert "os: [ubuntu-latest, windows-latest, macos-15-intel]" in architecture_source
     _assert_supported_python_matrix(architecture_source)
+    assert "make architecture-release-source-check" in architecture_source
     assert "PHOSPY_L6_PREDICTION_LANE:" in architecture_source
     assert "PHOSPY_L6_PREDICTION_EVIDENCE_PATH:" in architecture_source
     assert "Derive L6 reference-only sensitivity budget" in architecture_source
@@ -2465,6 +2600,15 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         "test_l6_downstream_decisions_match_promoted_reference_exactly"
         in architecture_source
     )
+    assert architecture_source.index(
+        "make architecture-release-source-check"
+    ) < architecture_source.index("Record L6 prediction fresh-process evidence 1")
+    assert architecture_source.index(
+        "Record L6 prediction fresh-process evidence 1"
+    ) < architecture_source.index("Record L6 prediction fresh-process evidence 2")
+    assert architecture_source.index(
+        "Record L6 prediction fresh-process evidence 2"
+    ) < architecture_source.index("Compare L6 fresh-process evidence exactly")
     assert '-m "parity and activity_parity"' in activity_parity
     assert '-m "parity and not parity_diagnostic"' in hard_parity
     assert "continue-on-error: true" not in hard_parity

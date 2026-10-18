@@ -33,6 +33,7 @@ def medium_maxquant_source() -> pd.DataFrame:
     )
 
 
+@pytest.mark.wall_clock_performance
 def test_maxquant_importer_medium_fixture_completes_under_generous_threshold(
     medium_maxquant_source: pd.DataFrame,
 ) -> None:

@@ -11,6 +11,14 @@ PhosPy uses two different performance mechanisms:
 Performance results are operational guardrails and profiling evidence. They are
 not guarantees of identical runtime on every machine.
 
+CI marks contracts with fixed elapsed-time ceilings as
+`wall_clock_performance`. Those nodes run in fresh performance jobs on Ubuntu,
+Windows, and macOS Intel with Python 3.11 and 3.12. The broad source/runtime job
+runs the complementary performance nodes, while `make test-performance` remains
+the complete local/release selector. This changes only process topology; test
+workloads, warm-ups, datasets, iteration counts, memory limits, and elapsed-time
+ceilings remain the contracts documented below.
+
 Validated dataset construction installs one private dataset-owned immutable
 frame store. Ordinary kinase, differential, and Signalome workflow runs still
 receive independent `DatasetInternalView` instances, but those views return

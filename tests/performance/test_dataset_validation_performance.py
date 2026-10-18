@@ -93,6 +93,7 @@ def test_realistic_performance_fixtures_have_expected_shapes(
     assert float(medium_phospho.min().min()) >= 0.0
 
 
+@pytest.mark.wall_clock_performance
 def test_medium_dataset_construction_completes_under_generous_threshold(
     medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
@@ -143,6 +144,7 @@ def test_analysis_ready_missing_value_scan_scales_for_numeric_matrix(
     assert numeric_runtime_seconds < object_runtime_seconds
 
 
+@pytest.mark.wall_clock_performance
 def test_bounded_site_metadata_validation_completes_under_generous_threshold(
     medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
@@ -164,6 +166,7 @@ def test_bounded_site_metadata_validation_completes_under_generous_threshold(
     )
 
 
+@pytest.mark.wall_clock_performance
 def test_bounded_site_key_metadata_alignment_completes_under_generous_threshold(
     medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
@@ -181,6 +184,7 @@ def test_bounded_site_key_metadata_alignment_completes_under_generous_threshold(
     assert runtime_seconds < DATASET_VALIDATION_BOUNDED_ALIGNMENT_RUNTIME_SECONDS_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_bounded_observation_mask_validation_completes_under_generous_threshold(
     medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:

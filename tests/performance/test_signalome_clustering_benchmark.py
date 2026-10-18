@@ -54,6 +54,7 @@ def _build_signalome_scoring_matrix(*, n_sites: int, n_kinases: int) -> pd.DataF
     return matrix
 
 
+@pytest.mark.wall_clock_performance
 def test_cluster_tree_builder_medium_input_benchmark() -> None:
     n_sites = SIGNALOME_CLUSTER_TREE_BENCHMARK_N_SITES
     scoring_matrix = _build_signalome_scoring_matrix(

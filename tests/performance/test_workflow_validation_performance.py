@@ -34,6 +34,7 @@ def bounded_kinase_sequence_metadata() -> pd.DataFrame:
     )
 
 
+@pytest.mark.wall_clock_performance
 def test_bounded_kinase_sequence_validation_completes_under_generous_threshold(
     bounded_kinase_sequence_metadata: pd.DataFrame,
 ) -> None:

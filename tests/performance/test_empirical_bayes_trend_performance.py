@@ -111,6 +111,7 @@ def _assert_trend_fit_performance(
     ),
     _FEATURE_COUNT_CASES,
 )
+@pytest.mark.wall_clock_performance
 def test_empirical_bayes_trend_smoothing_performance_realistic_feature_counts(
     _scale_name: str,
     n_features: int,
@@ -124,6 +125,7 @@ def test_empirical_bayes_trend_smoothing_performance_realistic_feature_counts(
     )
 
 
+@pytest.mark.wall_clock_performance
 def test_empirical_bayes_trend_smoothing_performance_improves_large_matrix() -> None:
     _assert_trend_fit_performance(
         n_features=EMPIRICAL_BAYES_TREND_LARGE_N_FEATURES,

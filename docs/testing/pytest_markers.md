@@ -10,6 +10,7 @@ policy.
 - `contract`: External-consumer public API contract tests.
 - `parity`: Python vs R/PhosR parity checks against approved reference fixtures.
 - `performance`: Performance contract checks for key scientific paths.
+- `wall_clock_performance`: Absolute wall-clock contracts that run in isolated CI processes rather than the broad source/runtime process.
 - `slow`: Long-running tests that are useful for deeper local validation.
 - `reproducibility`: Deterministic replay/provenance checks required for release confidence.
 - `golden`: Golden fixture contract checks for stable scientific/provenance outputs.
@@ -38,6 +39,7 @@ selected by explicit Makefile targets. The release check blocks release on:
 | `parity` | Blocking through `pytest tests/parity -m "parity and not parity_diagnostic" -s`. |
 | `activity_parity` | Blocking because the activity parity file is also marked `parity` and is not marked `parity_diagnostic`; CI also has a dedicated activity parity gate. |
 | `performance` | Blocking through `pytest tests/performance -m "performance or release_gate"`. |
+| `wall_clock_performance` | Blocking in the isolated Ubuntu, Windows, and macOS Intel matrix on Python 3.11 and 3.12. The broad source/runtime matrix selects the complementary non-wall-clock performance nodes. |
 | `parity_diagnostic` | Explicitly excluded from the blocking parity target unless intentionally promoted out of the exclusion. |
 | `slow` | Not selected solely by marker for release; it runs only when also collected by a blocking selector. |
 
@@ -49,7 +51,11 @@ a pytest marker category, is not collected by pytest, and is excluded from
 
 CI runs the default non-parity suite, public-consumer contract suite,
 threshold-bearing parity suite, release and golden gates, and performance
-contracts on each supported Python version: 3.11 and 3.12. Build and
+contracts on each supported Python version: 3.11 and 3.12. Absolute wall-clock
+contracts run once per Ubuntu, Windows, and macOS Intel/Python lane in fresh
+performance jobs. The matching broad source/runtime lane runs the complementary
+performance selection, so the two selectors partition the complete performance
+suite without overlap. Build and
 archive-level packaged-reference validation remain a dedicated single-build
 artifact job; the uploaded wheel and sdist are then installed and executed by a
 separate Python 3.11 and 3.12 verifier matrix.
@@ -76,6 +82,8 @@ Based on that configuration:
 - External-consumer public API validation: `make test-contract`
 - Exclude slow tests in local loops: `pytest -m "not parity and not slow"`
 - Performance-only validation: `pytest tests/performance -m "performance or release_gate"`
+- Broad source/runtime performance selection: `make test-performance-source-runtime`
+- Isolated absolute wall-clock selection: `make test-performance-isolated`
 - Standalone documentation maintenance: `make docs-build`
 - Optional local release-scale benchmark: `make benchmark-release-scale`
 - Release/golden validation: `make test-release-gates`

@@ -18,6 +18,7 @@ from tests.support.sps_discovery_performance import (
 pytestmark = [pytest.mark.performance, pytest.mark.release_gate]
 
 
+@pytest.mark.wall_clock_performance
 def test_sps_discovery_moderate_scale_production_path(
     record_property: Callable[[str, object], None],
 ) -> None:

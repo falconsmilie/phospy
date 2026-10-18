@@ -120,7 +120,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/performance/test_dataset_validation_performance.py | test_optimized_observation_mask_validation_matches_reference_behavior | 222 | `invalid = valid.copy(deep=True)` |
+| tests/performance/test_dataset_validation_performance.py | test_optimized_observation_mask_validation_matches_reference_behavior | 226 | `invalid = valid.copy(deep=True)` |
 | tests/unit/test_batch_correction_pre_execution_validation.py | test_workflow_rejects_knn_temporary_imputation_before_interpreter_and_executor | 63 | `match="unsupported temporary imputation.*KNN temporary imputation is not implemented",` |
 | tests/unit/test_batch_correction_pre_execution_validation.py | test_workflow_rejects_minprob_temporary_imputation_before_interpreter_and_executor | 94 | `match="unsupported temporary imputation.*MinProb temporary imputation is not implemented",` |
 | tests/unit/test_config_validation_primitives.py | test_require_supported_literal_reports_sorted_supported_values | 21 | `def test_require_supported_literal_reports_sorted_supported_values() -> None:` |
@@ -170,14 +170,14 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/architecture/test_validation_ownership_governance.py | test_validation_ownership_map_assigns_frame_and_science_owners | 285 | `assert _first_code_span(rows["DataFrame shape"].owner) == "phospy.frames.validation"` |
 | tests/integration/workflows/differential/test_protein_aware_scientific_validation.py | test_protein_differential_fixed_covariate_and_block_designs_recover_effects | 407 | `contrasts = pd.DataFrame(` |
 | tests/performance/test_dataset_validation_performance.py | test_realistic_performance_fixtures_have_expected_shapes | 76 | `small_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
-| tests/performance/test_dataset_validation_performance.py | test_medium_dataset_construction_completes_under_generous_threshold | 97 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
-| tests/performance/test_dataset_validation_performance.py | test_analysis_ready_missing_value_scan_scales_for_numeric_matrix | 124 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
-| tests/performance/test_dataset_validation_performance.py | test_bounded_site_metadata_validation_completes_under_generous_threshold | 147 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
-| tests/performance/test_dataset_validation_performance.py | test_bounded_site_key_metadata_alignment_completes_under_generous_threshold | 168 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
-| tests/performance/test_dataset_validation_performance.py | test_bounded_observation_mask_validation_completes_under_generous_threshold | 185 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
-| tests/performance/test_dataset_validation_performance.py | test_optimized_observation_mask_validation_matches_reference_behavior | 214 | `valid = pd.DataFrame(` |
-| tests/performance/test_dataset_validation_performance.py | test_optimized_localisation_probability_assessment_matches_reference_behavior | 257 | `site_metadata = pd.DataFrame(` |
-| tests/performance/test_workflow_validation_performance.py | test_bounded_kinase_sequence_validation_completes_under_generous_threshold | 38 | `bounded_kinase_sequence_metadata: pd.DataFrame,` |
+| tests/performance/test_dataset_validation_performance.py | test_medium_dataset_construction_completes_under_generous_threshold | 98 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
+| tests/performance/test_dataset_validation_performance.py | test_analysis_ready_missing_value_scan_scales_for_numeric_matrix | 125 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
+| tests/performance/test_dataset_validation_performance.py | test_bounded_site_metadata_validation_completes_under_generous_threshold | 149 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
+| tests/performance/test_dataset_validation_performance.py | test_bounded_site_key_metadata_alignment_completes_under_generous_threshold | 171 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
+| tests/performance/test_dataset_validation_performance.py | test_bounded_observation_mask_validation_completes_under_generous_threshold | 189 | `medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],` |
+| tests/performance/test_dataset_validation_performance.py | test_optimized_observation_mask_validation_matches_reference_behavior | 218 | `valid = pd.DataFrame(` |
+| tests/performance/test_dataset_validation_performance.py | test_optimized_localisation_probability_assessment_matches_reference_behavior | 261 | `site_metadata = pd.DataFrame(` |
+| tests/performance/test_workflow_validation_performance.py | test_bounded_kinase_sequence_validation_completes_under_generous_threshold | 39 | `bounded_kinase_sequence_metadata: pd.DataFrame,` |
 | tests/unit/test_analysis_ready_model_boundary_validator.py | test_analysis_ready_dataset_constructor_preserves_frame_ownership | 227 | `assert isinstance(phospho, pd.DataFrame)` |
 | tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site_key | 602 | `payload["phospho"] = pd.DataFrame(` |
 | tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_parity_for_misaligned_site_metadata | 693 | `payload["site_metadata"] = pd.DataFrame(` |

@@ -154,6 +154,7 @@ def _build_contrasts(*, n_conditions: int) -> tuple[Contrast, ...]:
     ),
     _SCALE_CASES,
 )
+@pytest.mark.wall_clock_performance
 def test_dataset_builder_performance_contract_for_smoke_and_medium_scales(
     _scale_name: str,
     n_sites: int,
@@ -200,6 +201,7 @@ def test_dataset_builder_performance_contract_for_smoke_and_medium_scales(
     ),
     _SCALE_CASES,
 )
+@pytest.mark.wall_clock_performance
 def test_differential_workflow_performance_contract_for_smoke_and_medium_scales(
     _scale_name: str,
     n_sites: int,

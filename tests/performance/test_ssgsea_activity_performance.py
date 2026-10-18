@@ -80,6 +80,7 @@ def _run_bounded_ssgsea(
     )
 
 
+@pytest.mark.wall_clock_performance
 def test_ssgsea_seeded_permutation_performance_contract_is_bounded() -> None:
     result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
         _run_bounded_ssgsea,
@@ -106,6 +107,7 @@ def test_ssgsea_seeded_permutation_performance_contract_is_bounded() -> None:
     assert peak_mib < SSGSEA_ACTIVITY_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_ssgsea_null_calculation_memory_allocation_sanity() -> None:
     result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
         lambda: _run_bounded_ssgsea(

@@ -360,11 +360,12 @@ jobs:
 
   performance-contracts:
     needs: repo-hygiene
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-15-intel]
         python-version: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v6
@@ -377,17 +378,24 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             constraints/ci.txt
-      - name: Install package
+      - name: Install GNU Make on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install make --no-progress -y
+      - name: Install complete gate environment
+        shell: bash
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
-          pip install -e ".[test]"
-      - name: Run performance contract tests
-        run: make test-performance
+          python -m pip install -c constraints/ci.txt -e ".[dev,test,docs]"
+      - name: Run isolated wall-clock performance contract tests
+        shell: bash
+        run: make test-performance-isolated
       - name: Retain performance budget reports
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: performance-contracts-py${{ matrix.python-version }}
+          name: performance-contracts-${{ runner.os }}-py${{ matrix.python-version }}
           path: build/reports/
 
   reference-bundles:

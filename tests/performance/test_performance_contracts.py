@@ -456,6 +456,7 @@ def _build_kinase_result_for_signalome_performance(
     return KinaseWorkflow().run(request), eligible_kinase_names
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_full_vs_approximate_correlation_performance_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -503,6 +504,7 @@ def test_signalome_full_vs_approximate_correlation_performance_contract(
     assert above_peak_mib < full_matrix_mib * 0.75
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_backend_contracts_compare_exact_and_scipy_equivalent_small_fixture() -> (
     None
 ):
@@ -596,6 +598,7 @@ def test_signalome_backend_contracts_compare_exact_and_scipy_equivalent_small_fi
     assert scipy_snapshot["peak_mib"] < SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_backend_contracts_medium_fixture_activates_sampled_candidate_scoring() -> (
     None
 ):
@@ -677,6 +680,7 @@ def test_signalome_backend_contracts_medium_fixture_activates_sampled_candidate_
     assert scipy_snapshot["peak_mib"] < SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_candidate_scoring_contract_full_vs_sampled_policy() -> None:
     scoring_matrix = _build_signalome_realistic_scoring_matrix(
         n_sites=420,
@@ -729,6 +733,7 @@ def test_signalome_candidate_scoring_contract_full_vs_sampled_policy() -> None:
     assert sampled_peak_mib < SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_exact_tree_guard_contract_near_threshold_fixture() -> None:
     near_limit = 72
     passing_matrix = _build_signalome_realistic_scoring_matrix(
@@ -780,6 +785,7 @@ def test_signalome_exact_tree_guard_contract_near_threshold_fixture() -> None:
     assert guard_runtime_seconds < SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_full_correlation_guard_contract_fixture() -> None:
     scoring_matrix = _build_signalome_realistic_scoring_matrix(
         n_sites=90,
@@ -810,6 +816,7 @@ def test_signalome_full_correlation_guard_contract_fixture() -> None:
     assert guard_runtime_seconds < SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_candidate_scoring_skip_contract_for_explicit_module_count() -> None:
     scoring_matrix = _build_signalome_realistic_scoring_matrix(
         n_sites=44,
@@ -856,6 +863,7 @@ def test_signalome_candidate_scoring_skip_contract_for_explicit_module_count() -
     assert snapshot["peak_mib"] < SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_workflow_performance_contract_reports_scale_guard_diagnostics() -> (
     None
 ):
@@ -943,6 +951,7 @@ def test_signalome_workflow_performance_contract_reports_scale_guard_diagnostics
     assert peak_mib < SIGNALOME_WORKFLOW_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_signalome_workflow_performance_contract_covers_all_missing_row_preconditioning() -> (
     None
 ):
@@ -1017,6 +1026,7 @@ def test_signalome_workflow_performance_contract_covers_all_missing_row_precondi
     assert peak_mib < SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_quantile_normalisation_performance_contract() -> None:
     phospho = deterministic_matrix(
         n_sites=PREPROCESSING_CONTRACT_N_SITES,
@@ -1050,6 +1060,7 @@ def test_quantile_normalisation_performance_contract() -> None:
     KNN_IMPUTATION_BENCHMARK_TIERS,
     ids=lambda tier: tier.case_id,
 )
+@pytest.mark.wall_clock_performance
 def test_knn_imputation_sparse_and_moderate_benchmarks_and_peak_memory_regression(
     tier: KnnImputationBenchmarkTier,
 ) -> None:
@@ -1092,6 +1103,7 @@ def test_knn_imputation_sparse_and_moderate_benchmarks_and_peak_memory_regressio
     assert peak_mib < KNN_IMPUTATION_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_group_aware_routing_practical_performance_regression() -> None:
     phospho = deterministic_matrix(
         n_sites=GROUP_AWARE_ROUTING_CONTRACT_N_SITES,
@@ -1288,6 +1300,7 @@ def test_group_aware_full_stage_uses_one_shared_facts_index(
     )
 
 
+@pytest.mark.wall_clock_performance
 def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:
     dataset_sites = deterministic_site_ids(SIGNALOME_CONTRACT_N_SITES)
     offlane_sites = deterministic_site_ids(
@@ -1341,6 +1354,7 @@ def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:
     assert peak_mib < MOTIF_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_adaptive_prediction_hot_path_performance_contract_with_fixed_seed() -> None:
     prediction_score_matrix, candidate_substrates = (
         _build_adaptive_prediction_hot_path_inputs(
@@ -1382,6 +1396,7 @@ def test_adaptive_prediction_hot_path_performance_contract_with_fixed_seed() -> 
     assert peak_mib < ADAPTIVE_PREDICTION_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_large_reference_map_contract_keeps_filtered_scoring_bounded() -> None:
     _site_ids, dataset, references, eligible_kinases = _build_kinase_workflow_inputs(
         n_sites=250,
@@ -1497,6 +1512,7 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
     assert diagnostic_result.scoring_result.score_fusion_weights is not None
 
 
+@pytest.mark.wall_clock_performance
 def test_bundle_publishing_performance_contract_with_representative_tables(
     tmp_path: Path,
 ) -> None:
@@ -1547,6 +1563,7 @@ def test_bundle_publishing_performance_contract_with_representative_tables(
     assert peak_mib < BUNDLE_PUBLISH_PEAK_MIB_MAX
 
 
+@pytest.mark.wall_clock_performance
 def test_provenance_hashing_performance_contract_large_dataframes() -> None:
     phospho = deterministic_matrix(
         n_sites=PREPROCESSING_CONTRACT_N_SITES,
