@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import Protocol, cast
 
 import numpy as np
@@ -17,6 +18,8 @@ from phospy.kinase.prediction.svm import (
     require_sklearn,
     suppress_sklearn_svc_probability_deprecation,
 )
+
+_SVC_FIT_LOCK = Lock()
 
 
 class _SamplingModel(Protocol):
@@ -118,7 +121,10 @@ def _run_sampling_iterations(
                 use_r_parity_scaler=use_r_parity_scaler,
             ),
         )
-        with suppress_sklearn_svc_probability_deprecation():
+        # libsvm probability calibration uses process-global random state. Stable
+        # kinase workers may predict concurrently, but fits must not overlap or
+        # seeded calibration can become schedule-dependent.
+        with _SVC_FIT_LOCK, suppress_sklearn_svc_probability_deprecation():
             model.fit(current_x, current_y)
         prob_mat = np.asarray(model.predict_proba(base_x), dtype=float)
         weights_by_class = _compute_class_weights(

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import threading
+import time
 
 import numpy as np
 import pandas as pd
@@ -14,6 +16,7 @@ from phospy.errors import (
     WorkflowStageError,
 )
 from phospy.kinase.prediction import execution, sampling_core
+from phospy.kinase.prediction.config import KinaseAdaptivePolicy
 from phospy.kinase.prediction.execution import (
     AdaptiveEnsemblePredictionExecutionConfig,
     run_adaptive_ensemble_prediction,
@@ -165,6 +168,54 @@ def test_run_adaptive_sampling_ensemble_separates_positive_and_negative_sites() 
     assert scores.shape == (6,)
     assert ((scores >= 0.0) & (scores <= 1.0)).all()
     assert float(scores[:3].mean()) > float(scores[3:].mean())
+
+
+def test_parallel_sampling_serializes_svc_probability_fits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fit_state = {"active": 0, "max_active": 0}
+    fit_state_lock = threading.Lock()
+
+    class TrackingModel:
+        classes_ = np.asarray([1, 2], dtype=int)
+
+        def fit(self, x: np.ndarray, y: np.ndarray) -> None:
+            del x, y
+            with fit_state_lock:
+                fit_state["active"] += 1
+                fit_state["max_active"] = max(
+                    fit_state["max_active"], fit_state["active"]
+                )
+            time.sleep(0.02)
+            with fit_state_lock:
+                fit_state["active"] -= 1
+
+        def predict_proba(self, x: np.ndarray) -> np.ndarray:
+            return np.tile(np.asarray([0.6, 0.4], dtype=float), (x.shape[0], 1))
+
+    monkeypatch.setattr(sampling_core, "require_sklearn", lambda: (object, object))
+    monkeypatch.setattr(sampling_core, "make_svm", lambda **_kwargs: TrackingModel())
+    policy = resolve_prediction_sampling_policy("stable")
+
+    def run(seed: int) -> np.ndarray:
+        return run_adaptive_sampling_ensemble(
+            train_values=np.asarray(
+                [[0.9, 0.1], [0.8, 0.2], [0.2, 0.8], [0.1, 0.9]],
+                dtype=float,
+            ),
+            train_labels=np.asarray([1, 1, 2, 2], dtype=int),
+            test_values=np.asarray([[0.9, 0.1], [0.1, 0.9]], dtype=float),
+            kernel="rbf",
+            n_iterations=2,
+            resampling_rng=np.random.default_rng(seed),
+            sampling_policy=policy,
+        )
+
+    with execution.ThreadPoolExecutor(max_workers=2) as executor:
+        observed = list(executor.map(run, [17, 23]))
+
+    assert len(observed) == 2
+    assert fit_state["max_active"] == 1
 
 
 def test_run_adaptive_sampling_ensemble_skips_decision_vector_for_mean_probability(
@@ -421,7 +472,7 @@ def test_r_parity_prediction_keeps_global_rng_execution_serial(
 @pytest.mark.parametrize("adaptive_policy", ["stable", "r_parity"])
 def test_trace_observation_preserves_ordinary_adaptive_execution(
     monkeypatch: pytest.MonkeyPatch,
-    adaptive_policy: str,
+    adaptive_policy: KinaseAdaptivePolicy,
 ) -> None:
     score_matrix = pd.DataFrame(
         {
@@ -450,10 +501,12 @@ def test_trace_observation_preserves_ordinary_adaptive_execution(
     def observe_sampling(**kwargs: object) -> np.ndarray:
         train_values = kwargs["train_values"]
         test_values = kwargs["test_values"]
+        n_iterations = kwargs["n_iterations"]
         assert isinstance(train_values, np.ndarray)
         assert isinstance(test_values, np.ndarray)
+        assert isinstance(n_iterations, int)
         observed_calls.append(
-            (train_values.shape[0], test_values.shape[0], int(kwargs["n_iterations"]))
+            (train_values.shape[0], test_values.shape[0], n_iterations)
         )
         return run_adaptive_sampling_ensemble(**kwargs)  # type: ignore[arg-type]
 
