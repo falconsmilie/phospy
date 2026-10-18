@@ -205,10 +205,9 @@ jobs:
           }
           python -c "import importlib.metadata as md, numpy as np, platform, sys; expected={'python':'3.11.15','numpy':'2.2.6','pandas':'2.2.3','scipy':'1.15.2','scikit-learn':'1.6.1'}; actual={'python':platform.python_version(),**{name:md.version(name) for name in ('numpy','pandas','scipy','scikit-learn')}}; assert platform.system() == 'Windows', platform.platform(); assert platform.machine() == 'AMD64', platform.machine(); assert 'packaged by Anaconda, Inc.' in sys.version, sys.version; assert actual == expected, (expected, actual); np.show_runtime()"
       - name: Run exact provenance-byte regression
-        run: >-
-          python -m pytest -o addopts=
-          tests/release/test_batch_correction_regression.py::test_batch_correction_provenance_bytes_match_pinned_regression
-          --junitxml build/reports/exact-provenance-bytes-windows-py3.11.15.xml
+        run: |
+          New-Item -ItemType Directory -Path build/reports -Force | Out-Null
+          python -m pytest -o addopts= tests/release/test_batch_correction_regression.py::test_batch_correction_provenance_bytes_match_pinned_regression --junitxml build/reports/exact-provenance-bytes-windows-py3.11.15.xml
       - name: Retain exact provenance-byte JUnit evidence
         if: always()
         uses: actions/upload-artifact@v5

@@ -2418,6 +2418,7 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
         "test_batch_correction_regression.py::"
         "test_batch_correction_provenance_bytes_match_pinned_regression"
     ) in exact_provenance
+    assert "New-Item -ItemType Directory -Path build/reports" in exact_provenance
     assert "exact-provenance-bytes-windows-py3.11.15.xml" in exact_provenance
     assert "name: exact-provenance-bytes-windows-py3.11.15" in exact_provenance
     assert "runs-on: ${{ matrix.os }}" in architecture_source
