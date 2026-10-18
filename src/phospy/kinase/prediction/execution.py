@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import numpy as np
@@ -11,10 +12,14 @@ import pandas as pd
 from phospy.errors.workflows import WorkflowStageError
 from phospy.kinase.prediction.config import KinaseAdaptivePolicy
 from phospy.kinase.prediction.policies import (
+    PredictionSamplingPolicy,
     resolve_prediction_sampling_policy,
 )
 from phospy.kinase.prediction.sampling_core import run_adaptive_sampling_ensemble
 from phospy.kinase.prediction.sampling_runtime import PredictionSamplingRandomSource
+
+_STABLE_PARALLEL_MIN_KINASES = 2
+_STABLE_MAX_WORKERS = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +29,74 @@ class AdaptiveEnsemblePredictionExecutionConfig:
     adaptive_policy: KinaseAdaptivePolicy
     adaptive_ensemble_runs: int
     n_iterations: int
+
+
+@dataclass(frozen=True, slots=True)
+class _AdaptiveKinaseTask:
+    kinase: str
+    feature_values: np.ndarray
+    positive_values: np.ndarray
+    negative_positions: np.ndarray
+    negative_sampling_rng: np.random.Generator
+    resampling_rng: np.random.Generator
+    prediction_config: AdaptiveEnsemblePredictionExecutionConfig
+    sampling_policy: PredictionSamplingPolicy
+    kernel: str
+
+
+def _score_candidate_kinase(task: _AdaptiveKinaseTask) -> tuple[str, np.ndarray]:
+    positive_count = int(task.positive_values.shape[0])
+    labels = np.concatenate(
+        [
+            np.repeat(1, positive_count),
+            np.repeat(2, positive_count),
+        ]
+    )
+    aggregated_scores = np.zeros(int(task.feature_values.shape[0]), dtype=float)
+    for _ in range(task.prediction_config.adaptive_ensemble_runs):
+        sampled_negative_positions = task.negative_sampling_rng.choice(
+            task.negative_positions,
+            size=positive_count,
+            replace=int(task.negative_positions.size) < positive_count,
+        )
+        train_values = np.concatenate(
+            [
+                task.positive_values,
+                task.feature_values[sampled_negative_positions, :],
+            ],
+            axis=0,
+        )
+        ensemble_scores = run_adaptive_sampling_ensemble(
+            train_values=train_values,
+            train_labels=labels,
+            test_values=task.feature_values,
+            kernel=task.kernel,
+            n_iterations=task.prediction_config.n_iterations,
+            resampling_rng=task.resampling_rng,
+            sampling_policy=task.sampling_policy,
+        )
+        aggregated_scores += ensemble_scores
+
+    mean_scores = aggregated_scores / float(
+        task.prediction_config.adaptive_ensemble_runs
+    )
+    finite = np.isfinite(mean_scores)
+    mean_scores[finite] = np.clip(mean_scores[finite], 0.0, 1.0)
+    return task.kinase, mean_scores
+
+
+def _score_candidate_kinases(
+    tasks: list[_AdaptiveKinaseTask],
+    *,
+    parallel: bool,
+) -> dict[str, np.ndarray]:
+    if not parallel or len(tasks) < _STABLE_PARALLEL_MIN_KINASES:
+        return dict(_score_candidate_kinase(task) for task in tasks)
+
+    max_workers = min(_STABLE_MAX_WORKERS, len(tasks))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        scored = executor.map(_score_candidate_kinase, tasks)
+        return dict(scored)
 
 
 def run_adaptive_ensemble_prediction(
@@ -50,7 +123,7 @@ def run_adaptive_ensemble_prediction(
         policy=sampling_policy,
         random_state=random_state,
     )
-    kinase_scores: dict[str, np.ndarray] = {}
+    tasks: list[_AdaptiveKinaseTask] = []
 
     for kinase, substrates in candidate_substrates.items():
         if kinase not in prediction_score_matrix.columns:
@@ -76,47 +149,27 @@ def run_adaptive_ensemble_prediction(
                 f"kinase={kinase} has no negative pool rows"
             )
 
-        positive_values = feature_values[positive_positions, :]
-        labels = np.concatenate(
-            [
-                np.repeat(1, len(positive_positions)),
-                np.repeat(2, len(positive_positions)),
-            ]
-        )
         negative_sampling_rng, resampling_rng = random_source.generators_for_kinase(
             kinase=kinase
         )
-        aggregated_scores = np.zeros(len(all_positions), dtype=float)
-        for _ in range(prediction_config.adaptive_ensemble_runs):
-            sampled_negative_positions = negative_sampling_rng.choice(
-                negative_positions,
-                size=len(positive_positions),
-                replace=len(negative_positions) < len(positive_positions),
-            )
-            train_values = np.concatenate(
-                [
-                    positive_values,
-                    feature_values[sampled_negative_positions, :],
-                ],
-                axis=0,
-            )
-            ensemble_scores = run_adaptive_sampling_ensemble(
-                train_values=train_values,
-                train_labels=labels,
-                test_values=feature_values,
-                kernel=kernel,
-                n_iterations=prediction_config.n_iterations,
+        tasks.append(
+            _AdaptiveKinaseTask(
+                kinase=str(kinase),
+                feature_values=feature_values,
+                positive_values=feature_values[positive_positions, :],
+                negative_positions=negative_positions,
+                negative_sampling_rng=negative_sampling_rng,
                 resampling_rng=resampling_rng,
+                prediction_config=prediction_config,
                 sampling_policy=sampling_policy,
+                kernel=kernel,
             )
-            aggregated_scores += ensemble_scores
-
-        mean_scores = aggregated_scores / float(
-            prediction_config.adaptive_ensemble_runs
         )
-        finite = np.isfinite(mean_scores)
-        mean_scores[finite] = np.clip(mean_scores[finite], 0.0, 1.0)
-        kinase_scores[str(kinase)] = mean_scores
+
+    kinase_scores = _score_candidate_kinases(
+        tasks,
+        parallel=sampling_policy.seed_strategy == "stable_by_kinase",
+    )
 
     return pd.DataFrame(
         kinase_scores,

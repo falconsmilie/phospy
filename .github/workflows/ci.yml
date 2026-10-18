@@ -391,6 +391,32 @@ jobs:
       - name: Run isolated wall-clock performance contract tests
         shell: bash
         run: make test-performance-isolated
+      - name: Report measured performance contracts
+        if: always()
+        shell: bash
+        run: |
+          report="build/reports/performance-isolated.xml"
+          if [[ ! -f "${report}" ]]; then
+            exit 0
+          fi
+
+          property_value() {
+            local name="$1"
+            sed -n "s/.*name=\"${name}\" value=\"\([^\"]*\)\".*/\1/p" "${report}"
+          }
+
+          adaptive_runtime="$(property_value adaptive_prediction_runtime_seconds)"
+          adaptive_ceiling="$(property_value adaptive_prediction_runtime_threshold_seconds)"
+          adaptive_peak="$(property_value adaptive_prediction_peak_mib)"
+          if [[ -n "${adaptive_runtime}" ]]; then
+            echo "::notice file=tests/performance/test_performance_contracts.py,title=Adaptive prediction performance::runtime_seconds=${adaptive_runtime}; peak_mib=${adaptive_peak}; runtime_ceiling_seconds=${adaptive_ceiling}"
+          fi
+
+          sps_runtime="$(property_value sps_discovery_runtime_seconds)"
+          sps_ceiling="$(property_value sps_discovery_runtime_threshold_seconds)"
+          if [[ -n "${sps_runtime}" ]]; then
+            echo "::notice file=tests/performance/test_sps_discovery_performance.py,title=SPS discovery performance::runtime_seconds=${sps_runtime}; runtime_ceiling_seconds=${sps_ceiling}"
+          fi
       - name: Retain performance budget reports
         if: always()
         uses: actions/upload-artifact@v5

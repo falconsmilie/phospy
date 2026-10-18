@@ -13,7 +13,7 @@ from phospy.errors import (
     ContractValidationError,
     WorkflowStageError,
 )
-from phospy.kinase.prediction import sampling_core
+from phospy.kinase.prediction import execution, sampling_core
 from phospy.kinase.prediction.execution import (
     AdaptiveEnsemblePredictionExecutionConfig,
     run_adaptive_ensemble_prediction,
@@ -336,6 +336,86 @@ def test_adaptive_prediction_is_deterministic_for_same_seed() -> None:
     )
 
     pd.testing.assert_frame_equal(first, second)
+
+
+def test_stable_parallel_prediction_matches_serial_complete_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_matrix = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.88, 0.22, 0.18, 0.11],
+            "K2": [0.12, 0.2, 0.28, 0.8, 0.86, 0.93],
+        },
+        index=["S1", "S2", "S3", "S4", "S5", "S6"],
+    )
+    candidate_substrates = {
+        "K1": ["S1", "S2", "S3"],
+        "K2": ["S4", "S5", "S6"],
+    }
+    prediction_config = AdaptiveEnsemblePredictionExecutionConfig(
+        adaptive_ensemble_runs=4,
+        adaptive_policy="stable",
+        n_iterations=3,
+    )
+    monkeypatch.setattr(execution, "_STABLE_PARALLEL_MIN_KINASES", 3)
+    serial = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=prediction_config,
+        random_state=17,
+    )
+
+    worker_counts: list[int] = []
+    real_executor = execution.ThreadPoolExecutor
+
+    def bounded_executor(*, max_workers: int) -> execution.ThreadPoolExecutor:
+        worker_counts.append(max_workers)
+        return real_executor(max_workers=max_workers)
+
+    monkeypatch.setattr(execution, "_STABLE_PARALLEL_MIN_KINASES", 2)
+    monkeypatch.setattr(execution, "ThreadPoolExecutor", bounded_executor)
+    parallel = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=prediction_config,
+        random_state=17,
+    )
+
+    assert worker_counts == [2]
+    pd.testing.assert_frame_equal(parallel, serial, check_exact=True)
+
+
+def test_r_parity_prediction_keeps_global_rng_execution_serial(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_matrix = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.88, 0.22, 0.18, 0.11],
+            "K2": [0.12, 0.2, 0.28, 0.8, 0.86, 0.93],
+        },
+        index=["S1", "S2", "S3", "S4", "S5", "S6"],
+    )
+
+    def reject_executor(*, max_workers: int) -> None:
+        del max_workers
+        raise AssertionError("r_parity must not use parallel kinase execution")
+
+    monkeypatch.setattr(execution, "ThreadPoolExecutor", reject_executor)
+    observed = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates={
+            "K1": ["S1", "S2", "S3"],
+            "K2": ["S4", "S5", "S6"],
+        },
+        prediction_config=AdaptiveEnsemblePredictionExecutionConfig(
+            adaptive_ensemble_runs=2,
+            adaptive_policy="r_parity",
+            n_iterations=2,
+        ),
+        random_state=17,
+    )
+
+    assert observed.columns.tolist() == ["K1", "K2"]
 
 
 @pytest.mark.parametrize("adaptive_policy", ["stable", "r_parity"])
