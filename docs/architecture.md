@@ -35,3 +35,18 @@ tracked production file, module owner, top-level root, and permitted owner edge.
 Its source is the policy code and machine-readable inputs above. The governing
 decisions are [ADR-0053](adr/adr_0053_domain_first_capability_architecture.md) and
 [ADR-0054](adr/adr_0054_public_api_reset_and_compatibility_removal.md).
+
+## Migration status
+
+The domain-first architecture migration, including its final Wave 10 gate, was
+accepted on 19 October 2026 at commit
+`a4b9929fb41f6507cab3011dafc1012e44c5ce19`, tree
+`ecaba2700d978f31e170f02efe38d2a83f11ee6d`, with sole parent
+`f2c00c9290187dd6b73a97114240808eb0f3abc0`. The independent review returned
+`INDEPENDENT_REVIEW_PASS`, and authoritative hosted run
+[`39161306082`](https://github.com/falconsmilie/phospy/actions/runs/39161306082)
+succeeded in all 43 jobs. The accepted qualifications and complete hosted
+matrix are recorded in [Release validation](release_validation.md).
+
+This acceptance completes the architecture migration. It does not create or
+authorise a tag, package publication, deployment, or release publication.

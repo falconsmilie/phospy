@@ -4,6 +4,15 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Architecture
+
+- Completed and accepted the domain-first architecture migration through the
+  Wave 10 gate at commit `a4b9929fb41f6507cab3011dafc1012e44c5ce19`, tree
+  `ecaba2700d978f31e170f02efe38d2a83f11ee6d`. Authoritative hosted run
+  `39161306082` passed all 43 jobs. This records an architecture milestone and
+  does not create or authorise a tag, package publication, deployment, or
+  release publication.
+
 ### Breaking
 
 - Reset the supported Python import surfaces to the ADR-0054 aggregates:

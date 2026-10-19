@@ -52,3 +52,31 @@ Disposable local output belongs under `build/` or another ignored path.
 Verification logs and downloadable workflow artifacts are retained by GitHub
 Actions; they are not committed to the repository. The repository hygiene gate
 rejects tracked migration-process material and tracked verification artifacts.
+
+## Accepted Wave 10 gate
+
+Wave 10 was accepted on 19 October 2026 at commit
+`a4b9929fb41f6507cab3011dafc1012e44c5ce19`, tree
+`ecaba2700d978f31e170f02efe38d2a83f11ee6d`, with sole parent
+`f2c00c9290187dd6b73a97114240808eb0f3abc0`. Authoritative hosted run
+[`39161306082`](https://github.com/falconsmilie/phospy/actions/runs/39161306082)
+completed with 43 of 43 jobs successful. Its required operating-system and
+Python matrix comprised six source/runtime jobs, six isolated wall-clock
+performance jobs, and six installed-distribution jobs. All twelve wheel and
+source-distribution consumers passed, together with the minimum-dependency,
+release/golden, typing, Ruff, documentation, audit, fixture, reference-bundle,
+hygiene, and packaging gates.
+
+The accepted exact-byte provenance lane recorded the explicit disposition
+`ineligible_missing_required_cpu_features`: the loaded runtime did not expose
+`AVX512F`, `AVX512CD`, or `AVX512_SKX`. Portable semantic provenance, canonical
+serialization, and both fresh-process repeatability checks still executed and
+passed. The supplemental exact-byte predicate did not execute and was not
+reported as a pass.
+
+The accepted macOS Python 3.12 SPS measurement was 18.955900 seconds under the
+unchanged 20-second ceiling. Its narrow margin is an accepted qualification;
+the workload, warm-up, iteration count, and ceiling were not relaxed.
+
+This gate records architecture-migration acceptance only. It does not create
+or authorise a tag, package publication, deployment, or release publication.
