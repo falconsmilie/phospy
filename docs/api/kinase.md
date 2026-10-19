@@ -3,7 +3,7 @@
 `KinaseWorkflow` ranks kinase–substrate support for each phosphosite in an
 `AnalysisReadyPhosphoDataset`.
 
-Use this workflow when you have phosphosite intensities, centered site
+Use this workflow when you have phosphosite intensities, centred site
 sequences, and suitable reference data, and you want to explore which kinases
 have the strongest support for each site. The result includes score and
 prediction matrices, optional activity-like summaries, diagnostics, provenance,
@@ -13,6 +13,196 @@ and caveats.
     Kinase scores show **relative support within a run**. They are not
     calibrated probabilities, not calibrated causal inference, and not direct
     proof of kinase activation.
+
+This walkthrough builds a small rat dataset and uses deterministic prediction.
+The values are illustrative rather than a biological benchmark. Run the Python
+blocks in order in one fresh process.
+
+## Prepare the Phosphosite Measurements
+
+The quantitative table has phosphosites in rows and samples in columns. The
+profile-scoring method used below accepts established linear or log2 abundance;
+this example keeps its positive values on the linear scale.
+
+```python
+import pandas as pd
+
+phospho = pd.DataFrame(
+    {
+        "control_1": [8200.0, 9100.0, 6000.0],
+        "control_2": [8000.0, 9000.0, 5900.0],
+        "treated_1": [16200.0, 9150.0, 13000.0],
+    },
+    index=["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;"],
+)
+```
+
+Kinase scoring needs protein-scoped identity and a centred sequence around each
+modified residue. `protein_group_id` is included so the same dataset can later
+be used by Signalome.
+
+```python
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "GSK3A", "TSC2"],
+        "site": ["Y182", "S21", "S939"],
+        "site_sequence": [
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+        ],
+        "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
+        "protein_namespace": ["protein_id"] * phospho.shape[0],
+        "protein_group_id": ["MAPK14", "GSK3A", "TSC2"],
+        "localisation_confidence": [0.95, 0.94, 0.96],
+    },
+    index=phospho.index,
+)
+```
+
+## Require Localisation Evidence
+
+Localisation confidence describes how strongly the evidence assigns the
+phosphate group to the stated residue. This illustrative threshold retains all
+three sites. The build fails if localisation is missing, invalid, or below the
+threshold.
+
+```python
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+```
+
+```python
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    localisation=localisation,
+)
+```
+
+## Build the Analysis-Ready Dataset
+
+Declare the unchanged input scale explicitly. The builder derives stable
+`site_key` row identities and validates the sequence and localisation context.
+
+```python
+from phospy.api import DatasetBuildRequest, IntensityScaleKind, Organism
+
+dataset_request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    organism=Organism.RAT,
+    input_intensity_scale=IntensityScaleKind.LINEAR,
+    preprocessing_config=preprocessing_config,
+)
+```
+
+```python
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+dataset = dataset_builder.run(dataset_request)
+```
+
+Check the number of sites and the established scale before scoring.
+
+```python
+dataset_shape = dataset.phospho.shape
+intensity_scale = dataset.intensity_scale_state.label
+
+print("Phosphosites by samples:", dataset_shape)
+print("Intensity scale:", intensity_scale)
+```
+
+The expected shape is `(3, 3)` and the scale label is `linear`.
+
+## Configure Kinase Scoring
+
+The scoring configuration records reliability intent and reference-context
+policy. `CUSTOM` is used because this compact teaching dataset does not meet a
+production evidence envelope. Allowing unknown reference context records a
+caveat; it does not prove compatibility.
+
+```python
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+
+scoring_config = KinaseScoringConfig(
+    reliability_profile=KinaseReliabilityProfile.CUSTOM,
+    reference_context_compatibility_policy=(
+        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    ),
+    min_substrates=2,
+)
+```
+
+Prediction ranks the score matrix. The deterministic constructor avoids a
+random sampling path and is repeatable for the same inputs and package version.
+
+```python
+from phospy.advanced import KinasePredictionConfig
+
+prediction_config = KinasePredictionConfig.deterministic()
+```
+
+## Construct the Request
+
+`ReferencePreset.AUTO` selects the bundled rat reference data in this release.
+Human, mouse, and custom analyses require an explicit compatible
+`ReferenceBundle`. Activity is disabled here so the first journey focuses on
+scoring and prediction.
+
+```python
+from phospy.api import KinaseWorkflowRequest, ReferencePreset
+
+kinase_request = KinaseWorkflowRequest(
+    dataset=dataset,
+    references=ReferencePreset.AUTO,
+    scoring_config=scoring_config,
+    prediction_config=prediction_config,
+    activity_config=None,
+)
+```
+
+## Run the Workflow
+
+```python
+from phospy import KinaseWorkflow
+
+kinase_workflow = KinaseWorkflow()
+kinase_result = kinase_workflow.run(kinase_request)
+```
+
+## Inspect and Interpret the Result
+
+`authoritative_scores` is the score matrix chosen by the scoring policy.
+`pred_mat` is the corresponding prediction-support matrix.
+
+```python
+score_matrix = kinase_result.scoring_result.authoritative_scores
+prediction_matrix = kinase_result.prediction_result.pred_mat
+
+print("Score matrix shape:", score_matrix.shape)
+print("Prediction matrix shape:", prediction_matrix.shape)
+print(prediction_matrix.round(4))
+```
+
+Both matrices have shape `(3, 2)`: three phosphosites and the two kinase
+columns supported by the bundled reference overlap in this example.
+
+Rows are unique phosphosite `site_key` values and columns are kinases. Higher
+values mean stronger relative support under this run's data, references, and
+method. They are not calibrated probabilities, causal estimates, or proof of
+kinase activation. A missing cell means that the selected method could not
+score that site-kinase pair; it does not establish biological absence.
 
 ## At a Glance
 
@@ -26,7 +216,7 @@ and caveats.
 | **Primary prediction output** | `result.prediction_result.pred_mat` |
 | **Optional activity output** | `result.activity_result.activity_matrix` |
 
-## Before You Start
+## Input Requirements
 
 The dataset must provide:
 
@@ -34,7 +224,7 @@ The dataset must provide:
 - numeric phosphosite values on a scale accepted by the selected method;
 - required identity metadata, including `display_id`, `organism`,
   `protein_namespace`, `protein_identifier`, `gene_symbol`, and `site`;
-- a usable, centered `site_sequence` for each scored site;
+- a usable, centred `site_sequence` for each scored site;
 - localisation evidence when required by the scoring policy; and
 - a reference context that is compatible with the dataset.
 
@@ -64,95 +254,6 @@ Reference rows are matched through `display_id` and projected back to dataset
 matches more than one site. With `"allow_with_diagnostics"`, diagnostics record
 which reference display labels matched multiple `site_key` values. PhosPy does
 not collapse duplicate display labels.
-
-## Example
-
-The following example builds a small rat dataset and runs deterministic kinase
-prediction. The values are illustrative rather than a biological benchmark.
-
-```python
-import pandas as pd
-
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetLocalisationConfig,
-    DatasetPreprocessingConfig,
-    IntensityScaleKind,
-    KinaseWorkflowRequest,
-    Organism,
-    ReferencePreset,
-)
-
-phospho = pd.DataFrame(
-    {
-        "control_1": [8200.0, 9100.0, 6000.0],
-        "control_2": [8000.0, 9000.0, 5900.0],
-        "treated_1": [16200.0, 9150.0, 13000.0],
-    },
-    index=["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;"],
-)
-
-site_metadata = pd.DataFrame(
-    {
-        "gene_symbol": ["MAPK14", "GSK3A", "TSC2"],
-        "site": ["Y182", "S21", "S939"],
-        "site_sequence": [
-            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
-            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-        ],
-        "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
-        "protein_namespace": ["protein_id"] * phospho.shape[0],
-        "protein_group_id": ["MAPK14", "GSK3A", "TSC2"],
-        "localisation_confidence": [0.95, 0.94, 0.96],
-    },
-    index=phospho.index,
-)
-
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        organism=Organism.RAT,
-        input_intensity_scale=IntensityScaleKind.LINEAR,
-        preprocessing_config=DatasetPreprocessingConfig(
-            localisation=DatasetLocalisationConfig(
-                mode="require_threshold",
-                confidence_column="localisation_confidence",
-                min_confidence=0.75,
-            )
-        ),
-    )
-)
-
-request = KinaseWorkflowRequest(
-    dataset=dataset,
-    references=ReferencePreset.AUTO,
-    scoring_config=KinaseScoringConfig(
-        reliability_profile=KinaseReliabilityProfile.CUSTOM,
-        reference_context_compatibility_policy=(
-            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
-        ),
-        min_substrates=2,
-    ),
-    prediction_config=KinasePredictionConfig.deterministic(),
-    activity_config=None,
-)
-
-result = KinaseWorkflow().run(request)
-
-scores = result.scoring_result.authoritative_scores
-predictions = result.prediction_result.pred_mat
-print(scores.head())
-print(predictions.head())
-```
 
 ## Request
 
@@ -243,25 +344,23 @@ stable for the method, profile, and kinase.
 <summary><strong>Quantitative Method Contract</strong></summary>
 
 The selected method determines the accepted intensity scale, quantitative
-meaning, profile axis, missing-value behavior, and statistical interpretation.
+meaning, profile axis, missing-value behaviour, and statistical interpretation.
 
 | Method | Accepted scale | Accepted meaning | Required centring/standardisation | Missing values | Profile axis | Statistical interpretation | P-value interpretation |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| kinase_scoring.combined_profile_motif | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio | Requires centered phosphosite sequence context; does not center quantitative values during scoring.; No automatic quantitative standardisation; values are consumed on the declared input scale. | Profile construction follows scoring_config.profile_missing_value_strategy; missing values are never imputed by the scoring method and no method-level imputation is performed. | Rows are protein-scoped site_key phosphosites; columns are aligned sample/profile abundance or total-corrected quantitative observations used for profile support. | Profile-derived relative support scores are within-run evidence summaries over the declared abundance/profile axis; linear and log2 inputs are scale-sensitive and are not numerically interchangeable. | none |
-| kinase_scoring.kinase_library_contextual_motif | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio | Requires centered phosphosite sequence context; does not center quantitative values during scoring.; No automatic quantitative standardisation; values are consumed on the declared input scale. | Profile construction follows scoring_config.profile_missing_value_strategy; missing values are never imputed by the scoring method and no method-level imputation is performed. | Rows are protein-scoped site_key phosphosites; columns are aligned sample/profile abundance or total-corrected quantitative observations used for profile support. | Profile-derived relative support scores are within-run evidence summaries over the declared abundance/profile axis; linear and log2 inputs are scale-sensitive and are not numerically interchangeable. | none |
-| kinase_scoring.kinase_library_motif_only | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio, unknown | Requires centered phosphosite sequence context; quantitative centring is not applicable because phospho values are not consumed by motif-only scoring.; No quantitative standardisation is required or performed for motif-only scoring. | Phospho missing values are not read by motif-only scoring; no missing-value transformation or imputation is performed. | Rows are protein-scoped site_key phosphosites with centered sequence context; quantitative columns are not used for motif-only score calculation. | Scores are sequence-motif support scores from the supplied Kinase Library-style resource, not abundance-profile statistics. | none |
-| kinase_scoring.phosr_rank_weighted | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio | Requires centered phosphosite sequence context; does not center quantitative values during scoring.; No automatic quantitative standardisation; values are consumed on the declared input scale. | Profile construction follows scoring_config.profile_missing_value_strategy; missing values are never imputed by the scoring method and no method-level imputation is performed. | Rows are protein-scoped site_key phosphosites; columns are aligned sample/profile abundance or total-corrected quantitative observations used for profile support. | Profile-derived relative support scores are within-run evidence summaries over the declared abundance/profile axis; linear and log2 inputs are scale-sensitive and are not numerically interchangeable. | none |
+| kinase_scoring.combined_profile_motif | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio | Requires centred phosphosite sequence context; does not centre quantitative values during scoring.; No automatic quantitative standardisation; values are consumed on the declared input scale. | Profile construction follows scoring_config.profile_missing_value_strategy; missing values are never imputed by the scoring method and no method-level imputation is performed. | Rows are protein-scoped site_key phosphosites; columns are aligned sample/profile abundance or total-corrected quantitative observations used for profile support. | Profile-derived relative support scores are within-run evidence summaries over the declared abundance/profile axis; linear and log2 inputs are scale-sensitive and are not numerically interchangeable. | none |
+| kinase_scoring.kinase_library_contextual_motif | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio | Requires centred phosphosite sequence context; does not centre quantitative values during scoring.; No automatic quantitative standardisation; values are consumed on the declared input scale. | Profile construction follows scoring_config.profile_missing_value_strategy; missing values are never imputed by the scoring method and no method-level imputation is performed. | Rows are protein-scoped site_key phosphosites; columns are aligned sample/profile abundance or total-corrected quantitative observations used for profile support. | Profile-derived relative support scores are within-run evidence summaries over the declared abundance/profile axis; linear and log2 inputs are scale-sensitive and are not numerically interchangeable. | none |
+| kinase_scoring.kinase_library_motif_only | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio, unknown | Requires centred phosphosite sequence context; quantitative centring is not applicable because phospho values are not consumed by motif-only scoring.; No quantitative standardisation is required or performed for motif-only scoring. | Phospho missing values are not read by motif-only scoring; no missing-value transformation or imputation is performed. | Rows are protein-scoped site_key phosphosites with centred sequence context; quantitative columns are not used for motif-only score calculation. | Scores are sequence-motif support scores from the supplied Kinase Library-style resource, not abundance-profile statistics. | none |
+| kinase_scoring.phosr_rank_weighted | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio | Requires centred phosphosite sequence context; does not centre quantitative values during scoring.; No automatic quantitative standardisation; values are consumed on the declared input scale. | Profile construction follows scoring_config.profile_missing_value_strategy; missing values are never imputed by the scoring method and no method-level imputation is performed. | Rows are protein-scoped site_key phosphosites; columns are aligned sample/profile abundance or total-corrected quantitative observations used for profile support. | Profile-derived relative support scores are within-run evidence summaries over the declared abundance/profile axis; linear and log2 inputs are scale-sensitive and are not numerically interchangeable. | none |
 | ksea_zscore_v1 | log2 | phosphosite_log_abundance, phospho_total_log_ratio, contrast_log2_fold_change, differential_effect_size | Uses log2 sample, total-corrected, contrast, or effect profiles as declared by the dataset; no centring is performed in the method.; Requires log2 abundance, log2 total-corrected ratio, log2 contrast fold-change, or pre-standardised effect semantics; linear raw abundance is rejected. | Finite values define per-profile substrate and background sets; missing values are omitted from those calculations without imputation. | Columns must represent log-scale sample profiles, contrasts, or standardised effect profiles; linear raw samples are rejected. | Unweighted substrate-set z-score enrichment over declared log-scale sample, contrast, or effect values with background variance checks. | Two-sided normal-approximation p-values for computed z-scores; available only when typed substrate-membership provenance declares the membership independent of the tested quantitative matrix. Eligible p-values use Benjamini-Hochberg q-value adjustment per profile when enabled; adaptive membership reports descriptive z-scores with p/q unavailable. |
 | simplified_weighted_substrate_activity_v1 | linear, log2 | phosphosite_abundance, phosphosite_log_abundance, phospho_total_log_ratio | No method-level centring; activity values are weighted means on the declared input scale.; No automatic standardisation; linear and log2 abundance summaries have different meanings. | Missing substrate values are ignored per profile when computing weighted and thresholded means; no imputation is performed. | Columns must represent sample-level abundance or explicit condition-summary abundance profiles. | Heuristic substrate-supported weighted mean; not a statistical enrichment test and not causal kinase activity proof. | none |
 | ssgsea_substrate_enrichment_activity_v1 | log2 | contrast_log2_fold_change, differential_effect_size | Uses ranked contrast/effect values supplied by the caller; no centring is performed inside the method.; Requires log2 contrast fold-change or pre-standardised effect semantics; raw abundance is rejected. | Only finite effect values enter the ranked background; missing values are omitted without imputation. | Columns must represent contrasts or standardised effect profiles, not raw samples. | Rank-walk substrate-set enrichment summary over ordered effect values. Equal-valued finite sites are handled inside the method as tie blocks using the documented block-expectation policy, not row order or lexical site labels. Not PTM-SEA parity and not causal kinase activity proof. | No p-values are produced unless seeded permutations are requested; permutation p-values are two-sided empirical substrate-label permutation p-values, with Benjamini-Hochberg q-values per profile when enabled. |
 
 </details>
 
-## Run the Workflow
+## Execution Behaviour and Errors
 
-```python
-result = KinaseWorkflow().run(request)
-```
+The primary journey above shows the public request-and-run boundary.
 
 Deterministic prediction is reproducible for the same dataset, references,
 configuration, and package version. Adaptive ensemble prediction also requires
@@ -303,9 +402,7 @@ does not establish biological absence.
 ### Activity Output
 
 When activity is enabled, `activity_result.activity_matrix` is the primary
-activity matrix for user code.
-The former `activity_scores` and `weighted_activity` aliases were removed by
-ADR-0054. Use `activity_matrix` exclusively.
+activity matrix and public activity output.
 
 | Attribute | Availability | Meaning |
 | --- | --- | --- |
@@ -386,14 +483,121 @@ study design and external validation.
 | Issue | What to Check |
 | --- | --- |
 | `ReferencePreset.AUTO` fails. | Bundled references are rat-only. Use `Organism.RAT` or pass an explicit `ReferenceBundle`. |
-| Sequence validation fails. | Confirm that `site_sequence` is present, centered, and compatible with the selected scoring mode. |
+| Sequence validation fails. | Confirm that `site_sequence` is present, centred, and compatible with the selected scoring mode. |
 | Localisation validation fails. | Add localisation metadata and configure `DatasetLocalisationConfig`; required localisation fails when missing. |
 | A bare scoring config fails. | Set `reliability_profile` or use an exploratory or production preset. |
 | Reference projection is ambiguous. | Keep `"error"`, or use `"allow_with_diagnostics"` only when repeated display labels intentionally represent separate `site_key` rows. |
 | Scores are sparse or empty. | Review reference overlap, sequence eligibility, attrition, score-source diagnostics, and `min_substrates`. |
 | Activity is absent. | Confirm that `activity_config` is supplied and enabled, and that the selected method has sufficient eligible substrates. |
 
-## Related Guides
+## Complete Runnable Example
+
+```python
+import pandas as pd
+
+phospho = pd.DataFrame(
+    {
+        "control_1": [8200.0, 9100.0, 6000.0],
+        "control_2": [8000.0, 9000.0, 5900.0],
+        "treated_1": [16200.0, 9150.0, 13000.0],
+    },
+    index=["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;"],
+)
+
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "GSK3A", "TSC2"],
+        "site": ["Y182", "S21", "S939"],
+        "site_sequence": [
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+        ],
+        "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
+        "protein_namespace": ["protein_id"] * phospho.shape[0],
+        "protein_group_id": ["MAPK14", "GSK3A", "TSC2"],
+        "localisation_confidence": [0.95, 0.94, 0.96],
+    },
+    index=phospho.index,
+)
+
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    localisation=localisation,
+)
+
+from phospy.api import DatasetBuildRequest, IntensityScaleKind, Organism
+
+dataset_request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    organism=Organism.RAT,
+    input_intensity_scale=IntensityScaleKind.LINEAR,
+    preprocessing_config=preprocessing_config,
+)
+
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+dataset = dataset_builder.run(dataset_request)
+
+dataset_shape = dataset.phospho.shape
+intensity_scale = dataset.intensity_scale_state.label
+
+print("Phosphosites by samples:", dataset_shape)
+print("Intensity scale:", intensity_scale)
+
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+
+scoring_config = KinaseScoringConfig(
+    reliability_profile=KinaseReliabilityProfile.CUSTOM,
+    reference_context_compatibility_policy=(
+        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    ),
+    min_substrates=2,
+)
+
+from phospy.advanced import KinasePredictionConfig
+
+prediction_config = KinasePredictionConfig.deterministic()
+
+from phospy.api import KinaseWorkflowRequest, ReferencePreset
+
+kinase_request = KinaseWorkflowRequest(
+    dataset=dataset,
+    references=ReferencePreset.AUTO,
+    scoring_config=scoring_config,
+    prediction_config=prediction_config,
+    activity_config=None,
+)
+
+from phospy import KinaseWorkflow
+
+kinase_workflow = KinaseWorkflow()
+kinase_result = kinase_workflow.run(kinase_request)
+
+score_matrix = kinase_result.scoring_result.authoritative_scores
+prediction_matrix = kinase_result.prediction_result.pred_mat
+
+print("Score matrix shape:", score_matrix.shape)
+print("Prediction matrix shape:", prediction_matrix.shape)
+print(prediction_matrix.round(4))
+```
+
+## Continue
 
 - [Prepare a dataset](dataset-build-workflow.md)
 - [Reference data](../reference_bundles.md)

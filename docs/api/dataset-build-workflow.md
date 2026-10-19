@@ -1,115 +1,222 @@
-# Prepare a Dataset
+# Build an Analysis-Ready Dataset
 
-Use `AnalysisReadyDatasetBuilder` to turn phosphosite intensities and metadata
-into an `AnalysisReadyPhosphoDataset`. The builder checks row identity, sample
-alignment, localisation, intensity scale, missing values, and any preprocessing
-policy you select.
+An analysis-ready dataset brings quantitative phosphosite measurements together
+with the scientific context that PhosPy workflows need. Building one is the
+boundary where PhosPy aligns the input tables, applies the preprocessing you
+request, validates the result, and records how it was prepared.
 
-!!! info "At a Glance"
-    **Input:** Phosphosite intensities, site metadata, and optional sample or
-    total-protein tables  
-    **Request:** `DatasetBuildRequest`  
-    **Run:** `AnalysisReadyDatasetBuilder().run(request)`  
-    **Returns:** An `AnalysisReadyPhosphoDataset` ready for supported workflows
+This walkthrough starts with the smallest site-level build: one intensity table
+and one aligned metadata table. Run the Python blocks in order in one notebook
+or script. Each block continues from the values created before it.
 
-For routine use, always go through the builder. Direct
-`AnalysisReadyPhosphoDataset` construction raises immediately. The separate
-advanced/trusted route,
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, is for callers that
-already own fully validated, analysis-ready tables and complete typed evidence.
-It is not a shortcut around the builder.
+## Start With the Intensity Table
 
-## Before You Begin
-
-PhosPy expects a site-by-sample intensity matrix. Each row must resolve to one
-phosphosite in a protein context. Human-readable labels such as `TSC2;S939;`
-are useful for display, but they are not sufficient row identity when the same
-label can refer to more than one protein or isoform.
-
-The built dataset therefore uses:
-
-- `site_key` as the unique, protein-scoped row index;
-- `display_id` as the readable `GENE;SITE;` label; and
-- `site_sequence` as required sequence context for analysis-ready rows.
-
-Duplicate `display_id` values are allowed when their `site_key` values differ.
-Duplicate `site_key` values require an explicit resolution policy because
-merging them changes the represented evidence.
-
-Site-level workflows also need localisation evidence. The default policy
-requires a confidence value of at least 0.75 in the
-`localisation_confidence` column.
-
-## Example
-
-This example starts with linear intensities, applies a log2 transform, and
-requires site-level localisation evidence.
+A phosphosite is an amino-acid position on a protein that may carry a phosphate
+group. The `phospho` table stores its measured abundance. Each row is one
+phosphosite, and each column is one sample. These example values are positive
+intensities on a linear scale.
 
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import DatasetIntensityTransformConfig
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetLocalisationConfig,
-    DatasetPreprocessingConfig,
-    Organism,
-)
-
 phospho = pd.DataFrame(
     {
-        "control_1": [1000.0, 800.0],
-        "control_2": [1050.0, 820.0],
-        "treated_1": [1800.0, 760.0],
-        "treated_2": [1750.0, 740.0],
+        "control_1": [1000.0, 900.0],
+        "control_2": [1050.0, 880.0],
+        "treated_1": [1800.0, 930.0],
+        "treated_2": [1750.0, 920.0],
     },
-    index=["MAPK14;Y182;", "TSC2;S939;"],
+    index=["MAPK14;Y182;", "GSK3A;S21;"],
 )
+```
 
+The row labels are readable phosphosite labels. `MAPK14;Y182;`, for example,
+means tyrosine (`Y`) at position 182 of the protein represented here by
+`MAPK14`.
+
+## Add the Site Metadata
+
+Intensity values do not contain enough biological context on their own. The
+`site_metadata` table provides one descriptive row for each phosphosite:
+
+- `gene_symbol` is the readable gene name.
+- `site` identifies the modified amino acid and its position.
+- `site_sequence` is the surrounding amino-acid sequence, which sequence-based
+  workflows use to interpret the site.
+- `protein_id` supplies the protein identity used by this example.
+- `localisation_confidence` records how confidently the phosphate group was
+  assigned to that position.
+
+```python
 site_metadata = pd.DataFrame(
     {
-        "gene_symbol": ["MAPK14", "TSC2"],
-        "site": ["Y182", "S939"],
+        "gene_symbol": ["MAPK14", "GSK3A"],
+        "site": ["Y182", "S21"],
         "site_sequence": [
-            ("A" * 15) + "Y" + ("A" * 15),
-            ("A" * 15) + "S" + ("A" * 15),
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
         ],
-        "protein_identifier": ["MAPK14", "TSC2"],
-        "localisation_confidence": [0.95, 0.96],
+        "protein_id": ["MAPK14", "GSK3A"],
+        "localisation_confidence": [0.95, 0.94],
     },
     index=phospho.index,
 )
+```
 
-request = DatasetBuildRequest(
+The metadata index is copied from `phospho`, so the two tables describe the
+same rows in the same order. PhosPy checks this alignment during the build.
+
+## Establish the Intensity Scale
+
+PhosPy needs an established intensity scale before it can return an
+analysis-ready dataset. Because this example begins with positive linear
+values, ask PhosPy to calculate `log2(value + pseudocount)`. The default
+pseudocount is `1.0`.
+
+```python
+from phospy.advanced import DatasetIntensityTransformConfig
+
+intensity_transform = DatasetIntensityTransformConfig(policy="log2")
+```
+
+A log2 scale makes multiplicative differences additive. This is the required
+scale for some downstream workflows, but it does not by itself establish
+phosphorylation occupancy or a biological mechanism.
+
+## Set the Localisation Requirement
+
+Localisation confidence describes how strongly the evidence supports one
+specific modified position. This configuration reads the
+`localisation_confidence` column and retains sites whose value is at least
+`0.75`.
+
+```python
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+```
+
+Both example sites pass. The threshold is an example choice, not a universal
+scientific recommendation. Choose it to match the localisation method and the
+analysis plan for your study.
+
+## Group the Preprocessing Choices
+
+`DatasetPreprocessingConfig` collects the policies that the builder should
+apply together. Only the two choices introduced above differ from the other
+conservative defaults in this example.
+
+```python
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    intensity_transform=intensity_transform,
+    localisation=localisation,
+)
+```
+
+## Describe the Dataset
+
+A `DatasetBuildRequest` records the inputs, organism, and preprocessing choices
+for one build. Creating the request does not read, transform, or validate the
+tables yet. `Organism.RAT` states the species represented by this example and
+becomes part of the dataset's scientific context.
+
+```python
+from phospy.api import DatasetBuildRequest, Organism
+
+dataset_request = DatasetBuildRequest(
     phospho=phospho,
     site_metadata=site_metadata,
     organism=Organism.RAT,
-    preprocessing_config=DatasetPreprocessingConfig(
-        intensity_transform=DatasetIntensityTransformConfig(
-            policy="log2",
-            pseudocount=1.0,
-        ),
-        localisation=DatasetLocalisationConfig(
-            mode="require_threshold",
-            confidence_column="localisation_confidence",
-            min_confidence=0.75,
-        ),
-    ),
+    preprocessing_config=preprocessing_config,
 )
-
-dataset = AnalysisReadyDatasetBuilder().run(request)
-
-print(dataset.phospho.shape)
-print(dataset.intensity_scale_state.label)
-print(dataset.site_metadata.loc[:, ["display_id", "site_sequence"]])
 ```
 
-The builder may derive missing identity fields from safe input metadata, but the
-finished dataset always has strict residue/position identity and the required
-`AnalysisReadyPhosphoDataset` metadata.
+## Build the Dataset
 
-## Input Tables
+The builder is the supported path from user inputs to an
+`AnalysisReadyPhosphoDataset`. Its `run()` method validates the request, aligns
+the tables, applies the configured preprocessing, and records provenance for
+the returned dataset.
+
+```python
+from phospy import AnalysisReadyDatasetBuilder
+
+builder = AnalysisReadyDatasetBuilder()
+dataset = builder.run(dataset_request)
+```
+
+## Inspect the Dataset
+
+Check the dimensions, sample order, intensity scale, organism, and a compact
+site summary before using the dataset in another workflow. Data-frame
+properties return defensive snapshots, so inspecting or changing an exported
+table does not mutate the dataset held by PhosPy.
+
+```python
+dataset_shape = dataset.phospho.shape
+sample_labels = dataset.phospho.columns.tolist()
+intensity_scale = dataset.intensity_scale_state.label
+organism = dataset.organism.value if dataset.organism is not None else None
+site_summary = dataset.site_metadata.loc[
+    :, ["display_id", "gene_symbol", "site", "localisation_confidence"]
+].reset_index(drop=True)
+provenance_workflow = (
+    dataset.provenance.workflow_name if dataset.provenance is not None else None
+)
+
+print("Phosphosites by samples:", dataset_shape)
+print("Samples:", sample_labels)
+print("Intensity scale:", intensity_scale)
+print("Organism:", organism)
+print(site_summary)
+print("Provenance workflow:", provenance_workflow)
+```
+
+The exact output is:
+
+```text
+Phosphosites by samples: (2, 4)
+Samples: ['control_1', 'control_2', 'treated_1', 'treated_2']
+Intensity scale: log2
+Organism: rat
+     display_id gene_symbol  site  localisation_confidence
+0  MAPK14;Y182;      MAPK14  Y182                     0.95
+1    GSK3A;S21;       GSK3A   S21                     0.94
+Provenance workflow: dataset_builder
+```
+
+`display_id` preserves the readable input label. The builder also establishes
+the strict protein-scoped row identity required by PhosPy workflows and stores
+it in the built tables. You do not need to construct that identity yourself for
+this input route.
+
+## Understand the Main Validation Boundaries
+
+The first build succeeds because its inputs satisfy several important
+boundaries:
+
+| Boundary | What the Builder Requires |
+| --- | --- |
+| Table alignment | `phospho` and `site_metadata` describe the same rows; optional sample metadata and total-protein data must also align with the relevant sample labels. |
+| Quantitative values | The intensity matrix is numeric and finite after the selected missing-data policy. A linear scale cannot contain negative abundance values. |
+| Site context | Each retained row resolves to a protein-scoped serine, threonine, or tyrosine position and has usable `site_sequence` context. |
+| Localisation | In `require_threshold` mode, the confidence column must exist and contain valid, non-missing values at or above `min_confidence`. |
+| Duplicate sites | Rows that resolve to the same strict site identity fail by default because choosing or combining them is a scientific decision. |
+
+PhosPy raises a public input or validation error when one of these boundaries
+fails. Correct the table or choose an explicit supported policy rather than
+changing the data only to silence validation.
+
+The remaining sections are reference material for larger or less direct input
+routes. You do not need them to understand the first successful build.
+
+## Use Other Supported Input Tables
 
 `DatasetBuildRequest` accepts pandas data frames or paths to `.csv`, `.tsv`,
 `.txt`, and `.parquet` files. CSV, TSV, and TXT files use the first column as
@@ -131,7 +238,30 @@ numeric cells; invalid cells fail with row and column context.
 [differential workflow](differential-analysis.md) uses an explicit
 `ExperimentalDesign` and `Contrast` objects.
 
-## Request
+## Understand Site Identity
+
+Readable labels such as `MAPK14;Y182;` are useful for display, but the same
+label can refer to different proteins or isoforms. The finished dataset
+therefore separates three pieces of information:
+
+- `site_key` is the unique, protein-scoped row index used by workflows.
+- `display_id` is the readable `GENE;SITE;` label.
+- `site_sequence` supplies the sequence context around the modified residue.
+
+Duplicate `display_id` values remain valid when the corresponding `site_key`
+values differ. Duplicate rows that resolve to the same `site_key` are a
+scientific ambiguity and fail by default. Select a non-error duplicate-site
+policy only when choosing or aggregating those rows is scientifically
+justified, then inspect the duplicate-resolution report.
+
+For routine construction, use the builder. Direct
+`AnalysisReadyPhosphoDataset` construction raises immediately. The
+advanced/trusted route,
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, is for callers that
+already own fully validated analysis-ready tables, complete typed assertions,
+and provenance-linked fingerprints. It is not a shortcut around the builder.
+
+## Review the Full Request Contract
 
 Create a `DatasetBuildRequest`.
 
@@ -157,7 +287,7 @@ Create a `DatasetBuildRequest`.
 Constructing the request stores these choices. Validation happens when
 `AnalysisReadyDatasetBuilder().run(request)` is called.
 
-## Preprocessing
+## Choose Other Preprocessing Policies
 
 `DatasetPreprocessingConfig` keeps related policies together. Defaults are
 conservative: no transform, no normalisation, no correction, missing values
@@ -331,7 +461,7 @@ imputation for partially observed groups, while PhosR uses a separate paired-tai
 strategy for asymmetric missingness. PhosPy's group-aware KNN + MinProb policy
 follows the same broad principle of separating missingness patterns, but is not
 a numerical reimplementation or parity claim for PhosR `scImpute`/`ptImpute`.
-Standalone missing-data policies retain their existing behavior and do not
+Standalone missing-data policies retain their existing behaviour and do not
 consume sample metadata merely because this policy does.
 
 ### Group Coverage Filter
@@ -406,7 +536,7 @@ the matrix.
 
 </details>
 
-## Batch Correction
+## Configure Batch Correction
 
 PhosPy keeps two correction methods separate because they answer different
 technical questions.
@@ -613,7 +743,7 @@ boundary. Provide it as the only matrix-changing preprocessing input; do not
 combine it with total-protein correction, site-matrix construction,
 normalisation, or comparison building.
 
-## Total-Protein Options
+## Configure Total-Protein Options
 
 `DatasetTotalProteinCorrectionConfig(policy="subtract_log_total")` calculates
 log2 phosphosite minus matched log2 total protein. It requires a log2 transform,
@@ -670,7 +800,7 @@ preparation result only when the caller explicitly selects
 `DifferentialAnalysisConfig.protein_aware_model`. The ordinary differential
 lane ignores the sidecar.
 
-## Peptide-Evidence Input
+## Use Peptide-Evidence Input
 
 Use `site_resolution_mode="peptide_evidence"` when the input contains
 peptide-level evidence rather than resolved site rows. Ambiguous multi-site
@@ -682,23 +812,46 @@ Supported analysis-ready policies are:
 - `exclude_from_sequence_scoring`: Remove ambiguous peptide evidence before the analysis-ready dataset is built.
 - `split`: Allocate ambiguous peptide evidence to strict site-level rows.
 
-The former `keep_joint` value is not supported by
-`AnalysisReadyDatasetBuilder`. Joint tokens retain unresolved peptide ambiguity
-and cannot provide the strict residue/position identity required by
-`AnalysisReadyPhosphoDataset`.
+The `split` policy requires evidence that can be resolved to strict
+residue/position identities for `AnalysisReadyPhosphoDataset`.
 
 ```python
-request = DatasetBuildRequest(
+import pandas as pd
+
+from phospy.api import DatasetBuildRequest, Organism
+
+peptide_evidence = pd.DataFrame(
+    [
+        {
+            "peptide_row_id": "pep_joint",
+            "site_id": "MAPK1;S10;",
+            "unique_feature_id": "feature_joint",
+            "gene_symbol": "MAPK1",
+            "protein_accession": "P28482",
+            "site_string": "S10,T12",
+            "sample_a": 10.0,
+            "sample_b": 12.0,
+            "peptide_sequence": "AAAAA",
+            "modified_peptide_sequence": "AA[+80]AAA",
+            "multi_site": True,
+            "provenance_source": "example",
+            "site_sequence": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAA",
+            "localisation_confidence": 0.95,
+        }
+    ]
+)
+
+peptide_request = DatasetBuildRequest(
     site_resolution_mode="peptide_evidence",
     peptide_evidence=peptide_evidence,
     peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-    multi_site_policy="split",  # replaces the removed "keep_joint" builder policy
+    multi_site_policy="split",
     organism=Organism.HUMAN,
     input_intensity_scale="linear",
 )
 ```
 
-## Response
+## Inspect Other Result Properties
 
 `AnalysisReadyDatasetBuilder.run(...)` returns an
 `AnalysisReadyPhosphoDataset`. Data-frame properties return defensive snapshots,
@@ -766,9 +919,91 @@ The analysis-ready boundary is complete by design. Filter insufficient rows or
 select an explicit imputation policy, then inspect the recorded observation
 metadata before downstream inference.
 
-## Related Documentation
+## Complete Runnable Example
+
+```python
+import pandas as pd
+
+phospho = pd.DataFrame(
+    {
+        "control_1": [1000.0, 900.0],
+        "control_2": [1050.0, 880.0],
+        "treated_1": [1800.0, 930.0],
+        "treated_2": [1750.0, 920.0],
+    },
+    index=["MAPK14;Y182;", "GSK3A;S21;"],
+)
+
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "GSK3A"],
+        "site": ["Y182", "S21"],
+        "site_sequence": [
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+        ],
+        "protein_id": ["MAPK14", "GSK3A"],
+        "localisation_confidence": [0.95, 0.94],
+    },
+    index=phospho.index,
+)
+
+from phospy.advanced import DatasetIntensityTransformConfig
+
+intensity_transform = DatasetIntensityTransformConfig(policy="log2")
+
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    intensity_transform=intensity_transform,
+    localisation=localisation,
+)
+
+from phospy.api import DatasetBuildRequest, Organism
+
+dataset_request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    organism=Organism.RAT,
+    preprocessing_config=preprocessing_config,
+)
+
+from phospy import AnalysisReadyDatasetBuilder
+
+builder = AnalysisReadyDatasetBuilder()
+dataset = builder.run(dataset_request)
+
+dataset_shape = dataset.phospho.shape
+sample_labels = dataset.phospho.columns.tolist()
+intensity_scale = dataset.intensity_scale_state.label
+organism = dataset.organism.value if dataset.organism is not None else None
+site_summary = dataset.site_metadata.loc[
+    :, ["display_id", "gene_symbol", "site", "localisation_confidence"]
+].reset_index(drop=True)
+provenance_workflow = (
+    dataset.provenance.workflow_name if dataset.provenance is not None else None
+)
+
+print("Phosphosites by samples:", dataset_shape)
+print("Samples:", sample_labels)
+print("Intensity scale:", intensity_scale)
+print("Organism:", organism)
+print(site_summary)
+print("Provenance workflow:", provenance_workflow)
+```
+
+## Continue
 
 - [Run your first analysis](../quickstart.md)
 - [Differential analysis](differential-analysis.md)
-- [Kinase analysis](kinase.md)
+- [Dataset builder reference](dataset-builders.md)
+- [SPS discovery and RUV-style correction](sps-ruv.md)
 - [Scientific interpretation and limitations](../scientific-interpretation.md)

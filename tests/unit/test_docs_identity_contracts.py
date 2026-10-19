@@ -107,9 +107,9 @@ def test_docs_state_public_differential_result_identity_contract() -> None:
         "`site`",
     ):
         assert column_name in text
-    assert "stat-only computation payload" in text
-    assert "not a public scientific result object" in text
-    assert "not valid `DifferentialAnalysisResult` tables" in text
+    assert "Stat-only computation payloads are internal" in text
+    assert "not a public scientific result" in text
+    assert "not a valid differential result table" in text
 
 
 def test_docs_state_clean_source_archive_hygiene() -> None:

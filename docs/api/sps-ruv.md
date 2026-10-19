@@ -27,7 +27,7 @@ condition-relative log2               normal governed PhosPy input
                          correction
 ```
 
-## What SPS means
+## What SPS Means
 
 A stable phosphosite (SPS) is a phosphosite whose condition-relative signal is
 consistently small across multiple suitable reference phosphoproteomics
@@ -57,10 +57,10 @@ stable because they change little in the same target experiment being assessed
 can make the controls circular and can remove real biology. Reuse of target
 data for discovery requires a deliberate, documented scientific justification.
 
-## SPS reference quantitative-input contract
+## SPS Reference Quantitative-Input Contract
 
-Every `SpsReferenceDataset` must already have the repository-authoritative
-state used for condition-relative measurements:
+Every `SpsReferenceDataset` must already have the governed quantitative state
+required for condition-relative measurements:
 
 - one supported, typed organism shared by every reference in the request;
 - explicit biological baseline and reference-context descriptions;
@@ -105,121 +105,292 @@ discovery**. It is not a blanket requirement that every target matrix passed to
 The target experiment follows the normal governed PhosPy dataset input and
 preprocessing contracts.
 
-## End-to-end API example
+## Prepare the Reference Evidence
 
-The example makes the preparation boundary visible. Here the study design has
-already established `control` as the appropriate biological reference; that
-scientific decision is not made by the code below.
+The study design must establish the biological baseline before SPS discovery.
+The teaching references below already contain control-relative log2 values, so
+zero represents the established control baseline. The code records that fact;
+it does not infer or create the baseline.
+
+Start with the shared protein-scoped `site_key` identities.
 
 ```python
 import pandas as pd
 
-from phospy.advanced import (
-    CorrectionMissingnessPolicy,
-    SpsDiscoveryConfig,
-    SpsDiscoveryRequest,
-    SpsDiscoveryWorkflow,
-    SpsReferenceDataset,
-    SpsRuvBatchCorrectionConfig,
-)
-from phospy.api import (
-    AnalysisReadyDatasetBuilder,
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-)
-
-
-def prepare_reference(
-    *,
-    dataset_id: str,
-    processed_log2: pd.DataFrame,
-    condition_by_sample: dict[str, str],
-) -> SpsReferenceDataset:
-    """Assert a scientifically established control-centred log2 reference."""
-    control_samples = [
-        sample
-        for sample, condition in condition_by_sample.items()
-        if condition == "control"
-    ]
-    # This centring is valid here only because the study design established
-    # this control condition as the biological reference beforehand.
-    control_baseline = processed_log2.loc[:, control_samples].mean(axis=1)
-    condition_relative_log2 = processed_log2.subtract(control_baseline, axis=0)
-
-    return SpsReferenceDataset.from_condition_relative_log2(
-        dataset_id=dataset_id,
-        intensities=condition_relative_log2,
-        condition_by_sample=condition_by_sample,
-        log2_scale_established_by="reference-processing-pipeline-v3",
-        baseline_centering_established_by=(
-            f"{dataset_id}:study-design-control-mean-v1"
-        ),
-        organism="human",
-        baseline_context="untreated control condition",
-        reference_context="human cell-line treatment time course",
-        source_name="independent phosphoproteomics reference",
-        source_version="2026-09",
-        source_uri=f"https://example.org/references/{dataset_id}",
-    )
-
-
-reference_a = prepare_reference(
-    dataset_id="reference-a",
-    processed_log2=reference_a_processed_log2,
-    condition_by_sample=reference_a_conditions,
-)
-reference_b = prepare_reference(
-    dataset_id="reference-b",
-    processed_log2=reference_b_processed_log2,
-    condition_by_sample=reference_b_conditions,
-)
-
-discovery = SpsDiscoveryWorkflow().run(
-    SpsDiscoveryRequest(
-        reference_datasets=(reference_a, reference_b),
-        config=SpsDiscoveryConfig(
-            top_n=100,
-            minimum_reference_datasets=2,
-            minimum_datasets_per_site=2,
-            minimum_shared_sites=50,
-        ),
-    )
-)
-
-controls = discovery.control_site_set
-print(discovery.selected_site_keys)
-print(discovery.discovery_identity)
-print(discovery.provenance.selection_boundaries.to_payload())
-
-correction = SpsRuvBatchCorrectionConfig(
-    method="ruv_iii_style",
-    control_site_set=controls,
-    batch_column="batch",
-    condition_columns=("condition",),
-    replicate_column="replicate_set",
-    missingness_policy=CorrectionMissingnessPolicy(),
-    n_unwanted_factors=1,
-)
-
-target_dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=target_phospho,
-        site_metadata=target_site_metadata,
-        sample_metadata=target_sample_metadata,
-        organism="human",
-        input_intensity_scale="log2",
-        preprocessing_config=DatasetPreprocessingConfig(
-            batch_correction=correction,
-        ),
-    )
+site_keys = (
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=MAPK14|residue=Y|position=182",
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=AKT1|residue=T|position=308",
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=SRC|residue=Y|position=416",
 )
 ```
 
-The target matrix above is ordinary governed log2 target data; it need not be
-centred like an SPS discovery reference. Control keys must map to target
-`site_key` rows and satisfy the correction validator.
+Each reference may have its own samples and conditions. These first values make
+MAPK14 and SRC relatively stable while AKT1 changes strongly.
 
-## Discovery behaviour and provenance
+```python
+reference_a_values = pd.DataFrame(
+    {
+        "control_1": [0.0, 0.0, 0.0],
+        "control_2": [0.0, 0.0, 0.0],
+        "treated_1": [0.1, 2.0, 0.2],
+        "treated_2": [0.1, 2.0, 0.2],
+    },
+    index=pd.Index(site_keys, name="site_key"),
+)
+reference_a_conditions = {
+    "control_1": "control",
+    "control_2": "control",
+    "treated_1": "treated",
+    "treated_2": "treated",
+}
+```
+
+```python
+reference_b_values = pd.DataFrame(
+    {
+        "control_1": [0.0, 0.0, 0.0],
+        "control_2": [0.0, 0.0, 0.0],
+        "treated_1": [0.2, 3.0, 0.3],
+        "treated_2": [0.2, 3.0, 0.3],
+    },
+    index=pd.Index(site_keys, name="site_key"),
+)
+reference_b_conditions = {
+    "control_1": "control",
+    "control_2": "control",
+    "treated_1": "treated",
+    "treated_2": "treated",
+}
+```
+
+`from_condition_relative_log2()` is an assertion boundary. It copies the
+matrix and binds the supplied scale and baseline evidence to that exact matrix;
+it does not transform the values.
+
+```python
+from phospy.advanced import SpsReferenceDataset
+
+reference_a = SpsReferenceDataset.from_condition_relative_log2(
+    dataset_id="reference_a",
+    intensities=reference_a_values,
+    condition_by_sample=reference_a_conditions,
+    log2_scale_established_by="reference_a log2 preprocessing",
+    baseline_centering_established_by="reference_a control subtraction",
+    organism="rat",
+    baseline_context="control condition",
+    reference_context="synthetic rat correction tutorial",
+    source_name="governed-reference-a",
+    source_version="2026-09",
+    source_uri="https://example.org/references/reference-a",
+)
+```
+
+```python
+reference_b = SpsReferenceDataset.from_condition_relative_log2(
+    dataset_id="reference_b",
+    intensities=reference_b_values,
+    condition_by_sample=reference_b_conditions,
+    log2_scale_established_by="reference_b log2 preprocessing",
+    baseline_centering_established_by="reference_b control subtraction",
+    organism="rat",
+    baseline_context="control condition",
+    reference_context="synthetic rat correction tutorial",
+    source_name="governed-reference-b",
+    source_version="2026-09",
+    source_uri="https://example.org/references/reference-b",
+)
+```
+
+```python
+reference_datasets = (reference_a, reference_b)
+```
+
+## Configure SPS Discovery
+
+The configuration selects at most two controls and requires both references to
+contribute to each ranked site. The two-reference floors are the smallest
+supported consensus path.
+
+```python
+from phospy.advanced import SpsDiscoveryConfig
+
+discovery_config = SpsDiscoveryConfig(
+    top_n=2,
+    minimum_reference_datasets=2,
+    minimum_datasets_per_site=2,
+    minimum_shared_sites=2,
+)
+```
+
+## Construct and Run the Discovery Request
+
+```python
+from phospy.advanced import SpsDiscoveryRequest
+
+discovery_request = SpsDiscoveryRequest(
+    reference_datasets=reference_datasets,
+    config=discovery_config,
+)
+```
+
+```python
+from phospy.advanced import SpsDiscoveryWorkflow
+
+discovery_workflow = SpsDiscoveryWorkflow()
+discovery_result = discovery_workflow.run(discovery_request)
+```
+
+Inspect the selected control identities and the attrition boundary.
+
+```python
+selected_site_keys = discovery_result.selected_site_keys
+selection_boundaries = discovery_result.provenance.selection_boundaries.to_payload()
+
+print("Selected controls:", selected_site_keys)
+print("Selection boundaries:", selection_boundaries)
+```
+
+The result selects the MAPK14 and SRC keys. The selection-boundary payload
+reports three unique, valid, and ranked sites and two selected sites. Stability
+here is a property of the supplied reference evidence, not proof that these
+sites are universally stable.
+
+## Prepare the Target Experiment
+
+The correction target follows the ordinary dataset contract. It need not be
+control-centred like an SPS discovery reference. This complete log2 matrix has
+three sites measured in four samples.
+
+```python
+target_phospho = pd.DataFrame(
+    {
+        "sample_1": [10.0, 5.0, 20.0],
+        "sample_2": [10.0, 9.0, 20.0],
+        "sample_3": [14.0, 8.0, 28.0],
+        "sample_4": [14.0, 12.0, 28.0],
+    },
+    index=pd.Index(
+        ["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"],
+        name="site_id",
+    ),
+)
+```
+
+```python
+target_site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "AKT1", "SRC"],
+        "protein_id": ["MAPK14", "AKT1", "SRC"],
+        "site": ["Y182", "T308", "Y416"],
+        "site_sequence": [
+            ("A" * 15) + "Y" + ("A" * 15),
+            ("A" * 15) + "T" + ("A" * 15),
+            ("A" * 15) + "Y" + ("A" * 15),
+        ],
+        "localisation_confidence": [0.95, 0.92, 0.98],
+    },
+    index=target_phospho.index,
+)
+```
+
+Batch and protected condition labels come from aligned sample metadata. The
+replicate column is recorded for diagnostics by `sps_ruv_style`; it does not
+activate replicate-aware RUV-III estimation.
+
+```python
+target_sample_metadata = pd.DataFrame(
+    {
+        "batch": ("run_1", "run_1", "run_2", "run_2"),
+        "condition": ("control", "treated", "control", "treated"),
+        "replicate": ("r1", "r2", "r2", "r1"),
+    },
+    index=target_phospho.columns,
+)
+```
+
+## Configure the Correction
+
+The target is complete, so the default missingness policy performs no temporary
+completion. The correction requests one unwanted factor and consumes the
+discovered `ControlSiteSet` directly.
+
+```python
+from phospy.advanced import CorrectionMissingnessPolicy
+
+correction_missingness = CorrectionMissingnessPolicy()
+```
+
+```python
+from phospy.advanced import SpsRuvBatchCorrectionConfig
+
+correction_config = SpsRuvBatchCorrectionConfig(
+    method="sps_ruv_style",
+    control_site_set=discovery_result.control_site_set,
+    batch_column="batch",
+    condition_columns=("condition",),
+    replicate_column="replicate",
+    missingness_policy=correction_missingness,
+    n_unwanted_factors=1,
+    diagnostics_enabled=True,
+    provenance_enabled=True,
+)
+```
+
+Place that operation in the dataset preprocessing configuration.
+
+```python
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    batch_correction=correction_config,
+)
+```
+
+## Build and Inspect the Corrected Dataset
+
+```python
+from phospy.api import DatasetBuildRequest, Organism
+
+target_request = DatasetBuildRequest(
+    phospho=target_phospho,
+    site_metadata=target_site_metadata,
+    sample_metadata=target_sample_metadata,
+    organism=Organism.RAT,
+    input_intensity_scale="log2",
+    preprocessing_config=preprocessing_config,
+)
+```
+
+```python
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+corrected_dataset = dataset_builder.run(target_request)
+```
+
+Inspect the public correction report and confirm that the output matrix changed.
+
+```python
+correction_report = corrected_dataset.preprocessing_report.batch_correction
+corrected_shape = corrected_dataset.phospho.shape
+matrix_changed = not corrected_dataset.phospho.equals(target_phospho)
+
+print("Corrected shape:", corrected_shape)
+print("Correction method:", correction_report.method)
+print("Correction status:", correction_report.status)
+print("Matrix changed:", matrix_changed)
+```
+
+The expected shape is `(3, 4)`, the method is `sps_ruv_style`, the status is
+`applied`, and `matrix_changed` is `True`. Correction estimates and removes a
+supported unwanted-variation component. It does not prove that all technical
+variation was removed or that biological effects were preserved outside the
+protected design and control assumptions.
+
+## Discovery Behaviour and Provenance
 
 Each reference supplies its own sample-to-condition mapping. References need
 not share samples or condition labels, but they do share governed `site_key`
@@ -253,7 +424,7 @@ The final ordering is lexicographic in
 `(-k_i, -C_i, site_key_i)`: more contributing references first, then larger
 consensus stability score within an equal-count stratum, then ascending
 `site_key`. This conservative corroboration policy keeps missing
-reference evidence from behaving like favorable stability evidence. A site
+reference evidence from behaving like favourable stability evidence. A site
 with stronger per-reference stability can therefore rank below a site with
 more independent reference contributions.
 
@@ -293,34 +464,35 @@ compatibility boundary.
 
 The identity is serialized with the `phospy-sps-discovery-result-v2` schema,
 which requires every per-reference `rank_quantile`. Baseline
-`phospy-sps-discovery-result-v1` payloads omitted that field; loading v1
-explicitly validates the legacy identity, reconstructs each quantile from the
+`phospy-sps-discovery-result-v1` payloads omit that field; loading v1 explicitly
+validates the v1 identity, reconstructs each quantile from the
 serialized stability-score tie groups, and returns a v2 result. A v1 payload
 carrying v2-only quantile fields is rejected rather than interpreted
 ambiguously.
 
-Algorithm version `2.0.0` introduced the evidence-count-first ordering and
-serializes
+Algorithm version `2.0.0` uses evidence-count-first ordering and serializes
 `contributing_dataset_count_descending_then_consensus_stability_descending` in
-provenance. Version `1.0.0` results deserialize with their historical
-score-first ordering and omit that newer field, so persisted results are not
+provenance. Version `1.0.0` results deserialize with score-first ordering and
+omit that field, so persisted results are not
 silently reinterpreted. Complete-reference results have a constant contributor
 count and retain their PhosR-compatible score and ordering.
 
-Persist `discovery.to_payload()` as JSON-compatible data. Later,
+After running the primary example, persist `discovery_result.to_payload()` as
+JSON-compatible data. Later,
 `SpsDiscoveryResult.from_payload(...)` revalidates it and reconstructs a usable
 `ControlSiteSet`; the source matrices are not needed for correction:
 
 ```python
 from phospy.advanced import SpsDiscoveryResult, SpsRuvBatchCorrectionConfig
 
+saved_discovery_payload = discovery_result.to_payload()
 restored = SpsDiscoveryResult.from_payload(saved_discovery_payload)
 reused_correction = SpsRuvBatchCorrectionConfig(
     method="sps_ruv_style",
     control_site_set=restored.control_site_set,
     batch_column="batch",
     condition_columns=("condition",),
-    missingness_policy=correction_missingness_policy,
+    missingness_policy=correction_missingness,
     n_unwanted_factors=1,
 )
 ```
@@ -330,7 +502,7 @@ context. Persistence makes reuse technically possible; it does not establish
 that a control set from another organism, tissue, perturbation, or acquisition
 regime is scientifically appropriate.
 
-## Choose the correction method
+## Choose the Correction Method
 
 | Method | Scientific role | Replicate semantics |
 |---|---|---|
@@ -355,7 +527,7 @@ non-estimable `k`; these are deliberate PhosPy input-validation restrictions,
 not numerical differences in the estimator over inputs supported by both
 implementations.
 
-### Estimator rejection boundaries and recovery
+### Estimator Rejection Boundaries and Recovery
 
 `ruv_iii_style` fails closed when its requested factor space cannot be
 identified unambiguously. Its user-visible restrictions are:
@@ -415,7 +587,7 @@ preprocessing remains authoritative.
 Neither SPS reference preparation nor RUV-III's internal completion changes
 PhosPy's existing missing-data and imputation contracts.
 
-## When to use it
+## When to Use It
 
 This workflow is appropriate when you have multiple relevant, independently
 prepared phosphoproteomics references, can defend their biological baselines,
@@ -435,3 +607,202 @@ design is informed by SPS/RUV literature and PhosR, but the package does not
 claim full PhosR workflow equivalence. See [Comparison With
 PhosR](../parity.md#sps-and-ruv-iii-external-reference-evidence) for the narrow
 pinned external evidence and its exclusions.
+
+## Complete Runnable Example
+
+```python
+import pandas as pd
+
+site_keys = (
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=MAPK14|residue=Y|position=182",
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=AKT1|residue=T|position=308",
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=SRC|residue=Y|position=416",
+)
+
+reference_a_values = pd.DataFrame(
+    {
+        "control_1": [0.0, 0.0, 0.0],
+        "control_2": [0.0, 0.0, 0.0],
+        "treated_1": [0.1, 2.0, 0.2],
+        "treated_2": [0.1, 2.0, 0.2],
+    },
+    index=pd.Index(site_keys, name="site_key"),
+)
+reference_a_conditions = {
+    "control_1": "control",
+    "control_2": "control",
+    "treated_1": "treated",
+    "treated_2": "treated",
+}
+
+reference_b_values = pd.DataFrame(
+    {
+        "control_1": [0.0, 0.0, 0.0],
+        "control_2": [0.0, 0.0, 0.0],
+        "treated_1": [0.2, 3.0, 0.3],
+        "treated_2": [0.2, 3.0, 0.3],
+    },
+    index=pd.Index(site_keys, name="site_key"),
+)
+reference_b_conditions = {
+    "control_1": "control",
+    "control_2": "control",
+    "treated_1": "treated",
+    "treated_2": "treated",
+}
+
+from phospy.advanced import SpsReferenceDataset
+
+reference_a = SpsReferenceDataset.from_condition_relative_log2(
+    dataset_id="reference_a",
+    intensities=reference_a_values,
+    condition_by_sample=reference_a_conditions,
+    log2_scale_established_by="reference_a log2 preprocessing",
+    baseline_centering_established_by="reference_a control subtraction",
+    organism="rat",
+    baseline_context="control condition",
+    reference_context="synthetic rat correction tutorial",
+    source_name="governed-reference-a",
+    source_version="2026-09",
+    source_uri="https://example.org/references/reference-a",
+)
+
+reference_b = SpsReferenceDataset.from_condition_relative_log2(
+    dataset_id="reference_b",
+    intensities=reference_b_values,
+    condition_by_sample=reference_b_conditions,
+    log2_scale_established_by="reference_b log2 preprocessing",
+    baseline_centering_established_by="reference_b control subtraction",
+    organism="rat",
+    baseline_context="control condition",
+    reference_context="synthetic rat correction tutorial",
+    source_name="governed-reference-b",
+    source_version="2026-09",
+    source_uri="https://example.org/references/reference-b",
+)
+
+reference_datasets = (reference_a, reference_b)
+
+from phospy.advanced import SpsDiscoveryConfig
+
+discovery_config = SpsDiscoveryConfig(
+    top_n=2,
+    minimum_reference_datasets=2,
+    minimum_datasets_per_site=2,
+    minimum_shared_sites=2,
+)
+
+from phospy.advanced import SpsDiscoveryRequest
+
+discovery_request = SpsDiscoveryRequest(
+    reference_datasets=reference_datasets,
+    config=discovery_config,
+)
+
+from phospy.advanced import SpsDiscoveryWorkflow
+
+discovery_workflow = SpsDiscoveryWorkflow()
+discovery_result = discovery_workflow.run(discovery_request)
+
+selected_site_keys = discovery_result.selected_site_keys
+selection_boundaries = discovery_result.provenance.selection_boundaries.to_payload()
+
+print("Selected controls:", selected_site_keys)
+print("Selection boundaries:", selection_boundaries)
+
+target_phospho = pd.DataFrame(
+    {
+        "sample_1": [10.0, 5.0, 20.0],
+        "sample_2": [10.0, 9.0, 20.0],
+        "sample_3": [14.0, 8.0, 28.0],
+        "sample_4": [14.0, 12.0, 28.0],
+    },
+    index=pd.Index(
+        ["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"],
+        name="site_id",
+    ),
+)
+
+target_site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "AKT1", "SRC"],
+        "protein_id": ["MAPK14", "AKT1", "SRC"],
+        "site": ["Y182", "T308", "Y416"],
+        "site_sequence": [
+            ("A" * 15) + "Y" + ("A" * 15),
+            ("A" * 15) + "T" + ("A" * 15),
+            ("A" * 15) + "Y" + ("A" * 15),
+        ],
+        "localisation_confidence": [0.95, 0.92, 0.98],
+    },
+    index=target_phospho.index,
+)
+
+target_sample_metadata = pd.DataFrame(
+    {
+        "batch": ("run_1", "run_1", "run_2", "run_2"),
+        "condition": ("control", "treated", "control", "treated"),
+        "replicate": ("r1", "r2", "r2", "r1"),
+    },
+    index=target_phospho.columns,
+)
+
+from phospy.advanced import CorrectionMissingnessPolicy
+
+correction_missingness = CorrectionMissingnessPolicy()
+
+from phospy.advanced import SpsRuvBatchCorrectionConfig
+
+correction_config = SpsRuvBatchCorrectionConfig(
+    method="sps_ruv_style",
+    control_site_set=discovery_result.control_site_set,
+    batch_column="batch",
+    condition_columns=("condition",),
+    replicate_column="replicate",
+    missingness_policy=correction_missingness,
+    n_unwanted_factors=1,
+    diagnostics_enabled=True,
+    provenance_enabled=True,
+)
+
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    batch_correction=correction_config,
+)
+
+from phospy.api import DatasetBuildRequest, Organism
+
+target_request = DatasetBuildRequest(
+    phospho=target_phospho,
+    site_metadata=target_site_metadata,
+    sample_metadata=target_sample_metadata,
+    organism=Organism.RAT,
+    input_intensity_scale="log2",
+    preprocessing_config=preprocessing_config,
+)
+
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+corrected_dataset = dataset_builder.run(target_request)
+
+correction_report = corrected_dataset.preprocessing_report.batch_correction
+corrected_shape = corrected_dataset.phospho.shape
+matrix_changed = not corrected_dataset.phospho.equals(target_phospho)
+
+print("Corrected shape:", corrected_shape)
+print("Correction method:", correction_report.method)
+print("Correction status:", correction_report.status)
+print("Matrix changed:", matrix_changed)
+```
+
+## Continue
+
+- [Prepare a dataset](dataset-build-workflow.md)
+- [Differential analysis](differential-analysis.md)
+- [Scientific interpretation and limitations](../scientific-interpretation.md)
+- [Comparison with PhosR](../parity.md#sps-and-ruv-iii-external-reference-evidence)

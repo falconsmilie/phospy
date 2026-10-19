@@ -69,7 +69,7 @@ hygiene, and packaging gates.
 
 The accepted exact-byte provenance lane recorded the explicit disposition
 `ineligible_missing_required_cpu_features`: the loaded runtime did not expose
-`AVX512F`, `AVX512CD`, or `AVX512_SKX`. Portable semantic provenance, canonical
+`AVX512F`, `AVX512CD`, or `AVX512_SKX`. Portable semantic provenance, stable
 serialization, and both fresh-process repeatability checks still executed and
 passed. The supplemental exact-byte predicate did not execute and was not
 reported as a pass.

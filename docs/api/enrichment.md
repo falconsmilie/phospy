@@ -1,56 +1,23 @@
 # Enrichment
 
-`EnrichmentWorkflow` runs offline over-representation analysis (ORA) with an
-identifier list, a local set collection, and an explicit background universe.
+Enrichment asks whether a selected list of identifiers overlaps a collection
+of biological sets more often than expected. `EnrichmentWorkflow` performs
+offline over-representation analysis (ORA) against an explicit background
+universe.
 
-Use it when you have already selected genes, proteins, or phosphosites and want
-to test whether they overlap particular sets more often than expected.
+This walkthrough uses gene symbols and two small in-memory gene sets. The data
+are illustrative and are not a biological benchmark. Run the Python blocks in
+order in one fresh process.
 
-!!! info "At a Glance"
-    **Input:** Selected identifiers, a matching `GeneSetCollection` or
-    `PtmSetCollection`, and a background universe  
-    **Run:** `EnrichmentWorkflow().run(request)`  
-    **Returns:** An `EnrichmentWorkflowResult` with one row per tested term,
-    diagnostics, provenance, and caveats
+## Define the Set Collection
 
-PhosPy does not fetch or bundle GO, KEGG, Reactome, PTM-SEA, Enrichr, or gseapy
-resources. It does not implement GSEA, ssGSEA, or PTM-SEA. ORA does not imply
-GSEA or PTM-SEA support.
-
-## Before You Begin
-
-Choose one identifier level and use it consistently across the selected list,
-background, and set collection:
-
-| Identifier Kind | Collection |
-| --- | --- |
-| `"gene_symbol"` or `"protein_id"` | `GeneSetCollection` |
-| `"site_key"`, `"display_id"`, or `"phosphosite"` | `PtmSetCollection` |
-
-Provide selected identifiers in exactly one way:
-
-- `selected_identifiers`; or
-- `input_table` together with `identifier_column`.
-
-The `background_universe` is always required. It should represent the
-identifiers that could reasonably have been selected in your experiment.
-PhosPy does not infer it from a dataset, reference bundle, or set collection.
-
-PhosPy also does not translate between namespaces. Gene symbols, protein
-accessions, `display_id` labels, and `site_key` values must not be mixed.
-For PhosPy-derived site-level analyses, prefer `site_key`.
-
-## Example
+A set collection maps stable term identifiers to their member identifiers. All
+members use one namespace. Here that namespace is `gene_symbol`.
 
 ```python
-from phospy.api import (
-    EnrichmentConfig,
-    EnrichmentWorkflow,
-    EnrichmentWorkflowRequest,
-    GeneSetCollection,
-)
+from phospy.api import GeneSetCollection
 
-collection = GeneSetCollection(
+set_collection = GeneSetCollection(
     sets={
         "kinase_response": ("AKT1", "MAPK1", "MTOR"),
         "cell_cycle": ("CDK1", "CDK2", "MAPK1"),
@@ -63,25 +30,123 @@ collection = GeneSetCollection(
     source_name="example in-memory gene sets",
     source_version="2026-06",
 )
-
-request = EnrichmentWorkflowRequest(
-    identifier_column="gene_symbol",
-    identifier_kind="gene_symbol",
-    set_collection=collection,
-    selected_identifiers=("AKT1", "MAPK1"),
-    background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
-    config=EnrichmentConfig(
-        method="over_representation",
-        multiple_testing_correction="benjamini_hochberg",
-    ),
-)
-
-result = EnrichmentWorkflow().run(request)
-print(result.table.loc[:, ["term_id", "input_overlap_count", "p_value"]])
 ```
 
-`EnrichmentWorkflow` is public through `phospy.api`; it is not exported from the
-package root.
+In a study, use a locally curated collection whose version and licence are
+appropriate for the analysis. PhosPy does not fetch or bundle GO, KEGG,
+Reactome, PTM-SEA, Enrichr, or gseapy resources.
+
+## Choose the Selected Identifiers
+
+The foreground is the list whose set overlap you want to test. These two gene
+symbols might represent a study-defined hit list.
+
+```python
+selected_identifiers = ("AKT1", "MAPK1")
+```
+
+The background represents identifiers that could reasonably have been
+selected in the experiment. It defines the reference population for the
+hypergeometric test and must be supplied explicitly.
+
+```python
+background_universe = ("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2")
+```
+
+Selected identifiers, background identifiers, and set members must share the
+same namespace. PhosPy does not translate gene symbols, accessions,
+`display_id` labels, or `site_key` values.
+
+## Configure the Test
+
+ORA is the supported method. Benjamini-Hochberg correction adjusts the raw
+*p* values across the terms tested in this run.
+
+```python
+from phospy.api import EnrichmentConfig
+
+enrichment_config = EnrichmentConfig(
+    method="over_representation",
+    multiple_testing_correction="benjamini_hochberg",
+)
+```
+
+## Construct the Request
+
+`identifier_column` records the selected identifier field. It is also the
+column name used when the alternative `input_table` route is selected.
+
+```python
+from phospy.api import EnrichmentWorkflowRequest
+
+enrichment_request = EnrichmentWorkflowRequest(
+    identifier_column="gene_symbol",
+    identifier_kind="gene_symbol",
+    set_collection=set_collection,
+    selected_identifiers=selected_identifiers,
+    background_universe=background_universe,
+    config=enrichment_config,
+)
+```
+
+## Run the Workflow
+
+```python
+from phospy.api import EnrichmentWorkflow
+
+enrichment_workflow = EnrichmentWorkflow()
+enrichment_result = enrichment_workflow.run(enrichment_request)
+```
+
+## Inspect and Interpret the Result
+
+The result contains one row per tested term. The table accessor returns an
+independent pandas snapshot.
+
+```python
+result_columns = [
+    "term_id",
+    "input_overlap_count",
+    "background_overlap_count",
+    "p_value",
+    "adjusted_p_value",
+]
+result_view = enrichment_result.table.loc[:, result_columns]
+
+print("Displayed result shape:", result_view.shape)
+print(result_view)
+```
+
+The displayed shape is `(2, 5)`. `kinase_response` overlaps both selected
+genes and has a raw *p* value of `0.3`; `cell_cycle` overlaps one and has a raw
+*p* value of `0.9`. These values show how ORA behaves on a tiny universe. They
+do not support a biological conclusion.
+
+A smaller raw or adjusted *p* value means stronger evidence under the stated
+foreground, background, and set collection. It is statistical evidence, not an
+effect size. ORA does not prove pathway activation, regulation, kinase
+activity, or causality.
+
+## Choose the Identifier Level
+
+Use one level consistently across the selected list, background, and
+collection:
+
+| Identifier Kind | Collection |
+| --- | --- |
+| `"gene_symbol"` or `"protein_id"` | `GeneSetCollection` |
+| `"site_key"`, `"display_id"`, or `"phosphosite"` | `PtmSetCollection` |
+
+For PhosPy-derived site-level analyses, prefer `site_key`. Provide selected
+identifiers through either `selected_identifiers` or `input_table` with
+`identifier_column`, never both.
+
+PhosPy does not implement GSEA, ssGSEA, or PTM-SEA. ORA does not imply support
+for those methods. Workflow-created provenance records that execution was
+offline and used no online-resource lookup.
+
+`EnrichmentWorkflow` is public through `phospy.api`; it is not exported from
+the package root.
 
 ## Request
 
@@ -96,8 +161,8 @@ Create an `EnrichmentWorkflowRequest`.
 | `config` | `EnrichmentConfig` | `EnrichmentConfig()` | ORA, correction, attrition, and size-filter policy. | Only supported policies are accepted. |
 | `input_table` | `pandas.DataFrame` or `None` | `None` | Optional table containing selected identifiers. | Mutually exclusive with `selected_identifiers`. |
 | `selected_identifiers` | `Sequence[str]` or `None` | `None` | Optional explicit selected list. | Mutually exclusive with `input_table`; must be non-empty when used. |
-| `selected_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the selected set. | `identifier_count` must match the normalized selected count. |
-| `background_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the background. | `identifier_count` must match the normalized background count. |
+| `selected_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the selected set. | `identifier_count` must match the normalised selected count. |
+| `background_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the background. | `identifier_count` must match the normalised background count. |
 
 ### `EnrichmentConfig`
 
@@ -137,19 +202,22 @@ fingerprints.
 
 </details>
 
-## Run the Workflow
+## Execution Behaviour and Errors
+
+The primary journey above shows the named workflow and request boundary. After
+running it, the same request can also be passed through the concise public form:
 
 ```python
-result = EnrichmentWorkflow().run(request)
+repeated_result = EnrichmentWorkflow().run(enrichment_request)
 ```
 
-Execution is deterministic for the same normalized inputs and configuration.
+Execution is deterministic for the same normalised inputs and configuration.
 Invalid local config values raise `ContractValidationError`; cross-input
 problems raise `WorkflowValidationError` when the workflow runs.
 
 Typical failures include an empty background, both selected-input routes being
 set, mismatched identifier kinds, selected identifiers outside the background
-under the `"error"` policy, or provenance counts that do not match normalized
+under the `"error"` policy, or provenance counts that do not match normalised
 identifiers.
 
 ## Response
@@ -198,7 +266,7 @@ columns. Returned DataFrames are independent snapshots.
 <details markdown="1">
 <summary><strong>Key Diagnostic Groups</strong></summary>
 
-`diagnostics["foreground_background"]` reports normalized selected and
+`diagnostics["foreground_background"]` reports normalised selected and
 background counts, retained foreground fraction, outside-background identifiers,
 resolved policies, and tested/dropped set counts.
 
@@ -237,7 +305,66 @@ scientifically justified transformation.
 | The result is empty. | Review set-size filters and `diagnostics["set_size_filter"]`. |
 | Enrichment is unexpectedly weak. | Revisit the background universe, selection rule, and set curation. |
 
-## Related Guides
+## Complete Runnable Example
+
+```python
+from phospy.api import GeneSetCollection
+
+set_collection = GeneSetCollection(
+    sets={
+        "kinase_response": ("AKT1", "MAPK1", "MTOR"),
+        "cell_cycle": ("CDK1", "CDK2", "MAPK1"),
+    },
+    identifier_kind="gene_symbol",
+    term_names={
+        "kinase_response": "Kinase response",
+        "cell_cycle": "Cell cycle",
+    },
+    source_name="example in-memory gene sets",
+    source_version="2026-06",
+)
+
+selected_identifiers = ("AKT1", "MAPK1")
+
+background_universe = ("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2")
+
+from phospy.api import EnrichmentConfig
+
+enrichment_config = EnrichmentConfig(
+    method="over_representation",
+    multiple_testing_correction="benjamini_hochberg",
+)
+
+from phospy.api import EnrichmentWorkflowRequest
+
+enrichment_request = EnrichmentWorkflowRequest(
+    identifier_column="gene_symbol",
+    identifier_kind="gene_symbol",
+    set_collection=set_collection,
+    selected_identifiers=selected_identifiers,
+    background_universe=background_universe,
+    config=enrichment_config,
+)
+
+from phospy.api import EnrichmentWorkflow
+
+enrichment_workflow = EnrichmentWorkflow()
+enrichment_result = enrichment_workflow.run(enrichment_request)
+
+result_columns = [
+    "term_id",
+    "input_overlap_count",
+    "background_overlap_count",
+    "p_value",
+    "adjusted_p_value",
+]
+result_view = enrichment_result.table.loc[:, result_columns]
+
+print("Displayed result shape:", result_view.shape)
+print(result_view)
+```
+
+## Continue
 
 - [Differential Analysis](differential-analysis.md)
 - [Scientific Interpretation and Limitations](../scientific-interpretation.md)

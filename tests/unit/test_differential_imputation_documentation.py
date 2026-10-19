@@ -49,23 +49,27 @@ def test_missing_data_config_docstring_conditions_imputed_dataset_state() -> Non
 
 def test_differential_guide_warns_before_detailed_policy_section() -> None:
     guide = _read(_DOCS / "api" / "differential-analysis.md")
-    before_you_begin = _section(
+    headings = [line for line in guide.splitlines() if line.startswith("## ")]
+    input_requirements = _section(
         guide,
-        "## Before You Begin",
+        "## Input Requirements and Policies",
         "## Empirical Bayes Variance Moderation",
     )
     detailed_policy_position = guide.index(
         "### Missing, Imputed, and Authoritative Matrix Policy"
     )
 
-    assert 'imputed_value_policy="reject"' in before_you_begin
+    assert "## Before You Begin" not in headings
+    assert "## Input Requirements and Policies" in headings
+    assert len(headings) == len(set(headings))
+    assert 'imputed_value_policy="reject"' in input_requirements
     assert guide.index('imputed_value_policy="reject"') < detailed_policy_position
-    assert '"withhold_imputed_features"' in before_you_begin
-    assert "imputed_value_max_fraction" in before_you_begin
-    assert "minimum_condition_replicates" in before_you_begin
-    assert "not observed-only fitting" in before_you_begin
+    assert '"withhold_imputed_features"' in input_requirements
+    assert "imputed_value_max_fraction" in input_requirements
+    assert "minimum_condition_replicates" in input_requirements
+    assert "not observed-only fitting" in input_requirements
     assert "retained tested features can still contain imputed cells" in (
-        before_you_begin.casefold()
+        input_requirements.casefold()
     )
 
 

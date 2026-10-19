@@ -191,7 +191,7 @@ tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,206,7,false,false,,,,,,
 tests/unit/test_differential_feature_eligibility.py,unit,506,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_differential_fixed_effect_provenance.py,unit,382,5,false,false,,,,,,
-tests/unit/test_differential_imputation_documentation.py,unit,100,5,false,false,,,,,,
+tests/unit/test_differential_imputation_documentation.py,unit,104,5,false,false,,,,,,
 tests/unit/test_differential_imputation_policy.py,unit,610,13,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,1484,34,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_differential_paired_block_policy_contract.py,unit,115,9,false,false,,,,,,
@@ -308,7 +308,7 @@ tests/unit/test_public_contract_enrichment.py,unit,473,15,true,true,,,,,,
 tests/unit/test_public_contract_errors.py,unit,778,25,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_results.py,unit,428,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_workflows.py,unit,195,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_documentation_examples.py,unit,615,11,false,false,,,,,,
+tests/unit/test_public_documentation_examples.py,unit,639,11,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,153,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_facade_identity.py,unit,53,2,false,false,,,,,,
 tests/unit/test_publishers_transactional.py,unit,591,13,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

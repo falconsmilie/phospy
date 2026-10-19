@@ -422,27 +422,33 @@ def test_readme_links_to_existing_api_workflow_docs() -> None:
     assert SIGNALOME_WORKFLOW_DOC.exists()
 
 
-def test_dataset_build_docs_document_keep_joint_replacement_guidance() -> None:
+def test_dataset_build_docs_document_current_peptide_evidence_policies() -> None:
     source = _read(DATASET_WORKFLOW_DOC)
+    peptide_evidence_section = source.split(
+        "## Use Peptide-Evidence Input", maxsplit=1
+    )[1].split("## Inspect Other Result Properties", maxsplit=1)[0]
 
+    for policy in SUPPORTED_DATASET_MULTI_SITE_POLICIES:
+        assert f"`{policy}`" in peptide_evidence_section
     _assert_statement_contains_all(
-        source,
-        ("keep_joint", "not supported", "AnalysisReadyDatasetBuilder"),
-        context="dataset-build keep_joint migration guidance",
-    )
-    _assert_statement_contains_all(
-        source,
+        peptide_evidence_section,
         ("strict", "residue/position", "AnalysisReadyPhosphoDataset"),
         context="dataset-build strict site identity guidance",
     )
     _assert_python_call_keyword(
-        source,
+        peptide_evidence_section,
+        "DatasetBuildRequest",
+        "site_resolution_mode",
+        "peptide_evidence",
+        context="dataset-build peptide-evidence example",
+    )
+    _assert_python_call_keyword(
+        peptide_evidence_section,
         "DatasetBuildRequest",
         "multi_site_policy",
         "split",
-        context="dataset-build keep_joint replacement example",
+        context="dataset-build peptide-evidence example",
     )
-    assert 'replaces the removed "keep_joint" builder policy' in source
 
 
 def test_dataset_build_docs_multi_site_policy_list_matches_builder_contract() -> None:
@@ -520,24 +526,42 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
     )
 
 
-def test_docs_do_not_import_withdrawn_peptide_to_site_aggregation_route() -> None:
+def test_differential_docs_document_current_public_workflow_boundary() -> None:
     source = _read(DIFFERENTIAL_WORKFLOW_DOC)
+    normalised = _normalise_whitespace(source)
 
+    _assert_python_imports(
+        source,
+        "phospy.api",
+        ("DifferentialAnalysisWorkflow",),
+        context="differential public workflow route",
+    )
+    _assert_python_run_call(
+        source,
+        "DifferentialAnalysisWorkflow",
+        context="differential public workflow route",
+    )
     _assert_python_imports_absent(
         source,
-        "phospy.differential.aggregation",
-        WITHDRAWN_AGGREGATION_PUBLIC_IMPORT_NAMES,
-        context="withdrawn peptide-to-site aggregation public route",
+        "phospy",
+        ("DifferentialAnalysis",),
+        context="unsupported top-level differential route",
+    )
+    _assert_python_imports_absent(
+        source,
+        "phospy.api",
+        ("DifferentialAnalysis",),
+        context="unsupported API differential route",
+    )
+    assert "`from phospy import DifferentialAnalysis` is not supported" in normalised
+    assert (
+        "`from phospy.api import DifferentialAnalysis` is also not supported"
+        in normalised
     )
     _assert_statement_contains_all(
         source,
-        ("withdrawn", "fails closed"),
-        context="withdrawn peptide-to-site aggregation documentation",
-    )
-    _assert_statement_contains_all(
-        source,
-        ("future public support", "executable", "mapping"),
-        context="withdrawn peptide-to-site aggregation reintroduction conditions",
+        ("raises", "WorkflowValidationError", "selected policy"),
+        context="differential workflow validation boundary",
     )
 
 
@@ -605,11 +629,11 @@ def test_public_kinase_docs_prefer_activity_matrix() -> None:
     )
     _assert_statement_contains_all(
         kinase_source,
-        ("activity_result.activity_matrix", "primary", "activity matrix"),
+        (
+            "activity_result.activity_matrix",
+            "primary",
+            "activity matrix",
+            "public activity output",
+        ),
         context="kinase activity primary result contract",
-    )
-    _assert_statement_contains_all(
-        kinase_source,
-        ("activity_scores", "weighted_activity", "removed"),
-        context="kinase activity removed alias guidance",
     )

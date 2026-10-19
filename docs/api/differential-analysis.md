@@ -1,86 +1,258 @@
 # Differential Analysis
 
-`DifferentialAnalysisWorkflow` tests named condition contrasts for each
-phosphosite in an `AnalysisReadyPhosphoDataset`.
+Differential analysis asks whether each phosphosite has a different fitted
+intensity between named experimental conditions. `DifferentialAnalysisWorkflow`
+returns an effect estimate, a moderated statistic, and statistical evidence for
+every requested contrast.
 
-Use this workflow when you want effect estimates, moderated statistics, and
-multiple-testing-adjusted *p* values for explicit comparisons such as treated
-versus control.
+This walkthrough tests treatment versus control. It begins with the smallest
+production-supported design: two biological replicates in each condition. Run
+the Python blocks in order in one fresh process.
 
-!!! info "At a Glance"
-    **Input:** An analysis-ready log2 dataset, an `ExperimentalDesign`, and one
-    or more `Contrast` objects  
-    **Run:** `DifferentialAnalysisWorkflow().run(request)`  
-    **Returns:** A `DifferentialAnalysisResult` with one table per contrast,
-    diagnostics, provenance, and caveats
+## Prepare the Phosphosite Measurements
 
-The current implementation is limited to tested design and contrast envelopes;
-it is not full limma or PhosR parity. Familiar column names such as `logFC`,
-`P.Value`, and `adj.P.Val` describe the output, not broad limma compatibility.
-
-## Before You Begin
-
-Build the dataset with
-[`AnalysisReadyDatasetBuilder`](dataset-build-workflow.md). Differential
-analysis requires:
-
-- unique `site_key` rows and complete analysis-ready values;
-- required site metadata, including `site_sequence`;
-- sample columns that match the explicit design;
-- an established log2 intensity scale;
-- at least two biological replicates per contrasted condition in production
-  mode; and
-- localization evidence that meets the dataset policy.
-
-!!! warning "Upstream-imputed datasets are rejected by default"
-    `DifferentialAnalysisConfig.imputed_value_policy="reject"` applies when
-    dataset preprocessing has carried any imputed cells into the analysis-ready
-    dataset. Supply a non-imputed dataset to retain this default, or deliberately
-    select `"withhold_imputed_features"`.
-
-    Under the non-default policy, a feature is eligible only when its imputed
-    fraction is within `imputed_value_max_fraction` and every condition used by
-    a requested contrast has at least `minimum_condition_replicates` originally
-    observed values. Retained tested features can still contain imputed cells
-    when a positive threshold permits them, and those values participate in
-    fitting. This is not observed-only fitting. Read
-    [Missing, Imputed, and Authoritative Matrix Policy](#missing-imputed-and-authoritative-matrix-policy)
-    for the full semantics.
-
-Use `DatasetIntensityTransformConfig(policy="log2")` when the source matrix is
-linear. A declared log2 scale with suspicious diagnostics fails by default
-unless you deliberately enable the recorded override.
-
-Configure localization while building the dataset. A low-confidence
-phosphosite fails before differential fitting:
+The quantitative table has one phosphosite per row and one sample per column.
+These illustrative values are positive intensities on a linear scale.
 
 ```python
-from phospy.api import DatasetLocalisationConfig, DatasetPreprocessingConfig
+import pandas as pd
 
-preprocessing = DatasetPreprocessingConfig(
-    localisation=DatasetLocalisationConfig(
-        mode="require_threshold",
-        confidence_column="localisation_confidence",
-        min_confidence=0.75,
-    )
+phospho = pd.DataFrame(
+    {
+        "control_rep1": [1000.0, 900.0],
+        "control_rep2": [1050.0, 880.0],
+        "treatment_rep1": [1800.0, 930.0],
+        "treatment_rep2": [1750.0, 920.0],
+    },
+    index=["MAPK14;Y182;", "GSK3A;S21;"],
 )
 ```
 
-PhosPy does not infer conditions, replicates, batches, blocks, or covariates from
-sample names or passive `dataset.sample_metadata`. Put these values in the
-`ExperimentalDesign`.
+The aligned metadata supplies protein identity, the modified residue, sequence
+context, and localisation confidence. Localisation confidence describes how
+strongly the evidence supports assigning the phosphate group to that specific
+position.
 
-The withdrawn post-hoc peptide-to-site estimate-combination route fails closed.
-Future public support requires executable peptide-to-site mapping semantics, a
-coherent combined effect and inferential estimand, same-experiment dependence
-handling, multiple-testing semantics, and provenance. Resolve peptide evidence
-to site-level sample intensities during dataset preparation instead.
+```python
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "GSK3A"],
+        "site": ["Y182", "S21"],
+        "site_sequence": [
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+        ],
+        "protein_id": ["MAPK14", "GSK3A"],
+        "localisation_confidence": [0.95, 0.94],
+    },
+    index=phospho.index,
+)
+```
+
+## Establish the Log2 Scale
+
+Differential `logFC` is defined on an established log2 scale. The source values
+are linear, so this configuration asks PhosPy to calculate
+`log2(value + pseudocount)`. The default pseudocount is `1.0`.
+
+```python
+from phospy.advanced import DatasetIntensityTransformConfig
+
+intensity_transform = DatasetIntensityTransformConfig(policy="log2")
+```
+
+Require valid localisation confidence of at least `0.75`. This threshold is an
+illustrative study choice, not a universal recommendation. A low-confidence
+phosphosite fails this requirement before differential fitting.
+
+```python
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+```
+
+Group the two preprocessing choices in one dataset configuration.
+
+```python
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    intensity_transform=intensity_transform,
+    localisation=localisation,
+)
+```
+
+## Build the Analysis-Ready Dataset
+
+The request records the tables, their organism, and preprocessing choices. The
+builder validates and applies them when `run()` is called. See
+[Prepare a Dataset](dataset-build-workflow.md) for the full construction
+contract.
+
+```python
+from phospy.api import DatasetBuildRequest, Organism
+
+dataset_request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    organism=Organism.RAT,
+    preprocessing_config=preprocessing_config,
+)
+```
+
+```python
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+dataset = dataset_builder.run(dataset_request)
+```
+
+The resulting dataset has two `site_key` rows, four sample columns, and an
+established log2 scale. No values were imputed.
+
+## Describe the Experimental Design
+
+A biological replicate is an independently sampled or independently derived
+biological unit belonging to an experimental condition. Repeated measurements
+of the same material are technical replicates and do not provide independent
+biological replication. Each `SampleDesignRecord` connects a matrix column to
+its condition and replicate. PhosPy does not infer these facts from sample
+names.
+
+```python
+from phospy.api import SampleDesignRecord
+
+sample_records = (
+    SampleDesignRecord(
+        sample_id="control_rep1",
+        condition="control",
+        biological_replicate_id="control_r1",
+    ),
+    SampleDesignRecord(
+        sample_id="control_rep2",
+        condition="control",
+        biological_replicate_id="control_r2",
+    ),
+    SampleDesignRecord(
+        sample_id="treatment_rep1",
+        condition="treatment",
+        biological_replicate_id="treatment_r1",
+    ),
+    SampleDesignRecord(
+        sample_id="treatment_rep2",
+        condition="treatment",
+        biological_replicate_id="treatment_r2",
+    ),
+)
+```
+
+`ExperimentalDesign` holds the explicit sample design.
+
+```python
+from phospy.api import ExperimentalDesign
+
+design = ExperimentalDesign(samples=sample_records)
+```
+
+## Define the Contrast
+
+A contrast specifies the direction of the comparison. Here the numerator is
+`treatment` and the denominator is `control`, so positive `logFC` means higher
+fitted phosphosite intensity in treatment.
+
+```python
+from phospy.api import Contrast
+
+treatment_vs_control = Contrast(
+    name="treatment_vs_control",
+    numerator_condition="treatment",
+    denominator_condition="control",
+)
+```
+
+The request accepts a tuple because one run may contain several contrasts. This
+example tests one.
+
+```python
+contrasts = (treatment_vs_control,)
+```
+
+## Construct the Request
+
+The differential request combines the prepared dataset, design, and contrast.
+Constructing it records intent; workflow validation occurs during `run()`.
+
+```python
+from phospy.api import DifferentialAnalysisRequest
+
+differential_request = DifferentialAnalysisRequest(
+    dataset=dataset,
+    design=design,
+    contrasts=contrasts,
+)
+```
+
+## Run the Workflow
+
+```python
+from phospy.api import DifferentialAnalysisWorkflow
+
+differential_workflow = DifferentialAnalysisWorkflow()
+differential_result = differential_workflow.run(differential_request)
+```
+
+## Inspect and Interpret the Result
+
+Each named contrast has one table. Select a few identity, effect, and evidence
+columns through the public `table_for()` accessor.
+
+```python
+result_table = differential_result.table_for("treatment_vs_control")
+result_columns = ["display_id", "logFC", "P.Value", "adj.P.Val"]
+result_view = result_table.loc[:, result_columns].reset_index(drop=True)
+
+print("Displayed result shape:", result_view.shape)
+print(result_view)
+```
+
+The displayed result has shape `(2, 4)`. MAPK14 has a positive `logFC` of about
+`0.792`, while GSK3A has a small positive `logFC` of about `0.056`. `logFC` is
+the fitted effect size in the contrast direction. `P.Value` and `adj.P.Val`
+describe statistical evidence and are not effect sizes. This tiny dataset
+demonstrates execution only; it is too small for a biological conclusion.
+
+An intensity change alone does not establish phosphorylation occupancy or a
+biological mechanism.
+
+## Input Requirements and Policies
+
+Differential analysis requires unique `site_key` rows, complete analysis-ready
+values, required site metadata, matching sample and design labels, an
+established log2 scale, and at least two biological replicates per contrasted
+condition in production mode.
+
+Upstream-imputed datasets are rejected by default through
+`DifferentialAnalysisConfig.imputed_value_policy="reject"`. Under the
+non-default `"withhold_imputed_features"` policy, a feature is eligible only
+when its imputed fraction is within `imputed_value_max_fraction` and every
+condition in a requested contrast has at least `minimum_condition_replicates`
+originally observed values. Retained tested features can still contain imputed cells,
+and those values participate in fitting. This is not observed-only fitting. Read
+[Missing, Imputed, and Authoritative Matrix Policy](#missing-imputed-and-authoritative-matrix-policy)
+before choosing it.
+
+Differential analysis consumes resolved site-level datasets. Resolve peptide
+evidence to site-level sample intensities during dataset preparation.
 
 ## Empirical Bayes Variance Moderation
 
 Differential analysis estimates one residual variance per feature, then uses
 empirical Bayes moderation to borrow variance information across features
-before computing moderated *t* statistics and *p* values. This stabilizes
+before computing moderated *t* statistics and *p* values. This stabilises
 inference when each site has limited replicate information.
 
 PhosPy supports three empirical-Bayes prior modes:
@@ -226,10 +398,8 @@ PSM or peptide depth from arbitrary numeric columns, and depth is left
 unavailable when multi-site peptide evidence is split in a way that would
 require inventing per-site counts.
 
-Depth-aware moderation is validated against a checked-in R/DEqMS
-`spectraCounteBayes` reference fixture within documented tolerances. Because
-PhosPy preserves its existing deterministic trend smoother while DEqMS uses
-its own loess implementation, describe the feature as
+PhosPy uses a deterministic trend smoother, while DEqMS uses its own loess
+implementation. Describe the feature as
 quantification-depth-aware empirical Bayes moderation inspired by DEqMS, not
 exact DEqMS-compatible numerical equivalence.
 
@@ -574,7 +744,7 @@ independent diagnostics table.
 
 `result.policy_provenance.protein_aware` records the method version, model
 formula, conditional `logFC` interpretation, transformation and prior
-total-protein-correction state, design-subset behavior, duplicate-correlation
+total-protein-correction state, design-subset behaviour, duplicate-correlation
 and technical-aggregation rejection policies, order-sensitive input
 fingerprints for the phosphosite matrix, matched pairs, protein-covariate
 matrix, eligibility table, design matrix, and contrast matrix, plus limitations
@@ -600,7 +770,7 @@ Create a `DifferentialAnalysisRequest`.
 
 | Parameter | Type | Required or Default | Description |
 | --- | --- | --- | --- |
-| `samples` | `tuple[SampleDesignRecord, ...]` | Required | One record per analyzed sample. Sample IDs must be unique. |
+| `samples` | `tuple[SampleDesignRecord, ...]` | Required | One record per analysed sample. Sample IDs must be unique. |
 | `fixed_effects` | `tuple[FixedEffectCovariate, ...]` | `()` | Optional categorical, continuous, or batch fixed effects. |
 
 ### `SampleDesignRecord`
@@ -697,8 +867,8 @@ correlation. It can be useful for repeated, multi-condition, or incomplete
 blocked designs, but it is not a general mixed-effects model and is not
 universally superior to `fixed_block`.
 
-The implemented estimator is the residual-space variance-component REML
-formulation recorded in ADR-0048. For each feature, finite observations are
+The estimator uses a residual-space variance-component REML formulation. For
+each feature, finite observations are
 selected, the fixed-effects design is removed through a residual-space basis,
 and residual/block variance components are fitted before mapping the block
 component ratio to a raw correlation. Feature estimates are then clamped before
@@ -708,8 +878,8 @@ feature-level lower clamp is `-1 / (m - 1) + 0.01` and the upper clamp is
 workflow-level consensus is checked again against the full block structure
 before GLS.
 
-!!! warning "First duplicate-correlation implementation limits"
-    The first implementation does not support multiple random effects, random
+!!! warning "Duplicate-correlation limitations"
+    The estimator does not support multiple random effects, random
     slopes, feature-specific final covariance models, arbitrary longitudinal
     covariance, time-dependent correlation, nested or crossed random-effects
     syntax, simultaneous fixed block coefficients and duplicate correlation,
@@ -764,20 +934,11 @@ Adjustment is performed separately for each contrast.
 
 </details>
 
-## Run the Workflow
+## Execution Behaviour and Errors
 
-```python
-from phospy.api import DifferentialAnalysisWorkflow
-from phospy.api import DifferentialAnalysisRequest
-
-result = DifferentialAnalysisWorkflow().run(
-    DifferentialAnalysisRequest(
-        dataset=dataset,
-        design=design,
-        contrasts=contrasts,
-    )
-)
-```
+The primary journey above shows the public request-and-run boundary. The same
+boundary applies when advanced configuration is supplied through
+`DifferentialAnalysisRequest.config`.
 
 `from phospy import DifferentialAnalysis` is not supported. `from phospy.api
 import DifferentialAnalysis` is also not supported.
@@ -834,7 +995,7 @@ typed withheld rows when at least one site remains testable.
 | `prior_variance`, `prior_degrees_of_freedom`, `residual_degrees_of_freedom` | Numeric | Model-wide moderation summaries. |
 | `empirical_bayes_method`, `empirical_bayes_robust`, `empirical_bayes_trend` | String and booleans | Resolved empirical Bayes settings used by the fit. |
 | `prior_diagnostics` | `EmpiricalBayesPriorDiagnostics` | Feature-level prior estimates and fitting diagnostics. |
-| `mean_variance_trend_diagnostics` | `MeanVarianceTrendDiagnostics` or `None` | Legacy mean-intensity trend diagnostics when mean-intensity trend moderation is enabled. |
+| `mean_variance_trend_diagnostics` | `MeanVarianceTrendDiagnostics` or `None` | Mean-intensity trend diagnostics when mean-intensity trend moderation is enabled. |
 | `quantification_depth_trend_diagnostics` | `QuantificationDepthTrendDiagnostics` or `None` | Depth-aware trend diagnostics when quantification-depth trend moderation is enabled; includes original depth values, log2 trend covariate, depth kind, residual log variance, and fitted log prior variance. |
 | `diagnostics` | `DifferentialModelDiagnostics` | Design, contrast, scale, and model diagnostics. |
 | `protein_aware_diagnostics` | `ProteinAwareDifferentialDiagnostics` or `None` | Experimental protein-aware method, counts, group summaries, and per-site diagnostics when the opt-in lane is selected. |
@@ -963,17 +1124,14 @@ high imputation, insufficient observed values, or another recorded reason.
 
 </details>
 
-Stat-only computation payloads are internal. They are not a public scientific
-result object and are not valid `DifferentialAnalysisResult` tables.
-
 Returned DataFrames are independent snapshots. Editing one does not change the
 result object.
 
 ## Interpret the Result
 
 `logFC` is the fitted log2 difference between numerator and denominator.
-Positive values indicate higher fitted phosphorylation in the numerator
-condition; negative values indicate lower fitted phosphorylation.
+Positive values indicate higher fitted phosphosite intensity in the numerator
+condition; negative values indicate lower fitted phosphosite intensity.
 
 For `protein_covariate_adjusted_moderated_linear_model_v1`, `logFC` is the
 requested phosphosite condition contrast conditional on the matched measured
@@ -990,7 +1148,7 @@ but neither value is an effect size.
 Repeated `display_id` values may represent distinct protein-scoped rows. Use
 `site_key` for analysis and joins.
 
-The workflow does not perform preprocessing, localization filtering, sequence
+The workflow does not perform preprocessing, localisation filtering, sequence
 resolution, batch correction, random-effects modelling, or post-hoc
 peptide-to-site differential aggregation. A fixed-effect batch term is not
 ComBat, not RUV, not limma `removeBatchEffect` parity, and not mixed-effects
@@ -998,9 +1156,9 @@ modelling.
 
 For `fixed_block`, interpret the condition contrast as an estimate adjusted for
 ordinary block fixed effects. The estimate is driven by within-block
-comparisons where the requested contrast is covered by every block. This policy
-is valid and supported; it is not an unpaired analysis and is not deprecated by
-`duplicate_correlation`.
+comparisons where the requested contrast is covered by every block. Both
+`fixed_block` and `duplicate_correlation` are supported; choose between their
+different fixed-effect and correlation assumptions.
 
 For `duplicate_correlation`, interpret
 `policy_provenance.duplicate_correlation.consensus.consensus_correlation` as
@@ -1012,7 +1170,7 @@ parameter for this workflow, not a per-feature biological correlation.
 
 A feature can fail to contribute to the REML consensus and still receive final
 GLS statistics if the workflow obtains a valid consensus from other eligible
-features. Those estimator failures are summarized by
+features. Those estimator failures are summarised by
 `consensus.failed_feature_count`, `consensus.non_finite_feature_count`, and
 `failure_reason_counts`. A final GLS or moderated-statistic failure is
 different: it means the tested feature could not be fitted under the selected
@@ -1046,19 +1204,6 @@ matched total-protein abundance vector as a row-specific nuisance covariate.
 Do not interpret the PhosPy result as MSstatsPTM parity, an MSstatsPTM-style
 joint model, or a substitute for that workflow.
 
-The committed differential limma parity fixtures demonstrate implementation
-agreement only for the fixture-scoped model envelopes they cover. They are not
-an independent scientific validation and do not make PhosPy generally identical
-to limma.
-
-For the duplicate-correlation fixture lane, fixtures A-C cover the complete
-supported public path through final moderated statistics. Fixture D is narrower:
-it checks internal feature-level REML and compound-symmetry GLS behavior for
-controlled missingness/failure cases. It is not a public empirical-Bayes parity
-fixture because public analysis-ready inputs with actual missing values fail
-closed before fitting, and PhosPy does not return partial moderated output after
-final duplicate-correlation GLS failures.
-
 ## Common Issues
 
 | Issue | What to Check |
@@ -1066,7 +1211,7 @@ final duplicate-correlation GLS failures.
 | A sample is missing from the dataset. | Match every `sample_id` to a dataset column, or deliberately enable `allow_design_subset`. |
 | Replication fails. | Production contrasts need at least two biological replicates per condition. Technical replicates do not count. |
 | The scale is unsupported. | Build or declare a log2 dataset before running the workflow. |
-| Localization fails. | Add valid localization metadata and configure `DatasetLocalisationConfig` during dataset preparation. |
+| Localisation fails. | Add valid localisation metadata and configure `DatasetLocalisationConfig` during dataset preparation. |
 | A fixed-block design fails. | Confirm that every block covers both sides of every requested contrast. |
 | A duplicate-correlation design fails. | Confirm every analysed sample has `block_id`, at least one block is repeated, the non-block fixed-effects design is full rank with more than two residual degrees of freedom, and no fixed block columns or unsupported weights are present. |
 | Imputation is rejected. | Keep the default rejection policy, or use withholding only with builder-owned observation metadata. |
@@ -1089,7 +1234,129 @@ of posttranslational modifications in bottom-up mass spectrometry-based
 proteomics. *Molecular & Cellular Proteomics, 22*(1), 100477.
 https://doi.org/10.1016/j.mcpro.2022.100477
 
-## Related Guides
+## Complete Runnable Example
+
+```python
+import pandas as pd
+
+phospho = pd.DataFrame(
+    {
+        "control_rep1": [1000.0, 900.0],
+        "control_rep2": [1050.0, 880.0],
+        "treatment_rep1": [1800.0, 930.0],
+        "treatment_rep2": [1750.0, 920.0],
+    },
+    index=["MAPK14;Y182;", "GSK3A;S21;"],
+)
+
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "GSK3A"],
+        "site": ["Y182", "S21"],
+        "site_sequence": [
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+        ],
+        "protein_id": ["MAPK14", "GSK3A"],
+        "localisation_confidence": [0.95, 0.94],
+    },
+    index=phospho.index,
+)
+
+from phospy.advanced import DatasetIntensityTransformConfig
+
+intensity_transform = DatasetIntensityTransformConfig(policy="log2")
+
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    intensity_transform=intensity_transform,
+    localisation=localisation,
+)
+
+from phospy.api import DatasetBuildRequest, Organism
+
+dataset_request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    organism=Organism.RAT,
+    preprocessing_config=preprocessing_config,
+)
+
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+dataset = dataset_builder.run(dataset_request)
+
+from phospy.api import SampleDesignRecord
+
+sample_records = (
+    SampleDesignRecord(
+        sample_id="control_rep1",
+        condition="control",
+        biological_replicate_id="control_r1",
+    ),
+    SampleDesignRecord(
+        sample_id="control_rep2",
+        condition="control",
+        biological_replicate_id="control_r2",
+    ),
+    SampleDesignRecord(
+        sample_id="treatment_rep1",
+        condition="treatment",
+        biological_replicate_id="treatment_r1",
+    ),
+    SampleDesignRecord(
+        sample_id="treatment_rep2",
+        condition="treatment",
+        biological_replicate_id="treatment_r2",
+    ),
+)
+
+from phospy.api import ExperimentalDesign
+
+design = ExperimentalDesign(samples=sample_records)
+
+from phospy.api import Contrast
+
+treatment_vs_control = Contrast(
+    name="treatment_vs_control",
+    numerator_condition="treatment",
+    denominator_condition="control",
+)
+
+contrasts = (treatment_vs_control,)
+
+from phospy.api import DifferentialAnalysisRequest
+
+differential_request = DifferentialAnalysisRequest(
+    dataset=dataset,
+    design=design,
+    contrasts=contrasts,
+)
+
+from phospy.api import DifferentialAnalysisWorkflow
+
+differential_workflow = DifferentialAnalysisWorkflow()
+differential_result = differential_workflow.run(differential_request)
+
+result_table = differential_result.table_for("treatment_vs_control")
+result_columns = ["display_id", "logFC", "P.Value", "adj.P.Val"]
+result_view = result_table.loc[:, result_columns].reset_index(drop=True)
+
+print("Displayed result shape:", result_view.shape)
+print(result_view)
+```
+
+## Continue
 
 - [Prepare a Dataset](dataset-build-workflow.md)
 - [Scientific Interpretation and Limitations](../scientific-interpretation.md)

@@ -12,6 +12,235 @@ site, protein, and diagnostic context alongside the summary tables.
     pathway probabilities, causal evidence, proof of physical interaction, or
     experimental validation of signaling relationships.
 
+This walkthrough starts from raw teaching tables so that `kinase_result` is
+never hidden notebook state. It builds a five-site rat dataset, runs the kinase
+workflow, and then summarises it with a configuration derived from the
+production preset with one deliberate reference-context compatibility-policy
+override. Run the Python blocks in order in one fresh process.
+
+## Prepare the Phosphosite Measurements
+
+Signalome groups phosphosites by their upstream kinase score profiles. Five
+sites are used because the production network policy requires at least five
+paired finite observations for a kinase pair.
+
+```python
+import pandas as pd
+
+phospho = pd.DataFrame(
+    {
+        "sample_a": [1.00, 0.70, 0.85, 0.92, 0.66],
+        "sample_b": [1.10, 0.80, 0.88, 0.96, 0.69],
+        "sample_c": [0.95, 0.75, 0.92, 0.90, 0.72],
+    },
+    index=[
+        "TSC2;S939;",
+        "GSK3A;S21;",
+        "MAPK14;Y182;",
+        "AKT1;T308;",
+        "SRC;Y416;",
+    ],
+)
+```
+
+`protein_group_id` is the explicit protein grouping identity used by Signalome.
+It is separate from readable gene and site labels and must be non-empty for
+every interpreted site.
+
+```python
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["TSC2", "GSK3A", "MAPK14", "AKT1", "SRC"],
+        "site": ["S939", "S21", "Y182", "T308", "Y416"],
+        "site_sequence": [
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            ("A" * 15) + "T" + ("A" * 15),
+            ("A" * 15) + "Y" + ("A" * 15),
+        ],
+        "protein_identifier": ["TSC2", "GSK3A", "MAPK14", "AKT1", "SRC"],
+        "protein_namespace": ["protein_id"] * phospho.shape[0],
+        "protein_group_id": ["TSC2", "GSK3A", "MAPK14", "AKT1", "SRC"],
+        "localisation_confidence": [0.95] * phospho.shape[0],
+    },
+    index=phospho.index,
+)
+```
+
+## Require Localisation Evidence
+
+Production Signalome requires site-level localisation evidence with probability
+at least `0.75`. The dataset builder checks that evidence before either
+workflow runs.
+
+```python
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+```
+
+```python
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    localisation=localisation,
+)
+```
+
+## Build the Analysis-Ready Dataset
+
+The input values are already suitable linear abundances for the upstream
+profile-scoring method, so the request declares the linear scale without a
+transformation.
+
+```python
+from phospy.api import DatasetBuildRequest, Organism
+
+dataset_request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    organism=Organism.RAT,
+    input_intensity_scale="linear",
+    preprocessing_config=preprocessing_config,
+)
+```
+
+```python
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+dataset = dataset_builder.run(dataset_request)
+```
+
+## Configure the Upstream Kinase Analysis
+
+This small dataset uses a custom reliability profile and deliberately permits
+unknown dataset/reference context with a recorded caveat. The deterministic
+prediction policy makes the upstream result repeatable.
+
+```python
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+
+kinase_scoring_config = KinaseScoringConfig(
+    reliability_profile=KinaseReliabilityProfile.CUSTOM,
+    reference_context_compatibility_policy=(
+        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    ),
+)
+```
+
+```python
+from phospy.advanced import KinasePredictionConfig
+
+kinase_prediction_config = KinasePredictionConfig.deterministic()
+```
+
+Construct the kinase request with the bundled rat references.
+
+```python
+from phospy.api import KinaseWorkflowRequest, ReferencePreset
+
+kinase_request = KinaseWorkflowRequest(
+    dataset=dataset,
+    references=ReferencePreset.AUTO,
+    scoring_config=kinase_scoring_config,
+    prediction_config=kinase_prediction_config,
+    activity_config=None,
+)
+```
+
+```python
+from phospy import KinaseWorkflow
+
+kinase_workflow = KinaseWorkflow()
+kinase_result = kinase_workflow.run(kinase_request)
+```
+
+## Configure Signalome
+
+`SignalomeConfig.production()` supplies the production localisation and network
+guardrails. The teaching dataset has unknown reference-context metadata, so
+copy that configuration and deliberately change only the compatibility policy.
+This allows the unknown context and records a caveat; it does not establish
+reference compatibility. Ordinary production use should require a known match.
+
+```python
+from dataclasses import replace
+
+from phospy.advanced import SignalomeConfig
+
+production_config = SignalomeConfig.production()
+signalome_config = replace(
+    production_config,
+    validation=replace(
+        production_config.validation,
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+    ),
+)
+```
+
+## Construct and Run the Request
+
+The request consumes the complete `KinaseWorkflowResult`, preserving its
+dataset, score matrix, prediction matrix, references, diagnostics, and
+provenance.
+
+```python
+from phospy.api import SignalomeWorkflowRequest
+
+signalome_request = SignalomeWorkflowRequest(
+    kinase_result=kinase_result,
+    config=signalome_config,
+)
+```
+
+```python
+from phospy import SignalomeWorkflow
+
+signalome_workflow = SignalomeWorkflow()
+signalome_result = signalome_workflow.run(signalome_request)
+```
+
+## Inspect and Interpret the Result
+
+Inspect site assignments, module-level kinase support, and retained kinase
+score-profile associations through their public tables.
+
+```python
+assignment_view = signalome_result.module_assignments.table.loc[
+    :, ["display_id", "module_id", "top_kinase"]
+]
+module_table = signalome_result.signalome_modules.table
+network_edges = signalome_result.kinase_network.edges
+
+print("Assignment shape:", assignment_view.shape)
+print(assignment_view)
+print("Module table shape:", module_table.shape)
+print("Network edge shape:", network_edges.shape)
+```
+
+The assignment view has shape `(5, 3)`, the module table has shape `(1, 2)`,
+and the retained edge table has shape `(1, 4)`. `module_id` labels
+score-derived groups within this run. `top_kinase` identifies the strongest
+support under the upstream scoring policy. Neither field establishes a pathway,
+physical interaction, or causal mechanism.
+
+Module-table cells are kinase support shares from 0 to 100. Network correlations
+are associations across paired finite site scores. A missing edge means the
+pair was ineligible or did not pass the selected filter; it is not evidence of
+biological absence.
+
 ## At a Glance
 
 | Question | Answer |
@@ -24,7 +253,7 @@ site, protein, and diagnostic context alongside the summary tables.
 | **Module output** | `result.signalome_modules.table` |
 | **Network output** | `result.kinase_network.edges` |
 
-## Before You Start
+## Input Requirements
 
 The upstream `KinaseWorkflowResult` must provide:
 
@@ -61,35 +290,14 @@ Reference-context compatibility is conservative by default. An unknown context
 fails unless `"allow_unknown_with_caveat"` is selected deliberately in both the
 upstream kinase settings and the Signalome validation settings.
 
-## Example
+## Reuse Another Kinase Result
 
-Start with `kinase_result` returned by the [kinase workflow](kinase.md), then run
-Signalome with the production policy:
-
-```python
-from phospy import SignalomeWorkflow
-from phospy.advanced import SignalomeConfig
-from phospy.api import SignalomeWorkflowRequest
-
-request = SignalomeWorkflowRequest(
-    kinase_result=kinase_result,
-    config=SignalomeConfig.production(),
-)
-
-result = SignalomeWorkflow().run(request)
-
-assignments = result.module_assignments.table
-modules = result.signalome_modules.table
-edges = result.kinase_network.edges
-
-print(assignments.loc[:, ["display_id", "module_id", "top_kinase"]])
-print(modules)
-print(edges.head())
-```
-
-Use `SignalomeConfig.production()` for routine analysis. Compatibility and
-permissive presets are intended for explicitly exploratory work and should not
-be mistaken for production evidence.
+The primary journey shows how to pass a completed `kinase_result` into a
+`SignalomeWorkflowRequest`. Use `SignalomeConfig.production()` for routine
+analysis when reference context is known to match. If the upstream result has
+unknown context, select `"allow_unknown_with_caveat"` deliberately as shown in
+the primary journey. Compatibility and permissive presets are intended for
+explicit exploratory work and should not be mistaken for production evidence.
 
 ## Request
 
@@ -171,11 +379,9 @@ Useful constructors include:
 
 </details>
 
-## Run the Workflow
+## Execution Behaviour and Errors
 
-```python
-result = SignalomeWorkflow().run(request)
-```
+The primary journey above shows the public request-and-run boundary.
 
 For the same upstream result, configuration, and package version, the production
 path is deterministic. A seed used by an upstream adaptive kinase run still
@@ -221,7 +427,7 @@ remove rows, or network settings fall below the supported floor.
 | `top_kinase`, `top_score` | Highest-supported kinase label and score for the site. |
 | `top_kinase_candidates`, `top_kinase_weights` | Candidate labels and weights when support is tied or weighted. |
 | `top_kinase_tie_count`, `top_kinase_is_ambiguous` | Tie and ambiguity diagnostics. |
-| `module_top_kinase` | Highest-supported kinase summarized across the module. |
+| `module_top_kinase` | Highest-supported kinase summarised across the module. |
 
 `protein_accession`, `isoform_id`, selection-policy fields, and module-level tie
 diagnostics are also retained when available.
@@ -311,7 +517,146 @@ validation.
 | The network has no edges. | Review the threshold, sign policy, paired finite observations, constant profiles, and candidate-correlation diagnostics. |
 | Production has too few sites. | Production edges require at least five paired finite observations. Add evidence rather than weakening the setting without justification. |
 
-## Related Guides
+## Complete Runnable Example
+
+```python
+import pandas as pd
+
+phospho = pd.DataFrame(
+    {
+        "sample_a": [1.00, 0.70, 0.85, 0.92, 0.66],
+        "sample_b": [1.10, 0.80, 0.88, 0.96, 0.69],
+        "sample_c": [0.95, 0.75, 0.92, 0.90, 0.72],
+    },
+    index=[
+        "TSC2;S939;",
+        "GSK3A;S21;",
+        "MAPK14;Y182;",
+        "AKT1;T308;",
+        "SRC;Y416;",
+    ],
+)
+
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["TSC2", "GSK3A", "MAPK14", "AKT1", "SRC"],
+        "site": ["S939", "S21", "Y182", "T308", "Y416"],
+        "site_sequence": [
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            ("A" * 15) + "T" + ("A" * 15),
+            ("A" * 15) + "Y" + ("A" * 15),
+        ],
+        "protein_identifier": ["TSC2", "GSK3A", "MAPK14", "AKT1", "SRC"],
+        "protein_namespace": ["protein_id"] * phospho.shape[0],
+        "protein_group_id": ["TSC2", "GSK3A", "MAPK14", "AKT1", "SRC"],
+        "localisation_confidence": [0.95] * phospho.shape[0],
+    },
+    index=phospho.index,
+)
+
+from phospy.api import DatasetLocalisationConfig
+
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
+)
+
+from phospy.api import DatasetPreprocessingConfig
+
+preprocessing_config = DatasetPreprocessingConfig(
+    localisation=localisation,
+)
+
+from phospy.api import DatasetBuildRequest, Organism
+
+dataset_request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    organism=Organism.RAT,
+    input_intensity_scale="linear",
+    preprocessing_config=preprocessing_config,
+)
+
+from phospy import AnalysisReadyDatasetBuilder
+
+dataset_builder = AnalysisReadyDatasetBuilder()
+dataset = dataset_builder.run(dataset_request)
+
+from phospy.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
+
+kinase_scoring_config = KinaseScoringConfig(
+    reliability_profile=KinaseReliabilityProfile.CUSTOM,
+    reference_context_compatibility_policy=(
+        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    ),
+)
+
+from phospy.advanced import KinasePredictionConfig
+
+kinase_prediction_config = KinasePredictionConfig.deterministic()
+
+from phospy.api import KinaseWorkflowRequest, ReferencePreset
+
+kinase_request = KinaseWorkflowRequest(
+    dataset=dataset,
+    references=ReferencePreset.AUTO,
+    scoring_config=kinase_scoring_config,
+    prediction_config=kinase_prediction_config,
+    activity_config=None,
+)
+
+from phospy import KinaseWorkflow
+
+kinase_workflow = KinaseWorkflow()
+kinase_result = kinase_workflow.run(kinase_request)
+
+from dataclasses import replace
+
+from phospy.advanced import SignalomeConfig
+
+production_config = SignalomeConfig.production()
+signalome_config = replace(
+    production_config,
+    validation=replace(
+        production_config.validation,
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+    ),
+)
+
+from phospy.api import SignalomeWorkflowRequest
+
+signalome_request = SignalomeWorkflowRequest(
+    kinase_result=kinase_result,
+    config=signalome_config,
+)
+
+from phospy import SignalomeWorkflow
+
+signalome_workflow = SignalomeWorkflow()
+signalome_result = signalome_workflow.run(signalome_request)
+
+assignment_view = signalome_result.module_assignments.table.loc[
+    :, ["display_id", "module_id", "top_kinase"]
+]
+module_table = signalome_result.signalome_modules.table
+network_edges = signalome_result.kinase_network.edges
+
+print("Assignment shape:", assignment_view.shape)
+print(assignment_view)
+print("Module table shape:", module_table.shape)
+print("Network edge shape:", network_edges.shape)
+```
+
+## Continue
 
 - [Kinase analysis](kinase.md)
 - [Prepare a dataset](dataset-build-workflow.md)
