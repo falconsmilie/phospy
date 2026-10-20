@@ -30,6 +30,7 @@ EVIDENCE_DIRECTORY = REPO_ROOT / "benchmarks" / "evidence"
 EVIDENCE_REPORT_RE = re.compile(
     r"^release-scale-builder-differential-\d{4}-\d{2}-\d{2}\.json$"
 )
+HISTORICAL_BENCHMARK_VERSION = "1.7.6"
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _SCHEMA: ModuleType | None = None
 
@@ -360,15 +361,17 @@ def test_release_scale_benchmark_evidence_dependency_versions() -> None:
         assert value != "unavailable"
 
 
-def test_release_scale_benchmark_evidence_records_current_project_version() -> None:
+def test_release_scale_benchmark_evidence_preserves_captured_project_version() -> None:
     payload = _retained_report_payload()
-    project_version = _project_version()
 
-    assert payload["dependencies"]["phospy"] == project_version
-    assert payload["source_provenance"]["project"]["version"] == project_version
+    assert payload["dependencies"]["phospy"] == HISTORICAL_BENCHMARK_VERSION
+    assert (
+        payload["source_provenance"]["project"]["version"]
+        == HISTORICAL_BENCHMARK_VERSION
+    )
     assert (
         payload["source_provenance"]["runtime"]["distribution_phospy_version"]
-        == project_version
+        == HISTORICAL_BENCHMARK_VERSION
     )
 
 

@@ -1,6 +1,11 @@
 # Reference bundles are exact-byte release assets.
 # Their manifest digests, rather than an EOL convention, define their bytes.
 .gitattributes text eol=lf
+
+# Production Python files are compared byte-for-byte with built distributions.
+# Keep their checkout bytes stable on every platform.
+src/phospy/**/*.py text eol=lf
+
 src/phospy/data/reference_bundles/** -text
 src/phospy/data/reference_bundles/** -diff
 

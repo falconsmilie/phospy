@@ -110,7 +110,7 @@ deprecation warning or forward to the new path.
 | `KinaseScoringConfig.default()` | Use `KinaseScoringConfig.exploratory()` for the former permissive preset, `KinaseScoringConfig.production(...)` with study-specific retention floors, or explicit custom settings with `reliability_profile="custom"`. |
 | `scoring_mode="kinase_library_motif"` | Use `scoring_mode="kinase_library_contextual_motif"`. |
 | `KinaseActivityResult.activity_scores` or `.weighted_activity` | Use `KinaseActivityResult.activity_matrix`. |
-| `KinaseActivityResult.legacy_condition_statistics_table_dataframe()` | Use `statistics_table_dataframe()` or `statistics_table`; `profile_id` is the canonical row identity. |
+| `KinaseActivityResult.legacy_condition_statistics_table_dataframe()` | Use `statistics_table_dataframe()` or `statistics_table`; `profile_id` is the row identity. |
 | `ActivityMethodSummary.kinase_condition_pairs_*` fields | Use the corresponding `kinase_profile_pairs_*` fields. Historical payloads containing the former field names are rejected. |
 | Activity inputs without typed semantics, a raw `effect_matrix`, or activity results without `input_semantics` and `profile_metadata` | Use the public `KinaseWorkflow` boundary. Code constructing internal activity objects directly has no supported low-level compatibility route. |
 | `TechnicalReplicateResolver` | Run `DifferentialAnalysisWorkflow` with the public request, design, and technical-replicate policy. The former resolver was an internal workflow wrapper. |

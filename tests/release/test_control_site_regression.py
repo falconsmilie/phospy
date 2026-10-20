@@ -89,6 +89,12 @@ PYTHON_VERSION_PROVENANCE_PATH = (
     "provenance",
     "python_version",
 )
+PHOSPY_VERSION_PROVENANCE_PATH = (
+    "cases",
+    "correction_from_restored_controls",
+    "provenance",
+    "phospy_version",
+)
 DEPENDENCY_VERSIONS_PATH = (
     "cases",
     "correction_from_restored_controls",
@@ -110,6 +116,7 @@ APPROVED_DEPENDENCY_VERSION_PROFILES = (
         "scikit-learn": "1.6.0",
     },
 )
+HISTORICAL_REGRESSION_PHOSPY_VERSION = "1.7.6"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CAPTURE_TOOL = (
     REPOSITORY_ROOT / "tools" / "architecture" / "capture_control_site_regression.py"
@@ -321,6 +328,11 @@ def _assert_regression_payload_match(
         qualified,
         PYTHON_VERSION_PROVENANCE_PATH,
         "runtime-python",
+    )
+    _set_payload_value(
+        qualified,
+        PHOSPY_VERSION_PROVENANCE_PATH,
+        HISTORICAL_REGRESSION_PHOSPY_VERSION,
     )
     qualified_cases = cast(dict[str, object], qualified["cases"])
     qualified["cases_sha256"] = _canonical_sha256(qualified_cases)

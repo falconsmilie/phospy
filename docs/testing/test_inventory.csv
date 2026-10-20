@@ -107,7 +107,7 @@ tests/performance/test_ssgsea_activity_performance.py,performance,125,2,true,fal
 tests/performance/test_workflow_scale_contracts.py,performance,266,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,111,2,true,false,,,,,,
 tests/release/test_batch_correction_regression.py,release,335,7,true,false,,,,,,
-tests/release/test_control_site_regression.py,release,482,5,true,true,,,,,,
+tests/release/test_control_site_regression.py,release,494,5,true,true,,,,,,
 tests/release/test_differential_adverse_design_contracts.py,release,371,6,true,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/release/test_distribution_git_blob_verifier.py,release,86,7,false,false,,,,,,
 tests/release/test_enrichment_regression.py,release,74,2,true,false,,,,,,
@@ -325,7 +325,7 @@ tests/unit/test_reference_identifier_normalisation.py,unit,613,20,false,false,pu
 tests/unit/test_reference_organism_identity_boundaries.py,unit,443,11,false,false,,,,,,
 tests/unit/test_reference_provenance.py,unit,247,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,101,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_release_scale_benchmark_evidence.py,unit,747,29,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
+tests/unit/test_release_scale_benchmark_evidence.py,unit,750,29,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/unit/test_release_selector_coverage_helper.py,unit,66,5,false,false,,,,,,
 tests/unit/test_removed_runtime_compatibility.py,unit,118,5,true,true,,,,,,
 tests/unit/test_request_validation_boundaries.py,unit,305,6,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
