@@ -5,80 +5,102 @@ search:
 
 # Dataset Builders
 
-PhosPy's supported analysis-ready dataset construction entrypoint is
-`AnalysisReadyDatasetBuilder`.
-Detailed API usage lives in
-[Dataset Build Workflow](dataset-build-workflow.md).
+`AnalysisReadyDatasetBuilder` is the supported way to construct an
+analysis-ready dataset from ordinary input tables.
 
-Identity boundary summary:
+Most users should follow [Build an Analysis-Ready Dataset](dataset-build-workflow.md).
+This page summarises the stricter identity and diagnostic contracts for readers
+who need them.
 
-- Analysis-ready row identity is `site_key`.
-- `display_id` (for example `GENE;SITE;`) is a human-readable label and may
-  repeat after `site_key` becomes row identity.
-- `site_key` must be unique.
-- `AnalysisReadyPhosphoDataset.phospho.index` is `site_key`.
-- `AnalysisReadyPhosphoDataset.site_metadata.index` is `site_key`.
-- `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` is required.
-- `AnalysisReadyPhosphoDataset.site_metadata["site_key"]` must exactly match
-  `site_metadata.index`.
-- Advanced/trusted analysis-ready construction should use
-  `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` when callers already
-  own prepared tables. The direct `AnalysisReadyPhosphoDataset` constructor
-  raises immediately.
-- Trusted analysis-ready construction requires auditable protein context
-  metadata:
-  `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
-  and `site_sequence`.
-- `from_trusted_tables(...)` requires `TrustedDatasetConstructionAssertions`
-  with typed evidence or an explicit waiver for identity, intensity scale,
-  quantitative meaning, localisation, sequence, and reference context, plus
-  non-waivable aligned-table structure evidence. Localisation evidence must
-  record source, policy, and threshold; sequence presence is not localisation
-  evidence. Supplied trusted provenance must match the actual table
-  fingerprints.
-- Trusted analysis-ready construction requires encoded `site_key` indexes and
-  does not silently fall back to display-site identity.
-- Trusted construction validates structural invariants, including required
-  `site_sequence`, but it cannot prove the biological correctness of
-  user-asserted provenance.
-- Builder input may accept legacy display-indexed shape only when enough
-  protein context exists to derive `site_key`.
-- Workflows operate on `site_key`; site-level outputs that materialize row
-  identity include both `site_key` and `display_id`.
-- Kinase references may remain display-ID keyed only at the reference boundary;
-  the kinase workflow projects them through an explicit `display_id` ->
-  `site_key` mapping before scoring.
-- Duplicate rows that resolve to the same `site_key` are a scientific ambiguity
-  and fail by default during site-matrix preprocessing.
-- Non-error duplicate-site policies (`max_mean_signal`, `first`,
-  `aggregate_mean`, `aggregate_median`) are deliberate scientific choices.
-- When a non-error duplicate-site policy is used, inspect
-  `dataset.preprocessing_report.duplicate_site_resolution` and
-  `metadata_conflicts`.
-- Duplicate `display_id` values remain valid when the corresponding `site_key`
-  values differ.
-- Duplicate rows are not automatically renamed.
-- Peptide-evidence modelling scope is unchanged in this identity migration.
+## Use the Public Builder
 
-## Inspecting Builder Diagnostics
+The builder accepts input tables, applies the requested preprocessing, validates
+the resulting scientific state, and returns an
+`AnalysisReadyPhosphoDataset`.
 
-Dataset builders expose diagnostics through their documented output objects,
-preprocessing reports, and provenance records.
+```python
+from phospy import AnalysisReadyDatasetBuilder
 
-Do not import internal processing-state classes from `phospy.api.datasets`.
-These classes are implementation details and may change without public API
-guarantees.
+builder = AnalysisReadyDatasetBuilder()
+dataset = builder.run(dataset_request)
+```
 
-Stable code should inspect:
+The direct `AnalysisReadyPhosphoDataset(...)` constructor raises immediately.
 
-- the returned `AnalysisReadyPhosphoDataset`
-- `dataset.preprocessing_report`
-- `dataset.provenance`
-- documented workflow result fields
+## Understand Row Identity
 
-This keeps user code independent from internal validation and processing-state
-implementation details.
+Analysis-ready rows use `site_key` as their unique identity.
 
-See
-[ADR-0024: Protein-Scoped Phosphosite Row Identity](../adr/adr_0024_protein_scoped_phosphosite_row_identity.md)
-for the formal architecture decision.
+- `dataset.phospho.index` and `dataset.site_metadata.index` contain `site_key`
+  values.
+- `dataset.site_metadata["site_key"]` exactly matches the metadata index.
+- `display_id` is a human-readable label, such as `GENE;SITE;`.
+- A `display_id` may repeat when the corresponding `site_key` values differ.
+- Site-level workflow outputs include both identifiers where applicable.
+
+Builder input may use a display-indexed shape when enough protein context is
+available to derive a unique `site_key`. The final dataset does not silently
+fall back to display labels as row identity.
+
+Kinase references may remain display-ID keyed at the reference boundary. The
+Kinase workflow maps those reference labels to dataset `site_key` values before
+scoring.
+
+## Resolve Duplicate Sites Deliberately
+
+Rows that resolve to the same `site_key` are scientifically ambiguous and fail
+by default. PhosPy does not make them unique by renaming them.
+
+The supported non-error policies are deliberate scientific choices:
+
+- `max_mean_signal`
+- `first`
+- `aggregate_mean`
+- `aggregate_median`
+
+After using one of these policies, inspect:
+
+- `dataset.preprocessing_report.duplicate_site_resolution`
+- `dataset.preprocessing_report.metadata_conflicts`
+
+Peptide-evidence input follows the policies documented in the
+[dataset-build workflow](dataset-build-workflow.md#use-peptide-evidence-input).
+
+## Use Trusted Construction Only When Appropriate
+
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` is an advanced route for
+callers who already own prepared, `site_key`-indexed tables and their evidence.
+It is not a shortcut around validation.
+
+Trusted construction requires:
+
+- aligned phosphosite and metadata tables;
+- non-empty `site_sequence` values;
+- `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, and
+  `site` metadata;
+- encoded `site_key` indexes; and
+- `TrustedDatasetConstructionAssertions` covering identity, intensity scale,
+  quantitative meaning, localisation, sequence, reference context, and table
+  structure.
+
+Localisation evidence must record its source, policy, and threshold. Sequence
+presence is not localisation evidence. Supplied provenance must match the
+actual table fingerprints.
+
+These checks establish that the caller supplied a structurally coherent claim.
+They cannot prove that user-asserted biological provenance is correct.
+
+## Inspect Builder Diagnostics
+
+Use the documented output objects:
+
+- the returned `AnalysisReadyPhosphoDataset`;
+- `dataset.preprocessing_report`;
+- `dataset.provenance`; and
+- the result fields documented by each workflow.
+
+Do not import internal processing-state classes from implementation modules.
+Those classes are not public extension points.
+
+For the formal identity decision, see
+[ADR-0024: Protein-Scoped Phosphosite Row Identity](../adr/adr_0024_protein_scoped_phosphosite_row_identity.md).

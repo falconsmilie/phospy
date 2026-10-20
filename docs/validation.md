@@ -3,6 +3,23 @@
 PhosPy validates early and loudly so scientific assumptions are not hidden. Most
 errors are fixable once you know which boundary rejected the input.
 
+## Find the Boundary That Failed
+
+Start with the operation that raised the error:
+
+1. A configuration error usually means that one option is invalid on its own.
+2. A dataset-builder error usually concerns table shape, identity, quantitative
+   scale, preprocessing, or alignment.
+3. A workflow error usually concerns scientific eligibility, reference
+   compatibility, or relationships between several inputs.
+4. A publishing or loading error usually concerns paths, files, manifests, or
+   saved-state integrity.
+
+Read the complete exception message before changing the data. PhosPy errors aim
+to name the failed field or policy and the expected condition. The
+[Quick Fix Table](#quick-fix-table) near the end of this page covers the most
+common starting points.
+
 ## Dataset Input Rules
 
 `phospho` must be a non-empty numeric pandas `DataFrame` or supported file path.
@@ -24,12 +41,12 @@ include non-empty `gene_symbol`, `site`, and `site_sequence` columns at the
 analysis-ready boundary, plus auditable protein context (`organism`,
 `protein_namespace`, and `protein_identifier`). `site_sequence` may be omitted
 at ingestion only when preprocessing can derive it before final dataset
-construction. `protein_group_id` is not part of dataset row identity; it is
-optional at the analysis-ready dataset boundary, may be absent, and may contain
-missing or blank values until a workflow explicitly requires it. Signalome is
-the workflow that requires complete `protein_group_id` values as
-algorithm-specific protein grouping metadata. Legacy `protein_id` is accepted
-only as a Signalome migration alias.
+construction. `protein_group_id` is not part of dataset row identity. It is
+optional at the analysis-ready dataset boundary and may be absent or incomplete
+until a workflow requires it. Signalome requires complete `protein_group_id`
+values as algorithm-specific protein-grouping metadata. `protein_id` is also
+accepted as an alternate Signalome grouping field, but conflicting values fail
+validation.
 
 At the analysis-ready dataset boundary, `site_sequence` means required sequence
 evidence for the row: a non-empty, plausible amino-acid context string aligned
@@ -54,8 +71,8 @@ Accepted column aliases are narrow:
 If `gene_symbol` or `site` is missing, the builder can derive them from an
 input index like `TSC2;S939;`. It does not derive `protein_group_id` from the
 gene-symbol prefix, and it does not treat the display prefix as protein context
-or Signalome grouping metadata. Builder ingestion may accept legacy
-display-indexed input only when enough protein context exists to derive
+or Signalome grouping metadata. Builder ingestion may accept display-indexed
+input only when enough protein context exists to derive
 `site_key`. The trusted analysis-ready factory must receive `site_key`; it does
 not silently fall back to `GENE;SITE;` display labels and cannot prove the
 biological correctness of user-asserted provenance.
@@ -78,8 +95,8 @@ A built `AnalysisReadyPhosphoDataset` must have:
   (`organism`, `protein_namespace`, `protein_identifier`, `site`) key
 - optional `protein_group_id`, which is Signalome grouping metadata when
   Signalome is run, may be incomplete at the dataset boundary, and is not a
-  replacement for `protein_identifier` or `site_key`. Legacy `protein_id` is a
-  migration alias for this Signalome field.
+  replacement for `protein_identifier` or `site_key`. `protein_id` is accepted
+  as an alternate Signalome grouping field.
 - `sample_metadata.index` exactly matching `phospho.columns` when provided
 - `sample_metadata.columns` unique when provided
 - `total.columns` exactly matching `phospho.columns` when provided
@@ -93,8 +110,8 @@ Sequence readiness has two levels:
   context string.
 - Workflow-specific sequence-context readiness: a sequence-aware workflow
   validates the selected dataset/reference sequence after request-specific
-  resolution and conflict policy. That stricter contract may require centered
-  phosphosite context, exact window length, center index, center residue,
+  resolution and conflict policy. That stricter contract may require centred
+  phosphosite context, exact window length, centre index, centre residue,
   alphabet, terminal-padding policy, lowercase policy,
   modified-residue-symbol policy, and known sequence source.
 
@@ -276,12 +293,12 @@ examples.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 `scoring_config.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 
-Every current kinase scoring mode requires workflow-specific centered
+Every current kinase scoring mode requires workflow-specific centred
 phosphosite sequence context before execution. Kinase Library-style motif modes
-add a fixed centered-window contract from the local
+add a fixed centred-window contract from the local
 `KinaseLibraryResource.sequence_window`: the selected sequence must be present,
 non-empty, exactly the configured upstream-plus-site-plus-downstream length,
-centered at the configured index, and centered on `S`, `T`, or `Y`. Unsupported
+centred at the configured index, and centred on `S`, `T`, or `Y`. Unsupported
 characters, lowercase residues, modified-residue symbols, and terminal padding
 are rejected unless the selected workflow contract explicitly allows them.
 Opaque display labels are not sequence evidence, unknown sequence source is
@@ -293,8 +310,8 @@ sequences require an explicit conflict policy such as `prefer_dataset` or
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
 Signalome also requires explicit, non-empty `protein_group_id` values for every
-interpreted site as Signalome-specific protein grouping metadata. Legacy
-`protein_id` is accepted only as a migration alias, and conflicting
+interpreted site as Signalome-specific protein grouping metadata. `protein_id`
+is accepted as an alternate grouping field, and conflicting
 `protein_group_id`/`protein_id` values fail validation. Signalome uses this
 field to group retained phosphosites into protein-level module and protein-site
 context summaries. `protein_group_id` is not core protein identity; core protein
@@ -305,7 +322,7 @@ identity.
 Signalome aligns dataset, prediction, and score tables by `site_key` and does
 not reinterpret display IDs as row identity.
 Signalome validates that sequence-aware upstream site identity still provides a
-centered phosphosite sequence context, including an `S`, `T`, or `Y` center that
+centred phosphosite sequence context, including an `S`, `T`, or `Y` centre that
 matches the site residue, but it does not apply the fixed Kinase Library
 motif-window length contract.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
@@ -330,8 +347,8 @@ shows exact tree-generation details and candidate-scoring details separately.
 | missing `gene_symbol` or `site` | Add those columns or, for builder input only, use index labels formatted as `GENE;SITE;` with sufficient protein context. |
 | missing protein-scoped identity metadata | Add non-empty `organism`, `protein_namespace`, `protein_identifier`, and `site`, or use a builder-compatible protein-context source that derives them before final construction. |
 | display-indexed direct construction | Use the builder with enough protein context, or, for advanced/trusted construction, use `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with encoded `site_key` indexes and matching `site_metadata.site_key`. |
-| signalome protein grouping metadata error | Add non-empty `protein_group_id` grouping metadata for every interpreted site. Legacy `protein_id` is accepted only as a migration alias. Keep core protein identity in `protein_namespace` and `protein_identifier`; do not use `gene_symbol` or `display_id` as a fallback. |
-| workflow-specific sequence context error | Check selected `site_sequence`, sequence source, required window length, center index, center residue, alphabet, padding policy, and dataset/reference conflict policy for the workflow/scoring mode. |
+| signalome protein grouping metadata error | Add non-empty `protein_group_id` grouping metadata for every interpreted site. `protein_id` is accepted as an alternate grouping field. Keep core protein identity in `protein_namespace` and `protein_identifier`; do not use `gene_symbol` or `display_id` as a fallback. |
+| workflow-specific sequence context error | Check selected `site_sequence`, sequence source, required window length, centre index, centre residue, alphabet, padding policy, and dataset/reference conflict policy for the workflow/scoring mode. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |
 | mixed quantitative meaning rejected | Use `unmatched_policy="error"` or complete total-protein mapping; if mixed inputs are intentional, set the workflow mixed-state opt-in flag. |

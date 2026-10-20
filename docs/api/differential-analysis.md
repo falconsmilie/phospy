@@ -230,6 +230,10 @@ biological mechanism.
 
 ## Input Requirements and Policies
 
+Differential support is limited to tested design and contrast envelopes. It is
+not full limma or PhosR parity, and unsupported designs fail validation
+instead of being approximated silently.
+
 Differential analysis requires unique `site_key` rows, complete analysis-ready
 values, required site metadata, matching sample and design labels, an
 established log2 scale, and at least two biological replicates per contrasted

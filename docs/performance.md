@@ -11,6 +11,11 @@ PhosPy uses two different performance mechanisms:
 Performance results are operational guardrails and profiling evidence. They are
 not guarantees of identical runtime on every machine.
 
+This page is primarily for maintainers and advanced users planning large runs.
+For ordinary use, rely on workflow validation and respond to a scale error by
+following its suggested limit or approximation. The detailed tables below
+record the workloads protected by tests and benchmarks.
+
 CI marks contracts with fixed elapsed-time ceilings as
 `wall_clock_performance`. Those nodes run in fresh performance jobs on Ubuntu,
 Windows, and macOS Intel with Python 3.11 and 3.12. The broad source/runtime job
@@ -87,14 +92,14 @@ Default signalome guardrails are configured through `SignalomeConfig.performance
 - `max_full_candidate_scoring_sites=2000`
 
 Guardrail enforcement is owned by
-`src/phospy/science/signalomes/clustering/scale_guards.py`.
+`src/phospy/signalome/clustering/scale_guards.py`.
 
 ## KNN Missing-Data Guardrails
 
 `missing_data.policy="impute_knn"` and the KNN route of the seeded-stochastic
 `missing_data.policy="impute_group_aware"` use the custom preprocessing
 implementation in
-`src/phospy/science/datasets/preprocessing/stages/missing_data/knn.py`.
+`src/phospy/preprocessing/stages/missing_data/knn.py`.
 
 Current KNN execution budgets:
 

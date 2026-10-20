@@ -286,6 +286,8 @@ model. A larger `enrichment_ratio` indicates more overlap than expected. These
 values do not prove pathway activation, regulation, kinase activity, or
 causality.
 
+ORA does not imply GSEA, ssGSEA, or PTM-SEA support.
+
 Results are sensitive to the background, namespace, set curation, and foreground
 selection rule. A missing term may have been filtered or may have had no usable
 overlap; it is not evidence of biological absence.

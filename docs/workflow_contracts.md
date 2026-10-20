@@ -13,6 +13,10 @@ For current support status, use
 [Scientific Coverage](scientific-coverage.md). For fixture-backed comparison
 evidence, use [Parity](parity.md). Roadmap ADRs are not current support claims.
 
+This is a compact contract reference rather than a learning path. New users
+should start with the [documentation home](index.md) and follow the relevant
+workflow guide before consulting the detailed boundaries here.
+
 ## Public Workflow Map
 
 | Area | Detailed API page | Public entrypoint | Request | Result |
@@ -99,8 +103,8 @@ Important user-facing assumptions:
   contracts before execution.
 - `protein_group_id` is Signalome-owned grouping metadata. It is optional at
   the base dataset boundary, but Signalome requires complete non-empty values
-  for interpreted sites. Legacy `protein_id` is accepted only as a migration
-  alias. Neither name replaces the core `protein_namespace` and
+  for interpreted sites. `protein_id` is accepted as an alternate grouping
+  field. Neither name replaces the core `protein_namespace` and
   `protein_identifier` protein identity fields.
 
 `DatasetPreprocessingConfig` owns transforms, normalisation, missing-data
@@ -401,8 +405,8 @@ Important user-facing assumptions:
   it does not apply the fixed Kinase Library motif-window contract.
 - Complete non-empty `dataset.site_metadata.protein_group_id` values are
   required for interpreted sites as Signalome-specific protein grouping
-  metadata. Legacy `dataset.site_metadata.protein_id` is accepted only as a
-  migration alias and conflicts are rejected. Signalome uses this field to group
+  metadata. `dataset.site_metadata.protein_id` is accepted as an alternate
+  grouping field and conflicts are rejected. Signalome uses this field to group
   retained phosphosites into protein-level module and protein-site context
   summaries; it is not core protein identity.
 - Core protein identity remains the upstream dataset's `organism`,
@@ -421,11 +425,15 @@ Important user-facing assumptions:
 
 ## Provenance and Reproducibility
 
+### Understand What Provenance Records
+
 Workflow provenance records resolved request/config choices, table
 fingerprints, relevant scientific policy records, diagnostics, and environment
 metadata where available. Environment provenance supports reproducibility
 audits, but it does not guarantee bitwise identical numeric outputs across
 different machines or dependency builds.
+
+### Trace Removed Rows
 
 Typed `row_attrition` reports are causal site-row provenance. Each record is
 created from the immediate input and output site-row indexes of the stage that
@@ -438,12 +446,16 @@ is not encoded as site-row loss. Invalid preconditions such as missing
 grouping metadata fail validation before execution rather than producing
 synthetic attrition records.
 
+### Trace the Kinase Universe
+
 Kinase `universe_attrition` is separate from row attrition. It records
 reference projection loss before source substrate identifiers are dropped, then
 keeps sequence support, membership intersection, finite-value filtering, and
 activity-background/effect-universe selection as distinct categories. Source
 reference identifiers are typed as `references.kinase_substrate_map.substrate_site`;
 method-consumable universes remain dataset `site_key` rows.
+
+### Trace Reference Projection
 
 Kinase reference-projection provenance uses one supported schema-1 summary.
 The projector owns the source/output namespaces, identity-semantics strings,
@@ -452,6 +464,8 @@ unmatched-example bound. Construction and bundle reconstruction validate those
 facts, recompute serialized aggregate counts and bounded examples, and reject
 payloads whose `reference_projection_summary` disagrees with
 `universe_attrition.reference_attrition`.
+
+### Trace Enrichment Identifier Sets
 
 Enrichment identifier-set provenance is role-specific. Selected and background
 sets use the same typed provenance model, and PhosPy-derived quantitative sets
@@ -466,11 +480,15 @@ data, or convert identifiers. Declared quantitative scale evidence is exposed
 as a caveat; observed transformation evidence is recorded in provenance without
 the declared-only caveat.
 
+### Preserve Current Saved State
+
 Saved workflow bundles and provenance payloads are supported only for the
 current PhosPy schema. Legacy saved-result compatibility has been intentionally
 removed. Regenerate older development-version outputs instead of relying on
 schema repair during loading. Provenance remains supported for current outputs,
 and current table-hash semantics are unchanged.
+
+### Preserve Kinase Activity Semantics
 
 Current kinase bundles persist typed activity result semantics in manifest
 version 3. The manifest, not the activity method name, is the reconstruction

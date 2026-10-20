@@ -1,19 +1,33 @@
 # Phosphosite Importers
 
 Importers translate upstream search-engine phosphosite tables into PhosPy
-dataset-builder input candidates. They do not construct
-`AnalysisReadyPhosphoDataset` objects and they do not infer differential design.
+dataset-builder input candidates. Use one when your source columns need to be
+mapped or interpreted before dataset construction.
 
-Use importers when a table comes from an upstream search or quantification tool
-and needs consistent column mapping before the strict dataset builder runs.
+The normal sequence is:
 
-## Current Support Summary
+1. run an importer;
+2. inspect its quality report and candidate tables;
+3. convert the import result into a dataset-build request; and
+4. run `AnalysisReadyDatasetBuilder`.
+
+Importers do not construct `AnalysisReadyPhosphoDataset` objects or infer an
+experimental design.
+
+## Choose an Import Route
 
 The supported public importer surface is the `PhosphositeImporter` protocol and
 its `PhosphositeImportRequest` and `PhosphositeImportResult` contracts, exported
-from `phospy.api`. Concrete table readers belong to the IO owner and are not
-supported import routes. Integrations may implement the protocol while keeping
-dataset construction behind the public builder.
+from `phospy.api`. Concrete reader classes are not re-exported through that
+aggregate. Integrations may implement the protocol while keeping dataset
+construction behind the public builder.
+
+Current implementations cover:
+
+- `MaxQuantPhosphositeImporter` for supported MaxQuant phosphosite exports;
+- `FragPipePTMProphetImporter` for supported FragPipe/Philosopher tables with
+  PTMProphet localisation evidence; and
+- `MappedPhosphositeTableImporter` for explicitly mapped compatible tables.
 
 Spectronaut and DIA-NN phosphosite importers are not currently implemented as
 dedicated semantic importers. A caller may still use
@@ -21,7 +35,7 @@ dedicated semantic importers. A caller may still use
 that is generic mapped-table support, not Spectronaut/DIA-NN support and not
 upstream statistical result import.
 
-## Responsibility Boundary
+## Understand the Responsibility Boundary
 
 Importers own:
 
@@ -44,7 +58,7 @@ Importers own:
 Importers never infer sample groups, contrasts, batches, or differential
 designs from column names.
 
-## Importer Quality Reports
+## Inspect the Import Quality Report
 
 Importer results expose `import_result.quality_report`. This report records
 input quality facts before dataset construction, such as rows read and
@@ -99,7 +113,7 @@ Common warnings mean:
   use those specific flags. For FragPipe/PTMProphet, protein accession prefixes
   may still be used where supported.
 
-## MaxQuant Phosphosite Importer
+## Import MaxQuant Phosphosites
 
 The IO implementation can recognise MaxQuant-style `Phospho (STY)Sites.txt`
 exports. MaxQuant column mappings and concrete reader classes are IO-owned
@@ -153,7 +167,7 @@ request = import_result.to_dataset_build_request(
 )
 ```
 
-## FragPipe/PTMProphet Importer
+## Import FragPipe/PTMProphet Evidence
 
 The IO implementation also recognises FragPipe/Philosopher peptide or site
 tables with PTMProphet localisation probabilities. Its concrete mappings and
@@ -193,7 +207,7 @@ FragPipe/PTMProphet imports do not infer PSM or peptide counts from arbitrary
 metadata columns. When peptide evidence is later split across multiple sites,
 PhosPy leaves depth unavailable instead of inventing per-site counts.
 
-## Generic Column-Mapped Importer
+## Map a Compatible Table
 
 The foundation importer is intentionally generic. The current dedicated
 tool-specific phosphosite importers are MaxQuant and FragPipe/PTMProphet. Any
@@ -223,28 +237,29 @@ source = pd.DataFrame(
 )
 
 def build_dataset(importer: PhosphositeImporter):
-    import_result = importer.run(
-        PhosphositeImportRequest(
-            source=source,
-            sample_intensity_columns={
-                "intensity_a": "sample_a",
-                "intensity_b": "sample_b",
-            },
-            gene_symbol_column="gene",
-            site_column="site",
-            protein_id_column="protein",
-            site_sequence_column="sequence_window",
-            localisation_confidence_column="localisation_percent",
-            localisation_confidence_scale="percent",
-        )
+    import_request = PhosphositeImportRequest(
+        source=source,
+        sample_intensity_columns={
+            "intensity_a": "sample_a",
+            "intensity_b": "sample_b",
+        },
+        gene_symbol_column="gene",
+        site_column="site",
+        protein_id_column="protein",
+        site_sequence_column="sequence_window",
+        localisation_confidence_column="localisation_percent",
+        localisation_confidence_scale="percent",
     )
 
-    return AnalysisReadyDatasetBuilder().run(
-        import_result.to_dataset_build_request(
-            organism=Organism.RAT,
-            input_intensity_scale="linear",
-        )
+    import_result = importer.run(import_request)
+
+    dataset_request = import_result.to_dataset_build_request(
+        organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
+
+    builder = AnalysisReadyDatasetBuilder()
+    return builder.run(dataset_request)
 ```
 
 `import_result.phospho_matrix_candidate` and
@@ -253,7 +268,7 @@ def build_dataset(importer: PhosphositeImporter):
 builder when upstream output may contain duplicate site rows, multi-site
 peptides, missing localisation scores, or invalid localisation scores.
 
-## Peptide Evidence
+## Continue With Peptide Evidence
 
 When peptide-level evidence columns are mapped, importer output can be handed to
 the builder peptide-evidence lane:
@@ -272,3 +287,6 @@ dataset = AnalysisReadyDatasetBuilder().run(request)
 The explicit `multi_site_policy` is required. Ambiguous localisation or
 multi-site rows are retained in importer output and reported; they are not
 silently dropped by importers.
+
+For the complete set of dataset policies, continue with
+[Build an Analysis-Ready Dataset](api/dataset-build-workflow.md).

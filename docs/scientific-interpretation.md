@@ -7,6 +7,21 @@ biological context, or independent validation.
 Each workflow guide keeps its most important caveats beside the request and
 response contract. This page collects the limits shared across workflows.
 
+## Begin With the Experiment
+
+Before interpreting a table or score, check:
+
+- what biological unit was sampled independently;
+- how conditions, batches, and repeated measurements were assigned;
+- whether values were transformed, normalised, corrected, or imputed;
+- which phosphosites and samples were excluded;
+- which reference data and identifier namespace were used; and
+- whether the result is statistical evidence, a relative score, or a
+  descriptive grouping.
+
+Provenance records how PhosPy processed the supplied evidence. It cannot repair
+a confounded design or establish that the biological assumptions were suitable.
+
 ## Differential Analysis
 
 Differential analysis estimates an explicit condition contrast on an
@@ -44,9 +59,9 @@ pathway activity.
 
 Signalome modules and network-style edges are summaries derived from upstream
 kinase outputs. They describe score-supported groupings and score-profile
-associations within the analyzed data.
+associations within the analysed data.
 
-They do not establish causality, physical interaction, direction of signaling,
+They do not establish causality, physical interaction, direction of signalling,
 or experimental validation of a pathway relationship. Module labels are local
 to the run and should not be treated as universal biological classes.
 
@@ -64,7 +79,7 @@ ORA does not imply GSEA or PTM-SEA support.
 
 Bundled runtime references are rat-only in this release. Human, mouse, and
 custom analyses must use an explicit `ReferenceBundle`. Keep the source,
-version, license, identifier namespace, and organism with the analysis record.
+version, licence, identifier namespace, and organism with the analysis record.
 
 A technically compatible reference is not automatically the best biological
 reference for every tissue, condition, or experimental platform.

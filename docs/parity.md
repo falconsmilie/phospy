@@ -3,6 +3,12 @@
 PhosPy parity is intentionally narrow and fixture-backed. Passing a parity test
 for one lane does not mean the whole PhosR package is implemented.
 
+This page is an evidence reference for maintainers and readers evaluating
+scientific fidelity. If you want to run an analysis, start with the
+[workflow guides](index.md#choose-and-follow-an-analysis-path). If you want to
+check whether a method is supported, use
+[Scientific Coverage](scientific-coverage.md).
+
 PhosPy does not claim global PhosR parity. Use
 `docs/scientific-coverage.md` as the single maintained scope matrix for support
 status labels (`parity-gated`, `validated PhosPy implementation`,
@@ -69,7 +75,7 @@ Current active parity coverage includes:
   `tests/parity/test_signalome_workflow_parity.py` and
   `tests/parity/test_signalome_clustering_backend_parity.py`
 
-### L6 prediction-matrix numerical portability
+### L6 Prediction-Matrix Numerical Portability
 
 The promoted L6 prediction matrix is a unit-interval relative-support surface
 used for per-kinase ranking and candidate selection. Its absolute error budget

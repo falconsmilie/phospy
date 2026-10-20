@@ -5,6 +5,18 @@ PhosPy implements selected PhosR-style phosphoproteomics workflows.
 feature-scoped, evidence-scoped comparison lanes. They do not mean full PhosR
 package equivalence.
 
+## How to Use This Page
+
+This is a scope reference, not a beginner tutorial. Use it to check whether a
+method is supported, what evidence backs it, and which conclusions are outside
+that evidence.
+
+For an analysis walkthrough, start with the [documentation home](index.md) or a
+workflow guide. Within this page, the
+[Scientific Scope Matrix](#scientific-scope-matrix-single-source-of-truth) is
+the maintained authority for support labels. The surrounding sections explain
+the terms and evidence in that matrix.
+
 ## Current Supported Public Lanes
 
 PhosPy currently supports these public analysis lanes:
@@ -698,9 +710,9 @@ Each record carries:
 Ownership of scientific policy modules is domain-scoped:
 
 - shared models: `phospy.provenance.scientific_policy_models`
-- prediction: `phospy.science.prediction.scientific_policies`
+- prediction: `phospy.kinase.prediction.policies`
 - kinase activity: `phospy.kinase.activity.policies`
-- preprocessing: `phospy.science.datasets.preprocessing.scientific_policies`
+- preprocessing: `phospy.preprocessing.provenance.policies`
 - signalome workflow: `phospy.signalome.scientific_policies`
 - signalome clustering: `phospy.signalome.clustering.scientific_policies`
 - withdrawn peptide-to-site differential estimate-combination future-work source:

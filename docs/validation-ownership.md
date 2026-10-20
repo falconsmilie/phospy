@@ -3,6 +3,9 @@
 This map defines primary ownership for high-impact validation invariants.
 Higher-level layers may compose owners, but must not duplicate ownership logic.
 
+This is a maintainer architecture reference. Users diagnosing an input or
+workflow error should start with the [Validation Guide](validation.md).
+
 | Invariant | Owner | Enforcement point | Should not live in | Tests |
 | --- | --- | --- | --- | --- |
 | DataFrame shape | `phospy.frames.validation` (`require_dataframe`, `require_non_empty_dataframe`, `require_aligned_dataframe_shape`); `phospy.validation.common.dataframes` is an identity-preserving compatibility route | Table schemas, dataset constructors, and workflow boundary validators compose shared frame primitives | Workflow scientific interpreters and scoring logic | `tests/unit/test_table_schemas.py`, `tests/unit/test_workflow_boundary_error.py` |
@@ -100,10 +103,11 @@ Higher-level layers may compose owners, but must not duplicate ownership logic.
 - Policy enums are owned by behavioural domain modules:
   - preprocessing: `phospy.preprocessing.contracts.policies`
   - differential: `phospy.differential.policies`
-  - shared scoring: `phospy.science.scoring.policy_models`
+  - kinase scoring: `phospy.kinase.scoring.policies`
   - shared policy-enum infrastructure: `phospy.policies.policy_base`
   - root module `phospy.policy_models` has been removed.
-- Scientific table schemas are owned under `phospy.science.tables`. Generic
-  table-schema infrastructure (`TableSchema`, `ValidationErrorType`, and the
-  label-index helper) is owned under `phospy.frames`. The former
+- Scientific table schemas are owned by their domain packages, including
+  `phospy.datasets.schemas`, `phospy.differential.tables`, the Kinase table
+  modules, `phospy.references.tables`, and `phospy.signalome.tables`. Generic
+  table-schema infrastructure is owned under `phospy.frames`. The former
   `phospy.tables` forwarding package was removed by ADR-0054.

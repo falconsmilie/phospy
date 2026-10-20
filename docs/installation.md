@@ -2,6 +2,9 @@
 
 PhosPy supports Python 3.11 and 3.12.
 
+For a first analysis, install the standard package from PyPI. The development
+installation is only needed when you plan to change PhosPy itself.
+
 ## Install From PyPI
 
 ```bash
@@ -40,6 +43,6 @@ make docs-build
 
 ## Continue
 
-- [Prepare a dataset](api/dataset-build-workflow.md)
-- [Run your first analysis](quickstart.md)
-- [Choose a workflow](index.md#choose-a-workflow)
+- New to PhosPy? Follow the [Quickstart](quickstart.md).
+- Preparing your own tables? Read [Build an Analysis-Ready Dataset](api/dataset-build-workflow.md).
+- Choosing an analysis? See [Choose and Follow an Analysis Path](index.md#choose-and-follow-an-analysis-path).

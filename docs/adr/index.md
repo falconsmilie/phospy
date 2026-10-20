@@ -5,6 +5,10 @@ Architecture Decision Records explain why major design choices were made.
 Use the [API Guide](../api/guide.md) and [Validation Guide](../validation.md) for current behaviour.
 Use these ADRs when you need rationale and tradeoffs.
 
+ADRs preserve the terminology and constraints of the decision at the time it
+was made. A superseded or historical import route in an ADR is not a supported
+user API.
+
 ## Status Vocabulary
 
 - `Accepted`

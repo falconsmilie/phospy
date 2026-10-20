@@ -1,4 +1,9 @@
-# Release validation
+# Release Validation
+
+This page records the maintainer release gates and the accepted final
+architecture check. It is evidence for release review rather than a user
+workflow guide. For ordinary installation and analysis, start with the
+[Quickstart](quickstart.md).
 
 PhosPy validates supported releases on Ubuntu, Windows, and macOS with Python
 3.11 and 3.12. The permanent source lane runs repository hygiene, Ruff, strict
@@ -53,7 +58,7 @@ Verification logs and downloadable workflow artifacts are retained by GitHub
 Actions; they are not committed to the repository. The repository hygiene gate
 rejects tracked migration-process material and tracked verification artifacts.
 
-## Accepted Wave 10 gate
+## Accepted Wave 10 Gate
 
 Wave 10 was accepted on 19 October 2026 at commit
 `a4b9929fb41f6507cab3011dafc1012e44c5ce19`, tree

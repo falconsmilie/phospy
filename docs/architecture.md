@@ -36,7 +36,7 @@ Its source is the policy code and machine-readable inputs above. The governing
 decisions are [ADR-0053](adr/adr_0053_domain_first_capability_architecture.md) and
 [ADR-0054](adr/adr_0054_public_api_reset_and_compatibility_removal.md).
 
-## Migration status
+## Migration Status
 
 The domain-first architecture migration, including its final Wave 10 gate, was
 accepted on 19 October 2026 at commit

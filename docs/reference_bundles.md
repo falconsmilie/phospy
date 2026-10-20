@@ -1,11 +1,29 @@
 # Reference Bundles
 
-`ReferenceBundle` is the workflow-ready reference contract for kinase analysis.
-Human and mouse are valid organisms, but this release does not ship bundled
-human or mouse runtime references. Build those bundles from local source files
-with `ReferenceBundleBuilder`.
+Kinase analysis compares a dataset with biological reference information. In
+PhosPy, a `ReferenceBundle` keeps the required reference tables together with
+their organism, identifier, source, version, and licence information.
 
-## Packaged Bundles
+## Choose a Reference Source
+
+PhosPy ships one runtime reference bundle for rat. Human and mouse are valid
+organisms, but their references are not bundled in this release.
+
+- For the bundled rat workflow, follow [Kinase Analysis](api/kinase.md).
+- For human, mouse, or a custom rat reference, use the
+  [local builder](#build-a-local-reference-bundle) with source files that you
+  are permitted to use.
+- Before interpreting a result, inspect the bundle's
+  [validation report](#inspect-the-validation-report) and provenance.
+
+Reference compatibility is necessary, but it does not prove that a reference
+is biologically suitable for every tissue, condition, or experimental platform.
+
+## Understand Packaged Bundles
+
+The remainder of this section documents the packaged-data contract used by
+maintainers and release checks. Most users can continue directly to
+[Build a Local Reference Bundle](#build-a-local-reference-bundle).
 
 Packaged runtime reference data lives only under
 `src/phospy/data/reference_bundles/<organism>/<bundle_id>/`.
@@ -82,9 +100,9 @@ distinct from supplying `null`.
 - `unresolved`: redistribution review is incomplete, missing, or not strong
   enough to support packaging. Unresolved bundled references block release.
 
-Codex agents and human developers must not mark references approved without
-verified evidence in the manifest. A lineage note, hash, upstream package name,
-or optimistic interpretation of a third-party license is not enough.
+Do not mark references approved without verified evidence in the manifest. A
+lineage note, hash, upstream package name, or optimistic interpretation of a
+third-party licence is not enough.
 File hashes establish source and package byte identity for validation; hashes
 alone do not establish redistribution approval.
 
@@ -171,7 +189,12 @@ Do not commit restricted scientific reference datasets. In particular, do not
 copy PhosphoSitePlus or Kinase Library data into packaged runtime data unless
 their license or a written permission record explicitly allows redistribution.
 
-## Local Builder
+## Build a Local Reference Bundle
+
+Use `ReferenceBundleBuilder` when you have local kinase-substrate and
+site-sequence tables. Record the upstream source and its licence accurately.
+
+First, describe the local reference files:
 
 ```python
 from phospy.api import (
@@ -180,20 +203,29 @@ from phospy.api import (
     ReferenceBundleBuilder,
 )
 
-references = ReferenceBundleBuilder().run(
-    ReferenceBundleBuildRequest(
-        organism=Organism.MOUSE,
-        kinase_substrate_path="mouse_kinase_substrates.csv",
-        site_sequence_path="mouse_site_sequences.csv",
-        source_name="local curated kinase reference",
-        source_version="upstream-package-7.4",
-        retrieved_at="2026-07-14",
-        license="record the source license here",
-        redistribution_status="record redistribution status here",
-        identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
-        reference_version="local-snapshot-2026-07-14",
-    )
+reference_request = ReferenceBundleBuildRequest(
+    organism=Organism.MOUSE,
+    kinase_substrate_path="mouse_kinase_substrates.csv",
+    site_sequence_path="mouse_site_sequences.csv",
+    source_name="local curated kinase reference",
+    source_version="upstream-package-7.4",
+    retrieved_at="2026-07-14",
+    license="record the source licence here",
+    redistribution_status="external_only",
+    identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+    reference_version="local-snapshot-2026-07-14",
 )
+```
+
+`external_only` is appropriate in this example because the local source is not
+being packaged or redistributed by PhosPy. It does not grant permission to
+share the source files.
+
+Next, build and validate the bundle:
+
+```python
+builder = ReferenceBundleBuilder()
+references = builder.run(reference_request)
 ```
 
 The result is a normal validated `ReferenceBundle` and can be passed directly
@@ -218,7 +250,7 @@ The builder SHA-256 hashes that specified ASCII byte string and emits
 produces the same local snapshot version; changing either source file changes
 it.
 
-## Validation Report
+## Inspect the Validation Report
 
 Every constructed `ReferenceBundle` has a structured validation report:
 
@@ -261,7 +293,7 @@ Use the report to check whether the reference source, organism, namespace, and
 provenance are suitable for your dataset before interpreting kinase scores. It
 does not change the scientific meaning of the workflow outputs.
 
-## Expected Files
+## Prepare the Expected Files
 
 The kinase-substrate file must contain:
 
@@ -284,7 +316,7 @@ Optional columns are preserved and normalized where present:
 If an `organism` or `species` column is present, every value must match the
 requested `Organism`.
 
-## Provenance
+## Keep the Reference Provenance
 
 Builder-created bundles include local-source provenance:
 
@@ -308,10 +340,10 @@ into `source_version`. For builder-created local bundles, omit
 `local-snapshot-sha256-...` identity is the intended local snapshot version.
 
 If `sequence_window` is not supplied, the builder infers it only from uniform
-odd-length centered `site_sequence` windows whose central residues are all
+odd-length centred `site_sequence` windows whose central residues are all
 `S`, `T`, or `Y`. Otherwise pass an explicit `SequenceWindowDefinition`.
 
-## Failure Policy
+## Understand Failure Behaviour
 
 The builder fails instead of repairing scientific inputs:
 
@@ -323,7 +355,7 @@ The builder fails instead of repairing scientific inputs:
 - remote URLs are rejected; only local filesystem paths are supported
 
 Do not commit restricted source reference datasets. Keep source files local or
-manage them according to the original provider license.
+manage them according to the original provider licence.
 
 ## Kinase Library-Style Matrix Resources
 

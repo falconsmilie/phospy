@@ -104,7 +104,8 @@ Inspect the main result tables together with the diagnostics, warnings, caveats,
 the workflow.
 
 **Provenance** records the inputs, processing choices, and analysis settings used to produce a dataset or result. Keep
-it with the result so that another reader can understand what was analysed and how.
+it with the result so that another reader can understand what was analysed and how. See
+[Output Bundles](output_bundles.md) when you need to write supported result tables to disk.
 
 ## Keep the Analysis Traceable
 

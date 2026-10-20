@@ -1,6 +1,9 @@
 # Maintenance
 
 This page is the authoritative maintainer release-process page for PhosPy.
+It is intended for contributors preparing or verifying a release. Users should
+start with the [installation guide](installation.md) and
+[Quickstart](quickstart.md).
 
 ## Development Setup
 
@@ -351,7 +354,12 @@ This ledger is the maintainer checkpoint for deprecated APIs, retained
 backwards-compatibility paths, and removals that tests intentionally keep absent.
 Add a row here before adding a new compatibility path or removing one.
 
-### Warning-Based Deprecations
+The rows preserve the Version 1.7.6 maintenance record. Their module paths,
+warnings, and removal targets describe that historical release state and are
+not current import guidance. Use [Public Python API](api/guide.md) for current
+supported imports.
+
+### Historical Warning-Based Deprecations
 
 | Surface | Module | Status | Replacement or recommended route | Warning | Decision and removal target | Intentional tests |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -365,7 +373,7 @@ Add a row here before adding a new compatibility path or removing one.
 | `KinaseScoringConfig.default()` | `src/phospy/kinase/scoring/config.py` | Public compatibility constructor alias for the historical exploratory kinase scoring defaults. | `KinaseScoringConfig.exploratory()` for the old permissive behavior, or `KinaseScoringConfig.production(...)` with explicit study-specific attrition floors. | `PhosPyDeprecationWarning` when called. | Retain for now; remove in a future release after public examples and downstream callers have migrated. | `tests/unit/test_public_config_self_validation.py::test_kinase_scoring_default_is_deprecated_exploratory_alias`. |
 | Bare string entries in `build_motif_library_from_sequences(motif_sequences=...)` | `src/phospy/kinase/scoring/motif/library_validation.py` | Semi-public motif-library input compatibility path. | `ExplicitMotifSequence` values or mapping entries with `reference_id`, optional `site_id`, `kinase`, and `sequence`. | `PhosPyDeprecationWarning` when any bare string entry is present. | Retain for now; reject in a future release. | `tests/unit/test_prediction_sequence_validation.py::test_structured_explicit_sequences_do_not_emit_bare_string_warning`, `tests/unit/test_prediction_sequence_validation.py::test_bare_explicit_sequences_warn_and_remain_supported_without_site_mismatch_claims`, `tests/unit/test_prediction_sequence_validation.py::test_bare_explicit_invalid_sequence_is_rejected_and_reported`. |
 
-### Retained Compatibility Paths Without Deprecation Warnings
+### Historical Compatibility Paths Without Deprecation Warnings
 
 | Surface | Module | Status | Replacement or recommended route | Warning | Decision and removal target | Intentional tests |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -391,7 +399,7 @@ Add a row here before adding a new compatibility path or removing one.
 | Legacy kinase and signalome bundle schemas, including old diagnostic fields | `src/phospy/io/bundles/_kinase/`, `src/phospy/io/bundles/_signalome/` | Removed; bundle load fails clearly. | Regenerate bundles with the current PhosPy version. | No; raises `PhosPyInputError`. | Already removed in 1.6.0. | `tests/integration/test_kinase_bundle_integration.py`, `tests/integration/test_signalome_bundle_integration.py`, `tests/unit/test_signalome_bundle_schema.py`, `tests/unit/test_signalome_clustering_diagnostics_helpers.py`. |
 | Removed public/config aliases: `ratio_to_total`, `ensemble_size`, `signalome_cutoff`, `max_exact_clustering_sites`, `kinase_network_policy`, `tree_engine`, and old backend-style signalome names | Dataset, kinase, and signalome config/snapshot modules | Removed; construction or snapshot load rejects them. | Current names such as `subtract_log_total`, `n_iterations`, `scientific.substrate_support_cutoff`, `performance.max_exact_tree_sites`, `output.network_policy`, and `clustering.clustering_engine`. | No; raises `TypeError` or `PhosPyInputError`. | Already removed in 1.6.0. | `tests/unit/test_public_config_self_validation.py`, `tests/unit/test_kinase_bundle_snapshots.py`, `tests/unit/test_signalome_bundle_schema.py`, `tests/unit/test_validator_boundaries.py`, `tests/integration/test_dataset_builder_integration.py`. |
 | Unsupported historical site-metadata aliases (`sequence`, `protein`, `gene`, `residue`, `phosphosite`) used as substitutes for strict builder columns | `src/phospy/datasets/construction/site_metadata.py` | Removed/rejected. | Rename to supported columns such as `site_sequence`, `protein_id`, `gene_symbol`, or `site`. | No; raises `UnsupportedInputFormatError`. | Already removed in 1.6.0. | `tests/unit/test_domain_boundaries.py`, `tests/unit/test_dataset_normalizer_identity.py`, `tests/unit/test_dataset_normalizer_collaborators.py`. |
-| Removed kinase/signalome workflow component re-export modules | `src/phospy/workflows/` | Removed import routes. | Import workflow classes from `phospy`, `phospy.api.workflows`, or `phospy.workflows.<workflow>`. | No; import raises `ModuleNotFoundError`. | Already removed. | `tests/unit/test_workflow_public_import_contract.py::test_removed_workflow_compatibility_imports_fail`, `tests/unit/test_workflow_public_import_contract.py::test_docs_and_examples_do_not_reference_removed_workflow_compatibility_paths`. |
+| Removed kinase/signalome workflow component re-export modules | `src/phospy/workflows/` | Removed import routes. | Import supported workflow classes from `phospy` or `phospy.api`. | No; import raises `ModuleNotFoundError`. | Already removed. | `tests/unit/test_workflow_public_import_contract.py::test_removed_workflow_compatibility_imports_fail`, `tests/unit/test_workflow_public_import_contract.py::test_docs_and_examples_do_not_reference_removed_workflow_compatibility_paths`. |
 
 Review rules:
 

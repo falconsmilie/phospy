@@ -2,6 +2,10 @@
 
 This folder is the entry point for the testing audit system used to inventory tests, protect high-value contracts, and guide safe test-suite consolidation.
 
+These documents are maintainer evidence rather than user workflow guides. Start
+with the rubric and marker reference below before interpreting a generated
+inventory or candidate report.
+
 ## Purpose
 
 The testing audit system exists to:
