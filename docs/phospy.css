@@ -76,7 +76,7 @@
   --md-default-bg-color: #ffffff;
   --md-default-fg-color: #243041;
   --md-default-fg-color--light: #45515e;
-  --md-default-fg-color--lighter: #7d8793;
+  --md-default-fg-color--lighter: #66717d;
   --md-default-fg-color--lightest: rgba(24, 30, 37, 0.18);
 
   --md-primary-fg-color: #ffffff;
@@ -89,7 +89,7 @@
   --md-accent-fg-color--transparent: rgba(37, 99, 235, 0.1);
 
   --md-typeset-color: #243041;
-  --md-typeset-a-color: #f97316;
+  --md-typeset-a-color: #b83b08;
 
   --md-code-fg-color: #eef4ff;
   --md-code-bg-color: #181e25;
@@ -198,13 +198,13 @@ body {
 .md-typeset h4 {
   font-family: "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: var(--md-default-fg-color);
-  letter-spacing: -0.035em;
+  letter-spacing: -0.015em;
 }
 
 .md-typeset h1 {
   margin-bottom: 1.2rem;
   font-size: clamp(1.4rem, 6vw, 3.4rem);
-  line-height: 0.98;
+  line-height: 1.12;
   font-weight: 500;
 }
 
@@ -253,7 +253,7 @@ body {
 
 [data-md-color-scheme="default"] .md-typeset a:hover,
 [data-md-color-scheme="default"] .md-typeset a:focus-visible {
-  color: #ea580c;
+  color: #8f2f0a;
 }
 
 /* --------------------------------------------------------------------------
@@ -265,6 +265,7 @@ body {
 }
 
 .md-content__inner {
+  min-width: 0;
   padding-bottom: 3rem;
 }
 
@@ -311,6 +312,8 @@ body {
   color: #f9c2e7;
   font-size: 0.92em;
   box-shadow: inset 0 0 0 1px rgba(249, 194, 231, 0.12);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 [data-md-color-scheme="default"] .md-typeset :not(pre) > code {
@@ -353,6 +356,8 @@ body {
 }
 
 .md-clipboard {
+  min-width: 24px;
+  min-height: 24px;
   border-radius: 8px;
 }
 
@@ -392,16 +397,34 @@ body {
    -------------------------------------------------------------------------- */
 
 .md-search__form {
+  border: 1px solid #66717d;
   border-radius: var(--phospy-radius-pill);
   background: rgba(255, 255, 255, 0.06);
 }
 
 [data-md-color-scheme="default"] .md-search__form {
+  border-color: #89929c;
   background: rgba(0, 0, 0, 0.04);
 }
 
 .md-search__input {
   font-family: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.md-search__options .md-search__icon {
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.md-search__input::placeholder,
+.md-search__icon {
+  color: #bcc7d9;
+  opacity: 1;
+}
+
+[data-md-color-scheme="default"] .md-search__input::placeholder,
+[data-md-color-scheme="default"] .md-search__icon {
+  color: #66717d;
 }
 
 /*!* --------------------------------------------------------------------------*/
@@ -429,7 +452,6 @@ body {
 
 .md-typeset table:not([class]) {
   border-radius: var(--phospy-radius-sm);
-  overflow: hidden;
   box-shadow: var(--phospy-shadow-soft);
   font-size: 0.85rem;
   line-height: 1.55;
@@ -440,6 +462,9 @@ body {
   padding: 0.7rem 0.85rem;
   font-size: 0.85rem;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  white-space: normal;
 }
 
 .md-typeset table:not([class]) th {
@@ -661,12 +686,49 @@ body {
 .md-typeset p,
 .md-typeset li {
   max-width: 76ch;
+  overflow-wrap: break-word;
 }
 
 .md-typeset__table {
   display: block;
+  width: 100%;
   max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+.md-typeset__table > table:not([class]) {
+  width: 100%;
+}
+
+.md-typeset__table.phospy-table-wide > table:not([class]) {
+  min-width: min(64rem, calc(var(--phospy-table-columns) * 8rem));
+}
+
+.phospy-table-scroll {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: var(--phospy-radius-sm);
+  box-shadow: inset -0.65rem 0 0 rgba(61, 174, 255, 0.1);
+}
+
+.phospy-table-scroll:focus-visible,
+:where(a, button, input, select, textarea, summary, [tabindex="0"]):focus-visible {
+  outline: 3px solid var(--md-accent-fg-color);
+  outline-offset: 3px;
+}
+
+.phospy-table-scroll-hint {
+  margin: 0.6rem 0 0.35rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.md-typeset a,
+.md-typeset dd,
+.md-typeset dt {
+  overflow-wrap: anywhere;
 }
 
 .md-typeset details > summary {
@@ -686,5 +748,20 @@ body {
 
   .md-typeset h1 {
     font-size: 2rem;
+  }
+
+  .md-typeset table:not([class]) th,
+  .md-typeset table:not([class]) td {
+    padding: 0.55rem 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }

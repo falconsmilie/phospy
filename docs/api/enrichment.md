@@ -152,17 +152,42 @@ the package root.
 
 Create an `EnrichmentWorkflowRequest`.
 
-| Parameter | Type | Required or Default | Description | Main Constraint |
-| --- | --- | --- | --- | --- |
-| `identifier_column` | `str` | Required | Column used when `input_table` supplies the selected identifiers. It also records the selected identifier field name. | Must be non-empty and present in `input_table` when that source is used. |
-| `identifier_kind` | Identifier-kind string | Required | Namespace shared by selected identifiers, background, and sets. | Must match the collection level. |
-| `set_collection` | `GeneSetCollection` or `PtmSetCollection` | Required | Caller-supplied local sets. | Must be non-empty and use the same identifier kind. |
-| `background_universe` | `Sequence[str]` | Required | Universe used by the hypergeometric test. | Must be non-empty. Values are trimmed and de-duplicated. |
-| `config` | `EnrichmentConfig` | `EnrichmentConfig()` | ORA, correction, attrition, and size-filter policy. | Only supported policies are accepted. |
-| `input_table` | `pandas.DataFrame` or `None` | `None` | Optional table containing selected identifiers. | Mutually exclusive with `selected_identifiers`. |
-| `selected_identifiers` | `Sequence[str]` or `None` | `None` | Optional explicit selected list. | Mutually exclusive with `input_table`; must be non-empty when used. |
-| `selected_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the selected set. | `identifier_count` must match the normalised selected count. |
-| `background_identifier_provenance` | `EnrichmentIdentifierSetProvenance` or `None` | `None` | Optional typed provenance for the background. | `identifier_count` must match the normalised background count. |
+`identifier_column` (`str`, required)
+: Column used when `input_table` supplies the selected identifiers. It also
+  records the selected identifier field name. The value must be non-empty and
+  present in `input_table` when that source is used.
+
+`identifier_kind` (identifier-kind string, required)
+: Namespace shared by selected identifiers, background, and sets. It must
+  match the collection level.
+
+`set_collection` (`GeneSetCollection` or `PtmSetCollection`, required)
+: Caller-supplied local sets. The collection must be non-empty and use the same
+  identifier kind.
+
+`background_universe` (`Sequence[str]`, required)
+: Universe used by the hypergeometric test. It must be non-empty. Values are
+  trimmed and de-duplicated.
+
+`config` (`EnrichmentConfig`, default `EnrichmentConfig()`)
+: ORA, correction, attrition, and size-filter policy. Only supported policies
+  are accepted.
+
+`input_table` (`pandas.DataFrame` or `None`, default `None`)
+: Optional table containing selected identifiers. It is mutually exclusive
+  with `selected_identifiers`.
+
+`selected_identifiers` (`Sequence[str]` or `None`, default `None`)
+: Optional explicit selected list. It is mutually exclusive with `input_table`
+  and must be non-empty when used.
+
+`selected_identifier_provenance` (`EnrichmentIdentifierSetProvenance` or `None`, default `None`)
+: Optional typed provenance for the selected set. `identifier_count` must match
+  the normalised selected count.
+
+`background_identifier_provenance` (`EnrichmentIdentifierSetProvenance` or `None`, default `None`)
+: Optional typed provenance for the background. `identifier_count` must match
+  the normalised background count.
 
 ### `EnrichmentConfig`
 
@@ -298,14 +323,25 @@ scientifically justified transformation.
 
 ## Common Issues
 
-| Issue | What to Check |
-| --- | --- |
-| Selected identifiers fall outside the background. | Confirm that both use the same namespace. Choose `"drop"` only deliberately, then review the retained fraction. |
-| The request has two selected sources. | Provide either `selected_identifiers` or `input_table`, not both. |
-| A table input is rejected. | Pass a non-empty pandas DataFrame containing `identifier_column`. |
-| Collection and identifiers do not match. | Use a gene collection for gene/protein kinds and a PTM collection for site kinds. |
-| The result is empty. | Review set-size filters and `diagnostics["set_size_filter"]`. |
-| Enrichment is unexpectedly weak. | Revisit the background universe, selection rule, and set curation. |
+**Selected identifiers fall outside the background**
+: Confirm that both use the same namespace. Choose `"drop"` only deliberately,
+  then review the retained fraction.
+
+**The request has two selected sources**
+: Provide either `selected_identifiers` or `input_table`, not both.
+
+**A table input is rejected**
+: Pass a non-empty pandas DataFrame containing `identifier_column`.
+
+**Collection and identifiers do not match**
+: Use a gene collection for gene/protein kinds and a PTM collection for site
+  kinds.
+
+**The result is empty**
+: Review set-size filters and `diagnostics["set_size_filter"]`.
+
+**Enrichment is unexpectedly weak**
+: Revisit the background universe, selection rule, and set curation.
 
 ## Complete Runnable Example
 

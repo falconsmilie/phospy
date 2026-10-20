@@ -480,15 +480,32 @@ study design and external validation.
 
 ## Common Issues
 
-| Issue | What to Check |
-| --- | --- |
-| `ReferencePreset.AUTO` fails. | Bundled references are rat-only. Use `Organism.RAT` or pass an explicit `ReferenceBundle`. |
-| Sequence validation fails. | Confirm that `site_sequence` is present, centred, and compatible with the selected scoring mode. |
-| Localisation validation fails. | Add localisation metadata and configure `DatasetLocalisationConfig`; required localisation fails when missing. |
-| A bare scoring config fails. | Set `reliability_profile` or use an exploratory or production preset. |
-| Reference projection is ambiguous. | Keep `"error"`, or use `"allow_with_diagnostics"` only when repeated display labels intentionally represent separate `site_key` rows. |
-| Scores are sparse or empty. | Review reference overlap, sequence eligibility, attrition, score-source diagnostics, and `min_substrates`. |
-| Activity is absent. | Confirm that `activity_config` is supplied and enabled, and that the selected method has sufficient eligible substrates. |
+**`ReferencePreset.AUTO` fails**
+: Bundled references are rat-only. Use `Organism.RAT` or pass an explicit
+  `ReferenceBundle`.
+
+**Sequence validation fails**
+: Confirm that `site_sequence` is present, centred, and compatible with the
+  selected scoring mode.
+
+**Localisation validation fails**
+: Add localisation metadata and configure `DatasetLocalisationConfig`; required
+  localisation fails when missing.
+
+**A bare scoring config fails**
+: Set `reliability_profile` or use an exploratory or production preset.
+
+**Reference projection is ambiguous**
+: Keep `"error"`, or use `"allow_with_diagnostics"` only when repeated display
+  labels intentionally represent separate `site_key` rows.
+
+**Scores are sparse or empty**
+: Review reference overlap, sequence eligibility, attrition, score-source
+  diagnostics, and `min_substrates`.
+
+**Activity is absent**
+: Confirm that `activity_config` is supplied and enabled, and that the selected
+  method has sufficient eligible substrates.
 
 ## Complete Runnable Example
 

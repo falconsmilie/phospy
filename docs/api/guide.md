@@ -30,19 +30,24 @@ analysis.
 PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
 during beta. ADR-0054 defines three exact aggregate surfaces.
 
-`phospy.api` is the stable user-facing route for ordinary workflow code.
+### `phospy`
 
-`phospy.advanced` is a supported advanced route for specialist configuration,
-diagnostics, references, and publishing helpers documented by PhosPy.
+Use the package root for the dataset builder and the Kinase and Signalome
+workflow conveniences. It deliberately contains only a small set of common
+entry points.
 
-The package root, `phospy`, contains three frequently used conveniences.
+### `phospy.api`
+
+Use `phospy.api` for ordinary requests, configurations, results, references,
+enums, errors, and workflow classes. This is the stable public API during beta.
+
+### `phospy.advanced`
+
+Use `phospy.advanced` for documented specialist policies, diagnostics,
+reference helpers, and publishers. This route is supported, but expected to
+evolve more readily than `phospy.api`.
+
 Internal modules are unsupported import targets for external callers.
-
-| Surface | Use It For | Stability Expectation |
-| --- | --- | --- |
-| `phospy` | The dataset builder and the Kinase and Signalome workflow conveniences | A deliberately small set of common entry points |
-| `phospy.api` | Ordinary requests, configurations, results, references, enums, errors, and workflow classes | The stable public API during beta |
-| `phospy.advanced` | Documented specialist policies, diagnostics, reference helpers, and publishers | Supported, but expected to evolve more readily |
 
 Python may allow imports from implementation modules, but that does not make
 them public. There are no supported forwarding submodules or runtime

@@ -38,6 +38,24 @@ is readable scientific writing, not manuscript formatting.
 - Use established scientific terminology, then explain how PhosPy applies it.
 - Avoid architecture language in beginner guides unless users must act on it.
 
+### Tables and Accessible Layout
+
+- Use tables only when rows and columns make a comparison or exact lookup
+  clearer. Use short sections, lists, steps, or definition lists for narrative
+  explanations, procedures, navigation, and troubleshooting.
+- Keep table headings and cells concise. Move examples and qualifications into
+  nearby prose, and split broad tables when readers do not need every column at
+  once.
+- Preserve native table headers and a logical reading order. Introduce retained
+  tables with a descriptive heading or sentence so their purpose is clear.
+- Check rendered pages at narrow widths and increased text size. Long links,
+  paths, and identifiers must wrap without changing the text readers copy.
+- Let genuinely wide comparison and reference tables scroll within their own
+  labelled region. Ordinary prose must not cause page-wide horizontal
+  scrolling.
+- Give meaningful images useful alternative text, keep heading levels in order,
+  use descriptive link text, and verify keyboard focus and both colour schemes.
+
 ### Numbers and Statistics
 
 - Use numerals for measurements, versions, thresholds, sample counts, and code

@@ -42,10 +42,14 @@ plugins:
 extra_css:
   - phospy.css
 
+extra_javascript:
+  - javascripts/accessibility.js
+
 markdown_extensions:
   - toc:
       permalink: true
   - tables
+  - def_list
   - admonition
   - attr_list
   - md_in_html

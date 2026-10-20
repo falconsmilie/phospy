@@ -851,11 +851,33 @@ Set this on the request config:
 The default remains `"reject"`. PhosPy does not inspect the design and choose a
 blocked model automatically.
 
-| Value | Use When | Design Constructed | Main Failure Behaviour |
-| --- | --- | --- | --- |
-| `"reject"` | Use for ordinary unblocked designs, or when paired/repeated `block_id` metadata must fail unless the caller deliberately selects a supported blocked model. | Condition terms and supported fixed covariates only. No block fixed effects and no block correlation structure are created. | If analysed samples carry `block_id` metadata, validation fails before fitting. |
-| `"fixed_block"` | Use for complete paired or blocked designs where block identity should be adjusted as an ordinary fixed nuisance effect. | Condition terms, supported fixed covariates, and block dummy columns are included in the fixed-effects design. One block level is the reference. | Every block must cover both sides of every requested contrast; incomplete contrast coverage, rank deficiency, or non-estimable contrasts fail before fitting. |
-| `"duplicate_correlation"` | Use for repeated, multi-condition, or incomplete blocked designs where one shared within-block correlation is appropriate and fixed block coefficients are not desired. | Condition terms and supported fixed covariates are included in the fixed-effects design. `block_id` is supplied separately as a correlation group and is not added as fixed block coefficients. | Missing block IDs, no repeated blocks, rank-deficient non-block design, insufficient residual degrees of freedom, unsupported weights, failed consensus estimation, or failed final GLS fitting fail without fallback. |
+#### `"reject"`
+
+Use this for ordinary unblocked designs, or when paired or repeated `block_id`
+metadata must fail unless the caller deliberately selects a supported blocked
+model. PhosPy constructs condition terms and supported fixed covariates only;
+it creates no block fixed effects or block correlation structure. If analysed
+samples carry `block_id` metadata, validation fails before fitting.
+
+#### `"fixed_block"`
+
+Use this for complete paired or blocked designs where block identity should be
+adjusted as an ordinary fixed nuisance effect. PhosPy includes condition terms,
+supported fixed covariates, and block dummy columns in the fixed-effects design;
+one block level is the reference. Every block must cover both sides of every
+requested contrast. Incomplete contrast coverage, rank deficiency, or
+non-estimable contrasts fail before fitting.
+
+#### `"duplicate_correlation"`
+
+Use this for repeated, multi-condition, or incomplete blocked designs where one
+shared within-block correlation is appropriate and fixed block coefficients are
+not desired. PhosPy includes condition terms and supported fixed covariates in
+the fixed-effects design. It supplies `block_id` separately as a correlation
+group and does not add fixed block coefficients. Missing block IDs, no repeated
+blocks, a rank-deficient non-block design, insufficient residual degrees of
+freedom, unsupported weights, failed consensus estimation, or failed final GLS
+fitting all fail without fallback.
 
 `fixed_block` remains a valid supported policy. Block identity is included as a
 fixed nuisance effect, and the condition estimate is based on within-block
@@ -1210,21 +1232,58 @@ joint model, or a substitute for that workflow.
 
 ## Common Issues
 
-| Issue | What to Check |
-| --- | --- |
-| A sample is missing from the dataset. | Match every `sample_id` to a dataset column, or deliberately enable `allow_design_subset`. |
-| Replication fails. | Production contrasts need at least two biological replicates per condition. Technical replicates do not count. |
-| The scale is unsupported. | Build or declare a log2 dataset before running the workflow. |
-| Localisation fails. | Add valid localisation metadata and configure `DatasetLocalisationConfig` during dataset preparation. |
-| A fixed-block design fails. | Confirm that every block covers both sides of every requested contrast. |
-| A duplicate-correlation design fails. | Confirm every analysed sample has `block_id`, at least one block is repeated, the non-block fixed-effects design is full rank with more than two residual degrees of freedom, and no fixed block columns or unsupported weights are present. |
-| Imputation is rejected. | Keep the default rejection policy, or use withholding only with builder-owned observation metadata. |
-| Results contain withheld rows. | Review `feature_eligibility`, caveats, and the preprocessing report before interpreting absence biologically. |
-| A protein-aware request reports a missing sidecar. | Build the dataset with `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")`; do not pass the preparation result separately to the workflow request. |
-| A protein-aware request reports incompatible scales. | Rebuild or transform both phosphosite and total-protein inputs so their log2 scale is established before differential analysis. |
-| A protein-aware request reports mapping or preparation ineligibility. | Inspect `dataset.protein_aware_preparation`, the preparation report, and the row-level `result_status_reason` values. |
-| A protein-aware request reports augmented-design rank or contrast failures. | Check fixed covariates, fixed blocks, sample subset order, and protein covariate variation for the affected total-protein-row groups. |
-| A protein-aware request uses duplicate correlation or technical aggregation. | Use the ordinary lane for those policies, or use the protein-aware lane only with no actual technical aggregation and without `duplicate_correlation`. |
+**A sample is missing from the dataset**
+: Match every `sample_id` to a dataset column, or deliberately enable
+  `allow_design_subset`.
+
+**Replication fails**
+: Production contrasts need at least two biological replicates per condition.
+  Technical replicates do not count.
+
+**The scale is unsupported**
+: Build or declare a log2 dataset before running the workflow.
+
+**Localisation fails**
+: Add valid localisation metadata and configure `DatasetLocalisationConfig`
+  during dataset preparation.
+
+**A fixed-block design fails**
+: Confirm that every block covers both sides of every requested contrast.
+
+**A duplicate-correlation design fails**
+: Confirm every analysed sample has `block_id`, at least one block is repeated,
+  the non-block fixed-effects design is full rank with more than two residual
+  degrees of freedom, and no fixed block columns or unsupported weights are
+  present.
+
+**Imputation is rejected**
+: Keep the default rejection policy, or use withholding only with builder-owned
+  observation metadata.
+
+**Results contain withheld rows**
+: Review `feature_eligibility`, caveats, and the preprocessing report before
+  interpreting absence biologically.
+
+**A protein-aware request reports a missing sidecar**
+: Build the dataset with
+  `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")`; do not
+  pass the preparation result separately to the workflow request.
+
+**A protein-aware request reports incompatible scales**
+: Rebuild or transform both phosphosite and total-protein inputs so their log2
+  scale is established before differential analysis.
+
+**A protein-aware request reports mapping or preparation ineligibility**
+: Inspect `dataset.protein_aware_preparation`, the preparation report, and the
+  row-level `result_status_reason` values.
+
+**A protein-aware request reports augmented-design rank or contrast failures**
+: Check fixed covariates, fixed blocks, sample subset order, and protein
+  covariate variation for the affected total-protein-row groups.
+
+**A protein-aware request uses duplicate correlation or technical aggregation**
+: Use the ordinary lane for those policies, or use the protein-aware lane only
+  with no actual technical aggregation and without `duplicate_correlation`.
 
 ## Reference
 

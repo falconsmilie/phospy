@@ -507,15 +507,31 @@ validation.
 
 ## Common Issues
 
-| Issue | What to Check |
-| --- | --- |
-| `protein_group_id` is missing. | Add non-empty values before kinase and Signalome analysis. Do not substitute gene symbols or display labels. |
-| Localisation validation fails. | Build the upstream dataset with localisation evidence; production Signalome fails when localisation is missing. |
-| No site rows overlap. | Confirm that `pred_mat` and `authoritative_scores` share `site_key` rows. |
-| No kinase columns overlap. | Confirm that prediction and score matrices use matching kinase labels. |
-| All-missing rows fail. | Keep strict mode, or choose `"allow_and_report"` only when the drop is acceptable and reviewed. |
-| The network has no edges. | Review the threshold, sign policy, paired finite observations, constant profiles, and candidate-correlation diagnostics. |
-| Production has too few sites. | Production edges require at least five paired finite observations. Add evidence rather than weakening the setting without justification. |
+**`protein_group_id` is missing**
+: Add non-empty values before kinase and Signalome analysis. Do not substitute
+  gene symbols or display labels.
+
+**Localisation validation fails**
+: Build the upstream dataset with localisation evidence; production Signalome
+  fails when localisation is missing.
+
+**No site rows overlap**
+: Confirm that `pred_mat` and `authoritative_scores` share `site_key` rows.
+
+**No kinase columns overlap**
+: Confirm that prediction and score matrices use matching kinase labels.
+
+**All-missing rows fail**
+: Keep strict mode, or choose `"allow_and_report"` only when the drop is
+  acceptable and reviewed.
+
+**The network has no edges**
+: Review the threshold, sign policy, paired finite observations, constant
+  profiles, and candidate-correlation diagnostics.
+
+**Production has too few sites**
+: Production edges require at least five paired finite observations. Add
+  evidence rather than weakening the setting without justification.
 
 ## Complete Runnable Example
 
