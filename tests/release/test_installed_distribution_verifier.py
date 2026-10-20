@@ -34,15 +34,16 @@ pytestmark = pytest.mark.release_gate
 ROOT = Path(__file__).resolve().parents[2]
 CONSTRAINT = ROOT / "constraints" / "ci.txt"
 FIXED_DISTRIBUTION_ARTIFACTS_ENV = "PHOSPY_TEST_DISTRIBUTION_ARTIFACTS"
-CURRENT_RELEASE_VERSION = "1.7.6"
-EXPECTED_FIXED_ARTIFACTS = {
+CURRENT_RELEASE_VERSION = "1.8.0"
+HISTORICAL_FIXED_DISTRIBUTION_VERSION = "1.7.6"
+EXPECTED_HISTORICAL_FIXED_ARTIFACTS = {
     "wheel": (
-        "phospy-1.7.6-py3-none-any.whl",
+        f"phospy-{HISTORICAL_FIXED_DISTRIBUTION_VERSION}-py3-none-any.whl",
         1_731_940,
         "be16e6dba5945d1f6a8d96bef6060eebf983ebf76bb16d562f963b496f9271fa",
     ),
     "sdist": (
-        "phospy-1.7.6.tar.gz",
+        f"phospy-{HISTORICAL_FIXED_DISTRIBUTION_VERSION}.tar.gz",
         1_397_979,
         "f734950dfc5eb23b7751f3ab873d583920ca6efa510fd6ebb531b0c4458b803d",
     ),
@@ -91,9 +92,9 @@ def built_distribution_artifacts(
             ("wheel", artifacts.wheel),
             ("sdist", artifacts.sdist),
         ):
-            expected_name, expected_size, expected_sha256 = EXPECTED_FIXED_ARTIFACTS[
-                artifact_kind
-            ]
+            expected_name, expected_size, expected_sha256 = (
+                EXPECTED_HISTORICAL_FIXED_ARTIFACTS[artifact_kind]
+            )
             assert artifact.name == expected_name
             assert artifact.stat().st_size == expected_size
             assert _sha256_file(artifact) == expected_sha256
@@ -497,6 +498,16 @@ def test_project_version_authority_reports_current_release() -> None:
         pyproject = tomllib.load(handle)
 
     assert pyproject["project"]["version"] == CURRENT_RELEASE_VERSION
+
+
+def test_fixed_distribution_artifact_expectations_remain_historical() -> None:
+    assert HISTORICAL_FIXED_DISTRIBUTION_VERSION == "1.7.6"
+    assert HISTORICAL_FIXED_DISTRIBUTION_VERSION != CURRENT_RELEASE_VERSION
+    assert (
+        EXPECTED_HISTORICAL_FIXED_ARTIFACTS["wheel"][0]
+        == "phospy-1.7.6-py3-none-any.whl"
+    )
+    assert EXPECTED_HISTORICAL_FIXED_ARTIFACTS["sdist"][0] == "phospy-1.7.6.tar.gz"
 
 
 def test_built_artifact_names_and_metadata_report_current_release_version(

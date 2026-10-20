@@ -4,27 +4,79 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-20
+
+This date records release preparation and must be reconfirmed on the day the
+release is published.
+
 ### Architecture
 
-- Completed and accepted the domain-first architecture migration through the
-  Wave 10 gate at commit `a4b9929fb41f6507cab3011dafc1012e44c5ce19`, tree
-  `ecaba2700d978f31e170f02efe38d2a83f11ee6d`. Authoritative hosted run
-  `39161306082` passed all 43 jobs. This records an architecture milestone and
-  does not create or authorise a tag, package publication, deployment, or
-  release publication.
+- Reorganised implementation ownership around the Datasets, Preprocessing,
+  Differential, Enrichment, Kinase, and Signalome capabilities, with shared
+  quantitative, evidence, reference, taxonomy, activity, provenance, and run
+  lineage domains. Public workflows retain the validator, interpreter, and
+  executor lifecycle and the supported scientific contracts.
+- Added generated architecture inventories and enforcement for package
+  ownership, dependency direction, public facade composition, and retired
+  compatibility routes.
 
 ### Breaking
 
-- Reset the supported Python import surfaces to the ADR-0054 aggregates:
-  `phospy` exports exactly 3 conveniences, `phospy.api` exports 66 ordinary
-  names, and `phospy.advanced` exports 124 specialist names. Removed the old
-  root conveniences, subfacades, table forwarding package, dynamic export
-  dispatch, semi-public routes, and all warning-based compatibility behavior.
-- Removed deprecated activity properties and constructor fallbacks, kinase
-  config/value aliases, technical-replicate and enrichment-reader aliases,
-  the differential shell, permissive motif strings, and deprecated pipeline
-  and activity arguments. Supported replacements retain their prior scientific
-  behavior and versioned persistence formats.
+- Reset supported external imports to the aggregate `phospy`, `phospy.api`,
+  and `phospy.advanced` facades. The package root now exposes only
+  `AnalysisReadyDatasetBuilder`, `KinaseWorkflow`, and `SignalomeWorkflow`;
+  import `AnalysisReadyPhosphoDataset` and `DifferentialAnalysisWorkflow` from
+  `phospy.api`.
+- Removed forwarding subfacades, the `phospy.tables` forwarding package,
+  former `phospy.workflows` and implementation-owner routes, semi-public
+  science routes, dynamic compatibility exports, and warning-based import
+  aliases. Importability outside an aggregate facade is no longer a supported
+  contract.
+- Made `DesignMatrix` and `ContrastMatrix` internal Differential computation
+  models. Public requests continue to use `ExperimentalDesign` and `Contrast`.
+- Removed deprecated runtime behaviour including the `DifferentialAnalysis`
+  shell, `TechnicalReplicateResolver`, enrichment `load_*` reader aliases,
+  `KinaseScoringConfig.default()`, the `"kinase_library_motif"` value alias,
+  bare motif-sequence inputs, legacy activity result/summary aliases, inferred
+  activity semantics, and deprecated preprocessing and activity arguments.
+  Removed routes fail directly without a warning or forwarding shim.
+
+### Changed
+
+- Replaced the BLAS-dependent numerator reduction in profile scoring with a
+  fixed sample-order reduction for more stable cross-platform results. This
+  preserves the method and decision contracts, although backend-sensitive
+  last-bit floating-point values may differ from Version 1.7.6.
+- Stabilised adaptive-prediction concurrency and reused validated SPS
+  fingerprints across discovery and correction paths without changing their
+  supported scientific semantics.
+- Kept Python support at 3.11 and 3.12, the runtime dependency lower bounds,
+  analysis defaults, dataset invariants, and versioned table and bundle schemas
+  unchanged.
+
+### Fixed
+
+- Corrected nullable-value handling during log2 conversion.
+- Improved cross-platform execution of numerical, release, and performance
+  checks, including separate isolated wall-clock lanes so timing contracts do
+  not compete with the broader source/runtime suite.
+
+### Release Tooling
+
+- Added repository-hygiene checks, generated architecture-inventory checks,
+  committed-Git byte comparison for production distribution files, and
+  expanded clean wheel and source-distribution consumer verification.
+- Updated the constrained documentation stack to `mkdocs-material` 9.6.23;
+  runtime dependency lower bounds remain unchanged.
+
+### Documentation
+
+- Reworked workflow, public API, architecture, scientific-boundary,
+  validation, installation, maintenance, and release-validation guidance for
+  the domain-first package layout.
+- Added the Version 1.8.0 upgrade guide, including aggregate-facade import
+  migration, removed runtime behaviour, persistence guidance, and scientific
+  continuity limits.
 
 ## [1.7.6] - 2026-09-26
 

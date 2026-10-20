@@ -9,8 +9,9 @@ PhosPy validates supported releases on Ubuntu, Windows, and macOS with Python
 3.11 and 3.12. The permanent source lane runs repository hygiene, Ruff, strict
 Pyright coverage, the generated architecture inventory check, the complete
 non-network tests, public-consumer contracts, scientific parity, the non-wall-clock
-performance selection, reference-bundle validation, release and golden tests, and
-a strict MkDocs build. Absolute wall-clock contracts run in a separate fresh-process
+performance selection, reference-bundle validation, and release and golden tests.
+The same hosted lane runs the standalone strict MkDocs command after the package
+source aggregate. Absolute wall-clock contracts run in a separate fresh-process
 matrix across the same six operating-system/Python lanes with the same constrained
 dependency profile. Together the source/runtime and isolated selectors partition
 the complete performance suite without dropping or duplicating a node within a
@@ -20,13 +21,16 @@ Run the source lane locally with:
 
 ```console
 make architecture-release-source-check
+make docs-build
 ```
 
-The source lane leaves enough process headroom for the two fresh-process L6
-evidence runs and their exact repeatability comparison after the functional
-selection completes.
+The documentation command is separate from the package release aggregate and
+requires the `docs` extra. The source lane leaves enough process headroom for the
+two fresh-process L6 evidence runs and their exact repeatability comparison after
+the functional selection completes.
 
-The complete release check also builds one wheel and one sdist, validates their
+The complete package release check runs the absolute wall-clock contracts through
+their isolated selector, then builds one wheel and one sdist, validates their
 metadata with Twine, compares packaged production files byte-for-byte with the
 committed source blobs, and installs each distribution outside the checkout for
 consumer verification:
@@ -35,9 +39,10 @@ consumer verification:
 make architecture-release-check
 ```
 
-`make release-check` is the maintained alias for the complete check. Network
-acquisition and all six operating-system/Python combinations remain required in
-hosted CI even when a local environment cannot acquire dependencies.
+`make release-check` is the maintained alias for this complete package check.
+Strict documentation validation remains a separate command. Network acquisition
+and all six operating-system/Python combinations remain required in hosted CI
+even when a local environment cannot acquire dependencies.
 
 The exact batch-correction provenance-byte regression has a separate
 authoritative hosted lane. Its existing test predicate requires Python

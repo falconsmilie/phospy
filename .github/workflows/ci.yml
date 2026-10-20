@@ -656,6 +656,9 @@ jobs:
         run: |
           set -euo pipefail
           make architecture-release-source-check 2>&1 | tee "build/reports/architecture-release-source-${{ runner.os }}-py${{ matrix.python-version }}.log"
+      - name: Run strict documentation build
+        shell: bash
+        run: make docs-build
       - name: Record L6 prediction fresh-process evidence 1
         shell: bash
         env:

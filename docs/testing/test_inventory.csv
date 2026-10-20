@@ -112,7 +112,7 @@ tests/release/test_differential_adverse_design_contracts.py,release,371,6,true,f
 tests/release/test_distribution_git_blob_verifier.py,release,86,7,false,false,,,,,,
 tests/release/test_enrichment_regression.py,release,74,2,true,false,,,,,,
 tests/release/test_evidence_resolution_regression_fixtures.py,release,155,5,true,false,,,,,,
-tests/release/test_installed_distribution_verifier.py,release,943,18,true,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
+tests/release/test_installed_distribution_verifier.py,release,954,19,true,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/release/test_kinase_policy_documentation.py,release,27,1,true,false,,,,,,
 tests/release/test_kinase_sparse_support_regression_fixtures.py,release,319,5,true,false,,,,,,
 tests/release/test_manifest_fixture_byte_reproducibility.py,release,399,7,true,false,,,,,,
@@ -120,7 +120,7 @@ tests/release/test_reference_bundle_distribution.py,release,402,12,true,true,,,,
 tests/release/test_reference_bundle_index.py,release,146,3,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,1185,44,true,true,,,,,,
 tests/release/test_release_dependency_artifact_policy.py,release,429,14,true,false,,,,,,
-tests/release/test_release_gate_policy.py,release,2625,41,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
+tests/release/test_release_gate_policy.py,release,2619,41,true,true,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
 tests/release/test_release_selector_coverage.py,release,19,1,true,false,,,,,,
 tests/release/test_scientific_claims_audit.py,release,216,7,true,false,,,,,,
 tests/release/test_scientific_validation_fixtures.py,release,677,10,true,true,,,,,,

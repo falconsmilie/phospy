@@ -38,22 +38,7 @@ ALLOWED_RELEASE_RELATED_MAKE_COMMANDS = frozenset(
         "make fixtures-large-differential-limma-trend",
     }
 )
-RELEASE_CHECK_DEPENDENCIES = (
-    "repository-hygiene-check",
-    "lint",
-    "type-check",
-    "architecture-inventory-check",
-    "test-unit",
-    "test-contract",
-    "test-parity",
-    "test-performance",
-    "validate-reference-bundles",
-    "test-release-gates",
-    "docs-build",
-    "build",
-    "verify-distribution-git-blobs",
-    "verify-installed-distributions",
-)
+RELEASE_CHECK_DEPENDENCIES = ("architecture-release-check",)
 ABSOLUTE_WALL_CLOCK_PERFORMANCE_BASE_NODEIDS = frozenset(
     {
         "tests/performance/test_dataset_validation_performance.py::test_medium_dataset_construction_completes_under_generous_threshold",
@@ -1840,7 +1825,13 @@ def test_make_release_check_covers_declared_blocking_marker_policy() -> None:
         "test-performance-source-runtime",
         "validate-reference-bundles",
         "test-release-gates",
-        "docs-build",
+    )
+    assert _make_target_dependencies("architecture-release-check") == (
+        "architecture-release-source-check",
+        "test-performance-isolated",
+        "build",
+        "verify-distribution-git-blobs",
+        "verify-installed-distributions",
     )
     release_gates = _make_target_body("test-release-gates")
     assert '$(MKDIR_P) "$(PYTEST_REPORT_DIR)"' in release_gates
@@ -2500,7 +2491,10 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     assert "public-consumer-contracts-py${{ matrix.python-version }}" in contract
     assert re.search(r"(?m)^  documentation:", workflow) is None
     assert 'pip install -e ".[docs]"' not in workflow
-    assert "make docs-build" not in workflow
+    assert "make docs-build" in architecture_source
+    assert 'python -m pip install -c constraints/ci.txt -e ".[dev,test,docs]"' in (
+        architecture_source
+    )
     assert "timeout-minutes: 90" in performance
     assert "runs-on: ${{ matrix.os }}" in performance
     assert "os: [ubuntu-latest, windows-latest, macos-15-intel]" in performance

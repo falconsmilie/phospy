@@ -46,6 +46,16 @@ make release-check
 If `make release-check` fails with import errors for optional engines, install
 the optional extras above and rerun.
 
+Validate the documentation separately with the constrained docs extra:
+
+```bash
+pip install -c constraints/ci.txt -e ".[docs]"
+make docs-build
+```
+
+The standalone strict documentation build remains required for release review,
+but it is not a dependency of the package release aggregate or publish workflow.
+
 ## Common Checks
 
 ```bash
@@ -67,8 +77,12 @@ Run performance checks when preprocessing, scoring, prediction, or signalome hot
 paths change:
 
 ```bash
-pytest tests/performance -m "performance or release_gate"
+make test-performance-source-runtime
+make test-performance-isolated
 ```
+
+The second command runs absolute wall-clock contracts in their own fresh pytest
+process after the non-wall-clock selection has completed.
 
 Run the optional local release-scale benchmark only when you need same-machine
 scale profiling:
@@ -98,8 +112,9 @@ Default `pytest` or `pytest -m "not parity"` is a fast local development check,
 not sufficient for publishing. Ordinary CI/build success provides normal
 development confidence: it shows the source-tree checks and packaging checks
 selected by CI are healthy for that commit. Final release verification is
-different. `make release-check` is the authoritative aggregate command, and it
-performs release-owned exact-source and exact-artefact verification by
+different. `make release-check` is the authoritative aggregate command and the
+maintained alias for `make architecture-release-check`. It performs
+release-owned exact-source and exact-artefact verification by
 validating staged reference-bundle bytes from a Git-backed checkout, building
 fresh wheel and sdist artefacts, checking packaged reference manifests and
 hashes, and executing installed wheel/sdist probes outside the checkout.
@@ -132,17 +147,18 @@ Release-blocking coverage in `make release-check` is:
 | Default non-parity suite | `pytest -m "not parity"` |
 | External-consumer public API contract | `pytest -o addopts= tests/contract` |
 | Threshold-bearing parity | `pytest tests/parity -m "parity and not parity_diagnostic" -s` |
-| Performance release contracts | `pytest tests/performance -m "performance or release_gate"` |
+| Non-wall-clock performance release contracts | `make test-performance-source-runtime` |
+| Isolated absolute wall-clock contracts | `make test-performance-isolated` |
 | Checked-in reference bundles | `python scripts/validate_reference_bundle_index.py --repo-root .` |
 | Release/golden/reproducibility gates | `pytest -o addopts= tests/release tests/golden -m "release_gate or golden or reproducibility"` |
 | Distribution build and packaged-reference checks | `make build` |
 | Installed wheel/sdist verification | `make verify-installed-distributions` |
 
-The optional `docs-build` and `benchmark-release-scale` targets are deliberately
-absent from this table. `docs-build` remains the explicit local documentation
-maintenance command and is not part of wheel/sdist builds, installed
-distribution verification, or `make release-check`. Benchmark runtime and memory
-observations are local benchmark data, not release-blocking evidence.
+The separate `docs-build` and optional `benchmark-release-scale` targets are
+deliberately absent from this table. `docs-build` remains the explicit strict
+documentation maintenance command and is not part of wheel/sdist builds,
+installed distribution verification, or `make release-check`. Benchmark runtime
+and memory observations are local benchmark data, not release-blocking evidence.
 
 `parity_diagnostic` checks are intentionally excluded from the blocking parity
 target unless a maintainer deliberately promotes them into the release selector

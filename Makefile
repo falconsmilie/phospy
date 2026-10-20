@@ -79,7 +79,7 @@ help:
 	@printf '%s\n' '  make verify-distribution-git-blobs Compare packaged production files with committed Git blobs'
 	@printf '%s\n' '  make repository-hygiene-check       Reject tracked migration archives and generated artifacts'
 	@printf '%s\n' '  make architecture-inventory-check   Verify the generated architecture inventory'
-	@printf '%s\n' '  make architecture-release-source-check Run all source, architecture, scientific, and documentation gates'
+	@printf '%s\n' '  make architecture-release-source-check Run source, architecture, and scientific gates'
 	@printf '%s\n' '  make architecture-release-check     Run source gates plus distribution and installed-consumer checks'
 	@printf '%s\n' '  make release-check                 Run maintainer release check'
 	@printf '%s\n' '  make test                          Run unit, contract, and parity tests'
@@ -169,7 +169,7 @@ validate-reference-bundles: check-tools
 docs-build: check-tools
 	$(MKDOCS) build --strict
 
-release-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance validate-reference-bundles test-release-gates docs-build build verify-distribution-git-blobs verify-installed-distributions
+release-check: architecture-release-check
 
 repository-hygiene-check: check-tools
 	$(PYTHON) scripts/check_repository_hygiene.py --repo-root .
@@ -177,9 +177,9 @@ repository-hygiene-check: check-tools
 architecture-inventory-check: check-tools
 	$(PYTHON) tools/architecture/generate_architecture_inventory.py --repo-root . --check
 
-architecture-release-source-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance-source-runtime validate-reference-bundles test-release-gates docs-build
+architecture-release-source-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance-source-runtime validate-reference-bundles test-release-gates
 
-architecture-release-check: architecture-release-source-check build verify-distribution-git-blobs verify-installed-distributions
+architecture-release-check: architecture-release-source-check test-performance-isolated build verify-distribution-git-blobs verify-installed-distributions
 
 benchmark-release-scale: check-tools
 	$(PYTHON) benchmarks/measure_release_scale_builder_differential.py
