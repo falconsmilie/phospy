@@ -6,9 +6,6 @@ All notable changes to this project are documented here.
 
 ## [1.8.0] - 2026-10-21
 
-This date records release preparation and must be reconfirmed on the day the
-release is published.
-
 ### Architecture
 
 - Reorganised implementation ownership around the Datasets, Preprocessing,

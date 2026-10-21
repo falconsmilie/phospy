@@ -4,11 +4,6 @@
 
 Publication date: 2026-10-21.
 
-Reconfirm this date on the publication day if the release is published later.
-These notes prepare Version 1.8.0 for release; they do not indicate that the
-package or tag has already been published. They describe changes since Version
-1.7.6.
-
 ## Release Overview
 
 PhosPy 1.8.0 completes a domain-first package reorganisation and makes a clean
