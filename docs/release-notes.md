@@ -2,7 +2,7 @@
 
 ## Version 1.8.0
 
-Provisional release date: 2026-10-20.
+Publication date: 2026-10-21.
 
 Reconfirm this date on the publication day if the release is published later.
 These notes prepare Version 1.8.0 for release; they do not indicate that the
