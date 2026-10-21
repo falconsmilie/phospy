@@ -38,13 +38,13 @@ entry points.
 
 ### `phospy.api`
 
-Use `phospy.api` for ordinary requests, configurations, results, references,
-enums, errors, and workflow classes. This is the stable public API during beta.
+`phospy.api` is the stable user-facing route during beta for ordinary requests,
+configurations, results, references, enums, errors, and workflow classes.
 
 ### `phospy.advanced`
 
-Use `phospy.advanced` for documented specialist policies, diagnostics,
-reference helpers, and publishers. This route is supported, but expected to
+`phospy.advanced` is a supported advanced route for documented specialist
+policies, diagnostics, reference helpers, and publishers. It is expected to
 evolve more readily than `phospy.api`.
 
 Internal modules are unsupported import targets for external callers.
