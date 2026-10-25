@@ -28,6 +28,10 @@ distinguishes two owner-graph views:
 An accepted classification is an auditable dependency and is not reported as
 an unauthorised edge. The classifications do not create broader owner or
 package permissions, and temporary architecture exceptions are not supported.
+The current non-policy
+[dataset path ingestion ownership assessment](adr/assessment_arch_002b_dataset_path_ingestion_ownership.md)
+recommends retaining the exact builder-to-reader classification; it records the
+responsibility and behaviour evidence without authorising a migration.
 
 The analyser is static. It includes imports below `TYPE_CHECKING` and function
 bodies, plus literal `importlib.import_module` and `__import__` calls. It cannot
