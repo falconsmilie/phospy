@@ -18,13 +18,16 @@ from logical_ownership_policy import (
     PERMITTED_LOGICAL_OWNER_EDGES,
     PREPARATION_RECORD_ALLOWED_SYMBOLS,
     REVIEWED_MIXED_MODULES,
+    PermanentCondensationClassification,
     classify_imports,
     is_allowed_import,
     load_module_owners,
+    load_permanent_condensation_classifications,
     logical_owner_edges,
     logical_owner_graph_problems,
     mixed_module_declaration_problems,
     module_inventory_problems,
+    owner_graph_views,
 )
 
 import phospy
@@ -38,6 +41,7 @@ PACKAGE_ROOT = SRC_ROOT / "phospy"
 POLICY_ROOT = PROJECT_ROOT / "architecture"
 OWNER_MAP = POLICY_ROOT / "module-owners.csv"
 API_BASELINE = POLICY_ROOT / "public-api-baseline.json"
+PERMANENT_CLASSIFICATIONS = POLICY_ROOT / "permanent-condensation-classifications.json"
 
 
 def test_every_live_python_module_has_exactly_one_reviewed_owner() -> None:
@@ -144,6 +148,90 @@ def test_logical_owner_cycle_fixture_is_rejected_within_one_physical_package() -
 
     assert logical_owner_graph_problems(fixture_edges) == [
         "logical-owner dependency cycle: datasets, preprocessing"
+    ]
+
+
+def test_live_owner_graph_reports_complete_and_policy_filtered_views() -> None:
+    graph = _live_graph()
+    entries = load_module_owners(OWNER_MAP)
+    views = owner_graph_views(
+        graph.module_edges,
+        owners_by_module={entry.module: entry.owner for entry in entries},
+        classifications=load_permanent_condensation_classifications(
+            PERMANENT_CLASSIFICATIONS
+        ),
+    )
+
+    assert ("datasets", "io") in views.complete.edges
+    assert ("datasets", "validation") in views.complete.edges
+    assert (
+        "datasets",
+        "io",
+        "kinase",
+        "signalome",
+    ) in views.complete.cyclic_components
+    assert ("datasets", "io") not in views.policy_filtered.edges
+    assert ("datasets", "validation") not in views.policy_filtered.edges
+    assert views.policy_filtered.cyclic_components == ()
+    assert tuple(
+        item.classification.classification_id for item in views.excluded_imports
+    ) == (
+        "dataset-builder-path-reader",
+        "dataset-input-source-validation",
+        "dataset-request-source-validation",
+    )
+    assert all(item.classification.rationale.strip() for item in views.excluded_imports)
+
+
+def test_classified_cycle_is_visible_only_in_complete_owner_graph() -> None:
+    module_edges = {
+        "phospy.datasets.fixture": frozenset({"phospy.io.fixture"}),
+        "phospy.io.fixture": frozenset({"phospy.datasets.fixture"}),
+    }
+    classification = PermanentCondensationClassification(
+        classification_id="synthetic-dataset-io-edge",
+        source_path="src/phospy/datasets/fixture.py",
+        source_module="phospy.datasets.fixture",
+        target_module="phospy.io.fixture",
+        symbol="FixtureReader",
+        rationale="Synthetic accepted classification for regression coverage.",
+    )
+    views = owner_graph_views(
+        module_edges,
+        owners_by_module={
+            "phospy.datasets.fixture": "datasets",
+            "phospy.io.fixture": "io",
+        },
+        classifications=(classification,),
+    )
+
+    assert views.complete.edges == {
+        ("datasets", "io"),
+        ("io", "datasets"),
+    }
+    assert views.complete.cyclic_components == (("datasets", "io"),)
+    assert views.policy_filtered.edges == {("io", "datasets")}
+    assert views.policy_filtered.cyclic_components == ()
+    assert views.excluded_imports[0].classification == classification
+
+
+def test_unclassified_cycle_remains_a_policy_failure() -> None:
+    module_edges = {
+        "phospy.datasets.fixture": frozenset({"phospy.io.fixture"}),
+        "phospy.io.fixture": frozenset({"phospy.datasets.fixture"}),
+    }
+    views = owner_graph_views(
+        module_edges,
+        owners_by_module={
+            "phospy.datasets.fixture": "datasets",
+            "phospy.io.fixture": "io",
+        },
+        classifications=(),
+    )
+
+    assert views.policy_filtered.cyclic_components == (("datasets", "io"),)
+    assert logical_owner_graph_problems(views.policy_filtered.edges) == [
+        "logical-owner dependency cycle: datasets, io"
     ]
 
 

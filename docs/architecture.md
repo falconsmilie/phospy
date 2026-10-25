@@ -10,11 +10,30 @@ preparation records, while `run_lineage` composes provenance across capabilities
 
 Dependencies point from capabilities toward shared foundations and published
 contracts. The `io` root is an inward adapter and can depend only on reviewed
-contract, model, provenance, and serialization paths. The exact observed owner
-graph is acyclic and is checked against an explicit allow-list. Three narrowly
-scoped permanent condensation edges are recorded in
-`architecture/permanent-condensation-classifications.json`.
-Temporary architecture exceptions are not supported.
+contract, model, provenance, and serialization paths. Architecture reporting
+distinguishes two owner-graph views:
+
+- The **complete statically observed owner graph (before classifications)**
+  includes every owner edge found by the maintained import analyser. It is
+  checked against an explicit exact-rule table. The current graph contains the
+  non-trivial strongly connected component `datasets`, `io`, `kinase`, and
+  `signalome`; in particular, `datasets -> io` is the accepted builder-to-path
+  reader dependency and `io -> datasets` covers reconstruction/model use.
+- The **policy-filtered owner graph used by the DAG gate** removes only the
+  three exact imports recorded in
+  `architecture/permanent-condensation-classifications.json` before owner
+  condensation. The current policy-filtered graph is acyclic. Each excluded
+  import remains reported with its classification identifier and rationale.
+
+An accepted classification is an auditable dependency and is not reported as
+an unauthorised edge. The classifications do not create broader owner or
+package permissions, and temporary architecture exceptions are not supported.
+
+The analyser is static. It includes imports below `TYPE_CHECKING` and function
+bodies, plus literal `importlib.import_module` and `__import__` calls. It cannot
+resolve computed module names, assignment/re-export bindings, plugin discovery,
+import hooks, or other runtime-generated imports. The separately enforced eager
+module graph covers imports reachable during module and class-body execution.
 
 The supported public surfaces are the `phospy`, `phospy.api`, and
 `phospy.advanced` facades. Public exports preserve the exact object identities of

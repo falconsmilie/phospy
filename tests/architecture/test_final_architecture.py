@@ -18,7 +18,12 @@ from final_architecture_policy import (
     tracked_source_inventory_problems,
 )
 from import_graph_support import build_import_graph
-from logical_ownership_policy import load_module_owners, logical_owner_edges
+from logical_ownership_policy import (
+    OwnerGraphViews,
+    load_module_owners,
+    load_permanent_condensation_classifications,
+    owner_graph_views,
+)
 
 from tools.architecture.generate_architecture_inventory import render_inventory
 
@@ -43,23 +48,34 @@ def _git_paths(pathspec: str) -> tuple[str, ...]:
     return tuple(item.decode("utf-8") for item in result.stdout.split(b"\0") if item)
 
 
-def _live_owner_edges() -> frozenset[tuple[str, str]]:
+def _live_owner_graph_views() -> OwnerGraphViews:
     entries = load_module_owners(OWNER_MAP)
     graph = build_import_graph(package_root=PACKAGE_ROOT, src_root=SRC_ROOT)
-    return frozenset(
-        logical_owner_edges(
-            graph.module_edges,
-            owners_by_module={entry.module: entry.owner for entry in entries},
-        )
+    return owner_graph_views(
+        graph.module_edges,
+        owners_by_module={entry.module: entry.owner for entry in entries},
+        classifications=load_permanent_condensation_classifications(
+            PERMANENT_CLASSIFICATIONS
+        ),
     )
 
 
 def test_complete_observed_owner_graph_matches_exact_adr_0053_rules() -> None:
-    assert owner_edge_policy_problems(observed_edges=_live_owner_edges()) == []
+    views = _live_owner_graph_views()
+
+    assert (
+        owner_edge_policy_problems(
+            observed_edges=views.complete.edges,
+            policy_filtered_edges=views.policy_filtered.edges,
+        )
+        == []
+    )
 
 
 def test_owner_edge_verifier_rejects_added_missing_and_broadened_edges() -> None:
-    observed = _live_owner_edges()
+    views = _live_owner_graph_views()
+    observed = views.complete.edges
+    policy_filtered = views.policy_filtered.edges
     added = set(observed) | {("activities", "kinase")}
     missing = set(observed) - {("activities", "frames")}
     broadened = dict(EXACT_OWNER_EDGE_RULES)
@@ -69,24 +85,33 @@ def test_owner_edge_verifier_rejects_added_missing_and_broadened_edges() -> None
 
     assert any(
         "has no exact rule: activities -> kinase" in problem
-        for problem in owner_edge_policy_problems(observed_edges=added)
+        for problem in owner_edge_policy_problems(
+            observed_edges=added,
+            policy_filtered_edges=set(policy_filtered) | {("activities", "kinase")},
+        )
     )
     assert any(
         "unused or missing exact owner-edge permission: activities -> frames" in problem
-        for problem in owner_edge_policy_problems(observed_edges=missing)
+        for problem in owner_edge_policy_problems(
+            observed_edges=missing,
+            policy_filtered_edges=set(policy_filtered) - {("activities", "frames")},
+        )
     )
     assert any(
         "unused or missing exact owner-edge permission: activities -> statistics"
         in problem
         for problem in owner_edge_policy_problems(
             observed_edges=observed,
+            policy_filtered_edges=policy_filtered,
             rules=broadened,
         )
     )
 
 
 def test_owner_edge_verifier_rejects_reversed_cyclic_and_misclassified_edges() -> None:
-    observed = _live_owner_edges()
+    views = _live_owner_graph_views()
+    observed = views.complete.edges
+    policy_filtered = views.policy_filtered.edges
     reversed_edges = (set(observed) - {("frames", "errors")}) | {("errors", "frames")}
     cyclic_edges = set(observed) | {("errors", "frames")}
     misclassified = dict(EXACT_OWNER_EDGE_RULES)
@@ -96,16 +121,24 @@ def test_owner_edge_verifier_rejects_reversed_cyclic_and_misclassified_edges() -
 
     assert any(
         "has no exact rule: errors -> frames" in problem
-        for problem in owner_edge_policy_problems(observed_edges=reversed_edges)
+        for problem in owner_edge_policy_problems(
+            observed_edges=reversed_edges,
+            policy_filtered_edges=(set(policy_filtered) - {("frames", "errors")})
+            | {("errors", "frames")},
+        )
     )
     assert any(
         "owner dependency cycle" in problem
-        for problem in owner_edge_policy_problems(observed_edges=cyclic_edges)
+        for problem in owner_edge_policy_problems(
+            observed_edges=cyclic_edges,
+            policy_filtered_edges=set(policy_filtered) | {("errors", "frames")},
+        )
     )
     assert any(
         "incorrect owner-edge classification: activities -> errors" in problem
         for problem in owner_edge_policy_problems(
             observed_edges=observed,
+            policy_filtered_edges=policy_filtered,
             rules=misclassified,
         )
     )
@@ -225,3 +258,10 @@ def test_final_architecture_inventory_is_complete_and_current() -> None:
     assert "Tracked production files: **648**" in text
     assert "Tracked Python modules: **642**" in text
     assert "Owner-map entries: **642**" in text
+    assert "Complete statically observed owner graph (before classifications)" in text
+    assert "`datasets, io, kinase, signalome`" in text
+    assert "Policy-filtered owner graph used by the DAG gate" in text
+    assert "No multi-owner strongly connected components; the view is acyclic." in text
+    assert "`dataset-builder-path-reader`" in text
+    assert "`dataset-input-source-validation`" in text
+    assert "`dataset-request-source-validation`" in text

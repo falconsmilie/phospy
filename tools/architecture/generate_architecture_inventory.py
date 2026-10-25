@@ -20,6 +20,8 @@ def render_inventory(repo_root: Path) -> str:
     architecture_tests = root / "tests" / "architecture"
     sys.path.insert(0, str(architecture_tests))
     try:
+        graph_support = importlib.import_module("import_graph_support")
+        ownership_policy = importlib.import_module("logical_ownership_policy")
         policy = importlib.import_module("final_architecture_policy")
     finally:
         sys.path.remove(str(architecture_tests))
@@ -32,6 +34,21 @@ def render_inventory(repo_root: Path) -> str:
     tracked = _git_paths(root, "src/phospy")
     python_paths = tuple(path for path in tracked if path.endswith(".py"))
     owners = _owner_rows(root)
+    owners_by_module = {row["module"]: row["owner"] for row in owners}
+    observed_graph = graph_support.build_import_graph(
+        package_root=root / "src/phospy",
+        src_root=root / "src",
+    )
+    permanent_classifications = (
+        ownership_policy.load_permanent_condensation_classifications(
+            root / "architecture/permanent-condensation-classifications.json"
+        )
+    )
+    owner_views = ownership_policy.owner_graph_views(
+        observed_graph.module_edges,
+        owners_by_module=owners_by_module,
+        classifications=permanent_classifications,
+    )
     classifications = json.loads(
         (root / "architecture/final-state-classifications.json").read_text(
             encoding="utf-8"
@@ -42,10 +59,9 @@ def render_inventory(repo_root: Path) -> str:
         "# Architecture inventory",
         "",
         "This generated inventory records the current production tree and its",
-        "The executable architecture tests regenerate and compare these facts",
-        "architecture authority. Maintained tests compare it against tracked source,",
-        "the one-row-per-module owner map, the complete",
-        "observed import graph, and the permanent classification registry.",
+        "architecture authority. Executable architecture tests regenerate and compare",
+        "these facts against tracked source, the one-row-per-module owner map, the",
+        "complete observed import graph, and the permanent classification registry.",
         "",
         "## Counts and architecture assertions",
         "",
@@ -55,7 +71,7 @@ def render_inventory(repo_root: Path) -> str:
         "- Temporary architecture exceptions: **0**.",
         "- Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.",
         "- Unclassified facade forwarding, old-path literals, compatibility behavior, and lazy loading: **0**.",
-        "- The complete eager module graph and the owner condensation graph are required to be acyclic by maintained tests.",
+        "- The complete eager module graph and policy-filtered owner graph are required to be acyclic by maintained tests.",
         "",
         "## Top-level roots",
         "",
@@ -70,10 +86,33 @@ def render_inventory(repo_root: Path) -> str:
     lines.extend(
         [
             "",
-            "## Observed owner edges and exact authorities",
+            "## Complete statically observed owner graph (before classifications)",
             "",
-            "Every row is both observed and explicitly allowed. A maintained exact-set",
-            "comparison rejects added edges and unused broad permissions.",
+            f"This view contains **{len(owner_views.complete.edges)}** owner edges before",
+            "accepted condensation classifications are applied. Every edge remains",
+            "subject to the maintained exact-rule comparison; a classified edge is an",
+            "auditable accepted dependency, not an unauthorised import.",
+            "",
+            "### Strongly connected components",
+            "",
+        ]
+    )
+    if owner_views.complete.cyclic_components:
+        lines.extend(
+            f"- `{', '.join(component)}`"
+            for component in owner_views.complete.cyclic_components
+        )
+    else:
+        lines.append("- No multi-owner strongly connected components.")
+    singleton_count = sum(
+        len(component) == 1
+        for component in owner_views.complete.strongly_connected_components
+    )
+    lines.extend(
+        [
+            f"- Single-owner components: **{singleton_count}**.",
+            "",
+            "### Complete observed edges",
             "",
             "| Source | Target | Classification | Authority |",
             "| --- | --- | --- | --- |",
@@ -81,7 +120,86 @@ def render_inventory(repo_root: Path) -> str:
     )
     lines.extend(
         f"| `{source}` | `{target}` | `{rule.kind}` | {rule.authority} |"
-        for (source, target), rule in sorted(exact_owner_edge_rules.items())
+        for source, target in sorted(owner_views.complete.edges)
+        for rule in (exact_owner_edge_rules[source, target],)
+    )
+
+    lines.extend(
+        [
+            "",
+            "## Excluded imports from accepted classifications",
+            "",
+            "These exact module imports remain visible in the complete view and are",
+            "removed only before policy condensation and the DAG gate.",
+            "",
+            "| Classification ID | Source path | Source owner | Target owner | Exact import | Rationale |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    lines.extend(
+        f"| `{item.classification.classification_id}` | "
+        f"`{item.classification.source_path}` | `{item.source_owner}` | "
+        f"`{item.target_owner}` | `{item.classification.source_module} -> "
+        f"{item.classification.target_module}.{item.classification.symbol}` | "
+        f"{_escape(item.classification.rationale)} |"
+        for item in owner_views.excluded_imports
+    )
+
+    lines.extend(
+        [
+            "",
+            "## Policy-filtered owner graph used by the DAG gate",
+            "",
+            f"This view contains **{len(owner_views.policy_filtered.edges)}** owner edges",
+            "after the exact accepted imports above are removed. It is the graph checked",
+            "for owner-level acyclicity.",
+            "",
+            "### Strongly connected components",
+            "",
+        ]
+    )
+    if owner_views.policy_filtered.cyclic_components:
+        lines.extend(
+            f"- `{', '.join(component)}`"
+            for component in owner_views.policy_filtered.cyclic_components
+        )
+    else:
+        lines.append(
+            "- No multi-owner strongly connected components; the view is acyclic."
+        )
+    filtered_singleton_count = sum(
+        len(component) == 1
+        for component in owner_views.policy_filtered.strongly_connected_components
+    )
+    lines.extend(
+        [
+            f"- Single-owner components: **{filtered_singleton_count}**.",
+            "",
+            "### Policy-filtered edges",
+            "",
+            "| Source | Target | Classification | Authority |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    lines.extend(
+        f"| `{source}` | `{target}` | `{rule.kind}` | {rule.authority} |"
+        for source, target in sorted(owner_views.policy_filtered.edges)
+        for rule in (exact_owner_edge_rules[source, target],)
+    )
+
+    lines.extend(
+        [
+            "",
+            "## Static-analysis scope",
+            "",
+            "The analyser includes absolute and relative imports, imports nested under",
+            "`TYPE_CHECKING` or function bodies, and literal `importlib.import_module` or",
+            "`__import__` calls. It does not resolve computed module names, bindings created",
+            "through assignment or re-export, plugin discovery, import hooks, or other",
+            "runtime-generated imports. The complete owner view therefore reports static",
+            "dependency potential; the separately enforced eager-module graph describes",
+            "imports reachable while modules and class bodies execute.",
+        ]
     )
 
     lines.extend(

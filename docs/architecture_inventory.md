@@ -1,10 +1,9 @@
 # Architecture inventory
 
 This generated inventory records the current production tree and its
-The executable architecture tests regenerate and compare these facts
-architecture authority. Maintained tests compare it against tracked source,
-the one-row-per-module owner map, the complete
-observed import graph, and the permanent classification registry.
+architecture authority. Executable architecture tests regenerate and compare
+these facts against tracked source, the one-row-per-module owner map, the
+complete observed import graph, and the permanent classification registry.
 
 ## Counts and architecture assertions
 
@@ -14,7 +13,7 @@ observed import graph, and the permanent classification registry.
 - Temporary architecture exceptions: **0**.
 - Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.
 - Unclassified facade forwarding, old-path literals, compatibility behavior, and lazy loading: **0**.
-- The complete eager module graph and the owner condensation graph are required to be acyclic by maintained tests.
+- The complete eager module graph and policy-filtered owner graph are required to be acyclic by maintained tests.
 
 ## Top-level roots
 
@@ -46,10 +45,19 @@ observed import graph, and the permanent classification registry.
 | `taxonomy` | `shared_scientific_foundation` |
 | `validation` | `shared_technical_foundation` |
 
-## Observed owner edges and exact authorities
+## Complete statically observed owner graph (before classifications)
 
-Every row is both observed and explicitly allowed. A maintained exact-set
-comparison rejects added edges and unused broad permissions.
+This view contains **132** owner edges before
+accepted condensation classifications are applied. Every edge remains
+subject to the maintained exact-rule comparison; a classified edge is an
+auditable accepted dependency, not an unauthorised import.
+
+### Strongly connected components
+
+- `datasets, io, kinase, signalome`
+- Single-owner components: **18**.
+
+### Complete observed edges
 
 | Source | Target | Classification | Authority |
 | --- | --- | --- | --- |
@@ -59,7 +67,7 @@ comparison rejects added edges and unused broad permissions.
 | `datasets` | `errors` | `capability` | ADR-0053 datasets direction |
 | `datasets` | `evidence` | `capability` | ADR-0053 datasets direction |
 | `datasets` | `frames` | `capability` | ADR-0053 datasets direction |
-| `datasets` | `io` | `permanent_classification` | dataset builder path-reader authority |
+| `datasets` | `io` | `permanent_classification` | ADR-0053 D05B-1 dataset builder path-reader authority |
 | `datasets` | `phosphosites` | `capability` | ADR-0053 datasets direction |
 | `datasets` | `preparation_records` | `capability` | ADR-0053 datasets direction |
 | `datasets` | `preprocessing` | `capability` | ADR-0053 datasets direction |
@@ -68,7 +76,7 @@ comparison rejects added edges and unused broad permissions.
 | `datasets` | `references` | `capability` | ADR-0053 datasets direction |
 | `datasets` | `run_lineage` | `capability` | ADR-0053 datasets direction |
 | `datasets` | `taxonomy` | `capability` | ADR-0053 datasets direction |
-| `datasets` | `validation` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `validation` | `permanent_classification` | ADR-0053 D05B-2 dataset input-source validation authority |
 | `differential` | `datasets` | `capability` | ADR-0053 differential direction |
 | `differential` | `errors` | `capability` | ADR-0053 differential direction |
 | `differential` | `evidence` | `capability` | ADR-0053 differential direction |
@@ -185,6 +193,173 @@ comparison rejects added edges and unused broad permissions.
 | `signalome` | `validation` | `capability` | ADR-0053 signalome direction |
 | `validation` | `errors` | `shared` | ADR-0053 validation row |
 | `validation` | `frames` | `shared` | ADR-0053 validation row |
+
+## Excluded imports from accepted classifications
+
+These exact module imports remain visible in the complete view and are
+removed only before policy condensation and the DAG gate.
+
+| Classification ID | Source path | Source owner | Target owner | Exact import | Rationale |
+| --- | --- | --- | --- | --- | --- |
+| `dataset-builder-path-reader` | `src/phospy/datasets/builder.py` | `datasets` | `io` | `phospy.datasets.builder -> phospy.io.readers.dataset_inputs.DatasetPathTableReader` | ADR-0053 D05B-1 authorises this exact Dataset builder acquisition of the IO-owned path reader while IO retains filesystem ownership. |
+| `dataset-input-source-validation` | `src/phospy/datasets/construction/input_resolution.py` | `datasets` | `validation` | `phospy.datasets.construction.input_resolution -> phospy.validation.common.input_sources.validate_dataframe_or_path` | ADR-0053 D05B-2 authorises this exact Dataset input-resolution use of the shared DataFrame-or-path validation helper. |
+| `dataset-request-source-validation` | `src/phospy/datasets/validation/inputs.py` | `datasets` | `validation` | `phospy.datasets.validation.inputs -> phospy.validation.common.input_sources.validate_dataframe_or_path` | ADR-0053 D05B-2 authorises this exact Dataset request-validation use of the shared DataFrame-or-path validation helper. |
+
+## Policy-filtered owner graph used by the DAG gate
+
+This view contains **130** owner edges
+after the exact accepted imports above are removed. It is the graph checked
+for owner-level acyclicity.
+
+### Strongly connected components
+
+- No multi-owner strongly connected components; the view is acyclic.
+- Single-owner components: **22**.
+
+### Policy-filtered edges
+
+| Source | Target | Classification | Authority |
+| --- | --- | --- | --- |
+| `activities` | `errors` | `shared` | ACT-10 exact activities row |
+| `activities` | `frames` | `shared` | ACT-10 exact activities row |
+| `activities` | `quantitative` | `shared` | ACT-10 exact activities row |
+| `datasets` | `errors` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `evidence` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `frames` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `phosphosites` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `preparation_records` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `preprocessing` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `provenance` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `quantitative` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `references` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `run_lineage` | `capability` | ADR-0053 datasets direction |
+| `datasets` | `taxonomy` | `capability` | ADR-0053 datasets direction |
+| `differential` | `datasets` | `capability` | ADR-0053 differential direction |
+| `differential` | `errors` | `capability` | ADR-0053 differential direction |
+| `differential` | `evidence` | `capability` | ADR-0053 differential direction |
+| `differential` | `frames` | `capability` | ADR-0053 differential direction |
+| `differential` | `phosphosites` | `capability` | ADR-0053 differential direction |
+| `differential` | `policies` | `capability` | ADR-0053 differential direction |
+| `differential` | `preparation_records` | `capability` | ADR-0053 differential direction |
+| `differential` | `provenance` | `capability` | ADR-0053 differential direction |
+| `differential` | `quantitative` | `capability` | ADR-0053 differential direction |
+| `differential` | `references` | `capability` | ADR-0053 differential direction |
+| `differential` | `run_lineage` | `capability` | ADR-0053 differential direction |
+| `differential` | `statistics` | `capability` | ADR-0053 differential direction |
+| `differential` | `validation` | `capability` | ADR-0053 differential direction |
+| `enrichment` | `errors` | `capability` | ADR-0053 enrichment direction |
+| `enrichment` | `frames` | `capability` | ADR-0053 enrichment direction |
+| `enrichment` | `provenance` | `capability` | ADR-0053 enrichment direction |
+| `enrichment` | `quantitative` | `capability` | ADR-0053 enrichment direction |
+| `enrichment` | `run_lineage` | `capability` | ADR-0053 enrichment direction |
+| `enrichment` | `statistics` | `capability` | ADR-0053 enrichment direction |
+| `enrichment` | `validation` | `capability` | ADR-0053 enrichment direction |
+| `evidence` | `errors` | `shared` | ADR-0053 evidence row |
+| `evidence` | `frames` | `shared` | ADR-0053 evidence row |
+| `evidence` | `phosphosites` | `shared` | ADR-0053 evidence row |
+| `evidence` | `policies` | `shared` | ADR-0053 evidence row |
+| `evidence` | `quantitative` | `shared` | ADR-0053 evidence row |
+| `frames` | `errors` | `shared` | ADR-0053 frames row |
+| `io` | `activities` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `datasets` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `enrichment` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `errors` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `evidence` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `frames` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `kinase` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `phosphosites` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `preparation_records` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `preprocessing` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `provenance` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `quantitative` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `references` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `run_lineage` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `signalome` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `taxonomy` | `adapter` | ADR-0053 inward IO adapter |
+| `io` | `validation` | `adapter` | ADR-0053 inward IO adapter |
+| `kinase` | `activities` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `datasets` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `errors` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `evidence` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `frames` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `phosphosites` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `policies` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `provenance` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `quantitative` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `references` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `run_lineage` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `statistics` | `capability` | ADR-0053 kinase direction |
+| `kinase` | `taxonomy` | `capability` | ADR-0053 kinase direction |
+| `phosphosites` | `errors` | `shared` | ADR-0053 phosphosites row |
+| `phosphosites` | `frames` | `shared` | ADR-0053 phosphosites row |
+| `phosphosites` | `taxonomy` | `shared` | ADR-0053 phosphosites row |
+| `policies` | `errors` | `shared` | ADR-0053 policies row |
+| `preparation_records` | `errors` | `shared` | ADR-0053 preparation_records row |
+| `preparation_records` | `frames` | `shared` | ADR-0053 preparation_records row |
+| `preparation_records` | `policies` | `shared` | ADR-0053 preparation_records row |
+| `preparation_records` | `provenance` | `shared` | ADR-0053 preparation_records row |
+| `preprocessing` | `errors` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `evidence` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `frames` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `phosphosites` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `policies` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `preparation_records` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `provenance` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `quantitative` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `references` | `capability` | ADR-0053 preprocessing direction |
+| `preprocessing` | `taxonomy` | `capability` | ADR-0053 preprocessing direction |
+| `provenance` | `errors` | `shared` | ADR-0053 provenance row |
+| `public_facades` | `datasets` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `differential` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `enrichment` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `errors` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `evidence` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `io` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `kinase` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `preprocessing` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `provenance` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `quantitative` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `references` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `signalome` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `statistics` | `public_facade` | ADR-0054 aggregate facade |
+| `public_facades` | `taxonomy` | `public_facade` | ADR-0054 aggregate facade |
+| `quantitative` | `errors` | `shared` | ADR-0053 quantitative row |
+| `quantitative` | `provenance` | `shared` | ADR-0053 quantitative row |
+| `references` | `errors` | `shared` | ADR-0053 references row |
+| `references` | `frames` | `shared` | ADR-0053 references row |
+| `references` | `phosphosites` | `shared` | ADR-0053 references row |
+| `references` | `policies` | `shared` | ADR-0053 references row |
+| `references` | `provenance` | `shared` | ADR-0053 references row |
+| `references` | `taxonomy` | `shared` | ADR-0053 references row |
+| `run_lineage` | `errors` | `composition` | ADR-0053 run-lineage composition row |
+| `run_lineage` | `evidence` | `composition` | ADR-0053 run-lineage composition row |
+| `run_lineage` | `preprocessing` | `composition` | ADR-0053 run-lineage composition row |
+| `run_lineage` | `provenance` | `composition` | ADR-0053 run-lineage composition row |
+| `run_lineage` | `references` | `composition` | ADR-0053 run-lineage composition row |
+| `signalome` | `datasets` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `errors` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `evidence` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `frames` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `kinase` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `phosphosites` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `policies` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `provenance` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `quantitative` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `references` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `run_lineage` | `capability` | ADR-0053 signalome direction |
+| `signalome` | `validation` | `capability` | ADR-0053 signalome direction |
+| `validation` | `errors` | `shared` | ADR-0053 validation row |
+| `validation` | `frames` | `shared` | ADR-0053 validation row |
+
+## Static-analysis scope
+
+The analyser includes absolute and relative imports, imports nested under
+`TYPE_CHECKING` or function bodies, and literal `importlib.import_module` or
+`__import__` calls. It does not resolve computed module names, bindings created
+through assignment or re-export, plugin discovery, import hooks, or other
+runtime-generated imports. The complete owner view therefore reports static
+dependency potential; the separately enforced eager-module graph describes
+imports reachable while modules and class bodies execute.
 
 ## Public facades, adapters, and foundations
 

@@ -371,15 +371,22 @@ def test_governed_condensation_classifications_match_source() -> None:
             item["source_module"],
             item["target_module"],
             item["symbol"],
+            item["rationale"],
         )
         for item in policy["classifications"]
     )
 
     assert observed == _GOVERNED_PACKAGE_CONDENSATION_CLASSIFICATIONS
     for classification in observed:
-        _classification_id, source_path, source_module, target_module, symbol = (
-            classification
-        )
+        (
+            _classification_id,
+            source_path,
+            source_module,
+            target_module,
+            symbol,
+            rationale,
+        ) = classification
+        assert rationale.strip()
         source = (PROJECT_ROOT / source_path).read_text(encoding="utf-8")
         assert (
             _governed_import_form_problems(
@@ -674,6 +681,8 @@ _GOVERNED_PACKAGE_CONDENSATION_CLASSIFICATIONS = (
         "phospy.datasets.builder",
         "phospy.io.readers.dataset_inputs",
         "DatasetPathTableReader",
+        "ADR-0053 D05B-1 authorises this exact Dataset builder acquisition of "
+        "the IO-owned path reader while IO retains filesystem ownership.",
     ),
     (
         "dataset-input-source-validation",
@@ -681,6 +690,8 @@ _GOVERNED_PACKAGE_CONDENSATION_CLASSIFICATIONS = (
         "phospy.datasets.construction.input_resolution",
         "phospy.validation.common.input_sources",
         "validate_dataframe_or_path",
+        "ADR-0053 D05B-2 authorises this exact Dataset input-resolution use of "
+        "the shared DataFrame-or-path validation helper.",
     ),
     (
         "dataset-request-source-validation",
@@ -688,6 +699,8 @@ _GOVERNED_PACKAGE_CONDENSATION_CLASSIFICATIONS = (
         "phospy.datasets.validation.inputs",
         "phospy.validation.common.input_sources",
         "validate_dataframe_or_path",
+        "ADR-0053 D05B-2 authorises this exact Dataset request-validation use "
+        "of the shared DataFrame-or-path validation helper.",
     ),
 )
 
@@ -699,6 +712,7 @@ _ROLE_SCOPED_IMPORTS_REMOVED_BEFORE_PACKAGE_CONDENSATION = frozenset(
         source_module,
         target_module,
         _symbol,
+        _rationale,
     ) in _GOVERNED_PACKAGE_CONDENSATION_CLASSIFICATIONS
 )
 

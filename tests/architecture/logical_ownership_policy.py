@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -830,6 +831,52 @@ class ClassifiedImport:
     allowed: bool
 
 
+@dataclass(frozen=True, slots=True)
+class PermanentCondensationClassification:
+    """One exact import removed before policy condensation."""
+
+    classification_id: str
+    source_path: str
+    source_module: str
+    target_module: str
+    symbol: str
+    rationale: str
+
+
+@dataclass(frozen=True, slots=True)
+class ExcludedOwnerImport:
+    """An accepted classified import and the owners it connects."""
+
+    classification: PermanentCondensationClassification
+    source_owner: str
+    target_owner: str
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerGraphView:
+    """One deterministic logical-owner graph view."""
+
+    edges: frozenset[tuple[str, str]]
+    strongly_connected_components: tuple[tuple[str, ...], ...]
+
+    @property
+    def cyclic_components(self) -> tuple[tuple[str, ...], ...]:
+        return tuple(
+            component
+            for component in self.strongly_connected_components
+            if len(component) > 1
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerGraphViews:
+    """Complete and policy-filtered views of one observed import graph."""
+
+    complete: OwnerGraphView
+    policy_filtered: OwnerGraphView
+    excluded_imports: tuple[ExcludedOwnerImport, ...]
+
+
 def load_module_owners(path: Path) -> tuple[ModuleOwner, ...]:
     with path.open(encoding="utf-8", newline="") as handle:
         rows = csv.DictReader(handle)
@@ -842,6 +889,25 @@ def load_module_owners(path: Path) -> tuple[ModuleOwner, ...]:
             )
             for row in rows
         )
+
+
+def load_permanent_condensation_classifications(
+    path: Path,
+) -> tuple[PermanentCondensationClassification, ...]:
+    """Load exact accepted imports removed before policy condensation."""
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return tuple(
+        PermanentCondensationClassification(
+            classification_id=item["classification_id"],
+            source_path=item["source_path"],
+            source_module=item["source_module"],
+            target_module=item["target_module"],
+            symbol=item["symbol"],
+            rationale=item["rationale"],
+        )
+        for item in payload["classifications"]
+    )
 
 
 def mixed_module_declaration_problems(
@@ -965,23 +1031,79 @@ def logical_owner_edges(
     )
 
 
-def logical_owner_graph_problems(
+def owner_graph_views(
+    module_edges: Mapping[str, Iterable[str]],
+    *,
+    owners_by_module: Mapping[str, str],
+    classifications: Iterable[PermanentCondensationClassification],
+) -> OwnerGraphViews:
+    """Build complete and accepted-policy views from one observed module graph."""
+
+    accepted = tuple(sorted(classifications, key=lambda item: item.classification_id))
+    classified_edges = {(item.source_module, item.target_module) for item in accepted}
+    for item in accepted:
+        if item.source_module not in module_edges:
+            raise ValueError(
+                f"classified source module is not observed: {item.source_module}"
+            )
+        if item.target_module not in module_edges[item.source_module]:
+            raise ValueError(
+                "classified import edge is not observed: "
+                f"{item.source_module} -> {item.target_module}"
+            )
+
+    policy_module_edges = {
+        source: frozenset(
+            target for target in targets if (source, target) not in classified_edges
+        )
+        for source, targets in module_edges.items()
+    }
+    complete_edges = logical_owner_edges(
+        module_edges,
+        owners_by_module=owners_by_module,
+    )
+    policy_edges = logical_owner_edges(
+        policy_module_edges,
+        owners_by_module=owners_by_module,
+    )
+    owner_nodes = frozenset(owners_by_module.values())
+    excluded = tuple(
+        ExcludedOwnerImport(
+            classification=item,
+            source_owner=owners_by_module[item.source_module],
+            target_owner=owners_by_module[item.target_module],
+        )
+        for item in accepted
+    )
+    return OwnerGraphViews(
+        complete=OwnerGraphView(
+            edges=complete_edges,
+            strongly_connected_components=logical_owner_strongly_connected_components(
+                complete_edges,
+                owners=owner_nodes,
+            ),
+        ),
+        policy_filtered=OwnerGraphView(
+            edges=policy_edges,
+            strongly_connected_components=logical_owner_strongly_connected_components(
+                policy_edges,
+                owners=owner_nodes,
+            ),
+        ),
+        excluded_imports=excluded,
+    )
+
+
+def logical_owner_strongly_connected_components(
     owner_edges: Iterable[tuple[str, str]],
-) -> list[str]:
-    """Return schema and cycle problems in a proposed logical-owner graph."""
+    *,
+    owners: Iterable[str] = (),
+) -> tuple[tuple[str, ...], ...]:
+    """Return deterministic strongly connected components for owner edges."""
 
     edges = frozenset(owner_edges)
-    problems: list[str] = []
-    for source, target in sorted(edges):
-        if source not in OWNERS:
-            problems.append(f"unknown source owner in permitted edge: {source!r}")
-        if target not in OWNERS:
-            problems.append(f"unknown target owner in permitted edge: {target!r}")
-
-    adjacency: dict[str, set[str]] = {}
+    adjacency: dict[str, set[str]] = {owner: set() for owner in owners}
     for source, target in edges:
-        if source not in OWNERS or target not in OWNERS or source == target:
-            continue
         adjacency.setdefault(source, set()).add(target)
         adjacency.setdefault(target, set())
 
@@ -1021,10 +1143,32 @@ def logical_owner_graph_problems(
     for owner in sorted(adjacency):
         if owner not in indices:
             strong_connect(owner)
+    return tuple(sorted(components))
+
+
+def logical_owner_graph_problems(
+    owner_edges: Iterable[tuple[str, str]],
+) -> list[str]:
+    """Return schema and cycle problems in a proposed logical-owner graph."""
+
+    edges = frozenset(owner_edges)
+    problems: list[str] = []
+    for source, target in sorted(edges):
+        if source not in OWNERS:
+            problems.append(f"unknown source owner in permitted edge: {source!r}")
+        if target not in OWNERS:
+            problems.append(f"unknown target owner in permitted edge: {target!r}")
+
+    known_edges = frozenset(
+        (source, target)
+        for source, target in edges
+        if source in OWNERS and target in OWNERS and source != target
+    )
+    components = logical_owner_strongly_connected_components(known_edges)
 
     problems.extend(
         f"logical-owner dependency cycle: {', '.join(component)}"
-        for component in sorted(components)
+        for component in components
         if len(component) > 1
     )
     return problems

@@ -7,21 +7,24 @@
       "source_path": "src/phospy/datasets/builder.py",
       "source_module": "phospy.datasets.builder",
       "target_module": "phospy.io.readers.dataset_inputs",
-      "symbol": "DatasetPathTableReader"
+      "symbol": "DatasetPathTableReader",
+      "rationale": "ADR-0053 D05B-1 authorises this exact Dataset builder acquisition of the IO-owned path reader while IO retains filesystem ownership."
     },
     {
       "classification_id": "dataset-input-source-validation",
       "source_path": "src/phospy/datasets/construction/input_resolution.py",
       "source_module": "phospy.datasets.construction.input_resolution",
       "target_module": "phospy.validation.common.input_sources",
-      "symbol": "validate_dataframe_or_path"
+      "symbol": "validate_dataframe_or_path",
+      "rationale": "ADR-0053 D05B-2 authorises this exact Dataset input-resolution use of the shared DataFrame-or-path validation helper."
     },
     {
       "classification_id": "dataset-request-source-validation",
       "source_path": "src/phospy/datasets/validation/inputs.py",
       "source_module": "phospy.datasets.validation.inputs",
       "target_module": "phospy.validation.common.input_sources",
-      "symbol": "validate_dataframe_or_path"
+      "symbol": "validate_dataframe_or_path",
+      "rationale": "ADR-0053 D05B-2 authorises this exact Dataset request-validation use of the shared DataFrame-or-path validation helper."
     }
   ]
 }

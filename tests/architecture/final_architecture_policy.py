@@ -244,7 +244,13 @@ _SHARED_SOURCES = frozenset(
 def _edge_rule(source: str, target: str) -> OwnerEdgeRule:
     if (source, target) == ("datasets", "io"):
         return OwnerEdgeRule(
-            "permanent_classification", "dataset builder path-reader authority"
+            "permanent_classification",
+            "ADR-0053 D05B-1 dataset builder path-reader authority",
+        )
+    if (source, target) == ("datasets", "validation"):
+        return OwnerEdgeRule(
+            "permanent_classification",
+            "ADR-0053 D05B-2 dataset input-source validation authority",
         )
     if source == "public_facades":
         return OwnerEdgeRule("public_facade", "ADR-0054 aggregate facade")
@@ -274,9 +280,10 @@ EXACT_OWNER_EDGE_RULES: Mapping[tuple[str, str], OwnerEdgeRule] = {
 def owner_edge_policy_problems(
     *,
     observed_edges: Iterable[tuple[str, str]],
+    policy_filtered_edges: Iterable[tuple[str, str]],
     rules: Mapping[tuple[str, str], OwnerEdgeRule] = EXACT_OWNER_EDGE_RULES,
 ) -> list[str]:
-    """Compare the complete observed owner graph with the exact final policy."""
+    """Compare complete owner edges and check the policy-filtered DAG."""
 
     observed = frozenset(observed_edges)
     permitted = frozenset(rules)
@@ -304,12 +311,7 @@ def owner_edge_policy_problems(
             "activities outbound edges differ from ACT-10: "
             f"expected {sorted(expected_activities)!r}, got {sorted(activities_targets)!r}"
         )
-    condensation_edges = {
-        edge
-        for edge in observed
-        if rules.get(edge, OwnerEdgeRule("", "")).kind != "permanent_classification"
-    }
-    problems.extend(_cycle_problems(condensation_edges))
+    problems.extend(_cycle_problems(frozenset(policy_filtered_edges)))
     return problems
 
 
