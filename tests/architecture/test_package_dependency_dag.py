@@ -22,6 +22,11 @@ from import_graph_support import (
 from import_graph_support import (
     package_name as _package_name,
 )
+from logical_ownership_policy import (
+    CAPABILITY_OWNERS,
+    SHARED_ALLOWED_TARGETS,
+    SHARED_OWNERS,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -37,6 +42,94 @@ def _kinase_owned_modules() -> frozenset[str]:
 
 
 _KINASE_OWNED_MODULES = _kinase_owned_modules()
+
+
+def _package_roots_for_owners(owners: Iterable[str]) -> frozenset[str]:
+    requested_owners = frozenset(owners)
+    roots_by_owner: dict[str, set[str]] = {owner: set() for owner in requested_owners}
+    owner_map = PROJECT_ROOT / "architecture/module-owners.csv"
+    with owner_map.open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            owner = row["owner"]
+            if owner not in roots_by_owner:
+                continue
+            module_parts = row["module"].split(".")
+            assert module_parts[0] == "phospy", row["module"]
+            assert len(module_parts) >= 2, row["module"]
+            roots_by_owner[owner].add(".".join(module_parts[:2]))
+
+    missing_owners = sorted(
+        owner for owner, roots in roots_by_owner.items() if not roots
+    )
+    assert not missing_owners, (
+        "forbidden owners have no current package roots in module-owners.csv: "
+        f"{missing_owners}"
+    )
+    return frozenset(root for roots in roots_by_owner.values() for root in roots)
+
+
+def _shared_owner_forbidden_roots(source_owner: str) -> frozenset[str]:
+    allowed_owners = SHARED_ALLOWED_TARGETS[source_owner]
+    forbidden_shared_owners = SHARED_OWNERS - allowed_owners - {source_owner}
+    forbidden_owners = CAPABILITY_OWNERS | forbidden_shared_owners
+    forbidden_roots = _package_roots_for_owners(forbidden_owners)
+    assert forbidden_roots, f"empty forbidden-owner classification for {source_owner}"
+    return forbidden_roots
+
+
+def _run_shared_owner_import_probe(
+    *,
+    source_module: str,
+    forbidden_roots: frozenset[str],
+    injected_module: str | None = None,
+) -> tuple[str, ...]:
+    assert forbidden_roots, f"empty forbidden roots for {source_module}"
+    code = """
+import importlib
+import json
+import sys
+
+source_module = sys.argv[1]
+forbidden_roots = tuple(json.loads(sys.argv[2]))
+injected_module = sys.argv[3] or None
+assert forbidden_roots, f"empty forbidden roots for {source_module}"
+
+importlib.import_module(source_module)
+if injected_module is not None:
+    importlib.import_module(injected_module)
+
+forbidden = sorted(
+    module_name
+    for module_name in sys.modules
+    if any(
+        module_name == root or module_name.startswith(f"{root}.")
+        for root in forbidden_roots
+    )
+)
+print(json.dumps(forbidden))
+"""
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [str(SRC_ROOT), environment.get("PYTHONPATH", "")]
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            code,
+            source_module,
+            json.dumps(sorted(forbidden_roots)),
+            injected_module or "",
+        ],
+        cwd=PROJECT_ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    return tuple(json.loads(completed.stdout))
+
 
 ALLOWED_PACKAGE_EDGES = frozenset(
     {
@@ -441,48 +534,46 @@ def test_public_import_routes_load_in_clean_interpreters() -> None:
     assert completed.returncode == 0, completed.stderr
 
 
-@pytest.mark.parametrize(
-    "shared_imports",
-    [
-        ("phospy.quantitative", "phospy.statistics"),
-        ("phospy.statistics", "phospy.quantitative"),
-    ],
-)
-def test_shared_quantitative_and_statistics_imports_add_no_capability_or_dataset(
-    shared_imports: tuple[str, str],
+@pytest.mark.parametrize("source_owner", ["quantitative", "statistics"])
+def test_shared_owner_forbidden_roots_follow_current_ownership_policy(
+    source_owner: str,
 ) -> None:
-    code = "\n".join(
-        [
-            "import importlib",
-            "import sys",
-            "import phospy",
-            "isolated_prefixes = ('phospy.quantitative', 'phospy.statistics', "
-            "'phospy.science.activities', 'phospy.science.datasets')",
-            "for module_name in tuple(sys.modules):",
-            "    if module_name.startswith(isolated_prefixes):",
-            "        sys.modules.pop(module_name)",
-            *(f"importlib.import_module({name!r})" for name in shared_imports),
-            "forbidden = sorted(name for name in sys.modules if "
-            "name.startswith(('phospy.science.activities', "
-            "'phospy.science.datasets')))",
-            "assert forbidden == [], forbidden",
-        ]
-    )
-    environment = dict(os.environ)
-    environment["PYTHONPATH"] = os.pathsep.join(
-        [str(SRC_ROOT), environment.get("PYTHONPATH", "")]
+    forbidden_roots = _shared_owner_forbidden_roots(source_owner)
+
+    assert forbidden_roots
+    assert "phospy.datasets" in forbidden_roots
+    assert f"phospy.{source_owner}" not in forbidden_roots
+    assert _package_roots_for_owners(SHARED_ALLOWED_TARGETS[source_owner]).isdisjoint(
+        forbidden_roots
     )
 
-    completed = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=PROJECT_ROOT,
-        env=environment,
-        text=True,
-        capture_output=True,
-        check=False,
+
+@pytest.mark.parametrize("source_owner", ["quantitative", "statistics"])
+def test_shared_owner_imports_load_no_forbidden_current_owner(
+    source_owner: str,
+) -> None:
+    forbidden = _run_shared_owner_import_probe(
+        source_module=f"phospy.{source_owner}",
+        forbidden_roots=_shared_owner_forbidden_roots(source_owner),
     )
 
-    assert completed.returncode == 0, completed.stderr
+    assert forbidden == ()
+
+
+@pytest.mark.parametrize(
+    "injected_module",
+    ["phospy.datasets", "phospy.datasets.models"],
+)
+def test_shared_owner_import_probe_detects_forbidden_root_and_descendant(
+    injected_module: str,
+) -> None:
+    forbidden = _run_shared_owner_import_probe(
+        source_module="phospy.quantitative",
+        forbidden_roots=_shared_owner_forbidden_roots("quantitative"),
+        injected_module=injected_module,
+    )
+
+    assert injected_module in forbidden
 
 
 @pytest.mark.parametrize(

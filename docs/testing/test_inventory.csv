@@ -20,7 +20,7 @@ tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44
 tests/architecture/test_kinase_reference_scoring_ownership.py,architecture,338,10,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_result_boundary.py,architecture,327,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_logical_ownership_policy.py,architecture,824,23,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,802,13,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/architecture/test_package_dependency_dag.py,architecture,893,15,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/architecture/test_protein_aware_boundary.py,architecture,214,7,true,true,,,,,,
 tests/architecture/test_public_constructor_signatures.py,architecture,93,3,false,false,,,,,,
 tests/architecture/test_public_consumer_contract_imports.py,architecture,105,1,false,false,,,,,,
