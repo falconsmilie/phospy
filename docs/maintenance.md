@@ -328,17 +328,22 @@ Docs subdirectories are intentional:
 
 ## Config Ownership
 
-Config concepts must have one implementation owner. Public transport DTOs that
-describe request shape or optional user intent belong under
-`phospy.contracts.configs` and are exported, when public, through the exact
-`phospy.api` or `phospy.advanced` aggregate selected by ADR-0054.
-Science-owned algorithm policies belong in the owning science domain, and
-contract/API routes may re-export them only by exact object identity.
+Configuration and request concepts must have one implementation owner.
+Capability-specific public transport DTOs that describe request shape or
+optional user intent belong to the owning capability, such as `phospy.datasets`,
+`phospy.differential`, `phospy.enrichment`, `phospy.kinase`, or
+`phospy.signalome`. Shared contracts belong to the narrow shared domain that
+defines their meaning, while passive cross-capability records belong to an
+accepted record or composition owner such as `phospy.preparation_records` or
+`phospy.run_lineage`. Public `phospy.api` and `phospy.advanced` facades may
+re-export those owner-defined objects only by exact identity.
 
-Workflow interpreters own contextual translation from public config DTOs into
-distinct resolved execution models. Numerical science modules must not import
-`phospy.contracts` or accept public workflow config DTOs. The architecture guard
-for this is `tests/architecture/test_config_ownership.py`.
+Capability-specific validation belongs with its capability. Root
+`phospy.validation` owns reusable generic mechanics only. Workflow interpreters
+own contextual translation from public DTOs into distinct resolved execution
+models, and computational kernels consume those resolved models rather than
+public request or configuration DTOs. The architecture guard for configuration
+ownership is `tests/architecture/test_config_ownership.py`.
 
 ### Scientific Claims Checklist
 

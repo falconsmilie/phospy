@@ -1,9 +1,9 @@
 # Architecture inventory
 
-This generated inventory records the current production tree and its
-architecture authority. Executable architecture tests regenerate and compare
-these facts against tracked source, the one-row-per-module owner map, the
-complete observed import graph, and the permanent classification registry.
+This generated inventory records tracked production files, module ownership,
+and the complete and policy-filtered dependency views. Executable architecture
+tests compare it with tracked source, the one-row-per-module owner map, the
+exact owner-edge policy, and the permanent classification registry.
 
 ## Counts and architecture assertions
 

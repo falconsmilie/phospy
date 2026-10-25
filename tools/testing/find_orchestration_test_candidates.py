@@ -96,8 +96,18 @@ def _render_report(total_files_scanned: int, candidates: list[FileFindings]) -> 
     )
     lines.append("")
     lines.append(
+        "**Status:** Active maintained review aid. This is a point-in-time scan of "
+        "the repository test tree, not an API or architecture inventory."
+    )
+    lines.append("")
+    lines.append(
         "> This is a heuristic candidate list for human review. "
         "It does not mean a test is invalid, and not every mock/patch usage is brittle."
+    )
+    lines.append(
+        "> Matches may come from executable code, comments, or string literals. "
+        "Retired package names quoted by negative import tests or historical contract "
+        "checks are evidence that those routes stay removed, not current import guidance."
     )
     lines.append("")
     lines.append(f"- Total `test*.py` files scanned: {total_files_scanned}")

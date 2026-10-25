@@ -53,10 +53,10 @@ workflow error should start with the [Validation Guide](validation.md).
     `KinaseWorkflowRequest`, and `SignalomeWorkflowRequest`) store payloads only.
     Request type compatibility, contextual compatibility, and scientific
     readiness are validated by the owning builder or workflow validator.
-  - Generic public value objects in `phospy.contracts` and public
-    design/enrichment contract objects validate only local, context-free
-    scalar/container invariants during construction and raise
-    `ContractValidationError`.
+  - Generic public value objects live in their owning capability or shared
+    domain. They validate only local, context-free scalar/container invariants
+    during construction and raise `ContractValidationError`; aggregate public
+    facades only re-export the owner-defined identities.
   - Dataset constructors raise dataset-boundary validation errors
     (`DatasetValidationError`) for strict analysis-ready dataset invariants.
   - Reference bundle/resource constructors raise reference-boundary validation
