@@ -27,6 +27,7 @@ tests/architecture/test_public_consumer_contract_imports.py,architecture,105,1,f
 tests/architecture/test_quantitative_policy_ownership.py,architecture,93,3,false,false,,,,,,
 tests/architecture/test_removed_compatibility_routes.py,architecture,450,6,true,true,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/architecture/test_repository_hygiene.py,architecture,11,1,false,false,,,,,,
+tests/architecture/test_run_lineage_validation_boundaries.py,architecture,102,4,false,false,,,,,,
 tests/architecture/test_scientific_model_decomposition.py,architecture,180,6,false,false,,,,,,
 tests/architecture/test_signalome_dataset_boundary.py,architecture,273,10,true,true,,,,,,
 tests/architecture/test_table_compatibility.py,architecture,27,2,false,false,,,,,,
@@ -332,6 +333,7 @@ tests/unit/test_request_validation_boundaries.py,unit,305,6,true,true,,,,,,[auto
 tests/unit/test_result_caveats.py,unit,393,8,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,547,9,false,false,,,,,,
 tests/unit/test_row_attrition_provenance.py,unit,266,13,true,true,,,,,,
+tests/unit/test_run_lineage_validation_contracts.py,unit,190,5,false,false,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,237,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_ruv_iii.py,unit,378,17,true,true,,,,,,
 tests/unit/test_sample_group_metadata_resolution.py,unit,292,12,true,true,,,,,,

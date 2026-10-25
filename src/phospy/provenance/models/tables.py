@@ -293,11 +293,20 @@ def _required_row_attrition_record_tuple(
     return record_tuple
 
 
-def _required_table_fingerprint_tuple(
+def require_table_fingerprint_sequence(
     values: object,
     *,
     field_name: str,
 ) -> tuple[TableFingerprint, ...]:
+    """Validate a table-fingerprint field for internal owner consumers.
+
+    This is the provenance owner's internal cross-owner contract for fields
+    containing table fingerprints. It accepts non-text ``Sequence`` values,
+    preserves their order, returns an immutable tuple, permits an empty
+    sequence, and raises ``PhosPyInputError`` with field-qualified messages.
+    The function is intentionally absent from supported public facades.
+    """
+
     if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
         raise PhosPyInputError(f"{field_name} must be a sequence")
     fingerprints = tuple(values)

@@ -23,7 +23,7 @@ from phospy.provenance.models.batch_correction import (
 )
 from phospy.provenance.models.tables import (
     TableFingerprint,
-    _required_table_fingerprint_tuple,
+    require_table_fingerprint_sequence,
 )
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
@@ -223,7 +223,7 @@ class PreprocessingStageProvenance:
         object.__setattr__(
             self,
             "consumed_input_tables",
-            _required_table_fingerprint_tuple(
+            require_table_fingerprint_sequence(
                 self.consumed_input_tables,
                 field_name="preprocessing_stage.consumed_input_tables",
             ),
@@ -231,7 +231,7 @@ class PreprocessingStageProvenance:
         object.__setattr__(
             self,
             "produced_output_tables",
-            _required_table_fingerprint_tuple(
+            require_table_fingerprint_sequence(
                 self.produced_output_tables,
                 field_name="preprocessing_stage.produced_output_tables",
             ),
@@ -277,10 +277,20 @@ def _required_reproducibility_caveat_tuple(
     return caveats
 
 
-def _required_preprocessing_stage_tuple(
+def require_preprocessing_stage_sequence(
     values: object,
+    *,
+    field_name: str,
 ) -> tuple[PreprocessingStageProvenance, ...]:
-    field_name = "run_provenance.preprocessing_stages"
+    """Validate a preprocessing-stage field for internal owner consumers.
+
+    This is the preprocessing owner's internal cross-owner contract for
+    lineage-like stage collections. It accepts non-text ``Sequence`` values,
+    preserves stage order, returns an immutable tuple, permits an empty
+    sequence, and raises ``PhosPyInputError`` with field-qualified messages.
+    The function is intentionally absent from supported public facades.
+    """
+
     if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
         raise PhosPyInputError(f"{field_name} must be a sequence")
     stages = tuple(values)

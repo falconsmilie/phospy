@@ -12,7 +12,7 @@ from phospy.provenance.immutability import (
 from phospy.provenance.models._shared import JsonValue, _optional_provenance_text
 from phospy.provenance.models.tables import (
     TableFingerprint,
-    _required_table_fingerprint_tuple,
+    require_table_fingerprint_sequence,
 )
 from phospy.references.provenance.context import ReferenceContext
 from phospy.references.provenance.identifiers import (
@@ -77,7 +77,7 @@ class ReferenceProvenance:
         object.__setattr__(
             self,
             "table_fingerprints",
-            _required_table_fingerprint_tuple(
+            require_table_fingerprint_sequence(
                 self.table_fingerprints,
                 field_name="reference_provenance.table_fingerprints",
             ),
@@ -164,19 +164,32 @@ def _require_reference_provenance_organism_coherence(
     )
 
 
-def _require_run_provenance_reference_context_organism_coherence(
+def require_reference_context_organism_coherence(
     *,
     reference: ReferenceProvenance | None,
     reference_context: ReferenceContext | None,
+    reference_field_name: str,
+    reference_context_field_name: str,
+    conflict_prefix: str,
 ) -> None:
+    """Enforce organism coherence for an internal composite provenance owner.
+
+    References owns organism normalization, identity comparison, the
+    ``ReferenceValidationError`` exception type, and conflict-message shape.
+    The composing owner supplies its two field paths and conflict prefix so its
+    established error text remains explicit at the call site. Missing optional
+    values are accepted; otherwise the two canonical organisms must be
+    identical. The function is intentionally absent from supported facades.
+    """
+
     if reference is None or reference_context is None:
         return
     _require_organism_identity_agreement(
         entries=[
-            ("run_provenance.reference.organism", reference.organism),
-            ("run_provenance.reference_context.organism", reference_context.organism),
+            (reference_field_name, reference.organism),
+            (reference_context_field_name, reference_context.organism),
         ],
-        conflict_prefix="Run provenance reference-context organism mismatch",
+        conflict_prefix=conflict_prefix,
     )
 
 

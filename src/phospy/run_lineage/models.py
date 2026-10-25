@@ -9,20 +9,20 @@ from typing import cast
 from phospy.errors.input import PhosPyInputError
 from phospy.preprocessing.provenance.models import (
     PreprocessingStageProvenance,
-    _required_preprocessing_stage_tuple,  # pyright: ignore[reportPrivateUsage] - run lineage reuses the owner validator to preserve the accepted validation order and error text
+    require_preprocessing_stage_sequence,
 )
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.provenance.models._shared import JsonValue
 from phospy.provenance.models.environment import EnvironmentProvenance
 from phospy.provenance.models.tables import (
     TableFingerprint,
-    _required_table_fingerprint_tuple,  # pyright: ignore[reportPrivateUsage] - run lineage reuses the primitive-owner validator to preserve accepted validation behavior
+    require_table_fingerprint_sequence,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.references.provenance.context import ReferenceContext
 from phospy.references.provenance.models import (
     ReferenceProvenance,
-    _require_run_provenance_reference_context_organism_coherence,  # pyright: ignore[reportPrivateUsage] - run lineage owns the composite check while References owns its exact coherence validator
+    require_reference_context_organism_coherence,
 )
 
 
@@ -36,6 +36,12 @@ class RunProvenance:
     dataset for downstream compatibility checks. `reference` remains the
     workflow reference resource provenance when a workflow consumes an explicit
     reference bundle.
+
+    Construction validates fields in declaration order: environment, input
+    tables, preprocessing stages, reference, workflow parameters, output
+    tables, scientific policies, then reference-context organism coherence.
+    The sequence and coherence checks use their owners' internal contracts so
+    exception types and field-qualified error messages remain stable.
     """
 
     environment: EnvironmentProvenance
@@ -78,7 +84,7 @@ class RunProvenance:
         object.__setattr__(
             self,
             "input_tables",
-            _required_table_fingerprint_tuple(
+            require_table_fingerprint_sequence(
                 self.input_tables,
                 field_name="run_provenance.input_tables",
             ),
@@ -86,7 +92,10 @@ class RunProvenance:
         object.__setattr__(
             self,
             "preprocessing_stages",
-            _required_preprocessing_stage_tuple(self.preprocessing_stages),
+            require_preprocessing_stage_sequence(
+                self.preprocessing_stages,
+                field_name="run_provenance.preprocessing_stages",
+            ),
         )
         if self.reference is not None and not isinstance(  # pyright: ignore[reportUnnecessaryIsInstance] - runtime construction must retain the accepted concrete nested-type validation
             self.reference,
@@ -113,7 +122,7 @@ class RunProvenance:
         object.__setattr__(
             self,
             "output_tables",
-            _required_table_fingerprint_tuple(
+            require_table_fingerprint_sequence(
                 self.output_tables,
                 field_name="run_provenance.output_tables",
             ),
@@ -123,9 +132,12 @@ class RunProvenance:
             "scientific_policies",
             _required_scientific_policy_tuple(self.scientific_policies),
         )
-        _require_run_provenance_reference_context_organism_coherence(
+        require_reference_context_organism_coherence(
             reference=self.reference,
             reference_context=self.reference_context,
+            reference_field_name="run_provenance.reference.organism",
+            reference_context_field_name=("run_provenance.reference_context.organism"),
+            conflict_prefix="Run provenance reference-context organism mismatch",
         )
 
 

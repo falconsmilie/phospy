@@ -12,7 +12,7 @@ from phospy.provenance.immutability import (
 from phospy.provenance.models._shared import JsonValue
 from phospy.provenance.models.tables import (
     TableFingerprint,
-    _required_table_fingerprint_tuple,
+    require_table_fingerprint_sequence,
 )
 
 
@@ -53,7 +53,7 @@ class KinaseLibraryResourceProvenance:
         object.__setattr__(
             self,
             "table_fingerprints",
-            _required_table_fingerprint_tuple(
+            require_table_fingerprint_sequence(
                 self.table_fingerprints,
                 field_name="kinase_library_resource_provenance.table_fingerprints",
             ),

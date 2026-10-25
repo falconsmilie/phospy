@@ -18,7 +18,7 @@ from phospy.provenance.models._shared import (
 )
 from phospy.provenance.models.tables import (
     TableFingerprint,
-    _required_table_fingerprint_tuple,
+    require_table_fingerprint_sequence,
 )
 
 BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
@@ -176,7 +176,7 @@ class BatchCorrectionProvenance:
         object.__setattr__(
             self,
             "observation_masks",
-            _required_table_fingerprint_tuple(
+            require_table_fingerprint_sequence(
                 self.observation_masks,
                 field_name="batch_correction_provenance.observation_masks",
             ),
