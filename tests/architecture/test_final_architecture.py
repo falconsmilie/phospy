@@ -13,6 +13,7 @@ from final_architecture_policy import (
     PERMANENT_LAZY_LOADERS,
     PERMANENT_SPECIAL_MODULES,
     OwnerEdgeRule,
+    is_structural_forwarding_candidate,
     old_path_literal_inventory,
     owner_edge_policy_problems,
     tracked_source_inventory_problems,
@@ -45,7 +46,8 @@ def _git_paths(pathspec: str) -> tuple[str, ...]:
         check=True,
         capture_output=True,
     )
-    return tuple(item.decode("utf-8") for item in result.stdout.split(b"\0") if item)
+    paths = tuple(item.decode("utf-8") for item in result.stdout.split(b"\0") if item)
+    return tuple(path for path in paths if (ROOT / path).is_file())
 
 
 def _live_owner_graph_views() -> OwnerGraphViews:
@@ -148,9 +150,9 @@ def test_final_tracked_source_inventory_is_complete_and_classified() -> None:
     tracked = _git_paths("src/phospy")
     owners = load_module_owners(OWNER_MAP)
 
-    assert len(tracked) == 648
-    assert sum(path.endswith(".py") for path in tracked) == 642
-    assert len(owners) == 642
+    assert len(tracked) == 644
+    assert sum(path.endswith(".py") for path in tracked) == 638
+    assert len(owners) == 638
     assert (
         tracked_source_inventory_problems(
             tracked_paths=tracked,
@@ -190,7 +192,7 @@ def test_final_state_has_no_temporary_exception_mechanism() -> None:
     }
 
 
-def test_forwarding_safety_and_lazy_composition_are_exactly_classified() -> None:
+def test_safety_and_lazy_composition_are_exactly_classified() -> None:
     payload = json.loads(CLASSIFICATIONS.read_text(encoding="utf-8"))
     assert set(payload["forwarding_and_safety_modules"]) == set(
         PERMANENT_SPECIAL_MODULES
@@ -198,7 +200,6 @@ def test_forwarding_safety_and_lazy_composition_are_exactly_classified() -> None
     assert set(payload["lazy_loader_modules"]) == set(PERMANENT_LAZY_LOADERS)
 
     lazy_paths: set[str] = set()
-    special_paths: set[str] = set()
     for path in PACKAGE_ROOT.rglob("*.py"):
         relative = path.relative_to(ROOT).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
@@ -207,15 +208,73 @@ def test_forwarding_safety_and_lazy_composition_are_exactly_classified() -> None
             for node in tree.body
         ):
             lazy_paths.add(relative)
-        docstring = ast.get_docstring(tree) or ""
-        if (
-            "compatibility route" in docstring
-            or "re-exported from their direct owners" in docstring
-        ):
-            special_paths.add(relative)
 
     assert lazy_paths == set(PERMANENT_LAZY_LOADERS)
-    assert special_paths == set(PERMANENT_SPECIAL_MODULES)
+
+
+def test_structural_forwarding_candidates_have_exact_policy_dispositions() -> None:
+    payload = json.loads(CLASSIFICATIONS.read_text(encoding="utf-8"))
+    classified = payload["structural_forwarding_modules"]
+    observed = {
+        path.relative_to(ROOT).as_posix()
+        for path in PACKAGE_ROOT.rglob("*.py")
+        if is_structural_forwarding_candidate(
+            path.read_text(encoding="utf-8-sig"),
+            filename=str(path),
+        )
+    }
+
+    assert observed == set(classified)
+    assert {item["disposition"] for item in classified.values()} == {
+        "supported_aggregate_facade",
+        "deliberate_internal_facade",
+    }
+    assert {
+        path
+        for path, item in classified.items()
+        if item["disposition"] == "supported_aggregate_facade"
+    } == {
+        "src/phospy/advanced/__init__.py",
+        "src/phospy/api/__init__.py",
+    }
+    assert all(item["rationale"].strip() for item in classified.values())
+
+
+def test_structural_forwarding_detection_ignores_docstring_wording_and_case() -> None:
+    bodies = (
+        '"""Compatibility route."""\n',
+        '"""PERMANENT PUBLIC FACADE."""\n',
+        "",
+    )
+
+    for prefix in bodies:
+        assert is_structural_forwarding_candidate(
+            prefix
+            + "from phospy.frames.validation import require_dataframe\n"
+            + "__all__ = ['require_dataframe']\n"
+        )
+
+
+def test_structural_forwarding_detection_covers_direct_imported_name_aliases() -> None:
+    source = """
+from phospy.frames.validation import require_dataframe as _require_dataframe
+
+require_dataframe = _require_dataframe
+__all__ = ["require_dataframe"]
+"""
+
+    assert is_structural_forwarding_candidate(source)
+
+
+def test_structural_forwarding_detection_rejects_behavioral_modules() -> None:
+    source = """
+from phospy.frames.validation import require_dataframe
+
+def validate(value):
+    return require_dataframe(value)
+"""
+
+    assert not is_structural_forwarding_candidate(source)
 
 
 def test_retired_route_literals_are_exact_versioned_identifiers() -> None:
@@ -255,9 +314,9 @@ def test_owner_map_has_permanent_schema_and_rationales() -> None:
 def test_final_architecture_inventory_is_complete_and_current() -> None:
     text = FINAL_INVENTORY.read_text(encoding="utf-8")
     assert text == render_inventory(ROOT)
-    assert "Tracked production files: **648**" in text
-    assert "Tracked Python modules: **642**" in text
-    assert "Owner-map entries: **642**" in text
+    assert "Tracked production files: **644**" in text
+    assert "Tracked Python modules: **638**" in text
+    assert "Owner-map entries: **638**" in text
     assert "Complete statically observed owner graph (before classifications)" in text
     assert "`datasets, io, kinase, signalome`" in text
     assert "Policy-filtered owner graph used by the DAG gate" in text

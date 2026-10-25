@@ -17,6 +17,124 @@ class OwnerEdgeRule:
     authority: str
 
 
+def is_structural_forwarding_candidate(
+    source: str,
+    *,
+    filename: str = "<unknown>",
+) -> bool:
+    """Identify a deliberately narrow class of forwarding-shaped modules.
+
+    The detector ignores a module docstring and ``__future__`` imports, then
+    accepts a runtime body made only from imports, ``__all__`` maintenance, and
+    direct name aliases of imported bindings. At least one absolute ``phospy``
+    or relative import must be present. It identifies structure only; policy
+    separately decides whether a candidate is a supported facade, a deliberate
+    internal facade, or an obsolete compatibility route.
+
+    This is not an exhaustive Python re-export analyser. It intentionally does
+    not interpret computed exports, forwarding hidden inside functions or
+    classes, module ``__getattr__``, import hooks, or arbitrary runtime binding.
+    """
+
+    tree = ast.parse(source, filename=filename)
+    body = list(tree.body)
+    if body and _is_docstring_statement(body[0]):
+        body = body[1:]
+
+    imported_bindings: set[str] = set()
+    alias_bindings: set[str] = set()
+    saw_local_forwarding_import = False
+    saw_runtime_statement = False
+
+    for node in body:
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            continue
+        saw_runtime_statement = True
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            is_local = (
+                node.level > 0 or module == "phospy" or module.startswith("phospy.")
+            )
+            saw_local_forwarding_import |= is_local
+            imported_bindings.update(
+                alias.asname or alias.name for alias in node.names if alias.name != "*"
+            )
+            continue
+        if isinstance(node, ast.Import):
+            saw_local_forwarding_import |= any(
+                alias.name == "phospy" or alias.name.startswith("phospy.")
+                for alias in node.names
+            )
+            imported_bindings.update(
+                alias.asname or alias.name.split(".", maxsplit=1)[0]
+                for alias in node.names
+            )
+            continue
+        if _is_dunder_all_assignment(node):
+            continue
+        if _is_direct_imported_name_alias(
+            node,
+            available_bindings=imported_bindings | alias_bindings,
+            alias_bindings=alias_bindings,
+        ):
+            continue
+        return False
+
+    return saw_runtime_statement and saw_local_forwarding_import
+
+
+def _is_docstring_statement(node: ast.stmt) -> bool:
+    return (
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    )
+
+
+def _is_dunder_all_assignment(node: ast.stmt) -> bool:
+    if isinstance(node, ast.Assign):
+        return all(
+            isinstance(target, ast.Name) and target.id == "__all__"
+            for target in node.targets
+        )
+    if isinstance(node, ast.AnnAssign):
+        return isinstance(node.target, ast.Name) and node.target.id == "__all__"
+    if isinstance(node, ast.AugAssign):
+        return isinstance(node.target, ast.Name) and node.target.id == "__all__"
+    return False
+
+
+def _is_direct_imported_name_alias(
+    node: ast.stmt,
+    *,
+    available_bindings: set[str],
+    alias_bindings: set[str],
+) -> bool:
+    if isinstance(node, ast.Assign):
+        if (
+            not isinstance(node.value, ast.Name)
+            or node.value.id not in available_bindings
+        ):
+            return False
+        targets = node.targets
+    elif isinstance(node, ast.AnnAssign):
+        if (
+            node.value is None
+            or not isinstance(node.value, ast.Name)
+            or node.value.id not in available_bindings
+        ):
+            return False
+        targets = (node.target,)
+    else:
+        return False
+    if not all(isinstance(target, ast.Name) for target in targets):
+        return False
+    alias_bindings.update(
+        target.id for target in targets if isinstance(target, ast.Name)
+    )
+    return True
+
+
 TOP_LEVEL_ROOT_CLASSIFICATIONS: Mapping[str, str] = {
     ".": "public_facade_machinery",
     "activities": "passive_shared_scientific_foundation",
@@ -50,10 +168,6 @@ RETIRED_TOP_LEVEL_ROOTS = frozenset({"contracts", "science", "tables", "workflow
 PERMANENT_SPECIAL_MODULES: Mapping[str, str] = {
     "src/phospy/_api_inventory.py": (
         "authoritative aggregate inventory data; explicitly free of compatibility routes"
-    ),
-    "src/phospy/api/builders.py": (
-        "internal public-facade composition that re-exports exact owner identities; "
-        "it is absent from supported documentation and aggregate inventories"
     ),
     "src/phospy/differential/aggregation/experimental.py": (
         "permanent fail-closed scientific safety seam governed by ADR-0041; it is "
@@ -104,7 +218,6 @@ _OBSERVED_TARGETS: Mapping[str, frozenset[str]] = {
             "references",
             "run_lineage",
             "statistics",
-            "validation",
         }
     ),
     "enrichment": frozenset(
@@ -115,7 +228,6 @@ _OBSERVED_TARGETS: Mapping[str, frozenset[str]] = {
             "quantitative",
             "run_lineage",
             "statistics",
-            "validation",
         }
     ),
     "evidence": frozenset(
@@ -219,7 +331,7 @@ _OBSERVED_TARGETS: Mapping[str, frozenset[str]] = {
             "validation",
         }
     ),
-    "validation": frozenset({"errors", "frames"}),
+    "validation": frozenset({"errors"}),
 }
 
 _CAPABILITY_SOURCES = frozenset(

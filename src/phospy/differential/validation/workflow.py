@@ -44,6 +44,7 @@ from phospy.differential.validation.reliability import (
     validate_differential_reliability_config,
 )
 from phospy.errors.validation import WorkflowValidationError
+from phospy.frames.validation import require_dataframe
 from phospy.phosphosites.contracts import (
     WORKFLOW_PROTEIN_CONTEXT_IDENTITY_CONTRACT,
 )
@@ -51,7 +52,6 @@ from phospy.phosphosites.workflow_identity import (
     WorkflowIdentityContract,
     enforce_workflow_site_identity_contract,
 )
-from phospy.validation.common.dataframes import require_dataframe
 
 DIFFERENTIAL_IDENTITY_CONTRACT = WorkflowIdentityContract(
     workflow_name="differential workflow request",

@@ -150,7 +150,6 @@ src/phospy/evidence/caveats.py,phospy.evidence.caveats,evidence,"Evidence policy
 src/phospy/evidence/config.py,phospy.evidence.config,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/dataset_resolution/__init__.py,phospy.evidence.dataset_resolution,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/dataset_resolution/allocation.py,phospy.evidence.dataset_resolution.allocation,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/contracts.py,phospy.evidence.dataset_resolution.contracts,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/dataset_resolution/mapping.py,phospy.evidence.dataset_resolution.mapping,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/dataset_resolution/models.py,phospy.evidence.dataset_resolution.models,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/dataset_resolution/policies.py,phospy.evidence.dataset_resolution.policies,evidence,"Evidence policy, records, allocation, or structural resolution"
@@ -633,11 +632,8 @@ src/phospy/taxonomy/organisms.py,phospy.taxonomy.organisms,taxonomy,Typed organi
 src/phospy/validation/__init__.py,phospy.validation,validation,Reusable validation mechanics
 src/phospy/validation/common/__init__.py,phospy.validation.common,validation,Reusable validation mechanics
 src/phospy/validation/common/config_values.py,phospy.validation.common.config_values,validation,Reusable validation mechanics
-src/phospy/validation/common/dataframes.py,phospy.validation.common.dataframes,validation,Reusable validation mechanics
 src/phospy/validation/common/input_sources.py,phospy.validation.common.input_sources,validation,Policy-free DataFrame-or-path input validation mechanics
-src/phospy/validation/common/missing_values.py,phospy.validation.common.missing_values,validation,Reusable validation mechanics
 src/phospy/validation/common/numbers.py,phospy.validation.common.numbers,validation,Reusable validation mechanics
-src/phospy/validation/common/numeric_frames.py,phospy.validation.common.numeric_frames,validation,Reusable validation mechanics
 src/phospy/validation/common/paths.py,phospy.validation.common.paths,validation,Reusable validation mechanics
 src/phospy/validation/frame_columns.py,phospy.validation.frame_columns,validation,Reusable validation mechanics
 src/phospy/validation/ownership.py,phospy.validation.ownership,validation,Generic validation governance

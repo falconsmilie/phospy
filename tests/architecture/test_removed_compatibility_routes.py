@@ -99,6 +99,9 @@ RETIRED_HORIZONTAL_MODULES = (
     "phospy.workflows",
     "phospy.validation.configs",
     "phospy.validation.configs.preprocessing",
+    "phospy.validation.common.dataframes",
+    "phospy.validation.common.missing_values",
+    "phospy.validation.common.numeric_frames",
     "phospy.validation.datasets",
     "phospy.validation.datasets.analysis_ready",
     "phospy.validation.datasets.fragpipe",
@@ -107,6 +110,7 @@ RETIRED_HORIZONTAL_MODULES = (
     "phospy.validation.datasets.maxquant",
     "phospy.validation.references",
     "phospy.validation.workflows",
+    "phospy.evidence.dataset_resolution.contracts",
 )
 
 COMPATIBILITY_ONLY_MODULES = (

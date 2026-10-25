@@ -171,7 +171,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.enrichment", "phospy.run_lineage"),
         ("phospy.enrichment", "phospy.quantitative"),
         ("phospy.enrichment", "phospy.statistics"),
-        ("phospy.enrichment", "phospy.validation"),
         ("phospy.datasets", "phospy.errors"),
         ("phospy.datasets", "phospy.evidence"),
         ("phospy.datasets", "phospy.frames"),
@@ -195,7 +194,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.differential", "phospy.references"),
         ("phospy.differential", "phospy.run_lineage"),
         ("phospy.differential", "phospy.statistics"),
-        ("phospy.differential", "phospy.validation"),
         ("phospy.io", "phospy.datasets"),
         ("phospy.io", "phospy.enrichment"),
         ("phospy.io", "phospy.errors"),
@@ -271,7 +269,6 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.signalome", "phospy.run_lineage"),
         ("phospy.signalome", "phospy.validation"),
         ("phospy.validation", "phospy.errors"),
-        ("phospy.validation", "phospy.frames"),
     }
 )
 

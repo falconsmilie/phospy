@@ -173,7 +173,7 @@ strict = [
   "src/phospy/datasets/construction/normalization.py",
   "src/phospy/datasets/validation",
   "src/phospy/io/importers",
-  "src/phospy/validation/common/dataframes.py",
+  "src/phospy/frames/validation.py",
   "src/phospy/provenance/serialization",
   "src/phospy/quantitative/models.py",
   "src/phospy/quantitative/_payloads.py",

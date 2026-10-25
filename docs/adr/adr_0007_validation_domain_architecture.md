@@ -147,9 +147,9 @@ when ownership or compatibility routes change.
 
 - Ownership registry: `docs/validation-ownership.md`, enforced by
   `tests/architecture/test_validation_ownership_governance.py`.
-- Shared structural primitives: `src/phospy/frames/validation.py`; legacy
-  validation routes under `src/phospy/validation/common/` are
-  identity-preserving compatibility wrappers.
+- Shared structural primitives: `src/phospy/frames/validation.py`; internal
+  consumers import that owner directly, and obsolete compatibility-only routes
+  under `src/phospy/validation/common/` are absent under ADR-0054.
 - Sample-group metadata validation and deterministic resolution:
   `src/phospy/preparation_records/validation/sample_groups.py` owns
   `SampleGroupMetadataResolver` and `ResolvedSampleGroups`. The

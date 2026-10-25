@@ -14,18 +14,18 @@ tests/architecture/test_documentation_imports.py,architecture,93,3,false,false,,
 tests/architecture/test_duplicate_correlation_internal_contracts.py,architecture,137,2,false,false,,,,,,
 tests/architecture/test_enrichment_capability_boundaries.py,architecture,184,4,true,true,,,,,,
 tests/architecture/test_exported_json_state_immutability.py,architecture,532,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_final_architecture.py,architecture,267,11,false,false,,,,,,
+tests/architecture/test_final_architecture.py,architecture,326,15,false,false,,,,,,
 tests/architecture/test_kinase_activity_ownership.py,architecture,92,3,true,true,,,,,,
 tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_reference_scoring_ownership.py,architecture,338,10,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_result_boundary.py,architecture,327,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_logical_ownership_policy.py,architecture,912,26,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,907,15,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/architecture/test_package_dependency_dag.py,architecture,904,15,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/architecture/test_protein_aware_boundary.py,architecture,214,7,true,true,,,,,,
 tests/architecture/test_public_constructor_signatures.py,architecture,93,3,false,false,,,,,,
 tests/architecture/test_public_consumer_contract_imports.py,architecture,105,1,false,false,,,,,,
 tests/architecture/test_quantitative_policy_ownership.py,architecture,93,3,false,false,,,,,,
-tests/architecture/test_removed_compatibility_routes.py,architecture,450,6,true,true,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
+tests/architecture/test_removed_compatibility_routes.py,architecture,454,6,true,true,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/architecture/test_repository_hygiene.py,architecture,11,1,false,false,,,,,,
 tests/architecture/test_run_lineage_validation_boundaries.py,architecture,102,4,false,false,,,,,,
 tests/architecture/test_scientific_model_decomposition.py,architecture,180,6,false,false,,,,,,
@@ -33,7 +33,7 @@ tests/architecture/test_signalome_dataset_boundary.py,architecture,273,10,true,t
 tests/architecture/test_table_compatibility.py,architecture,27,2,false,false,,,,,,
 tests/architecture/test_validation_boundaries.py,architecture,827,28,false,false,,,,,,[auto-orchestration] 9 hit(s); indicators: private_member_access
 tests/architecture/test_validation_componentization.py,architecture,121,2,false,false,,,,,,
-tests/architecture/test_validation_ownership_governance.py,architecture,516,11,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/architecture/test_validation_ownership_governance.py,architecture,454,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/contract/test_public_differential_consumer.py,contract,124,1,true,false,,,,,,
 tests/contract/test_public_enrichment_consumer.py,contract,67,1,true,false,,,,,,
 tests/golden/test_differential_fixture_provenance_golden.py,golden,382,3,true,false,,,,,,
@@ -376,7 +376,7 @@ tests/unit/test_taxonomy.py,unit,82,3,true,true,,,,,,
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,569,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_transformation_provenance.py,unit,329,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_transformer_identifiers.py,unit,276,4,false,false,,,,,,
-tests/unit/test_validation_common_ownership.py,unit,27,2,false,false,,,,,,
+tests/unit/test_validation_common_ownership.py,unit,13,1,false,false,,,,,,
 tests/unit/test_validation_ownership.py,unit,222,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_validation_ownership_contracts.py,unit,108,4,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_validator_boundaries.py,unit,2183,76,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 4 hit(s); indicators: private_member_access

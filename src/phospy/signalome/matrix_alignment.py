@@ -7,6 +7,12 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
+from phospy.frames.validation import (
+    require_aligned_dataframe_shape,
+    require_no_duplicate_labels,
+    require_non_empty_index_intersection,
+    require_string_index,
+)
 from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.signalome.boundary_errors import (
     raise_signalome_boundary_error,
@@ -15,12 +21,6 @@ from phospy.signalome.boundary_errors import (
 from phospy.signalome.constants import (
     SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM,
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
-)
-from phospy.validation.common.dataframes import (
-    require_aligned_dataframe_shape,
-    require_no_duplicate_labels,
-    require_non_empty_index_intersection,
-    require_string_index,
 )
 
 

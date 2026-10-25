@@ -7,12 +7,12 @@ exact owner-edge policy, and the permanent classification registry.
 
 ## Counts and architecture assertions
 
-- Tracked production files: **648**.
-- Tracked Python modules: **642**.
-- Owner-map entries: **642**.
+- Tracked production files: **644**.
+- Tracked Python modules: **638**.
+- Owner-map entries: **638**.
 - Temporary architecture exceptions: **0**.
 - Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.
-- Unclassified facade forwarding, old-path literals, compatibility behavior, and lazy loading: **0**.
+- Unclassified structural forwarding candidates, old-path literals, compatibility behavior, and lazy loading: **0**.
 - The complete eager module graph and policy-filtered owner graph are required to be acyclic by maintained tests.
 
 ## Top-level roots
@@ -47,7 +47,7 @@ exact owner-edge policy, and the permanent classification registry.
 
 ## Complete statically observed owner graph (before classifications)
 
-This view contains **132** owner edges before
+This view contains **129** owner edges before
 accepted condensation classifications are applied. Every edge remains
 subject to the maintained exact-rule comparison; a classified edge is an
 auditable accepted dependency, not an unauthorised import.
@@ -89,14 +89,12 @@ auditable accepted dependency, not an unauthorised import.
 | `differential` | `references` | `capability` | ADR-0053 differential direction |
 | `differential` | `run_lineage` | `capability` | ADR-0053 differential direction |
 | `differential` | `statistics` | `capability` | ADR-0053 differential direction |
-| `differential` | `validation` | `capability` | ADR-0053 differential direction |
 | `enrichment` | `errors` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `frames` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `provenance` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `quantitative` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `run_lineage` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `statistics` | `capability` | ADR-0053 enrichment direction |
-| `enrichment` | `validation` | `capability` | ADR-0053 enrichment direction |
 | `evidence` | `errors` | `shared` | ADR-0053 evidence row |
 | `evidence` | `frames` | `shared` | ADR-0053 evidence row |
 | `evidence` | `phosphosites` | `shared` | ADR-0053 evidence row |
@@ -192,7 +190,6 @@ auditable accepted dependency, not an unauthorised import.
 | `signalome` | `run_lineage` | `capability` | ADR-0053 signalome direction |
 | `signalome` | `validation` | `capability` | ADR-0053 signalome direction |
 | `validation` | `errors` | `shared` | ADR-0053 validation row |
-| `validation` | `frames` | `shared` | ADR-0053 validation row |
 
 ## Excluded imports from accepted classifications
 
@@ -207,7 +204,7 @@ removed only before policy condensation and the DAG gate.
 
 ## Policy-filtered owner graph used by the DAG gate
 
-This view contains **130** owner edges
+This view contains **127** owner edges
 after the exact accepted imports above are removed. It is the graph checked
 for owner-level acyclicity.
 
@@ -246,14 +243,12 @@ for owner-level acyclicity.
 | `differential` | `references` | `capability` | ADR-0053 differential direction |
 | `differential` | `run_lineage` | `capability` | ADR-0053 differential direction |
 | `differential` | `statistics` | `capability` | ADR-0053 differential direction |
-| `differential` | `validation` | `capability` | ADR-0053 differential direction |
 | `enrichment` | `errors` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `frames` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `provenance` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `quantitative` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `run_lineage` | `capability` | ADR-0053 enrichment direction |
 | `enrichment` | `statistics` | `capability` | ADR-0053 enrichment direction |
-| `enrichment` | `validation` | `capability` | ADR-0053 enrichment direction |
 | `evidence` | `errors` | `shared` | ADR-0053 evidence row |
 | `evidence` | `frames` | `shared` | ADR-0053 evidence row |
 | `evidence` | `phosphosites` | `shared` | ADR-0053 evidence row |
@@ -349,7 +344,6 @@ for owner-level acyclicity.
 | `signalome` | `run_lineage` | `capability` | ADR-0053 signalome direction |
 | `signalome` | `validation` | `capability` | ADR-0053 signalome direction |
 | `validation` | `errors` | `shared` | ADR-0053 validation row |
-| `validation` | `frames` | `shared` | ADR-0053 validation row |
 
 ## Static-analysis scope
 
@@ -371,7 +365,6 @@ technical foundations are the roots carrying those classifications above.
 Exact permanent facade/safety modules:
 
 - `src/phospy/_api_inventory.py`: authoritative aggregate inventory data; explicitly free of compatibility routes
-- `src/phospy/api/builders.py`: internal public-facade composition that re-exports exact owner identities; it is absent from supported documentation and aggregate inventories
 - `src/phospy/differential/aggregation/experimental.py`: permanent fail-closed scientific safety seam governed by ADR-0041; it is not a supported compatibility import route
 
 Exact permanent lazy loaders:
@@ -381,6 +374,61 @@ Exact permanent lazy loaders:
 - `src/phospy/io/bundles/__init__.py`: IO bundle adapter composition
 - `src/phospy/io/readers/__init__.py`: IO reader adapter composition
 - `src/phospy/preprocessing/contracts/plan.py`: cycle-free owner-internal plan/interpreter composition
+
+## Structurally detected forwarding candidates
+
+The AST detector identifies modules whose executable top-level body is
+limited to imports, `__all__` maintenance, and direct aliases of imported
+names. A docstring and `__future__` imports do not affect detection. The
+detector establishes forwarding-shaped structure only; each candidate
+still requires the explicit policy disposition below.
+
+The declared scope does not interpret computed exports, forwarding inside
+functions or classes, module `__getattr__`, import hooks, or arbitrary
+runtime binding, and it does not attempt to model arbitrary Python behavior.
+
+| Source path | Policy disposition | Rationale |
+| --- | --- | --- |
+| `src/phospy/advanced/__init__.py` | `supported_aggregate_facade` | ADR-0054 advanced aggregate API; exact owner identities only. |
+| `src/phospy/api/__init__.py` | `supported_aggregate_facade` | ADR-0054 ordinary aggregate API; exact owner identities only. |
+| `src/phospy/api/builders.py` | `deliberate_internal_facade` | Internal aggregate composition used by the supported API; unsupported as an external route. |
+| `src/phospy/errors/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for internal imports. |
+| `src/phospy/evidence/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for evidence records. |
+| `src/phospy/frames/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for neutral frame primitives. |
+| `src/phospy/io/bundles/kinase.py` | `deliberate_internal_facade` | IO-owned Kinase bundle composition. |
+| `src/phospy/io/bundles/signalome.py` | `deliberate_internal_facade` | IO-owned Signalome bundle composition. |
+| `src/phospy/io/publishers/__init__.py` | `deliberate_internal_facade` | IO publisher package composition. |
+| `src/phospy/io/readers/fragpipe/__init__.py` | `deliberate_internal_facade` | FragPipe reader package composition. |
+| `src/phospy/kinase/scoring/motif/__init__.py` | `deliberate_internal_facade` | Kinase motif implementation package composition. |
+| `src/phospy/phosphosites/__init__.py` | `deliberate_internal_facade` | Phosphosite owner-package composition. |
+| `src/phospy/policies/__init__.py` | `deliberate_internal_facade` | Shared policy owner-package composition. |
+| `src/phospy/preprocessing/batch_correction/__init__.py` | `deliberate_internal_facade` | Batch-correction capability package composition. |
+| `src/phospy/preprocessing/batch_correction/adapters/__init__.py` | `deliberate_internal_facade` | Batch-correction adapter package composition. |
+| `src/phospy/preprocessing/batch_correction/contracts/__init__.py` | `deliberate_internal_facade` | Batch-correction contract package composition. |
+| `src/phospy/preprocessing/batch_correction/execution/__init__.py` | `deliberate_internal_facade` | Batch-correction execution package composition. |
+| `src/phospy/preprocessing/batch_correction/provenance/__init__.py` | `deliberate_internal_facade` | Batch-correction provenance package composition. |
+| `src/phospy/preprocessing/batch_correction/validation/__init__.py` | `deliberate_internal_facade` | Batch-correction validation package composition. |
+| `src/phospy/preprocessing/contracts/__init__.py` | `deliberate_internal_facade` | Preprocessing contract package composition. |
+| `src/phospy/preprocessing/contracts/configuration/__init__.py` | `deliberate_internal_facade` | Preprocessing configuration package composition. |
+| `src/phospy/preprocessing/sequence/__init__.py` | `deliberate_internal_facade` | Preprocessing sequence package composition. |
+| `src/phospy/preprocessing/stages/__init__.py` | `deliberate_internal_facade` | Preprocessing stage package composition. |
+| `src/phospy/preprocessing/stages/missing_data/__init__.py` | `deliberate_internal_facade` | Missing-data stage package composition. |
+| `src/phospy/preprocessing/stages/site_matrix_components/__init__.py` | `deliberate_internal_facade` | Site-matrix stage component composition. |
+| `src/phospy/preprocessing/workflow.py` | `deliberate_internal_facade` | Preprocessing-owned workflow composition route. |
+| `src/phospy/provenance/__init__.py` | `deliberate_internal_facade` | Provenance owner-package composition. |
+| `src/phospy/provenance/models/__init__.py` | `deliberate_internal_facade` | Provenance model package composition. |
+| `src/phospy/provenance/serialization/__init__.py` | `deliberate_internal_facade` | Provenance serialization package composition. |
+| `src/phospy/quantitative/__init__.py` | `deliberate_internal_facade` | Quantitative owner-package composition. |
+| `src/phospy/quantitative/models.py` | `deliberate_internal_facade` | Quantitative model aggregation retained for owner-internal composition. |
+| `src/phospy/quantitative/transformers/__init__.py` | `deliberate_internal_facade` | Quantitative transformer package composition. |
+| `src/phospy/references/manifest.py` | `deliberate_internal_facade` | Reference manifest contract composition. |
+| `src/phospy/references/sequences/__init__.py` | `deliberate_internal_facade` | Reference sequence package composition. |
+| `src/phospy/references/validation/__init__.py` | `deliberate_internal_facade` | Reference validation package composition. |
+| `src/phospy/run_lineage/__init__.py` | `deliberate_internal_facade` | Run-lineage composition foundation facade. |
+| `src/phospy/signalome/clustering/backends/__init__.py` | `deliberate_internal_facade` | Signalome clustering backend package composition. |
+| `src/phospy/signalome/tables/__init__.py` | `deliberate_internal_facade` | Signalome table package composition. |
+| `src/phospy/statistics/__init__.py` | `deliberate_internal_facade` | Statistics owner-package composition. |
+| `src/phospy/taxonomy/__init__.py` | `deliberate_internal_facade` | Taxonomy owner-package composition. |
 
 ## Classified versioned and historical behavior
 
@@ -643,7 +691,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/evidence/config.py`
 - `src/phospy/evidence/dataset_resolution/__init__.py`
 - `src/phospy/evidence/dataset_resolution/allocation.py`
-- `src/phospy/evidence/dataset_resolution/contracts.py`
 - `src/phospy/evidence/dataset_resolution/mapping.py`
 - `src/phospy/evidence/dataset_resolution/models.py`
 - `src/phospy/evidence/dataset_resolution/policies.py`
@@ -1126,11 +1173,8 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/validation/__init__.py`
 - `src/phospy/validation/common/__init__.py`
 - `src/phospy/validation/common/config_values.py`
-- `src/phospy/validation/common/dataframes.py`
 - `src/phospy/validation/common/input_sources.py`
-- `src/phospy/validation/common/missing_values.py`
 - `src/phospy/validation/common/numbers.py`
-- `src/phospy/validation/common/numeric_frames.py`
 - `src/phospy/validation/common/paths.py`
 - `src/phospy/validation/frame_columns.py`
 - `src/phospy/validation/ownership.py`
@@ -1290,7 +1334,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/evidence/config.py` | `phospy.evidence.config` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/dataset_resolution/__init__.py` | `phospy.evidence.dataset_resolution` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/dataset_resolution/allocation.py` | `phospy.evidence.dataset_resolution.allocation` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/contracts.py` | `phospy.evidence.dataset_resolution.contracts` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/dataset_resolution/mapping.py` | `phospy.evidence.dataset_resolution.mapping` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/dataset_resolution/models.py` | `phospy.evidence.dataset_resolution.models` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/dataset_resolution/policies.py` | `phospy.evidence.dataset_resolution.policies` | `evidence` | Evidence policy, records, allocation, or structural resolution |
@@ -1773,11 +1816,8 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/validation/__init__.py` | `phospy.validation` | `validation` | Reusable validation mechanics |
 | `src/phospy/validation/common/__init__.py` | `phospy.validation.common` | `validation` | Reusable validation mechanics |
 | `src/phospy/validation/common/config_values.py` | `phospy.validation.common.config_values` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/common/dataframes.py` | `phospy.validation.common.dataframes` | `validation` | Reusable validation mechanics |
 | `src/phospy/validation/common/input_sources.py` | `phospy.validation.common.input_sources` | `validation` | Policy-free DataFrame-or-path input validation mechanics |
-| `src/phospy/validation/common/missing_values.py` | `phospy.validation.common.missing_values` | `validation` | Reusable validation mechanics |
 | `src/phospy/validation/common/numbers.py` | `phospy.validation.common.numbers` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/common/numeric_frames.py` | `phospy.validation.common.numeric_frames` | `validation` | Reusable validation mechanics |
 | `src/phospy/validation/common/paths.py` | `phospy.validation.common.paths` | `validation` | Reusable validation mechanics |
 | `src/phospy/validation/frame_columns.py` | `phospy.validation.frame_columns` | `validation` | Reusable validation mechanics |
 | `src/phospy/validation/ownership.py` | `phospy.validation.ownership` | `validation` | Generic validation governance |

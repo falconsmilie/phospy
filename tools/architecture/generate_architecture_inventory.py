@@ -54,6 +54,7 @@ def render_inventory(repo_root: Path) -> str:
             encoding="utf-8"
         )
     )
+    forwarding_classifications = classifications["structural_forwarding_modules"]
 
     lines = [
         "# Architecture inventory",
@@ -70,7 +71,7 @@ def render_inventory(repo_root: Path) -> str:
         f"- Owner-map entries: **{len(owners)}**.",
         "- Temporary architecture exceptions: **0**.",
         "- Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.",
-        "- Unclassified facade forwarding, old-path literals, compatibility behavior, and lazy loading: **0**.",
+        "- Unclassified structural forwarding candidates, old-path literals, compatibility behavior, and lazy loading: **0**.",
         "- The complete eager module graph and policy-filtered owner graph are required to be acyclic by maintained tests.",
         "",
         "## Top-level roots",
@@ -229,6 +230,30 @@ def render_inventory(repo_root: Path) -> str:
     lines.extend(
         [
             "",
+            "## Structurally detected forwarding candidates",
+            "",
+            "The AST detector identifies modules whose executable top-level body is",
+            "limited to imports, `__all__` maintenance, and direct aliases of imported",
+            "names. A docstring and `__future__` imports do not affect detection. The",
+            "detector establishes forwarding-shaped structure only; each candidate",
+            "still requires the explicit policy disposition below.",
+            "",
+            "The declared scope does not interpret computed exports, forwarding inside",
+            "functions or classes, module `__getattr__`, import hooks, or arbitrary",
+            "runtime binding, and it does not attempt to model arbitrary Python behavior.",
+            "",
+            "| Source path | Policy disposition | Rationale |",
+            "| --- | --- | --- |",
+        ]
+    )
+    lines.extend(
+        f"| `{path}` | `{item['disposition']}` | {_escape(item['rationale'])} |"
+        for path, item in sorted(forwarding_classifications.items())
+    )
+
+    lines.extend(
+        [
+            "",
             "## Classified versioned and historical behavior",
             "",
             "These records distinguish legitimate versioned schema or legacy-data",
@@ -285,9 +310,8 @@ def _git_paths(repo_root: Path, pathspec: str) -> tuple[str, ...]:
         check=True,
         capture_output=True,
     )
-    return tuple(
-        sorted(item.decode("utf-8") for item in result.stdout.split(b"\0") if item)
-    )
+    paths = sorted(item.decode("utf-8") for item in result.stdout.split(b"\0") if item)
+    return tuple(path for path in paths if (repo_root / path).is_file())
 
 
 def _owner_rows(repo_root: Path) -> tuple[dict[str, str], ...]:

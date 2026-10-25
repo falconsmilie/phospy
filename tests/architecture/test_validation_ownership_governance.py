@@ -4,10 +4,6 @@ import ast
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from types import SimpleNamespace
-
-import phospy.frames.validation as frame_validation
-import phospy.validation.common.dataframes as validation_dataframe_compat
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -33,13 +29,6 @@ class ConcreteSymbolOwner:
     symbol_name: str
     owner_path: Path
     search_roots: tuple[Path, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class ReexportRoute:
-    reexport_module: object
-    owner_module: object
-    symbols: tuple[str, ...]
 
 
 FRAME_SEARCH_ROOTS = (
@@ -160,25 +149,6 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     ),
 )
 
-IDENTITY_PRESERVING_REEXPORT_ROUTES = (
-    ReexportRoute(
-        reexport_module=validation_dataframe_compat,
-        owner_module=frame_validation,
-        symbols=(
-            "require_dataframe",
-            "require_non_empty_dataframe",
-            "require_aligned_dataframe_shape",
-            "require_numeric_dataframe",
-            "require_finite_numeric_dataframe",
-            "require_unique_index",
-            "require_unique_columns",
-            "require_exact_index_match",
-            "require_no_duplicate_labels",
-            "require_unique_row_pairs",
-        ),
-    ),
-)
-
 
 def test_duplicate_symbol_fixture_rejects_duplicate_concrete_owner(
     tmp_path: Path,
@@ -220,29 +190,9 @@ def test_concrete_validation_symbols_have_single_owner_definition() -> None:
     assert _concrete_symbol_owner_errors(CONCRETE_VALIDATION_SYMBOL_OWNERS) == []
 
 
-def test_identity_preserving_reexport_fixture_detects_copied_object() -> None:
-    owner_object = object()
-    copied_object = object()
-    owner_module = SimpleNamespace(Symbol=owner_object)
-    reexport_module = SimpleNamespace(Symbol=copied_object)
-
-    assert _reexport_identity_mismatches(
-        ReexportRoute(
-            reexport_module=reexport_module,
-            owner_module=owner_module,
-            symbols=("Symbol",),
-        )
-    ) == ["Symbol"]
-
-
-def test_deliberate_frame_validation_reexports_preserve_identity() -> None:
-    mismatches = [
-        mismatch
-        for route in IDENTITY_PRESERVING_REEXPORT_ROUTES
-        for mismatch in _reexport_identity_mismatches(route)
-    ]
-
-    assert mismatches == []
+def test_dataframe_validation_primitives_use_the_direct_owner_route() -> None:
+    assert (PACKAGE_ROOT / "frames" / "validation.py").is_file()
+    assert not (PACKAGE_ROOT / "validation" / "common" / "dataframes.py").exists()
 
 
 def test_stale_ownership_map_module_path_fixture_rejects_missing_module() -> None:
@@ -406,18 +356,6 @@ def _definition_paths(*, symbol_name: str, roots: tuple[Path, ...]) -> tuple[Pat
                 ):
                     paths.append(path.resolve())
     return tuple(paths)
-
-
-def _reexport_identity_mismatches(route: ReexportRoute) -> list[str]:
-    mismatches: list[str] = []
-    for symbol_name in route.symbols:
-        if getattr(route.reexport_module, symbol_name, None) is not getattr(
-            route.owner_module,
-            symbol_name,
-            None,
-        ):
-            mismatches.append(symbol_name)
-    return mismatches
 
 
 def _ownership_rows() -> tuple[OwnershipRow, ...]:

@@ -3,8 +3,169 @@
   "policy": "ADR-0053 and ADR-0054 permanent architecture policy",
   "forwarding_and_safety_modules": {
     "src/phospy/_api_inventory.py": "Authoritative aggregate inventory data; explicitly free of compatibility routes.",
-    "src/phospy/api/builders.py": "Permanent internal aggregate-facade composition; exact owner identities only; unsupported as an external route.",
     "src/phospy/differential/aggregation/experimental.py": "Permanent ADR-0041 fail-closed scientific safety seam; no executable compatibility behavior."
+  },
+  "structural_forwarding_modules": {
+    "src/phospy/advanced/__init__.py": {
+      "disposition": "supported_aggregate_facade",
+      "rationale": "ADR-0054 advanced aggregate API; exact owner identities only."
+    },
+    "src/phospy/api/__init__.py": {
+      "disposition": "supported_aggregate_facade",
+      "rationale": "ADR-0054 ordinary aggregate API; exact owner identities only."
+    },
+    "src/phospy/api/builders.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Internal aggregate composition used by the supported API; unsupported as an external route."
+    },
+    "src/phospy/errors/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Owner-package aggregation for internal imports."
+    },
+    "src/phospy/evidence/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Owner-package aggregation for evidence records."
+    },
+    "src/phospy/frames/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Owner-package aggregation for neutral frame primitives."
+    },
+    "src/phospy/io/bundles/kinase.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "IO-owned Kinase bundle composition."
+    },
+    "src/phospy/io/bundles/signalome.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "IO-owned Signalome bundle composition."
+    },
+    "src/phospy/io/publishers/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "IO publisher package composition."
+    },
+    "src/phospy/io/readers/fragpipe/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "FragPipe reader package composition."
+    },
+    "src/phospy/kinase/scoring/motif/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Kinase motif implementation package composition."
+    },
+    "src/phospy/phosphosites/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Phosphosite owner-package composition."
+    },
+    "src/phospy/policies/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Shared policy owner-package composition."
+    },
+    "src/phospy/preprocessing/workflow.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Preprocessing-owned workflow composition route."
+    },
+    "src/phospy/preprocessing/batch_correction/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Batch-correction capability package composition."
+    },
+    "src/phospy/preprocessing/batch_correction/adapters/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Batch-correction adapter package composition."
+    },
+    "src/phospy/preprocessing/batch_correction/contracts/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Batch-correction contract package composition."
+    },
+    "src/phospy/preprocessing/batch_correction/execution/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Batch-correction execution package composition."
+    },
+    "src/phospy/preprocessing/batch_correction/provenance/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Batch-correction provenance package composition."
+    },
+    "src/phospy/preprocessing/batch_correction/validation/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Batch-correction validation package composition."
+    },
+    "src/phospy/preprocessing/contracts/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Preprocessing contract package composition."
+    },
+    "src/phospy/preprocessing/contracts/configuration/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Preprocessing configuration package composition."
+    },
+    "src/phospy/preprocessing/sequence/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Preprocessing sequence package composition."
+    },
+    "src/phospy/preprocessing/stages/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Preprocessing stage package composition."
+    },
+    "src/phospy/preprocessing/stages/missing_data/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Missing-data stage package composition."
+    },
+    "src/phospy/preprocessing/stages/site_matrix_components/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Site-matrix stage component composition."
+    },
+    "src/phospy/provenance/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Provenance owner-package composition."
+    },
+    "src/phospy/provenance/models/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Provenance model package composition."
+    },
+    "src/phospy/provenance/serialization/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Provenance serialization package composition."
+    },
+    "src/phospy/quantitative/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Quantitative owner-package composition."
+    },
+    "src/phospy/quantitative/models.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Quantitative model aggregation retained for owner-internal composition."
+    },
+    "src/phospy/quantitative/transformers/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Quantitative transformer package composition."
+    },
+    "src/phospy/references/manifest.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Reference manifest contract composition."
+    },
+    "src/phospy/references/sequences/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Reference sequence package composition."
+    },
+    "src/phospy/references/validation/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Reference validation package composition."
+    },
+    "src/phospy/run_lineage/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Run-lineage composition foundation facade."
+    },
+    "src/phospy/signalome/clustering/backends/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Signalome clustering backend package composition."
+    },
+    "src/phospy/signalome/tables/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Signalome table package composition."
+    },
+    "src/phospy/statistics/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Statistics owner-package composition."
+    },
+    "src/phospy/taxonomy/__init__.py": {
+      "disposition": "deliberate_internal_facade",
+      "rationale": "Taxonomy owner-package composition."
+    }
   },
   "lazy_loader_modules": {
     "src/phospy/__init__.py": "Three-name supported root facade.",

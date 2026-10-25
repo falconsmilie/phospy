@@ -11,6 +11,15 @@ from phospy.evidence.config import (
     LocalisationRequirement,
 )
 from phospy.evidence.site_metadata import enforce_localisation_requirement
+from phospy.frames.validation import (
+    require_dataframe,
+    require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_non_empty_dataframe,
+    require_numeric_dataframe,
+    require_unique_columns,
+    require_unique_index,
+)
 from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.kinase.results import KinaseWorkflowResult
 from phospy.phosphosites.contracts import (
@@ -45,15 +54,6 @@ from phospy.signalome.constants import (
 )
 from phospy.signalome.contracts import ValidatedSignalomeWorkflowRequest
 from phospy.signalome.requests import SignalomeWorkflowRequest
-from phospy.validation.common.dataframes import (
-    require_dataframe,
-    require_exact_index_match,
-    require_finite_numeric_dataframe,
-    require_non_empty_dataframe,
-    require_numeric_dataframe,
-    require_unique_columns,
-    require_unique_index,
-)
 from phospy.validation.frame_columns import enforce_required_non_empty_string_column
 
 SIGNALOME_IDENTITY_CONTRACT = WorkflowIdentityContract(

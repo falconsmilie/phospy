@@ -48,6 +48,7 @@ from phospy.enrichment.planning import (
     ValidatedEnrichmentWorkflowRequest,
 )
 from phospy.errors.validation import WorkflowValidationError
+from phospy.frames.validation import require_columns, require_dataframe
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models.tables import TableFingerprint
 from phospy.provenance.serialization.tables import table_fingerprint_to_payload
@@ -56,7 +57,6 @@ from phospy.quantitative.models import (
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
 )
-from phospy.validation.common.dataframes import require_columns, require_dataframe
 
 _EnumT = TypeVar("_EnumT", bound=Enum)
 

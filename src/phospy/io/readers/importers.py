@@ -19,6 +19,7 @@ from phospy.frames.table_formats import (
     supported_table_input_formats,
     table_format_from_path,
 )
+from phospy.frames.validation import require_dataframe
 from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
@@ -40,7 +41,6 @@ from phospy.io.importers.validation import (
     required_import_source_columns,
 )
 from phospy.phosphosites.identifiers import canonicalize_site_components
-from phospy.validation.common.dataframes import require_dataframe
 
 _CSV = "csv"
 _TSV = "tsv"

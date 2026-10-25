@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors.validation import DatasetValidationError
-from phospy.validation.common.dataframes import (
+from phospy.frames.validation import (
     format_label_examples,
     require_aligned_dataframe_shape,
     require_columns,
