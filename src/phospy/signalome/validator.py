@@ -470,36 +470,6 @@ class SignalomeWorkflowValidator:
             ) from exc
 
 
-def _unchecked_signalome_workflow_request_boundary(
-    request: object,
-) -> ValidatedSignalomeWorkflowRequest:
-    """Wrap an internal interpreter-only request without rerunning validation.
-
-    Ordinary `SignalomeWorkflow.run(...)` calls must use
-    `SignalomeWorkflowValidator.run(...)`. This compatibility seam exists for
-    focused interpreter tests and internal collaborators that intentionally
-    exercise interpreter boundary errors before full workflow validation would
-    accept the public request.
-    """
-
-    if not isinstance(request, SignalomeWorkflowRequest):
-        raise WorkflowValidationError(
-            "signalome workflow input must be a SignalomeWorkflowRequest"
-        )
-    if not isinstance(request.kinase_result, KinaseWorkflowResult):
-        raise WorkflowValidationError(
-            "signalome workflow request kinase_result must be KinaseWorkflowResult"
-        )
-    return ValidatedSignalomeWorkflowRequest(
-        request=request,
-        dataset_view=DatasetInternalView(request.kinase_result.dataset),
-        prediction_matrix=request.kinase_result.prediction_result.pred_mat,
-        authoritative_score_matrix=(
-            request.kinase_result.scoring_result.authoritative_scores
-        ),
-    )
-
-
 def _resolve_signalome_protein_grouping_column(
     *,
     site_metadata: pd.DataFrame,

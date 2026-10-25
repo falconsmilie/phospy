@@ -31,6 +31,7 @@ from phospy.signalome.protein_resolution import SignalomeProteinResolver
 from phospy.signalome.score_preconditioning import (
     SignalomeScorePreconditioner,
 )
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -388,7 +389,8 @@ def test_interpreter_run_preserves_expected_interpreted_output_for_valid_fixture
         config=build_signalome_config(score_preconditioning_policy="allow_and_report"),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    validated = SignalomeWorkflowValidator().run(request)
+    interpreted = SignalomeWorkflowInterpreter().run(validated)
 
     assert interpreted.downstream_score_source == "rank_weighted_fusion_scores"
     retained_site_keys = _site_keys(["P1;S1;", "P3;S3;"])
@@ -462,12 +464,14 @@ def test_interpreter_exports_each_kinase_matrix_once_and_isolates_later_runs(
         property(_counted_score_getter),
     )
 
-    first = SignalomeWorkflowInterpreter().run(request)
+    first_validated = SignalomeWorkflowValidator().run(request)
+    first = SignalomeWorkflowInterpreter().run(first_validated)
     assert calls == {"prediction": 1, "score": 1}
     first.prediction_matrix.iloc[0, 0] = -1.0
     first.downstream_score_matrix.iloc[0, 0] = -1.0
 
-    second = SignalomeWorkflowInterpreter().run(request)
+    second_validated = SignalomeWorkflowValidator().run(request)
+    second = SignalomeWorkflowInterpreter().run(second_validated)
     assert calls == {"prediction": 2, "score": 2}
     assert second.prediction_matrix.iloc[0, 0] == pytest.approx(0.9)
     assert second.downstream_score_matrix.iloc[0, 0] == pytest.approx(0.8)

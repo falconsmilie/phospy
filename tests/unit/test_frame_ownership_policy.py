@@ -3062,7 +3062,8 @@ def test_signalome_interpreter_read_path_does_not_mutate_dataset_frames() -> Non
         name="dataset.site_metadata",
     )
 
-    SignalomeWorkflowInterpreter().run(request)
+    validated = SignalomeWorkflowValidator().run(request)
+    SignalomeWorkflowInterpreter().run(validated)
 
     phospho_after = fingerprint_table(
         dataset._borrow_phospho_frame(),

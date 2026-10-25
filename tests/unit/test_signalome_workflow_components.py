@@ -63,6 +63,7 @@ from phospy.signalome.result_assembly import (
     SignalomeExpandedSignalomeBuilder,
     SignalomeResultAssembler,
 )
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -203,7 +204,8 @@ def _resolved_request(*, module_count: int | None = 2):
             score_preconditioning_policy="allow_and_report",
         ),
     )
-    return SignalomeWorkflowInterpreter().run(request)
+    validated = SignalomeWorkflowValidator().run(request)
+    return SignalomeWorkflowInterpreter().run(validated)
 
 
 def _strings_from(value: object) -> tuple[str, ...]:

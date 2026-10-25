@@ -10,7 +10,9 @@ from phospy.api import (
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
+from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.signalome.contracts import ValidatedSignalomeWorkflowRequest
 from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.signalome.row_attrition import (
     build_signalome_row_attrition_provenance,
@@ -132,19 +134,24 @@ def _interpreted_request(
             else [[1.0, 0.5] for _ in range(int(score_index.size))]
         ),
     )
-    return SignalomeWorkflowInterpreter().run(
-        SignalomeWorkflowRequest(
-            kinase_result=_kinase_result(
-                dataset=dataset,
-                prediction_matrix=prediction_matrix,
-                score_matrix=scores,
-            ),
-            config=build_signalome_config(
-                substrate_support_cutoff=0.5,
-                score_preconditioning_policy="allow_and_report",
-            ),
-        )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=scores,
+        ),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy="allow_and_report",
+        ),
     )
+    interpreter_input = ValidatedSignalomeWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(dataset),
+        prediction_matrix=prediction_matrix,
+        authoritative_score_matrix=scores,
+    )
+    return SignalomeWorkflowInterpreter().run(interpreter_input)
 
 
 def test_signalome_score_preconditioning_record_uses_actual_stage_indexes() -> None:

@@ -35,6 +35,7 @@ from phospy.signalome.contracts import ResolvedSignalomeWorkflowRequest
 from phospy.signalome.executor import SignalomeWorkflowExecutor
 from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.signalome.modules import build_signalome_module_table
+from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -198,7 +199,8 @@ def _run_signalome_executor() -> tuple[
             score_preconditioning_policy="allow_and_report",
         ),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    validated = SignalomeWorkflowValidator().run(request)
+    interpreted = SignalomeWorkflowInterpreter().run(validated)
     result = SignalomeWorkflowExecutor().run(interpreted)
     return result, interpreted
 

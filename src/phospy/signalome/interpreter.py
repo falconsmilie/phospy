@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
@@ -47,9 +49,6 @@ from phospy.signalome.score_matrix_selection import (
 from phospy.signalome.score_preconditioning import (
     SignalomeScorePreconditioner,
 )
-from phospy.signalome.validator import (
-    _unchecked_signalome_workflow_request_boundary,  # pyright: ignore[reportPrivateUsage] - Interpreter keeps a legacy internal test seam while ordinary workflow runs receive the validator-produced boundary.
-)
 
 _SITE_KEY_COLUMN = "site_key"
 
@@ -81,10 +80,17 @@ class SignalomeWorkflowInterpreter:
         )
 
     def run(
-        self, request: SignalomeWorkflowRequest | ValidatedSignalomeWorkflowRequest
+        self, request: ValidatedSignalomeWorkflowRequest
     ) -> ResolvedSignalomeWorkflowRequest:
-        if not isinstance(request, ValidatedSignalomeWorkflowRequest):
-            request = _unchecked_signalome_workflow_request_boundary(request)
+        if not isinstance(cast(object, request), ValidatedSignalomeWorkflowRequest):
+            raise WorkflowBoundaryError(
+                seam="signalome.interpreter.validated_request_type",
+                next_action=(
+                    "pass SignalomeWorkflowValidator.run output into "
+                    "SignalomeWorkflowInterpreter.run"
+                ),
+                message_prefix="signalome workflow boundary validation failed",
+            )
         public_request = request.request
         dataset_view = request.dataset_view
         dataset = public_request.kinase_result.dataset

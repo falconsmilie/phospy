@@ -274,7 +274,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
   - `src/phospy/signalome/clustering/protein_modules.py`
   - `src/phospy/signalome/constants.py`
   - `src/phospy/signalome/contracts.py`
-  - `src/phospy/signalome/interpreter.py`
   - `src/phospy/signalome/models.py`
   - `src/phospy/signalome/network.py`
   - `src/phospy/signalome/protein_resolution.py`

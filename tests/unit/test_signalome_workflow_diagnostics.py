@@ -74,6 +74,7 @@ from phospy.signalome.constants import (
 from phospy.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
+    ValidatedSignalomeWorkflowRequest,
 )
 from phospy.signalome.errors import SignalomeScaleError
 from phospy.signalome.executor import SignalomeWorkflowExecutor
@@ -330,6 +331,27 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
     )
 
 
+def _interpreter_input_fixture(
+    request: SignalomeWorkflowRequest,
+) -> ValidatedSignalomeWorkflowRequest:
+    """Build explicitly controlled interpreter input for diagnostic-only tests."""
+
+    return ValidatedSignalomeWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.kinase_result.dataset),
+        prediction_matrix=request.kinase_result.prediction_result.pred_mat,
+        authoritative_score_matrix=(
+            request.kinase_result.scoring_result.authoritative_scores
+        ),
+    )
+
+
+def _run_interpreter(
+    request: SignalomeWorkflowRequest,
+) -> ResolvedSignalomeWorkflowRequest:
+    return SignalomeWorkflowInterpreter().run(_interpreter_input_fixture(request))
+
+
 def _interpreted_request_for_context_failure() -> ResolvedSignalomeWorkflowRequest:
     dataset = _dataset(site_ids=["P1;S1;", "P2;S2;", "P3;S3;"])
     prediction_matrix = _matrix(
@@ -358,7 +380,7 @@ def _interpreted_request_for_context_failure() -> ResolvedSignalomeWorkflowReque
         ),
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
-    return SignalomeWorkflowInterpreter().run(request)
+    return _run_interpreter(request)
 
 
 def _run_signalome_workflow_path(
@@ -367,7 +389,7 @@ def _run_signalome_workflow_path(
     execution_path: str,
 ) -> SignalomeWorkflowResult:
     if execution_path == "direct_components":
-        interpreted = SignalomeWorkflowInterpreter().run(request)
+        interpreted = _run_interpreter(request)
         return SignalomeWorkflowExecutor().run(interpreted)
     if execution_path == "public_workflow":
         return SignalomeWorkflow().run(request)
@@ -426,7 +448,7 @@ def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter(request)
 
     error = exc_info.value
     message = str(error)
@@ -466,7 +488,7 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter(request)
 
     message = str(exc_info.value)
     assert f"seam={SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM}" in message
@@ -511,7 +533,7 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter(request)
 
     message = str(exc_info.value)
     assert f"seam={SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM}" in message
@@ -549,7 +571,7 @@ def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> No
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     assert interpreted.site_to_protein_group_id.tolist() == ["P28482-1", "P28482-2"]
 
 
@@ -590,7 +612,7 @@ def test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter(request)
 
     message = str(exc_info.value)
     assert f"seam={SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM}" in message
@@ -629,7 +651,7 @@ def test_interpreter_prefers_rank_weighted_fusion_scores_for_downstream_signalom
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     pd.testing.assert_frame_equal(
         interpreted.downstream_score_matrix,
         rank_weighted_fusion_scores,
@@ -689,7 +711,7 @@ def test_interpreter_property_shared_site_alignment_preserves_dataset_order(
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     shared_site_set = set(shared_sites)
     expected_order = [
         _site_key(site_id) for site_id in dataset_sites if site_id in shared_site_set
@@ -743,7 +765,7 @@ def test_interpreter_property_shared_kinase_alignment_preserves_prediction_order
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     shared_kinase_set = set(shared_kinases)
     expected_order = [
         kinase for kinase in prediction_kinases if kinase in shared_kinase_set
@@ -796,7 +818,7 @@ def test_interpreter_property_allow_and_report_drops_all_missing_rows(
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     expected_retained_sites = [
         _site_key(site_id)
         for site_id, missing_row in zip(site_ids, row_is_all_missing, strict=True)
@@ -851,7 +873,7 @@ def test_interpreter_property_error_on_drop_rejects_all_missing_rows(
     )
 
     with pytest.raises(WorkflowBoundaryError, match="dropped_all_missing_row_count"):
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter(request)
 
 
 def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
@@ -881,7 +903,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
 
     assert interpreted.execution_config.substrate_support_cutoff == pytest.approx(0.5)
     assert interpreted.execution_config.network_correlation_threshold == pytest.approx(
@@ -951,7 +973,7 @@ def test_interpreter_propagates_configured_clustering_engine() -> None:
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     assert interpreted.execution_config.clustering_engine == (
         SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
@@ -989,7 +1011,7 @@ def test_executor_provenance_records_explicit_exact_python_backend() -> None:
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
 
     assert result.provenance is not None
@@ -1045,7 +1067,7 @@ def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_precon
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     retained_sites = [
         _site_key("P2;S2;"),
         _site_key("P3;S3;"),
@@ -1098,7 +1120,7 @@ def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     assert interpreted.downstream_score_matrix.index.tolist() == _site_keys(site_ids)
     assert interpreted.score_preconditioning_diagnostics.input_row_count == 2
     assert (
@@ -1130,7 +1152,7 @@ def test_interpreter_reports_alignment_diagnostics_for_perfect_overlap() -> None
         site_ids=site_ids,
         kinases=kinases,
     )
-    interpreted = SignalomeWorkflowInterpreter().run(
+    interpreted = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(
                 dataset=dataset,
@@ -1178,7 +1200,7 @@ def test_interpreter_reports_alignment_diagnostics_for_partial_site_overlap() ->
         site_ids=["P1;S1;", "P3;S3;", "P5;S5;"],
         kinases=["K1"],
     )
-    interpreted = SignalomeWorkflowInterpreter().run(
+    interpreted = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(
                 dataset=dataset,
@@ -1243,7 +1265,7 @@ def test_interpreter_reports_alignment_diagnostics_for_partial_kinase_overlap() 
         site_ids=site_ids,
         kinases=["K2", "K3", "K4"],
     )
-    interpreted = SignalomeWorkflowInterpreter().run(
+    interpreted = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(
                 dataset=dataset,
@@ -1281,7 +1303,7 @@ def test_interpreter_alignment_diagnostics_reports_missing_downstream_scores() -
         site_ids=["P1;S1;", "P2;S2;"],
         kinases=["K1"],
     )
-    interpreted = SignalomeWorkflowInterpreter().run(
+    interpreted = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(
                 dataset=dataset,
@@ -1325,7 +1347,7 @@ def test_interpreter_alignment_diagnostics_reports_missing_prediction_scores() -
         site_ids=site_ids,
         kinases=["K1"],
     )
-    interpreted = SignalomeWorkflowInterpreter().run(
+    interpreted = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(
                 dataset=dataset,
@@ -1438,7 +1460,7 @@ def test_interpreter_respects_explicit_allow_and_report_preconditioning_policy()
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     assert interpreted.downstream_score_matrix.index.tolist() == [
         _site_key("P2;S2;"),
         _site_key("P3;S3;"),
@@ -1484,7 +1506,7 @@ def test_interpreter_fails_by_default_when_all_missing_rows_would_be_dropped() -
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter(request)
 
     error = exc_info.value
     message = str(error)
@@ -1538,7 +1560,7 @@ def test_interpreter_allows_error_on_drop_policy_when_no_rows_require_drop() -> 
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     assert interpreted.downstream_score_matrix.index.tolist() == _site_keys(site_ids)
     assert interpreted.score_preconditioning_diagnostics.input_row_count == 2
     assert (
@@ -1575,7 +1597,7 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
         kinases=["K1", "K2"],
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(
+    interpreted = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(
                 dataset=dataset,
@@ -1630,7 +1652,7 @@ def test_interpreter_fails_for_retained_site_with_missing_protein_group_id() -> 
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(
+        _run_interpreter(
             SignalomeWorkflowRequest(
                 kinase_result=_kinase_result(
                     dataset=dataset,
@@ -1678,7 +1700,7 @@ def test_interpreter_strict_mode_fails_on_score_preconditioning_before_protein_m
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(
+        _run_interpreter(
             SignalomeWorkflowRequest(
                 kinase_result=_kinase_result(
                     dataset=dataset,
@@ -1727,7 +1749,7 @@ def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_re
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(
+        _run_interpreter(
             SignalomeWorkflowRequest(
                 kinase_result=_kinase_result(
                     dataset=dataset,
@@ -1791,7 +1813,7 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
     assert not result.kinase_network.edges.empty
     assert result.score_preconditioning_diagnostics.input_row_count == 4
@@ -1972,7 +1994,7 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
 
     assert result.provenance is not None
@@ -2062,7 +2084,7 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
 
     assert result.provenance is not None
@@ -2165,7 +2187,7 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
 
     assert result.provenance is not None
@@ -2268,7 +2290,7 @@ def test_explicit_single_module_reports_trivial_final_assignment_backend() -> No
         ),
     )
 
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
 
     assert result.provenance is not None
@@ -2622,7 +2644,7 @@ def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_g
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
-    resolved = SignalomeWorkflowInterpreter().run(request)
+    resolved = _run_interpreter(request)
     result = SignalomeWorkflowExecutor().run(resolved)
     assignments = result.module_assignments.table
     proteins = assignments.loc[:, "protein_group_id"].tolist()
@@ -2650,7 +2672,7 @@ def test_boundary_error_reports_no_support_cutoff_support_counts() -> None:
         ),
         config=build_signalome_config(substrate_support_cutoff=0.9),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         SignalomeWorkflowExecutor().run(interpreted)
@@ -2684,7 +2706,7 @@ def test_boundary_error_reports_module_construction_degeneracy_counts() -> None:
         ),
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         SignalomeWorkflowExecutor().run(interpreted)
@@ -2765,7 +2787,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
         ),
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
 
     with pytest.raises(WorkflowBoundaryError) as variance_exc:
         SignalomeWorkflowExecutor().run(interpreted)
@@ -2811,7 +2833,7 @@ def test_boundary_error_reports_expanded_signalome_failure_seam(
         ),
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+    interpreted = _run_interpreter(request)
 
     def _raise_expanded_stage_error(**_: object) -> pd.DataFrame:
         raise WorkflowStageError("expanded signalome seam regression test")
@@ -2987,7 +3009,7 @@ def test_support_cutoff_changes_substrate_support_without_changing_network_edges
     )
     executor = SignalomeWorkflowExecutor()
 
-    low_support_resolved = SignalomeWorkflowInterpreter().run(
+    low_support_resolved = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
             config=build_signalome_config(
@@ -2996,7 +3018,7 @@ def test_support_cutoff_changes_substrate_support_without_changing_network_edges
             ),
         )
     )
-    high_support_resolved = SignalomeWorkflowInterpreter().run(
+    high_support_resolved = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
             config=build_signalome_config(
@@ -3051,7 +3073,7 @@ def test_network_threshold_changes_edge_sparsity_without_changing_substrate_supp
     )
     executor = SignalomeWorkflowExecutor()
 
-    low_threshold_resolved = SignalomeWorkflowInterpreter().run(
+    low_threshold_resolved = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
             config=build_signalome_config(
@@ -3060,7 +3082,7 @@ def test_network_threshold_changes_edge_sparsity_without_changing_substrate_supp
             ),
         )
     )
-    high_threshold_resolved = SignalomeWorkflowInterpreter().run(
+    high_threshold_resolved = _run_interpreter(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
             config=build_signalome_config(

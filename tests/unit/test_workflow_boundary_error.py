@@ -14,11 +14,16 @@ from phospy.api import (
     SignalomeWorkflowRequest,
 )
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
+from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.references.models import ReferenceBundle
 from phospy.signalome.constants import (
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
+)
+from phospy.signalome.contracts import (
+    ResolvedSignalomeWorkflowRequest,
+    ValidatedSignalomeWorkflowRequest,
 )
 from phospy.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.signalome.validator import SignalomeWorkflowValidator
@@ -164,6 +169,52 @@ def _request(
     )
 
 
+def _interpreter_input_fixture(
+    request: SignalomeWorkflowRequest,
+) -> ValidatedSignalomeWorkflowRequest:
+    """Build deliberate malformed input for interpreter boundary diagnostics."""
+
+    return ValidatedSignalomeWorkflowRequest(
+        request=request,
+        dataset_view=DatasetInternalView(request.kinase_result.dataset),
+        prediction_matrix=request.kinase_result.prediction_result.pred_mat,
+        authoritative_score_matrix=(
+            request.kinase_result.scoring_result.authoritative_scores
+        ),
+    )
+
+
+def _run_interpreter_fixture(
+    request: SignalomeWorkflowRequest,
+) -> ResolvedSignalomeWorkflowRequest:
+    return SignalomeWorkflowInterpreter().run(_interpreter_input_fixture(request))
+
+
+def test_signalome_interpreter_rejects_raw_request() -> None:
+    request = _request(
+        prediction_matrix=pd.DataFrame(
+            {"MAP2K6": [0.8, 0.7]},
+            index=_site_index(),
+        ),
+        score_matrix=pd.DataFrame(
+            {"MAP2K6": [1.0, 2.0]},
+            index=_site_index(),
+        ),
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowInterpreter().run(
+            request  # pyright: ignore[reportArgumentType] - Runtime boundary rejection is the behavior under test.
+        )
+
+    error = exc_info.value
+    assert error.seam == "signalome.interpreter.validated_request_type"
+    assert (
+        error.next_action == "pass SignalomeWorkflowValidator.run output into "
+        "SignalomeWorkflowInterpreter.run"
+    )
+
+
 def test_signalome_boundary_wraps_non_numeric_downstream_score_matrix() -> None:
     request = _request(
         prediction_matrix=pd.DataFrame(
@@ -184,7 +235,7 @@ def test_signalome_boundary_wraps_non_numeric_downstream_score_matrix() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter_fixture(request)
 
     message = str(exc_info.value)
     assert (
@@ -218,7 +269,7 @@ def test_signalome_boundary_wraps_non_numeric_prediction_matrix() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter_fixture(request)
 
     message = str(exc_info.value)
     assert (
@@ -270,7 +321,7 @@ def test_signalome_boundary_rejects_misaligned_prediction_and_scoring_indices() 
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter_fixture(request)
 
     error = exc_info.value
     message = str(error)
@@ -299,7 +350,7 @@ def test_signalome_boundary_rejects_infinite_downstream_scores() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SignalomeWorkflowInterpreter().run(request)
+        _run_interpreter_fixture(request)
 
     message = str(exc_info.value)
     assert "signalome workflow boundary validation failed" in message
