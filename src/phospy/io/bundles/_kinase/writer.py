@@ -12,6 +12,9 @@ from phospy.io.bundles._kinase.manifest import build_manifest
 from phospy.io.bundles._kinase.snapshots import KinaseWorkflowConfigSnapshot
 from phospy.io.bundles._shared.integrity import build_json_file_entry
 from phospy.io.bundles._shared.json_files import write_json
+from phospy.io.bundles._shared.kinase_scoring_state import (
+    write_kinase_scoring_tables,
+)
 from phospy.io.bundles._shared.tables import (
     write_bundle_table,
     write_optional_bundle_table,
@@ -105,73 +108,13 @@ def _write_staged_kinase_workflow_bundle(
         ),
     }
 
-    scoring_tables = {
-        "profile_scores": write_bundle_table(
-            table=result.scoring_result.profile_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"profile_scores{suffix}",
-            written=written,
-            written_key="scoring.profile_scores",
-        ),
-        "motif_scores": write_optional_bundle_table(
-            table=result.scoring_result.motif_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"motif_scores{suffix}",
-            written=written,
-            written_key="scoring.motif_scores",
-        ),
-        "rank_weighted_fusion_scores": write_optional_bundle_table(
-            table=result.scoring_result.rank_weighted_fusion_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"rank_weighted_fusion_scores{suffix}",
-            written=written,
-            written_key="scoring.rank_weighted_fusion_scores",
-        ),
-        "kinase_library_motif_scores": write_optional_bundle_table(
-            table=result.scoring_result.kinase_library_motif_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"kinase_library_motif_scores{suffix}",
-            written=written,
-            written_key="scoring.kinase_library_motif_scores",
-        ),
-        "combined_profile_motif_scores": write_optional_bundle_table(
-            table=result.scoring_result.combined_profile_motif_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"combined_profile_motif_scores{suffix}",
-            written=written,
-            written_key="scoring.combined_profile_motif_scores",
-        ),
-        "score_fusion_weights": write_optional_bundle_table(
-            table=result.scoring_result.score_fusion_weights,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"score_fusion_weights{suffix}",
-            written=written,
-            written_key="scoring.score_fusion_weights",
-        ),
-        "kinase_library_site_diagnostics": write_optional_bundle_table(
-            table=result.scoring_result.kinase_library_site_diagnostics,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"kinase_library_site_diagnostics{suffix}",
-            written=written,
-            written_key="scoring.kinase_library_site_diagnostics",
-        ),
-        "kinase_library_kinase_diagnostics": write_optional_bundle_table(
-            table=result.scoring_result.kinase_library_kinase_diagnostics,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring")
-            / f"kinase_library_kinase_diagnostics{suffix}",
-            written=written,
-            written_key="scoring.kinase_library_kinase_diagnostics",
-        ),
-        "substrate_contributions": write_optional_bundle_table(
-            table=result.substrate_contributions,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"substrate_contributions{suffix}",
-            written=written,
-            written_key="scoring.substrate_contributions",
-        ),
-    }
-    scoring_tables = _drop_absent_optional_scoring_tables(scoring_tables)
+    scoring_tables = write_kinase_scoring_tables(
+        result=result.scoring_result,
+        substrate_contributions=result.substrate_contributions,
+        bundle_root=bundle_root,
+        suffix=suffix,
+        written=written,
+    )
 
     prediction_tables = {
         "pred_mat": write_bundle_table(
@@ -296,22 +239,3 @@ def _write_staged_kinase_workflow_bundle(
     write_json(manifest_path, manifest, label="bundle manifest")
     written["manifest"] = manifest_path
     return written
-
-
-def _drop_absent_optional_scoring_tables(
-    scoring_tables: dict[str, object],
-) -> dict[str, object]:
-    """Omit absent optional scoring tables from manifests."""
-
-    optional_keys = (
-        "kinase_library_motif_scores",
-        "combined_profile_motif_scores",
-        "kinase_library_site_diagnostics",
-        "kinase_library_kinase_diagnostics",
-        "substrate_contributions",
-    )
-    return {
-        key: value
-        for key, value in scoring_tables.items()
-        if key not in optional_keys or value is not None
-    }

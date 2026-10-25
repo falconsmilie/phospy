@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pandas as pd
@@ -46,6 +47,10 @@ from phospy.run_lineage.models import RunProvenance
 from phospy.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.signalome.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
+)
+from tests.support.kinase_scoring_state import (
+    NONDEFAULT_SCORING_MODES,
+    complete_scoring_result_for_mode,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
@@ -174,6 +179,42 @@ def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     _assert_signalome_result_equal(loaded.result, result)
 
 
+@pytest.mark.parametrize("scoring_mode", NONDEFAULT_SCORING_MODES)
+def test_signalome_bundle_round_trip_preserves_complete_nested_scoring_state(
+    tmp_path: Path,
+    scoring_mode: str,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    scoring_result = complete_scoring_result_for_mode(
+        result.kinase_result.scoring_result,
+        scoring_mode=scoring_mode,
+    )
+    kinase_result = replace(
+        result.kinase_result,
+        scoring_result=scoring_result,
+    )
+    result = _with_kinase_result(result, kinase_result)
+    bundle_root = tmp_path / f"signalome_bundle_{scoring_mode}"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_signalome_workflow_bundle(bundle_root)
+
+    actual = loaded.result.kinase_result.scoring_result
+    assert actual.__class__ is scoring_result.__class__
+    _assert_scoring_result_equal(actual, scoring_result)
+    assert actual.score_source_matrix is not None
+    assert actual.score_source_summary is not None
+    assert actual.profile_score_diagnostics is not None
+    assert actual.motif_sequence_validation is not None
+    assert actual.motif_library_validation is not None
+    assert actual.kinase_library_kinase_diagnostics is not None
+    assert actual.kinase_library_kinase_diagnostics.empty
+
+
 def test_signalome_bundle_round_trip_preserves_batch_correction_provenance(
     tmp_path: Path,
 ) -> None:
@@ -287,7 +328,7 @@ def test_signalome_bundle_overwrite_uses_shared_transaction_recovery(
     _assert_signalome_result_equal(loaded_after_success.result, result)
 
 
-def test_signalome_bundle_manifest_v2_is_explicit_and_content_addressed(
+def test_signalome_bundle_manifest_v3_is_explicit_and_content_addressed(
     tmp_path: Path,
 ) -> None:
     request, result = _build_signalome_request_and_result()
@@ -315,6 +356,14 @@ def test_signalome_bundle_manifest_v2_is_explicit_and_content_addressed(
         "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
         "score_fusion_weights": None,
+        "score_source_matrix": None,
+        "score_source_summary": "scoring/score_source_summary.csv",
+        "profile_score_diagnostics": None,
+        "kinase_library_motif_scores": None,
+        "combined_profile_motif_scores": None,
+        "kinase_library_site_diagnostics": None,
+        "kinase_library_kinase_diagnostics": None,
+        "substrate_contributions": None,
     }
     assert _table_paths(manifest["signalome_outputs"]["tables"]) == {
         "expanded_signalome": "signalome/expanded_signalome.csv",
@@ -552,6 +601,35 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
     )
     loaded = load_signalome_workflow_bundle(bundle_root)
     assert loaded.result.expanded_signalome is None
+
+
+def test_signalome_bundle_v2_manifest_is_rejected_as_legacy_scoring_schema(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / "signalome_bundle_v2_rejected"
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["manifest_version"] = 2
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "Legacy signalome bundle schemas are no longer supported.*"
+            "Regenerate the bundle with the current PhosPy version.*"
+            "unsupported bundle manifest version '2'; expected 3"
+        ),
+    ):
+        load_signalome_workflow_bundle(bundle_root)
 
 
 @pytest.mark.parametrize(
@@ -964,23 +1042,13 @@ def _assert_signalome_result_equal(left, right) -> None:
         check_dtype=False,
         check_names=False,
     )
-    pd.testing.assert_frame_equal(
-        left.kinase_result.scoring_result.profile_scores,
-        right.kinase_result.scoring_result.profile_scores,
-        check_dtype=False,
-        check_names=False,
+    _assert_scoring_result_equal(
+        left.kinase_result.scoring_result,
+        right.kinase_result.scoring_result,
     )
-    _assert_optional_frame_equal(
-        left.kinase_result.scoring_result.motif_scores,
-        right.kinase_result.scoring_result.motif_scores,
-    )
-    _assert_optional_frame_equal(
-        left.kinase_result.scoring_result.rank_weighted_fusion_scores,
-        right.kinase_result.scoring_result.rank_weighted_fusion_scores,
-    )
-    _assert_optional_frame_equal(
-        left.kinase_result.scoring_result.score_fusion_weights,
-        right.kinase_result.scoring_result.score_fusion_weights,
+    _assert_optional_scoring_frame_equal(
+        left.kinase_result.substrate_contributions,
+        right.kinase_result.substrate_contributions,
     )
     pd.testing.assert_frame_equal(
         left.kinase_result.prediction_result.pred_mat,
@@ -1063,6 +1131,59 @@ def _with_sidecars(
         protein_site_context=protein_site_context,
         provenance=result.provenance,
     )
+
+
+def _with_kinase_result(result, kinase_result) -> SignalomeWorkflowResult:
+    return SignalomeWorkflowResult._from_owned(
+        dataset=result.dataset,
+        kinase_result=kinase_result,
+        module_assignments=result.module_assignments,
+        signalome_modules=result.signalome_modules,
+        kinase_network=result.kinase_network,
+        module_selection_diagnostics=result.module_selection_diagnostics,
+        clustering_preparation_diagnostics=(result.clustering_preparation_diagnostics),
+        score_preconditioning_diagnostics=result.score_preconditioning_diagnostics,
+        alignment_diagnostics=result.alignment_diagnostics,
+        expanded_signalome=result.expanded_signalome,
+        site_membership=result.site_membership,
+        protein_site_context=result.protein_site_context,
+        provenance=result.provenance,
+        caveats=result.caveats,
+    )
+
+
+def _assert_scoring_result_equal(left, right) -> None:
+    assert left.motif_sequence_validation == right.motif_sequence_validation
+    assert left.motif_library_validation == right.motif_library_validation
+    assert left.scoring_mode == right.scoring_mode
+    assert left.score_source == right.score_source
+    assert left.score_scale == right.score_scale
+    assert left.score_scale_metadata == right.score_scale_metadata
+    assert left.profile_self_inclusion_policy == right.profile_self_inclusion_policy
+    pd.testing.assert_frame_equal(left.profile_scores, right.profile_scores)
+    for field_name in (
+        "motif_scores",
+        "rank_weighted_fusion_scores",
+        "kinase_library_motif_scores",
+        "combined_profile_motif_scores",
+        "score_fusion_weights",
+        "score_source_matrix",
+        "score_source_summary",
+        "profile_score_diagnostics",
+        "kinase_library_site_diagnostics",
+        "kinase_library_kinase_diagnostics",
+    ):
+        _assert_optional_scoring_frame_equal(
+            getattr(left, field_name),
+            getattr(right, field_name),
+        )
+
+
+def _assert_optional_scoring_frame_equal(left, right) -> None:
+    if left is None or right is None:
+        assert left is right
+        return
+    pd.testing.assert_frame_equal(left, right)
 
 
 def _assert_optional_frame_equal(left, right) -> None:

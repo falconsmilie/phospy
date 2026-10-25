@@ -17,6 +17,12 @@ from phospy.io.bundles._shared.integrity import (
     require_optional_table_entry,
     require_table_entry,
 )
+from phospy.io.bundles._shared.kinase_scoring_state import (
+    KINASE_SCORING_OPTIONAL_TABLE_KEYS,
+    KinaseScoringStateManifest,
+    kinase_scoring_state_to_payload,
+    parse_kinase_scoring_state,
+)
 from phospy.io.bundles._shared.primitives import (
     require_bool,
     require_int,
@@ -42,6 +48,7 @@ class KinaseManifestSections:
     dataset_tables: Mapping[str, object]
     references_metadata: Mapping[str, object]
     reference_tables: Mapping[str, object]
+    scoring_state: KinaseScoringStateManifest
     scoring_tables: Mapping[str, object]
     prediction_tables: Mapping[str, object]
     activity_enabled: bool
@@ -65,6 +72,7 @@ class _KinaseManifestSchema:
     references_metadata: Mapping[str, object]
     dataset_tables: Mapping[str, object]
     reference_tables: Mapping[str, object]
+    scoring_state: KinaseScoringStateManifest
     scoring_tables: Mapping[str, object]
     prediction_tables: Mapping[str, object]
     activity_enabled: bool
@@ -180,28 +188,6 @@ _DATASET_TABLE_KEYS = frozenset(
 _REFERENCES_ALLOWED_FIELDS = frozenset({"metadata", "tables"})
 _REFERENCE_TABLE_KEYS = frozenset({"kinase_substrate_map", "site_sequences"})
 _OUTPUTS_ALLOWED_FIELDS = frozenset({"scoring", "prediction", "activity"})
-_SCORING_ALLOWED_FIELDS = frozenset({"tables"})
-_SCORING_TABLE_KEYS = frozenset(
-    {
-        "profile_scores",
-        "motif_scores",
-        "rank_weighted_fusion_scores",
-        "kinase_library_motif_scores",
-        "combined_profile_motif_scores",
-        "score_fusion_weights",
-        "kinase_library_site_diagnostics",
-        "kinase_library_kinase_diagnostics",
-        "substrate_contributions",
-    }
-)
-_SCORING_TABLE_REQUIRED_KEYS = frozenset(
-    {
-        "profile_scores",
-        "motif_scores",
-        "rank_weighted_fusion_scores",
-        "score_fusion_weights",
-    }
-)
 _PREDICTION_ALLOWED_FIELDS = frozenset({"tables"})
 _PREDICTION_TABLE_KEYS = frozenset({"pred_mat", "substrate_list"})
 _ACTIVITY_ALLOWED_FIELDS = frozenset(
@@ -277,9 +263,11 @@ def build_manifest(
             "tables": dict(reference_tables),
         },
         "outputs": {
-            "scoring": {
-                "tables": dict(scoring_tables),
-            },
+            "scoring": kinase_scoring_state_to_payload(
+                result=result.scoring_result,
+                substrate_contributions=result.substrate_contributions,
+                tables=scoring_tables,
+            ),
             "prediction": {
                 "tables": dict(prediction_tables),
             },
@@ -336,10 +324,15 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
     top_level = _parse_top_level_schema(payload)
     metadata = _parse_scientific_metadata_sections(top_level)
     outputs = _parse_output_payloads(top_level.outputs_payload)
+    scoring_state = parse_kinase_scoring_state(
+        outputs.scoring_payload,
+        field_name="bundle manifest.outputs.scoring",
+    )
     activity = _parse_activity_metadata(outputs.activity_payload)
     tables = _parse_table_sections(
         top_level=top_level,
         outputs=outputs,
+        scoring_state=scoring_state,
     )
     return _KinaseManifestSchema(
         manifest_version=top_level.manifest_version,
@@ -347,6 +340,7 @@ def _parse_manifest_schema(payload: Mapping[str, object]) -> _KinaseManifestSche
         references_metadata=metadata.references_metadata,
         dataset_tables=tables.dataset_tables,
         reference_tables=tables.reference_tables,
+        scoring_state=scoring_state,
         scoring_tables=tables.scoring_tables,
         prediction_tables=tables.prediction_tables,
         activity_enabled=activity.enabled,
@@ -509,17 +503,6 @@ def _parse_output_payloads(
     scoring_payload = require_mapping(
         outputs_payload.get("scoring"),
         field_name="bundle manifest.outputs.scoring",
-    )
-    _reject_unsupported_fields(
-        scoring_payload,
-        field_name="bundle manifest.outputs.scoring",
-        allowed_fields=_SCORING_ALLOWED_FIELDS,
-    )
-    _require_fields(
-        scoring_payload,
-        field_name="bundle manifest.outputs.scoring",
-        required_fields=_SCORING_ALLOWED_FIELDS,
-        unsupported_shape=True,
     )
     prediction_payload = require_mapping(
         outputs_payload.get("prediction"),
@@ -702,11 +685,12 @@ def _parse_table_sections(
     *,
     top_level: _KinaseManifestTopLevel,
     outputs: _KinaseOutputPayloads,
+    scoring_state: KinaseScoringStateManifest,
 ) -> _KinaseTableSections:
     return _KinaseTableSections(
         dataset_tables=_parse_dataset_tables(top_level.dataset_payload),
         reference_tables=_parse_reference_tables(top_level.references_payload),
-        scoring_tables=_parse_scoring_tables(outputs.scoring_payload),
+        scoring_tables=scoring_state.tables,
         prediction_tables=_parse_prediction_tables(outputs.prediction_payload),
         activity_tables=_parse_activity_tables(outputs.activity_payload),
     )
@@ -752,27 +736,6 @@ def _parse_reference_tables(
         unsupported_shape=True,
     )
     return reference_tables
-
-
-def _parse_scoring_tables(
-    scoring_payload: Mapping[str, object],
-) -> Mapping[str, object]:
-    scoring_tables = require_mapping(
-        scoring_payload.get("tables"),
-        field_name="bundle manifest.outputs.scoring.tables",
-    )
-    _reject_unsupported_fields(
-        scoring_tables,
-        field_name="bundle manifest.outputs.scoring.tables",
-        allowed_fields=_SCORING_TABLE_KEYS,
-    )
-    _require_fields(
-        scoring_tables,
-        field_name="bundle manifest.outputs.scoring.tables",
-        required_fields=_SCORING_TABLE_REQUIRED_KEYS,
-        unsupported_shape=True,
-    )
-    return scoring_tables
 
 
 def _parse_prediction_tables(
@@ -864,18 +827,7 @@ def _validate_manifest_file_records(
     _require_table_entries(
         schema.scoring_tables,
         field_name="bundle manifest.outputs.scoring.tables",
-        optional_keys=frozenset(
-            {
-                "motif_scores",
-                "rank_weighted_fusion_scores",
-                "kinase_library_motif_scores",
-                "combined_profile_motif_scores",
-                "score_fusion_weights",
-                "kinase_library_site_diagnostics",
-                "kinase_library_kinase_diagnostics",
-                "substrate_contributions",
-            }
-        ),
+        optional_keys=KINASE_SCORING_OPTIONAL_TABLE_KEYS,
     )
     _require_table_entries(
         schema.prediction_tables,
@@ -918,6 +870,7 @@ def _assemble_manifest_sections(
         dataset_tables=file_records.dataset_tables,
         references_metadata=schema.references_metadata,
         reference_tables=file_records.reference_tables,
+        scoring_state=schema.scoring_state,
         scoring_tables=file_records.scoring_tables,
         prediction_tables=file_records.prediction_tables,
         activity_enabled=schema.activity_enabled,

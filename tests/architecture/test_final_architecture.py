@@ -115,9 +115,9 @@ def test_final_tracked_source_inventory_is_complete_and_classified() -> None:
     tracked = _git_paths("src/phospy")
     owners = load_module_owners(OWNER_MAP)
 
-    assert len(tracked) == 647
-    assert sum(path.endswith(".py") for path in tracked) == 641
-    assert len(owners) == 641
+    assert len(tracked) == 648
+    assert sum(path.endswith(".py") for path in tracked) == 642
+    assert len(owners) == 642
     assert (
         tracked_source_inventory_problems(
             tracked_paths=tracked,
@@ -222,6 +222,6 @@ def test_owner_map_has_permanent_schema_and_rationales() -> None:
 def test_final_architecture_inventory_is_complete_and_current() -> None:
     text = FINAL_INVENTORY.read_text(encoding="utf-8")
     assert text == render_inventory(ROOT)
-    assert "Tracked production files: **647**" in text
-    assert "Tracked Python modules: **641**" in text
-    assert "Owner-map entries: **641**" in text
+    assert "Tracked production files: **648**" in text
+    assert "Tracked Python modules: **642**" in text
+    assert "Owner-map entries: **642**" in text

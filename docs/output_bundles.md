@@ -166,7 +166,7 @@ manifest version.
 ### Verify Bundle Integrity
 
 Result bundle manifests are versioned. Current kinase bundle writers emit
-manifest version 3. Current signalome bundle writers emit manifest version 2.
+manifest version 4. Current signalome bundle writers emit manifest version 3.
 
 Bundle-relative manifest paths must stay inside the bundle root. Absolute paths
 and paths that escape the root are rejected.
@@ -184,6 +184,35 @@ written. Existing output directories are rejected by default. Pass
 
 Optional tables remain optional. Missing optional activity, motif, node,
 site-membership, or context tables are represented as `None` when loaded.
+Scoring table entries and their storage metadata are always explicit, so a
+missing scoring table (`None`) remains distinct from a present empty table.
+
+### Preserve Kinase-Scoring State
+
+Kinase manifest version 4 and signalome manifest version 3 use the same
+IO-owned kinase-scoring state schema. The durable scoring tables are
+`profile_scores`, `motif_scores`, `rank_weighted_fusion_scores`,
+`kinase_library_motif_scores`, `combined_profile_motif_scores`,
+`score_fusion_weights`, `score_source_matrix`, `score_source_summary`,
+`profile_score_diagnostics`, `kinase_library_site_diagnostics`, and
+`kinase_library_kinase_diagnostics`. The workflow-level
+`substrate_contributions` table is stored with that state. Per-table manifest
+metadata preserves index and column names and dtypes that CSV cannot preserve
+by itself.
+
+The scoring schema also stores `scoring_mode`, `score_source`, `score_scale`,
+`score_scale_metadata`, `profile_self_inclusion_policy`,
+`motif_sequence_validation`, and `motif_library_validation`. Validation result
+rows and their summary counts are stored together and checked for consistency
+when read. Loaders reconstruct `KinaseScoringResult` through its validating
+constructor, preserving the original result type and `None` versus empty
+values.
+
+`authoritative_scores` is derived from the stored `score_source` and score
+tables. `downstream_score_selection_policy` is a class policy, and defensive
+copies returned by result accessors are runtime views. These values are not
+stored independently because reconstruction derives them faithfully from the
+durable state.
 
 ### Preserve Activity Semantics
 
@@ -195,10 +224,10 @@ preserved in published outputs.
 
 For kinase activity score outputs, manifest metadata includes explicit activity
 method identity (`activity_method_id`, family, and non-KSEA/non-PhosR-equivalence
-flags) when activity is enabled. Kinase manifest version 3 also persists the
-typed `ActivityInputSemantics` and `ActivityProfileMetadata` payloads from
-`KinaseActivityResult`. These payloads preserve the declared profile axis,
-quantitative semantics, profile identifiers, sample/condition/contrast
+flags) when activity is enabled. Kinase manifest schemas since version 3 also
+persist the typed `ActivityInputSemantics` and `ActivityProfileMetadata`
+payloads from `KinaseActivityResult`. These payloads preserve the declared
+profile axis, quantitative semantics, profile identifiers, sample/condition/contrast
 identifiers, condition-summary aggregation metadata, and activity-matrix column
 axis semantics. Loaders reconstruct current-schema activity results from these
 typed payloads; they do not infer scientific activity semantics from activity
@@ -252,12 +281,14 @@ inference.
 
 ### Respect Bundle Versions
 
-Version-1 kinase and signalome result bundles are rejected with a migration
-message. Kinase version-2 bundles are also rejected as legacy because they did
-not contain enough typed activity input semantics, profile identity, or
-condition-summary aggregation metadata to reconstruct every valid
-`KinaseActivityResult` faithfully. Regenerate old result bundles with the
-current PhosPy version before loading them.
+Reloadable bundle readers support only the current schema version. Kinase
+versions 1 through 3 and signalome versions 1 and 2 are rejected with a clear
+regeneration message. Kinase version 2 lacked enough typed activity input
+semantics, profile identity, and condition-summary aggregation metadata;
+kinase version 3 and signalome version 2 lacked the complete durable scoring
+state described above. Readers do not invent the missing scientific state or
+substitute constructor defaults. Regenerate old result bundles with the current
+PhosPy version before loading them.
 
 ## Choose the Supported User Path
 

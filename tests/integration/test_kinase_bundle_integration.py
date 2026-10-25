@@ -85,6 +85,10 @@ from phospy.provenance.serialization.batch_correction import (
     batch_correction_provenance_to_payload,
 )
 from phospy.run_lineage.models import RunProvenance
+from tests.support.kinase_scoring_state import (
+    NONDEFAULT_SCORING_MODES,
+    complete_scoring_result_for_mode,
+)
 from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = pytest.mark.integration
@@ -260,8 +264,109 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     assert construction["method"] == "AnalysisReadyPhosphoDataset.from_trusted_tables"
     assert loaded.result.dataset.trusted_construction_assertions is not None
     assert loaded.result.dataset.trusted_construction_assertions.all_required_assertions_present
+    assert result.scoring_result.score_source_summary is not None
+    assert result.scoring_result.motif_sequence_validation is not None
+    assert result.scoring_result.motif_library_validation is not None
     _assert_kinase_result_equal(loaded.result, result)
     assert loaded.result.activity_result is not None
+
+
+@pytest.mark.parametrize("scoring_mode", NONDEFAULT_SCORING_MODES)
+def test_kinase_bundle_round_trip_preserves_complete_nondefault_scoring_state(
+    tmp_path: Path,
+    scoring_mode: str,
+) -> None:
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    scoring_result = complete_scoring_result_for_mode(
+        result.scoring_result,
+        scoring_mode=scoring_mode,
+    )
+    result = replace(result, scoring_result=scoring_result)
+    bundle_root = tmp_path / f"kinase_bundle_{scoring_mode}"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    assert loaded.result.scoring_result.__class__ is scoring_result.__class__
+    _assert_scoring_result_equal(loaded.result.scoring_result, scoring_result)
+    assert loaded.result.scoring_result.score_source_matrix is not None
+    assert loaded.result.scoring_result.score_source_summary is not None
+    assert loaded.result.scoring_result.profile_score_diagnostics is not None
+    assert loaded.result.scoring_result.motif_sequence_validation is not None
+    assert loaded.result.scoring_result.motif_library_validation is not None
+    kinase_diagnostics = loaded.result.scoring_result.kinase_library_kinase_diagnostics
+    assert kinase_diagnostics is not None
+    assert kinase_diagnostics.empty
+
+
+@pytest.mark.parametrize(
+    ("mutation", "pattern"),
+    [
+        pytest.param(
+            "missing_table_entry",
+            "scoring.tables is missing required field.*score_source_summary",
+            id="missing-table-entry",
+        ),
+        pytest.param(
+            "malformed_validation_count",
+            "motif_sequence_validation.total_sequences must be an int",
+            id="malformed-validation-count",
+        ),
+        pytest.param(
+            "inconsistent_validation_summary",
+            "motif_sequence_validation.total_sequences is inconsistent with rows",
+            id="inconsistent-validation-summary",
+        ),
+        pytest.param(
+            "invalid_dtype_metadata",
+            "table_metadata.profile_scores contains invalid dtype metadata",
+            id="invalid-dtype-metadata",
+        ),
+        pytest.param(
+            "inconsistent_score_source",
+            "scoring.*invalid.*combined_profile_motif_scores",
+            id="inconsistent-score-source",
+        ),
+    ],
+)
+def test_kinase_bundle_rejects_invalid_complete_scoring_state(
+    tmp_path: Path,
+    mutation: str,
+    pattern: str,
+) -> None:
+    bundle_root, manifest = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name=f"kinase_bundle_invalid_scoring_{mutation}",
+        activity=False,
+    )
+    scoring = manifest["outputs"]["scoring"]
+    if mutation == "missing_table_entry":
+        scoring["tables"].pop("score_source_summary")
+    elif mutation == "malformed_validation_count":
+        scoring["metadata"]["motif_sequence_validation"]["total_sequences"] = "bad"
+    elif mutation == "inconsistent_validation_summary":
+        validation = scoring["metadata"]["motif_sequence_validation"]
+        validation["total_sequences"] = int(validation["total_sequences"]) + 1
+    elif mutation == "invalid_dtype_metadata":
+        scoring["table_metadata"]["profile_scores"]["index_dtype"] = "not-a-dtype"
+    elif mutation == "inconsistent_score_source":
+        scoring["metadata"]["score_source"] = "combined_profile_motif_scores"
+        scoring["tables"]["combined_profile_motif_scores"] = None
+        scoring["table_metadata"]["combined_profile_motif_scores"] = None
+    else:
+        raise AssertionError(f"unknown scoring-state mutation: {mutation}")
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PhosPyInputError, match=pattern):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 def test_kinase_bundle_round_trip_preserves_batch_correction_provenance(
@@ -549,7 +654,7 @@ def test_kinase_bundle_round_trip_preserves_mixed_total_protein_quantitative_mea
     assert correction_payload["diagnostics"]["quantitative_meaning"] == mixed_meaning
 
 
-def test_kinase_bundle_manifest_v3_is_explicit_and_content_addressed(
+def test_kinase_bundle_manifest_v4_is_explicit_and_content_addressed(
     tmp_path: Path,
 ) -> None:
     request = _build_request(activity=True)
@@ -595,6 +700,14 @@ def test_kinase_bundle_manifest_v3_is_explicit_and_content_addressed(
         "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
         "score_fusion_weights": None,
+        "score_source_matrix": None,
+        "score_source_summary": "scoring/score_source_summary.csv",
+        "profile_score_diagnostics": None,
+        "kinase_library_motif_scores": None,
+        "combined_profile_motif_scores": None,
+        "kinase_library_site_diagnostics": None,
+        "kinase_library_kinase_diagnostics": None,
+        "substrate_contributions": None,
     }
     assert _table_paths(manifest["outputs"]["prediction"]["tables"]) == {
         "pred_mat": "prediction/pred_mat.csv",
@@ -1316,6 +1429,31 @@ def test_kinase_bundle_v2_manifest_is_rejected_as_legacy_semantics_schema(
             "bundle manifest.manifest_version=2 is a legacy kinase bundle "
             "schema.*activity input semantics.*profile identity.*condition-summary "
             "aggregation metadata.*bundle must be regenerated"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_v3_manifest_is_rejected_as_legacy_scoring_schema(
+    tmp_path: Path,
+) -> None:
+    bundle_root, manifest = _save_basic_kinase_bundle(
+        tmp_path,
+        bundle_name="kinase_bundle_v3_rejected",
+        activity=False,
+    )
+    manifest["manifest_version"] = 3
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "Legacy kinase bundle schemas are no longer supported.*"
+            "Regenerate the bundle with the current PhosPy version.*"
+            "unsupported bundle manifest version '3'; expected 4"
         ),
     ):
         load_kinase_workflow_bundle(bundle_root)
@@ -3010,23 +3148,10 @@ def _assert_kinase_result_equal(left, right) -> None:
         check_dtype=False,
         check_names=False,
     )
-    pd.testing.assert_frame_equal(
-        left.scoring_result.profile_scores,
-        right.scoring_result.profile_scores,
-        check_dtype=False,
-        check_names=False,
-    )
-    _assert_optional_frame_equal(
-        left.scoring_result.motif_scores,
-        right.scoring_result.motif_scores,
-    )
-    _assert_optional_frame_equal(
-        left.scoring_result.rank_weighted_fusion_scores,
-        right.scoring_result.rank_weighted_fusion_scores,
-    )
-    _assert_optional_frame_equal(
-        left.scoring_result.score_fusion_weights,
-        right.scoring_result.score_fusion_weights,
+    _assert_scoring_result_equal(left.scoring_result, right.scoring_result)
+    _assert_optional_scoring_frame_equal(
+        left.substrate_contributions,
+        right.substrate_contributions,
     )
     pd.testing.assert_frame_equal(
         left.prediction_result.pred_mat,
@@ -3095,6 +3220,40 @@ def _assert_kinase_result_equal(left, right) -> None:
     assert left.activity_result.membership_selection == (
         right.activity_result.membership_selection
     )
+
+
+def _assert_scoring_result_equal(left, right) -> None:
+    assert left.motif_sequence_validation == right.motif_sequence_validation
+    assert left.motif_library_validation == right.motif_library_validation
+    assert left.scoring_mode == right.scoring_mode
+    assert left.score_source == right.score_source
+    assert left.score_scale == right.score_scale
+    assert left.score_scale_metadata == right.score_scale_metadata
+    assert left.profile_self_inclusion_policy == right.profile_self_inclusion_policy
+    pd.testing.assert_frame_equal(left.profile_scores, right.profile_scores)
+    for field_name in (
+        "motif_scores",
+        "rank_weighted_fusion_scores",
+        "kinase_library_motif_scores",
+        "combined_profile_motif_scores",
+        "score_fusion_weights",
+        "score_source_matrix",
+        "score_source_summary",
+        "profile_score_diagnostics",
+        "kinase_library_site_diagnostics",
+        "kinase_library_kinase_diagnostics",
+    ):
+        _assert_optional_scoring_frame_equal(
+            getattr(left, field_name),
+            getattr(right, field_name),
+        )
+
+
+def _assert_optional_scoring_frame_equal(left, right) -> None:
+    if left is None or right is None:
+        assert left is right
+        return
+    pd.testing.assert_frame_equal(left, right)
 
 
 def _assert_optional_frame_equal(left, right) -> None:

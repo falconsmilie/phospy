@@ -22,6 +22,10 @@ from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
+from phospy.io.bundles._shared.kinase_scoring_state import (
+    ReconstructedKinaseScoringState,
+    reconstruct_kinase_scoring_state,
+)
 from phospy.io.bundles._shared.organisms import (
     parse_optional_organism,
     parse_required_organism,
@@ -91,19 +95,6 @@ class _KinaseReferenceTables:
 
 
 @dataclass(frozen=True, slots=True)
-class _KinaseScoringTables:
-    profile_scores: pd.DataFrame
-    motif_scores: pd.DataFrame | None
-    rank_weighted_fusion_scores: pd.DataFrame | None
-    kinase_library_motif_scores: pd.DataFrame | None
-    combined_profile_motif_scores: pd.DataFrame | None
-    score_fusion_weights: pd.DataFrame | None
-    kinase_library_site_diagnostics: pd.DataFrame | None
-    kinase_library_kinase_diagnostics: pd.DataFrame | None
-    substrate_contributions: pd.DataFrame | None
-
-
-@dataclass(frozen=True, slots=True)
 class _KinasePredictionTables:
     pred_mat: pd.DataFrame
     substrate_list: pd.DataFrame | None
@@ -124,7 +115,7 @@ class _KinaseActivityTables:
 class _LoadedKinaseBundleTables:
     dataset: _KinaseDatasetTables
     references: _KinaseReferenceTables
-    scoring: _KinaseScoringTables
+    scoring: ReconstructedKinaseScoringState
     prediction: _KinasePredictionTables
     activity: _KinaseActivityTables
 
@@ -155,7 +146,7 @@ class _ParsedKinasePayloads:
 class _NormalizedKinaseBundleTables:
     dataset: _KinaseDatasetTables
     references: _KinaseReferenceTables
-    scoring: _KinaseScoringTables
+    scoring: ReconstructedKinaseScoringState
     prediction: _KinasePredictionTables
     activity: _KinaseActivityTables
 
@@ -288,73 +279,11 @@ def _load_scoring_tables(
     *,
     bundle_root: Path,
     sections: KinaseManifestSections,
-) -> _KinaseScoringTables:
-    return _KinaseScoringTables(
-        profile_scores=read_required_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="profile_scores",
-            field_name="bundle manifest.outputs.scoring.tables.profile_scores",
-        ),
-        motif_scores=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="motif_scores",
-            field_name="bundle manifest.outputs.scoring.tables.motif_scores",
-        ),
-        rank_weighted_fusion_scores=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="rank_weighted_fusion_scores",
-            field_name=(
-                "bundle manifest.outputs.scoring.tables.rank_weighted_fusion_scores"
-            ),
-        ),
-        kinase_library_motif_scores=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="kinase_library_motif_scores",
-            field_name=(
-                "bundle manifest.outputs.scoring.tables.kinase_library_motif_scores"
-            ),
-        ),
-        combined_profile_motif_scores=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="combined_profile_motif_scores",
-            field_name=(
-                "bundle manifest.outputs.scoring.tables.combined_profile_motif_scores"
-            ),
-        ),
-        score_fusion_weights=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="score_fusion_weights",
-            field_name="bundle manifest.outputs.scoring.tables.score_fusion_weights",
-        ),
-        kinase_library_site_diagnostics=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="kinase_library_site_diagnostics",
-            field_name=(
-                "bundle manifest.outputs.scoring.tables.kinase_library_site_diagnostics"
-            ),
-        ),
-        kinase_library_kinase_diagnostics=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="kinase_library_kinase_diagnostics",
-            field_name=(
-                "bundle manifest.outputs.scoring.tables."
-                "kinase_library_kinase_diagnostics"
-            ),
-        ),
-        substrate_contributions=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="substrate_contributions",
-            field_name="bundle manifest.outputs.scoring.tables.substrate_contributions",
-        ),
+) -> ReconstructedKinaseScoringState:
+    return reconstruct_kinase_scoring_state(
+        bundle_root=bundle_root,
+        state=sections.scoring_state,
+        field_name="bundle manifest.outputs.scoring",
     )
 
 
@@ -894,24 +823,7 @@ def _construct_references(state: _KinaseReconstructionState) -> ReferenceBundle:
 def _construct_scoring_result(
     state: _KinaseReconstructionState,
 ) -> KinaseScoringResult:
-    scoring_tables = state.tables.scoring
-    return KinaseScoringResult.from_trusted_owned(
-        profile_scores=scoring_tables.profile_scores,
-        motif_scores=scoring_tables.motif_scores,
-        rank_weighted_fusion_scores=scoring_tables.rank_weighted_fusion_scores,
-        kinase_library_motif_scores=scoring_tables.kinase_library_motif_scores,
-        combined_profile_motif_scores=scoring_tables.combined_profile_motif_scores,
-        score_fusion_weights=scoring_tables.score_fusion_weights,
-        kinase_library_site_diagnostics=(
-            scoring_tables.kinase_library_site_diagnostics
-        ),
-        kinase_library_kinase_diagnostics=(
-            scoring_tables.kinase_library_kinase_diagnostics
-        ),
-        profile_self_inclusion_policy=_profile_self_inclusion_policy_from_provenance(
-            state.payloads.provenance
-        ),
-    )
+    return state.tables.scoring.result
 
 
 def _construct_prediction_result(
@@ -1488,20 +1400,6 @@ def _raise_projection_manifest_error(field_name: str, message: str) -> NoReturn:
     )
 
 
-def _profile_self_inclusion_policy_from_provenance(
-    provenance: RunProvenance,
-) -> str:
-    workflow_parameters = provenance.workflow_parameters
-    scoring_config = _optional_json_mapping(
-        workflow_parameters.get("scoring_config"),
-        field_name="bundle manifest.provenance.workflow_parameters.scoring_config",
-    )
-    if scoring_config is None:
-        return "allow"
-    policy = scoring_config.get("profile_self_inclusion_policy")
-    return policy if isinstance(policy, str) else "allow"
-
-
 def _kinase_caveats_from_provenance(
     provenance: RunProvenance,
 ) -> tuple[KinaseWorkflowCaveat, ...]:
@@ -1691,23 +1589,6 @@ def _parse_bundle_intensity_scale_state(
 
 def _raise_legacy_bundle_schema(exc: PhosPyInputError) -> NoReturn:
     raise PhosPyInputError(f"{_LEGACY_KINASE_BUNDLE_SCHEMA_ERROR} {exc}") from exc
-
-
-def _read_absent_optional_table(
-    *,
-    bundle_root: Path,
-    tables: Mapping[str, object],
-    table_key: str,
-    field_name: str,
-) -> pd.DataFrame | None:
-    if table_key not in tables:
-        return None
-    return read_optional_table(
-        bundle_root=bundle_root,
-        tables=tables,
-        table_key=table_key,
-        field_name=field_name,
-    )
 
 
 def _activity_profile_axis(

@@ -8,9 +8,9 @@ observed import graph, and the permanent classification registry.
 
 ## Counts and architecture assertions
 
-- Tracked production files: **647**.
-- Tracked Python modules: **641**.
-- Owner-map entries: **641**.
+- Tracked production files: **648**.
+- Tracked Python modules: **642**.
+- Owner-map entries: **642**.
 - Temporary architecture exceptions: **0**.
 - Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.
 - Unclassified facade forwarding, old-path literals, compatibility behavior, and lazy loading: **0**.
@@ -507,6 +507,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/io/bundles/_shared/__init__.py`
 - `src/phospy/io/bundles/_shared/integrity.py`
 - `src/phospy/io/bundles/_shared/json_files.py`
+- `src/phospy/io/bundles/_shared/kinase_scoring_state.py`
 - `src/phospy/io/bundles/_shared/organisms.py`
 - `src/phospy/io/bundles/_shared/paths.py`
 - `src/phospy/io/bundles/_shared/primitives.py`
@@ -1153,6 +1154,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/io/bundles/_shared/__init__.py` | `phospy.io.bundles._shared` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/_shared/integrity.py` | `phospy.io.bundles._shared.integrity` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/_shared/json_files.py` | `phospy.io.bundles._shared.json_files` | `io` | Reader, persistence, or publisher adapter |
+| `src/phospy/io/bundles/_shared/kinase_scoring_state.py` | `phospy.io.bundles._shared.kinase_scoring_state` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/_shared/organisms.py` | `phospy.io.bundles._shared.organisms` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/_shared/paths.py` | `phospy.io.bundles._shared.paths` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/_shared/primitives.py` | `phospy.io.bundles._shared.primitives` | `io` | Reader, persistence, or publisher adapter |

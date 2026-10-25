@@ -49,6 +49,46 @@ def _file_entry(path: str) -> dict[str, object]:
     }
 
 
+def _scoring_payload(profile_path: str) -> dict[str, object]:
+    optional_table_keys = (
+        "motif_scores",
+        "rank_weighted_fusion_scores",
+        "kinase_library_motif_scores",
+        "combined_profile_motif_scores",
+        "score_fusion_weights",
+        "score_source_matrix",
+        "score_source_summary",
+        "profile_score_diagnostics",
+        "kinase_library_site_diagnostics",
+        "kinase_library_kinase_diagnostics",
+        "substrate_contributions",
+    )
+    return {
+        "metadata": {
+            "scoring_mode": "phosr_rank_weighted",
+            "score_source": "profile_scores",
+            "score_scale": "relative_support_score_unit_interval",
+            "score_scale_metadata": None,
+            "profile_self_inclusion_policy": "allow",
+            "motif_sequence_validation": None,
+            "motif_library_validation": None,
+        },
+        "table_metadata": {
+            "profile_scores": {
+                "index_name": None,
+                "columns_name": None,
+                "index_dtype": "object",
+                "column_dtypes": [],
+            },
+            **{key: None for key in optional_table_keys},
+        },
+        "tables": {
+            "profile_scores": _table_entry(profile_path),
+            **{key: None for key in optional_table_keys},
+        },
+    }
+
+
 def _kinase_manifest_payload() -> dict[str, object]:
     return {
         "bundle_type": KINASE_BUNDLE_KIND,
@@ -73,14 +113,7 @@ def _kinase_manifest_payload() -> dict[str, object]:
             },
         },
         "outputs": {
-            "scoring": {
-                "tables": {
-                    "profile_scores": _table_entry("outputs/profile_scores.csv"),
-                    "motif_scores": None,
-                    "rank_weighted_fusion_scores": None,
-                    "score_fusion_weights": None,
-                },
-            },
+            "scoring": _scoring_payload("outputs/profile_scores.csv"),
             "prediction": {
                 "tables": {
                     "pred_mat": _table_entry("outputs/pred_mat.csv"),
@@ -134,14 +167,7 @@ def _signalome_manifest_payload() -> dict[str, object]:
             },
         },
         "upstream_kinase_outputs": {
-            "scoring": {
-                "tables": {
-                    "profile_scores": _table_entry("upstream/profile_scores.csv"),
-                    "motif_scores": None,
-                    "rank_weighted_fusion_scores": None,
-                    "score_fusion_weights": None,
-                },
-            },
+            "scoring": _scoring_payload("upstream/profile_scores.csv"),
             "prediction": {
                 "tables": {
                     "pred_mat": _table_entry("upstream/pred_mat.csv"),

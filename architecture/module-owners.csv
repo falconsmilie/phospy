@@ -188,6 +188,7 @@ src/phospy/io/bundles/_kinase/writer.py,phospy.io.bundles._kinase.writer,io,"Rea
 src/phospy/io/bundles/_shared/__init__.py,phospy.io.bundles._shared,io,"Reader, persistence, or publisher adapter"
 src/phospy/io/bundles/_shared/integrity.py,phospy.io.bundles._shared.integrity,io,"Reader, persistence, or publisher adapter"
 src/phospy/io/bundles/_shared/json_files.py,phospy.io.bundles._shared.json_files,io,"Reader, persistence, or publisher adapter"
+src/phospy/io/bundles/_shared/kinase_scoring_state.py,phospy.io.bundles._shared.kinase_scoring_state,io,"Reader, persistence, or publisher adapter"
 src/phospy/io/bundles/_shared/organisms.py,phospy.io.bundles._shared.organisms,io,"Reader, persistence, or publisher adapter"
 src/phospy/io/bundles/_shared/paths.py,phospy.io.bundles._shared.paths,io,"Reader, persistence, or publisher adapter"
 src/phospy/io/bundles/_shared/primitives.py,phospy.io.bundles._shared.primitives,io,"Reader, persistence, or publisher adapter"

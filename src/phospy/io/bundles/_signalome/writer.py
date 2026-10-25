@@ -6,6 +6,9 @@ from pathlib import Path
 
 from phospy.io.bundles._shared.integrity import build_json_file_entry
 from phospy.io.bundles._shared.json_files import write_json
+from phospy.io.bundles._shared.kinase_scoring_state import (
+    write_kinase_scoring_tables,
+)
 from phospy.io.bundles._shared.tables import (
     write_bundle_table,
     write_optional_bundle_table,
@@ -158,66 +161,13 @@ def _write_scoring_tables(
     suffix: str,
     written: dict[str, Path],
 ) -> dict[str, object]:
-    scoring_tables = {
-        "profile_scores": write_bundle_table(
-            table=result.kinase_result.scoring_result.profile_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"profile_scores{suffix}",
-            written=written,
-            written_key="scoring.profile_scores",
-        ),
-        "motif_scores": write_optional_bundle_table(
-            table=result.kinase_result.scoring_result.motif_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"motif_scores{suffix}",
-            written=written,
-            written_key="scoring.motif_scores",
-        ),
-        "rank_weighted_fusion_scores": write_optional_bundle_table(
-            table=result.kinase_result.scoring_result.rank_weighted_fusion_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"rank_weighted_fusion_scores{suffix}",
-            written=written,
-            written_key="scoring.rank_weighted_fusion_scores",
-        ),
-        "kinase_library_motif_scores": write_optional_bundle_table(
-            table=result.kinase_result.scoring_result.kinase_library_motif_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"kinase_library_motif_scores{suffix}",
-            written=written,
-            written_key="scoring.kinase_library_motif_scores",
-        ),
-        "combined_profile_motif_scores": write_optional_bundle_table(
-            table=result.kinase_result.scoring_result.combined_profile_motif_scores,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"combined_profile_motif_scores{suffix}",
-            written=written,
-            written_key="scoring.combined_profile_motif_scores",
-        ),
-        "score_fusion_weights": write_optional_bundle_table(
-            table=result.kinase_result.scoring_result.score_fusion_weights,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"score_fusion_weights{suffix}",
-            written=written,
-            written_key="scoring.score_fusion_weights",
-        ),
-        "kinase_library_site_diagnostics": write_optional_bundle_table(
-            table=result.kinase_result.scoring_result.kinase_library_site_diagnostics,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"kinase_library_site_diagnostics{suffix}",
-            written=written,
-            written_key="scoring.kinase_library_site_diagnostics",
-        ),
-        "kinase_library_kinase_diagnostics": write_optional_bundle_table(
-            table=result.kinase_result.scoring_result.kinase_library_kinase_diagnostics,
-            bundle_root=bundle_root,
-            relative_path=Path("scoring")
-            / f"kinase_library_kinase_diagnostics{suffix}",
-            written=written,
-            written_key="scoring.kinase_library_kinase_diagnostics",
-        ),
-    }
-    return _drop_absent_kinase_library_scoring_tables(scoring_tables)
+    return write_kinase_scoring_tables(
+        result=result.kinase_result.scoring_result,
+        substrate_contributions=result.kinase_result.substrate_contributions,
+        bundle_root=bundle_root,
+        suffix=suffix,
+        written=written,
+    )
 
 
 def _write_prediction_tables(
@@ -380,22 +330,4 @@ def _write_signalome_tables(
             written=written,
             written_key="signalome.protein_site_context",
         ),
-    }
-
-
-def _drop_absent_kinase_library_scoring_tables(
-    scoring_tables: dict[str, object],
-) -> dict[str, object]:
-    """Omit absent optional Kinase Library extension tables from manifests."""
-
-    optional_keys = (
-        "kinase_library_motif_scores",
-        "combined_profile_motif_scores",
-        "kinase_library_site_diagnostics",
-        "kinase_library_kinase_diagnostics",
-    )
-    return {
-        key: value
-        for key, value in scoring_tables.items()
-        if key not in optional_keys or value is not None
     }

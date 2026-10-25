@@ -13,6 +13,9 @@ from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.workflows import WorkflowStageError
+from phospy.io.bundles._shared.kinase_scoring_state import (
+    reconstruct_kinase_scoring_state,
+)
 from phospy.io.bundles._shared.organisms import (
     parse_optional_organism,
     parse_required_organism,
@@ -51,7 +54,6 @@ from phospy.kinase.results import (
     KinaseWorkflowCaveat,
     KinaseWorkflowResult,
 )
-from phospy.kinase.scoring.results import KinaseScoringResult
 from phospy.provenance.result_caveats import result_caveats_from_payloads
 from phospy.quantitative.models import IntensityScaleState
 from phospy.quantitative.serialization import (
@@ -178,23 +180,6 @@ def _unique_column_position(
     if isinstance(position, int):
         return position
     raise PhosPyInputError(f"{field_name}.{column_name} must be a unique column")
-
-
-def _read_absent_optional_table(
-    *,
-    bundle_root: Path,
-    tables: Mapping[str, object],
-    table_key: str,
-    field_name: str,
-) -> pd.DataFrame | None:
-    if table_key not in tables:
-        return None
-    return read_optional_table(
-        bundle_root=bundle_root,
-        tables=tables,
-        table_key=table_key,
-        field_name=field_name,
-    )
 
 
 def reconstruct_signalome_result(
@@ -416,14 +401,15 @@ def _reconstruct_kinase_result(
     references: ReferenceBundle,
     provenance: RunProvenance,
 ) -> KinaseWorkflowResult:
+    scoring_state = reconstruct_kinase_scoring_state(
+        bundle_root=bundle_root,
+        state=sections.scoring_state,
+        field_name="bundle manifest.upstream_kinase_outputs.scoring",
+    )
     return KinaseWorkflowResult.from_trusted_owned(
         dataset=dataset,
         references=references,
-        scoring_result=_reconstruct_scoring_result(
-            bundle_root=bundle_root,
-            sections=sections,
-            provenance=provenance,
-        ),
+        scoring_result=scoring_state.result,
         prediction_result=_reconstruct_prediction_result(
             bundle_root=bundle_root,
             sections=sections,
@@ -433,6 +419,7 @@ def _reconstruct_kinase_result(
             sections=sections,
         ),
         provenance=provenance,
+        substrate_contributions=scoring_state.substrate_contributions,
         attrition_provenance=_kinase_attrition_provenance_from_provenance(provenance),
         caveats=(
             result_caveats_from_payloads(sections.upstream_kinase_caveats_payload)
@@ -614,89 +601,6 @@ def _kinase_attrition_provenance_from_payload(
         policy_outcome=policy_outcome,
         policy_violations=tuple(violations),
         warning_messages=tuple(item for item in warnings if item.strip() != ""),
-    )
-
-
-def _reconstruct_scoring_result(
-    *,
-    bundle_root: Path,
-    sections: SignalomeManifestSections,
-    provenance: RunProvenance,
-) -> KinaseScoringResult:
-    return KinaseScoringResult.from_trusted_owned(
-        profile_scores=read_required_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="profile_scores",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables.profile_scores"
-            ),
-        ),
-        motif_scores=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="motif_scores",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables.motif_scores"
-            ),
-        ),
-        rank_weighted_fusion_scores=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="rank_weighted_fusion_scores",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables."
-                "rank_weighted_fusion_scores"
-            ),
-        ),
-        kinase_library_motif_scores=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="kinase_library_motif_scores",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables."
-                "kinase_library_motif_scores"
-            ),
-        ),
-        combined_profile_motif_scores=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="combined_profile_motif_scores",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables."
-                "combined_profile_motif_scores"
-            ),
-        ),
-        score_fusion_weights=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="score_fusion_weights",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables."
-                "score_fusion_weights"
-            ),
-        ),
-        kinase_library_site_diagnostics=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="kinase_library_site_diagnostics",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables."
-                "kinase_library_site_diagnostics"
-            ),
-        ),
-        kinase_library_kinase_diagnostics=_read_absent_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.scoring_tables,
-            table_key="kinase_library_kinase_diagnostics",
-            field_name=(
-                "bundle manifest.upstream_kinase_outputs.scoring.tables."
-                "kinase_library_kinase_diagnostics"
-            ),
-        ),
-        profile_self_inclusion_policy=_profile_self_inclusion_policy_from_provenance(
-            provenance
-        ),
     )
 
 
@@ -1010,23 +914,6 @@ def _parse_bundle_provenance(payload: Mapping[str, object]) -> RunProvenance:
         return provenance_from_payload(payload)
     except PhosPyInputError as exc:
         _raise_legacy_bundle_schema(exc)
-
-
-def _profile_self_inclusion_policy_from_provenance(
-    provenance: RunProvenance,
-) -> str:
-    workflow_parameters = provenance.workflow_parameters
-    scoring_config = _optional_json_mapping(
-        workflow_parameters.get("scoring_config"),
-        field_name=(
-            "bundle manifest.upstream_kinase_provenance.workflow_parameters."
-            "scoring_config"
-        ),
-    )
-    if scoring_config is None:
-        return "allow"
-    policy = scoring_config.get("profile_self_inclusion_policy")
-    return policy if isinstance(policy, str) else "allow"
 
 
 def _parse_bundle_processing_state(
