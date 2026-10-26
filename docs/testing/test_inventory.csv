@@ -341,7 +341,7 @@ tests/unit/test_runtime_contract_guards.py,unit,237,8,false,false,public API con
 tests/unit/test_ruv_iii.py,unit,378,17,true,true,,,,,,
 tests/unit/test_sample_group_metadata_resolution.py,unit,292,12,true,true,,,,,,
 tests/unit/test_science_package_ownership.py,unit,124,9,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,883,30,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,886,30,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_scientific_invariants.py,unit,722,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,478,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_reconstruction_identity.py,unit,49,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

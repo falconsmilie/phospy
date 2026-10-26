@@ -503,7 +503,10 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
     docs_text = (_read(MAINTENANCE_DOC) + "\n" + _read(CONTRIBUTING_DOC)).lower()
 
     expected_include_paths = (
+        "src/phospy/__init__.py",
+        "src/phospy/_api_inventory.py",
         "src/phospy/activities",
+        "src/phospy/advanced",
         "src/phospy/api",
         "src/phospy/datasets",
         "src/phospy/differential",

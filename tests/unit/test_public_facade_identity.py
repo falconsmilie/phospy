@@ -48,6 +48,6 @@ def test_advanced_inventory_preserves_authoritative_tuple_ownership() -> None:
 
     assert advanced.__all__ is _api_inventory.ADVANCED_PUBLIC_API
     assert isinstance(advanced.__all__, tuple)
-    assert len(advanced.__all__) == 124
+    assert len(advanced.__all__) == 126
     with pytest.raises(TypeError):
         operator.setitem(cast(MutableSequence[object], advanced.__all__), 0, "changed")

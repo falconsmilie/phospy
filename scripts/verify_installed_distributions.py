@@ -401,7 +401,7 @@ def main() -> None:
 
 
 def _verify_public_surface() -> dict[str, object]:
-    expected_counts = {"phospy": 3, "phospy.api": 66, "phospy.advanced": 124}
+    expected_counts = {"phospy": 3, "phospy.api": 66, "phospy.advanced": 126}
     observed_counts = {
         "phospy": len(phospy.__all__),
         "phospy.api": len(api.__all__),
@@ -424,7 +424,7 @@ def _verify_public_surface() -> dict[str, object]:
     expected_inventory_sha256 = {
         "phospy": "e1ba016281f8a1d46bf4c2cabe61525c4d3e2b7d3fed53ea833daeeec9c02120",
         "phospy.api": "75988b66501a85463a19df9a9c16a6048906123b19f727be1e79828ef96783be",
-        "phospy.advanced": "9944ed70bbfa63c18a9e49768b791b641e41dd8fb84531dcc226aa481482421d",
+        "phospy.advanced": "665d92da2f8fb0cc75578957e861058bfe63dea2dcbfbc3fbc2f142a0320cb82",
     }
     inventory_sha256 = {
         name: hashlib.sha256(

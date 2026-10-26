@@ -188,7 +188,10 @@ also absent.
 Pyright is the configured type checker. The checked scope is listed in
 `pyproject.toml` under `[tool.pyright]` and includes:
 
+- `src/phospy/__init__.py`
+- `src/phospy/_api_inventory.py`
 - `src/phospy/activities`
+- `src/phospy/advanced`
 - `src/phospy/api`
 - `src/phospy/datasets`
 - `src/phospy/differential`

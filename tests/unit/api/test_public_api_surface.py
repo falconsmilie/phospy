@@ -70,7 +70,7 @@ def _wildcard_names(module_name: str) -> set[str]:
     (
         (phospy, _adr_root_names(), 3),
         (ordinary_api, _adr_table_names("Retain ordinary"), 66),
-        (advanced_api, _adr_table_names("Retain advanced"), 124),
+        (advanced_api, _adr_table_names("Retain advanced"), 126),
     ),
 )
 def test_aggregate_export_sets_match_adr_0054_independently(

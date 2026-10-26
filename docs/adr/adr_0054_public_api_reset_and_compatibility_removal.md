@@ -18,7 +18,7 @@ routes are separate: an object may be owned by a domain package while being
 re-exported through a user-facing facade.
 
 The current surface contains five root exports, 68 stable aggregate exports,
-124 advanced aggregate exports, additional facade submodules, workflow and
+126 advanced aggregate exports, additional facade submodules, workflow and
 table routes, four groups of semi-public science routes, and 923 retained
 deprecation records. Of those records, 901 are import-route combinations and
 22 are aliases or legacy runtime behaviours.
@@ -158,7 +158,7 @@ does not require callers to construct the lower-level matrices.
 
 ### Advanced API classification
 
-All 124 current advanced names remain supported after individual review. They
+All 126 current advanced names remain supported after individual review. They
 are required to construct documented non-default configurations, run SPS
 discovery, supply governed control sites or Kinase Library resources, inspect
 typed diagnostics, filter or rank Differential tables, or publish documented
@@ -181,6 +181,8 @@ route compatibility.
 | `OriginallyMissingCellTracking` | Preprocessing/batch correction | Retain advanced |
 | `TemporaryImputationMethod` | Preprocessing/batch correction | Retain advanced |
 | `TemporaryImputationPolicy` | Preprocessing/batch correction | Retain advanced |
+| `CorrectedPreprocessingOutput` | Preprocessing/batch correction | Retain advanced |
+| `create_external_corrected_preprocessing_output` | Preprocessing/batch correction | Retain advanced |
 | `DatasetBatchCorrectionConfig` | Preprocessing | Retain advanced |
 | `DatasetBatchCorrectionMethod` | Preprocessing | Retain advanced |
 | `DatasetPreprocessingBatchCorrectionConfig` | Preprocessing | Retain advanced |
@@ -368,7 +370,7 @@ module imports are not supported persistence contracts.
 
 ## Enforcement
 
-1. Exact-set tests assert root, 66-name ordinary, and 124-name advanced
+1. Exact-set tests assert root, 66-name ordinary, and 126-name advanced
    `__all__` inventories.
 2. Identity tests prove facade exports are the owner-defined objects.
 3. Negative tests prove removed routes fail rather than warn or redirect.
@@ -387,7 +389,7 @@ module imports are not supported persistence contracts.
 - The root remains intentionally small.
 - Compatibility machinery cannot constrain domain migration.
 - Semi-public ambiguity and duplicate supported paths disappear.
-- The 192 current aggregate names have explicit post-reset decisions and
+- The 194 current aggregate names have explicit post-reset decisions and
   logical owners.
 
 ### Negative
@@ -413,7 +415,7 @@ This ADR is accepted with the following decisions fixed:
 1. only aggregate `phospy`, `phospy.api`, and `phospy.advanced` are supported;
 2. root exports exactly the builder, Kinase workflow, and Signalome workflow;
 3. `phospy.api` contains the 66 retained ordinary names above;
-4. `phospy.advanced` contains the 124 retained specialist names above;
+4. `phospy.advanced` contains the 126 retained specialist names above;
 5. all compatibility and semi-public routes and all deprecated runtime
    behaviours are removed without shims;
 6. compatibility removal precedes physical migration as a separate change set;
