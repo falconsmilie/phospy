@@ -315,7 +315,6 @@ PUBLIC_FACADE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
         {
             "phospy.io.importers.contracts",
             "phospy.io.bundles.kinase_library",
-            "phospy.references.acquisition",
             "phospy.io.publishers.workflows",
             "phospy.io.readers.dataset_inputs",
         }
@@ -426,7 +425,6 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     "evidence": frozenset(
         {
             "phospy.evidence.config",
-            "phospy.evidence.contracts",
             "phospy.evidence.localisation",
             "phospy.evidence.modified_peptides",
             "phospy.evidence.multi_site",
@@ -461,7 +459,6 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
             "phospy.preprocessing.contracts.configuration.dataset",
             "phospy.preprocessing.contracts.policies",
             "phospy.preprocessing.results",
-            "phospy.preprocessing.serialization",
         }
     ),
     "run_lineage": frozenset(
@@ -510,6 +507,47 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
         }
     ),
     "taxonomy": frozenset({"phospy.taxonomy.organisms"}),
+}
+
+# Run lineage composes these exact owner-defined provenance contracts. Broad
+# foundation access for Errors, Frames, and Taxonomy remains explicit in
+# ``_run_lineage_target`` rather than being represented as module entries.
+RUN_LINEAGE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
+    "evidence": frozenset({"phospy.evidence.serialization.historical_peptide"}),
+    "preprocessing": frozenset(
+        {
+            "phospy.preprocessing.provenance.models",
+            "phospy.preprocessing.provenance.serialization",
+        }
+    ),
+    "provenance": frozenset(
+        {
+            "phospy.provenance.environment",
+            "phospy.provenance.immutability",
+            "phospy.provenance.models",
+            "phospy.provenance.models._shared",
+            "phospy.provenance.models.environment",
+            "phospy.provenance.models.tables",
+            "phospy.provenance.scientific_policy_models",
+            "phospy.provenance.serialization",
+            "phospy.provenance.serialization._payload",
+            "phospy.provenance.serialization.environment",
+            "phospy.provenance.serialization.tables",
+        }
+    ),
+    "references": frozenset(
+        {
+            "phospy.references.provenance.context",
+            "phospy.references.provenance.models",
+            "phospy.references.provenance.serialization",
+        }
+    ),
+}
+
+OWNER_KEYED_MODULE_ALLOW_LISTS: Mapping[str, Mapping[str, frozenset[str]]] = {
+    "io_adapter": IO_ADAPTER_ALLOWED_TARGETS,
+    "public_facade": PUBLIC_FACADE_ALLOWED_TARGETS,
+    "run_lineage": RUN_LINEAGE_ALLOWED_TARGETS,
 }
 
 IO_ADAPTER_STEADY_STATE_TARGET_OWNERS = frozenset(
@@ -989,6 +1027,61 @@ def module_inventory_problems(
     return problems
 
 
+def owner_keyed_module_allow_list_problems(
+    *,
+    owners_by_module: Mapping[str, str],
+    allow_lists: Mapping[
+        str, Mapping[str, Iterable[str]]
+    ] = OWNER_KEYED_MODULE_ALLOW_LISTS,
+) -> list[str]:
+    """Validate owner-keyed module targets against the authoritative owner map.
+
+    Exact modules use their direct owner-map row. A namespace-package target
+    without its own source module uses the owners of its module descendants.
+    Symbol allow-lists are intentionally outside this invariant and retain
+    their separate import-symbol checks.
+    """
+
+    problems: list[str] = []
+    for policy_name, targets_by_owner in sorted(allow_lists.items()):
+        for declared_owner, targets in sorted(targets_by_owner.items()):
+            if declared_owner not in OWNERS:
+                problems.append(
+                    f"{policy_name}: unknown target owner {declared_owner!r}"
+                )
+            for target in sorted(targets):
+                actual_owners = _module_policy_target_owners(
+                    target,
+                    owners_by_module=owners_by_module,
+                )
+                if not actual_owners:
+                    problems.append(
+                        f"{policy_name}[{declared_owner}]: unknown module target {target}"
+                    )
+                elif actual_owners != {declared_owner}:
+                    problems.append(
+                        f"{policy_name}[{declared_owner}]: target {target} belongs to "
+                        f"{', '.join(sorted(actual_owners))}"
+                    )
+    return problems
+
+
+def _module_policy_target_owners(
+    target: str,
+    *,
+    owners_by_module: Mapping[str, str],
+) -> frozenset[str]:
+    exact_owner = owners_by_module.get(target)
+    if exact_owner is not None:
+        return frozenset({exact_owner})
+    package_prefix = f"{target}."
+    return frozenset(
+        owner
+        for module, owner in owners_by_module.items()
+        if module.startswith(package_prefix)
+    )
+
+
 def classify_imports(
     graph: ImportGraph,
     *,
@@ -1325,35 +1418,9 @@ def _preprocessing_evidence_contract_target(target: str) -> bool:
 
 
 def _run_lineage_target(target_owner: str, target: str) -> bool:
-    allowed = {
-        "evidence": {"phospy.evidence.serialization.historical_peptide"},
-        "preprocessing": {
-            "phospy.preprocessing.provenance.models",
-            "phospy.preprocessing.provenance.serialization",
-        },
-        "provenance": {
-            "phospy.datasets.derived_quantitative",
-            "phospy.provenance.environment",
-            "phospy.provenance.immutability",
-            "phospy.provenance.models",
-            "phospy.provenance.models._shared",
-            "phospy.provenance.models.environment",
-            "phospy.provenance.models.tables",
-            "phospy.provenance.scientific_policy_models",
-            "phospy.provenance.serialization",
-            "phospy.provenance.serialization._payload",
-            "phospy.provenance.serialization.environment",
-            "phospy.provenance.serialization.tables",
-        },
-        "references": {
-            "phospy.references.provenance.context",
-            "phospy.references.provenance.models",
-            "phospy.references.provenance.serialization",
-        },
-    }
     if target_owner in {"errors", "frames", "taxonomy"}:
         return True
-    return target in allowed.get(target_owner, set())
+    return target in RUN_LINEAGE_ALLOWED_TARGETS.get(target_owner, frozenset())
 
 
 def _kinase_result_contract_target(target: str) -> bool:

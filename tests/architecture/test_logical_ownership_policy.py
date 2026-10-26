@@ -19,9 +19,11 @@ from tools.architecture.import_graph import (
 from tools.architecture.logical_ownership import (
     DATASET_PATH_READER_EDGE,
     DATASET_PREPROCESSING_ALLOWED_IMPORTS,
+    OWNER_KEYED_MODULE_ALLOW_LISTS,
     PERMITTED_LOGICAL_OWNER_EDGES,
     PREPARATION_RECORD_ALLOWED_SYMBOLS,
     REVIEWED_MIXED_MODULES,
+    RUN_LINEAGE_ALLOWED_TARGETS,
     PermanentCondensationClassification,
     classify_imports,
     is_allowed_import,
@@ -32,6 +34,7 @@ from tools.architecture.logical_ownership import (
     mixed_module_declaration_problems,
     module_inventory_problems,
     owner_graph_views,
+    owner_keyed_module_allow_list_problems,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -52,6 +55,59 @@ def test_every_live_python_module_has_exactly_one_reviewed_owner() -> None:
     entries = load_module_owners(OWNER_MAP)
 
     assert module_inventory_problems(live_paths=live_paths, entries=entries) == []
+
+
+def test_owner_keyed_module_allow_lists_match_authoritative_owners() -> None:
+    entries = load_module_owners(OWNER_MAP)
+    owners_by_module = {entry.module: entry.owner for entry in entries}
+
+    assert set(OWNER_KEYED_MODULE_ALLOW_LISTS) == {
+        "io_adapter",
+        "public_facade",
+        "run_lineage",
+    }
+    assert (
+        owner_keyed_module_allow_list_problems(
+            owners_by_module=owners_by_module,
+        )
+        == []
+    )
+    assert "phospy.datasets.derived_quantitative" not in {
+        target for targets in RUN_LINEAGE_ALLOWED_TARGETS.values() for target in targets
+    }
+
+
+def test_owner_keyed_module_allow_list_invariant_rejects_bad_fixture_targets() -> None:
+    owners_by_module = {
+        "phospy.datasets.valid": "datasets",
+        "phospy.preprocessing.results.report": "preprocessing",
+    }
+
+    valid_policy = {
+        "fixture": {
+            "datasets": {"phospy.datasets.valid"},
+            "preprocessing": {"phospy.preprocessing.results"},
+        }
+    }
+    assert (
+        owner_keyed_module_allow_list_problems(
+            owners_by_module=owners_by_module,
+            allow_lists=valid_policy,
+        )
+        == []
+    )
+
+    wrong_owner_policy = {"fixture": {"provenance": {"phospy.datasets.valid"}}}
+    assert owner_keyed_module_allow_list_problems(
+        owners_by_module=owners_by_module,
+        allow_lists=wrong_owner_policy,
+    ) == ["fixture[provenance]: target phospy.datasets.valid belongs to datasets"]
+
+    unknown_target_policy = {"fixture": {"datasets": {"phospy.datasets.unknown"}}}
+    assert owner_keyed_module_allow_list_problems(
+        owners_by_module=owners_by_module,
+        allow_lists=unknown_target_policy,
+    ) == ["fixture[datasets]: unknown module target phospy.datasets.unknown"]
 
 
 def test_permitted_logical_owner_graph_is_acyclic() -> None:
@@ -674,7 +730,6 @@ def test_future_adapter_owner_edges_accept_only_published_paths() -> None:
             "enrichment",
             "phospy.enrichment.contracts.vocabulary",
         ),
-        ("io", "evidence", "phospy.evidence.contracts"),
         ("io", "preprocessing", "phospy.preprocessing.results"),
     )
     rejected = (
@@ -686,6 +741,7 @@ def test_future_adapter_owner_edges_accept_only_published_paths() -> None:
         ),
         ("io", "enrichment", "phospy.enrichment.contracts"),
         ("io", "enrichment", "phospy.enrichment.execution"),
+        ("io", "evidence", "phospy.evidence.contracts"),
         ("io", "evidence", "phospy.evidence.validation"),
         ("io", "preprocessing", "phospy.preprocessing.executor"),
     )
