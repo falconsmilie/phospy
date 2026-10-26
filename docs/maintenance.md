@@ -168,6 +168,21 @@ command. The release policy tests use
 effective markers, then fail if any release-blocking node is absent from every
 authoritative release target.
 
+## Package Version Resolution
+
+The `[project].version` value in `pyproject.toml` is the maintained package
+version authority. Built wheels and editable installs expose that value through
+installed distribution metadata, and `phospy.__version__` uses the installed
+metadata whenever it is available. Reinstall an editable installation after
+changing `pyproject.toml` so its distribution metadata is refreshed.
+
+An uninstalled source checkout can fall back only to the `pyproject.toml` at
+the root of its fixed `<root>/src/phospy` layout, and only when that file names
+the project `phospy`. The fallback does not search ancestor directories. A
+missing, unreadable, malformed, wrongly named, or non-string source version
+produces the deterministic `0+unknown` sentinel when distribution metadata is
+also absent.
+
 ## Type Checking
 
 Pyright is the configured type checker. The checked scope is listed in

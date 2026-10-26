@@ -265,6 +265,7 @@ tests/unit/test_maxquant_phosphosite_importer.py,unit,770,21,true,true,,,,,,
 tests/unit/test_missing_data_mask_hashing.py,unit,35,1,false,false,,,,,,
 tests/unit/test_missing_data_split_modules.py,unit,1188,35,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_multiple_testing_correction.py,unit,226,10,true,true,,,,,,
+tests/unit/test_package_version.py,unit,119,4,true,true,,,,,,
 tests/unit/test_peptide_evidence_dataset_resolution_components.py,unit,829,21,true,true,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,216,9,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_peptide_to_site_aggregation.py,unit,350,8,true,true,scientific invariant,keep,Loss of this file would remove typed uncertainty/dependence protection for peptide-to-site differential evidence.,codex-audit,,Updated after typed peptide-to-site uncertainty redesign.

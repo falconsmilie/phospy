@@ -16,23 +16,24 @@ if _TYPE_CHECKING:
 
 
 def _source_project_version() -> str | None:
-    """Return the authoritative source-tree project version when available."""
+    """Return the version from this checkout's fixed ``src`` layout."""
 
-    for parent in _Path(__file__).resolve().parents:
-        pyproject = parent / "pyproject.toml"
-        if not pyproject.is_file():
-            continue
-        try:
-            payload = _tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        except Exception:  # pragma: no cover - defensive source-tree fallback
-            return None
-        project = payload.get("project")
-        if not isinstance(project, _Mapping):
-            return None
-        if _normalized(project.get("name")) != "phospy":
-            return None
-        return _normalized(project.get("version"))
-    return None
+    package_directory = _Path(__file__).resolve().parent
+    source_directory = package_directory.parent
+    if package_directory.name != "phospy" or source_directory.name != "src":
+        return None
+
+    pyproject = source_directory.parent / "pyproject.toml"
+    try:
+        payload = _tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, _tomllib.TOMLDecodeError):
+        return None
+    project = payload.get("project")
+    if not isinstance(project, _Mapping):
+        return None
+    if _normalized_string(project.get("name")) != "phospy":
+        return None
+    return _normalized_string(project.get("version"))
 
 
 def _installed_distribution_version() -> str | None:
@@ -42,17 +43,17 @@ def _installed_distribution_version() -> str | None:
         return None
 
 
-def _normalized(value: object) -> str | None:
-    if value is None:
+def _normalized_string(value: object) -> str | None:
+    if not isinstance(value, str):
         return None
-    normalized = str(value).strip()
+    normalized = value.strip()
     if normalized:
         return normalized
     return None
 
 
 __version__ = (
-    _source_project_version() or _installed_distribution_version() or "0+unknown"
+    _installed_distribution_version() or _source_project_version() or "0+unknown"
 )
 
 __all__ = ["AnalysisReadyDatasetBuilder", "KinaseWorkflow", "SignalomeWorkflow"]
