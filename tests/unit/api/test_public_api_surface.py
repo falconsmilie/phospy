@@ -152,9 +152,7 @@ def test_builder_definitions_have_exact_owner_identities() -> None:
     assert ordinary_api.ReferenceBundleBuilder is ReferenceBundleBuilder
     assert ReferenceBundleBuilder is OwnerBuilder
     assert tuple(inspect.signature(ReferenceBundleBuilder).parameters) == ()
-    assert (
-        ordinary_api.AnalysisReadyDatasetBuilder is AnalysisReadyDatasetBuilder
-    )  # expires 05B
+    assert ordinary_api.AnalysisReadyDatasetBuilder is AnalysisReadyDatasetBuilder
     assert phospy.AnalysisReadyDatasetBuilder is AnalysisReadyDatasetBuilder
 
 

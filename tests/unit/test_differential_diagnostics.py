@@ -93,7 +93,9 @@ def test_differential_model_diagnostics_payload_records_required_fields() -> Non
     json.dumps(payload)
 
 
-def test_science_validator_rejects_contrast_with_unknown_design_column() -> None:
+def test_differential_request_validator_rejects_contrast_with_unknown_design_column() -> (
+    None
+):
     matrix = pd.DataFrame(
         {
             "A_1": [1.0, 2.0],

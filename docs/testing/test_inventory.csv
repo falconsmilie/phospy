@@ -127,22 +127,16 @@ tests/release/test_scientific_claims_audit.py,release,216,7,true,false,,,,,,
 tests/release/test_scientific_validation_fixtures.py,release,677,10,true,true,,,,,,
 tests/release/test_signalome_safety_regression_fixtures.py,release,177,6,true,false,,,,,,
 tests/unit/api/test_public_api_dataset_construction.py,api,205,5,false,false,,,,,,
-tests/unit/api/test_public_api_surface.py,api,180,5,true,true,,,,,,
+tests/unit/api/test_public_api_surface.py,api,178,5,true,true,,,,,,
 tests/unit/api/test_validation_not_public_api.py,api,97,5,false,false,,,,,,
 tests/unit/references/test_reference_context.py,references,161,9,false,false,,,,,,
 tests/unit/references/test_reference_manifest.py,references,576,26,true,true,,,,,,
 tests/unit/references/test_reference_provenance_source_versions.py,references,673,17,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
-tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/science/datasets/test_processing_state.py,datasets,791,33,true,true,,,,,,
-tests/unit/science/differential/test_compound_symmetry_gls.py,differential,566,10,true,true,,,,,,
-tests/unit/science/differential/test_differential_diagnostics.py,differential,124,2,false,false,,,,,,
-tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,1174,27,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
-tests/unit/science/differential/test_empirical_bayes_trend_smoothing.py,differential,202,4,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,3671,97,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_additive_preprocessing_scale_policy.py,unit,383,8,true,true,,,,,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,486,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,354,12,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_analysis_ready_dataset_builder.py,unit,203,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,886,38,true,true,,,,,,[auto-orchestration] 13 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,64,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1512,18,false,false,,,,,,
@@ -162,6 +156,7 @@ tests/unit/test_boundary_constructor_no_repair.py,unit,37,3,false,false,internal
 tests/unit/test_builder_and_kinase_orchestration.py,unit,723,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts. | [auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_bundle_manifest_parser_stages.py,unit,404,8,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/unit/test_bundle_transactions.py,unit,424,11,true,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_compound_symmetry_gls.py,unit,566,10,true,true,,,,,,
 tests/unit/test_config_validation_primitives.py,unit,144,7,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for config validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-INT,Validator pattern report maps this file to primitive int/range/enum families; track consolidation from optional-int matrix first.
 tests/unit/test_constructor_validation_policy.py,unit,60,2,false,false,,,,,,
 tests/unit/test_control_site_eligibility_validator.py,unit,679,24,false,false,,,,,,
@@ -190,6 +185,7 @@ tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
 tests/unit/test_differential_analysis.py,unit,1737,38,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,206,7,false,false,,,,,,
+tests/unit/test_differential_diagnostics.py,unit,126,2,false,false,,,,,,
 tests/unit/test_differential_feature_eligibility.py,unit,506,10,true,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_differential_fixed_effect_provenance.py,unit,382,5,false,false,,,,,,
 tests/unit/test_differential_imputation_documentation.py,unit,104,5,false,false,,,,,,
@@ -207,14 +203,17 @@ tests/unit/test_differential_result_table_helpers.py,unit,147,10,false,false,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,846,18,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_workflow_components.py,unit,2728,68,true,true,,,,,,[auto-orchestration] 23 hit(s); indicators: private_member_access
+tests/unit/test_direct_construction_assertions.py,unit,850,26,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,253,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,849,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,88,3,false,false,,,,,,
 tests/unit/test_docs_utf8_readability_smoke.py,unit,10,1,false,false,documentation contract,keep,Loss of this file would allow unreadable Markdown docs or encoding regressions to slip into user-facing documentation.,codex-audit,,Markdown encoding smoke coverage; intentionally no terminology-lint assertions.
 tests/unit/test_domain_boundaries.py,unit,1326,57,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_downstream_batch_correction_boundaries.py,unit,513,8,true,true,,,,,,
+tests/unit/test_duplicate_correlation_reml_estimator.py,unit,1174,27,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
 tests/unit/test_duplicate_correlation_scientific_contract.py,unit,492,20,true,true,,,,,,
 tests/unit/test_duplicate_site_resolution_reports.py,unit,682,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for duplicate site resolution reports, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_empirical_bayes_trend_smoothing.py,unit,202,4,false,false,,,,,,
 tests/unit/test_enrichment_collections.py,unit,98,5,false,false,,,,,,
 tests/unit/test_enrichment_identifier_set_provenance.py,unit,742,25,true,true,,,,,,
 tests/unit/test_enrichment_multiple_testing_correction.py,unit,160,9,false,false,,,,,,
@@ -288,6 +287,7 @@ tests/unit/test_preprocessing_row_audit.py,unit,527,10,true,true,provenance/gold
 tests/unit/test_preprocessing_stage_provenance_fingerprints.py,unit,389,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for preprocessing stage provenance fingerprints, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_preprocessing_stage_registry.py,unit,978,32,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage registry and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_preprocessing_stage_results.py,unit,1641,41,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage results and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_processing_state.py,unit,791,33,true,true,,,,,,
 tests/unit/test_processing_state_bundle_payload.py,unit,1746,47,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for processing state bundle payload, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_processing_state_import_contract.py,unit,47,1,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for processing state import contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_protein_aware_preparation_boundary.py,unit,985,24,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

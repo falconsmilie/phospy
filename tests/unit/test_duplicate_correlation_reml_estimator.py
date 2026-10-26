@@ -29,7 +29,7 @@ from tests.support.duplicate_correlation_parity_scopes import (
     FULL_PIPELINE_FIXTURE_IDS,
 )
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_ROOT = (
     ROOT
     / "tests"
