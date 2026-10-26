@@ -313,7 +313,7 @@ tests/unit/test_public_documentation_examples.py,unit,639,11,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,153,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_facade_identity.py,unit,53,2,false,false,,,,,,
 tests/unit/test_publishers_transactional.py,unit,591,13,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_pyright_strict_coverage.py,unit,546,18,false,false,,,,,,
+tests/unit/test_pyright_strict_coverage.py,unit,553,18,false,false,,,,,,
 tests/unit/test_quantitative_operation_contracts.py,unit,499,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_quantitative_operation_evidence.py,unit,1071,9,true,true,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/unit/test_quantitative_shared_boundaries.py,unit,86,3,false,false,,,,,,

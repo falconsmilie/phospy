@@ -144,7 +144,10 @@ venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"
 include = [
+  "src/phospy/__init__.py",
+  "src/phospy/_api_inventory.py",
   "src/phospy/activities",
+  "src/phospy/advanced",
   "src/phospy/api",
   "src/phospy/datasets",
   "src/phospy/differential",
