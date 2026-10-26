@@ -93,6 +93,10 @@ from phospy.preprocessing.batch_correction.contracts.missingness import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
+from phospy.preprocessing.batch_correction.contracts.output import (
+    CorrectedPreprocessingOutput,
+    create_external_corrected_preprocessing_output,
+)
 from phospy.preprocessing.contracts.configuration import (
     DatasetComparisonBuildingConfig,
     DatasetComparisonBuildingPolicy,

@@ -97,6 +97,8 @@ ADVANCED_PUBLIC_API = (
     "OriginallyMissingCellTracking",
     "TemporaryImputationMethod",
     "TemporaryImputationPolicy",
+    "CorrectedPreprocessingOutput",
+    "create_external_corrected_preprocessing_output",
     "DatasetBatchCorrectionConfig",
     "DatasetBatchCorrectionMethod",
     "DatasetPreprocessingBatchCorrectionConfig",

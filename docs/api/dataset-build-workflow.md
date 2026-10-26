@@ -282,7 +282,7 @@ Create a `DatasetBuildRequest`.
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | Declares an already established `"linear"` or `"log2"` scale when no transform establishes it. | Suspicious declarations fail by default. |
 | `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | Allows dataset construction with a suspicious declared log2 scale while retaining recorded warnings. | Applies only to dataset construction; use only when independent evidence supports the declaration. |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | Declares what the supplied matrix represents. | Must agree with the established scale and cannot claim an operation PhosPy did not perform. |
-| `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | Supplies externally corrected output at the supported boundary. | Cannot be combined with downstream matrix-changing preprocessing stages. |
+| `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | Supplies externally corrected output created with `phospy.advanced.create_external_corrected_preprocessing_output`. | Cannot be combined with downstream matrix-changing preprocessing stages or another correction operation. |
 
 Constructing the request stores these choices. Validation happens when
 `AnalysisReadyDatasetBuilder().run(request)` is called.
@@ -738,10 +738,123 @@ fingerprints, warnings, and input/output matrix fingerprints.
 
 </details>
 
-Externally supplied `CorrectedPreprocessingOutput` is accepted only at its safe
-boundary. Provide it as the only matrix-changing preprocessing input; do not
-combine it with total-protein correction, site-matrix construction,
-normalisation, or comparison building.
+#### Supply a Correction Run Outside PhosPy
+
+Use `create_external_corrected_preprocessing_output(...)` when a supported
+SPS/RUV-style correction was run by another tool. The factory creates the
+report and passive provenance records; callers do not construct internal
+reports, authority tokens, or provenance objects.
+
+`pre_correction_matrix` must be the exact finite matrix at the correction
+boundary. Its row and sample axes must match `corrected_matrix`. The example
+uses `DatasetPreprocessingConfig.strict()` and an already resolved `site_key`
+index so the input reaches that boundary without a matrix-changing step.
+The public `ControlSiteSet`, unwanted-factor count, batch column, and protected
+condition columns record the externally executed method's required scientific
+inputs. PhosPy validates their internal consistency without claiming it chose
+the controls or executed the correction.
+
+```python
+import pandas as pd
+
+from phospy.advanced import (
+    ControlSiteSet,
+    ControlSiteSourceMetadata,
+    CorrectedPreprocessingOutput,
+    create_external_corrected_preprocessing_output,
+)
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    Organism,
+)
+
+site_keys = pd.Index(
+    (
+        "phospy:v1|organism=rat|protein_namespace=protein_id|"
+        "protein_identifier=MAPK14|residue=Y|position=182",
+        "phospy:v1|organism=rat|protein_namespace=protein_id|"
+        "protein_identifier=SRC|residue=Y|position=416",
+    ),
+    name="site_key",
+)
+phospho = pd.DataFrame(
+    {"sample_1": (10.0, 20.0), "sample_2": (12.0, 24.0)},
+    index=site_keys,
+)
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ("MAPK14", "SRC"),
+        "protein_id": ("MAPK14", "SRC"),
+        "site": ("Y182", "Y416"),
+        "site_sequence": (
+            ("A" * 15) + "Y" + ("A" * 15),
+            ("A" * 15) + "Y" + ("A" * 15),
+        ),
+        "localisation_confidence": (0.95, 0.98),
+    },
+    index=site_keys.copy(),
+)
+
+# This frame stands in for the finite result returned by the external tool.
+externally_corrected = phospho.subtract(phospho.mean(axis="columns"), axis="index")
+
+external_controls = ControlSiteSet.from_site_keys(
+    tuple(site_keys),
+    source_metadata=ControlSiteSourceMetadata(
+        organism="rat",
+        identifier_namespace="site_key",
+        source_name="external-correction-controls",
+        source_version="1",
+        license="caller local use",
+        redistribution="not redistributed",
+    ),
+)
+
+corrected_output: CorrectedPreprocessingOutput = (
+    create_external_corrected_preprocessing_output(
+        pre_correction_matrix=phospho,
+        corrected_matrix=externally_corrected,
+        method="sps_ruv_style",
+        source_software="external-correction-tool",
+        source_version="2.1",
+        control_site_set=external_controls,
+        n_unwanted_factors=1,
+        batch_column="batch",
+        condition_columns=("condition",),
+        parameters={"centering": "external-tool-default"},
+        diagnostics={"convergence": "reported_by_external_tool"},
+    )
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig.strict(),
+        input_intensity_scale="log2",
+        corrected_preprocessing_output=corrected_output,
+    )
+)
+```
+
+The factory supports `"sps_ruv_style"` and `"ruv_iii_style"`, matching the
+registered strict correction validators. `"ruv_iii_style"` also requires
+`replicate_column`. The factory records the software name, version, controls,
+unwanted-factor count, design columns, parameters, diagnostics, input/output
+fingerprints, and observation state. The record identifies execution as
+caller-attested and externally nonverified. PhosPy does not turn that record
+into native execution provenance.
+
+Externally supplied output is accepted only at its safe boundary. Provide it as
+the only matrix-changing preprocessing input; do not combine it with
+total-protein correction, site-matrix construction, normalisation, comparison
+building, or a configured batch-correction operation. Construction rejects
+axis changes, nonfinite values, incompatible input fingerprints, altered output
+or observation-state fingerprints, unsafe stage placement, and attempts to
+apply correction twice.
 
 ## Configure Total-Protein Options
 

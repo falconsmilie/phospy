@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from phospy.datasets.construction.contracts import (
     DatasetBuildRequestProtocol,
     InterpretedDatasetBuildRequest,
@@ -21,9 +19,6 @@ from phospy.datasets.construction.sequence_derivation import SiteSequenceDeriver
 from phospy.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.resolver import (
     PeptideEvidenceDatasetResolver,
-)
-from phospy.preprocessing.dataset_construction import (
-    CorrectedPreprocessingOutput,
 )
 from phospy.quantitative.models import (
     IntensityScaleKind,
@@ -107,10 +102,7 @@ class DatasetBuildRequestInterpreter:
                 request.allow_suspicious_declared_input_intensity_scale
             ),
             peptide_evidence_resolution=resolved_sources.peptide_evidence_resolution,
-            corrected_preprocessing_output=cast(
-                CorrectedPreprocessingOutput | None,
-                request.corrected_preprocessing_output,
-            ),
+            corrected_preprocessing_output=request.corrected_preprocessing_output,
         )
 
 

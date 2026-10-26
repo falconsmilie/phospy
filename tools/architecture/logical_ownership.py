@@ -657,6 +657,14 @@ DATASET_PREPROCESSING_ALLOWED_IMPORTS: Mapping[tuple[str, str], frozenset[str]] 
         "phospy.preprocessing.contracts.configuration.dataset",
     ): frozenset({"DatasetPreprocessingConfig"}),
     (
+        "phospy.datasets.contracts",
+        "phospy.preprocessing.dataset_construction",
+    ): frozenset({"CorrectedPreprocessingOutput"}),
+    (
+        "phospy.datasets.validation.request",
+        "phospy.preprocessing.batch_correction.contracts.configuration",
+    ): frozenset({"DATASET_BATCH_CORRECTION_METHOD_NONE"}),
+    (
         "phospy.datasets.validation.request",
         "phospy.preprocessing.contracts.configuration.comparisons",
     ): frozenset({"DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS"}),
@@ -696,10 +704,6 @@ DATASET_PREPROCESSING_ALLOWED_IMPORTS: Mapping[tuple[str, str], frozenset[str]] 
         "phospy.datasets.construction.input_resolution",
         "phospy.preprocessing.contracts.policies",
     ): frozenset({"SiteMatrixDuplicateSitePolicy", "SiteMatrixPolicy"}),
-    (
-        "phospy.datasets.construction.interpreter",
-        "phospy.preprocessing.dataset_construction",
-    ): frozenset({"CorrectedPreprocessingOutput"}),
     (
         "phospy.datasets.construction.planning",
         "phospy.preprocessing.contracts",

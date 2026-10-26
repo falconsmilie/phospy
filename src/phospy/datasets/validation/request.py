@@ -13,6 +13,9 @@ from phospy.evidence.dataset_resolution.models import (
     SUPPORTED_DATASET_MULTI_SITE_POLICIES,
     SUPPORTED_DATASET_SITE_RESOLUTION_MODES,
 )
+from phospy.preprocessing.batch_correction.contracts.configuration import (
+    DATASET_BATCH_CORRECTION_METHOD_NONE,
+)
 from phospy.preprocessing.contracts.configuration.comparisons import (
     DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
 )
@@ -128,6 +131,16 @@ class DatasetBuildRequestValidator:
                 "dataset build request allow_opaque_site_values must be a bool"
             )
         self._preprocessing_validator.run(request.preprocessing_config)
+        if (
+            request.corrected_preprocessing_output is not None
+            and request.preprocessing_config.batch_correction.method
+            != DATASET_BATCH_CORRECTION_METHOD_NONE
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing received corrected_preprocessing_output "
+                "while preprocessing_config.batch_correction also requests "
+                "execution; correction must be applied exactly once"
+            )
         requested_total_policy = (
             request.preprocessing_config.total_protein_correction.policy
         )

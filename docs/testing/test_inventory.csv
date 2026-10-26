@@ -36,6 +36,7 @@ tests/architecture/test_validation_componentization.py,architecture,121,2,false,
 tests/architecture/test_validation_ownership_governance.py,architecture,454,10,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/contract/test_public_differential_consumer.py,contract,124,1,true,false,,,,,,
 tests/contract/test_public_enrichment_consumer.py,contract,67,1,true,false,,,,,,
+tests/contract/test_public_external_corrected_output_consumer.py,contract,194,4,true,false,,,,,,
 tests/golden/test_differential_fixture_provenance_golden.py,golden,382,3,true,false,,,,,,
 tests/golden/test_duplicate_correlation_limma_fixture_integrity.py,golden,479,8,true,true,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,168,3,true,false,,,,,,
@@ -225,6 +226,7 @@ tests/unit/test_enrichment_workflow_validation.py,unit,369,21,true,true,,,,,,[au
 tests/unit/test_error_taxonomy_boundaries.py,unit,188,5,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for error taxonomy boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for multi-site evidence handling, increasing risk of incorrect peptide-to-site interpretation.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_experimental_design_contract.py,unit,1135,38,false,false,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_external_corrected_output_contract.py,unit,170,6,true,true,,,,,,
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_final_numeric_semantic_dataset_coherence.py,unit,423,9,true,true,,,,,,
 tests/unit/test_fixture_byte_policy.py,unit,121,5,true,true,,,,,,

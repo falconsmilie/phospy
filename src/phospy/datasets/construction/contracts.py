@@ -98,7 +98,9 @@ class DatasetBuildRequestProtocol(Protocol):
     def quantitative_meaning(self) -> QuantitativeMeaning | str | None: ...
 
     @property
-    def corrected_preprocessing_output(self) -> object | None: ...
+    def corrected_preprocessing_output(
+        self,
+    ) -> CorrectedPreprocessingOutput | None: ...
 
 
 @dataclass(frozen=True, slots=True)

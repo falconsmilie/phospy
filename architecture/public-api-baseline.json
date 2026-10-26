@@ -500,7 +500,7 @@
       ]
     },
     "phospy.advanced": {
-      "count": 124,
+      "count": 126,
       "ordered_names": [
         "ControlSiteAnnotation",
         "ControlSiteSet",
@@ -516,6 +516,8 @@
         "OriginallyMissingCellTracking",
         "TemporaryImputationMethod",
         "TemporaryImputationPolicy",
+        "CorrectedPreprocessingOutput",
+        "create_external_corrected_preprocessing_output",
         "DatasetBatchCorrectionConfig",
         "DatasetBatchCorrectionMethod",
         "DatasetPreprocessingBatchCorrectionConfig",
@@ -710,6 +712,18 @@
           "name": "TemporaryImputationPolicy",
           "runtime_type": "builtins.type",
           "definition": "phospy.preprocessing.batch_correction.contracts.missingness:TemporaryImputationPolicy",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "CorrectedPreprocessingOutput",
+          "runtime_type": "builtins.type",
+          "definition": "phospy.preprocessing.batch_correction.contracts.output:CorrectedPreprocessingOutput",
+          "kind": "callable_or_type"
+        },
+        {
+          "name": "create_external_corrected_preprocessing_output",
+          "runtime_type": "builtins.function",
+          "definition": "phospy.preprocessing.batch_correction.contracts.output:create_external_corrected_preprocessing_output",
           "kind": "callable_or_type"
         },
         {
